@@ -22,8 +22,11 @@ public class HexMapAppTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
-    public HexMapAppTests()
+    private readonly ITestOutputHelper _output;
+
+    public HexMapAppTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
         _w.Width = 1200;
@@ -334,6 +337,7 @@ public class HexMapAppTests : IDisposable
         double opened = clock.Elapsed.TotalMilliseconds;
         _w.UpdateLayout();
         PumpUntil(() => hex.Minimap.Map is not null, "the map of the 50 GiB file did not arrive");
+        _output.WriteLine($"50 GiB hex: open {opened:0} ms, map {clock.Elapsed.TotalMilliseconds:0} ms");
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(1), $"the map showed {clock.Elapsed.TotalMilliseconds:0} ms after the open started (the open took {opened:0} ms)");
         Assert.Equal(length, hex.Document.ByteLength);
         Assert.False(hex.Minimap.Map!.IsExact);

@@ -115,8 +115,11 @@ public class ViewOptionsTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
-    public ViewOptionsTests()
+    private readonly ITestOutputHelper _output;
+
+    public ViewOptionsTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp);
         _w = _app.CreateWindow(null);
         _w.Width = 1200;
@@ -1074,6 +1077,7 @@ public class ViewOptionsTests : IDisposable
         Assert.True(tab.Paged.TopLine > before + 100_000, $"{before} -> {tab.Paged.TopLine}");
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)];
+        _output.WriteLine($"sampled minimap drag: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, max {times[^1]:0.0} ms");
         Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
     }
 
