@@ -71,6 +71,9 @@
     </Application.Resources>
 
     <Application.Styles>
+        <Style Selector="Window">
+            <Setter Property="Icon" Value="/Assets/textida.ico" />
+        </Style>
         <FluentTheme>
             <FluentTheme.Palettes>
                 <ColorPaletteResources x:Key="Light" Accent="#0F7B6C" RegionColor="#FFFFFF" />
