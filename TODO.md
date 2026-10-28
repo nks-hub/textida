@@ -1174,7 +1174,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.6** Integrace se systémem v nastavení
   - **Co a proč:** Položka „Otevřít v Textidě“ v kontextové nabídce Průzkumníka, přidružení přípon, zástupci v nabídce Start a na ploše se zapínají v prohledávatelném nastavení, ne jen příkazy v menu Nástroje. Stav se čte z registru (HKCU), neukládá se dvakrát; výchozí aplikaci volí uživatel v nastavení Windows, editor na tu stránku jen odkáže.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
-  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři spolu s P3.7.7.
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 8b130967): oddíl „Integrace se systémem“ v nastavení (kontextová nabídka, přípony, zástupci, odkaz na výchozí aplikace Windows), stav z registru, ShellIntegration ve sdílené knihovně NksHub.Textida.Install; 11 headless testů nad testovacím klíčem prošlo. Zbývá ověření na čistém Windows 10 a 11.
   - **Hotovo, když:** každý přepínač změní registr hned a Průzkumník změnu pozná bez odhlášení; stav v nastavení odpovídá registru i po změně zvenku; nic se nezapíše mimo klíče Textidy; testy nad testovacím klíčem registru, bez skutečného HKCU.
   - **Závisí na:** P3.7.1
   - **Odhad:** bez odhadu
@@ -1182,7 +1182,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.7** O aplikaci: kompletní okno
   - **Co a proč:** Dnes jen název a verze. Okno ukáže verzi, commit a datum buildu, .NET a NativeAOT/JIT, systém a architekturu (i Rosettu), jazyk UI, druh a cestu profilu, složku logů, nainstalované pluginy s verzemi, licenci MIT a prohlížeč licencí třetích stran, odkazy na stránku projektu a hlášení chyb; „Kopírovat informace“ pro hlášení chyb bez osobních cest, pokud je uživatel nepovolí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
-  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 2dd1932c): hlavička s ikonou, verzí, commitem a datem buildu; karty Technické údaje, Pluginy a Licence s prohlížečem THIRD-PARTY-NOTICES; odkazy po kliknutí a potvrzení; „Kopírovat informace“ bez cest, s cestami jen po zaškrtnutí; 26 headless testů prošlo. Zbývá ověření macOS části (verze systému, Rosetta) na macOS.
   - **Hotovo, když:** okno ukáže všechny údaje ve 4 jazycích a jde ovládat klávesnicí i čtečkou; kopie neobsahuje osobní cesty bez souhlasu; odkaz se otevře jen po kliknutí; prohlížeč licencí načte přibalený soubor; nic nejde po síti při otevření okna.
   - **Závisí na:** P3.6.5
   - **Odhad:** bez odhadu
@@ -1190,7 +1190,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.8** Ikona aplikace
   - **Co a proč:** Spustitelný soubor ani okna neměly ikonu. Ikona ve vzhledu D5 (tyrkysová dlaždice, „T“ s řádky textu a kurzorem, zjednodušená do 24 px) pro exe, všechna okna, instalátor a O aplikaci; generátor tools/MakeIcon.cs, aby šla vyrobit znovu.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
-  - **Stav 28. 10. 2026 (večer):** ikona hotová a zapojená do exe a oken (commit 9fcebc39); zbývá instalátor, O aplikaci a .icns pro macOS.
+  - **Stav 28. 10. 2026 (večer):** ikona hotová a zapojená do Textida.exe, TextidaSetup.exe, všech oken, zástupců a okna O aplikaci; zbývá .icns pro macOS.
   - **Hotovo, když:** Textida.exe, TextidaSetup.exe a všechna okna mají ikonu ve všech velikostech 16–256 px; ikona je čitelná v hlavním panelu i v nabídce Start; na macOS je .icns v balíku aplikace.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu
@@ -1198,6 +1198,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.9** Panely: změna velikosti, dokování a přesun
   - **Co a proč:** Boční panel (soubory a další) nejde roztáhnout, přesunout ani ukotvit jinam. Panely se mají dát roztáhnout tažením okraje, ukotvit vlevo, vpravo nebo dole, přesunout mezi skupinami a skrýt; rozložení se pamatuje v relaci a dá se vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno d0300de1): úchyt velikosti myší i šipkami s mezemi a hlášením čtečce, ukotvení Dokumentů, Souborů a pluginového panelu vlevo, vpravo a dole tažením nadpisu i příkazy `nks.panel.*`, rozložení ve `window.json`, návrat na výchozí; headless testy prošly. Zbývá ověření v běžící aplikaci.
   - **Hotovo, když:** tažení okraje mění šířku nebo výšku panelu s mezemi a kurzorem pro změnu velikosti; panel jde přesunout tažením i příkazem z klávesnice do levé, pravé a spodní oblasti; rozložení přežije restart; vše funguje z klávesnice a čtečka hlásí změnu; headless testy.
   - **Závisí na:** P3.6.3
   - **Odhad:** bez odhadu
@@ -1205,6 +1206,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.6.10** Strom souborů: barvy, ikony, skryté položky a stav Gitu
   - **Co a proč:** Strom souborů je jednobarevný a bez ikon. Má odlišit složky a soubory barvou a ikonou podle typu souboru, ztlumit skryté položky (tečka na začátku názvu, atribut skrytý), a když je složka v repozitáři Gitu, ukázat stav souborů (změněno, nové, smazáno, ignorováno, konflikt) barvou a značkou i u nadřazených složek. Stav dodá plugin Git, když je k dispozici; bez něj se nic nespouští. Názvy se znaky, které písmo nemá, se ukážou čitelně (náhradní písmo nebo kód znaku), ne jako čtvereček.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno d0300de1): 10 druhů položek s vektorovou ikonou a barvou (světlé, tmavé, vysoký kontrast), ztlumené skryté položky s přepínačem `files.showHidden`, stav Gitu z nového `git.treeStatus` s písmenem a barvou i u složek, nezobrazitelný znak jako ‹U+F03A›; testy prošly. Zbývá Perf test stromu se 100 000 položkami na referenčním stroji a pohled v běžící aplikaci.
   - **Hotovo, když:** ikony a barvy podle typu ve světlém, tmavém i vysokém kontrastu; skryté položky jsou ztlumené a jdou skrýt přepínačem; stav Gitu odpovídá `git status` i po změně zvenku a bez Gitu se nic nespouští; název se znakem mimo písmo se zobrazí čitelně; čtečka čte stav slovy; výkon stromu s 100 000 položkami se nezhorší.
   - **Závisí na:** P2.3.1
   - **Odhad:** bez odhadu
@@ -1216,7 +1218,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.5.2, P3.5.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 097b429a): PNG, JPEG, GIF, BMP, WebP a ICO podle prvních bajtů jako obrázek s lupou, posunem a šachovnicí, lišta obrázek / text / hex, hláška u poškozeného a obřího souboru, obnova po změně na disku, nastavení `files.imageOpen`; 36 headless testů prošlo. Zbývá pohled v běžící aplikaci a čtečka.
 
 ### P3.7 První distribuce
 
@@ -1266,7 +1268,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
 - [ ] **P3.7.7** Instalátor s volbami (TextidaSetup.exe)
   - **Co a proč:** Dnes je instalátor jen skript PowerShellu bez voleb. Jeden soubor TextidaSetup.exe (NativeAOT, vzhled D5, 4 jazyky, pro jednoho uživatele bez práv správce) s licencí, volbami (složka, zástupci v nabídce Start a na ploše, kontextová nabídka Průzkumníka, přidružení přípon, spuštění po instalaci), průběhem a dokončením; aktualizace s návratem, odinstalace ze seznamu aplikací Windows (nastavení uživatele zůstane, pokud je nezaškrtne ke smazání) a tichý režim pro skripty. ZIP zůstává jako přenosná verze.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
-  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři 28. 10. 2026 na výslovný pokyn majitele.
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 8b130967): TextidaSetup.exe (NativeAOT, D5, 4 jazyky) s licencí, volbami, průběhem a dokončením, aktualizace s návratem, odinstalace ze seznamu aplikací, tichý režim; balík přilepený za programem; BuildWindowsPackage staví ZIP i instalátor; 135 testů logiky, oken a tichého režimu prošlo. Zbývá skutečný start na čistém Windows 10 a 11.
   - **Hotovo, když:** instalace, aktualizace s návratem a odinstalace projdou na čistém Windows 11 i Windows 10 22H2 bez práv správce; každá volba se projeví a odinstalace ji vrátí; tichý režim dá stejný výsledek; logika je otestovaná nad dočasnou složkou a testovacím klíčem registru.
   - **Závisí na:** P3.7.1, P3.6.6, P3.6.8
   - **Odhad:** bez odhadu
@@ -2762,7 +2764,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Závisí na:** P9.3.1, P9.3.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-  - **Stav 28. 10. 2026 (večer):** zadáno vývojáři.
+  - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 097b429a): `.md` se otevře ve Čtení, Úpravy (editor se stránkou vedle, společný posun) a Zdroj lištou, příkazy i Ctrl+K Ctrl+V, režim pro soubor v okně, nastavení `markdown.defaultMode`, velký soubor jako Zdroj s hláškou; opravena posunutá synchronizace posunu náhledu; testy prošly. Zbývá pohled v běžící aplikaci.
 
 ### P9.4 Logy
 
