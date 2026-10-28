@@ -6,7 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Markdown;
 using NksHub.Textida.PluginHost.Documents;
@@ -14,9 +14,10 @@ using NksHub.Textida.PluginHost.Documents;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// Renders the text of a plugin preview (P6.2.4) into Avalonia controls under <see cref="PreviewPolicy"/> (P6.2.7): no web view, so there is no script and no network. Raw HTML stays literal text.
-/// An image is drawn only from a <c>data:</c> URI within the size limit, any other becomes a note with its alt text. A link to the web or a mail address is a button that asks the user before it
-/// opens; any other link is text followed by its target and is never followed.
+/// Renders the text of a preview (P6.2.4, P9.3.1) into Avalonia controls under <see cref="PreviewPolicy"/> (P6.2.7): no web view, so there is no script and no network of its own.
+/// HTML is a small subset (see <see cref="HtmlSubset"/>) and every other tag stays text; raw HTML inside Markdown stays text. A picture comes from a <c>data:</c> address, from the bytes a plugin attached,
+/// from a file next to the document, or from the web after the user allowed the host; any other becomes a note with its alt text. A link to the web or a mail address is a button that asks the user
+/// before it opens; any other link is text followed by its target and is never followed. A Mermaid flowchart is drawn with shapes (see <see cref="FlowchartLayout"/>), any other diagram is shown as its source.
 /// Markdown covers headings, paragraphs, lists, pipe tables, quotes, fenced code, rules, emphasis, strong text and inline code.
 /// </summary>
 internal static partial class PreviewRenderer
@@ -30,15 +31,38 @@ internal static partial class PreviewRenderer
     [GeneratedRegex(@"^\s{0,3}([-*_])(\s*\1){2,}\s*$")]
     private static partial Regex Rule();
 
-    /// <summary>What a render needs: the font of code and, for allowed links, what a click does (null: links stay text).</summary>
-    internal sealed record Ctx(FontFamily Mono, Action<Uri>? Open = null);
+    /// <summary>A top-level block of the preview and the line of the source where it starts; the editor and the preview scroll together along these.</summary>
+    internal readonly record struct Anchor(int Line, Control Control);
+
+    /// <summary>
+    /// What a render needs: the font of code and, for allowed links, what a click does (null: links stay text); the pictures (null: none are loaded), the folder of the document that
+    /// relative pictures are read from (null: no local picture), the pictures a plugin attached, and where to note the top-level blocks (null: not needed).
+    /// </summary>
+    internal sealed record Ctx(FontFamily Mono, Action<Uri>? Open = null, PreviewImages? Images = null, string? BaseDirectory = null,
+        IReadOnlyDictionary<string, byte[]>? Attached = null, List<Anchor>? Anchors = null);
 
     public static Control Render(string format, string text, Ctx ctx)
     {
         var body = new StackPanel { Spacing = 8, Margin = new Thickness(12, 6) };
-        if (format == PreviewFormats.Markdown) Blocks(text.ReplaceLineEndings("\n").Split('\n'), body.Children, ctx);
-        else body.Children.Add(new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+        switch (format)
+        {
+            case PreviewFormats.Markdown:
+                Blocks(text.ReplaceLineEndings("\n").Split('\n'), body.Children, ctx, top: true);
+                break;
+            case PreviewFormats.Html:
+                HtmlBlocks(HtmlSubset.Parse(text.ReplaceLineEndings("\n"), PluginLimitsPlaceholders.PreviewHtmlMaxNodes, PluginLimitsPlaceholders.PreviewHtmlMaxDepth), body.Children, ctx, top: true);
+                break;
+            default:
+                body.Children.Add(new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
+                break;
+        }
         return body;
+    }
+
+    private static void Put(Avalonia.Controls.Controls into, Control control, int line, Ctx ctx, bool top)
+    {
+        into.Add(control);
+        if (top) ctx.Anchors?.Add(new Anchor(line, control));
     }
 
     private static bool StartsBlock(string line) =>
@@ -64,12 +88,24 @@ internal static partial class PreviewRenderer
     private static bool TableStart(string[] lines, int i) =>
         i + 1 < lines.Length && lines[i].Contains('|') && MarkdownTools.IsSeparator(lines[i + 1]) && !MarkdownTools.IsSeparator(lines[i]);
 
+    /// <summary>One cell of a table: a border around its text, in the row and column, styled as a header cell when <paramref name="head"/>.</summary>
+    private static Border Cell(SelectableTextBlock text, bool head, int row, int column)
+    {
+        var cell = new Border { Child = text };
+        cell.Classes.Add("previewcell");
+        if (head) cell.Classes.Add("previewcellhead");
+        Grid.SetRow(cell, row);
+        Grid.SetColumn(cell, column);
+        return cell;
+    }
+
     /// <summary>A pipe table as a grid: the first row is the header, a missing cell is empty, the marks of the separator row align the columns. Cells hold inline text only.</summary>
     private static Grid Table(string[] rows, Ctx ctx)
     {
         var cells = rows.Select(MarkdownTools.Cells).ToList();
         int columns = cells.Max(r => r.Count);
         var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        AutomationProperties.SetName(grid, Loc.Get(K.PreviewTableName, ("rows", cells.Count - 1), ("columns", columns)));
         for (int c = 0; c < columns; c++) grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         for (int r = 0; r < cells.Count; r++)
         {
@@ -86,45 +122,53 @@ internal static partial class PreviewRenderer
                     MaxWidth = 400,
                 };
                 Spans(c < cells[r].Count ? cells[r][c] : "", text.Inlines!, r == 0 ? FontWeight.SemiBold : FontWeight.Normal, FontStyle.Normal, ctx);
-                var cell = new Border { Child = text };
-                cell.Classes.Add("previewcell");
-                if (r == 0) cell.Classes.Add("previewcellhead");
-                Grid.SetRow(cell, row);
-                Grid.SetColumn(cell, c);
-                grid.Children.Add(cell);
+                grid.Children.Add(Cell(text, r == 0, row, c));
             }
         }
         return grid;
     }
 
-    private static void Blocks(string[] lines, Avalonia.Controls.Controls into, Ctx ctx)
+    private static Border CodeBlock(string code, Ctx ctx)
+    {
+        var block = new Border { Child = new SelectableTextBlock { Text = code, FontFamily = ctx.Mono, TextWrapping = TextWrapping.Wrap } };
+        block.Classes.Add("previewcode");
+        return block;
+    }
+
+    private static Border HorizontalRule()
+    {
+        var rule = new Border();
+        rule.Classes.Add("previewrule");
+        return rule;
+    }
+
+    private static void Blocks(string[] lines, Avalonia.Controls.Controls into, Ctx ctx, bool top = false)
     {
         for (int i = 0; i < lines.Length;)
         {
             var line = lines[i];
             if (line.Trim().Length == 0) { i++; continue; }
+            int start = i;
             if (line.StartsWith("```", StringComparison.Ordinal))
             {
+                string info = line[3..].Trim();
                 var code = new StringBuilder();
                 for (i++; i < lines.Length && !lines[i].StartsWith("```", StringComparison.Ordinal); i++) code.Append(lines[i]).Append('\n');
                 i++;
-                var block = new Border { Child = new SelectableTextBlock { Text = code.ToString().TrimEnd('\n'), FontFamily = ctx.Mono, TextWrapping = TextWrapping.Wrap } };
-                block.Classes.Add("previewcode");
-                into.Add(block);
+                string source = code.ToString().TrimEnd('\n');
+                Put(into, info.Equals("mermaid", StringComparison.OrdinalIgnoreCase) ? Diagram(source, ctx) : CodeBlock(source, ctx), start, ctx, top);
             }
             else if (Heading().Match(line) is { Success: true } heading)
             {
                 var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
                 text.Classes.Add("previewhead" + heading.Groups[1].Length);
                 Spans(heading.Groups[2].Value, text.Inlines!, FontWeight.Normal, FontStyle.Normal, ctx);
-                into.Add(text);
+                Put(into, text, start, ctx, top);
                 i++;
             }
             else if (Rule().IsMatch(line))
             {
-                var rule = new Border();
-                rule.Classes.Add("previewrule");
-                into.Add(rule);
+                Put(into, HorizontalRule(), start, ctx, top);
                 i++;
             }
             else if (line.StartsWith('>'))
@@ -135,7 +179,7 @@ internal static partial class PreviewRenderer
                 Blocks([.. quote], inner.Children, ctx);
                 var border = new Border { Child = inner };
                 border.Classes.Add("previewquote");
-                into.Add(border);
+                Put(into, border, start, ctx, top);
             }
             else if (ListItem().IsMatch(line))
             {
@@ -148,13 +192,13 @@ internal static partial class PreviewRenderer
                     Spans(item.Groups[2].Value, text.Inlines, FontWeight.Normal, FontStyle.Normal, ctx);
                     list.Children.Add(text);
                 }
-                into.Add(list);
+                Put(into, list, start, ctx, top);
             }
             else if (TableStart(lines, i))
             {
                 int end = i + 2;
                 while (end < lines.Length && lines[end].Contains('|') && lines[end].Trim().Length > 0) end++;
-                into.Add(Table(lines[i..end], ctx));
+                Put(into, Table(lines[i..end], ctx), start, ctx, top);
                 i = end;
             }
             else
@@ -163,7 +207,7 @@ internal static partial class PreviewRenderer
                 for (; i < lines.Length && lines[i].Trim().Length > 0 && (paragraph.Count == 0 || !(StartsBlock(lines[i]) || TableStart(lines, i))); i++) paragraph.Add(lines[i].Trim());
                 var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap };
                 Spans(string.Join(' ', paragraph), text.Inlines!, FontWeight.Normal, FontStyle.Normal, ctx);
-                into.Add(text);
+                Put(into, text, start, ctx, top);
             }
         }
     }
@@ -207,10 +251,8 @@ internal static partial class PreviewRenderer
             else if (Link(s, i) is var (image, label, target, length) && length > 0)
             {
                 Flush();
-                var text = image ? Loc.Get(K.PreviewPanelImage, ("alt", label)) : Loc.Get(K.PreviewPanelLink, ("text", label), ("url", target));
-                if (image && PreviewPolicy.ImageBytes(target) is { } bytes && Picture(bytes, label) is { } picture) into.Add(new InlineUIContainer(picture));
-                else if (!image && ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)));
-                else into.Add(new Run(text) { FontWeight = weight, FontStyle = style });
+                if (image) AddImage(into, target, label, ctx, weight, style);
+                else AddLink(into, label, target, ctx, weight, style);
                 i += length;
             }
             else
@@ -220,6 +262,32 @@ internal static partial class PreviewRenderer
             }
         }
         Flush();
+    }
+
+    /// <summary>The picture a reference names, or a note with the alt text when the policy does not take it or it does not decode.</summary>
+    private static void AddImage(InlineCollection into, string target, string alt, Ctx ctx, FontWeight weight, FontStyle style)
+    {
+        if (ImageControl(target, alt, ctx) is { } picture) into.Add(new InlineUIContainer(picture));
+        else into.Add(new Run(Loc.Get(K.PreviewPanelImage, ("alt", alt))) { FontWeight = weight, FontStyle = style });
+    }
+
+    private static Control? ImageControl(string target, string alt, Ctx ctx)
+    {
+        if (PreviewPolicy.ImageBytes(target) is { } data) return Picture(data, alt);
+        if (PreviewPolicy.AttachedName(target) is { } name) return ctx.Attached is not null && ctx.Attached.TryGetValue(name, out var attached) ? Picture(attached, alt) : null;
+        if (ctx.Images is not { } images) return null;
+        if (PreviewPolicy.LocalImagePath(ctx.BaseDirectory, target) is { } path) return images.Local(path, alt);
+        return PreviewPolicy.RemoteImage(target) is { } uri ? images.Remote(uri, alt) : null;
+    }
+
+    private static Control? Picture(byte[] bytes, string alt) => PreviewImages.Decode(bytes) is { } bitmap ? PreviewImages.Picture(bitmap, alt) : null;
+
+    /// <summary>A link the policy allows becomes a button; any other is text followed by its target.</summary>
+    private static void AddLink(InlineCollection into, string label, string target, Ctx ctx, FontWeight weight, FontStyle style)
+    {
+        var text = Loc.Get(K.PreviewPanelLink, ("text", label), ("url", target));
+        if (ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)));
+        else into.Add(new Run(text) { FontWeight = weight, FontStyle = style });
     }
 
     /// <summary>A link the policy allows: a button, so the keyboard and a screen reader reach it. It only hands the target to <paramref name="open"/>, which asks the user first.</summary>
@@ -232,23 +300,7 @@ internal static partial class PreviewRenderer
         return button;
     }
 
-    /// <summary>The image of a <c>data:</c> URI the policy accepted, or null when it does not decode. Decoded at a bounded width so a small file cannot expand to a huge bitmap.</summary>
-    private static Image? Picture(byte[] bytes, string alt)
-    {
-        try
-        {
-            using var stream = new MemoryStream(bytes);
-            var image = new Image { Source = Bitmap.DecodeToWidth(stream, PreviewPolicy.MaxImageWidth), Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, MaxWidth = PreviewPolicy.MaxImageWidth };
-            AutomationProperties.SetName(image, alt);
-            return image;
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>A <c>[label](target)</c> or <c>![label](target)</c> at <paramref name="at"/>; Length 0 when there is none.</summary>
+    /// <summary>A <c>[label](target)</c> or <c>![label](target)</c> at <paramref name="at"/>; Length 0 when there is none. A title after the address (<c>(a.png "title")</c>) is not part of the target.</summary>
     private static (bool Image, string Label, string Target, int Length) Link(string s, int at)
     {
         int open = s[at] == '!' ? at + 1 : at;
@@ -256,6 +308,14 @@ internal static partial class PreviewRenderer
         int close = s.IndexOf(']', open + 1);
         if (close < 0 || close + 1 >= s.Length || s[close + 1] != '(') return default;
         int end = s.IndexOf(')', close + 2);
-        return end < 0 ? default : (open != at, s[(open + 1)..close], s[(close + 2)..end], end + 1 - at);
+        return end < 0 ? default : (open != at, s[(open + 1)..close], Target(s[(close + 2)..end]), end + 1 - at);
+    }
+
+    private static string Target(string raw)
+    {
+        raw = raw.Trim();
+        if (raw.StartsWith('<') && raw.IndexOf('>') is var closing and > 0) return raw[1..closing];
+        int space = raw.IndexOf(' ');
+        return space > 0 && raw[(space + 1)..].TrimStart() is ['"' or '\'' or '(', ..] ? raw[..space] : raw;
     }
 }

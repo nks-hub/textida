@@ -1577,6 +1577,15 @@ public static class K
     public const string PreviewOutlineTitle = "preview.outline.title";
     public const string PreviewOutlineEmpty = "preview.outline.empty";
     public const string PreviewOutlineUnsupported = "preview.outline.unsupported";
+    public const string PreviewImageLoading = "preview.image.loading";
+    public const string PreviewImageRemote = "preview.image.remote";
+    public const string PreviewImageConsentTitle = "preview.image.consentTitle";
+    public const string PreviewImageConsentMessage = "preview.image.consentMessage";
+    public const string PreviewMermaidUnsupported = "preview.mermaid.unsupported";
+    public const string PreviewMermaidName = "preview.mermaid.name";
+    public const string PreviewMermaidEdge = "preview.mermaid.edge";
+    public const string PreviewMermaidEdgeLabel = "preview.mermaid.edgeLabel";
+    public const string PreviewTableName = "preview.table.name";
     public const string MarkdownNoTable = "markdown.noTable";
     public const string MarkdownNoTableBlock = "markdown.noTableBlock";
     public const string McpProposal = "mcp.proposal";
