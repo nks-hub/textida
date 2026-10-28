@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NksHub.Textida.Core.Markdown;
 
 namespace NksHub.Textida.Core.Tests;
@@ -105,6 +106,18 @@ public class HtmlSubsetTests
         var nodes = Parse("<p>a</p><p>b</p><p>c</p>", maxNodes: 3);
         Assert.Equal("ab</p><p>c</p>", Everything(nodes));
         Assert.True(nodes.Count <= 3);
+    }
+
+    [Fact]
+    public void Many_lone_angle_brackets_are_read_in_linear_time()
+    {
+        // every lone '<' joins the text before it; copying that text again for each one made a 480 KB page take many seconds on the UI thread
+        string html = string.Concat(Enumerable.Repeat("a < ", 120_000));
+        var timer = Stopwatch.StartNew();
+        var nodes = Parse(html, 20_000);
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(3), "Reading took " + timer.Elapsed);
+        Assert.Equal(html, Everything(nodes));
+        Assert.Single(nodes);
     }
 
     [Fact]

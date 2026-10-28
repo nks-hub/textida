@@ -78,8 +78,21 @@ public static class HtmlSubset
             return line;
         }
 
+        // consecutive plain text is collected here and becomes one node when the structure changes, so joining it costs nothing per piece
+        var pending = new StringBuilder();
+        int pendingLine = 0;
+
+        void Flush()
+        {
+            if (pending.Length == 0) return;
+            stack[^1].Children.Add(new HtmlNode { Text = pending.ToString(), Line = pendingLine });
+            pending.Clear();
+            count++;
+        }
+
         void Add(HtmlNode node)
         {
+            Flush();
             stack[^1].Children.Add(node);
             count++;
         }
@@ -87,12 +100,13 @@ public static class HtmlSubset
         void Text(string text, int at, bool literal)
         {
             if (text.Length == 0) return;
-            if (!literal && stack[^1].Children.Count > 0 && stack[^1].Children[^1] is { Tag: null, Literal: false } previous)
+            if (literal)
             {
-                stack[^1].Children[^1] = new HtmlNode { Text = previous.Text + WebUtility.HtmlDecode(text), Line = previous.Line };
+                Add(new HtmlNode { Text = text, Literal = true, Line = LineOf(at) });
                 return;
             }
-            Add(new HtmlNode { Text = literal ? text : WebUtility.HtmlDecode(text), Literal = literal, Line = LineOf(at) });
+            if (pending.Length == 0) pendingLine = LineOf(at);
+            pending.Append(WebUtility.HtmlDecode(text));
         }
 
         int Open(string name)
@@ -104,13 +118,18 @@ public static class HtmlSubset
 
         void CloseTo(int index)
         {
+            Flush();
             if (index > 0) stack.RemoveRange(index, stack.Count - index);
         }
 
         // closes what the new tag ends without an end tag of its own, looking up to the nearest container only
         void ImplyEnds(string name)
         {
-            if (EndsParagraph.Contains(name) && stack[^1].Tag == "p") stack.RemoveAt(stack.Count - 1);
+            if (EndsParagraph.Contains(name) && stack[^1].Tag == "p")
+            {
+                Flush();
+                stack.RemoveAt(stack.Count - 1);
+            }
             switch (name)
             {
                 case "li": CloseWithin("li", "ul", "ol"); break;
@@ -170,6 +189,7 @@ public static class HtmlSubset
             }
             i = tag.End;
         }
+        Flush();
         return root.Children;
     }
 
