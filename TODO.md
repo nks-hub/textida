@@ -1041,6 +1041,14 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Hotovo, když:** přepnutí komentáře nad více výběry v HTML, PHP, CSS a JSON-like jazyce použije správnou značku komentáře; rozšíření výběru v závorkách vybere obsah, pak i závorky.
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
+- [ ] **P3.2.4** Chyba: zvýraznění v běžící aplikaci chybí nebo je useknuté
+  - **Co a proč:** V buildu 0.1.0-dev.44a5ae85 má soubor `.php` obarvený jen `<?php` a první dvě písmena `require`; řetězec, `__DIR__`, jmenný prostor a volání metod zůstávají bez barvy (nahlásil majitel 28. 10. 2026 se snímkem). Testy gramatik ověřují tokeny, ne vykreslené barvy, takže chybu nezachytily. Podezřelé jsou dnešní změny vykreslování (obarvení až po zastavení tahu minimapy, čtení výřezu po blocích) a cesta tokenů do editoru.
+  - **Funkce:** žádná (chyba F121, nahlášená majitelem 28. 10. 2026)
+  - **Hotovo, když:** příčina je nalezená a opravená; headless test otevře soubor PHP (a několik dalších jazyků) přes aplikaci a ověří barvu každého tokenu ve vykresleném editoru, ne jen výstup tokenizéru; test bez opravy padá; oprava ověřená v sestaveném AOT buildu.
+  - **Závisí na:** P3.2.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+  - **Stav 28. 10. 2026 (noc):** zadáno k ladění.
 
 ### P3.3 Minimapa
 
@@ -1053,6 +1061,28 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Odhad:** F161 2–4 ČT (matice)
   - **Stav 27. 10. 2026 (noc):** částečně. Větev jsem nejdřív rychle převinula (fast-forward) na aktuální main (b53f7b7), protože už obsahuje heatmapu logu v Minimap.cs; nic se nesloučilo do main; Velký soubor (stránkovaný režim) má vzorkovanou minimapu celého souboru: úseky po 8 řádcích (placeholder MinimapSampleStripRows) ze začátků stejných částí, poloha je…; Vzorkované řádky se barví gramatikou přímo na místě a log se v minimapě barví podle úrovní (v editoru i ve stránkovaném režimu); Řádky, které ponechá filtr živého pohledu na log, jsou značkami v pruhu minimapy (ERROR červeně, varování žlutě, ostatní modře) a během prvního čtení velkého logu…. Testy prošly (355 v testovací sadě testera). Chybí: Testy jsem nespouštěla, to má podle zadání udělat tester; Měření tažení do 33 ms (Perf) a 10GiB test (Large) jsou napsané, ale neběžely; patří na referenční Windows VM; Vzhled tenkého ukazatele a vzorkovaného obrazu proti D5 nikdo neprohlédl, protože aplikaci tady nesmím spustit.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+- [ ] **P3.3.2** Minimapa na dlouhém souboru: posun bez ujíždění
+  - **Co a proč:** Majitel 28. 10. 2026: na dlouhém souboru se minimapa při používání posouvá sama a nedá se s ní pohodlně pracovat. Rozbor kódu (`Editing/Minimap.cs`, `MinimapGeometry`):
+    - Minimapa má nejvýš 500 řádků obrazu (`MaxRows`, řádek aspoň 2 px). Soubor delší než čtyřnásobek (`Proportional = 4`, tedy od zhruba 2 000 řádků) přejde do režimu „okolí“: `top = first + count/2 − capacity/2`. Obraz se tak při každém posunu znovu vystředí na viditelnou část, obdélník zůstane uprostřed a text pod ním ujíždí.
+    - Tažení v režimu „okolí“ posune o 1 řádek na řádek obrazu (`FirstAfterDrag`, `perPixel = 1/rowPx`), takže celá výška minimapy dá jen asi 500 řádků. Na konec dlouhého souboru se tažením nedostane. Obraz se během tažení zároveň vystřeďuje, takže obdélník odjíždí od kurzoru.
+    - Klik mimo obdélník skočí na řádek a obraz se hned vystředí, takže kliknuté místo už není pod kurzorem.
+    - Vzorkovaná mapa stránkovaného souboru staví ukazatel podle počtu řádků zaindexovaných zatím (`first * full / lines`). Během indexace proto ukazatel sám jede nahoru, i když uživatel nic nedělá. Obraz se navíc mění skokem při každém zaokrouhleném přírůstku (`MapLines`).
+    - Kolečko nad minimapou (3 řádky na zub) je v pořádku.
+  - **Návrh:**
+    - U běžného souboru nahradit režim „okolí“ poměrným posunem jako ve VS Code (dnešní větev do 4× kapacity). Obraz jede poměrně se souborem, obdélník jde za kurzorem a celá výška minimapy pokryje celý soubor jako posuvník. Čte se dál jen okno řádků, které je vidět.
+    - Během tažení držet měřítko pevné.
+    - Vzorkovanou mapu během indexace stavět podle bajtové pozice ve známé velikosti souboru, ne podle zatím známého počtu řádků. Ukazatel se pak bez vstupu nehne.
+  - **Funkce:** F161 (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Na souboru se 100 000 řádky zůstane obdélník po celé tažení pod kurzorem (±1 řádek obrazu).
+    - Tažení odshora dolů dojde na první i poslední řádek.
+    - Klik dá kliknutý řádek doprostřed obrazovky a obraz pod kurzorem neodskočí.
+    - Bez vstupu se editor ani ukazatel nepohnou, ani během indexace 2GiB souboru.
+    - Tažení drží p95 ≤ 33 ms.
+    - Testy geometrie a headless test tažení.
+  - **Závisí na:** P3.3.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro (`Editing/Minimap.cs`)
 
 ### P3.4 Inspektor bajtů
 
@@ -1207,6 +1237,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Co a proč:** Strom souborů je jednobarevný a bez ikon. Má odlišit složky a soubory barvou a ikonou podle typu souboru, ztlumit skryté položky (tečka na začátku názvu, atribut skrytý), a když je složka v repozitáři Gitu, ukázat stav souborů (změněno, nové, smazáno, ignorováno, konflikt) barvou a značkou i u nadřazených složek. Stav dodá plugin Git, když je k dispozici; bez něj se nic nespouští. Názvy se znaky, které písmo nemá, se ukážou čitelně (náhradní písmo nebo kód znaku), ne jako čtvereček.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
   - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno d0300de1): 10 druhů položek s vektorovou ikonou a barvou (světlé, tmavé, vysoký kontrast), ztlumené skryté položky s přepínačem `files.showHidden`, stav Gitu z nového `git.treeStatus` s písmenem a barvou i u složek, nezobrazitelný znak jako ‹U+F03A›; testy prošly. Zbývá Perf test stromu se 100 000 položkami na referenčním stroji a pohled v běžící aplikaci.
+  - **Oprava 28. 10. 2026 (noc):** šipka složky nešla kliknout (jen dvojklik): glyf je otevřená čára, která zachytí klik jen na své čáře; teď ji obaluje průhledný rámeček přes celé políčko 16×24 px; test kliknutím myši ověřený mutací (commit a7c6115b).
   - **Hotovo, když:** ikony a barvy podle typu ve světlém, tmavém i vysokém kontrastu; skryté položky jsou ztlumené a jdou skrýt přepínačem; stav Gitu odpovídá `git status` i po změně zvenku a bez Gitu se nic nespouští; název se znakem mimo písmo se zobrazí čitelně; čtečka čte stav slovy; výkon stromu s 100 000 položkami se nezhorší.
   - **Závisí na:** P2.3.1
   - **Odhad:** bez odhadu
@@ -1219,6 +1250,86 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 097b429a): PNG, JPEG, GIF, BMP, WebP a ICO podle prvních bajtů jako obrázek s lupou, posunem a šachovnicí, lišta obrázek / text / hex, hláška u poškozeného a obřího souboru, obnova po změně na disku, nastavení `files.imageOpen`; 36 headless testů prošlo. Zbývá pohled v běžící aplikaci a čtečka.
+- [ ] **P3.6.12** Zvýraznění výskytů výběru
+  - **Co a proč:** Jako v PSPadu: když uživatel označí text (na jednom řádku, aspoň 2 znaky), zvýrazní se pozadím všechny jeho další výskyty v dokumentu, se značkami u posuvníku a v minimapě a počtem ve stavovém řádku. Nastavení: zapnout/vypnout, jen celá slova, rozlišovat velikost písmen, volitelně i slovo pod kurzorem bez výběru. Ve velkém a stránkovaném souboru jen ve viditelné části a s limitem, aby psaní a posun nezpomalily.
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:** výběr zvýrazní všechny shody ve viditelné části a značky u posuvníku odpovídají skutečným pozicím; změna výběru nebo textu zvýraznění obnoví bez zpoždění psaní (p95 pod limitem PR.2.3); volby v nastavení platí hned; ve světlém, tmavém i vysokém kontrastu je zvýraznění odlišné od výběru a od shod hledání; čtečka hlásí počet výskytů; headless testy včetně stránkovaného režimu.
+  - **Závisí na:** P2.4.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+  - **Stav 28. 10. 2026 (noc):** zadáno vývojáři.
+- [ ] **P3.6.13** Nástrojová lišta podle uživatele
+  - **Co a proč:** Majitel chce nástrojovou lištu, kterou si uživatel přizpůsobí: přidat, odebrat a přeřadit tlačítka z registru příkazů (včetně příkazů pluginů), oddělovače, ikony s popiskem nebo bez, velikost. Vzhled D5 počítá s oknem bez pruhu tlačítek, proto je lišta volitelná: zapíná se v menu Zobrazit, ve výchozím stavu je vypnutá a vzhled D5 bez ní zůstává beze změny. Nastavení lišty se ukládá do profilu a jde vrátit na výchozí.
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:** lišta jde zapnout a vypnout; editor lišty přidá, odebere a přeřadí tlačítko tažením i z klávesnice a výsledek přežije restart; tlačítko spustí stejný příkaz jako menu a respektuje jeho podmínku `when` (zašedne); každé tlačítko má popisek a přístupný název ve 4 jazycích; ve světlém, tmavém i vysokém kontrastu je čitelná; bez zapnuté lišty se okno nezmění; headless testy.
+  - **Doplnění majitele 28. 10. 2026:** na lištu půjde dát libovolný příkaz s ikonou. Patří tam klasika (otevřít, uložit, zpět, vpřed) i tlačítka Gitu (commit, pull, push), podobně jako v PhpStormu. Ikony řeší P3.6.14, příkazy Gitu P8.6.4. Výchozí sada tlačítek po zapnutí lišty: Nový, Otevřít, Uložit, Uložit vše, Zpět, Znovu, Hledat, Nahradit; když běží plugin Git, také Commit, Pull a Push.
+  - **Závisí na:** P1.6.1, P3.6.8, P3.6.14
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+- [ ] **P3.6.14** Sada SVG ikon pro příkazy
+  - **Co a proč:** Lišta (P3.6.13) unese libovolný příkaz, proto potřebuje jednotnou sadu ikon. Stejné ikony použije i menu a paleta příkazů. Dnes je v aplikaci jen ikona programu (`tools/MakeIcon.cs`, `Assets/textida.ico`) a glyfy stromu souborů jako data cest (`FileGlyphs`). Sada pokryje:
+    - Soubor: nový, otevřít, uložit, uložit vše, zavřít, nedávné.
+    - Úpravy: zpět, znovu, vyjmout, kopírovat, vložit, hledat, nahradit, hledat v souborech.
+    - Zobrazení: rozdělit, minimapa, zalamování, skryté znaky, panely.
+    - Git: commit, push, pull, fetch, větev, diff, připravit/vrátit úsek, vrátit změnu, blame, historie.
+    - Místní historie a porovnání, hex, nástroje a spuštění, nastavení.
+  - **Návrh:**
+    - Mřížka 16 px s jednotnou tloušťkou čáry, jednobarevné ikony s akcentem D5, styl blízký novému vzhledu JetBrains.
+    - Zdroj jsou SVG soubory v repozitáři. Při buildu se převedou na geometrii Avalonie, protože běh pod NativeAOT nesmí parsovat SVG.
+    - Barvu bere ikona z tématu (světlé, tmavé, vysoký kontrast).
+    - Kreslit vlastní, nebo vzít sadu s volnou licencí (Lucide pod ISC, Codicons pod CC BY 4.0) se záznamem v `THIRD-PARTY-NOTICES.md`.
+    - Plugin dodá vlastní SVG ikonu v manifestu. Validátor ji ověří: bez skriptů a odkazů ven, limit velikosti.
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Každý příkaz, který jde dát na lištu, má ikonu nebo výslovně jen text.
+    - Ikony jsou čitelné při 16 i 24 px a při 100–200 % DPI.
+    - Kontrast proti pozadí je aspoň 3 : 1 ve všech třech tématech.
+    - Ikona pluginu z manifestu projde validací a zobrazí se.
+    - Licence jsou zapsané.
+    - Lišta, menu i paleta berou ikony z jednoho zdroje.
+    - Testy vykreslení.
+  - **Závisí na:** P3.6.8
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
+- [ ] **P3.6.15** Přepracované okno nastavení
+  - **Co a proč:** Majitel 28. 10. 2026: nastavení kompletně přepracovat. Možnosti logicky rozdělit do kategorií se stromovou navigací, vyhledávání se zvýrazněním zachovat a volbu jazyka přesunout z menu do nastavení.
+  - **Dnešní stav:**
+    - `Shell/SettingsWindow.cs` (232 řádků) je jeden plochý seznam s vyhledáváním: nastavení s účinnou hodnotou a původem, klávesové zkratky s konflikty a na Windows systémová sekce (`SettingsWindow.System.cs`).
+    - Hledá se přes `SettingsSearchIndex`. Změna se zapíše do uživatelského souboru a platí hned.
+    - `builtin.contributions.json` má 86 nastavení s kategoriemi `cat.editor` 36, `cat.files` 23, `cat.advanced` 12, `cat.tools` 8, `cat.workbench` 3, `cat.hex` 2, `cat.app` 1 a `cat.search` 1. Další nastavení přidávají pluginy.
+    - Jazyk rozhraní je v menu `settings` (skupina `3_language`, příkazy `nks.settings.language.*`) a zároveň jako nastavení `workbench.uiLanguage`.
+  - **Návrh:**
+    - Vlevo strom kategorií:
+      - Vzhled: téma, jazyk, písmo, ikony.
+      - Editor: zobrazení, psaní, formátování, kódování a konce řádků.
+      - Soubory a strom souborů.
+      - Hledání.
+      - Hex.
+      - Logy.
+      - Git.
+      - Místní historie.
+      - AI a agenti.
+      - Nástroje a jazyky (LSP, formátovače).
+      - Pluginy (každý plugin svůj uzel).
+      - Klávesové zkratky.
+      - Systém: kontextové menu, asociace, instalace.
+      - Pokročilé.
+    - Vpravo stránka kategorie s nastaveními po oddílech, značkou „změněno“ a návratem na výchozí u nastavení i u celé kategorie.
+    - Hledání zůstane. Zvýrazní shodu v názvu i popisu a strom zúží na kategorie se shodou, u každé s počtem.
+    - Volba jazyka bude pod Vzhled a z menu `settings` zmizí.
+    - Příkaz otevře nastavení rovnou na zadaném klíči (pro odkazy z hlášek a z nápovědy).
+  - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Každé nastavení, vestavěné i z pluginu, je právě v jedné kategorii. Test padne na nastavení bez kategorie.
+    - Strom jde ovládat z klávesnice a čtečka hlásí kategorii a počet.
+    - Hledání najde nastavení podle názvu, popisu, klíče i hodnoty, zvýrazní shodu a strom ukáže jen kategorie se shodou.
+    - Změna jazyka pod Vzhled platí hned a v menu `settings` už jazyk není.
+    - Změny se dál zapisují do uživatelského souboru a platí hned.
+    - Okno je ve 4 jazycích a ve světlém, tmavém i vysokém kontrastu.
+    - Headless testy.
+  - **Závisí na:** P3.6.6
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
 
 ### P3.7 První distribuce
 
@@ -1871,6 +1982,33 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Závisí na:** P5.3.1
   - **Odhad:** v rámci F172 (viz P5.3.1)
   - **Umístění:** jádro
+- [ ] **P5.3.4** Panel místní historie: revize, diff a statistiky
+  - **Co a proč:** Majitel 28. 10. 2026: lokální historie souboru má být někde vidět, s revizemi, diffem a statistikami.
+  - **Dnešní stav** (`Shell/MainWindow.History.cs`, `Core/History/FileHistory.cs`):
+    - Příkaz `nks.file.history` otevře jen rychlý seznam revizí (QuickRow) s náhledem prvních 4 000 B.
+    - Akce: porovnat (externí nástroj nebo vestavěný `DiffView`), obnovit celý soubor nebo výběr, štítek, připnout, uložit kopii.
+    - Dále `nks.file.historyMark` a `nks.file.historySearch`.
+    - Trvalý pohled a statistiky chybí.
+  - **Návrh** (podobně jako Local History v PhpStormu):
+    - Panel nebo karta „Historie souboru“.
+    - Vlevo časová osa revizí: čas, zdroj (uložení, změna zvenku, první otevření, před obnovou), štítek, připnutí.
+    - Vpravo vestavěný diff vybrané revize proti aktuálnímu textu nebo proti předchozí revizi. Porovnat jde i dvě libovolné revize.
+    - Statistiky: u revize +řádky / −řádky a změna velikosti. U souboru počet revizí, zabrané místo, nejstarší revize a platná retence.
+    - Filtr podle štítku a zdroje.
+    - Obnova celého souboru nebo úseku přímo z panelu.
+    - Otevírá se z menu Soubor, z kontextového menu karty a ze stromu souborů.
+  - **Funkce:** F172 (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Panel ukáže všechny uložené revize stejně jako `FileHistory`.
+    - Diff vybrané revize je stejný jako `Core/Compare` `LineDiff`.
+    - Počty +/− odpovídají diffu sousedních revizí. U revize uložené jako záplata se počítají na pozadí, mimo vlákno UI.
+    - Obnova z panelu je jeden krok undo.
+    - Panel se obnoví po uložení i po změně zvenku.
+    - Panel jde ovládat z klávesnice a čtečka hlásí revizi a počty.
+    - Headless testy.
+  - **Závisí na:** P5.3.1, P5.3.2, P5.2.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro
 
 ### P5.4 Vzdálené soubory
 
@@ -2449,6 +2587,67 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Stav 27. 10. 2026 (večer):** částečně. Panel stavu otevírá soubor, stavový řádek s větví a počty, obnova po příkazu Git. Chybí: obnova při změně zvenku, `autocrlf`.
   - **Stav 28. 10. 2026:** částečně. Sledování změn zvenku (RepoWatcher) pro poslední repozitář.
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. RepoWatcher hlídá každý repozitář s otevřeným souborem a končí se zavřením posledního; testy prošly.
+- [ ] **P8.6.3** Git v editoru: změny přímo v textu
+  - **Co a proč:** Majitel 28. 10. 2026 chce větší integraci Gitu. Editor má ukazovat přidané a změněné řádky ve stylu diffu, jako VS Code a PhpStorm.
+  - **Dnešní stav:**
+    - `Editing/GitMargin.cs` kreslí vlevo proužek 7 px: plný pro změnu mimo index, obrys pro změnu v indexu.
+    - Barvy jsou napevno: přidané `SeaGreen`, změněné `SteelBlue`, odstraněné zdroj `Danger`.
+    - Značky se obnoví 600 ms po úpravě (`GitGutterDebounceMilliseconds`) proti indexu, nad 1 MiB se nekreslí (`GitGutterMaxBytes`).
+    - Klik na značku úsek připraví nebo vrátí z indexu. Nastavení `git.gutter` je ve výchozím stavu zapnuté.
+    - Data dodává `PluginServices.GitMarksAsync` z pluginu `textida.git`.
+    - Chybí: původní text změny, vrácení úseku, skok mezi změnami, značky v minimapě a u posuvníku, blame, barvy z tématu a stránkovaný soubor.
+  - **Návrh:**
+    - Klik na značku otevře náhled pod změnou: původní řádky z indexu červeně, nové zeleně, změněná slova uvnitř řádku zvýrazněná. Tlačítka Vrátit úsek, Připravit/Vrátit z indexu, Předchozí/Další a Zavřít. Esc zavře.
+    - Najetí na značku ukáže krátký souhrn.
+    - Příkazy `nks.git.nextChange` / `nks.git.previousChange` s klávesami bez konfliktu v keymapě.
+    - Značky změn v pruhu minimapy (F161, dnes PZ.10.1) a u posuvníku.
+    - Volba základu: index (výchozí) nebo `HEAD`.
+    - Blame aktuálního řádku (autor, datum, zpráva) ve stavovém řádku a v tooltipu. Volitelný sloupec Annotate jako v PhpStormu.
+    - Barvy z tokenů tématu včetně vysokého kontrastu.
+    - Šířka proužku podle D5, aby nebyl přehlédnutelný.
+  - **Funkce:** F158 (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - V souboru s přidaným, změněným a smazaným blokem odpovídají značky `git diff -U0`.
+    - Náhled ukáže přesně původní řádky z indexu.
+    - Vrácení úseku vrátí text indexu jako jeden krok undo.
+    - Skok projde všechny úseky a na konci přejde na začátek.
+    - Značky v minimapě sedí na řádky.
+    - Blame řádku odpovídá `git blame --porcelain`.
+    - Čtečka hlásí druh a velikost změny.
+    - Funguje ve světlém, tmavém i vysokém kontrastu.
+    - Testy na skutečných repozitářích a headless testy náhledu.
+  - **Závisí na:** P8.6.1, P8.6.2, P3.3.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** vestavěný plugin `textida.git` (data), jádro (okraj, náhled, minimapa)
+- [ ] **P8.6.4** Git: commit, pull, push a větve jako v PhpStormu
+  - **Co a proč:** Majitel 28. 10. 2026 chce na liště tlačítka commit, pull a push a práci s Gitem podobnou PhpStormu. Plugin `textida.git` dnes umí stav souborů, diff s indexem a s `HEAD`, připravení a vrácení úseku a konflikty (naše, jejich, obě, smazat, označit vyřešené). Chybí vše kolem commitu:
+    - commit a amend;
+    - pull (merge nebo rebase), fetch a push;
+    - větve;
+    - stash;
+    - log souboru a repozitáře.
+  - **Návrh:**
+    - Panel Commit: změněné soubory se zaškrtnutím a výběrem po úsecích, náhled diffu, zpráva s historií, volba Amend, tlačítka „Commit“ a „Commit a push“.
+    - Push ukáže odchozí commity po větvích.
+    - Pull (Update) nabídne merge nebo rebase. Konflikt předá do stávajícího řešení konfliktů.
+    - Výběr větve ze stavového řádku: přepnout, vytvořit, smazat. Větev už tam je podle P8.6.2.
+    - Stash: uložit, použít, zahodit.
+    - Log souboru a repozitáře s diffem commitu.
+    - Používá systémový `git`. Hesla jen přes credential helper Gitu, editor je nikam neukládá.
+    - Síťové operace běží jen na pokyn uživatele, jdou zrušit a ukazují průběh.
+  - **Funkce:** F158 (požadavek majitele 28. 10. 2026)
+  - **Hotovo, když:**
+    - Commit vybraných souborů a úseků vytvoří stejný commit jako `git` z příkazové řádky (ověřeno `git show`). Funguje i amend.
+    - Push do lokálního bare repozitáře a pull z něj fungují. Odmítnutý push (non-fast-forward) se srozumitelně ohlásí.
+    - Pull s konfliktem skončí ve stávajícím řešení konfliktů.
+    - Přepnutí větve se změněnými soubory se zeptá nebo odmítne.
+    - Hesla se objeví jen v credential helperu, ne v nastavení ani v logu.
+    - Vše jde z klávesnice i z lišty (P3.6.13) s ikonami (P3.6.14).
+    - Síťový test (PR.6.4) zůstane zelený: bez akce uživatele žádný provoz.
+    - Testy proti skutečným lokálním repozitářům.
+  - **Závisí na:** P8.6.1, P8.6.2
+  - **Odhad:** bez odhadu
+  - **Umístění:** vestavěný plugin `textida.git`, panel v jádru
 
 ### P8.7 Schémata a manifesty
 
@@ -3117,18 +3316,18 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 44 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 50 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
-| P5 | 6 | 25 | 24–37 (neúplné) |
+| P5 | 6 | 26 | 24–37 (neúplné) |
 | P6 | 6 | 21 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
-| P8 | 10 | 28 | 38–64,5 |
+| P8 | 10 | 30 | 38–64,5 |
 | P8b | 3 | 10 | 12,5–20 |
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **330** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **339** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
