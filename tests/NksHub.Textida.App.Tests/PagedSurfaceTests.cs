@@ -7,10 +7,12 @@ using Avalonia.Input.TextInput;
 using Avalonia.Threading;
 using NksHub.Textida.Accessibility;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -538,6 +540,146 @@ public class PagedSurfaceTests : IDisposable
     public void Jumps_to_an_offset_and_a_line_work_while_the_index_is_being_built()
     {
         JumpsWhileTheIndexIsBeingBuilt(rows: 700_000, gateBlock: 3, farRow: 500_000);
+    }
+
+    // ---- the view at a random offset (P3.1.6) ----
+
+    private static string ViewRow(int i) => $"řádek {i} ěščř 日本 {i * 7}";
+
+    /// <summary>
+    /// A view built at a place of a large file draws the characters of the reference decoding of the bytes there, and reads a few blocks of the file: the block of the offset and
+    /// its neighbours, not one block for each step of a search for the line that holds the offset.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_view_at_a_random_offset_shows_the_reference_text_and_reads_few_blocks()
+    {
+        _app.Workbench.Set("editor.minimap", JsonValue.Create(false)); // the map reads the file on its own
+        const int rows = 2_000_000;
+        var starts = new long[rows + 1];
+        string path = System.IO.Path.Combine(_temp.Path, "viewport.txt");
+        using (var stream = new StreamWriter(path, false, new UTF8Encoding(false), 1 << 20) { NewLine = "\n" })
+            for (int i = 0; i < rows; i++)
+            {
+                string row = ViewRow(i);
+                stream.WriteLine(row);
+                starts[i + 1] = starts[i] + Encoding.UTF8.GetByteCount(row) + 1;
+            }
+        var tab = OpenIndexed(path);
+        var paged = tab.Paged!;
+        var file = PagedOf(tab).Source.File;
+        Assert.True(file.Length > 60L << 20);
+
+        var random = new Random(3106);
+        for (int k = 0; k < 25; k++)
+        {
+            int row = random.Next(0, rows - 10), column = random.Next(0, 4);
+            long offset = starts[row] + Encoding.UTF8.GetByteCount(ViewRow(row).AsSpan(0, column));
+            file.BeginBlockCount();
+            paged.GoToOffset(offset);
+            _w.UpdateLayout();
+            _w.CaptureRenderedFrame();
+            int blocks = file.BlocksTouched;
+
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.Equal(offset, paged.CaretOffset);
+            Assert.Equal(((long)row, (long)column), paged.CaretLineColumn());
+            for (int i = 0; i < 4; i++) Assert.Equal(ViewRow(row + i), paged.DisplayOf(row + i));
+        }
+    }
+
+    /// <summary>The same at gigabytes: 30 million rows of "line N", about 300 MiB, so the search for a line would take nine blocks and more.</summary>
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_view_at_a_random_offset_of_a_large_file_reads_few_blocks()
+    {
+        _app.Workbench.Set("editor.minimap", JsonValue.Create(false));
+        const long rows = 30_000_000;
+        string path = System.IO.Path.Combine(_temp.Path, "rows.log");
+        WriteRows(path, rows);
+        var tab = OpenIndexed(path);
+        var paged = tab.Paged!;
+        var file = PagedOf(tab).Source.File;
+        var random = new Random(3107);
+        for (int k = 0; k < 40; k++)
+        {
+            long row = random.NextInt64(1, rows - 10);
+            file.BeginBlockCount();
+            paged.GoToOffset(RowStart(row) + 2);
+            _w.UpdateLayout();
+            _w.CaptureRenderedFrame();
+            int blocks = file.BlocksTouched;
+
+            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.Equal((row, 2L), paged.CaretLineColumn());
+            Assert.Equal("line " + (row + 1), paged.DisplayOf(row));
+        }
+    }
+
+    /// <summary>"ĊĊ" is U+010A twice: the byte 0A, the line feed of UTF-8, lies inside it in either byte order, so a count of 0A bytes finds three line ends per row instead of one.</summary>
+    private const string WideRow = "ĊĊ řádek ";
+
+    [AvaloniaTheory]
+    [InlineData("utf-16", "\n")]
+    [InlineData("utf-16BE", "\r")]
+    [InlineData("utf-32", "\r\n")]
+    [InlineData("utf-32BE", "\n")]
+    public void Bytes_per_line_of_a_sample_are_counted_by_code_unit(string name, string eol)
+    {
+        var enc = Encoding.GetEncoding(name);
+        var codec = name switch { "utf-16" => TextCodec.Utf16LE, "utf-16BE" => TextCodec.Utf16BE, "utf-32" => TextCodec.Utf32LE, _ => TextCodec.Utf32BE };
+        string row = WideRow + "123456" + eol;
+        byte[] sample = enc.GetBytes(string.Concat(Enumerable.Repeat(row, 2000)));
+
+        Assert.Equal(enc.GetByteCount(row), PagedTextView.BytesPerLine(sample, codec), precision: 3);
+    }
+
+    /// <summary>A jump beyond the indexed part of a UTF-16 or UTF-32 file numbers the lines from the density of its line ends in code units, so the estimate is as good as for UTF-8.</summary>
+    [AvaloniaTheory]
+    [InlineData("utf-16", "\n")]
+    [InlineData("utf-16BE", "\r")]
+    [InlineData("utf-32", "\r\n")]
+    [InlineData("utf-32BE", "\n")]
+    public void A_jump_beyond_the_indexed_part_of_a_wide_file_estimates_the_line_by_code_units(string name, string eol)
+    {
+        const int rows = 150_000;
+        const long farRow = 100_000;
+        var enc = Encoding.GetEncoding(name);
+        var text = new StringBuilder();
+        int farChar = 0;
+        for (int i = 0; i < rows; i++)
+        {
+            if (i == farRow) farChar = text.Length;
+            text.Append(WideRow).Append(i.ToString("D6")).Append(eol);
+        }
+        string all = text.ToString();
+        string path = _temp.Bytes("wide-rows.txt", [.. enc.GetPreamble(), .. enc.GetBytes(all)]);
+        long far = enc.GetPreamble().Length + enc.GetByteCount(all.AsSpan(0, farChar)) + enc.GetByteCount("ĊĊ");
+        using var gate = new ManualResetEventSlim();
+        MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= 1) gate.Wait(); };
+        try
+        {
+            var tab = Open(path);
+            var paged = tab.Paged!;
+            WaitFor(() => PagedOf(tab).IndexedBytes == Mib, "index held at the gate");
+            Assert.False(paged.Index.Complete);
+
+            paged.GoToOffset(far);
+            _w.UpdateLayout();
+            Assert.False(paged.LinesExact);
+            Assert.Equal(far, paged.CaretOffset);
+            Assert.InRange(paged.CaretLineColumn()!.Value.Line, farRow * 99 / 100, farRow * 101 / 100);
+            Assert.Contains("≈", _w.StatusLeftText);
+
+            gate.Set();
+            WaitFor(() => paged.Index.Complete && paged.LinesExact, "exact numbers after the index");
+            Assert.Equal(far, paged.CaretOffset);
+            Assert.Equal((farRow, 2L), paged.CaretLineColumn());
+        }
+        finally
+        {
+            gate.Set();
+            MappedFileSource.IndexBlockHook = null;
+        }
     }
 
     [AvaloniaFact]

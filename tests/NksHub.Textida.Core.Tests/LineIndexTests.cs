@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core.Tests;
 
@@ -296,5 +297,94 @@ public class LineIndexTests
         Assert.Equal(3, src.FindLineEnd(0));
         Assert.Equal(8, src.FindLineEnd(5));
         Assert.Equal(11, src.FindLineEnd(9));
+    }
+
+    // ---- the line of an offset (P3.1.6) ----
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    [InlineData(16)]
+    [InlineData(1000)]
+    public void TheLineOfAnOffsetIsTheLastLineStartAtOrBeforeItForEveryBlockSize(int block)
+    {
+        var r = new Random(block * 17);
+        for (int round = 0; round < 25; round++)
+        {
+            var bytes = Encoding.UTF8.GetBytes(Gen.LineSoup(r, r.Next(0, 300)));
+            using var f = new TempFile(bytes);
+            using var src = OpenIndexed(f, block);
+            var starts = NaiveLineStarts(bytes);
+            for (long offset = 0; offset <= bytes.Length; offset++)
+            {
+                Assert.True(src.TryGetLineOfOffset(offset, out long line), $"offset {offset}");
+                Assert.Equal(starts.FindLastIndex(s => s <= offset), line);
+            }
+            Assert.False(src.TryGetLineOfOffset(bytes.Length + 1, out _));
+            Assert.False(src.TryGetLineOfOffset(-1, out _));
+        }
+    }
+
+    [Theory]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    [InlineData("utf-32")]
+    [InlineData("utf-32BE")]
+    public void TheLineOfAnOffsetCountsLineEndsByCodeUnit(string name)
+    {
+        var enc = Encoding.GetEncoding(name);
+        var codec = name switch { "utf-16" => TextCodec.Utf16LE, "utf-16BE" => TextCodec.Utf16BE, "utf-32" => TextCodec.Utf32LE, _ => TextCodec.Utf32BE };
+        string text = "a\r\nČĊ b\rc\nĀč\r\r\nd\rĊ"; // U+010A holds the byte 0A and U+010D the byte 0D, in either byte order
+        using var f = new TempFile(enc.GetBytes(text));
+        using var src = MappedFileSource.Open(f.Path, new MappedFileSourceOptions { IndexBlockSize = 8, Codec = codec });
+        src.IndexTask.Wait();
+
+        for (int i = 0; i <= text.Length; i++)
+        {
+            int expected = 0;
+            for (int k = 0; k < i; k++)
+                if (text[k] == '\n' || (text[k] == '\r' && !(k + 1 < text.Length && text[k + 1] == '\n'))) expected++;
+            Assert.True(src.TryGetLineOfOffset(enc.GetByteCount(text.AsSpan(0, i)), out long line), $"char {i}");
+            Assert.Equal(expected, line);
+        }
+    }
+
+    [Fact]
+    public void ALineOfAnOffsetReadsTheBlockOfTheOffsetOnly()
+    {
+        var bytes = Encoding.ASCII.GetBytes(string.Concat(Enumerable.Range(0, 600_000).Select(i => $"row {i}\n"))); // about 5 MiB: six blocks of the file
+        using var f = new TempFile(bytes);
+        using var src = MappedFileSource.Open(f.Path);
+        src.IndexTask.Wait();
+        Assert.True(src.ByteLength > 4L << 20);
+
+        foreach (long offset in new long[] { 100, 3_000_000, src.ByteLength - 5, src.ByteLength })
+        {
+            src.File.BeginBlockCount();
+            Assert.True(src.TryGetLineOfOffset(offset, out long line));
+            Assert.InRange(src.File.BlocksTouched, 0, 1);
+            Assert.True(src.TryGetLineStart(line, out long start) && start <= offset);
+            if (src.TryGetLineStart(line + 1, out long next)) Assert.True(offset < next);
+        }
+    }
+
+    [Fact]
+    public void TheBlockCountCountsEachBlockOnce()
+    {
+        using var f = new TempFile(new byte[3 << 20]);
+        using var file = MappedFile.Open(f.Path);
+        Assert.Equal(0, file.BlocksTouched);
+
+        file.BeginBlockCount();
+        file.GetSpan(10, 100);
+        file.GetSpan(20, 100);
+        Assert.Equal(1, file.BlocksTouched);
+        file.GetSpan((1 << 20) - 10, 20); // reaches into the second block
+        Assert.Equal(2, file.BlocksTouched);
+        file.GetSpanClamped(2 << 20, 5 << 20); // a clamped read counts its first block
+        Assert.Equal(3, file.BlocksTouched);
+
+        file.BeginBlockCount();
+        Assert.Equal(0, file.BlocksTouched);
     }
 }

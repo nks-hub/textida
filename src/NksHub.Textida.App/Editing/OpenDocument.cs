@@ -354,8 +354,8 @@ internal sealed class OpenDocument : IDisposable
         doc.Changed += OnDocChanged;
         doc.Saved += OnSaved;
         doc.ExternalChangeDetected += OnExternalChange;
-        // a file in the paged backend is not copied into the history: it would cost its whole size on every open and save (no size cap is decided)
-        _recorder = History is { } history && !IsLarge ? new HistoryRecorder(history, doc, (_, result) => Dispatcher.UIThread.Post(() => HistoryProblem?.Invoke(result))) : null;
+        // a file of the paged backend is read from disk like any other: up to the size limit of the history, as a whole copy first and then as patches
+        _recorder = History is { } history ? new HistoryRecorder(history, doc, (_, result) => Dispatcher.UIThread.Post(() => HistoryProblem?.Invoke(result))) : null;
     }
 
     private void Unhook(Document doc)

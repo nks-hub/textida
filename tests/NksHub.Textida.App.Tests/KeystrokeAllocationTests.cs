@@ -116,4 +116,31 @@ public class KeystrokeAllocationTests(ITestOutputHelper output) : IDisposable
 
         Assert.True(BytesPerKeystroke(tab.Paged) < BoundPagedSurface);
     }
+
+    /// <summary>
+    /// A keystroke in the first 16 KiB of a long line decodes that part again (the cached text no longer fits): 640 000 bytes while the decoder made a string for every
+    /// character, about 130 000 since. A keystroke behind that part does not decode anything, which is the 80 000 of a short line.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(100, 300_000)]
+    [InlineData(6_000_000, BoundPagedSurface)]
+    public void Keystroke_in_a_long_line_of_a_paged_document_allocates_little(int column, long bound)
+    {
+        _app = TestApp.Prepare(_temp);
+        var w = _app.CreateWindow(null);
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        string line = string.Concat(Enumerable.Repeat("abc ěščř def ", 600_000));
+        var tab = w.OpenFile(_temp.Bytes("line.txt", Encoding.UTF8.GetBytes(line + "\nnext\n")), null);
+        Assert.True(tab.Doc.IsLarge);
+        w.UpdateLayout();
+        tab.Paged!.Focus();
+        Dispatcher.UIThread.RunJobs();
+        for (int i = 0; i < 600 && !tab.Paged.Index.Complete; i++) { Thread.Sleep(25); Dispatcher.UIThread.RunJobs(); }
+        tab.Paged.FarMoveBytes = 1 << 20; // the line is far shorter than 100 MiB; its far places wait for a count on the pool
+        tab.Paged.GoToOffset(column);
+        TestApp.Settle(tab.Paged);
+
+        long bytes = BytesPerKeystroke(tab.Paged);
+        Assert.True(bytes < bound, $"{bytes} B per keystroke");
+    }
 }

@@ -233,12 +233,16 @@ The program keeps a revision of a file at every save and at every change another
 - Limits (revisions per file, days, MiB per file, MiB in total) are set in the settings; 0 means no limit. The newest revision of a file is never deleted.
 - If the disk is full, the status bar says so and no revision is damaged.
 - A pinned revision is never deleted by the limits; Pin in the revision menu keeps it, Unpin releases it. A file above the size limit gets no revisions and the status bar says so. Old revisions are cleaned in the background.
+- A large file, one that opens in the large file view, is kept too. A large file is copied whole once, when you first change it, and every later revision is a small patch against that copy when the patch is shorter than half of the file; the list shows such a revision as patch with the size of the patch. A whole copy stays as long as a patch needs it, so the number of revisions can be higher than the limit.
+- For a large file Compare needs the External diff tool from the settings, Restore File and Restore Selection are not offered, and Mark Revision wants the file saved first. Save as a Copy writes any revision beside the file, as name (date time).ext, and opens it; it works for every file.
+- Revisions that are kept as patches are not found by Search in History.
 
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
 1. Choose File and then History and then Mark Revision and type a label, for example Before refactoring.
 2. The current text of the tab is stored as a revision with that label. If the newest revision already holds the same text, the label goes to that revision.
 - Find the revision later in Local History by its label.
+- In a large file the revision is the saved file on disk, so save the file first.
 
 ## [file.historySearch] Search in history
 commands: nks.file.historySearch

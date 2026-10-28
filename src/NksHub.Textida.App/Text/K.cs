@@ -140,6 +140,12 @@ public static class K
     public const string HistoryUnpinned = "history.unpinned";
     public const string HistoryTooLarge = "history.tooLarge";
     public const string HistoryStoreDamaged = "history.storeDamaged";
+    public const string HistorySaveCopy = "history.saveCopy";
+    public const string HistoryCopySaved = "history.copySaved";
+    public const string HistoryCompareNeedsTool = "history.compareNeedsTool";
+    public const string HistoryRevisionTooBig = "history.revisionTooBig";
+    public const string HistoryMarkSaveFirst = "history.markSaveFirst";
+    public const string HistoryPatchTag = "history.patchTag";
     public const string LossTitle = "loss.title";
     public const string LossMessage = "loss.message";
     public const string LossReplacement = "loss.replacement";

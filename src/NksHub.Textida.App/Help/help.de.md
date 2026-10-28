@@ -233,12 +233,16 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 - Grenzen (Revisionen pro Datei, Tage, MiB pro Datei, MiB insgesamt) stellen Sie in den Einstellungen ein; 0 heißt keine Grenze. Die neueste Revision einer Datei wird nie gelöscht.
 - Ist der Datenträger voll, meldet das die Statusleiste, und keine Revision wird beschädigt.
 - Eine angeheftete Revision löschen die Grenzen nie; Anheften im Revisionsmenü hält sie, Lösen gibt sie frei. Eine Datei über der Größengrenze bekommt keine Revisionen, und die Statusleiste meldet das. Alte Revisionen werden im Hintergrund aufgeräumt.
+- Auch eine große Datei, also eine, die in der Ansicht für große Dateien geöffnet wird, wird aufbewahrt. Sie wird bei der ersten Änderung einmal ganz kopiert, und jede weitere Revision ist ein kleiner Patch gegen diese Kopie, wenn der Patch kürzer als die Hälfte der Datei ist; die Liste zeigt eine solche Revision als Patch mit der Größe des Patches. Eine ganze Kopie bleibt, solange ein Patch sie braucht, daher kann es mehr Revisionen geben, als die Grenze sagt.
+- Bei einer großen Datei braucht Vergleichen das Externe Vergleichsprogramm aus den Einstellungen, Datei wiederherstellen und Auswahl wiederherstellen werden nicht angeboten, und Revision markieren verlangt, dass die Datei zuerst gespeichert ist. Als Kopie speichern schreibt jede Revision neben die Datei als Name (Datum Uhrzeit).Endung und öffnet sie; das geht bei jeder Datei.
+- Revisionen, die als Patch aufbewahrt werden, findet Im Verlauf suchen nicht.
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
 1. Wählen Sie Datei und dann Verlauf und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
 2. Der aktuelle Text des Tabs wird als Revision mit dieser Bezeichnung gespeichert. Enthält die neueste Revision schon denselben Text, erhält diese die Bezeichnung.
 - Die Revision finden Sie später im Lokalen Verlauf über die Bezeichnung.
+- Bei einer großen Datei ist die Revision die gespeicherte Datei auf dem Datenträger; speichern Sie die Datei also zuerst.
 
 ## [file.historySearch] Im Verlauf suchen
 commands: nks.file.historySearch

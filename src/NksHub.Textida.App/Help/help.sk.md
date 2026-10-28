@@ -233,12 +233,16 @@ Program uchováva revíziu súboru pri každom uložení a pri každej zmene, kt
 - Limity (revízií na súbor, dni, MiB na súbor, MiB celkom) sa nastavujú v nastaveniach; 0 znamená bez obmedzenia. Najnovšia revízia súboru sa nikdy nezmaže.
 - Keď je disk plný, stavový riadok to oznámi a žiadna revízia sa nepoškodí.
 - Pripnutú revíziu limity nikdy nezmažú; Pripnúť v ponuke revízie ju drží, Odopnúť ju uvoľní. Súbor nad limitom veľkosti revíziu nedostane a stavový riadok to oznámi. Staré revízie sa upratujú na pozadí.
+- Veľký súbor, teda taký, ktorý sa otvorí v zobrazení veľkých súborov, sa uchováva tiež. Pri prvej zmene sa celý skopíruje raz a každá ďalšia revízia je malá záplata voči tejto kópii, ak je záplata kratšia ako polovica súboru; zoznam takú revíziu označí slovom záplata a veľkosťou záplaty. Celá kópia zostáva, kým ju nejaká záplata potrebuje, takže revízií môže byť viac, ako hovorí limit.
+- Pri veľkom súbore Porovnať potrebuje Externý porovnávač z nastavení, Obnoviť súbor a Obnoviť výber sa neponúkajú a Označiť revíziu chce súbor najprv uložiť. Uložiť ako kópiu zapíše ľubovoľnú revíziu vedľa súboru ako názov (dátum čas).prípona a otvorí ju; funguje pre každý súbor.
+- Revízie uchované ako záplata Hľadať v histórii nenájde.
 
 ## [file.historyMark] Označiť revíziu
 commands: nks.file.historyMark
 1. Zvoľte Súbor a potom História a potom Označiť revíziu a napíšte štítok, napríklad Pred refaktorom.
 2. Súčasný text karty sa uloží ako revízia s týmto štítkom. Ak posledná revízia už obsahuje rovnaký text, štítok dostane ona.
 - Revíziu neskôr nájdete v Miestnej histórii podľa štítka.
+- Pri veľkom súbore je revíziou uložený súbor na disku, takže súbor najprv uložte.
 
 ## [file.historySearch] Hľadať v histórii
 commands: nks.file.historySearch

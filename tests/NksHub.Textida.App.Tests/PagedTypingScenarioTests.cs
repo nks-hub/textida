@@ -28,6 +28,7 @@ public class PagedTypingScenarioTests : IDisposable
     public PagedTypingScenarioTests()
     {
         _app = TestApp.Prepare(_temp);
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false }; // the first edit of a large file would copy it into the history, which these tests do not look at and the measurements must not feel
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
     }

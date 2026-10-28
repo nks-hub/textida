@@ -271,4 +271,15 @@ internal static class TestApp
     {
         foreach (var c in text) w.KeyTextInput(c.ToString());
     }
+
+    /// <summary>Lets the pool end the column count of a far move into a long line, and runs the move that waited for it on the UI thread.</summary>
+    public static void Settle(Editing.PagedTextView paged, int milliseconds = 30_000)
+    {
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); paged.CaretMovePending && sw.ElapsedMilliseconds < milliseconds;)
+        {
+            Thread.Sleep(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.False(paged.CaretMovePending, "the far move did not end");
+    }
 }

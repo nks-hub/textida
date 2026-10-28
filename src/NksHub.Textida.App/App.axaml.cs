@@ -440,6 +440,8 @@ public sealed partial class App : Application
             MaxBytesPerFile = Limit("history.maxMiBPerFile", 1L << 20),
             MaxTotalBytes = Limit("history.maxTotalMiB", 1L << 20),
             MaxRevisionBytes = PluginLimitsPlaceholders.HistoryRevisionMaxBytes,
+            PatchAboveBytes = PluginLimitsPlaceholders.HistoryPatchAboveBytes,
+            MaxPatchPercent = PluginLimitsPlaceholders.HistoryPatchMaxPercent,
         };
     }
 

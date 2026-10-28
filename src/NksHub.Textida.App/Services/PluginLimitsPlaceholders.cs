@@ -76,8 +76,17 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: bytes a wildcard <c>*</c> or an open repeat of a hex search may stand for while the setting <c>hex.wildcardMaxBytes</c> is 0. The owner has not decided it.</summary>
     public const int HexWildcardDefaultMaxBytes = 256;
 
-    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes; a larger one gets none and the status bar says so.</summary>
-    public const long HistoryRevisionMaxBytes = 32L << 20;
+    /// <summary>Placeholder, OPEN: largest file that gets local history revisions, in bytes (a file of the large file view too: its first revision is a whole copy of it); a larger one gets none and the status bar says so.</summary>
+    public const long HistoryRevisionMaxBytes = 1L << 30;
+
+    /// <summary>Placeholder, OPEN: a file larger than this, in bytes, is kept in the local history as a patch against its newest whole copy instead of another whole copy, when the patch is short enough (<see cref="HistoryPatchMaxPercent"/>).</summary>
+    public const long HistoryPatchAboveBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: longest patch the local history keeps instead of a whole copy of a large file, in percent of the file; a longer one makes a new whole copy that the following patches are made against.</summary>
+    public const int HistoryPatchMaxPercent = 50;
+
+    /// <summary>Placeholder, OPEN: largest revision, in bytes, that Compare and Restore read into memory for a text tab; a larger one is compared in the external diff tool or saved as a copy.</summary>
+    public const long HistoryTextRevisionMaxBytes = 32L << 20;
 
     /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
     public const long PagedCopyMaxBytes = 256L << 20;
@@ -98,6 +107,12 @@ internal static partial class PluginLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: most bytes a paste inserts over all carets of a large file in the paged view together (the text times the number of carets); a larger paste is refused with a message and the document stays as it was. The owner has not decided it.</summary>
     public const long PagedMultiPasteMaxBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: most 1 MiB blocks of the file that showing one place of a large file in the paged view (a jump to an offset, drawn once) may read, the line index not counted; the measuring tests fail above it. The owner has not decided it.</summary>
+    public const int PagedViewportMaxBlocks = 6;
+
+    /// <summary>Placeholder, OPEN: bytes (columns for a column) of a long line in the paged view that the UI thread counts to put the caret in it; a place farther than this from the nearest known point of the line is reached by a count on the thread pool, and the caret moves when it ends. The owner has not decided it.</summary>
+    public const long PagedFarMoveBytes = 16L << 20;
 
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;

@@ -303,6 +303,7 @@ internal sealed partial class PagedTextView : Grid
         _indexCts = null;
         _indexing.Clear();
         CancelWindows();
+        CancelFarMove();
         _searchCts?.Cancel();
     }
 
@@ -377,6 +378,7 @@ internal sealed partial class PagedTextView : Grid
         _lines.Clear();
         _linesCount = -1;
         CancelWindows();
+        CancelFarMove();
         _detour = null;
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
@@ -414,6 +416,11 @@ internal sealed partial class PagedTextView : Grid
         LeaveDetour(target);
         UpdateScrollRange();
         _bar.Value = Math.Clamp(target, 0, _bar.Maximum);
+        if (!_farResume && column > 1 && GetLine(target) is { Truncated: true } far && ColumnIsFar(far, column - 1))
+        {
+            StartFarWalk(far.Start, null, column - 1, () => GoToLine(target + 1, column));
+            return true;
+        }
         MoveTo(OffsetInLine(target, start, column - 1), target);
         return true;
     }
@@ -491,15 +498,22 @@ internal sealed partial class PagedTextView : Grid
         return d.BaseLine + Math.Max(0, i >= 0 ? i : ~i - 1);
     }
 
+    /// <summary>Mean bytes of a line in <paramref name="sample"/>, which starts on a code unit; line ends are found per code unit, so UTF-16 and UTF-32 count like UTF-8 and a lone CR counts too.</summary>
+    internal static double BytesPerLine(ReadOnlySpan<byte> sample, TextCodec codec)
+    {
+        long breaks = LineScanner.CountTerminators(sample, sample.Length, codec);
+        return Math.Max(1.0, breaks > 0 ? (double)sample.Length / breaks : sample.Length);
+    }
+
     private void EnterDetour(long offset, bool keepSelection = false)
     {
         if (!keepSelection) DropOthers();
         long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
-        var sample = new byte[(int)Math.Min(Doc.ByteLength, 64 * 1024)];
-        long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length);
+        int w = Doc.Codec.Alignment;
+        var sample = new byte[(int)(Math.Min(Doc.ByteLength, 64 * 1024) / w * w)];
+        long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length) / w * w;
         Doc.Read(from, sample);
-        int breaks = sample.AsSpan().Count((byte)10);
-        double perLine = breaks > 0 ? Math.Max(1.0, (double)sample.Length / breaks) : Math.Max(1.0, sample.Length);
+        double perLine = BytesPerLine(sample, Doc.Codec);
         // the gap between the indexed part and the target is counted with the mean of the density at both ends
         var (prefixLines, _) = Doc.LineIndexState;
         long indexed = Paged.IndexedBytes;
@@ -717,6 +731,7 @@ internal sealed partial class PagedTextView : Grid
 
     private LineView Decode(long start, long length)
     {
+        long trace = TypingTrace.Begin();
         int take = (int)Math.Min(length, MaxLineBytes);
         var bytes = new byte[take];
         Doc.Read(start, bytes);
@@ -724,7 +739,9 @@ internal sealed partial class PagedTextView : Grid
         if (truncated) take = Doc.Codec.CompleteLength(bytes);
         DecodedLines++;
         var map = Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take));
-        return new LineView(start, truncated, length, map, _options.TabSize, HideAnsi, HiddenIn(map, start));
+        var view = new LineView(start, truncated, length, map, _options.TabSize, HideAnsi, HiddenIn(map, start));
+        TypingTrace.End("paged.decode", trace);
+        return view;
     }
 
     /// <summary>
@@ -796,6 +813,8 @@ internal sealed partial class PagedTextView : Grid
     private long LineOfCore(long offset)
     {
         if (_detour is { } d) return DetourLineOf(d, offset);
+        // the block table and one block tell the line; the search below reads a block for each of its steps, a dozen of them in a file of gigabytes
+        if (Paged.TryGetLineOfOffset(offset, out long exact)) return Math.Min(exact, LineCount - 1);
         long lo = 0, hi = LineCount - 1;
         while (lo < hi)
         {
@@ -830,6 +849,13 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Decodes the bytes of a truncated line within <see cref="LocalBytes"/> of an offset, so that editing next to the caret never reads the rest of the line.</summary>
     private LineView LocalView(LineView full, long offset)
     {
+        long trace = TypingTrace.Begin();
+        try { return LocalViewCore(full, offset); }
+        finally { TypingTrace.End("paged.localView", trace); }
+    }
+
+    private LineView LocalViewCore(LineView full, long offset)
+    {
         var codec = Doc.Codec;
         int unit = codec.Alignment;
         long end = full.Start + full.ByteLength;
@@ -863,7 +889,10 @@ internal sealed partial class PagedTextView : Grid
     {
         ForgetColumns();
         if (_columnMemo.TryGetValue(offset, out long known)) return known;
-        return _columnMemo[offset] = offset <= line.Start ? 0 : Paged.ColumnOf(line.Start, offset);
+        long trace = TypingTrace.Begin();
+        long column = offset <= line.Start ? 0 : Paged.ColumnOf(line.Start, offset);
+        TypingTrace.End("paged.columnOf", trace);
+        return _columnMemo[offset] = column;
     }
 
     /// <summary>Byte offset of a UTF-16 column of the truncated line <paramref name="line"/>; the end of the line when it is shorter.</summary>
@@ -891,6 +920,12 @@ internal sealed partial class PagedTextView : Grid
 
     private void MoveTo(long caret, long? line = null, bool keepWanted = false)
     {
+        if (FarLine(caret, ref line) is { } far)
+        {
+            DeferMove(far.Start, caret, line, keepWanted);
+            return;
+        }
+        CancelFarMove();
         DropOthers(); // a move of one caret ends the several
         _wholeWord = false;
         _caretStamp++;
@@ -931,6 +966,11 @@ internal sealed partial class PagedTextView : Grid
         long target = Math.Clamp(c.Line + delta, 0, LineCount - 1);
         if (target == c.Line || GetLine(target) is not { } view) return;
         if (_wanted < 0) _wanted = c.Long ? (int)Math.Min(c.Column, int.MaxValue) : c.View.DisplayAt[c.View.Map.CharIndexOf(_caret - c.View.Start)];
+        if (!_farResume && view.Truncated && _wanted >= view.Display.Length && ColumnIsFar(view, _wanted))
+        {
+            DeferVertical(view.Start, delta);
+            return;
+        }
         long to = view.Truncated && _wanted >= view.Display.Length ? OffsetOfColumn(view, _wanted) : view.Start + view.Map.ByteOffsetOf(view.IndexAtDisplay(_wanted));
         MoveTo(to, target, keepWanted: true);
     }
@@ -954,6 +994,122 @@ internal sealed partial class PagedTextView : Grid
         if (_hBar.IsVisible) _hBar.Value = Math.Clamp(_hScroll / _canvas.CharWidth, 0, _hBar.Maximum);
         FeedSyntax();
         _canvas.InvalidateVisual();
+    }
+
+    // ---- far moves ----
+
+    private CancellationTokenSource? _farMove;
+    private bool _farResume;
+
+    /// <summary>True from the start of a move that waits for the column count of a long line to the end of it; the caret has not moved yet.</summary>
+    internal bool CaretMovePending => _farMove is not null;
+
+    /// <summary>Runs on the pool before the column count of a far move starts, so that a test can hold the count back.</summary>
+    internal Action<CancellationToken>? FarMoveHook { get; set; }
+
+    /// <summary>
+    /// A move into a long line counts columns from the nearest point noted on the line, which is the whole line away the first time (a 100 MiB line is
+    /// a hundred milliseconds and more on a cold file). True when no point near <paramref name="offset"/> is known and the count is not remembered.
+    /// </summary>
+    private bool OffsetIsFar(LineView view, long offset)
+    {
+        ForgetColumns();
+        return !_columnMemo.ContainsKey(offset) && !Paged.IsOffsetNear(view.Start, offset, FarMoveBytes);
+    }
+
+    /// <summary>
+    /// Distance from the nearest known point of a long line, in bytes or columns, up to which a move counts on the UI thread; farther moves wait for a count on the pool.
+    /// Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedFarMoveBytes"/>. A test lowers it.
+    /// </summary>
+    internal long FarMoveBytes { get; set; } = PluginLimitsPlaceholders.PagedFarMoveBytes;
+
+    /// <summary>
+    /// The long line a move to <paramref name="caret"/> has to wait for, or null when it can go on now: the line is not long, a point near the caret is known,
+    /// or the move is the one that waited. <paramref name="line"/> is filled in when it was not known.
+    /// </summary>
+    private LineView? FarLine(long caret, ref long? line)
+    {
+        if (_farResume || !CanFindLine(caret)) return null;
+        line ??= LineOf(caret);
+        return GetLine(line.Value) is { Truncated: true } view && OffsetIsFar(view, caret) ? view : null;
+    }
+
+    /// <summary>The same for the place of a column of a long line.</summary>
+    private bool ColumnIsFar(LineView view, long column)
+    {
+        ForgetColumns();
+        return !_offsetMemo.ContainsKey(column) && !Paged.IsColumnNear(view.Start, column, FarMoveBytes);
+    }
+
+    private void CancelFarMove()
+    {
+        _farMove?.Cancel();
+        _farMove = null;
+    }
+
+    /// <summary>Moves the caret once the columns up to its place are counted on the pool; the caret stays where it is until then.</summary>
+    private void DeferMove(long lineStart, long caret, long? line, bool keepWanted)
+    {
+        bool extend = _extend;
+        StartFarWalk(lineStart, caret, null, () =>
+        {
+            _extend = extend;
+            try { MoveTo(caret, line, keepWanted); }
+            finally { _extend = false; }
+        });
+    }
+
+    /// <summary>Moves one line up or down once the columns of the wanted place in the line it goes to are counted on the pool.</summary>
+    private void DeferVertical(long lineStart, long delta)
+    {
+        bool extend = _extend;
+        StartFarWalk(lineStart, null, _wanted, () =>
+        {
+            _extend = extend;
+            try { Vertical(delta); }
+            finally { _extend = false; }
+        });
+    }
+
+    /// <summary>
+    /// Counts the columns of the line up to <paramref name="offset"/>, or to the place of <paramref name="column"/>, over a snapshot on the pool, and runs
+    /// <paramref name="again"/> on the UI thread when the count has ended, which finds the points the count noted and does not wait. A newer move, an edit, a save or
+    /// closing the view drops the move: nothing is done then.
+    /// </summary>
+    private void StartFarWalk(long lineStart, long? offset, long? column, Action again)
+    {
+        CancelFarMove();
+        var cts = _farMove = new CancellationTokenSource();
+        _ = WalkColumns(lineStart, offset, column, again, cts);
+    }
+
+    private async Task WalkColumns(long lineStart, long? offset, long? column, Action again, CancellationTokenSource cts)
+    {
+        long revision = Doc.Revision;
+        var paged = Paged;
+        var snapshot = paged.SnapshotColumns();
+        var hook = FarMoveHook;
+        try
+        {
+            await Task.Run(() =>
+            {
+                hook?.Invoke(cts.Token);
+                if (offset is { } o) snapshot.ColumnOf(lineStart, o, cts.Token);
+                else snapshot.OffsetOfColumn(lineStart, column!.Value, cts.Token);
+            }, cts.Token);
+        }
+        catch (Exception e) when (e is OperationCanceledException or ObjectDisposedException or IOException)
+        {
+            if (ReferenceEquals(_farMove, cts)) _farMove = null;
+            return;
+        }
+        bool current = ReferenceEquals(_farMove, cts);
+        if (current) _farMove = null;
+        if (!current || cts.IsCancellationRequested || revision != Doc.Revision || !ReferenceEquals(paged, Paged)) return;
+        paged.KeepColumns(snapshot);
+        _farResume = true; // the points are noted, but the move goes on even if the index did not keep them
+        try { again(); }
+        finally { _farResume = false; }
     }
 
     // ---- long lines ----
@@ -1329,10 +1485,7 @@ internal sealed partial class PagedTextView : Grid
     public void SelectAll()
     {
         if (!Indexed) return;
-        _anchor = Doc.BomLength;
-        _extend = true;
-        try { MoveTo(Doc.ByteLength, LineCount - 1); }
-        finally { _extend = false; }
+        SelectBytes(Doc.BomLength, Doc.ByteLength, LineCount - 1);
     }
 
     private static int LineBreaks(string text)
@@ -1565,6 +1718,11 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Selects from <paramref name="anchor"/> to <paramref name="caret"/>, both byte offsets on character boundaries.</summary>
     internal void SelectBytes(long anchor, long caret, long? line = null)
     {
+        if (FarLine(caret, ref line) is { } far)
+        {
+            StartFarWalk(far.Start, caret, null, () => SelectBytes(anchor, caret, line));
+            return;
+        }
         _extend = true;
         _anchor = anchor;
         try { MoveTo(caret, line); }
@@ -1628,10 +1786,17 @@ internal sealed partial class PagedTextView : Grid
             Map = map;
             _hidden = hidden is { Count: > 0 } ? hidden : null;
             var text = map.Text;
-            var display = new StringBuilder(text.Length);
-            DisplayAt = new int[text.Length + 1];
             var escapes = hideAnsi && AnsiSgr.Contains(text) ? AnsiSgr.Parse(text).Escapes : [];
             HidesAnsi = escapes.Count > 0;
+            if (_hidden is null && !HidesAnsi && text.AsSpan().IndexOf('\t') < 0)
+            {
+                // nothing is expanded, hidden or left out: the display is the text itself and every character stands at its own column
+                DisplayAt = IdentityColumns(text.Length + 1);
+                Display = text;
+                return;
+            }
+            var display = new StringBuilder(text.Length);
+            DisplayAt = new int[text.Length + 1];
             for (int i = 0, e = 0, h = 0; i < text.Length; i++)
             {
                 DisplayAt[i] = display.Length;
@@ -1668,6 +1833,19 @@ internal sealed partial class PagedTextView : Grid
             _marked = other._marked;
         }
 
+        private static int[] _identityColumns = [];
+
+        /// <summary>A table in which entry i is i, at least <paramref name="length"/> long and never changed; the lines that need no expansion share it, so a decoded line does not allocate its own.</summary>
+        private static int[] IdentityColumns(int length)
+        {
+            var table = _identityColumns;
+            if (table.Length >= length) return table;
+            table = new int[Math.Max(length, 1024)];
+            for (int i = 0; i < table.Length; i++) table[i] = i;
+            _identityColumns = table;
+            return table;
+        }
+
         private readonly IReadOnlyList<SecretSpan>? _hidden;
         private string? _readAloud;
 
@@ -1701,7 +1879,7 @@ internal sealed partial class PagedTextView : Grid
         public bool HidesAnsi { get; }
 
         /// <summary>Approximate bytes the line holds: the decoded bytes, the text and its map of byte offsets, the display text, its columns and the marked copy.</summary>
-        public long Footprint => Map.Bytes.Length + Map.Text.Length * 6L + Display.Length * 2L + DisplayAt.Length * 4L + (_marked?.Length ?? 0) * 2L + 160;
+        public long Footprint => Map.Bytes.Length + Map.Text.Length * 6L + Display.Length * 2L + (Map.Text.Length + 1) * 4L + (_marked?.Length ?? 0) * 2L + 160;
 
         private string? _marked;
         /// <summary><see cref="Display"/> with a middle dot for every space and an arrow in the first column of every tab; the same length, so the colors of the tokens still fit.</summary>

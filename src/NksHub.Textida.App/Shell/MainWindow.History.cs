@@ -48,7 +48,11 @@ internal sealed partial class MainWindow
     private QuickRow HistoryRow(DocTab tab, string path, HistoryRevision r, string? detail, Action run)
     {
         var when = HistoryWhen(r);
-        detail ??= string.Join(" · ", new[] { HistorySourceText(r.Source), OpenDocument.FormatSize(r.Size), r.Label, r.Pinned ? Loc.Get(K.HistoryPinnedTag) : null }.Where(s => !string.IsNullOrEmpty(s)));
+        detail ??= string.Join(" · ", new[]
+        {
+            HistorySourceText(r.Source), OpenDocument.FormatSize(r.Size), r.IsPatch ? Loc.Get(K.HistoryPatchTag, ("size", OpenDocument.FormatSize(r.PatchBytes))) : null,
+            r.Label, r.Pinned ? Loc.Get(K.HistoryPinnedTag) : null,
+        }.Where(s => !string.IsNullOrEmpty(s)));
         return new QuickRow(r.Label is { Length: > 0 } ? $"{when}  {r.Label}" : when, null, detail, null, true, null, $"{when}, {detail}", run, () => HistoryPreview(tab, path, r));
     }
 
@@ -75,24 +79,50 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    private async Task HistoryActionsAsync(DocTab tab, string path, HistoryRevision r)
+    internal async Task HistoryActionsAsync(DocTab tab, string path, HistoryRevision r)
     {
-        var buttons = new List<DialogButton>
+        // a large file is not replaced from the history in place (the revision would have to be held in memory, and the file is mapped): it is saved as a copy beside the file
+        var choices = new List<(string Text, Func<Task> Run)> { (Loc.Get(K.HistoryCompare), () => Done(() => CompareWithRevision(tab, path, r))) };
+        if (tab.Paged is null)
         {
-            new(Loc.Get(K.HistoryCompare), IsDefault: true), new(Loc.Get(K.HistoryRestoreFile)), new(Loc.Get(K.HistoryRestoreSection)),
-            new(Loc.Get(K.HistorySetLabel)), new(Loc.Get(r.Pins.Contains(UserPinOwner) ? K.HistoryUnpin : K.HistoryPin)), new(Loc.Get(K.DialogCancel), IsCancel: true),
-        };
+            choices.Add((Loc.Get(K.HistoryRestoreFile), () => Done(() => RestoreRevision(tab, path, r, section: false))));
+            choices.Add((Loc.Get(K.HistoryRestoreSection), () => Done(() => RestoreRevision(tab, path, r, section: true))));
+        }
+        choices.Add((Loc.Get(K.HistorySaveCopy), () => SaveRevisionCopyAsync(path, r)));
+        choices.Add((Loc.Get(K.HistorySetLabel), () => LabelRevisionAsync(path, r)));
+        choices.Add((Loc.Get(r.Pins.Contains(UserPinOwner) ? K.HistoryUnpin : K.HistoryPin), () => Done(() => TogglePin(path, r))));
+        var buttons = choices.Select((c, i) => new DialogButton(c.Text, IsDefault: i == 0)).Append(new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)).ToList();
         var details = r.Label is { Length: > 0 } label ? new[] { Loc.Get(K.HistoryActionsLabel, ("label", label)) } : null;
         var request = new ChoiceRequest(Loc.Get(K.HistoryActionsTitle, ("time", HistoryWhen(r))),
             Loc.Get(K.HistoryActionsMessage, ("source", HistorySourceText(r.Source)), ("size", OpenDocument.FormatSize(r.Size))), buttons, details);
-        switch (await _app.Dialogs.ChooseAsync(this, request))
+        int chosen = await _app.Dialogs.ChooseAsync(this, request);
+        if (chosen >= 0 && chosen < choices.Count) await choices[chosen].Run();
+    }
+
+    private static Task Done(Action action)
+    {
+        action();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Writes a revision beside the file under the name of the file and the time of the revision, and opens it. The copy is made on the thread pool (a revision can be gigabytes) and is never
+    /// held in memory, so it is the way to take a revision of a large file back.
+    /// </summary>
+    private async Task SaveRevisionCopyAsync(string path, HistoryRevision r)
+    {
+        string folder = Path.GetDirectoryName(path)!, name = Path.GetFileNameWithoutExtension(path), extension = Path.GetExtension(path);
+        string stamp = r.TimeUtc.ToLocalTime().ToString("yyyy-MM-dd HH-mm-ss", CultureInfo.InvariantCulture);
+        string copy = Path.Combine(folder, $"{name} ({stamp}){extension}");
+        for (int n = 2; File.Exists(copy); n++) copy = Path.Combine(folder, $"{name} ({stamp} {n}){extension}");
+        try { await Task.Run(() => _app.History.Export(path, r.Id, copy)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or HistoryFormatException)
         {
-            case 0: CompareWithRevision(tab, path, r); break;
-            case 1: RestoreRevision(tab, path, r, section: false); break;
-            case 2: RestoreRevision(tab, path, r, section: true); break;
-            case 3: await LabelRevisionAsync(path, r); break;
-            case 4: TogglePin(path, r); break;
+            SetStatusMessage(Loc.Get(K.HistoryFailed, ("reason", e.Message)));
+            return;
         }
+        SetStatusMessage(Loc.Get(K.HistoryCopySaved, ("time", HistoryWhen(r)), ("path", copy)));
+        OpenFile(copy, null);
     }
 
     private void TogglePin(string path, HistoryRevision r)
@@ -129,6 +159,12 @@ internal sealed partial class MainWindow
         var tool = settings.GetString("tools.diffTool");
         if (string.IsNullOrWhiteSpace(tool))
         {
+            // the built-in comparison holds both texts in memory
+            if (tab.Paged is not null || r.Size > PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes)
+            {
+                SetStatusMessage(Loc.Get(K.HistoryCompareNeedsTool));
+                return;
+            }
             try
             {
                 string text = tab.Doc.Doc.Codec.GetString(_app.History.Read(path, r.Id)).TrimStart('﻿');
@@ -172,6 +208,11 @@ internal sealed partial class MainWindow
     private void RestoreRevision(DocTab tab, string path, HistoryRevision r, bool section)
     {
         if (!ReferenceEquals(Active, tab) || ActiveEditor is not { IsReadOnly: false } surface) { SetStatusMessage(Loc.Get(K.HistoryNoEditor)); return; }
+        if (r.Size > PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes)
+        {
+            SetStatusMessage(Loc.Get(K.HistoryRevisionTooBig, ("size", OpenDocument.FormatSize(r.Size))));
+            return;
+        }
         string revisionText;
         try
         {
@@ -226,6 +267,12 @@ internal sealed partial class MainWindow
         catch (HistoryFormatException e) { return new HistoryRecordResult(HistoryStatus.Failed, null, e.Message); }
     }
 
+    private HistoryRecordResult RecordFileSafely(string path, HistorySource source, string? label)
+    {
+        try { return _app.History.RecordFile(path, source, label); }
+        catch (HistoryFormatException e) { return new HistoryRecordResult(HistoryStatus.Failed, null, e.Message); }
+    }
+
     private void ReportHistory(HistoryRecordResult result)
     {
         if (result.Status == HistoryStatus.TooLarge)
@@ -250,9 +297,23 @@ internal sealed partial class MainWindow
     {
         var label = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.HistoryMarkTitle), Loc.Get(K.HistoryMarkPrompt), ""))?.Trim();
         if (string.IsNullOrEmpty(label)) return;
-        using var ms = new MemoryStream();
-        tab.Doc.Doc.Backend.CopyTo(ms);
-        var result = RecordSafely(path, ms.ToArray(), HistorySource.Manual, label);
+        HistoryRecordResult result;
+        if (tab.Paged is not null)
+        {
+            // the text of a large file is not copied into memory: the revision is the file on disk, which is the text of the tab when nothing is unsaved
+            if (tab.Doc.Doc.IsModified)
+            {
+                SetStatusMessage(Loc.Get(K.HistoryMarkSaveFirst));
+                return;
+            }
+            result = await Task.Run(() => RecordFileSafely(path, HistorySource.Manual, label));
+        }
+        else
+        {
+            using var ms = new MemoryStream();
+            tab.Doc.Doc.Backend.CopyTo(ms);
+            result = RecordSafely(path, ms.ToArray(), HistorySource.Manual, label);
+        }
         try
         {
             // the newest revision already holds this text: the label goes to it

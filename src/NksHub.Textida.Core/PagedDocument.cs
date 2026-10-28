@@ -179,6 +179,16 @@ public sealed class PagedDocument : IPagedTextSource
         return true;
     }
 
+    /// <summary>
+    /// Zero-based line that holds <paramref name="offset"/> without searching for it through the starts of lines (which reads a block per step): for a document that is not
+    /// edited the block table and one block tell it. False for an edited document, and while the index does not reach the offset; <see cref="TryGetLineStart"/> then finds it by search.
+    /// </summary>
+    public bool TryGetLineOfOffset(long offset, out long line)
+    {
+        line = 0;
+        return !IsModified && _source.TryGetLineOfOffset(offset, out line);
+    }
+
     private bool EnsureLineTracking()
     {
         if (_tree.TracksLines) return true;
@@ -415,6 +425,14 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
     public bool IsColumnNear(long lineStart, long column) =>
         IsModified ? _editedColumns.IsNear(lineStart, column) : _source.IsColumnNear(lineStart, column);
+
+    /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted, or the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsColumnNear(long lineStart, long column, long within) =>
+        IsModified ? _editedColumns.IsNear(lineStart, column, within) : _source.IsColumnNear(lineStart, column, within);
+
+    /// <summary>True when <see cref="ColumnOf"/> at <paramref name="offset"/> resumes from a point noted, or the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsOffsetNear(long lineStart, long offset, long within) =>
+        IsModified ? _editedColumns.IsNearPosition(lineStart, offset, within) : _source.IsOffsetNear(lineStart, offset, within);
 
     /// <summary>
     /// A reader of the columns of the current revision for another thread, so that a far read does not hold up this one. The points it notes on an
