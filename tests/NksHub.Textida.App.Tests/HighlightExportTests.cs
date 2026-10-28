@@ -296,7 +296,7 @@ public class HighlightExportWindowTests : IDisposable
     {
         var tokenizer = LanguageModes.Tokenizer("csharp");
         using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(CSharp), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
-        string[] lines = CSharp.Split('\n');
+        string[] lines = CSharp.TrimEnd('\n').Split('\n'); // the empty line after the last line break is no line a session reports
         var expected = tokenizer.InitialState;
         for (int line = 0; line < lines.Length; line++)
         {
