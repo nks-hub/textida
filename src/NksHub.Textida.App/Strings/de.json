@@ -812,6 +812,7 @@
   "plugin.panels.watermark": "Plugin-Bereich auswählen",
   "a11y.plugin.panels": "Plugin-Bereiche",
   "plugin.panels.empty": "Gerade zeigt kein Plugin einen Bereich.",
+  "plugin.panels.starts": "Startet das Plugin, das den Bereich dann zeigt",
   "plugin.pick.watermark": "Zum Filtern tippen",
   "a11y.plugin.pick": "Auswahl des Plugins",
   "plugin.unavailable": "Das Plugin {name} konnte nicht ausgeführt werden: {reason}",

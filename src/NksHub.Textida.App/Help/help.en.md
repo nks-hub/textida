@@ -817,6 +817,7 @@ A plugin panel is a list or a tree that a plugin sends to the editor. The editor
 2. Select a panel and press Enter. It opens with its first item selected.
 3. Up and Down arrow walk through the items, Right and Left arrow expand and collapse a branch. Enter or a double click opens an item.
 4. Esc in the panel closes it and takes you back to the text. While you type in the text, the panel stays open.
+- A plugin that has not started yet but lists a panel (activation event onPanel) is in the list too, with the line "Starts the plugin, which then shows the panel". Choosing it starts the plugin; the panel opens as soon as the plugin sends it.
 - When the plugin refreshes the items, the selected item stays selected.
 - Cancel in the status bar cancels a task of a plugin. The row then says that the task is being cancelled. If the plugin does not end the task soon, the editor ends it and frees its place.
 - When the plugin process stops, its panels, its status bar item and its tasks disappear.

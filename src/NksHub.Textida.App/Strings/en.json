@@ -812,6 +812,7 @@
   "plugin.panels.watermark": "Choose a plugin panel",
   "a11y.plugin.panels": "Plugin panels",
   "plugin.panels.empty": "No plugin shows a panel now.",
+  "plugin.panels.starts": "Starts the plugin, which then shows the panel",
   "plugin.pick.watermark": "Type to filter",
   "a11y.plugin.pick": "Plugin choices",
   "plugin.unavailable": "The plugin {name} could not be run: {reason}",

@@ -817,6 +817,7 @@ Ein Plugin-Bereich ist eine Liste oder ein Baum, den ein Plugin an den Editor sc
 2. Wählen Sie einen Bereich und drücken Sie Enter. Er öffnet sich mit dem ersten Eintrag ausgewählt.
 3. Die Pfeiltasten nach oben und unten gehen durch die Einträge, nach rechts und links klappen sie einen Zweig auf und zu. Enter oder ein Doppelklick öffnet einen Eintrag.
 4. Esc im Bereich schließt ihn und bringt Sie zurück in den Text. Während Sie im Text schreiben, bleibt der Bereich offen.
+- Ein Plugin, das noch nicht läuft, aber einen Bereich angibt (Aktivierungsereignis onPanel), steht ebenfalls in der Liste, mit der Zeile „Startet das Plugin, das den Bereich dann zeigt“. Wenn Sie es wählen, startet das Plugin; der Bereich öffnet sich, sobald das Plugin ihn sendet.
 - Wenn das Plugin die Einträge erneuert, bleibt der ausgewählte Eintrag ausgewählt.
 - Abbrechen in der Statusleiste bricht eine Aufgabe eines Plugins ab. Die Zeile meldet dann, dass die Aufgabe abgebrochen wird. Beendet das Plugin sie nicht bald selbst, beendet der Editor sie und gibt ihren Platz frei.
 - Wenn der Plugin-Prozess endet, verschwinden seine Bereiche, sein Eintrag in der Statusleiste und seine Aufgaben.

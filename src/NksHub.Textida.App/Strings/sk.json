@@ -834,6 +834,7 @@
   "plugin.panels.watermark": "Vyberte panel zásuvného modulu",
   "a11y.plugin.panels": "Panely zásuvných modulov",
   "plugin.panels.empty": "Teraz žiadny zásuvný modul neukazuje panel.",
+  "plugin.panels.starts": "Spustí zásuvný modul, ten potom panel ukáže",
   "plugin.pick.watermark": "Píšte na filtrovanie",
   "a11y.plugin.pick": "Voľby zásuvného modulu",
   "plugin.unavailable": "Zásuvný modul {name} sa nepodarilo spustiť: {reason}",

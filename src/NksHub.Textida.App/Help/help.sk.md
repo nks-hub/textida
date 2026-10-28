@@ -817,6 +817,7 @@ Panel pluginu je zoznam alebo strom, ktorý plugin pošle editoru. Editor ho uk�
 2. Vyberte panel a stlačte Enter. Otvorí sa s vybranou prvou položkou.
 3. Šípky hore a dole prechádzajú položky, šípka vpravo a vľavo rozbalí a zbalí vetvu. Enter alebo dvojklik položku otvorí.
 4. Esc v paneli ho zavrie a vráti vás do textu. Keď píšete v texte, panel zostane otvorený.
+- Zásuvný modul, ktorý ešte nebeží, ale panel uvádza (aktivačná udalosť onPanel), je v zozname tiež, s riadkom „Spustí zásuvný modul, ten potom panel ukáže“. Keď ho vyberiete, modul sa spustí a panel sa otvorí, hneď ako ho pošle.
 - Keď plugin položky obnoví, vybraná položka zostane vybraná.
 - Úlohu pluginu zrušíte tlačidlom Zrušiť v stavovom riadku. Riadok potom pri úlohe píše, že sa ruší. Keď ju plugin čoskoro sám neukončí, ukončí ju editor a uvoľní jej miesto.
 - Keď proces pluginu skončí, zmiznú jeho panely, položka stavového riadku aj úlohy.

@@ -399,6 +399,31 @@ public class PluginManagerAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_stopped_plugin_starts_again_when_a_document_of_its_language_is_shown_again_but_not_at_a_mere_refresh()
+    {
+        InstallProcessPlugin("acme.lang", ["onLanguage:json"]);
+        var plain = _w.NewDocument();
+        var json = _w.NewDocument();
+        json.Doc.ChooseLanguage(LanguageModes.ById("json"));
+        _w.SelectTab(json); // the window looks at the active tab too, so the calls below say what it would say
+        _app.Plugins.TrackActivation(_w, json);
+        ToolTestKit.WaitFor(() => StateOf("acme.lang") == PluginState.Running, "the plugin of the language to start");
+
+        Finish(_app.Plugins.StopPluginAsync("acme.lang"));
+        Assert.Equal(PluginState.Inactive, StateOf("acme.lang"));
+        for (int i = 0; i < 10; i++)
+        {
+            _app.Plugins.TrackActivation(_w, json); // the status bar looking again at the same document is no event
+            ToolTestKit.Pump();
+        }
+        Assert.Equal(PluginState.Inactive, StateOf("acme.lang"));
+
+        _app.Plugins.TrackActivation(_w, plain);
+        _app.Plugins.TrackActivation(_w, json); // the document is shown again
+        ToolTestKit.WaitFor(() => StateOf("acme.lang") == PluginState.Running, "the stopped plugin to start again");
+    }
+
+    [AvaloniaFact]
     public void A_plugin_that_lists_onStartup_starts_once_the_editor_has_started_and_not_before()
     {
         InstallProcessPlugin("acme.boot", [ActivationEvents.Startup]);
@@ -465,6 +490,7 @@ public class PluginManagerAppTests : IDisposable
 
         Assert.Equal(CommandOutcome.Handled, _w.ShowPluginPanels());
         Assert.Equal(["acme.files", "acme.other"], _w.QuickResults.Select(r => r.Title).Order(StringComparer.Ordinal));
+        Assert.All(_w.QuickResults, r => Assert.Equal(Loc.Get(K.PluginPanelsStarts), r.Detail));
         Assert.Equal(PluginState.Inactive, StateOf("acme.tree")); // listing a panel starts nothing
 
         _w.SetPaletteQuery("acme.files");

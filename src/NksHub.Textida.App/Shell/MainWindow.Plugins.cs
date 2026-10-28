@@ -162,7 +162,7 @@ internal sealed partial class MainWindow
         }).ToList();
         // a plugin that lists onPanel:id is not running, so it has sent no panel yet: opening the row starts it and the panel opens as soon as the plugin shows it
         rows.AddRange(plugins.UnshownPanels().Select(d =>
-            new QuickRow(d.PanelId, d.Name, null, null, true, null, d.PanelId + ", " + d.Name, () => _ = OpenDeclaredPluginPanelAsync(d.PluginId, d.PanelId, d.Name))));
+            new QuickRow(d.PanelId, d.Name, Loc.Get(K.PluginPanelsStarts), null, true, null, d.PanelId + ", " + d.Name, () => _ = OpenDeclaredPluginPanelAsync(d.PluginId, d.PanelId, d.Name))));
         ShowChoice(Loc.Get(K.PluginPanelsWatermark), Loc.Get(K.A11yPluginPanels), rows, emptyText: Loc.Get(K.PluginPanelsEmpty));
         return CommandOutcome.Handled;
     }
