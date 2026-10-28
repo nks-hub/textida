@@ -55,7 +55,7 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Equal(ids.Count, ids.Distinct().Count());
         var extensions = LanguageCatalog.Groups.SelectMany(g => g.Modes).SelectMany(m => m.Extensions).ToList();
         Assert.Equal(extensions.Count, extensions.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(3, LanguageCatalog.Version);
+        Assert.Equal(4, LanguageCatalog.Version);
     }
 
     [Fact]
@@ -91,9 +91,19 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Contains(".cs", ConfigFormatters.Find("clang-format")!.Extensions);
         Assert.Equal([".editorconfig"], ConfigFormatters.Find("shfmt")!.ConfigFiles); // shfmt reads its options from EditorConfig
         Assert.Equal(["analysis_options.yaml"], ConfigFormatters.Find("dart-format")!.ConfigFiles);
-        // the language servers the plugin starts: Roslyn first, csharp-ls as the fallback
-        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Shipped).Select(l => l.Program));
-        Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Shipped).Arguments);
+        // C#: Roslyn first, csharp-ls as the fallback
+        Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
+        Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Language == "csharp").Arguments);
+    }
+
+    [Fact]
+    public void Every_language_server_of_the_table_is_one_the_plugin_starts_and_every_mode_with_a_server_has_a_mode_in_the_table()
+    {
+        Assert.Empty(LanguageCatalog.Lsp.Where(l => l.Language.Length == 0 || l.Program.Length == 0));
+        Assert.Equal(LanguageCatalog.Lsp.Count(), LanguageCatalog.Lsp.Select(l => (l.Language, l.Program)).Distinct().Count());
+        // each language of a server is the id of a mode of the table, so the plugin is told a language it has a server for
+        var modes = LanguageCatalog.Groups.SelectMany(g => g.Modes).Select(m => m.Id).ToHashSet();
+        Assert.All(LanguageCatalog.Lsp, l => Assert.Contains(l.Language, modes));
     }
 
     // ---- discovery ----

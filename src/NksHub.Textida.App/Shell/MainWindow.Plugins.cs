@@ -72,8 +72,59 @@ internal sealed partial class MainWindow
         if (_pluginPanelKey is not { } key || _pluginTree.SelectedItem is not TreeViewItem { Tag: string item }) return;
         if (key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal)) _app.Plugins.RevealSymbol(key.Plugin, key.Panel, item);
         else if (key.Panel == PluginServices.LspLocationsPanel) { if (PluginServices.ParsePlace(item) is { } place) GoToPlace(place.Path, place.Line, place.Character, place.EndLine, place.EndCharacter); }
-        else if (key.Panel == PluginServices.GitStatusPanel) GoToPlace(item, 0, 0, 0, 0);
+        else if (key.Panel == PluginServices.GitStatusPanel)
+        {
+            // a path that is not there (a conflict both sides deleted, a file deleted in the tree) is the plugin's to answer: it can resolve the first
+            if (File.Exists(item) || Directory.Exists(item) || _app.Plugins.Ui.Api is not { } git) GoToPlace(item, 0, 0, 0, 0);
+            else _ = git.ActivateItemAsync(key.Plugin, key.Panel, item);
+        }
         else if (_app.Plugins.Ui.Api is { } api) _ = api.ActivateItemAsync(key.Plugin, key.Panel, item);
+    }
+
+    /// <summary>The program of a language server the editor found, and the name of its entry in the catalog; <see cref="Declined"/> is set when the user said no or the path they set is wrong, and nothing may be started.</summary>
+    internal sealed record LspProgram(string Name, string Path)
+    {
+        public bool Declined { get; init; }
+    }
+
+    /// <summary>
+    /// Finds the program of the catalog's language server for <paramref name="language"/> the way every tool of the catalog is found: the path the user set as <c>lsp:&lt;language&gt;</c> in <c>toolPaths</c> of
+    /// the saveActions.json of the profile, then the folders of the project (<c>node_modules/.bin</c>, <c>vendor/bin</c>, <c>.venv</c>) and the PATH. Nothing is downloaded. A program found in a folder of the project is
+    /// a program the project brought, so the user is asked once before it runs, like for a linter (the answer is kept as long as the file stays the same). Null when no program of the language is found; the plugin then
+    /// looks in the PATH itself and reports what it did not find.
+    /// </summary>
+    internal async Task<LspProgram?> LocateLspProgramAsync(DocTab tab, string language)
+    {
+        var file = tab.Doc.Doc.FilePath;
+        var start = file is null ? null : Path.GetDirectoryName(Path.GetFullPath(file));
+        var userPath = LoadSaveActions(file).ToolPaths?.GetValueOrDefault("lsp:" + language);
+        if (!string.IsNullOrWhiteSpace(userPath) && !File.Exists(userPath) && !Directory.Exists(userPath))
+        {
+            SetStatusMessage(Loc.Get(K.LspToolPathMissing, ("language", language), ("path", userPath)));
+            return new LspProgram("", userPath) { Declined = true };
+        }
+        foreach (var entry in LanguageCatalog.Lsp.Where(e => e.Language == language))
+        {
+            if (ToolLocator.Find(entry.Program, start, userPath) is not { } found) continue;
+            bool brought = !string.Equals(found, ToolLocator.Find(entry.Program, null, userPath), PathComparison); // only a folder of the project has it
+            if (brought && !await ConfirmLspProgramAsync(entry, found, start)) return new LspProgram(entry.Program, found) { Declined = true };
+            return new LspProgram(entry.Program, found);
+        }
+        return null;
+    }
+
+    private async Task<bool> ConfirmLspProgramAsync(CatalogLsp entry, string program, string? folder)
+    {
+        var info = new FileInfo(program);
+        var fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes($"lsp\0{entry.Language}\0{Path.GetFullPath(program)}\0{info.Length}\0{info.LastWriteTimeUtc.Ticks}\0{string.Join('\u0001', entry.Arguments)}")));
+        if (_app.ToolApprovals.Has(fingerprint)) return true;
+        var command = string.Join(' ', new[] { program }.Concat(entry.Arguments).Select(a => a.Contains(' ') ? "\"" + a + "\"" : a));
+        var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(K.ToolConfirmMessage, ("title", Loc.Get(K.LspServerName, ("program", entry.Program)))),
+            [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
+            [Loc.Get(K.ToolConfirmCommand, ("command", command)), Loc.Get(K.ToolConfirmDirectory, ("directory", folder ?? ""))]);
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
+        _app.ToolApprovals.Approve(fingerprint);
+        return true;
     }
 
     /// <summary>Selects the bytes of <paramref name="range"/> in the tab and scrolls to them; the outline and the plugin API both end here.</summary>
@@ -160,8 +211,33 @@ internal sealed partial class MainWindow
             string plugin = names.GetValueOrDefault(p.PluginId, p.PluginId);
             return new QuickRow(p.Model.Title, plugin, null, null, true, null, p.Model.Title + ", " + plugin, () => ShowPluginPanel(p.PluginId, p.Model.Id));
         }).ToList();
+        // a plugin that lists onPanel:id is not running, so it has sent no panel yet: opening the row starts it and the panel opens as soon as the plugin shows it
+        rows.AddRange(plugins.UnshownPanels().Select(d =>
+            new QuickRow(d.PanelId, d.Name, Loc.Get(K.PluginPanelsStarts), null, true, null, d.PanelId + ", " + d.Name, () => _ = OpenDeclaredPluginPanelAsync(d.PluginId, d.PanelId, d.Name))));
         ShowChoice(Loc.Get(K.PluginPanelsWatermark), Loc.Get(K.A11yPluginPanels), rows, emptyText: Loc.Get(K.PluginPanelsEmpty));
         return CommandOutcome.Handled;
+    }
+
+    private (string Plugin, string Panel)? _pendingPluginPanel;
+
+    private async Task OpenDeclaredPluginPanelAsync(string plugin, string panel, string name)
+    {
+        _pendingPluginPanel = (plugin, panel);
+        if (await _app.Plugins.ActivatePanelAsync(panel) is { } why)
+        {
+            _pendingPluginPanel = null;
+            await Dispatcher.UIThread.InvokeAsync(() => SetStatusMessage(Loc.Get(K.PluginUnavailable, ("name", name), ("reason", why))));
+            return;
+        }
+        await Dispatcher.UIThread.InvokeAsync(() => ShowPendingPluginPanel(_app.Plugins.Ui));
+    }
+
+    /// <summary>Opens the panel the user asked for through <c>onPanel</c> once the plugin has sent it.</summary>
+    private void ShowPendingPluginPanel(PluginUiHost ui)
+    {
+        if (_pendingPluginPanel is not { } pending || !ui.Panels.Any(p => p.PluginId == pending.Plugin && p.Model.Id == pending.Panel)) return;
+        _pendingPluginPanel = null;
+        ShowPluginPanel(pending.Plugin, pending.Panel);
     }
 
     /// <summary>Gives the keyboard to the panel: the selected item, else the first one, so the arrows and Enter work at once and a screen reader names an item.</summary>
@@ -175,6 +251,7 @@ internal sealed partial class MainWindow
     private void RefreshPluginUi()
     {
         var ui = _app.Plugins.Ui;
+        ShowPendingPluginPanel(ui);
         RefreshPluginPanel(ui);
         OnGitStatusChanged(ui);
         _pluginPanelClose.SetValue(ToolTip.TipProperty, Loc.Get(K.PluginPanelClose));
@@ -207,6 +284,7 @@ internal sealed partial class MainWindow
             {
                 _pluginPanelKey = null;
                 _pluginPanelDrawn = null;
+                _pluginCurrentNode = null;
                 _pluginTree.Items.Clear();
                 if (PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, false);
             }
@@ -220,13 +298,42 @@ internal sealed partial class MainWindow
 
         // new items of the same panel keep the selected item (by id) and the keyboard where they were
         bool samePanel = _pluginPanelDrawn is { } drawn && drawn.PluginId == shown.PluginId && drawn.Model.Id == shown.Model.Id;
+        bool onlyMark = samePanel && ReferenceEquals(_pluginPanelDrawn!.Model.Items, shown.Model.Items); // the plugin moved the current item and sent no items
         string? selected = samePanel ? (_pluginTree.SelectedItem as TreeViewItem)?.Tag as string : null;
         bool focused = samePanel && _pluginTree.IsKeyboardFocusWithin;
         _pluginPanelDrawn = shown;
-        _pluginTree.Items.Clear();
-        foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
-        if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
-        if (focused) FocusPluginTree();
+        if (!onlyMark)
+        {
+            _pluginCurrentNode = null;
+            _pluginTree.Items.Clear();
+            foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
+            if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
+            if (focused) FocusPluginTree();
+        }
+        MarkCurrentPluginItem(shown.Model.Current);
+    }
+
+    private TreeViewItem? _pluginCurrentNode;
+
+    /// <summary>
+    /// Marks the current item of the panel: its label in bold, and its accessible name says so. It is no selection and takes no focus, so a user who walks through the panel with the keyboard is not moved.
+    /// The item is scrolled into view; an id the panel does not have takes the mark away.
+    /// </summary>
+    private void MarkCurrentPluginItem(string? id)
+    {
+        if (_pluginCurrentNode is { } old) SetPluginNodeMark(old, false);
+        _pluginCurrentNode = id is null ? null : FindPluginNode(_pluginTree.Items, id);
+        if (_pluginCurrentNode is not { } node) return;
+        SetPluginNodeMark(node, true);
+        node.BringIntoView();
+    }
+
+    private static void SetPluginNodeMark(TreeViewItem node, bool current)
+    {
+        if (node.Header is not StackPanel { Children: [TextBlock label, ..] } header) return;
+        label.FontWeight = current ? FontWeight.Bold : FontWeight.Normal;
+        string name = header.Children.Count > 1 && header.Children[1] is TextBlock { Text: { } detail } ? label.Text + ", " + detail : label.Text ?? "";
+        AutomationProperties.SetName(node, current ? Loc.Get(K.A11yPluginCurrentItem, ("name", name)) : name);
     }
 
     private static TreeViewItem? FindPluginNode(ItemCollection items, string id)

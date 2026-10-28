@@ -75,9 +75,10 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// Resolves the variables for the document in front, asks once for a command and a directory that were not run before, and runs the tool.
-    /// Everything it has to say goes to the Tasks channel, whatever happens.
+    /// Everything it has to say goes to the Tasks channel, whatever happens. <paramref name="pinned"/> are values (name and text) that the approval is tied to besides the command,
+    /// such as the digest of a Makefile: the confirmation names them and a changed value asks again.
     /// </summary>
-    internal async Task<bool> RunToolAsync(ToolEntry entry, DocTab? document = null, bool interactive = true)
+    internal async Task<bool> RunToolAsync(ToolEntry entry, DocTab? document = null, bool interactive = true, IReadOnlyDictionary<string, string>? pinned = null)
     {
         if (_toolJob is not null)
         {
@@ -93,6 +94,7 @@ internal sealed partial class MainWindow
             ReportToolFailure(entry, e.Message);
             return false;
         }
+        if (pinned is not null) tool = ToolRunner.WithProjectValues(tool, pinned);
 
         if (!_app.ToolApprovals.IsApproved(tool))
         {
@@ -103,6 +105,7 @@ internal sealed partial class MainWindow
             }
             var details = new List<string> { Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory)) };
             if (entry.Source is { } origin) details.Add(Loc.Get(K.ToolConfirmSource, ("source", origin)));
+            foreach (var (name, value) in pinned ?? new Dictionary<string, string>()) details.Add(Loc.Get(K.ToolConfirmPinned, ("name", name), ("value", value.Length > 16 ? value[..16] + "..." : value)));
             var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(!entry.Foreign ? K.ToolConfirmMessage : Path.GetFileName(entry.Source) == PluginManifest.FileName ? K.ToolConfirmPlugin : K.ToolConfirmForeign, ("title", entry.Title)),
                 [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], details);
             if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
@@ -168,10 +171,17 @@ internal sealed partial class MainWindow
         var context = _app.VariableContextFor(tab?.Path, SelectionTexts(tab?.Surface).FirstOrDefault() ?? "", out var broken);
         if (broken is not null) throw new ToolException(Loc.Get(K.ClipVariablesBroken, ("reason", broken)));
         var scope = new VariableScope(context);
-        var variables = ToolVariables.ForDocument(tab?.Path, line, column, name => scope.TryGet(name, out var value) ? value : null,
+        var fromProject = new Dictionary<string, string>(StringComparer.Ordinal); // the project is not the user's own: what it supplied is tied to the approval
+        var variables = ToolVariables.ForDocument(tab?.Path, line, column, name =>
+            {
+                if (!scope.TryGet(name, out var value, out var source)) return null;
+                if (source == VariableSource.Project) fromProject[name] = value;
+                return value;
+            },
             tab is null ? null : () => SelectionOf(tab), tab is null ? null : () => WordText(tab));
-        return ToolRunner.Resolve(WithToolDefaults(spec), variables,
+        var tool = ToolRunner.Resolve(WithToolDefaults(spec), variables,
             (tab?.Path is { } own ? Path.GetDirectoryName(Path.GetFullPath(own)) : ActiveDirectory()) ?? Environment.CurrentDirectory);
+        return ToolRunner.WithProjectValues(tool, fromProject);
     }
 
     private static string? WordText(DocTab tab) => WordRangeAtCaret(tab) is { } r ? tab.Surface!.Document.GetText(r.Start, r.End - r.Start) : null;
@@ -270,7 +280,8 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Runs <c>make -f file target</c> in the folder of the Makefile as a tool: the command is confirmed the first time, the output goes to the Tasks channel and a line
+    /// Runs <c>make -f file target</c> in the folder of the Makefile as a tool: the command is confirmed the first time and again when the Makefile on disk changed
+    /// (the approval is tied to its digest, see <see cref="MakefileTargets.ContentDigest"/>), the output goes to the Tasks channel and a line
     /// that names a file and a line opens it. The program is the setting <c>tools.makeProgram</c> (<c>make</c> when empty); <paramref name="program"/> and <paramref name="programArgs"/>
     /// (put before the arguments of make) exist so a test can stand in for make.
     /// </summary>
@@ -288,7 +299,15 @@ internal sealed partial class MainWindow
             Args = [.. (programArgs ?? []).Select(Literal), "-f", Literal(Path.GetFileName(full)), Literal(target)],
             Cwd = Literal(Path.GetDirectoryName(full)!),
         };
-        return RunToolAsync(new ToolEntry(definition, ToolCatalog.ToSpec(definition, [], full), null, MakeErrors.Value));
+        var entry = new ToolEntry(definition, ToolCatalog.ToSpec(definition, [], full), null, MakeErrors.Value);
+        string digest;
+        try { digest = MakefileTargets.ContentDigest(full); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ReportToolFailure(entry, e.Message);
+            return Task.CompletedTask;
+        }
+        return RunToolAsync(entry, pinned: new Dictionary<string, string> { [MakefileTargets.ApprovalKey] = digest });
     }
 
     private void ReportToolFailure(ToolEntry entry, string reason)

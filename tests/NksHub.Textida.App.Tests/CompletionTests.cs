@@ -4,6 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -69,6 +70,19 @@ public class CompletionTests : IDisposable
         Assert.Equal("ban", offer.Prefix);
         Assert.Equal(["bandana", "banana"], offer.Words);
         Assert.Equal(["Banner", "Bandit"], offer.Clips.Select(c => c.Clip.Title));
+    }
+
+    [AvaloniaFact]
+    public void The_words_of_the_document_being_edited_are_ranked_by_distance_from_the_caret()
+    {
+        // "banalx" is the most frequent but stands farther from the caret than the stretch that is ranked by distance
+        string gap = new string('.', PluginLimitsPlaceholders.CompletionNearChars + 1000), frequent = "banalx banalx banalx banalx";
+        Open("mine.txt", frequent + "\n" + gap + "\nbanner bandit bandit\nban");
+        Assert.Equal(["bandit", "banner", "banalx"], _w.GatherCompletion()!.Words);
+
+        // the caret in front of the words: they are the nearest, nearest first
+        Open("front.txt", "ban\nbanner bandit bandit\n" + gap + "\n" + frequent, caret: 3);
+        Assert.Equal(["banner", "bandit", "banalx"], _w.GatherCompletion()!.Words);
     }
 
     [AvaloniaFact]

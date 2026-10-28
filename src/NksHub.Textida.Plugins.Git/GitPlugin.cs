@@ -18,7 +18,7 @@ namespace NksHub.Textida.Plugins.Git;
 public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0);
 
 /// <summary>
-/// The built-in Git: the status of the working tree in a panel (read again when files change outside the editor), the file against the index or against <c>HEAD</c> in a comparison tab,
+/// The built-in Git: the status of the working tree in a panel (read again when files change outside the editor, in every repository that has an open file), the file against the index or against <c>HEAD</c> in a comparison tab,
 /// the changes of a file for the gutter, and staging the change under the caret or at an offset the editor names (a click in the gutter or in the comparison tab).
 /// The index and <c>HEAD</c> versions of a file are virtual documents the plugin provides; staging goes through <c>diff/stage</c> into the index document and is then written to the
 /// repository, but only when the index is still what the plugin last read. Otherwise nothing is written, the index document is read again and the answer is <c>conflict</c>.
@@ -36,6 +36,8 @@ public sealed class GitPlugin : PluginBase
     public const string MarkResolvedCommand = "git.markResolved";
     public const string ConflictDeleteCommand = "git.conflictDelete";
     public const string HunksCommand = "git.hunks";
+    /// <summary>The editor sends it when the last tab of a document closed; nothing else is asked or done.</summary>
+    public const string ClosedCommand = "git.closed";
     public const string StatusPanel = "git:status";
 
     private readonly GitSettings _settings;
@@ -43,9 +45,17 @@ public sealed class GitPlugin : PluginBase
     /// <summary>The blob each virtual document (by key) was filled from; empty for a path that is not in the tree of that revision.</summary>
     private readonly ConcurrentDictionary<string, (string Document, string Sha)> _loaded = new();
 
+    /// <summary>The watch of one repository and the open documents that keep it.</summary>
+    private sealed class Watched(RepoWatcher watcher)
+    {
+        public readonly RepoWatcher Watcher = watcher;
+        public readonly HashSet<Guid> Documents = [];
+    }
+
     private readonly object _watchGate = new();
     private readonly SemaphoreSlim _refreshing = new(1, 1);
-    private RepoWatcher? _watcher;
+    private readonly Dictionary<string, Watched> _watched = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly Dictionary<Guid, string> _documentRoots = [];
     /// <summary>The root of the repository whose status the panel shows; the panel is kept up to date only for it.</summary>
     private volatile string? _panelRoot;
     private volatile string _language = "en";
@@ -76,8 +86,13 @@ public sealed class GitPlugin : PluginBase
             p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null,
             p.TryGetProperty("offset", out var offset) && offset.ValueKind == JsonValueKind.Number ? offset.GetInt64() : null);
         if (r.Command is not (StatusCommand or DiffIndexCommand or DiffHeadCommand or StageHunkCommand or UnstageHunkCommand or ConflictOursCommand or ConflictTheirsCommand or ConflictBothCommand
-            or MarkResolvedCommand or ConflictDeleteCommand or HunksCommand))
+            or MarkResolvedCommand or ConflictDeleteCommand or HunksCommand or ClosedCommand))
             throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command == ClosedCommand)
+        {
+            if (Guid.TryParse(r.Document, out var closed)) Release(closed);
+            return Status("closed");
+        }
         _language = r.Ui;
         if (r.Command == HunksCommand) return await MarksAsync(r, ct);
         try
@@ -101,7 +116,7 @@ public sealed class GitPlugin : PluginBase
                 _ => await OpenDiffAsync(r, repo, file, r.Command == DiffHeadCommand, ct),
             };
             if (r.Command != StatusCommand) await ShowStatusBarAsync(r.Ui, repo, null, ct); // the status command has shown it
-            Watch(repo);
+            Watch(r.Document, repo);
             return answer;
         }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict) { return await TellAsync(r, "stale", NoticeLevel.Warning, ct); }
@@ -164,19 +179,40 @@ public sealed class GitPlugin : PluginBase
     // ---- files changed outside the editor ----
 
     /// <summary>
-    /// Starts watching the repository so the panel and the status bar follow changes made by other programs. A command of the user moves the watch to its repository; the background
-    /// look of the gutter (<paramref name="replace"/> false) only starts it when nothing is watched, so two repositories on screen do not take it from each other.
+    /// Keeps the repository of an open file watched so the panel and the status bar follow changes made by other programs. Every repository that has an open file is watched, one watch
+    /// each; a file that is looked at again changes nothing, and a file that turns up in another repository (a path that was renamed) moves over. <see cref="Release"/> ends a watch.
     /// </summary>
-    private void Watch(GitRepository repo, bool replace = true)
+    private void Watch(string document, GitRepository repo)
     {
-        if (_settings.WatchDebounceMs <= 0) return;
+        if (_settings.WatchDebounceMs <= 0 || !Guid.TryParse(document, out var id)) return;
         lock (_watchGate)
         {
-            if (_watcher?.Root == repo.Root || (_watcher is not null && !replace)) return;
-            _watcher?.Dispose();
-            _watcher = null;
-            try { _watcher = new RepoWatcher(repo.Root, repo.GitDirectory, _settings.WatchDebounceMs, () => _ = RefreshAsync(repo)); }
-            catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException or PlatformNotSupportedException) { } // nothing to watch: the next command still reads the status
+            if (_documentRoots.TryGetValue(id, out var known))
+            {
+                if (_watched.ContainsKey(repo.Root) && known == repo.Root) return;
+                Release(id);
+            }
+            if (!_watched.TryGetValue(repo.Root, out var watched))
+            {
+                try { watched = new Watched(new RepoWatcher(repo.Root, repo.GitDirectory, _settings.WatchDebounceMs, () => _ = RefreshAsync(repo))); }
+                catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException or PlatformNotSupportedException) { return; } // nothing to watch: the next command still reads the status
+                _watched[repo.Root] = watched;
+            }
+            watched.Documents.Add(id);
+            _documentRoots[id] = repo.Root;
+        }
+    }
+
+    /// <summary>The document is closed: the repository it kept watched is not watched any more when no other open file of it is left.</summary>
+    private void Release(Guid document)
+    {
+        lock (_watchGate)
+        {
+            if (!_documentRoots.Remove(document, out var root) || !_watched.TryGetValue(root, out var watched)) return;
+            watched.Documents.Remove(document);
+            if (watched.Documents.Count > 0) return;
+            _watched.Remove(root);
+            watched.Watcher.Dispose();
         }
     }
 
@@ -187,7 +223,7 @@ public sealed class GitPlugin : PluginBase
         {
             lock (_watchGate)
             {
-                if (_watcher?.Root != repo.Root) return;
+                if (!_watched.ContainsKey(repo.Root)) return;
             }
             var entries = await repo.StatusAsync(default).ConfigureAwait(false);
             if (_panelRoot == repo.Root) await SetPanelAsync(_language, repo, entries, reveal: false, default).ConfigureAwait(false);
@@ -441,6 +477,42 @@ public sealed class GitPlugin : PluginBase
         return Status("conflictDeleted");
     }
 
+    /// <summary>
+    /// The user opened an item of the status panel whose path has no file (the editor does not open it itself). The one thing to do for it is a conflict that both sides deleted, which has
+    /// no file to open and no command for a tab: after a question it is resolved with <c>git rm</c>. Any other missing file is only said to be missing.
+    /// </summary>
+    protected override async ValueTask OnEventAsync(JsonElement eventPayload)
+    {
+        if (!eventPayload.TryGetProperty("name", out var name) || name.GetString() != UiEvents.PanelActivated || !eventPayload.TryGetProperty("payload", out var payload)
+            || payload.GetProperty("panel").GetString() != StatusPanel || payload.GetProperty("item").GetString() is not { } item) return;
+        var ui = _language;
+        try
+        {
+            if (_panelRoot is not { } root || await GitRepository.OpenAsync(root, _settings.TimeoutMs, _settings.MaxBytes, default) is not { } repo) return;
+            var rel = Path.GetRelativePath(repo.Root, item).Replace('\\', '/');
+            if (rel.StartsWith("../", StringComparison.Ordinal) || rel == "..") return;
+            var file = Path.GetFileName(item);
+            if (await repo.ConflictCodeAsync(rel, default) != "DD")
+            {
+                await NotifyAsync(NoticeLevel.Warning, Texts.Get(ui, "missingFile", ("file", rel)), default);
+                return;
+            }
+            var answer = await CallAsync(UiMethods.Confirm, $"{{\"title\":\"{Quote(Texts.Get(ui, "bothDeletedTitle"))}\",\"message\":\"{Quote(Texts.Get(ui, "bothDeletedMessage", ("file", rel)))}\"}}", default);
+            if (answer.GetProperty("confirmed").ValueKind != JsonValueKind.True) return;
+            await repo.DeleteAsync(rel, default);
+            _loaded.TryRemove(IndexKey(repo, rel), out _);
+            await NotifyAsync(NoticeLevel.Info, Texts.Get(ui, "conflictDeleted", ("file", file)), default);
+            var entries = await repo.StatusAsync(default);
+            await SetPanelAsync(ui, repo, entries, reveal: false, default);
+            await ShowStatusBarAsync(ui, repo, entries, default);
+        }
+        catch (Exception e) when (e is RpcException or GitException or IOException)
+        {
+            try { await NotifyAsync(NoticeLevel.Error, Texts.Get(ui, "failed", ("reason", e.Message)), default); }
+            catch (RpcException) { /* the editor is gone */ }
+        }
+    }
+
     // ---- changes of the file for the gutter ----
 
     private static byte[] NoMarks(Request r) => Encoding.UTF8.GetBytes($"{{\"status\":\"none\",\"revision\":{r.Revision},\"hunks\":[]}}");
@@ -461,7 +533,7 @@ public sealed class GitPlugin : PluginBase
             if (entry is { Stage: not 0 } || (entry is null && headSha is null)) return NoMarks(r);
             var bytes = await ReadWholeAsync(r.Document, r.Revision, ct);
             var marks = GutterMarks.Compute(bytes, await ReadBlobAsync(repo, entry?.Sha, ct), await ReadBlobAsync(repo, headSha, ct), CodecOf(tree), ct);
-            Watch(repo, replace: false);
+            Watch(r.Document, repo);
             var items = string.Join(',', marks.Select(m => $"{{\"line\":{m.Line},\"lines\":{m.Lines},\"kind\":\"{m.Kind}\",\"staged\":{(m.Staged ? "true" : "false")}}}"));
             return Encoding.UTF8.GetBytes($"{{\"status\":\"hunks\",\"revision\":{r.Revision},\"hunks\":[{items}]}}");
         }

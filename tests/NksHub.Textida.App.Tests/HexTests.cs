@@ -195,7 +195,7 @@ public class HexTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         hex.MoveTo(starts[1]);
         TestApp.Type(_w, "6E6565646C65"); // "needle" over "row 1 "
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         hex.MoveTo(starts[3]);
         Press(Key.Tab);
         TestApp.Type(_w, "needle");
@@ -251,7 +251,7 @@ public class HexTests : IDisposable
 
         Press(Key.Z, TestApp.Mod);
         Assert.Equal(bytes, Bytes(tab));
-        Press(Key.Y, TestApp.Mod);
+        TestApp.Redo(_w);
         Assert.Equal([0x4E, 0x4B, 0x50], Bytes(tab)[..3]);
     }
 
@@ -260,12 +260,12 @@ public class HexTests : IDisposable
     {
         var bytes = Sample();
         var tab = OpenHex(bytes);
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         Assert.Contains("VKLÁDÁNÍ", _w.HexStatusRightText);
         TestApp.Type(_w, "A5");
         Assert.Equal(bytes.Length + 1, tab.Doc.Doc.ByteLength);
         Assert.Equal(0xA5, Bytes(tab)[0]);
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         Assert.Contains("PŘEPIS", _w.HexStatusRightText);
     }
 
@@ -340,21 +340,21 @@ public class HexTests : IDisposable
         var tab = OpenHex(Sample(10_000));
         var hex = tab.Hex!;
         _dialogs.Prompts.Enqueue("end-512");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control); // Ctrl+G on every platform: Command+G finds the next match on macOS
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(10_000 - 512, hex.Caret);
         _dialogs.Prompts.Enqueue("0x1F40");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(0x1F40, hex.Caret);
-        Press(Key.Left, RawInputModifiers.Alt);
+        TestApp.Jump(_w);
         Assert.Equal(10_000 - 512, hex.Caret);
         _dialogs.Prompts.Enqueue("50%");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(5000, hex.Caret);
         _dialogs.Prompts.Enqueue("end+1");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(5000, hex.Caret);
         Assert.NotEqual("", _w.StatusMessageText);
@@ -377,7 +377,7 @@ public class HexTests : IDisposable
         Assert.Contains("Neplatný výraz", MainWindow.PreviewOffset(hex, "0x"));
 
         _dialogs.Prompts.Enqueue("4K");
-        Press(Key.G, TestApp.Mod);
+        Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(4096, hex.Caret);
         Assert.Equal($"→ 0x00001000 (4096) · bajt {bytes[4096]:X2}", Assert.Single(_dialogs.Previews));
@@ -440,8 +440,11 @@ public class HexTests : IDisposable
             if (bytes[i] == 0x50 && bytes[i + 1] == 0x4B && bytes[i + 3] == 0x04) expected.Add(i);
         var tab = OpenHex(bytes);
         var hex = tab.Hex!;
-        _dialogs.Prompts.Enqueue("50 4B ?? 04");
         Press(Key.F, TestApp.Mod);
+        Assert.True(_w.FindBar.IsVisible && _w.FindBar.HexMode);
+        _w.FindBar.FindBox.Text = "50 4B ?? 04";
+        Dispatcher.UIThread.RunJobs();
+        TestApp.FindNext(_w);
         // the count comes after the selection; a bare digit would already match the caret status ("výběr 4 B")
         PumpUntil(() => hex.Editor.HasSelection && _w.StatusLeftText.Contains($"1 z {expected.Count}"));
         Assert.Equal(expected[0], hex.Editor.Selection.Start);
@@ -450,14 +453,14 @@ public class HexTests : IDisposable
         for (int i = 1; i < expected.Count; i++)
         {
             long previous = hex.Editor.Selection.Start;
-            Press(Key.F3);
+            TestApp.FindNext(_w);
             PumpUntil(() => hex.Editor.Selection.Start != previous);
             seen.Add(hex.Editor.Selection.Start);
         }
         Assert.Equal(expected, seen);
-        Press(Key.F3);
+        TestApp.FindNext(_w);
         PumpUntil(() => hex.Editor.Selection.Start == expected[0]);
-        Press(Key.F3, RawInputModifiers.Shift);
+        TestApp.FindNext(_w, backwards: true);
         PumpUntil(() => hex.Editor.Selection.Start == expected[^1]);
     }
 
@@ -542,7 +545,7 @@ public class HexTests : IDisposable
         PumpUntil(() => _w.StatusLeftText.Contains("2 B"));
         Assert.False(File.Exists(path + ".textida-patch"));
 
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         tab.Hex!.MoveTo(10);
         TestApp.Type(_w, "A5");
         Press(Key.S, TestApp.Mod);
@@ -585,7 +588,7 @@ public class HexTests : IDisposable
         var original = Sample(3 << 20);
         var tab = OpenHex(original);
         var doc = tab.Doc.Doc;
-        Press(Key.Insert);
+        TestApp.ToggleInsert(_w);
         tab.Hex!.MoveTo(10);
         TestApp.Type(_w, "A5");
         var saved = Bytes(tab);
@@ -648,7 +651,7 @@ public class HexTests : IDisposable
         Assert.Equal(original, Bytes(tab));
         Assert.True(doc.IsModified);
 
-        Press(Key.Y, TestApp.Mod);
+        TestApp.Redo(_w);
         Assert.Equal(saved, Bytes(tab));
         Assert.False(doc.IsModified);
         Press(Key.Z, TestApp.Mod);
@@ -686,7 +689,7 @@ public class HexTests : IDisposable
         Assert.Equal("offset 0x00000003, bajt 00, hodnota 0, znak řídicí znak", peer.Value);
         Press(Key.Right, RawInputModifiers.Shift);
         Press(Key.Right, RawInputModifiers.Shift);
-        Assert.EndsWith("vybrány 2 bajty", peer.Value);
+        Assert.EndsWith("vybrány 2 bajty od 0x00000003 do 0x00000004", peer.Value);
         TestApp.Type(_w, "1");
         Assert.EndsWith("změněno", peer.Value);
         Loc.SetLanguage("en");

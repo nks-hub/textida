@@ -9,9 +9,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Syntax\Grammars\*.json" LogicalName="Grammars/%(Filename)%(Extension)" />
     <EmbeddedResource Include="Syntax\Dialects\*.json" LogicalName="Dialects/%(Filename)%(Extension)" />
     <EmbeddedResource Include="Hex\Ksy\Templates\*.ksy;Hex\Ksy\Templates\pinned.yaml" LogicalName="Ksy/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Agents\Hooks\Data\*.json" LogicalName="Hooks/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <PropertyGroup>

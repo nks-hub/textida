@@ -88,6 +88,7 @@ public class GitPluginTests
         public required string Path { get; init; }
         public required UiApiTests.RecordingUi Ui { get; init; }
         public required DocumentApiTests.RecordingTools Tools { get; init; }
+        public required UiApi UiApi { get; init; }
         public long Caret;
 
         public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0)
@@ -116,7 +117,7 @@ public class GitPluginTests
             host.Register(new PluginSpec("git", "Git", T.DotnetHost, args, ["onCommand:git"]));
             await host.ActivateAsync("onCommand:git");
             var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = codec ?? TextCodec.Utf8 });
-            var rig = new Rig { Host = host, Docs = docs, Doc = doc, Path = path, Ui = ui, Tools = tools, Caret = caret };
+            var rig = new Rig { Host = host, Docs = docs, Doc = doc, Path = path, Ui = ui, Tools = tools, UiApi = uiApi, Caret = caret };
             docs.Expose(doc, () => SelectionSet.Single(new TextSelection(rig.Caret, rig.Caret)));
             return rig;
         }
@@ -130,6 +131,26 @@ public class GitPluginTests
             var json = $"{{\"command\":\"{command}\",\"document\":\"{Doc.Id}\",\"revision\":{Doc.Revision},\"language\":\"en\",\"path\":{JsonSerializer.Serialize(file ?? Path)}{(offset is { } at ? $",\"offset\":{at}" : "")}}}";
             return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
+
+        readonly List<Document> _opened = [];
+
+        /// <summary>Another open file, shown to plugins like the first one (of another repository, say).</summary>
+        public Document Open(string path)
+        {
+            var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+            Docs.Expose(doc, () => SelectionSet.Single(new TextSelection(0, 0)));
+            _opened.Add(doc);
+            return doc;
+        }
+
+        /// <summary>A command for the file <paramref name="path"/> that <paramref name="doc"/> shows; the answer's status.</summary>
+        public async Task<string> RunForAsync(Document doc, string path, string command)
+        {
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"path\":{JsonSerializer.Serialize(path)}}}";
+            return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
+        }
+
+        public int StatusCount() { lock (Ui.Statuses) return Ui.Statuses.Count; }
 
         public byte[] TreeBytes() => Doc.GetSnapshot().ReadBytes(new ByteRange(0, Doc.ByteLength));
 
@@ -149,6 +170,7 @@ public class GitPluginTests
             await Host.DisposeAsync();
             await Docs.DisposeAsync();
             Doc.Dispose();
+            foreach (var doc in _opened) doc.Dispose();
         }
     }
 
@@ -645,6 +667,67 @@ public class GitPluginTests
         Assert.Equal("keep.txt\n", repo.Run("ls-files"));
     }
 
+    /// <summary>A repository whose merge stopped on a file both sides renamed, each to another name: <c>c.txt</c> is deleted by both and has no file in the working tree.</summary>
+    static Repo DeletedByBothRepo()
+    {
+        var repo = new Repo(("c.txt", "a\nb\nc\nd\ne\nf\n"), ("keep.txt", "k\n"));
+        var main = repo.Run("branch", "--show-current").Trim();
+        repo.Run("checkout", "-q", "-b", "other");
+        repo.Run("mv", "c.txt", "b.txt");
+        repo.Run("commit", "-q", "-m", "other");
+        repo.Run("checkout", "-q", main);
+        repo.Run("mv", "c.txt", "a.txt");
+        repo.Run("commit", "-q", "-m", "ours");
+        repo.RunAllowFailure("merge", "other");
+        return repo;
+    }
+
+    [Fact]
+    public async Task A_file_both_sides_deleted_is_resolved_from_the_status_panel_after_a_question_and_not_without_a_yes()
+    {
+        using var repo = DeletedByBothRepo();
+        Assert.Contains("DD c.txt", repo.Run("status", "--porcelain=v1"));
+        Assert.False(File.Exists(repo.PathOf("c.txt")));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("keep.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        var item = Assert.Single(rig.LatestPanel()!.Items, i => i.Label == "c.txt");
+        Assert.Equal("conflict: deleted by both", item.Detail);
+
+        ConfirmRequest? asked = null;
+        rig.Ui.Confirm = request => { asked = request; return false; };
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+        await T.Until(() => asked is not null);
+        Assert.Contains("c.txt", asked!.Message);
+        await Task.Delay(300);
+        Assert.Contains("c.txt", repo.Run("ls-files", "-u")); // declined: nothing was changed
+
+        rig.Ui.Confirm = _ => true;
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+        await T.Until(() => !repo.Run("ls-files", "-u").Contains("c.txt"));
+        await T.Until(() => { lock (rig.Ui.Panels) return rig.Ui.Panels[^1].Items.All(i => i.Label != "c.txt"); });
+        lock (rig.Ui.Notices) Assert.Contains((NoticeLevel.Info, "c.txt is deleted and the conflict is resolved."), rig.Ui.Notices);
+        Assert.Contains("a.txt", repo.Run("ls-files", "-u")); // the other conflicts of the merge are not touched
+        Assert.Contains("keep.txt", repo.Run("ls-files"));
+    }
+
+    [Fact]
+    public async Task A_missing_file_that_is_no_conflict_is_only_said_to_be_missing_from_the_status_panel()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("gone.txt", "g\n"));
+        File.Delete(repo.PathOf("gone.txt"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        var item = Assert.Single(rig.LatestPanel()!.Items, i => i.Label == "gone.txt");
+        var asked = false;
+        rig.Ui.Confirm = _ => { asked = true; return true; };
+
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+
+        await T.Until(() => { lock (rig.Ui.Notices) return rig.Ui.Notices.Contains((NoticeLevel.Warning, "gone.txt is not in the working tree, so there is nothing to open.")); });
+        Assert.False(asked);
+        Assert.Contains("gone.txt", repo.Run("ls-files")); // still tracked: the plugin deleted nothing
+    }
+
     [Fact]
     public async Task A_binary_file_added_by_both_sides_is_a_conflict_without_markers()
     {
@@ -848,6 +931,58 @@ public class GitPluginTests
 
         repo.Run("checkout", "-q", "-b", "side"); // and switches the branch: only HEAD changes
         await WaitUntilAsync(() => rig.LatestStatus()!.Text.StartsWith("side "));
+    }
+
+    [Fact]
+    public async Task Every_repository_with_an_open_file_is_watched_and_the_watch_ends_with_its_last_file()
+    {
+        using var one = new Repo(("a.txt", "a\n"), ("a2.txt", "a2\n"));
+        using var two = new Repo(("b.txt", "b\n"));
+        await using var rig = await Rig.CreateAsync(one.PathOf("a.txt"), watchMs: 150);
+        var inTwo = rig.Open(two.PathOf("b.txt"));
+        // the panel ends up on the second repository; before, only the last one asked was watched
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        Assert.Equal("status", await rig.RunForAsync(inTwo, two.PathOf("b.txt"), GitPlugin.StatusCommand));
+        Assert.Equal("Git: " + Path.GetFileName(two.Dir), rig.LatestPanel()!.Title);
+
+        one.Write("a.txt", "x\n");
+        one.Write("a2.txt", "y\n");
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~2")); // the first repository, which is not the one of the panel
+        Assert.Equal("Git: " + Path.GetFileName(two.Dir), rig.LatestPanel()!.Title);
+
+        // its only open file closes (twice: a second notice is harmless): nobody looks at the repository any more
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand));
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand));
+        await Task.Delay(700); // a refresh that was already on its way is over
+        int shown = rig.StatusCount();
+        one.Write("a.txt", "z\n");
+        await Task.Delay(1500);
+        Assert.Equal(shown, rig.StatusCount());
+
+        two.Write("b.txt", "b2\n"); // the second one is still watched
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~1"));
+        Assert.Contains(rig.LatestPanel()!.Items, i => i.Label == "b.txt");
+    }
+
+    [Fact]
+    public async Task A_repository_stays_watched_while_any_of_its_files_is_open()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("b.txt", "b\n"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), watchMs: 150);
+        var second = rig.Open(repo.PathOf("b.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        Assert.Equal("hunks", await rig.RunForAsync(second, repo.PathOf("b.txt"), GitPlugin.HunksCommand)); // the look of the gutter keeps the watch as well
+
+        Assert.Equal("closed", await rig.RunAsync(GitPlugin.ClosedCommand)); // one of the two files
+        repo.Write("b.txt", "b2\n");
+        await WaitUntilAsync(() => rig.LatestStatus()!.Text.EndsWith("~1"));
+
+        Assert.Equal("closed", await rig.RunForAsync(second, repo.PathOf("b.txt"), GitPlugin.ClosedCommand)); // the last one
+        await Task.Delay(700); // a refresh that was already on its way is over
+        int shown = rig.StatusCount();
+        repo.Write("a.txt", "a2\n");
+        await Task.Delay(1500);
+        Assert.Equal(shown, rig.StatusCount());
     }
 
     [Fact]

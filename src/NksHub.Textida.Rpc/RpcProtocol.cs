@@ -1,3 +1,4 @@
+#pragma warning disable CS1591 // the protocols of the editor (LSP, MCP, ACP, plugins); not part of the API of the plugin SDK package
 using System.Text.Json;
 
 namespace NksHub.Textida.Rpc;

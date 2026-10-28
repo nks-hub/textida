@@ -212,6 +212,11 @@ public class PackageRegistryTests
             "/api/search", """{"packages":[{"package":"http"},{"package":"http_parser"}],"next":"https://pub.dev/api/search?q=htt&page=2"}""", ["http", "http_parser"],
             "collection: 1.1", "/api/packages/collection", """{"name":"collection","latest":{"version":"1.18.0","pubspec":{"name":"collection","version":"1.18.0"}},"versions":[{"version":"1.15.0"},{"version":"1.16.0"},{"version":"1.17.0"},{"version":"1.18.0"},{"version":"1.19.0","retracted":true}]}""", ["1.18.0", "1.17.0", "1.16.0", "1.15.0"],
             "1.17.0", "1.18.0")];
+        yield return [new Case("maven", "build.gradle",
+            "dependencies {\n    implementation 'org.spr'\n    implementation 'org.apache.commons:commons-lang3:3.1'\n}\n", "'org.spr",
+            "/solrsearch/select", """{"responseHeader":{"status":0,"QTime":2,"params":{"q":"org.spr","rows":"20","wt":"json"}},"response":{"numFound":2,"start":0,"docs":[{"id":"org.springframework:spring-core","g":"org.springframework","a":"spring-core","latestVersion":"6.1.4","repositoryId":"central","p":"jar","timestamp":1708000000000,"versionCount":300,"text":["org.springframework","spring-core","-sources.jar"],"ec":["-sources.jar",".jar",".pom"]},{"id":"org.springframework:spring-web","g":"org.springframework","a":"spring-web","latestVersion":"6.1.4","repositoryId":"central","p":"jar","versionCount":200}]}}""", ["org.springframework:spring-core", "org.springframework:spring-web"],
+            "commons-lang3:3.1", "/org/apache/commons/commons-lang3/maven-metadata.xml", """<?xml version="1.0" encoding="UTF-8"?><metadata><groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><versioning><latest>3.14.0</latest><release>3.14.0</release><versions><version>3.0</version><version>3.1</version><version>3.11</version><version>3.12.0</version><version>3.13.0</version><version>3.14.0</version></versions><lastUpdated>20231215000000</lastUpdated></versioning></metadata>""", ["3.14.0", "3.13.0", "3.12.0", "3.11", "3.1"],
+            "3.1", "3.14.0")];
     }
 
     [Theory]
@@ -352,5 +357,126 @@ public class PackageRegistryTests
         Assert.Equal(["mono", "psr/log"], found.Select(d => d.Name));
         Assert.Equal("mono", text[found[0].NameStart..found[0].NameEnd]);
         Assert.Equal("1.1.0", text[found[1].VersionStart..found[1].VersionEnd]);
+    }
+
+    // ---- Maven Central: pom.xml and Gradle ----
+
+    private const string Pom = """
+        <?xml version="1.0"?>
+        <project>
+          <dependencyManagement>
+            <dependencies>
+              <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.1</version>
+                <exclusions>
+                  <exclusion><groupId>x.y</groupId><artifactId>skip-me</artifactId></exclusion>
+                </exclusions>
+              </dependency>
+            </dependencies>
+          </dependencyManagement>
+          <dependencies>
+            <!-- <dependency><groupId>a.b</groupId><artifactId>commented</artifactId><version>1.0</version></dependency> -->
+            <dependency>
+              <groupId>${project.groupId}</groupId>
+              <artifactId>sibling</artifactId>
+              <version>${project.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>junit</groupId>
+              <artifactId>junit</artifactId>
+              <version>[4.0,5.0)</version>
+            </dependency>
+            <dependency>
+              <groupId>org.slf4j</groupId>
+              <artifactId>slf4j-api</artifactId>
+            </dependency>
+          </dependencies>
+        </project>
+        """;
+
+    [Fact]
+    public void A_pom_gives_group_and_artifact_as_the_name_the_version_text_and_only_an_exact_version_is_pinned()
+    {
+        var found = Manifests.ReadMaven(Pom);
+        Assert.Equal(["org.apache.commons:commons-lang3", "${project.groupId}:sibling", "junit:junit", "org.slf4j:slf4j-api"], found.Select(d => d.Name)); // not the exclusion, not the comment
+        Assert.Equal("3.1", Pom[found[0].VersionStart..found[0].VersionEnd]);
+        Assert.Equal(["org.apache.commons:commons-lang3"], found.Where(d => d.Pinned).Select(d => d.Name));
+        Assert.Equal("[4.0,5.0)", Pom[found[2].VersionStart..found[2].VersionEnd]);
+        Assert.Equal(-1, found[3].VersionStart);
+        Assert.All(found, d => Assert.Equal((-1, -1), (d.NameStart, d.NameEnd))); // two elements: nothing in one piece to complete
+        var adapter = new MavenAdapter();
+        Assert.Equal(["org.apache.commons:commons-lang3", "junit:junit", "org.slf4j:slf4j-api"], found.Where(d => adapter.IsPackage(d.Name)).Select(d => d.Name));
+    }
+
+    [Fact]
+    public void A_gradle_file_gives_the_coordinate_after_a_configuration_in_both_notations_and_skips_comments_and_other_forms()
+    {
+        const string text = """
+            plugins { id 'java' }
+            dependencies {
+                implementation("com.google.guava:guava:31.0")
+                testImplementation 'junit:junit:4.+'
+                api "org.slf4j:slf4j-api"
+                // implementation 'old:gone:1.0'
+                /* runtimeOnly 'also:gone:1.0' */
+                implementation platform('org.springframework.boot:spring-boot-dependencies:3.2.0')
+                implementation project(':lib')
+                implementation group: 'a', name: 'b', version: '1'
+                implementation 'x.y:z:'
+            }
+            """;
+        var found = Manifests.ReadMaven(text);
+        Assert.Equal(["com.google.guava:guava", "junit:junit", "org.slf4j:slf4j-api", "x.y:z"], found.Select(d => d.Name));
+        Assert.Equal("com.google.guava:guava", text[found[0].NameStart..found[0].NameEnd]);
+        Assert.Equal("31.0", text[found[0].VersionStart..found[0].VersionEnd]);
+        Assert.Equal(["com.google.guava:guava"], found.Where(d => d.Pinned).Select(d => d.Name)); // 4.+ is not one version
+        Assert.Equal(-1, found[2].VersionStart);
+        Assert.True(found[3].VersionStart >= 0 && found[3].VersionStart == found[3].VersionEnd); // a version still being typed is an empty span
+    }
+
+    [Fact]
+    public async Task A_pom_offers_the_versions_of_an_artifact_and_marks_the_newer_one_but_offers_no_names_and_looks_up_no_variable()
+    {
+        const string versions = """<metadata><groupId>org.apache.commons</groupId><artifactId>commons-lang3</artifactId><versioning><versions><version>3.1</version><version>3.14.0</version><version>3.15.0-M1</version></versions></versioning></metadata>""";
+        await using var rig = await Rig.CreateAsync("pom.xml", Pom, ["maven"], s => s.Serve("/org/apache/commons/commons-lang3/maven-metadata.xml", versions));
+
+        Assert.Equal(["3.15.0-M1", "3.14.0", "3.1"], (await rig.OffersAfterAsync("<version>3.1")).Select(i => i.Label)); // a pre-release is offered, marked as one
+        Assert.Empty(await rig.OffersAfterAsync("<artifactId>comm"));
+        Assert.Equal(0, rig.Registry.Count("/solrsearch"));
+
+        var check = await rig.CheckAsync();
+        Assert.Equal(("ok", "maven", 1), (check.GetProperty("status").GetString(), check.GetProperty("registry").GetString(), check.GetProperty("issues").GetInt32()));
+        var mark = Assert.Single(rig.Docs.DiagnosticsOf(rig.Doc.Id));
+        Assert.Equal("3.1", Encoding.UTF8.GetString(rig.Doc.GetSnapshot().ReadBytes(mark.Range)));
+        Assert.Contains("3.14.0", mark.Message);
+        Assert.All(rig.Registry.Requests, r => Assert.StartsWith("/org/apache/commons/commons-lang3/", r)); // a range, a variable and a missing version are not asked about
+    }
+
+    [Fact]
+    public void The_answer_of_the_maven_registry_that_is_not_what_its_api_documents_is_a_registry_error()
+    {
+        var adapter = new MavenAdapter();
+        Assert.Throws<RegistryException>(() => adapter.Names("""{"unexpected":true}""", "x"));
+        Assert.Throws<RegistryException>(() => adapter.Names("<html/>", "x"));
+        Assert.Throws<RegistryException>(() => adapter.VersionList("<metadata><versioning/></metadata>", "g:a"));
+        Assert.Throws<RegistryException>(() => adapter.VersionList("not xml", "g:a"));
+        Assert.Throws<RegistryException>(() => adapter.VersionList("<!DOCTYPE metadata [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><metadata><versioning><versions><version>&x;</version></versions></versioning></metadata>", "g:a")); // no entities, no files
+        Assert.Equal(["1.0", "1.1"], adapter.VersionList("<metadata><versioning><versions><version>1.0</version><version> </version><version>1.1</version></versions></versioning></metadata>", "g:a"));
+        Assert.Equal(["1.0", "2.0"], adapter.VersionList("<metadata><versioning><versions><version>1.0</version><version>2.0</version></versions></versioning></metadata>", "g:a")); // elements with no white space between them
+    }
+
+    [Theory]
+    [InlineData("spring", "q=spring")]
+    [InlineData("org.springframework:", "q=g%3A%22org.springframework%22")]
+    [InlineData("org.springframework:spring-c", "q=g%3A%22org.springframework%22%20AND%20a%3Aspring-c%2A")]
+    public void A_typed_name_becomes_a_search_of_the_group_and_the_artifact_and_text_that_is_no_name_is_not_searched(string prefix, string expectedQuery)
+    {
+        var adapter = new MavenAdapter();
+        Assert.Contains(expectedQuery, adapter.NamesUrl(prefix, 20)!.OriginalString);
+        Assert.Null(adapter.NamesUrl("x\" OR g:*", 20));
+        Assert.Null(adapter.NamesUrl("a b", 20));
+        Assert.Equal("https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/maven-metadata.xml", adapter.VersionsUrl("org.apache.commons:commons-lang3").OriginalString);
     }
 }

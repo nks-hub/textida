@@ -73,6 +73,47 @@ public abstract partial class DocumentContractSuite
     }
 
     [Fact]
+    public void ManyEditsOfOneTransactionUndoAndRedoAsOneStepAndTellWhetherTheyTouchLineBreaks()
+    {
+        // enough edits for the undo step to keep their bytes together, with insertions of one byte, with a line break and replacements
+        var lines = Enumerable.Range(0, 40).Select(i => $"line {i}\n").ToArray();
+        string text = string.Concat(lines);
+        string expected = string.Concat(lines.Select((l, i) => i % 5 == 0 ? "LL" + l[1..] : (i % 3 == 0 ? "yy\n" : "x") + l));
+        using var d = New(Encoding.UTF8.GetBytes(text));
+        var seen = new List<bool>();
+        d.Changed += (_, e) => seen.Add(e.Change.TouchesLineBreaks);
+
+        var edits = new List<ByteEdit>();
+        int start = 0;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i % 5 == 0) edits.Add(new ByteEdit(new ByteRange(start, start + 1), "LL"u8.ToArray()));
+            else edits.Add(ByteEdit.InsertAt(start, (i % 3 == 0 ? "yy\n" : "x").ToCharArray().Select(c => (byte)c).ToArray()));
+            start += lines[i].Length;
+        }
+        Assert.True(d.Apply(edits).Applied);
+        Assert.Equal(expected, Encoding.UTF8.GetString(Bytes(d)));
+        Assert.Equal([true], seen);
+        Assert.Equal(1, d.UndoDepth);
+
+        d.Undo();
+        Assert.Equal(text, Encoding.UTF8.GetString(Bytes(d)));
+        Assert.False(d.CanUndo);
+        d.Redo();
+        Assert.Equal(expected, Encoding.UTF8.GetString(Bytes(d)));
+        d.Undo();
+        Assert.Equal(text, Encoding.UTF8.GetString(Bytes(d)));
+
+        // the same without a line break anywhere: the change says so
+        seen.Clear();
+        var plain = Enumerable.Range(0, 40).Select(i => ByteEdit.InsertAt(i * 7, "-"u8.ToArray())).ToList();
+        Assert.True(d.Apply(plain).Applied);
+        Assert.Equal([false], seen);
+        d.Undo();
+        Assert.Equal(text, Encoding.UTF8.GetString(Bytes(d)));
+    }
+
+    [Fact]
     public void ChangingOneCharKeepsEveryOtherByteIncludingInvalidSequencesAndMixedEol()
     {
         byte[] utf8 = [.. "a\r\nb\nc\rd"u8, 0xE2, 0x82, (byte)'x', 0xFF, 0xC3, 0xA9, 0x80, .. "\r\n\r"u8];

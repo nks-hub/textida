@@ -370,7 +370,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     private void Pump()
     {
-        if (_disposed || Wanted() is not { } first) return;
+        // a job queued before the window closed runs after its documents were disposed; a minimap that left the visual tree has nothing to draw
+        if (_disposed || !_attached || Wanted() is not { } first) return;
         if (!first.Layout.Sampled) RequestColors(first.Layout, first.Key.Width); // the colors may arrive at once and change the version
         if (Wanted() is not { } wanted) return;
         var key = wanted.Key;

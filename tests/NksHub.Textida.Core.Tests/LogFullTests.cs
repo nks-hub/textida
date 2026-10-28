@@ -42,6 +42,90 @@ public sealed class LogFullTests
         Assert.All(parsed.Escapes, e => Assert.True(e.Start >= 1 && e.Start + e.Length <= line.Length));
     }
 
+    private static Func<long, string?> LinesOf(params string[] lines) => i => i >= 0 && i < lines.Length ? lines[i] : null;
+
+    [Fact]
+    public void A_style_a_line_leaves_open_goes_on_into_the_next_lines_until_a_code_changes_it()
+    {
+        var lines = LinesOf("\x1b[31mred start", "still red", "\x1b[1mbold and red", "plain text here \x1b[22m", "\x1b[0mreset", "after");
+        var carry = new AnsiCarry(50);
+        var red = new AnsiStyle(AnsiColor.Indexed(1), default, false, false);
+        Assert.Equal(default, carry.StartOf(0, lines));
+        Assert.Equal(red, carry.StartOf(1, lines));
+        Assert.Equal(red, carry.StartOf(2, lines));
+        Assert.Equal(red with { Bold = true }, carry.StartOf(3, lines));
+        Assert.Equal(red, carry.StartOf(4, lines)); // bold off, the color stays
+        Assert.Equal(default, carry.StartOf(5, lines)); // the reset of the line before
+    }
+
+    [Fact]
+    public void A_line_without_escapes_in_a_styled_run_is_colored_whole_and_the_text_is_not_changed()
+    {
+        var lines = LinesOf("\x1b[32mgreen", "no escape at all", "ab\x1b[33mcd");
+        var carry = new AnsiCarry(10);
+        var plain = carry.Read(1, lines(1)!, lines);
+        Assert.Empty(plain.Escapes);
+        var span = Assert.Single(plain.Spans);
+        Assert.Equal((0, 16, AnsiColor.Indexed(2)), (span.Start, span.Length, span.Style.Fore));
+
+        var mixed = carry.Read(2, lines(2)!, lines); // the carried green up to the escape, then yellow
+        Assert.Equal([(0, 2, AnsiColor.Indexed(2)), (7, 2, AnsiColor.Indexed(3))], mixed.Spans.Select(s => (s.Start, s.Length, s.Style.Fore)));
+        Assert.Equal(AnsiColor.Indexed(3), mixed.End.Fore);
+    }
+
+    [Theory]
+    [InlineData("\x1b[0m", true)]
+    [InlineData("\x1b[m", true)]
+    [InlineData("text \x1b[31mred\x1b[0m", true)]
+    [InlineData("\x1b[0;31m", true)]
+    [InlineData("\x1b[31;40;1;4m", true)] // every attribute set one by one
+    [InlineData("\x1b[31m", false)]
+    [InlineData("\x1b[31;1;4m", false)] // the background is not touched
+    [InlineData("\x1b[38;2;1;2;3m\x1b[48;2;4;5;6m\x1b[1m\x1b[4m", true)] // even a color equal to the one the test uses
+    [InlineData("plain", false)]
+    [InlineData("", false)]
+    public void A_line_whose_end_does_not_depend_on_its_start_is_told_from_one_that_does(string line, bool independent) =>
+        Assert.Equal(independent, AnsiSgr.EndIsIndependent(line));
+
+    [Fact]
+    public void The_walk_back_stops_at_a_reset_and_at_the_limit_and_asks_for_no_line_it_does_not_need()
+    {
+        var asked = new List<long>();
+        string?[] text = ["\x1b[0m\x1b[31mred", "x", "y", "z", "w"];
+        Func<long, string?> lines = i => { asked.Add(i); return i >= 0 && i < text.Length ? text[i] : null; };
+        var carry = new AnsiCarry(10);
+        Assert.Equal(AnsiColor.Indexed(1), carry.StartOf(4, lines).Fore);
+        Assert.Equal([3L, 2, 1, 0], asked); // line 0 resets everything, so nothing before it is asked for
+
+        // a style that stays open for longer than the limit is not seen past it
+        string[] open = ["\x1b[31mred", "a", "b", "c", "d"];
+        Assert.Equal(AnsiColor.Indexed(1), new AnsiCarry(4).StartOf(4, LinesOf(open)).Fore);
+        Assert.True(new AnsiCarry(3).StartOf(4, LinesOf(open)).IsDefault);
+        Assert.True(new AnsiCarry(0).StartOf(4, LinesOf(open)).IsDefault);
+    }
+
+    [Fact]
+    public void The_styles_lines_left_are_remembered_until_the_text_changes()
+    {
+        var carry = new AnsiCarry(10);
+        var first = carry.Read(0, "\x1b[34mblue", LinesOf());
+        Assert.Equal(AnsiColor.Indexed(4), first.End.Fore);
+        // the next line is read from what the first one left, without asking for any line
+        var second = carry.Read(1, "next", _ => throw new InvalidOperationException("no line is needed"));
+        Assert.Equal(AnsiColor.Indexed(4), Assert.Single(second.Spans).Style.Fore);
+
+        carry.Clear();
+        Assert.True(carry.StartOf(1, LinesOf("changed", "x")).IsDefault);
+    }
+
+    [Fact]
+    public void A_line_that_is_not_there_ends_the_walk_and_the_lines_before_it_count_as_default()
+    {
+        var carry = new AnsiCarry(10);
+        Assert.True(carry.StartOf(3, i => i == 2 ? null : "\x1b[31mred").IsDefault);
+        Assert.True(carry.StartOf(0, LinesOf("\x1b[31m")).IsDefault);
+    }
+
     [Theory]
     [InlineData("   at App.Svc.Run() in C:\\src\\Svc.cs:line 42", StackTraceKind.DotNet, "C:\\src\\Svc.cs", 42)]
     [InlineData("\tat com.acme.Foo.bar(Foo.java:17)", StackTraceKind.Java, "Foo.java", 17)]

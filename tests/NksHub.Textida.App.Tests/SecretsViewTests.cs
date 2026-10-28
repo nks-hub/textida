@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia;
@@ -492,6 +493,110 @@ public class SecretsViewTests : IDisposable
         Assert.False(hex.SecretsHidden);
         Assert.False(hex.Describe(Env.IndexOf("hunter2", StringComparison.Ordinal)).Hidden);
         Assert.Equal((byte)'h', hex.Describe(Env.IndexOf("hunter2", StringComparison.Ordinal)).Value);
+    }
+
+    private static async Task PumpUntilAsync(Func<bool> condition, string what)
+    {
+        var clock = Stopwatch.StartNew();
+        while (!condition() && clock.Elapsed < TimeSpan.FromSeconds(20))
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(condition(), what);
+    }
+
+    [AvaloniaFact]
+    public async Task The_previews_of_a_replacement_and_of_the_unsaved_changes_show_stars_for_a_range_that_touches_a_hidden_value()
+    {
+        var tab = OpenHex(".env");
+        var hex = tab.Hex!;
+        string stars = HexEditor.ToHexText("*******"u8.ToArray());
+
+        _dialogs.Prompts.Enqueue("\"hunter2\"");
+        _dialogs.Prompts.Enqueue("\"zzzzzzz\"");
+        _dialogs.Answers.Enqueue(1); // cancel the replacement
+        TestApp.Replace(_w);
+        await PumpUntilAsync(() => _dialogs.Asked.Count == 1, "the preview of the replacement");
+        var line = Assert.Single(_dialogs.Asked[0].Details!);
+        Assert.Contains(stars, line);
+        Assert.DoesNotContain(HexEditor.ToHexText("hunter2"u8.ToArray()), line);
+        Assert.DoesNotContain(HexEditor.ToHexText("zzzzzzz"u8.ToArray()), line);
+        Assert.Equal(Env, Bytes(tab));
+
+        // the bytes the user changed in a value are not listed either, nor the ones they replace
+        int value = Env.IndexOf("hunter2", StringComparison.Ordinal);
+        Assert.True(hex.Editor.Write(new ByteRange(value, value + 3), "AAA"u8.ToArray()).Applied);
+        _dialogs.Answers.Enqueue(1);
+        var shown = _w.ShowHexChangesAsync(tab);
+        await PumpUntilAsync(() => shown.IsCompleted, "the list of the changes");
+        var change = Assert.Single(_dialogs.Asked[1].Details!);
+        Assert.Contains(HexEditor.ToHexText("***"u8.ToArray()), change);
+        Assert.DoesNotContain(HexEditor.ToHexText("hun"u8.ToArray()), change);
+        Assert.DoesNotContain(HexEditor.ToHexText("AAA"u8.ToArray()), change);
+
+        // a change in a line without a value is listed with its bytes
+        Assert.True(hex.Editor.Write(new ByteRange(2, 5), "ZZZ"u8.ToArray()).Applied);
+        _dialogs.Answers.Enqueue(1);
+        shown = _w.ShowHexChangesAsync(tab);
+        await PumpUntilAsync(() => shown.IsCompleted, "the list of the changes again");
+        Assert.Contains(_dialogs.Asked[2].Details!, text => text.Contains(HexEditor.ToHexText("ZZZ"u8.ToArray()), StringComparison.Ordinal));
+    }
+
+    [AvaloniaFact]
+    public async Task The_checksum_of_a_range_with_a_hidden_value_is_the_one_of_the_stars_and_says_so_until_the_values_are_shown()
+    {
+        var tab = OpenHex(".env");
+        var hex = tab.Hex!;
+        var spec = Checksums.Find("sha256")!;
+        string Sha(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
+        async Task RunSumAsync()
+        {
+            var sum = _w.HexChecksumAsync(hex, spec);
+            await PumpUntilAsync(() => sum.IsCompleted, "the checksum");
+        }
+
+        _dialogs.Answers.Enqueue(2);
+        await RunSumAsync();
+        var masked = _dialogs.Asked[0];
+        Assert.Equal([Sha("# keys\nAPI_KEY=*******\nOTHER=*****\nPLAIN=*\n")], masked.Details);
+        Assert.Contains(Loc.Get(K.HexSumMasked), masked.Message);
+
+        hex.Select(0, 6); // "# keys": no value in it
+        _dialogs.Answers.Enqueue(2);
+        await RunSumAsync();
+        Assert.Equal([Sha("# keys")], _dialogs.Asked[1].Details);
+        Assert.DoesNotContain(Loc.Get(K.HexSumMasked), _dialogs.Asked[1].Message);
+
+        Assert.Equal(CommandOutcome.Handled, await RunAsync("nks.view.toggleSecrets"));
+        hex.Select(0, Env.Length);
+        _dialogs.Answers.Enqueue(2);
+        await RunSumAsync();
+        Assert.Equal([Sha(Env)], _dialogs.Asked[2].Details);
+        Assert.DoesNotContain(Loc.Get(K.HexSumMasked), _dialogs.Asked[2].Message);
+    }
+
+    [AvaloniaFact]
+    public async Task The_byte_map_of_a_hidden_value_is_the_map_of_stars_and_is_built_again_when_the_values_are_shown()
+    {
+        var tab = OpenHex("map.env", "API_KEY=\u0001\u0002\u0003\u0004\u0005\u0006\u0007\nPLAIN=x\n");
+        var hex = tab.Hex!;
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        hex.Minimap.Rebuild();
+        await PumpUntilAsync(() => hex.Minimap.Map is { IsExact: true }, "the map");
+
+        var doc = tab.Doc.Doc;
+        var map = hex.Minimap.Map!;
+        var ofStars = ByteMapBuilder.Build(new MaskedSnapshot(doc.GetSnapshot(), hex.HiddenRanges(), doc.Codec), map.Buckets);
+        var ofBytes = ByteMapBuilder.Build(doc.GetSnapshot(), map.Buckets);
+        Assert.False(ofStars.Classes.SequenceEqual(ofBytes.Classes), "the control bytes and the stars must tell the two maps apart");
+        Assert.Equal(ofStars.Classes, map.Classes);
+        Assert.Equal(ofStars.Entropy, map.Entropy);
+
+        Assert.Equal(CommandOutcome.Handled, await RunAsync("nks.view.toggleSecrets"));
+        await PumpUntilAsync(() => hex.Minimap.Map is { IsExact: true } shown && !ReferenceEquals(shown, map), "the map of the shown bytes");
+        Assert.Equal(ofBytes.Classes, hex.Minimap.Map!.Classes);
     }
 
     // ---- the setting, the exports ----

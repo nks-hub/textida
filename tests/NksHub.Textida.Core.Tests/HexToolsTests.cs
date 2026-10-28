@@ -127,6 +127,32 @@ public class HexToolsTests
         Assert.Equal("11e60398", Run(Checksums.Find("adler32")!, "Wikipedia"u8.ToArray()));
     }
 
+    // XXH3_len_1to3_64b of the xxHash specification with seed 0: the first eight bytes of its default secret are two little-endian words, 0x396cfeb8 and 0xbe4ba423
+    private static ulong Xxh3OneToThreeBytes(byte[] input)
+    {
+        uint combined = (uint)input[0] << 16 | (uint)input[input.Length >> 1] << 24 | input[^1] | (uint)input.Length << 8;
+        ulong h = combined ^ (0x396cfeb8u ^ 0xbe4ba423u);
+        h ^= h >> 33;
+        h *= 14029467366897019727;
+        h ^= h >> 29;
+        h *= 1609587929392839161;
+        return h ^ h >> 32;
+    }
+
+    [Fact]
+    public void Xxh3_gives_the_published_values_of_the_empty_input_and_agrees_with_the_definition_for_short_inputs()
+    {
+        Assert.Equal("2d06800538d394c2", Run(Checksums.Find("xxh3")!, []));
+        Assert.Equal("99aa06d3014798d86001c324468d497f", Run(Checksums.Find("xxh128")!, []));
+        Assert.Equal("78af5f94892f3950", Run(Checksums.Find("xxh3")!, "abc"u8.ToArray()));
+        var random = new Random(12);
+        for (int i = 0; i < 300; i++)
+        {
+            var data = Gen.RandomBytes(random, 1 + i % 3);
+            Assert.Equal(Xxh3OneToThreeBytes(data).ToString("x16"), Run(Checksums.Find("xxh3")!, data));
+        }
+    }
+
     [Fact]
     public void Streaming_in_any_split_gives_the_same_value_as_one_run()
     {
@@ -162,6 +188,16 @@ public class HexToolsTests
         Assert.True(Checksums.SameValue("0000beef", "BEEF"));
         Assert.False(Checksums.SameValue("cbf43926", "cbf43927"));
         Assert.False(Checksums.SameValue("cbf43926", "  "));
+        Assert.Equal("cbf43926", Checksums.Digits(" 0xCB:F4-39_26 "));
+        Assert.Equal("0000beef", Checksums.Digits("0000BEEF")); // leading zeros stay in the digits, so the length still tells the algorithm
+    }
+
+    [Fact]
+    public void The_hex_dialog_and_the_text_command_list_the_same_algorithms_with_unique_ids_and_names()
+    {
+        Assert.Equal(Checksums.All.Count, Checksums.All.Select(s => s.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(Checksums.All.Count, Checksums.All.Select(s => s.Name).Distinct(StringComparer.Ordinal).Count());
+        Assert.All(["xxh3", "xxh128", "crc-32", "md5", "sha1", "sha256", "sha384", "sha512"], id => Assert.NotNull(Checksums.Find(id)));
     }
 
     // ---- copy and paste as ----

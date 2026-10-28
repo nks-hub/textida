@@ -36,8 +36,9 @@ public sealed record McpLaunch(string Executable, IReadOnlyList<string> Args, st
     public string Mask(string text) => McpText.MaskSecrets(text, SecretValues);
 }
 
-/// <summary>A server reached by an address (Streamable HTTP): the address, the headers sent with every message and the values that must never be shown.</summary>
-public sealed record McpRemote(Uri Url, IReadOnlyDictionary<string, string> Headers, IReadOnlyList<string> SecretValues)
+/// <summary>A server reached by an address (Streamable HTTP, or the older HTTP+SSE transport): the address, the headers sent with every message and the values that must never be shown.</summary>
+/// <param name="LegacySse">The address is the event stream of the older HTTP+SSE transport (MCP 2024-11-05), not the one endpoint of Streamable HTTP; the entry of the configuration said <c>sse</c>. Without it the client still tries the older transport when the server refuses the first POST with a 4xx status.</param>
+public sealed record McpRemote(Uri Url, IReadOnlyDictionary<string, string> Headers, IReadOnlyList<string> SecretValues, bool LegacySse = false)
 {
     /// <summary>The address for the user's eyes: password and the values of the query string hidden.</summary>
     public string MaskedUrl => McpText.MaskUrl(Url.OriginalString);
@@ -114,6 +115,9 @@ public sealed class McpTimeoutException(TimeSpan timeout) : McpClientException(s
 /// <summary>The server at an address refused the key it was sent (HTTP 401 or 403), so the caller can drop it and ask for a new one.</summary>
 public sealed class McpAuthException(string message) : McpClientException(message);
 
+/// <summary>The server at an address refused the first POST of Streamable HTTP in the way an older server does, so the older transport is worth trying. Only <see cref="McpClient.StartRemoteAsync"/> sees it.</summary>
+internal sealed class McpOlderServerException(string message) : McpClientException(message);
+
 /// <summary>The server process ended (or closed its output) while the client was waiting for it. Reported to the caller; it never takes the editor down.</summary>
 public sealed class McpServerExitedException(McpServerExit exit)
     : McpClientException("The MCP server ended" + (exit.ExitCode is { } c ? $" (exit code {c})" : "") + (exit.StderrTail.Length > 0 ? ": " + exit.StderrTail.Split('\n')[^1].Trim() : "."))
@@ -122,8 +126,8 @@ public sealed class McpServerExitedException(McpServerExit exit)
 }
 
 /// <summary>
-/// An MCP client for a server it starts itself (stdio transport) or reaches by an address (Streamable HTTP, <see cref="StartRemoteAsync"/>). A started server is first asked
-/// <c>server/discover</c> with the per-request version of 2026-07-28; one that does not know it is greeted with <c>initialize</c> of 2025-11-25, and a server at an address always is.
+/// An MCP client for a server it starts itself (stdio transport) or reaches by an address (Streamable HTTP, or the older HTTP+SSE transport of 2024-11-05, <see cref="StartRemoteAsync"/>). A started server is first asked
+/// <c>server/discover</c> with the per-request version of 2026-07-28; one that does not know it is greeted with <c>initialize</c> of 2025-11-25, and a server at an address always is (of 2024-11-05 over the older transport).
 /// Calls can be cancelled, which sends <c>notifications/cancelled</c> (the JSON-RPC layer does it); a call that takes longer than <see cref="McpClientOptions.CallTimeout"/> ends
 /// with <see cref="McpTimeoutException"/> in the same way. A server that dies is reported as <see cref="McpServerExitedException"/> and through <see cref="ServerExited"/>.
 /// </summary>
@@ -131,6 +135,8 @@ public sealed class McpClient : IAsyncDisposable
 {
     public const string ModernVersion = "2026-07-28";
     public const string LegacyVersion = "2025-11-25";
+    /// <summary>The revision of the older HTTP+SSE transport; a server reached over it is greeted with this version.</summary>
+    public const string SseVersion = "2024-11-05";
     private const string VersionKey = "io.modelcontextprotocol/protocolVersion";
     private const string InfoKey = "io.modelcontextprotocol/clientInfo";
     private const string CapabilitiesKey = "io.modelcontextprotocol/clientCapabilities";
@@ -154,8 +160,8 @@ public sealed class McpClient : IAsyncDisposable
         _http = http;
     }
 
-    /// <summary>The protocol era in use: <see cref="ModernVersion"/> or <see cref="LegacyVersion"/>.</summary>
-    public string ProtocolVersion => _modern ? ModernVersion : LegacyVersion;
+    /// <summary>The protocol era in use: <see cref="ModernVersion"/>, <see cref="LegacyVersion"/> or, over the older HTTP+SSE transport, <see cref="SseVersion"/>.</summary>
+    public string ProtocolVersion => _modern ? ModernVersion : _http is { Legacy: true } ? SseVersion : LegacyVersion;
     public string? ServerName { get; private set; }
     public string? ServerVersion { get; private set; }
     public string? Instructions { get; private set; }
@@ -199,13 +205,36 @@ public sealed class McpClient : IAsyncDisposable
     }
 
     /// <summary>
-    /// Connects to a server at an address (Streamable HTTP) and completes the handshake of <see cref="LegacyVersion"/>; the client does not ask such a server for <c>server/discover</c>.
+    /// Connects to a server at an address and completes the handshake of <see cref="LegacyVersion"/> over Streamable HTTP; the client does not ask such a server for <c>server/discover</c>.
+    /// A server that refuses the first POST with a 4xx status other than 401 and 403 is tried again over the older HTTP+SSE transport, as the transport specification of MCP 2025-03-26 advises
+    /// (a GET to the same address that opens an event stream), and greeted with <see cref="SseVersion"/>; <see cref="McpRemote.LegacySse"/> goes there at once.
     /// <paramref name="http"/> carries the proxy of the editor and must not time out by itself (the timeouts of <paramref name="options"/> decide). The client disposes it.
     /// A key the server refuses (HTTP 401 or 403) is <see cref="McpAuthException"/>.
     /// </summary>
     public static async Task<McpClient> StartRemoteAsync(McpRemote remote, McpClientOptions options, HttpClient http, CancellationToken ct = default)
     {
-        var transport = new McpHttpTransport(remote, http, options.Limits.MaxMessageBytes, options.ExitGrace);
+        if (!remote.LegacySse)
+        {
+            try
+            {
+                var client = await ConnectRemoteAsync(remote, options, http, legacy: false, ct).ConfigureAwait(false);
+                client._http!.OwnsHttp = true;
+                return client;
+            }
+            catch (McpOlderServerException) { /* the older transport is tried below, with the same HttpClient */ }
+            catch
+            {
+                http.Dispose();
+                throw;
+            }
+        }
+        return await ConnectRemoteAsync(remote, options, http, legacy: true, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<McpClient> ConnectRemoteAsync(McpRemote remote, McpClientOptions options, HttpClient http, bool legacy, CancellationToken ct)
+    {
+        // the first attempt leaves the HttpClient to the caller until it is known whether a second one is needed
+        var transport = new McpHttpTransport(remote, http, options.Limits.MaxMessageBytes, options.ExitGrace, legacy) { OwnsHttp = legacy };
         var client = new McpClient(remote.Mask, options, null, transport);
         client._rpc = new JsonRpcDispatcher(transport.Input, transport.Output, RpcProtocols.Mcp, options.Limits, new Handler());
         client._watch = client.WatchAsync();
@@ -249,9 +278,10 @@ public sealed class McpClient : IAsyncDisposable
             ReadServerInfo(discovered);
             return;
         }
+        string offered = _http is { Legacy: true } ? SseVersion : LegacyVersion;
         var init = await Guard(() => _rpc.RequestAsync("initialize", Params(false, w =>
         {
-            w.WriteString("protocolVersion", LegacyVersion);
+            w.WriteString("protocolVersion", offered);
             w.WriteStartObject("capabilities");
             w.WriteEndObject();
             w.WriteStartObject("clientInfo");
@@ -260,12 +290,12 @@ public sealed class McpClient : IAsyncDisposable
             w.WriteEndObject();
         }), _options.HandshakeTimeout, ct), _options.HandshakeTimeout).ConfigureAwait(false);
         var chosen = init.ValueKind == JsonValueKind.Object && init.TryGetProperty("protocolVersion", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-        if (chosen != LegacyVersion)
+        if (chosen != offered)
             throw new McpClientException(_http is null
                 ? $"The server speaks MCP version {chosen ?? "(not stated)"}; this client speaks {ModernVersion} and {LegacyVersion}."
-                : $"The server speaks MCP version {chosen ?? "(not stated)"}; this client speaks {LegacyVersion} over an address.");
+                : $"The server speaks MCP version {chosen ?? "(not stated)"}; this client speaks {offered} over an address.");
         ReadServerInfo(init);
-        if (_http is not null) _http.ProtocolVersion = LegacyVersion;
+        if (_http is { Legacy: false }) _http.ProtocolVersion = LegacyVersion; // the older transport has no version header
         await Guard(async () => { await _rpc.NotifyAsync("notifications/initialized", ct: ct).ConfigureAwait(false); return 0; }, _options.HandshakeTimeout).ConfigureAwait(false);
     }
 
@@ -422,6 +452,7 @@ public sealed class McpClient : IAsyncDisposable
         catch (RpcConnectionClosedException) { throw new McpServerExitedException(await _exit.Task.ConfigureAwait(false)); }
         catch (RpcTimeoutException) { throw new McpTimeoutException(timeout); }
         catch (RpcException e) when (e.Code == McpHttpTransport.AuthErrorCode) { throw new McpAuthException(e.Message); }
+        catch (RpcException e) when (e.Code == McpHttpTransport.OlderServerErrorCode) { throw new McpOlderServerException(e.Message); }
         catch (RpcException e) when (e.Code == McpHttpTransport.FailedErrorCode) { throw new McpClientException(e.Message); }
     }
 

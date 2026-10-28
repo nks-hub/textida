@@ -9,8 +9,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- The connection layer ships inside the plugin SDK package: the types of the files without #pragma CS1591 need an XML comment on every public member. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Trimming and AOT analyzer findings fail the build instead of staying warnings. -->
-    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2046;IL2050;IL2057;IL2062;IL2067;IL2070;IL2072;IL2075;IL2077;IL2080;IL2087;IL2091;IL3050;IL3051;IL3002;IL3003</WarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591;IL2026;IL2046;IL2050;IL2057;IL2062;IL2067;IL2070;IL2072;IL2075;IL2077;IL2080;IL2087;IL2091;IL3050;IL3051;IL3002;IL3003</WarningsAsErrors>
   </PropertyGroup>
 
 </Project>

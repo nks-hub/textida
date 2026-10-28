@@ -37,14 +37,47 @@ public sealed class AnsiHideGenerator : VisualLineElementGenerator
 }
 
 /// <summary>
-/// Colors the text between ANSI escape sequences: 16, 256 and true colors, bold and underline. The style is read from each line on its own, so a style
-/// that a line leaves open does not carry into the next one.
+/// Colors the text between ANSI escape sequences: 16, 256 and true colors, bold and underline. A style that a line leaves open goes on into the next lines until a
+/// code changes it, as in a terminal (see <see cref="AnsiCarry"/>); with <see cref="Lookback"/> at 0 each line is read on its own.
 /// </summary>
-public sealed class AnsiColorizer(TextView view) : DocumentColorizingTransformer
+public sealed class AnsiColorizer : DocumentColorizingTransformer
 {
     private const int MaxChars = 8192;
 
+    private readonly TextView view;
+    private readonly AnsiCarry _carry = new(0);
+    private TextDocument? _watched;
     private bool enabled;
+
+    public AnsiColorizer(TextView view)
+    {
+        this.view = view;
+        view.DocumentChanged += (_, e) => Watch(e.NewDocument);
+        Watch(view.Document);
+    }
+
+    /// <summary>The most lines before a line that are read to find the style it starts with; 0 reads each line on its own.</summary>
+    public int Lookback
+    {
+        get => _carry.Lookback;
+        set
+        {
+            if (_carry.Lookback == value) return;
+            _carry.Lookback = value;
+            _carry.Clear();
+            view.Redraw();
+        }
+    }
+
+    private void Watch(TextDocument? document)
+    {
+        if (_watched is not null) _watched.Changed -= OnChanged;
+        _watched = document;
+        if (document is not null) document.Changed += OnChanged;
+        _carry.Clear();
+    }
+
+    private void OnChanged(object? sender, DocumentChangeEventArgs e) => _carry.Clear();
 
     /// <summary>False leaves the lines as they are.</summary>
     public bool Enabled
@@ -60,10 +93,12 @@ public sealed class AnsiColorizer(TextView view) : DocumentColorizingTransformer
 
     protected override void ColorizeLine(DocumentLine line)
     {
-        if (!enabled || line.Length == 0) return;
-        string text = CurrentContext.Document.GetText(line.Offset, Math.Min(line.Length, MaxChars));
-        if (!AnsiSgr.Contains(text)) return;
-        foreach (var span in AnsiSgr.Parse(text).Spans)
+        if (!enabled) return;
+        var document = CurrentContext.Document;
+        string? TextOfLine(long index) => index < document.LineCount ? LineText(document, document.GetLineByNumber((int)index + 1)) : null;
+        // an empty line has nothing to color, but the style it passes on has to be remembered for the lines after it
+        var parsed = _carry.Read(line.LineNumber - 1, LineText(document, line), TextOfLine);
+        foreach (var span in parsed.Spans)
         {
             var style = span.Style;
             ChangeLinePart(line.Offset + span.Start, line.Offset + span.Start + span.Length, element =>
@@ -76,6 +111,8 @@ public sealed class AnsiColorizer(TextView view) : DocumentColorizingTransformer
             });
         }
     }
+
+    private static string LineText(TextDocument document, DocumentLine line) => line.Length == 0 ? "" : document.GetText(line.Offset, Math.Min(line.Length, MaxChars));
 
     private static IBrush? Brush(AnsiColor color) => color.ToRgb() is { } rgb ? new ImmutableSolidColorBrush(Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb)) : null;
 }

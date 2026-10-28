@@ -25,8 +25,10 @@ internal sealed partial class MainWindow
         public bool Tail { get; set; }
         public bool Busy { get; set; }
         public long LastConsumed { get; set; } = -1;
-        /// <summary>The epoch and match count the minimap marks were made from.</summary>
-        public (int Epoch, long Count) Marked { get; set; } = (-1, -1);
+        /// <summary>The epoch, match count and dropped count the minimap marks were made from.</summary>
+        public (int Epoch, long Count, long Dropped) Marked { get; set; } = (-1, -1, -1);
+        /// <summary>The status bar said that matches are dropped; said again only after the matches of an old file were dropped.</summary>
+        public bool CapReported { get; set; }
         public CancellationTokenSource Cts { get; } = new();
     }
 
@@ -43,7 +45,7 @@ internal sealed partial class MainWindow
     private LogSession StartLogSession(OpenDocument od, LogFilter filter, string? levelRules, string? viewName = null, string? highlight = null)
     {
         DropLogSession(od);
-        var session = new LogSession(od, new LogFollower(new FileLogSource(od.Path!), od.Doc.Codec, od.LogLevels, filter), levelRules) { ViewName = viewName, Highlight = highlight };
+        var session = new LogSession(od, new LogFollower(new FileLogSource(od.Path!), od.Doc.Codec, od.LogLevels, filter, PluginLimitsPlaceholders.LogFollowMaxMatches), levelRules) { ViewName = viewName, Highlight = highlight };
         _logSessions[od] = session;
         _logTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.LogFollowPollMilliseconds), DispatcherPriority.Background, (_, _) => LogFollowTick());
         _logTimer.Start();
@@ -63,7 +65,7 @@ internal sealed partial class MainWindow
     private void ShowLogMarks(LogSession session)
     {
         var follower = session.Follower;
-        var state = (follower.Epoch, follower.MatchCount);
+        var state = (follower.Epoch, follower.MatchCount, follower.Dropped);
         if (state == session.Marked) return;
         session.Marked = state;
         var marks = follower.MatchLines().Select(m => new MinimapMark(m.Line, m.Level switch
@@ -75,7 +77,8 @@ internal sealed partial class MainWindow
         foreach (var view in session.Doc.Views) view.Minimap?.SetFilterMarks(marks);
     }
 
-    private void LogFollowTick()
+    /// <summary>Looks at every followed log for new lines; the timer calls it, and so does a test, which does not wait for the timer.</summary>
+    internal void LogFollowTick()
     {
         foreach (var session in _logSessions.Values.ToList())
         {
@@ -126,6 +129,7 @@ internal sealed partial class MainWindow
                 SetStatusMessage(Loc.Get(K.LogFollowMissing, ("name", name)));
                 return;
             case LogFollowChange.Truncated or LogFollowChange.Rotated:
+                session.CapReported = false;
                 SetStatusMessage(Loc.Get(update.Change == LogFollowChange.Truncated ? K.LogFollowTruncated : K.LogFollowRotated, ("name", name), ("matches", update.Invalidated)));
                 if (!session.Doc.Doc.IsModified) ReloadLogDocument(session.Doc, toEnd: session.Tail);
                 else SetStatusMessage(Loc.Get(K.LogFollowModified));
@@ -133,6 +137,11 @@ internal sealed partial class MainWindow
         }
         if (first && !session.Follower.Filter.IsEmpty)
             SetStatusMessage(Loc.Get(K.LogViewApplied, ("name", session.ViewName ?? name), ("matches", session.Follower.MatchCount)));
+        if (session.Follower.Dropped > 0 && !session.CapReported)
+        {
+            session.CapReported = true;
+            SetStatusMessage(Loc.Get(K.LogFollowCapped, ("kept", session.Follower.MatchCount), ("dropped", session.Follower.Dropped)));
+        }
         if (!grew || !session.Tail) return;
         if (session.Doc.Doc.IsModified)
         {

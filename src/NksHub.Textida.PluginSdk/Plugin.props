@@ -4,13 +4,9 @@
     - trimming and AOT analyzer findings fail the build instead of staying warnings,
     - the analyzer NKSPLG001 fails the build where the code uses reflection,
     - System.Text.Json refuses its reflection-based serializer at run time.
+    The first and the last come from the props file of the public SDK package, which a plugin outside this repository gets with the package.
   -->
-  <PropertyGroup>
-    <EnableAotAnalyzer>true</EnableAotAnalyzer>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
-    <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2046;IL2050;IL2057;IL2062;IL2067;IL2070;IL2072;IL2075;IL2077;IL2080;IL2087;IL2091;IL3050;IL3051;IL3002;IL3003</WarningsAsErrors>
-  </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\NksHub.Textida.Plugin.Sdk\build\NksHub.Textida.Plugin.Sdk.props" />
 
   <ItemGroup>
     <ProjectReference Include="$(MSBuildThisFileDirectory)..\NksHub.Textida.PluginSdk.Analyzers\NksHub.Textida.PluginSdk.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

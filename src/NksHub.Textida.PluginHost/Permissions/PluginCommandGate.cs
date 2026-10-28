@@ -14,7 +14,7 @@ public delegate Task<JsonElement> CommandExecutor(string targetPluginId, string 
 /// </summary>
 public sealed class PluginCommandGate(PluginPermissions permissions, PluginCallLog log, CommandExecutor execute)
 {
-    public const string Execute = "command/execute";
+    public const string Execute = PluginServiceMethods.CommandExecute;
 
     public ValueTask<byte[]?> HandleAsync(string pluginId, string method, JsonElement p, CancellationToken cancellation) =>
         log.RunAsync(pluginId, method, null, async () =>

@@ -481,6 +481,12 @@
           "description": "Default SQL dialect. Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
           "x-scope": "application"
         },
+        "schema.mappings": {
+          "type": "string",
+          "default": "",
+          "description": "Schema mappings. Rules that choose the schema of a file, written MASK=SCHEMA and separated by semicolons or line breaks, for example *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address (downloaded only after you allow its host) or a file path. The ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas Textida knows; only a $schema written in the file wins over a rule.",
+          "x-scope": "application"
+        },
         "html.tidyPath": {
           "type": "string",
           "default": "",
@@ -553,6 +559,44 @@
           "minimum": 1,
           "maximum": 3600,
           "description": "Autosave interval (seconds). How often a document with changes is written to its own file when Autosave is on.",
+          "x-scope": "application"
+        },
+        "advanced.caretBlinkMilliseconds": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Text cursor blink time (milliseconds). How long the text cursor stays on and then off while it blinks. 0 keeps it on without blinking. The usual value is 500.",
+          "x-scope": "application"
+        },
+        "advanced.smoothScrolling": {
+          "type": "boolean",
+          "default": false,
+          "description": "Smooth scrolling with the mouse wheel. The text glides to where the mouse wheel moves it instead of jumping there. Moving the scroll bar or the caret ends the glide at once.",
+          "x-scope": "application"
+        },
+        "advanced.undoLimit": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "Undo steps kept per document. The most undo steps a document keeps. 0 keeps all of them. When the limit is reached the oldest steps are dropped; a document that was saved before them then counts as changed until it is saved again.",
+          "x-scope": "application"
+        },
+        "advanced.highlightMaxLines": {
+          "type": "integer",
+          "default": 1024,
+          "minimum": 100,
+          "maximum": 1024,
+          "description": "Lines colored around the screen. The most lines the syntax colors are worked out for in one go, counting those above and below the screen. A lower number spares a slow machine: the lines on screen are always colored, but the margin colored above and below them gets smaller, so lines you scroll to may show plain for a moment.",
+          "x-scope": "application"
+        },
+        "advanced.highlightMaxColumns": {
+          "type": "integer",
+          "default": 65536,
+          "minimum": 1000,
+          "maximum": 65536,
+          "description": "Columns colored in a line. The most characters of a line the syntax colors are worked out for in one go, around the part on screen. A lower number spares a slow machine on very long lines.",
           "x-scope": "application"
         },
         "editor.matchBrackets": {

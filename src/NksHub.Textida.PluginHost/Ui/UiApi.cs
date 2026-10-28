@@ -47,6 +47,7 @@ public sealed class UiApi
         {
             case UiMethods.PanelSet: return SetPanel(pluginId, p);
             case UiMethods.PanelRemove: return RemovePanel(pluginId, p);
+            case UiMethods.PanelCurrent: return SetCurrent(pluginId, p);
             case UiMethods.StatusSet:
                 _ui.SetStatus(pluginId, new StatusModel(Text(p, "text"), OptionalText(p, "tooltip")));
                 return DocumentApi.Obj(w => w.WriteBoolean("ok", true));
@@ -123,14 +124,30 @@ public sealed class UiApi
         HashSet<string> ids = [];
         var items = ParseItems(itemsJson, kind, 1, ids);
         var reveal = p.TryGetProperty("reveal", out var r) && r.ValueKind == JsonValueKind.True;
+        var current = OptionalText(p, "current");
+        if (current is not null && !ids.Contains(current)) throw DocumentApi.Invalid($"The current item '{current}' is not an item of the panel.");
         lock (_gate)
         {
             var c = Of(pluginId);
             if (!c.Panels.ContainsKey(id) && c.Panels.Count >= _options.MaxPanelsPerPlugin) throw Quota("panels", _options.MaxPanelsPerPlugin);
             c.Panels[id] = ids;
         }
-        _ui.SetPanel(pluginId, new PanelModel(id, title, kind, items, reveal));
+        _ui.SetPanel(pluginId, new PanelModel(id, title, kind, items, reveal, current));
         return DocumentApi.Obj(w => w.WriteNumber("items", ids.Count));
+    }
+
+    /// <summary>Moves the mark of the current item of a panel the plugin shows; the item must be one of the panel's, or null to take the mark away.</summary>
+    private byte[] SetCurrent(string pluginId, JsonElement p)
+    {
+        var id = Id(p, "panel");
+        var current = OptionalText(p, "current");
+        lock (_gate)
+        {
+            if (!_plugins.TryGetValue(pluginId, out var c) || !c.Panels.TryGetValue(id, out var ids)) throw DocumentApi.Invalid($"The panel '{id}' is not shown.");
+            if (current is not null && !ids.Contains(current)) throw DocumentApi.Invalid($"The current item '{current}' is not an item of the panel.");
+        }
+        _ui.SetCurrentItem(pluginId, id, current);
+        return DocumentApi.Obj(w => w.WriteBoolean("ok", true));
     }
 
     private List<PanelItem> ParseItems(JsonElement array, PanelKind kind, int depth, HashSet<string> ids)

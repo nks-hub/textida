@@ -57,6 +57,8 @@ internal sealed class HexCompareWindow : Window
         _leftView = new HexView(left, options) { ReadOnly = true };
         _rightView = new HexView(right, options) { ReadOnly = true };
         _leftView.Minimap.IsVisible = _rightView.Minimap.IsVisible = true;
+        _leftView.Refused += ShowRefusal;
+        _rightView.Refused += ShowRefusal;
 
         _aligned.IsChecked = true;
         // the radio group unchecks the other button only after the event of the checked one, so the mode is taken from the button that was checked
@@ -132,6 +134,13 @@ internal sealed class HexCompareWindow : Window
 
     /// <summary>The comparison that is running or ran last; for tests.</summary>
     internal Task? Running { get; private set; }
+
+    /// <summary>A key that would edit a read-only grid is answered in the note, which is a live region.</summary>
+    private void ShowRefusal(string text)
+    {
+        _note.Text = ""; // the same sentence twice is still a change
+        _note.Text = text;
+    }
 
     private void Subscribe()
     {

@@ -15,12 +15,28 @@ public sealed record Carets(IReadOnlyList<Sel> Items, int Primary)
     /// <summary>Sorts and merges overlapping and touching selections (<see cref="SelectionSet"/>); <paramref name="primary"/> indexes <paramref name="sels"/>.</summary>
     public static Carets Create(IReadOnlyList<Sel> sels, int primary)
     {
+        // the carets after typing at all of them are in order already; nothing to sort or merge
+        if (sels.Count > 0 && IsDisjointAscending(sels)) return new([.. sels], Math.Clamp(primary, 0, sels.Count - 1));
         var set = SelectionSet.Create([.. sels.Select(s => new TextSelection(s.Anchor, s.Caret))], primary);
         return new([.. set.Items.Select(t => new Sel((int)t.Anchor, (int)t.Caret))], set.Primary);
     }
 
+    private static bool IsDisjointAscending(IReadOnlyList<Sel> sels)
+    {
+        for (int i = 1; i < sels.Count; i++)
+            if (sels[i].Start <= sels[i - 1].End) return false;
+        return true;
+    }
+
     /// <summary>The selections with the primary one last, the order in which a list of selections is stored in an undo step and given back.</summary>
-    public IReadOnlyList<Sel> PrimaryLast() => [.. Items.Where((_, i) => i != Primary), Items[Primary]];
+    public IReadOnlyList<Sel> PrimaryLast()
+    {
+        var list = new List<Sel>(Items.Count);
+        for (int i = 0; i < Items.Count; i++)
+            if (i != Primary) list.Add(Items[i]);
+        list.Add(Items[Primary]);
+        return list;
+    }
 }
 
 /// <summary>Where the carets go: by one character, one word, to the edge of the line or of the document.</summary>
@@ -418,8 +434,9 @@ public static class MultiEdit
     /// bytes (byte-exact); a lossy single-byte encoding goes through the text view instead, so the loss report of typed characters keeps
     /// working. The byte positions of the new carets are worked out from the edits, not looked up again, so the cost stays linear in the carets.
     /// Edits with the same <paramref name="coalesceKey"/> in a row (a typing run) share one undo step, which gives back the carets from before the first.
+    /// <paramref name="view"/> is the text view that shows the text, when it is laid out: it then hears only of the changes that touch its lines.
     /// </summary>
-    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null)
+    public static Result Apply(Doc doc, AvaloniaEditBackend backend, Carets before, IReadOnlyList<Planned> plan, string? coalesceKey = null, AvaloniaEdit.Rendering.TextView? view = null)
     {
         long tAsm = Core.TypingTrace.Begin();
         var kept = Assemble(plan, before, out var keptCarets, out int keptPrimary);
@@ -445,11 +462,15 @@ public static class MultiEdit
         var byteEdits = new List<ByteEdit>(kept.Count);
         var keptBytes = new List<TextSelection>(kept.Count);
         long shift = 0;
+        string? encodedText = null;
+        byte[] encoded = [];
         for (int i = 0; i < kept.Count; i++)
         {
             var e = kept[i].Edit;
             long b0 = BytesAt(e.Start), b1 = BytesAt(e.Start + e.Length);
-            var bytes = codec.EncodeLossy(e.Text);
+            // typing gives every caret the same text; encode it once (the bytes are never changed)
+            if (!ReferenceEquals(e.Text, encodedText)) (encodedText, encoded) = (e.Text, codec.EncodeLossy(e.Text));
+            var bytes = encoded;
             if (e.Length > 0 || e.Text.Length > 0) byteEdits.Add(new(new(b0, b1), bytes));
             long Position(int localOffset)
             {
@@ -466,9 +487,16 @@ public static class MultiEdit
         var afterSet = SelectionSet.Create(keptBytes, keptPrimary);
         var afterBytes = afterSet.Items;
 
-        IReadOnlyList<ByteRange> Ranges(IEnumerable<TextSelection> sels) => [.. sels.Select(s => s.ToRange())];
-        var beforeRanges = Ranges(before.PrimaryLast().Select(s => new TextSelection(BytesAt(s.Start), BytesAt(s.End))));
-        var afterRanges = Ranges(afterBytes.Where((_, i) => i != afterSet.Primary).Append(afterBytes[afterSet.Primary]));
+        // the selections with the primary one last, as an undo step keeps them
+        ByteRange RangeOf(Sel s) => new TextSelection(BytesAt(s.Start), BytesAt(s.End)).ToRange();
+        var beforeRanges = new List<ByteRange>(before.Count);
+        for (int i = 0; i < before.Count; i++)
+            if (i != before.Primary) beforeRanges.Add(RangeOf(before.Items[i]));
+        beforeRanges.Add(RangeOf(before.PrimarySel));
+        var afterRanges = new List<ByteRange>(afterBytes.Count);
+        for (int i = 0; i < afterBytes.Count; i++)
+            if (i != afterSet.Primary) afterRanges.Add(afterBytes[i].ToRange());
+        afterRanges.Add(afterBytes[afterSet.Primary].ToRange());
 
         EditResult result;
         if (codec.IsLossy)
@@ -487,9 +515,11 @@ public static class MultiEdit
             // one update block: the views react to the text view once, not once per caret
             long tApply = Core.TypingTrace.Begin();
             var update = text.RunUpdate();
+            var bypass = WeakEventBypass.Begin(text, view);
             try { result = doc.Apply(byteEdits, new EditOptions { SelectionsBefore = beforeRanges, SelectionsAfter = afterRanges, CoalesceKey = coalesceKey }); }
             finally
             {
+                bypass.Dispose();
                 Core.TypingTrace.End("multi.docApply", tApply);
                 long tEnd = Core.TypingTrace.Begin();
                 update.Dispose();

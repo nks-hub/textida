@@ -19,21 +19,21 @@ public readonly record struct CsvDialect(char Delimiter, char Quote = '"', bool 
         Path.GetExtension(path ?? "").ToLowerInvariant() is ".tsv" or ".tab" ? Tsv : Csv;
 
     /// <summary>
-    /// Picks the delimiter from the first lines of a text: the candidate (comma, semicolon, tab, pipe) that splits most of them into the same
-    /// number of fields (more than one); a tie goes to the fallback. Quotes are tracked per line, so a quoted line break may mislead it. Without a clear winner the fallback stays.
+    /// Picks the delimiter from the first rows of a text: the candidate (comma, semicolon, tab, pipe) that splits most of them into the same
+    /// number of fields (more than one); a tie goes to the fallback. Rows are cut as <see cref="CsvTable"/> cuts them: a line break inside a quoted field (one that opens at the start of a field) does not end the row,
+    /// so a cell of several lines is one row. <paramref name="truncated"/>: the sample is only the start of a longer text, so a row the sample ends in is not counted. Without a clear winner the fallback stays.
     /// </summary>
-    public static CsvDialect Detect(string sample, CsvDialect fallback, int maxLines = 20)
+    public static CsvDialect Detect(string sample, CsvDialect fallback, int maxLines = 20, bool truncated = false)
     {
-        var lines = sample.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).Take(maxLines).ToList();
-        if (lines.Count < 2) return fallback;
         char best = fallback.Delimiter;
         (int Lines, int Fields) bestScore = (0, 0);
         foreach (char candidate in new[] { ',', ';', '\t', '|' })
         {
             if (candidate == fallback.Quote) continue;
-            var counts = lines.Select(l => CountOutsideQuotes(l, candidate, fallback.Quote)).ToList();
+            var counts = DelimitersPerRow(sample, candidate, fallback.Quote, maxLines, truncated);
+            if (counts.Count < 2) continue;
             var (fields, hits) = counts.Where(c => c > 0).GroupBy(c => c).Select(g => (g.Key, g.Count())).OrderByDescending(g => g.Item2).ThenByDescending(g => g.Key).FirstOrDefault();
-            if (hits * 5 < lines.Count * 4) continue;
+            if (hits * 5 < counts.Count * 4) continue;
             bool tie = hits == bestScore.Lines && fields == bestScore.Fields;
             if ((hits, fields) is var score && (score.hits > bestScore.Lines || (score.hits == bestScore.Lines && score.fields > bestScore.Fields) || (tie && candidate == fallback.Delimiter)))
                 (best, bestScore) = (candidate, score);
@@ -41,16 +41,36 @@ public readonly record struct CsvDialect(char Delimiter, char Quote = '"', bool 
         return bestScore.Lines == 0 ? fallback : fallback with { Delimiter = best };
     }
 
-    private static int CountOutsideQuotes(string line, char delimiter, char quote)
+    /// <summary>The number of delimiters in each non-empty row of the text, the first <paramref name="maxRows"/> rows. A row that ends inside a quoted field, or (with <paramref name="truncated"/>) at the end of the text, is not complete and is left out.</summary>
+    private static List<int> DelimitersPerRow(string text, char delimiter, char quote, int maxRows, bool truncated)
     {
+        var rows = new List<int>();
         int count = 0;
-        bool inQuote = false;
-        foreach (char c in line)
+        bool inQuote = false, fieldStart = true, any = false;
+        for (int i = 0; i < text.Length && rows.Count < maxRows; i++)
         {
-            if (c == quote && quote != '\0') inQuote = !inQuote;
-            else if (c == delimiter && !inQuote) count++;
+            char c = text[i];
+            if (inQuote)
+            {
+                if (c != quote) continue;
+                if (i + 1 < text.Length && text[i + 1] == quote) i++; // a doubled quote is a quote of the text
+                else inQuote = false;
+                continue;
+            }
+            if (c is '\r' or '\n')
+            {
+                if (c == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
+                if (any) rows.Add(count);
+                (count, any, fieldStart) = (0, false, true);
+                continue;
+            }
+            any = true;
+            if (c == delimiter) { count++; fieldStart = true; continue; }
+            if (fieldStart && quote != '\0' && c == quote) inQuote = true;
+            fieldStart = false;
         }
-        return count;
+        if (any && !inQuote && !truncated && rows.Count < maxRows) rows.Add(count);
+        return rows;
     }
 
     public void Validate()

@@ -80,7 +80,7 @@ internal sealed partial class MainWindow
         _findDebounce.Tick += (_, _) =>
         {
             _findDebounce.Stop();
-            if (_find.IsVisible && !_find.FilesMode && Active is { Custom: null } tab && !FindCoversText(tab.Doc.Doc)) _ = StartFindSearch(jump: false);
+            if (_find.IsVisible && !_find.FilesMode && !_find.HexMode && Active is { Custom: null, Hex: null } tab && !FindCoversText(tab.Doc.Doc)) _ = StartFindSearch(jump: false);
         };
         return _find;
     }
@@ -104,10 +104,11 @@ internal sealed partial class MainWindow
         if (Active is not { Custom: null } tab) return CommandOutcome.NotHandled;
         if (tab.Hex is { } hex)
         {
-            _ = replace ? ReplaceBytesAsync(hex) : FindBytesAsync(hex);
+            if (replace) _ = ReplaceBytesAsync(hex);
+            else OpenHexFind(hex);
             return CommandOutcome.Handled;
         }
-        bool wasOpen = _find.IsVisible;
+        bool wasOpen = _find.IsVisible && !_find.HexMode;
         _find.Open(files: false, replace);
         string? seed = wasOpen ? null : SelectedSingleLine(tab);
         _findOrigin = SelectionTextStart(tab);
@@ -144,13 +145,29 @@ internal sealed partial class MainWindow
         CancelFind();
         ShowFindMarks(null, null);
         DropScope();
-        _find.Close();
+        CloseFindBar();
         if (Active is { } tab) FocusView(tab);
+    }
+
+    /// <summary>Hides the bar; after the byte search the field holds the text query again that it held before.</summary>
+    private void CloseFindBar()
+    {
+        bool bytes = _find.HexMode;
+        _find.Close();
+        if (bytes) SetFindText(_textQuery);
     }
 
     /// <summary>Called when the active tab changed: follows the document with the search and forgets the selection scope of the old one.</summary>
     private void FindActiveTabChanged()
     {
+        // the bar is the byte search of a hex view or the text search of the other views; it does not follow the active tab from one kind to the other
+        if (_find.IsVisible && !_find.FilesMode && _find.HexMode != (Active?.Hex is not null))
+        {
+            CancelFind();
+            ShowFindMarks(null, null);
+            DropScope();
+            CloseFindBar();
+        }
         var od = Active?.Doc is { IsResults: false } d ? d : null;
         if (ReferenceEquals(_findSubscribed, od)) return;
         if (_findSubscribed is { } old) old.Changed -= OnFindDocChanged;
@@ -158,7 +175,7 @@ internal sealed partial class MainWindow
         if (od is not null) od.Changed += OnFindDocChanged;
         DropScope();
         // the results tab keeps the search of the document it lists, so coming back does not search a large file again
-        if (_find.IsVisible && !_find.FilesMode && Active?.Doc is not { IsResults: true } && (od is null || !FindCoversText(od.Doc))) _ = StartFindSearch(jump: false);
+        if (_find.IsVisible && !_find.FilesMode && !_find.HexMode && Active?.Doc is not { IsResults: true } && (od is null || !FindCoversText(od.Doc))) _ = StartFindSearch(jump: false);
     }
 
     private void CancelFind()
@@ -186,14 +203,20 @@ internal sealed partial class MainWindow
 
     private void OnFindDocChanged()
     {
-        if (!_find.IsVisible || _find.FilesMode) return;
+        if (!_find.IsVisible || _find.FilesMode || _find.HexMode) return;
         _findDebounce.Stop();
         _findDebounce.Start();
     }
 
     private void OnFindQueryChanged()
     {
-        if (_findSeeding || _find.FilesMode || FindSignature() == _findSignature) return;
+        if (_findSeeding || _find.FilesMode) return;
+        if (_find.HexMode)
+        {
+            if (Active?.Hex is { } hex) ApplyHexQuery(hex, _find.FindBox.Text ?? "");
+            return;
+        }
+        if (FindSignature() == _findSignature) return;
         if (Active is { Custom: null } tab) _findOrigin = SelectionTextStart(tab);
         _ = StartFindSearch(jump: true);
     }
@@ -242,7 +265,7 @@ internal sealed partial class MainWindow
         FindBusy = false;
         ShowFindMarks(null, null);
         var pattern = FindPattern();
-        if (string.IsNullOrEmpty(pattern.Text) || Active is not { Custom: null } tab)
+        if (string.IsNullOrEmpty(pattern.Text) || Active is not { Custom: null, Hex: null } tab)
         {
             _find.ShowCount("");
             return Task.CompletedTask;
@@ -326,7 +349,10 @@ internal sealed partial class MainWindow
         if (Active is not { Custom: null } tab) return;
         if (tab.Hex is { } hex)
         {
-            await HexFindStepAsync(hex, forward);
+            // the first step after the query was typed takes a match at the caret too, like the next match of a text search
+            bool fresh = _hexFresh && forward;
+            _hexFresh = false;
+            await HexFindStepAsync(hex, forward, fromCaret: fresh);
             return;
         }
         if (!_find.IsVisible || string.IsNullOrEmpty(_find.FindBox.Text))

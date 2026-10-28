@@ -20,7 +20,7 @@ namespace NksHub.Textida.App.Editing;
 /// </summary>
 internal sealed partial class EditorSurface
 {
-    private const int BlinkMs = 530;
+    private int _blinkMs = EditorOptions.DefaultCaretBlinkMs;
 
     private AnchoredSelections? _others;
     private AnchoredSelections? _primaryKept;
@@ -52,12 +52,21 @@ internal sealed partial class EditorSurface
     /// <summary>Characters selected over all carets.</summary>
     public int SelectedLength => IsMulti ? OtherSels().Sum(s => s.Length) + PrimarySel().Length : TextArea.Selection.Length;
 
+    // AvaloniaEdit boxes a drag with Control on macOS, where Control+click opens the context menu; Option+drag is what Mac editors do and what Alt+drag in the settings describes
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "set_BoxSelectionModifiers")]
+    private static extern void SetBoxSelectionModifiers([System.Runtime.CompilerServices.UnsafeAccessorType("AvaloniaEdit.Editing.HotkeyConfiguration, AvaloniaEdit")] object? hotkeys, KeyModifiers modifiers);
+
     private void InitCarets()
     {
+        if (OperatingSystem.IsMacOS()) SetBoxSelectionModifiers(null, KeyModifiers.Alt);
         TextArea.TextView.BackgroundRenderers.Add(new SelectionLayer(this));
         TextArea.TextView.BackgroundRenderers.Add(new CaretLayer(this));
         TextArea.AddHandler(PointerPressedEvent, OnPointerPressedTunnel, RoutingStrategies.Tunnel);
         TextArea.AddHandler(PointerReleasedEvent, OnPointerReleasedAfter, RoutingStrategies.Bubble, handledEventsToo: true);
+        // the caret drawn here has no focus of its own to follow, and it starts to blink from "on" after every move
+        TextArea.Caret.PositionChanged += (_, _) => { if (DrawsOwnCarets) RestartBlink(); };
+        TextArea.GotFocus += (_, _) => { if (DrawsOwnCarets) RestartBlink(); };
+        TextArea.LostFocus += (_, _) => { if (DrawsOwnCarets) InvalidateCarets(); };
         HookCoreDocument();
     }
 
@@ -107,6 +116,7 @@ internal sealed partial class EditorSurface
         Doc.Changed -= OnSecretStateMaybeChanged;
         Doc.LanguageChanged -= OnColorLanguageChanged;
         _blink?.Stop();
+        _glide?.Stop();
         _probe?.Dispose();
         _probe = null;
         ReleaseBrackets();
@@ -155,6 +165,18 @@ internal sealed partial class EditorSurface
         if (others.Count == 0) return Carets.One(primary);
         var all = new List<Sel>(others.Count + 1);
         all.AddRange(others);
+        // the others are in order: the primary one goes in at its place, or is merged with a neighbour it touches
+        int at = 0, hi = others.Count;
+        while (at < hi)
+        {
+            int mid = (at + hi) / 2;
+            if (others[mid].Start < primary.Start) at = mid + 1; else hi = mid;
+        }
+        if ((at == 0 || others[at - 1].End < primary.Start) && (at == others.Count || primary.End < others[at].Start))
+        {
+            all.Insert(at, primary);
+            return new Carets(all, at);
+        }
         all.Add(primary);
         return Carets.Create(all, all.Count - 1);
     }
@@ -178,9 +200,16 @@ internal sealed partial class EditorSurface
         if (c.Count == 1) DropOthers();
         else if (Doc.TextBackend is { } backend)
         {
-            var others = c.Items.Where((_, i) => i != c.Primary).ToList();
             var all = bytes ?? BytesOf(backend, [.. c.Items]);
-            var otherSet = SelectionSet.Create(all.Where((_, i) => i != c.Primary).ToList(), 0);
+            var others = new List<Sel>(c.Count - 1);
+            var otherBytes = new List<TextSelection>(c.Count - 1);
+            for (int i = 0; i < c.Count; i++)
+            {
+                if (i == c.Primary) continue;
+                others.Add(c.Items[i]);
+                otherBytes.Add(all[i]);
+            }
+            var otherSet = SelectionSet.Create(otherBytes, 0);
             var primarySet = SelectionSet.Single(all[c.Primary]);
             // after typing at every caret the anchors have followed the text to where the new carets are
             if (_others is null || _primaryKept is null || !_others.Matches(otherSet) || !_primaryKept.Matches(primarySet))
@@ -234,25 +263,65 @@ internal sealed partial class EditorSurface
 
     private void AfterCaretsChanged()
     {
-        bool multi = _others is not null;
+        RefreshCaretDrawing();
+        CaretsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// The surface draws the carets itself when there are several, and also for one caret when the blink time of the setting is not the one of AvaloniaEdit, whose caret
+    /// takes no other (see <see cref="CaretLayer"/>). Not in block mode, where the caret may stand beyond the end of a line.
+    /// </summary>
+    internal bool DrawsOwnCarets => _others is not null || (_blinkMs != EditorOptions.DefaultCaretBlinkMs && !BlockMode);
+
+    /// <summary>The blink time of the setting (0: the caret stays on); changing it switches between the caret of AvaloniaEdit and the one drawn here.</summary>
+    private void ApplyCaretBlink(int milliseconds)
+    {
+        int blink = Math.Clamp(milliseconds, 0, 2000);
+        if (blink == _blinkMs) return;
+        _blinkMs = blink;
+        RefreshCaretDrawing();
+    }
+
+    /// <summary>Makes the caret visible and starts its blinking again from "on".</summary>
+    private void RestartBlink()
+    {
+        _caretOn = true;
+        if (_blink is { IsEnabled: true } running)
+        {
+            running.Stop();
+            running.Start();
+        }
+        TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
+    }
+
+    /// <summary>Hides the caret of AvaloniaEdit while this class draws, and runs the blink timer when a caret is drawn here and is to blink.</summary>
+    private void RefreshCaretDrawing()
+    {
         _caretOn = true;
         UpdateNativeCaret();
-        if (multi)
+        if (DrawsOwnCarets && _blinkMs > 0)
         {
             _blink ??= CreateBlink();
+            _blink.Stop();
+            _blink.Interval = TimeSpan.FromMilliseconds(_blinkMs);
             _blink.Start();
         }
         else _blink?.Stop();
         InvalidateCarets();
-        CaretsChanged?.Invoke();
     }
+
+    /// <summary>The time between two changes of the blinking caret drawn here, or null when no timer exists.</summary>
+    internal TimeSpan? CaretBlinkInterval => _blink?.Interval;
+
+    /// <summary>True while the blink timer of the caret drawn here runs.</summary>
+    internal bool CaretBlinking => _blink?.IsEnabled == true;
 
     private DispatcherTimer CreateBlink()
     {
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(BlinkMs) };
+        var timer = new DispatcherTimer();
         timer.Tick += (_, _) =>
         {
-            if (_others is null) return;
+            if (!DrawsOwnCarets) return;
             _caretOn = !_caretOn;
             TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
         };
@@ -265,8 +334,8 @@ internal sealed partial class EditorSurface
         TextArea.TextView.InvalidateLayer(KnownLayer.Caret);
     }
 
-    /// <summary>The native caret is hidden while several are drawn by the renderer, so they all look and blink alike.</summary>
-    private void UpdateNativeCaret() => TextArea.CaretBrush = _others is not null ? Brushes.Transparent : _caretBrush;
+    /// <summary>The native caret is hidden while the carets are drawn by the renderer, so they all look and blink alike.</summary>
+    private void UpdateNativeCaret() => TextArea.CaretBrush = DrawsOwnCarets ? Brushes.Transparent : _caretBrush;
 
     // ---- commands ----
 
@@ -323,7 +392,7 @@ internal sealed partial class EditorSurface
     {
         if (Doc.TextBackend is not { } backend || IsReadOnly) return false;
         long t = Core.TypingTrace.Begin();
-        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before));
+        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before), TextArea.TextView);
         Core.TypingTrace.End("carets.multiEditApply", t);
         if (!result.Edit.Applied) return false;
         t = Core.TypingTrace.Begin();
@@ -473,6 +542,8 @@ internal sealed partial class EditorSurface
         ("nks.edit.cursorLineEnd", KeyStep.LineEnd, false), ("nks.edit.cursorLineEndSelect", KeyStep.LineEnd, true),
         ("nks.edit.cursorDocumentStart", KeyStep.DocumentStart, false), ("nks.edit.cursorDocumentStartSelect", KeyStep.DocumentStart, true),
         ("nks.edit.cursorDocumentEnd", KeyStep.DocumentEnd, false), ("nks.edit.cursorDocumentEndSelect", KeyStep.DocumentEnd, true),
+        ("nks.edit.cursorPageUp", KeyStep.PageUp, false), ("nks.edit.cursorPageUpSelect", KeyStep.PageUp, true),
+        ("nks.edit.cursorPageDown", KeyStep.PageDown, false), ("nks.edit.cursorPageDownSelect", KeyStep.PageDown, true),
         ("nks.edit.deleteLeft", KeyStep.DeleteLeft, false), ("nks.edit.deleteRight", KeyStep.DeleteRight, false),
         ("nks.edit.deleteWordLeft", KeyStep.DeleteWordLeft, false), ("nks.edit.deleteWordRight", KeyStep.DeleteWordRight, false),
     ];
@@ -506,6 +577,8 @@ internal sealed partial class EditorSurface
             Key.Down when command => KeyStep.DocumentEnd,
             Key.Home when plain => KeyStep.LineStart,
             Key.End when plain => KeyStep.LineEnd,
+            Key.PageUp when plain => KeyStep.PageUp,
+            Key.PageDown when plain => KeyStep.PageDown,
             Key.Home when word && !mac => KeyStep.DocumentStart,
             Key.End when word && !mac => KeyStep.DocumentEnd,
             Key.Back when plain && !shift => KeyStep.DeleteLeft,
@@ -540,6 +613,13 @@ internal sealed partial class EditorSurface
         }
         if (step is KeyStep.LineStart or KeyStep.LineEnd && Settings.EnhancedHomeEnd)
             return MoveCarets(step == KeyStep.LineStart ? CaretMove.LineStartEnhanced : CaretMove.LineEndEnhanced, extend);
+        if (step is KeyStep.PageUp or KeyStep.PageDown)
+        {
+            if (IsMulti) ClearCarets(); // the page keys move one caret only
+            return RunAreaCommand(step == KeyStep.PageUp
+                ? extend ? EditingCommands.SelectUpByPage : EditingCommands.MoveUpByPage
+                : extend ? EditingCommands.SelectDownByPage : EditingCommands.MoveDownByPage);
+        }
         if (IsMulti)
         {
             if (step is KeyStep.Up or KeyStep.Down) return MoveVertically(step == KeyStep.Up ? -1 : 1, extend);
@@ -719,7 +799,12 @@ internal sealed partial class EditorSurface
 
         private void DrawCore(TextView textView, DrawingContext drawingContext)
         {
-            if (owner._others is null || !owner._caretOn || owner._caretBrush is not { } brush || !textView.VisualLinesValid) return;
+            if (!owner.DrawsOwnCarets || !owner._caretOn || owner._caretBrush is not { } brush || !textView.VisualLinesValid) return;
+            if (owner._others is null) // one caret: drawn only while the editor has the keyboard, as the caret of AvaloniaEdit is
+            {
+                if (owner.TextArea.IsKeyboardFocusWithin) DrawCaret(textView, drawingContext, brush, owner.CaretOffset, 1);
+                return;
+            }
             DrawCaret(textView, drawingContext, brush, owner.PrimarySel().Caret, 1);
             using (drawingContext.PushOpacity(0.7))
                 foreach (var s in owner.VisibleOthers(textView)) DrawCaret(textView, drawingContext, brush, s.Caret, 0.7);
@@ -739,4 +824,4 @@ internal sealed partial class EditorSurface
 }
 
 /// <summary>A caret move or a deletion of the keyboard (<see cref="EditorSurface.StepCommands"/>); the deletions come last.</summary>
-internal enum KeyStep { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, DocumentStart, DocumentEnd, DeleteLeft, DeleteRight, DeleteWordLeft, DeleteWordRight }
+internal enum KeyStep { Left, Right, WordLeft, WordRight, Up, Down, LineStart, LineEnd, DocumentStart, DocumentEnd, PageUp, PageDown, DeleteLeft, DeleteRight, DeleteWordLeft, DeleteWordRight }

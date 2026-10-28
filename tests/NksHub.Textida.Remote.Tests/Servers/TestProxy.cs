@@ -85,12 +85,13 @@ public sealed class TestProxy : IDisposable
     {
         var sb = new StringBuilder();
         var one = new byte[1];
-        while (!sb.ToString().EndsWith("\r\n\r\n"))
+        // FluentFTP ends the lines of the CONNECT request with Environment.NewLine, a bare LF off Windows; real proxies accept both
+        while (!sb.ToString().EndsWith("\r\n\r\n") && !sb.ToString().EndsWith("\n\n"))
         {
             if (await s.ReadAsync(one) == 0) return null;
             sb.Append((char)one[0]);
         }
-        var lines = sb.ToString().Split("\r\n");
+        var lines = sb.ToString().Replace("\r\n", "\n").Split('\n');
         var parts = lines[0].Split(' ');
         if (parts[0] != "CONNECT") { await Refuse(s, "HTTP/1.1 405 Method Not Allowed\r\n\r\n"u8.ToArray()); return null; }
         if (User is not null)

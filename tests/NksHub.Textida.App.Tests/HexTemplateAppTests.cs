@@ -130,22 +130,22 @@ public class HexTemplateAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_template_file_with_process_is_refused_with_the_reason_and_the_panel_keeps_its_template()
+    public void A_template_file_with_a_process_the_subset_does_not_have_is_refused_with_the_reason_and_the_panel_keeps_its_template()
     {
         Loc.SetLanguage("cs");
         var hex = OpenHex("pic.png", Png(Chunk("IEND", [])));
         _w.ToggleHexTemplate();
         var panel = hex.Structure;
-        string path = _temp.File("xor.ksy", "meta:\n  id: xor_demo\nseq:\n  - id: a\n    size: 4\n    process: xor(0x55)\n");
+        string path = _temp.File("zlib.ksy", "meta:\n  id: zlib_demo\nseq:\n  - id: a\n    size: 4\n    process: zlib\n");
 
         panel.LoadFile(path);
 
-        Assert.Equal("nepodporováno: process", Loc.Get(K.KsyErrUnsupported, ("subject", "process")));
-        Assert.Contains("nepodporováno: process", panel.NoteShown);
-        Assert.Contains("xor.ksy", panel.NoteShown);
+        Assert.Equal("nepodporováno: process zlib", Loc.Get(K.KsyErrUnsupported, ("subject", "process zlib")));
+        Assert.Contains("nepodporováno: process zlib", panel.NoteShown);
+        Assert.Contains("zlib.ksy", panel.NoteShown);
         Assert.Contains(Loc.Get(K.KsyErrLine, ("line", 6)), panel.NoteShown);
         Assert.Equal("png_chunks", panel.Current!.Id);
-        Assert.DoesNotContain(panel.Picker.Items.OfType<KsyPinned>(), p => p.Id == "xor_demo");
+        Assert.DoesNotContain(panel.Picker.Items.OfType<KsyPinned>(), p => p.Id == "zlib_demo");
     }
 
     [AvaloniaFact]

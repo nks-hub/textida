@@ -25,8 +25,10 @@ internal sealed record RecipeEntry(string PluginId, string PluginName, RecipeCon
 internal enum SaveClipResult { Saved, TooLong, TooLarge, Damaged, IoError }
 
 /// <summary>
-/// The clips, file templates, converters and edit recipes of the data plugins in the <c>plugins</c> folder of the profile: one subfolder per plugin with a
+/// The clips, file templates, converters, edit recipes and external tools of the data plugins in the <c>plugins</c> folder of the profile: one subfolder per plugin with a
 /// <c>nkspad-plugin.json</c> and no process. The user's own library is such a plugin too (<see cref="UserFolder"/>); "save selection as clip" writes into it.
+/// A plugin the plugin manager installed may have a process as well: what it contributes as data is read the same way, its commands, keys and settings are the business of
+/// the plugin services. When a plugin disappears or changes its version, what it put into the app goes with the old one and comes back with the new one, without a restart.
 /// A plugin with a problem is left out and the reason is kept in <see cref="Problems"/>.
 /// </summary>
 internal sealed class ClipLibrary
@@ -36,7 +38,7 @@ internal sealed class ClipLibrary
 
     private readonly string _directory;
     private readonly CommandRegistry _commands;
-    private readonly HashSet<string> _registered = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _registered = new(StringComparer.Ordinal);
     private readonly List<ClipEntry> _clips = [];
     private readonly List<TemplateEntry> _templates = [];
     private readonly List<ConverterEntry> _converters = [];
@@ -46,19 +48,22 @@ internal sealed class ClipLibrary
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<(string PluginId, ToolEntry Tool)> _tools = [];
     private readonly List<string> _problems = [];
-    private readonly List<string> _declareProblems = [];
+    private readonly Dictionary<string, string> _declareProblems = new(StringComparer.Ordinal);
 
     private readonly Func<IEnumerable<string>>? _installedFolders;
     private readonly Func<LoadedPlugin, IReadOnlyList<string>>? _declare;
+    private readonly Action<string>? _undeclare;
 
-    /// <param name="installedFolders">Folders of the enabled plugins the plugin manager installed; the data plugins among them are read like the ones in <paramref name="pluginsDirectory"/>.</param>
+    /// <param name="installedFolders">Folders of the enabled plugins the plugin manager installed, with a process or without; they are read like the ones in <paramref name="pluginsDirectory"/>.</param>
     /// <param name="declare">Called once per data plugin after its commands are registered, to put its keybindings and settings into the app; returns why they were refused.</param>
-    public ClipLibrary(string pluginsDirectory, CommandRegistry commands, Func<IEnumerable<string>>? installedFolders = null, Func<LoadedPlugin, IReadOnlyList<string>>? declare = null)
+    /// <param name="undeclare">Called with the id of a data plugin that is gone or has another version, to take back what <paramref name="declare"/> put into the app.</param>
+    public ClipLibrary(string pluginsDirectory, CommandRegistry commands, Func<IEnumerable<string>>? installedFolders = null, Func<LoadedPlugin, IReadOnlyList<string>>? declare = null, Action<string>? undeclare = null)
     {
         _directory = pluginsDirectory;
         _commands = commands;
         _installedFolders = installedFolders;
         _declare = declare;
+        _undeclare = undeclare;
     }
 
     public IReadOnlyList<ClipEntry> Clips => _clips;
@@ -82,7 +87,19 @@ internal sealed class ClipLibrary
 
     public string UserManifestPath => Path.Combine(_directory, UserFolder, PluginManifest.FileName);
 
-    /// <summary>Reads every plugin folder again. Commands of a plugin are registered the first time it is seen.</summary>
+    /// <summary>Takes a data plugin out of the app: its commands (with handlers and menu items), keys and settings.</summary>
+    private void Unregister(string id)
+    {
+        _commands.RemoveSource(id);
+        _undeclare?.Invoke(id);
+        _registered.Remove(id);
+        _declareProblems.Remove(id);
+    }
+
+    /// <summary>
+    /// Reads every plugin folder again. The commands of a data plugin are registered the first time it is seen, and again when its version changed; a plugin that is no
+    /// longer there (removed, switched off, damaged) loses them.
+    /// </summary>
     public void Load()
     {
         _clips.Clear();
@@ -94,9 +111,10 @@ internal sealed class ClipLibrary
         _targets.Clear();
         _tools.Clear();
         _problems.Clear();
-        _problems.AddRange(_declareProblems);
+        _problems.AddRange(_declareProblems.Values);
         var grammars = Grammars = new GrammarRegistry(BuiltinGrammars.Registry);
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var included = new HashSet<string>(StringComparer.Ordinal);
         IEnumerable<string> own = Directory.Exists(_directory) ? Directory.EnumerateDirectories(_directory).Order(StringComparer.OrdinalIgnoreCase) : [];
         var installed = (_installedFolders?.Invoke() ?? []).ToHashSet();
         foreach (var folder in own.Concat(installed))
@@ -108,9 +126,10 @@ internal sealed class ClipLibrary
             // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
             if (installed.Contains(folder))
                 foreach (var server in plugin.Manifest.Contributes.LanguageServers) _servers.Add(new DeclaredServer(plugin.Manifest.Id, plugin.Directory, server));
-            if (plugin.Manifest.Main is not null)
+            bool process = plugin.Manifest.Main is not null;
+            if (process && !installed.Contains(folder))
             {
-                if (!installed.Contains(folder)) _problems.Add($"{name}: only plugins without a process are read from this folder.");
+                _problems.Add($"{name}: only plugins without a process are read from this folder.");
                 continue;
             }
             if (!seen.Add(plugin.Manifest.Id)) { _problems.Add($"{name}: the plugin id '{plugin.Manifest.Id}' is already used by another folder."); continue; }
@@ -119,19 +138,25 @@ internal sealed class ClipLibrary
                 _problems.Add($"{name}: the highlighter id '{taken}' is already used by another plugin.");
                 continue;
             }
-            if (!_registered.Contains(plugin.Manifest.Id))
+            var id = plugin.Manifest.Id;
+            // a plugin with a process gets its commands, keys and settings from the plugin services
+            if (!process)
             {
-                var conflicts = _commands.AddManifest(plugin.Contributions);
-                if (conflicts.Count > 0) { _problems.Add($"{name}: {string.Join("; ", conflicts)}"); continue; }
-                _registered.Add(plugin.Manifest.Id);
-                if (_declare?.Invoke(plugin) is { Count: > 0 } refused)
+                if (_registered.TryGetValue(id, out var version) && version != plugin.Manifest.Version) Unregister(id);
+                if (!_registered.ContainsKey(id))
                 {
-                    var problem = $"{name}: {string.Join("; ", refused)}";
-                    _declareProblems.Add(problem);
-                    _problems.Add(problem);
+                    var conflicts = _commands.AddManifest(plugin.Contributions);
+                    if (conflicts.Count > 0) { _problems.Add($"{name}: {string.Join("; ", conflicts)}"); continue; }
+                    _registered[id] = plugin.Manifest.Version;
+                    if (_declare?.Invoke(plugin) is { Count: > 0 } refused)
+                    {
+                        var problem = $"{name}: {string.Join("; ", refused)}";
+                        _declareProblems[id] = problem;
+                        _problems.Add(problem);
+                    }
                 }
             }
-            var id = plugin.Manifest.Id;
+            included.Add(id);
             foreach (var json in plugin.GrammarJson) grammars.Add(json);
             foreach (var clip in plugin.Manifest.Contributes.Clips) _clips.Add(new ClipEntry(id, plugin.Manifest.Name, clip));
             foreach (var template in plugin.Manifest.Contributes.Templates) _templates.Add(new TemplateEntry(id, plugin.Manifest.Name, template));
@@ -139,11 +164,13 @@ internal sealed class ClipLibrary
             foreach (var recipe in plugin.Manifest.Contributes.Recipes) _recipes.Add(new RecipeEntry(id, plugin.Manifest.Name, recipe, plugin.Manifest.Contributes.Converters));
             foreach (var h in plugin.Manifest.Contributes.LanguageHelp)
                 _helps.Add(new HelpEntry(id, plugin.Manifest.Name, new HelpSource(h.Id, h.Title, h.Language, h.Kind == "file" ? HelpKind.File : HelpKind.Url, h.Kind == "file" ? Path.GetFullPath(Path.Combine(plugin.Directory, h.Target)) : h.Target)));
-            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe" or "external tool")) _targets.Add((command, id, action));
+            foreach (var (command, action) in plugin.CommandData.Where(d => d.Value.Kind is "clip" or "template" or "converter" or "recipe" or "external tool"))
+                if (!process || _commands.TryGet(command, out var owner) && owner.Source == id) _targets.Add((command, id, action));
             var tools = ToolCatalog.FromContributions(plugin.Manifest.Contributes, Path.Combine(plugin.Directory, PluginManifest.FileName));
             foreach (var tool in tools.Tools) _tools.Add((id, tool));
             foreach (var error in tools.Errors) _problems.Add($"{name}: {error}");
         }
+        foreach (var gone in _registered.Keys.Where(id => !included.Contains(id)).ToList()) Unregister(gone);
     }
 
     public ToolEntry? FindTool(string pluginId, string toolId) => _tools.FirstOrDefault(t => t.PluginId == pluginId && t.Tool.Definition.Id == toolId).Tool;

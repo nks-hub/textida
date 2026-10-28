@@ -4,7 +4,13 @@
   "name": "C# hello",
   "version": "1.0.0",
   "api": { "min": 1, "max": 1 },
+  "permissions": ["document.read", "document.edit.direct"],
   "main": {
     "executable": "/path/to/NksHub.Textida.Samples.CsHello"
+  },
+  "contributes": {
+    "commands": [
+      { "id": "example.csharp-hello.shout", "title": "Write the selection in capital letters", "undo": "transaction" }
+    ]
   }
 }

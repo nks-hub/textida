@@ -36,7 +36,7 @@ internal sealed class McpPeer(IReadOnlyList<McpToolDefinition> extraTools, Func<
     public event Action<string>? Incompatible;
 
     /// <summary>Tools the community description of the protocol lists and the bridge leaves out; calling one is an error for the agent but not a sign that the protocol changed.</summary>
-    private static readonly string[] NotOffered = ["openFile", "getOpenEditors", "getWorkspaceFolders", "checkDocumentDirty", "saveDocument", "executeCode"];
+    private static readonly string[] NotOffered = ["saveDocument", "executeCode"];
 
     public void Attach(McpSession session) => _session = session;
 
@@ -79,6 +79,18 @@ public enum IdeDiffOutcome { Saved, Rejected, Partial, Stale, Failed }
 /// <summary>The editor cannot show this diff (the file is not open, not shared or cannot be written back); the message is for the agent.</summary>
 public sealed class IdeDiffRefusedException(string message) : Exception(message);
 
+/// <summary>A tab of the window that is shared with the agent, as the editor describes it for <c>getOpenEditors</c>; <paramref name="Path"/> is null for a tab without a file.</summary>
+public sealed record IdeEditor(Guid Document, string? Path, string Label, string LanguageId, bool IsDirty);
+
+/// <summary>What the agent asks of <c>openFile</c>. <paramref name="Path"/> is absolute and inside the workspace or a shared tab by the time the editor sees it.</summary>
+public sealed record IdeOpenFileRequest(string Path, bool Preview, string? StartText, string? EndText, bool SelectToEndOfLine, bool MakeFrontmost);
+
+/// <summary>The file the editor opened for the agent. <paramref name="LineCount"/> is the number of lines the editor knows of.</summary>
+public sealed record IdeOpenedFile(string Path, string LanguageId, long LineCount);
+
+/// <summary>The editor cannot open this file (it is gone, unreadable, or not open when it must be); the message is for the agent.</summary>
+public sealed class IdeOpenRefusedException(string message) : Exception(message);
+
 /// <summary>What the bridge needs from the editor that it cannot decide itself. The numbers are owner decisions, so none of them has a default.</summary>
 public sealed record IdeBridgeOptions
 {
@@ -100,6 +112,10 @@ public sealed record IdeBridgeOptions
     /// then with <see cref="IdeDiffOutcome.Rejected"/>. Null: the bridge refuses every <c>openDiff</c>.
     /// </summary>
     public Func<IdeDiffRequest, CancellationToken, Task<IdeDiffOutcome>>? ShowDiff { get; init; }
+    /// <summary>The tabs of this window that are shared with the agent (<c>getOpenEditors</c>, <c>checkDocumentDirty</c>); the bridge keeps only those the agent may reach. Null: both tools refuse.</summary>
+    public Func<CancellationToken, Task<IReadOnlyList<IdeEditor>>>? Editors { get; init; }
+    /// <summary>Opens a file in the window for <c>openFile</c> and selects the text asked for. Null: the bridge refuses every <c>openFile</c>.</summary>
+    public Func<IdeOpenFileRequest, CancellationToken, Task<IdeOpenedFile>>? OpenFile { get; init; }
     /// <summary>Tells whether a process is running; used to tell a lock file of a crashed editor from one of a live editor. Null: ask the operating system.</summary>
     public Func<int, bool>? IsProcessAlive { get; init; }
 }
@@ -112,10 +128,10 @@ public sealed record IdeBridgeOptions
 /// <c>X-Claude-Code-Ide-Authorization</c> header; the CLI includes the selection and the path of the active file as context, opens diffs and reads diagnostics through it.
 /// The official page names only <c>getDiagnostics</c> and <c>executeCode</c> and calls the rest internal RPC. The names and shapes of those calls are taken from the community
 /// description of the protocol, reverse engineered from the VS Code extension (https://github.com/coder/claudecode.nvim, PROTOCOL.md): the fields of the lock file, the
-/// <c>selection_changed</c> notification and the tools <c>openDiff</c>, <c>close_tab</c>, <c>closeAllDiffTabs</c>, <c>getCurrentSelection</c>, <c>getLatestSelection</c> and <c>getDiagnostics</c>.
-/// That description is not a specification and no version of the CLI is confirmed against it (see <c>TODO.md</c>, P6.5.1). Left out: <c>openFile</c>, <c>getOpenEditors</c>,
-/// <c>getWorkspaceFolders</c>, <c>checkDocumentDirty</c>, <c>saveDocument</c> (the bridge never saves), <c>executeCode</c> (notebooks) and the <c>at_mentioned</c> notification;
-/// a call of one of those is answered with an error. A call of a tool that nobody documents, or of one of the bridge's own tools with arguments it cannot read, means the agent changed under the
+/// <c>selection_changed</c> and <c>at_mentioned</c> notifications and the tools <c>openFile</c>, <c>openDiff</c>, <c>close_tab</c>, <c>closeAllDiffTabs</c>, <c>getCurrentSelection</c>,
+/// <c>getLatestSelection</c>, <c>getOpenEditors</c>, <c>getWorkspaceFolders</c>, <c>checkDocumentDirty</c> and <c>getDiagnostics</c>.
+/// That description is not a specification and no version of the CLI is confirmed against it (see <c>TODO.md</c>, P6.5.1). Left out: <c>saveDocument</c> (the bridge never saves)
+/// and <c>executeCode</c> (notebooks); a call of one of those is answered with an error. A call of a tool that nobody documents, or of one of the bridge's own tools with arguments it cannot read, means the agent changed under the
 /// bridge: <see cref="Incompatible"/> is raised.
 /// </summary>
 public sealed partial class IdeBridge : IAsyncDisposable

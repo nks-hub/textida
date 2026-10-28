@@ -347,7 +347,13 @@ public sealed class LargeChangeJournalTests : IDisposable
         public void Report(SaveProgress value) => report(value);
     }
     [Fact]
-    public async Task A_crash_at_every_step_of_a_save_with_edits_meanwhile_recovers_the_edits_or_says_why_not()
+    public Task A_crash_at_every_step_of_a_save_with_edits_meanwhile_recovers_the_edits_or_says_why_not() => CrashAtEveryStepOfASaveAsync(undoSavedStep: false);
+
+    /// <summary>P7.1.3: the user undoes a step of the revision that is being saved, the 2 MiB insert held in the spill file, and does it again after a redo; then types.</summary>
+    [Fact]
+    public Task A_crash_at_every_step_of_a_save_during_which_a_step_of_the_saved_revision_is_undone_recovers_the_live_text() => CrashAtEveryStepOfASaveAsync(undoSavedStep: true);
+
+    private async Task CrashAtEveryStepOfASaveAsync(bool undoSavedStep)
     {
         NewFile();
         string original = HashFile(Data);
@@ -358,12 +364,14 @@ public sealed class LargeChangeJournalTests : IDisposable
         var edited = new ManualResetEventSlim();
         int midWrite = 0;
         LargeModel? snapshot = null;
+        LargeModel afterFirst;
 
         using (var session = JournalSession.Start(Journal, Backends(factory), new JournalOptions { Fsync = FsyncPolicy.Manual }))
         using (var doc = Doc.Open(Data, factory))
         {
             session.Track(doc);
             Edit(doc, model, 100, 5, 71, 40);
+            afterFirst = model.Clone();
             Edit(doc, model, Size / 2, 0, 72, 2 << 20);
             snapshot = model.Clone();
 
@@ -395,12 +403,25 @@ public sealed class LargeChangeJournalTests : IDisposable
                 crashes.Add(new Crash("mid-swap", mid, false));
             };
             var task = doc.SaveAsync(progress: progress);
-            Edit(doc, model, 3000, 0, 73, 1 << 20);
-            Edit(doc, model, 0, 0, 74, 33);
-            var beforeLast = model.Clone();
-            Edit(doc, model, 70_000, 400, 75, 0);
-            Assert.NotNull(doc.Undo()); // an undo during the save is journaled as an edit and comes back with the others
-            model = beforeLast;
+            if (undoSavedStep)
+            {
+                Assert.NotNull(doc.Undo());
+                Assert.Equal(afterFirst.Sha256(), HashOf(doc));
+                Assert.NotNull(doc.Redo());
+                Assert.Equal(snapshot.Sha256(), HashOf(doc));
+                Assert.NotNull(doc.Undo());
+                model = afterFirst.Clone();
+                Edit(doc, model, 0, 0, 74, 33);
+            }
+            else
+            {
+                Edit(doc, model, 3000, 0, 73, 1 << 20);
+                Edit(doc, model, 0, 0, 74, 33);
+                var beforeLast = model.Clone();
+                Edit(doc, model, 70_000, 400, 75, 0);
+                Assert.NotNull(doc.Undo()); // an undo during the save is journaled as an edit and comes back with the others
+                model = beforeLast;
+            }
             edited.Set();
             gate.Set();
             Assert.True((await task).Saved);

@@ -1,0 +1,339 @@
+{
+  "product": "codex",
+  "source": "https://developers.openai.com/codex/hooks",
+  "checked": "2026-10-28",
+  "handlerTypes": {
+    "command": {
+      "required": [
+        "command"
+      ],
+      "optional": [
+        "async",
+        "additionalContextLimit",
+        "commandWindows",
+        "command_windows"
+      ]
+    },
+    "mcp_tool": {
+      "required": [
+        "server",
+        "tool"
+      ],
+      "optional": [
+        "input"
+      ]
+    }
+  },
+  "commonFields": [
+    "type",
+    "timeout",
+    "statusMessage"
+  ],
+  "events": [
+    {
+      "name": "SessionStart",
+      "matcher": "source",
+      "values": [
+        "startup",
+        "resume",
+        "clear",
+        "compact",
+        "fork"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "contextText",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      }
+    },
+    {
+      "name": "SessionEnd",
+      "matcher": "reason",
+      "values": [
+        "other"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "SessionEnd",
+        "model": "gpt-5-codex",
+        "reason": "other"
+      }
+    },
+    {
+      "name": "SubagentStart",
+      "matcher": "agent_type",
+      "values": [],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "contextText",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "SubagentStart",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "agent_id": "agent_1",
+        "agent_type": "explorer"
+      }
+    },
+    {
+      "name": "PreToolUse",
+      "matcher": "tool_name",
+      "values": [
+        "Bash",
+        "^apply_patch$",
+        "Edit|Write",
+        "mcp__filesystem__.*"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "blocks",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "tool_name": "Bash",
+        "tool_use_id": "call_1",
+        "tool_input": {
+          "command": "git status"
+        }
+      }
+    },
+    {
+      "name": "PermissionRequest",
+      "matcher": "tool_name",
+      "values": [
+        "Bash",
+        "apply_patch",
+        "mcp__server__tool"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "PermissionRequest",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "tool_name": "Bash",
+        "tool_input": {
+          "command": "rm -rf build",
+          "description": "Remove the build folder"
+        }
+      }
+    },
+    {
+      "name": "PostToolUse",
+      "matcher": "tool_name",
+      "values": [
+        "Bash",
+        "^apply_patch$",
+        "Edit|Write",
+        "mcp__filesystem__.*"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "stderrToModel",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "tool_name": "Bash",
+        "tool_use_id": "call_1",
+        "tool_input": {
+          "command": "git status"
+        },
+        "tool_response": "On branch main"
+      }
+    },
+    {
+      "name": "PreCompact",
+      "matcher": "trigger",
+      "values": [
+        "manual",
+        "auto"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "PreCompact",
+        "model": "gpt-5-codex",
+        "turn_id": "turn_1",
+        "trigger": "manual"
+      }
+    },
+    {
+      "name": "PostCompact",
+      "matcher": "trigger",
+      "values": [
+        "manual",
+        "auto"
+      ],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "undocumented",
+      "exitOther": "undocumented",
+      "stdout": "ignored",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "PostCompact",
+        "model": "gpt-5-codex",
+        "turn_id": "turn_1",
+        "trigger": "manual"
+      }
+    },
+    {
+      "name": "UserPromptSubmit",
+      "matcher": null,
+      "values": [],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "blocks",
+      "exitOther": "undocumented",
+      "stdout": "contextText",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "UserPromptSubmit",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "prompt": "Fix the failing test"
+      }
+    },
+    {
+      "name": "SubagentStop",
+      "matcher": "agent_type",
+      "values": [],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "keepsWorking",
+      "exitOther": "undocumented",
+      "stdout": "jsonRequired",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "SubagentStop",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "agent_id": "agent_1",
+        "agent_type": "explorer",
+        "agent_transcript_path": "/workspace/.codex/subagent.jsonl",
+        "stop_hook_active": false,
+        "last_assistant_message": "Done."
+      }
+    },
+    {
+      "name": "Stop",
+      "matcher": null,
+      "values": [],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "keepsWorking",
+      "exitOther": "undocumented",
+      "stdout": "jsonRequired",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "Stop",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1",
+        "stop_hook_active": false,
+        "last_assistant_message": "Done."
+      }
+    },
+    {
+      "name": "Interrupt",
+      "matcher": null,
+      "values": [],
+      "tool": false,
+      "narrowMatcher": false,
+      "regexMatcher": true,
+      "exit2": "ignored",
+      "exitOther": "ignored",
+      "stdout": "jsonRequired",
+      "since": null,
+      "sample": {
+        "session_id": "thr_123",
+        "transcript_path": "/workspace/.codex/rollout.jsonl",
+        "cwd": "/workspace",
+        "hook_event_name": "Interrupt",
+        "model": "gpt-5-codex",
+        "permission_mode": "default",
+        "turn_id": "turn_1"
+      }
+    }
+  ]
+}

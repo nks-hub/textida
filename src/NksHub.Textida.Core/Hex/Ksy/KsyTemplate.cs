@@ -5,7 +5,7 @@ public enum KsyErrorKind
 {
     /// <summary>The YAML is malformed; the subject is the reason.</summary>
     Syntax,
-    /// <summary>The construct is valid Kaitai but not part of the subset; the subject names it (<c>process</c>, <c>if</c>, <c>switch-on</c>, ...).</summary>
+    /// <summary>The construct is valid Kaitai but not part of the subset; the subject names it (<c>terminator</c>, <c>valid</c>, <c>process zlib</c>, ...).</summary>
     Unsupported,
     /// <summary>A key or value is of the wrong shape; the subject names the key.</summary>
     Invalid,
@@ -44,6 +44,12 @@ public sealed record KsyCase(KsyExpr? Key, KsyType Type);
 
 public sealed record KsySwitch(KsyExpr On, IReadOnlyList<KsyCase> Cases);
 
+/// <summary>The byte-wise transforms of <c>process</c> that the subset has: <c>xor(key)</c> with a one-byte key, <c>rol(bits)</c> and <c>ror(bits)</c> with 0 to 7 bits.</summary>
+public enum KsyProcessKind { Xor, Rol, Ror }
+
+/// <summary>A <c>process</c> of a field: the bytes of the file are turned back through it before they are read as a string or kept as bytes. <see cref="Argument"/> is an expression and is computed when the field is read.</summary>
+public sealed record KsyProcess(KsyProcessKind Kind, KsyExpr Argument);
+
 /// <summary>Byte order chosen by the data: <c>meta/endian</c> with <c>switch-on</c>; the order is computed when the first multi-byte number of the type is read.</summary>
 public sealed record KsyEndianSwitch(KsyExpr On, IReadOnlyList<(KsyExpr Key, KsyOrder Order)> Cases);
 
@@ -65,6 +71,8 @@ public sealed record KsyAttr
     public KsyExpr? Value { get; init; }
     public KsySwitch? Switch { get; init; }
     public byte[]? Contents { get; init; }
+    /// <summary>Applied to the bytes of a string, of raw bytes or of <see cref="Contents"/>; the node still covers the bytes as they are in the file.</summary>
+    public KsyProcess? Process { get; init; }
     public string? Enum { get; init; }
     public string? Encoding { get; init; }
 }

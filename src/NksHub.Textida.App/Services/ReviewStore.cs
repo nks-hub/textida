@@ -45,15 +45,31 @@ internal sealed class ReviewStore(string directory)
     public ReviewState? Find(string path)
     {
         string file = FileOf(path);
-        if (!File.Exists(file)) return null;
+        return File.Exists(file) && Read(file) is { } state && string.Equals(state.Path, System.IO.Path.GetFullPath(path), PathComparison) ? state : null;
+    }
+
+    /// <summary>Every pending review whose record can be read, in no particular order.</summary>
+    public IReadOnlyList<ReviewState> List()
+    {
+        if (!Directory.Exists(directory)) return [];
+        var states = new List<ReviewState>();
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+                if (Read(file) is { } state) states.Add(state);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the records read so far are the answer */ }
+        return states;
+    }
+
+    private static ReviewState? Read(string file)
+    {
         try
         {
             using var doc = JsonDocument.Parse(File.ReadAllBytes(file));
             var root = doc.RootElement;
             if (root.GetProperty("version").GetInt32() != 1) return null;
-            string stored = root.GetProperty("path").GetString()!;
-            if (!string.Equals(stored, System.IO.Path.GetFullPath(path), PathComparison)) return null;
-            return new ReviewState(stored, root.GetProperty("baseRevision").GetString()!, DateTime.Parse(root.GetProperty("created").GetString()!, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind));
+            return new ReviewState(root.GetProperty("path").GetString()!, root.GetProperty("baseRevision").GetString()!, DateTime.Parse(root.GetProperty("created").GetString()!, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException or FormatException) { return null; }
     }

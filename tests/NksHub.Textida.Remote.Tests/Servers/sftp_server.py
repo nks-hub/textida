@@ -11,7 +11,31 @@ ap.add_argument("--clientkey")          # authorized public key file (OpenSSH fo
 ap.add_argument("--port", type=int, default=0)
 ap.add_argument("--gen-client-key")      # write a new key pair (PEM and OpenSSH .pub) and authorize it
 ap.add_argument("--drop-after", type=int, default=-1)  # kill the connection after this many written bytes
+ap.add_argument("--drop-read-after", type=int, default=-1)  # kill the connection after this many bytes were read (a download cut in the middle)
+ap.add_argument("--client-key-type", choices=["ed25519", "rsa"], default="ed25519")
+# An old server: the SHA-1 signature "ssh-rsa" is the only one it knows, for the login key, for its host key, or both. Current paramiko has dropped it, so it is put back here.
+ap.add_argument("--legacy-rsa", choices=["userauth", "hostkey", "both"])
 args = ap.parse_args()
+
+if args.legacy_rsa:
+    from cryptography.hazmat.primitives import hashes
+    paramiko.RSAKey.HASHES["ssh-rsa"] = hashes.SHA1
+    paramiko.Transport._key_info["ssh-rsa"] = paramiko.RSAKey
+    if args.legacy_rsa in ("userauth", "both"):
+        paramiko.Transport._preferred_pubkeys = ("ssh-rsa",)
+        # OpenSSH answers a signature algorithm it does not know with a plain refusal, so the client may try the next one; paramiko hangs up instead.
+        import paramiko.auth_handler as auth_handler
+        class _Refused:
+            def get_base64(self):
+                return ""
+        _generate = auth_handler.AuthHandler._generate_key_from_request
+        def _generate_or_refuse(self, algorithm, keyblob):
+            if algorithm.replace("-cert-v01@openssh.com", "") not in self.transport.preferred_pubkeys:
+                return _Refused()
+            return _generate(self, algorithm, keyblob)
+        auth_handler.AuthHandler._generate_key_from_request = _generate_or_refuse
+    if args.legacy_rsa in ("hostkey", "both"):
+        paramiko.Transport._preferred_keys = ("ssh-rsa",)
 
 if os.path.exists(args.hostkey):
     host_key = paramiko.RSAKey(filename=args.hostkey)
@@ -20,16 +44,22 @@ else:
     host_key.write_private_key_file(args.hostkey)
 
 if args.gen_client_key:
-    # ed25519: SSH.NET offers RSA keys with the SHA-1 signature that current servers (and paramiko) refuse.
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     from cryptography.hazmat.primitives import serialization as ser
-    ck = Ed25519PrivateKey.generate()
-    open(args.gen_client_key, "wb").write(ck.private_bytes(ser.Encoding.PEM, ser.PrivateFormat.OpenSSH, ser.NoEncryption()))
+    if args.client_key_type == "rsa":
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        ck = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pem = ck.private_bytes(ser.Encoding.PEM, ser.PrivateFormat.TraditionalOpenSSL, ser.NoEncryption())
+    else:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        ck = Ed25519PrivateKey.generate()
+        pem = ck.private_bytes(ser.Encoding.PEM, ser.PrivateFormat.OpenSSH, ser.NoEncryption())
+    open(args.gen_client_key, "wb").write(pem)
     open(args.gen_client_key + ".pub", "wb").write(ck.public_key().public_bytes(ser.Encoding.OpenSSH, ser.PublicFormat.OpenSSH) + b" test\n")
     args.clientkey = args.gen_client_key + ".pub"
 
 root = os.path.abspath(args.root)
 written = [0]
+served = [0]
 
 class Auth(paramiko.ServerInterface):
     def __init__(self, transport):
@@ -61,6 +91,14 @@ class Handle(SFTPHandle):
             self.transport.close()
             return SFTP_FAILURE
         return super().write(offset, data)
+    def read(self, offset, length):
+        data = super().read(offset, length)
+        if args.drop_read_after >= 0 and isinstance(data, bytes):
+            served[0] += len(data)
+            if served[0] > args.drop_read_after:
+                self.transport.close()
+                return SFTP_FAILURE
+        return data
 
 class Files(SFTPServerInterface):
     def __init__(self, server, *a, **k):

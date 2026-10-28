@@ -324,6 +324,18 @@ public sealed class McpConfigTests : IDisposable
         Assert.DoesNotContain("plain-value", text);
     }
 
+    [Theory]
+    [InlineData("sse", true)]
+    [InlineData("SSE", true)]
+    [InlineData("http", false)]
+    [InlineData(null, false)]
+    public void An_entry_of_type_sse_is_connected_over_the_old_transport_and_any_other_one_is_not_forced_to(string? type, bool legacy)
+    {
+        var entry = Remote("https://mcp.example/sse") with { RemoteType = type };
+
+        Assert.Equal(legacy, McpConfig.BuildRemote(entry, _ => null).LegacySse);
+    }
+
     [Fact]
     public void An_address_that_cannot_work_is_refused_with_a_reason()
     {

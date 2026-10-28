@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Security.Cryptography;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Remote;
 
@@ -9,16 +11,25 @@ public enum TransferStep
     /// <summary>A verified partial temporary file from an earlier attempt is continued; <see cref="TransferEvent.Bytes"/> is the offset.</summary>
     Resuming,
     Replacing,
+    /// <summary>The whole file is fetched; <see cref="TransferEvent.Bytes"/> is its size.</summary>
+    Downloading,
+    /// <summary>A partial download of the same server version is continued; <see cref="TransferEvent.Bytes"/> is the offset and <see cref="TransferEvent.Total"/> the size.</summary>
+    ResumingDownload,
+    /// <summary>A partial download of another version of the file was thrown away.</summary>
+    RemovingPartialDownload,
 }
 
-/// <summary>One step of an upload; the caller words it in the language of the user interface for the transfer log.</summary>
-public readonly record struct TransferEvent(TransferStep Step, string Path, long Bytes);
+/// <summary>One step of a transfer; the caller words it in the language of the user interface for the transfer log.</summary>
+public readonly record struct TransferEvent(TransferStep Step, string Path, long Bytes, long Total = 0);
 
-/// <summary>Hooks and logging of one upload.</summary>
+/// <summary>Hooks and logging of one transfer.</summary>
 public sealed class TransferOptions
 {
-    /// <summary>Called at each step of the upload, for the transfer log in the output window.</summary>
+    /// <summary>Called at each step of the transfer, for the transfer log in the output window.</summary>
     public Action<TransferEvent>? Log { get; init; }
+
+    /// <summary>Called when the whole percent of an upload or a download changes, from the thread that moves the data.</summary>
+    public Action<TransferProgress>? Progress { get; init; }
 
     /// <summary>
     /// Runs after the file is completely on the server under its temporary name and before it replaces the target. It may throw to stop the replacement;
@@ -59,14 +70,17 @@ public static class RemoteTransfer
         }
 
         bool committed = false, keep = false;
+        var progress = options.Progress is { } sink ? new ProgressReporter(sink, true, remotePath, size) : null;
         try
         {
             if (offset < size)
             {
-                options.Log?.Invoke(new TransferEvent(offset > 0 ? TransferStep.Resuming : TransferStep.Uploading, temp, offset > 0 ? offset : size));
+                options.Log?.Invoke(new TransferEvent(offset > 0 ? TransferStep.Resuming : TransferStep.Uploading, temp, offset > 0 ? offset : size, size));
                 try
                 {
-                    await using var source = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    await using var file = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    Stream source = progress is null ? file : progress.Wrap(file);
+                    progress?.At(offset);
                     if (offset > 0) await client.ResumeUploadAsync(temp, source, offset, cancellation).ConfigureAwait(false);
                     else await client.UploadAsync(temp, source, cancellation).ConfigureAwait(false);
                 }
@@ -83,6 +97,7 @@ public static class RemoteTransfer
 
             if (offset > 0 && offset < size && !await MatchesLocalAsync(client, temp, localPath, cancellation).ConfigureAwait(false))
                 throw new RemoteException(RemoteError.Failed, "The resumed upload does not match the local file; the target was not touched.");
+            progress?.At(size);
 
             if (options.BeforeCommit is { } before) await before(cancellation).ConfigureAwait(false);
 
@@ -93,6 +108,79 @@ public static class RemoteTransfer
         finally
         {
             if (!committed && !keep) await TryDeleteAsync(client, temp).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// The partial file of a download of <paramref name="server"/>. The name carries the size and the time (to the second) of the server file, so a partial file is
+    /// continued only for the version it was started from.
+    /// </summary>
+    public static string PartNameOf(string localPath, RemoteStat server)
+    {
+        string time = server.ModifiedUtc is { } t ? new DateTimeOffset(RemoteRevision.Whole(t)).ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture) : "x";
+        return localPath + Marker + server.Size.ToString(CultureInfo.InvariantCulture) + "-" + time + ".part";
+    }
+
+    /// <summary>
+    /// Fetches the server file into a partial file next to <paramref name="localPath"/> and returns its path once it holds exactly <paramref name="server"/>.Size bytes; the caller
+    /// moves it into place after its own checks. A cancel or a lost connection keeps the partial file, and the next call continues it at the byte where it stopped, but only when the
+    /// server file still has the size and time it had then. Any other failure, and a partial file of another version, delete it. Like the upload, nothing here retries by itself.
+    /// </summary>
+    /// <param name="server">The stat of the server file taken just before, by the caller.</param>
+    public static async Task<string> DownloadPartAsync(IRemoteClient client, string remotePath, string localPath, RemoteStat server, TransferOptions? options, CancellationToken cancellation)
+    {
+        options ??= new();
+        string part = PartNameOf(localPath, server);
+        string? folder = Path.GetDirectoryName(localPath);
+        if (folder is not null)
+            foreach (var other in Directory.EnumerateFiles(folder, Path.GetFileName(localPath) + Marker + "*.part").Where(f => !string.Equals(f, part, StringComparison.Ordinal)).ToList())
+            {
+                options.Log?.Invoke(new TransferEvent(TransferStep.RemovingPartialDownload, other, new FileInfo(other).Length, server.Size));
+                FileSwap.TryDelete(other);
+            }
+
+        long size = server.Size, offset = 0;
+        if (File.Exists(part))
+        {
+            long have = new FileInfo(part).Length;
+            // without a server time the size alone cannot tell a changed file from the same one, so such a part starts over
+            if (have > 0 && have <= size && server.ModifiedUtc is not null) offset = have;
+            else FileSwap.TryDelete(part);
+        }
+
+        var progress = options.Progress is { } sink ? new ProgressReporter(sink, false, remotePath, size) : null;
+        bool complete = false, keep = false;
+        try
+        {
+            if (offset < size)
+            {
+                options.Log?.Invoke(new TransferEvent(offset > 0 ? TransferStep.ResumingDownload : TransferStep.Downloading, remotePath, offset > 0 ? offset : size, size));
+                try
+                {
+                    await using var file = new FileStream(part, offset > 0 ? FileMode.Open : FileMode.Create, FileAccess.Write, FileShare.None);
+                    file.Seek(offset, SeekOrigin.Begin);
+                    Stream destination = progress is null ? file : progress.Wrap(file);
+                    progress?.At(offset);
+                    if (offset > 0) await client.ResumeDownloadAsync(remotePath, destination, offset, cancellation).ConfigureAwait(false);
+                    else await client.DownloadAsync(remotePath, destination, cancellation).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is OperationCanceledException || e is RemoteException { Error: RemoteError.ConnectionLost })
+                {
+                    keep = true; // what arrived stays so the next attempt can continue it
+                    throw;
+                }
+            }
+            else if (!File.Exists(part)) await File.WriteAllBytesAsync(part, [], cancellation).ConfigureAwait(false); // an empty server file
+
+            long got = new FileInfo(part).Length;
+            if (got != size) throw new RemoteException(RemoteError.Failed, $"The download holds {got} bytes of {size}.");
+            progress?.At(size);
+            complete = true;
+            return part;
+        }
+        finally
+        {
+            if (!complete && !keep) FileSwap.TryDelete(part);
         }
     }
 

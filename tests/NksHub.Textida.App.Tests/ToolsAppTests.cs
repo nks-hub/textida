@@ -486,6 +486,47 @@ public class ToolLauncherTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_tool_that_uses_a_project_variable_is_asked_about_again_when_the_project_changes_its_value()
+    {
+        string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        string variables = Path.Combine(Directory.CreateDirectory(Path.Combine(project, ".textida")).FullName, "variables.json");
+        string file = Path.Combine(project, "a.txt");
+        File.WriteAllText(file, "x");
+        void Set(string env) => File.WriteAllText(variables, new JsonObject { ["Env"] = env }.ToJsonString());
+        Set("one");
+        _w.OpenFile(file, null);
+        Define([ToolTestKit.Tool("uses", "Uses", ["${Env}"]), ToolTestKit.Tool("plain", "Plain", ["fixed"])]);
+
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("uses"));
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.EndsWith(" one", asked.Details![0], StringComparison.Ordinal); // the question shows the value the project gives
+        Assert.Contains("[one]", Lines());
+        Finish(Run("uses"));
+        Assert.Single(_dialogs.Asked); // the same value: not asked again
+
+        Set("two");
+        _dialogs.Answers.Enqueue(1);
+        Finish(Run("uses"));
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.EndsWith(" two", _dialogs.Asked[1].Details![0], StringComparison.Ordinal);
+        Assert.DoesNotContain("[two]", Lines());
+
+        Set("one");
+        Finish(Run("uses")); // the value that was approved before
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal(3, Lines().Count(l => l == "[one]"));
+
+        // a tool that uses no variable of the project is not tied to the project's file
+        _dialogs.Answers.Enqueue(0);
+        Finish(Run("plain"));
+        Set("three");
+        Finish(Run("plain"));
+        Assert.Equal(3, _dialogs.Asked.Count);
+        Assert.Equal(2, Lines().Count(l => l == "[fixed]"));
+    }
+
+    [AvaloniaFact]
     public void A_tool_from_a_folder_runs_only_after_a_yes_and_a_changed_definition_asks_again()
     {
         string project = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
@@ -555,6 +596,44 @@ public class ToolLauncherTests : IDisposable
 
         Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll, "a.c:3:4: error: boom"]));
         Assert.Single(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
+    public void The_yes_to_a_makefile_run_holds_only_for_the_content_it_was_given_for()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Makefile");
+        string original = "build:\n\techo hi\n";
+        File.WriteAllText(makefile, original);
+        void Run() => Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll]));
+
+        _dialogs.Answers.Enqueue(0);
+        Run();
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(asked.Details!, d => d.Contains(MakefileTargets.ApprovalKey, StringComparison.Ordinal));
+        Run();
+        Assert.Single(_dialogs.Asked); // the same bytes: no question
+
+        File.AppendAllText(makefile, "build:\n\techo changed behind the yes\n");
+        _dialogs.Answers.Enqueue(1); // refused: the changed Makefile does not run
+        int lines = Lines().Count;
+        Run();
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal(lines, Lines().Count); // nothing ran and nothing was written
+
+        File.WriteAllText(makefile, original);
+        Run();
+        Assert.Equal(2, _dialogs.Asked.Count); // the old bytes are the approved ones again
+    }
+
+    [AvaloniaFact]
+    public void A_makefile_that_cannot_be_read_is_reported_and_nothing_runs()
+    {
+        string folder = Project();
+        string makefile = Path.Combine(folder, "Missing.mk");
+        Finish(_w.RunMakeTargetAsync(makefile, "build", ToolTestKit.Dotnet, [ToolTestKit.EchoDll]));
+        Assert.Empty(_dialogs.Asked);
+        Assert.Contains(Lines(), l => l.Contains("Missing.mk", StringComparison.Ordinal));
     }
 
     [AvaloniaFact]

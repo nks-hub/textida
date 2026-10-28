@@ -4,43 +4,6 @@ using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginHost;
 
-/// <summary>Method names of the plugin protocol (line-framed JSON-RPC 2.0, see <see cref="PluginProtocol"/>).</summary>
-public static class PluginMethods
-{
-    public const string Initialize = "initialize";
-    public const string Initialized = "initialized";
-    public const string Resync = "$/resync";
-    public const string Ping = "$/ping";
-    public const string Shutdown = "shutdown";
-    public const string Exit = "exit";
-    public const string Event = "$/event";
-    /// <summary>Plugin to host: the plugin waits for a user decision, so the watchdog must not count missed pings.</summary>
-    public const string AwaitingUser = "$/awaitingUser";
-    /// <summary>Plugin to host: <c>{"count"}</c> more <see cref="Event"/> notifications were handled. Only a plugin that declared <see cref="InitializeResult.EventAcks"/> sends it.</summary>
-    public const string EventsHandled = "$/eventsHandled";
-}
-
-/// <summary>Handshake request. A plugin must answer with the same <c>apiVersion</c> or an error.</summary>
-/// <param name="Settings">Current values of the settings the plugin declared (full key to value); absent when it declared none. Later changes arrive as the event <c>settings.changed</c>.</param>
-public sealed record InitializeParams(int ApiVersion, bool Restarted, string HostName, JsonElement? Settings = null);
-
-/// <param name="EventAcks">
-/// The plugin acknowledges every handled event with <see cref="PluginMethods.EventsHandled"/>. The editor then holds document events back once
-/// <see cref="PluginHostOptions.EventWindow"/> are unhandled, so a slow plugin gets <c>document/eventsLost</c> instead of a backlog in its own memory.
-/// </param>
-/// <param name="IdleStop">
-/// The plugin keeps nothing in the editor that cannot be set up again, so the editor may end its process after <see cref="PluginHostOptions.IdleStopAfter"/> without work;
-/// the next activation event starts it again with a new handshake.
-/// </param>
-public sealed record InitializeResult(int ApiVersion, string? Name, bool EventAcks = false, bool IdleStop = false);
-public sealed record AwaitingUserParams(bool Awaiting);
-
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-[JsonSerializable(typeof(InitializeParams))]
-[JsonSerializable(typeof(InitializeResult))]
-[JsonSerializable(typeof(AwaitingUserParams))]
-public sealed partial class PluginJson : JsonSerializerContext;
-
 /// <param name="Id">Stable identifier.</param>
 /// <param name="DisplayName">Name shown to the user when the plugin fails.</param>
 /// <param name="Arguments">Command line arguments, passed one by one (no shell).</param>

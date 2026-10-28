@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageType>Template</PackageType>
+    <PackageId>NksHub.Textida.Plugin.Templates</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>NKS Hub</Authors>
+    <Title>Textida plugin templates</Title>
+    <Description>The dotnet new template nkspad-plugin: a plugin for the Textida editor in C# as a NativeAOT program on the plugin SDK, with a manifest and a test project that replays editor events against it.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>dotnet-new;templates;textida;plugin</PackageTags>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <!-- the files of the template are content, not code of this project -->
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="templates\**\*" Exclude="templates\**\bin\**;templates\**\obj\**" PackagePath="content\" />
+  </ItemGroup>
+
+</Project>

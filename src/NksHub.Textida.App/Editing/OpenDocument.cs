@@ -192,7 +192,7 @@ internal sealed class OpenDocument : IDisposable
         var byPath = CsvDialect.ForPath(Path);
         long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimitsPlaceholders.CsvDetectSampleBytes);
         while (end > start && end < Doc.ByteLength && !Doc.IsCharBoundary(end)) end--;
-        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath);
+        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath, truncated: end < Doc.ByteLength);
     }
 
     // ---- hex ----
@@ -354,8 +354,8 @@ internal sealed class OpenDocument : IDisposable
         doc.Changed += OnDocChanged;
         doc.Saved += OnSaved;
         doc.ExternalChangeDetected += OnExternalChange;
-        // a file in the paged backend is not copied into the history: it would cost its whole size on every open and save (no size cap is decided)
-        _recorder = History is { } history && !IsLarge ? new HistoryRecorder(history, doc, (_, result) => Dispatcher.UIThread.Post(() => HistoryProblem?.Invoke(result))) : null;
+        // a file of the paged backend is read from disk like any other: up to the size limit of the history, as a whole copy first and then as patches
+        _recorder = History is { } history ? new HistoryRecorder(history, doc, (_, result) => Dispatcher.UIThread.Post(() => HistoryProblem?.Invoke(result))) : null;
     }
 
     private void Unhook(Document doc)

@@ -357,13 +357,13 @@
       "id": "nks.file.history",
       "title": "cmd.file.history",
       "category": "cat.file",
-      "enablement": "hasDocument && !largeFileMode"
+      "enablement": "hasDocument && !hexMode"
     },
     {
       "id": "nks.file.historyMark",
       "title": "cmd.file.historyMark",
       "category": "cat.file",
-      "enablement": "hasDocument && !largeFileMode"
+      "enablement": "hasDocument && !hexMode"
     },
     {
       "id": "nks.file.historySearch",
@@ -1347,6 +1347,12 @@
       "category": "cat.edit"
     },
     {
+      "id": "nks.clips.editProjectVariables",
+      "title": "cmd.clips.editProjectVariables",
+      "category": "cat.edit",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.file.newFromTemplate",
       "title": "cmd.file.newFromTemplate",
       "category": "cat.file"
@@ -1818,6 +1824,20 @@
       "undo": "transaction"
     },
     {
+      "id": "nks.edit.htmlInsertImage",
+      "title": "cmd.edit.htmlInsertImage",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
+      "id": "nks.edit.htmlInsertLink",
+      "title": "cmd.edit.htmlInsertLink",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "enablement": "!readOnly && !largeFileMode && (language == 'html' || language == 'xml' || language == 'php')"
+    },
+    {
       "id": "nks.tools.sqlDialect",
       "title": "cmd.tools.sqlDialect",
       "category": "cat.tools",
@@ -2037,6 +2057,24 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.minimap.focus",
+      "title": "cmd.hex.minimap.focus",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.toggleColumn",
+      "title": "cmd.hex.toggleColumn",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.selectTo",
+      "title": "cmd.hex.selectTo",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.statistics",
       "title": "cmd.hex.statistics",
       "category": "cat.hex",
@@ -2099,6 +2137,11 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.tools.ideMention",
+      "title": "cmd.tools.ideMention",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.tools.mcpServers",
       "title": "cmd.tools.mcpServers",
       "category": "cat.tools"
@@ -2130,10 +2173,33 @@
       "category": "cat.tools"
     },
     {
+      "id": "nks.agent.hooks",
+      "title": "cmd.agent.hooks",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.agent.transcript",
+      "title": "cmd.agent.transcript",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.tokens",
+      "title": "cmd.agent.tokens",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.review.open",
       "title": "cmd.review.open",
       "category": "cat.file",
       "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.review.folder",
+      "title": "cmd.review.folder",
+      "category": "cat.file",
+      "enablement": "hasFolder"
     },
     {
       "id": "nks.review.next",
@@ -2479,6 +2545,38 @@
     {
       "id": "nks.edit.cursorDocumentEndSelect",
       "title": "cmd.edit.cursorDocumentEndSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageUp",
+      "title": "cmd.edit.cursorPageUp",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageUpSelect",
+      "title": "cmd.edit.cursorPageUpSelect",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDown",
+      "title": "cmd.edit.cursorPageDown",
+      "category": "cat.edit",
+      "when": "editorFocus",
+      "macro": true,
+      "hidden": true
+    },
+    {
+      "id": "nks.edit.cursorPageDownSelect",
+      "title": "cmd.edit.cursorPageDownSelect",
       "category": "cat.edit",
       "when": "editorFocus",
       "macro": true,
@@ -3661,6 +3759,13 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.toggleColumn",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 25
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.inspector",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -3679,6 +3784,13 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.offsetFormat",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 55
     },
     {
       "menu": "edit",
@@ -3744,6 +3856,13 @@
     {
       "menu": "edit",
       "command": "nks.clips.editVariables",
+      "group": "4_more/8_insert",
+      "submenu": "insert",
+      "order": 7
+    },
+    {
+      "menu": "edit",
+      "command": "nks.clips.editProjectVariables",
       "group": "4_more/8_insert",
       "submenu": "insert",
       "order": 7
@@ -4252,6 +4371,20 @@
       "order": 120
     },
     {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertImage",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlInsertLink",
+      "group": "3_text/5_format",
+      "submenu": "format",
+      "order": 140
+    },
+    {
       "menu": "tools",
       "command": "nks.tools.sqlDialect",
       "group": "1_text/03_5_sql",
@@ -4475,6 +4608,13 @@
     },
     {
       "menu": "edit",
+      "command": "nks.hex.selectTo",
+      "group": "4_more/7_hex",
+      "submenu": "hex",
+      "order": 65
+    },
+    {
+      "menu": "edit",
       "command": "nks.hex.bookmarks.panel",
       "group": "4_more/7_hex",
       "submenu": "hex",
@@ -4536,6 +4676,13 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.minimap.focus",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 115
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.minimap.mode",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -4592,6 +4739,13 @@
     },
     {
       "menu": "tools",
+      "command": "nks.tools.ideMention",
+      "group": "3_code/10_8_mcp",
+      "submenu": "mcp",
+      "order": 37
+    },
+    {
+      "menu": "tools",
       "command": "nks.tools.mcpServers",
       "group": "3_code/10_8_mcp",
       "submenu": "mcp",
@@ -4633,10 +4787,37 @@
       "order": 50
     },
     {
+      "menu": "tools",
+      "command": "nks.agent.hooks",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.transcript",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.tokens",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 80
+    },
+    {
       "menu": "file",
       "command": "nks.review.open",
       "group": "2_disk",
       "order": 75
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.folder",
+      "group": "2_disk",
+      "order": 76
     },
     {
       "menu": "tools",
@@ -5121,11 +5302,13 @@
     },
     {
       "key": "alt+left",
-      "command": "nks.search.jumpBack"
+      "command": "nks.search.jumpBack",
+      "mac": "meta+ctrl+left"
     },
     {
       "key": "alt+right",
-      "command": "nks.search.jumpForward"
+      "command": "nks.search.jumpForward",
+      "mac": "meta+ctrl+right"
     },
     {
       "key": "ctrl+f2",
@@ -5241,6 +5424,16 @@
     {
       "key": "mod+k mod+g",
       "command": "nks.hex.minimap",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+f",
+      "command": "nks.hex.minimap.focus",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+a",
+      "command": "nks.hex.selectTo",
       "when": "hexMode"
     },
     {
@@ -6310,6 +6503,23 @@
       ]
     },
     {
+      "key": "schema.mappings",
+      "type": "string",
+      "default": "",
+      "title": "setting.schema.mappings.title",
+      "description": "setting.schema.mappings.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "schema",
+        "json",
+        "yaml",
+        "toml",
+        "mapping",
+        "validate"
+      ]
+    },
+    {
       "key": "html.tidyPath",
       "type": "string",
       "default": "",
@@ -6485,6 +6695,94 @@
         "interval",
         "delay",
         "seconds"
+      ]
+    },
+    {
+      "key": "advanced.caretBlinkMilliseconds",
+      "type": "integer",
+      "default": 500,
+      "title": "setting.advanced.caretBlinkMilliseconds.title",
+      "description": "setting.advanced.caretBlinkMilliseconds.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 2000,
+      "tags": [
+        "cursor",
+        "caret",
+        "blink",
+        "flash",
+        "milliseconds"
+      ]
+    },
+    {
+      "key": "advanced.smoothScrolling",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.advanced.smoothScrolling.title",
+      "description": "setting.advanced.smoothScrolling.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "tags": [
+        "scroll",
+        "smooth",
+        "wheel",
+        "animation"
+      ]
+    },
+    {
+      "key": "advanced.undoLimit",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.advanced.undoLimit.title",
+      "description": "setting.advanced.undoLimit.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 1000000,
+      "tags": [
+        "undo",
+        "history",
+        "steps",
+        "limit",
+        "memory"
+      ]
+    },
+    {
+      "key": "advanced.highlightMaxLines",
+      "type": "integer",
+      "default": 1024,
+      "title": "setting.advanced.highlightMaxLines.title",
+      "description": "setting.advanced.highlightMaxLines.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 100,
+      "maximum": 1024,
+      "tags": [
+        "highlight",
+        "syntax",
+        "color",
+        "lines",
+        "limit"
+      ]
+    },
+    {
+      "key": "advanced.highlightMaxColumns",
+      "type": "integer",
+      "default": 65536,
+      "title": "setting.advanced.highlightMaxColumns.title",
+      "description": "setting.advanced.highlightMaxColumns.description",
+      "category": "cat.advanced",
+      "scope": "application",
+      "minimum": 1000,
+      "maximum": 65536,
+      "tags": [
+        "highlight",
+        "syntax",
+        "color",
+        "columns",
+        "long",
+        "limit"
       ]
     },
     {

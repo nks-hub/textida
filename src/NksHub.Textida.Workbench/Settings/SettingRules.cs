@@ -151,6 +151,18 @@ public sealed class SettingsRegistry
 
     public bool TryGet(string key, out SettingDefinition definition) => _byKey.TryGetValue(key, out definition!);
 
+    /// <summary>Forgets a setting (its plugin was removed); false when the key is not defined. Values that were stored for it stay where they are.</summary>
+    public bool Remove(string key)
+    {
+        if (!_byKey.Remove(key, out var definition))
+        {
+            return false;
+        }
+
+        _ordered.Remove(definition);
+        return true;
+    }
+
     /// <summary>Returns an error text when the key is already defined.</summary>
     public string? Add(SettingDefinition definition, string source)
     {

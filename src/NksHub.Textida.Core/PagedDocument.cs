@@ -4,6 +4,9 @@ using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core;
 
+/// <summary>One replacement of a file: the <paramref name="Deleted"/> bytes at <paramref name="Start"/> become <paramref name="Inserted"/>.</summary>
+public readonly record struct FileEdit(long Start, long Deleted, byte[] Inserted);
+
 /// <summary>
 /// Editable document over a memory-mapped file: a piece tree references the original file and an
 /// append-only add buffer, so edits cost O(log pieces) and never copy the file. Offsets are bytes
@@ -91,6 +94,45 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>Immutable view of the current content; cheap (pieces only) and safe to read from other threads.</summary>
     public PagedSnapshot CreateSnapshot() => new([.. _tree.EnumerateRange(0, ByteLength)], _add, _source.File);
 
+    /// <summary>
+    /// The edits that turn the file as this document mapped it into the current content, in file order, each one the replacement of <c>Deleted</c> bytes at <c>Start</c>.
+    /// They are read from the pieces, so the cost follows the number of edits and the bytes they insert, not the size of the file. Null when they insert more than
+    /// <paramref name="maxInsertedBytes"/> bytes. After an in-place save the mapped file is the one before the write: the edits then describe the saved bytes again,
+    /// and a caller that wants the unsaved ones compares them with the file.
+    /// </summary>
+    public IReadOnlyList<FileEdit>? EditsAgainstFile(long maxInsertedBytes)
+    {
+        var edits = new List<FileEdit>();
+        var pending = new MemoryStream();
+        long fileAt = 0, inserted = 0;
+        void Close(long deleted)
+        {
+            if (deleted > 0 || pending.Length > 0) edits.Add(new FileEdit(fileAt, deleted, pending.ToArray()));
+            pending.SetLength(0);
+        }
+        var buffer = new byte[1 << 16];
+        foreach (var piece in _tree.EnumerateRange(0, ByteLength))
+        {
+            if (piece.Length == 0) continue;
+            if (piece.Original)
+            {
+                if (piece.Start < fileAt) return null;
+                Close(piece.Start - fileAt);
+                fileAt = piece.Start + piece.Length;
+                continue;
+            }
+            if ((inserted += piece.Length) > maxInsertedBytes) return null;
+            for (long done = 0; done < piece.Length; done += buffer.Length)
+            {
+                int n = (int)Math.Min(buffer.Length, piece.Length - done);
+                CopyPiece(piece, done, buffer.AsSpan(0, n));
+                pending.Write(buffer, 0, n);
+            }
+        }
+        Close(_source.ByteLength - fileAt);
+        return edits;
+    }
+
     /// <summary>The unmodified file underneath; searches run against it.</summary>
     public MappedFileSource Source => _source;
     public long ByteLength => _tree.Length;
@@ -135,6 +177,16 @@ public sealed class PagedDocument : IPagedTextSource
         if (line < 0 || !EnsureLineTracking() || line > _tree.Terminators) return false;
         if (line > 0) byteOffset = _tree.OffsetAfterTerminator(line, AfterNthTerminator);
         return true;
+    }
+
+    /// <summary>
+    /// Zero-based line that holds <paramref name="offset"/> without searching for it through the starts of lines (which reads a block per step): for a document that is not
+    /// edited the block table and one block tell it. False for an edited document, and while the index does not reach the offset; <see cref="TryGetLineStart"/> then finds it by search.
+    /// </summary>
+    public bool TryGetLineOfOffset(long offset, out long line)
+    {
+        line = 0;
+        return !IsModified && _source.TryGetLineOfOffset(offset, out line);
     }
 
     private bool EnsureLineTracking()
@@ -373,6 +425,14 @@ public sealed class PagedDocument : IPagedTextSource
     /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
     public bool IsColumnNear(long lineStart, long column) =>
         IsModified ? _editedColumns.IsNear(lineStart, column) : _source.IsColumnNear(lineStart, column);
+
+    /// <summary>True when <see cref="ReadColumns"/> at <paramref name="column"/> resumes from a point noted, or the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsColumnNear(long lineStart, long column, long within) =>
+        IsModified ? _editedColumns.IsNear(lineStart, column, within) : _source.IsColumnNear(lineStart, column, within);
+
+    /// <summary>True when <see cref="ColumnOf"/> at <paramref name="offset"/> resumes from a point noted, or the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsOffsetNear(long lineStart, long offset, long within) =>
+        IsModified ? _editedColumns.IsNearPosition(lineStart, offset, within) : _source.IsOffsetNear(lineStart, offset, within);
 
     /// <summary>
     /// A reader of the columns of the current revision for another thread, so that a far read does not hold up this one. The points it notes on an

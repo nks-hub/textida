@@ -34,6 +34,8 @@ internal interface IDialogs
     Task<int> ChooseAsync(Window owner, ChoiceRequest request, CancellationToken cancellation) => ChooseAsync(owner, request);
     Task<SaveAsChoice?> SaveAsAsync(Window owner, SaveAsRequest request);
     Task<IReadOnlyList<string>> PickFilesAsync(Window owner);
+    /// <summary>One file the user chose among those that match <paramref name="patterns"/> (all files stay selectable), or null when the dialog was cancelled.</summary>
+    async Task<string?> PickFileAsync(Window owner, string title, string filterName, IReadOnlyList<string> patterns) => (await PickFilesAsync(owner)).FirstOrDefault();
     /// <summary>The folder the user chose, or null when the dialog was cancelled.</summary>
     Task<string?> PickFolderAsync(Window owner);
     /// <summary>The path of the file to write that the user chose (the dialog asks before replacing one), or null when cancelled.</summary>
@@ -136,6 +138,16 @@ internal sealed partial class AvaloniaDialogs : IDialogs
     {
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions { Title = Loc.Get(K.DialogOpenTitle), AllowMultiple = true });
         return [.. files.Select(f => f.TryGetLocalPath()).OfType<string>()];
+    }
+
+    public async Task<string?> PickFileAsync(Window owner, string title, string filterName, IReadOnlyList<string> patterns)
+    {
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title, AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(filterName) { Patterns = patterns }, FilePickerFileTypes.All],
+        });
+        return files.Count > 0 ? files[0].TryGetLocalPath() : null;
     }
 
     public async Task<string?> PickFolderAsync(Window owner)

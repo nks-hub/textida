@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
@@ -17,7 +18,7 @@ using NksHub.Textida.PluginHost.Ui;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The preview panel (P6.2.4) under the editor, in the look of the output window: the text or Markdown a plugin supplied for one revision of a document, rendered by
+/// The preview panel (P6.2.4) under the editor, in the look of the output window: the text, Markdown or HTML a plugin supplied for one revision of a document, rendered by
 /// <see cref="PreviewRenderer"/>. The editor owns the panel; the plugin only supplies the data. When the document moves on, the panel says the preview is outdated until the
 /// plugin shows the new revision. Showing a preview does not take the focus, because a plugin shows a new one while the user types.
 /// </summary>
@@ -33,12 +34,23 @@ internal sealed partial class MainWindow
     private bool _liveOutline;
     private long _liveRevision;
     private DispatcherTimer? _liveTimer;
+    private PreviewImages? _previewImages;
+    private List<PreviewRenderer.Anchor>? _previewAnchors;
+    private bool _previewSettling;
+    private long _quietPreviewUntil, _quietEditorUntil;
 
     public bool PreviewPanelOpen => _previewPanel.IsVisible;
     internal PreviewContent? ShownPreview => _preview;
     internal string PreviewPanelStatus => _previewStatus.Text ?? "";
     internal Control? PreviewBody => _previewScroll.Content as Control;
     internal Control PreviewPanelControl => _previewPanel;
+    internal ScrollViewer PreviewScroller => _previewScroll;
+
+    /// <summary>The pictures of the previews of this window: local files, web pictures the user allowed, and what has been decoded already.</summary>
+    internal PreviewImages PreviewPictures => _previewImages ??= new PreviewImages(() => _app.Remote.Policy().CreateHttpHandler(), ConfirmImageHostAsync, () => { if (_preview is not null) RenderPreview(keepScroll: true); });
+
+    private Task<bool> ConfirmImageHostAsync(string host) =>
+        PluginConfirmAsync(new ConfirmRequest(Loc.Get(K.PreviewImageConsentTitle), Loc.Get(K.PreviewImageConsentMessage, ("host", host))));
 
     private Control BuildPreviewPanel()
     {
@@ -54,10 +66,32 @@ internal sealed partial class MainWindow
             ClosePreview();
             e.Handled = true;
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        _previewScroll.KeyDown += OnPreviewKeyDown;
+        _previewScroll.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ScrollViewer.OffsetProperty) OnPreviewScrolled();
+        };
         _previewPanel.Classes.Add("outputpanel");
         HelpContext.Set(_previewPanel, "tools.markdown");
         _previewPanel.Child = new DockPanel { Children = { Dock(header, Avalonia.Controls.Dock.Top), _previewScroll } };
         return _previewPanel;
+    }
+
+    /// <summary>The page scrolls from the keyboard when the preview or anything inside it has the focus: the arrows, Page Up, Page Down, Home and End.</summary>
+    private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None) return;
+        switch (e.Key)
+        {
+            case Key.Up: _previewScroll.LineUp(); break;
+            case Key.Down: _previewScroll.LineDown(); break;
+            case Key.PageUp: _previewScroll.PageUp(); break;
+            case Key.PageDown: _previewScroll.PageDown(); break;
+            case Key.Home: _previewScroll.ScrollToHome(); break;
+            case Key.End: _previewScroll.ScrollToEnd(); break;
+            default: return;
+        }
+        e.Handled = true;
     }
 
     private void ApplyPreviewTexts()
@@ -92,10 +126,16 @@ internal sealed partial class MainWindow
         if (_preview is not { } content) return;
         var offset = _previewScroll.Offset;
         var mono = new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily"));
+        bool follow = _liveTab is not null && !_liveOutline;
+        _previewAnchors = follow ? [] : null;
+        _previewSettling = follow;
+        string? folder = _liveTab?.Doc.Doc.FilePath is { Length: > 0 } path && Path.IsPathRooted(path) ? Path.GetDirectoryName(path) : null;
+        var ctx = new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, content.Images, _previewAnchors);
         _previewScroll.Content = _liveOutline && _liveTab is { } outlined
             ? PreviewRenderer.Outline(MarkdownTools.Headings(content.Text.ReplaceLineEndings("\n").Split('\n')), h => { outlined.GoToLine(h.Line + 1); FocusView(outlined); })
-            : PreviewRenderer.Render(content.Format, content.Text, new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri)));
-        if (keepScroll) Dispatcher.UIThread.Post(() => _previewScroll.Offset = offset, DispatcherPriority.Background);
+            : PreviewRenderer.Render(content.Format, content.Text, ctx);
+        if (follow) Dispatcher.UIThread.Post(() => { _previewSettling = false; SyncPreviewToEditor(); }, DispatcherPriority.Background);
+        else if (keepScroll) Dispatcher.UIThread.Post(() => _previewScroll.Offset = offset, DispatcherPriority.Background);
         var title = content.Title ?? Loc.Get(K.PreviewPanelTitle);
         _previewStatus.Text = _previewOutdatedBy is { } current
             ? Loc.Get(K.PreviewPanelOutdated, ("title", title), ("revision", content.Revision), ("current", current))
@@ -134,8 +174,8 @@ internal sealed partial class MainWindow
     internal DocTab? LivePreviewTab => _liveTab;
 
     /// <summary>
-    /// Shows the current Markdown or HTML file next to the editor and keeps it level with the text: every edit restarts a short timer and the panel is drawn again when it runs out.
-    /// Markdown is rendered; HTML is shown as literal text, because the policy has no HTML subset yet. With <paramref name="outline"/> the panel lists the headings instead of the page.
+    /// Shows the current Markdown or HTML file next to the editor and keeps it level with the text: every edit restarts a short timer and the panel is drawn again when it runs out, and the
+    /// editor and the panel scroll together. HTML is drawn as the subset of <see cref="PreviewRenderer"/> and every other tag stays text. With <paramref name="outline"/> the panel lists the headings instead of the page.
     /// </summary>
     internal CommandOutcome ShowLivePreview(bool outline)
     {
@@ -150,6 +190,7 @@ internal sealed partial class MainWindow
         (_liveTab, _liveOutline) = (tab, outline);
         tab.Doc.Changed += OnLiveEdited;
         tab.ViewClosed += OnLiveTabClosed;
+        tab.Surface!.TextArea.TextView.ScrollOffsetChanged += OnLiveEditorScrolled;
         _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.PreviewLiveDebounceMs) };
         _liveTimer.Tick += (_, _) => RefreshLive();
         RefreshLive();
@@ -170,9 +211,10 @@ internal sealed partial class MainWindow
         {
             tab.Doc.Changed -= OnLiveEdited;
             tab.ViewClosed -= OnLiveTabClosed;
+            if (tab.Surface is { } surface) surface.TextArea.TextView.ScrollOffsetChanged -= OnLiveEditorScrolled;
         }
         _liveTimer?.Stop();
-        (_liveTab, _liveTimer, _liveOutline) = (null, null, false);
+        (_liveTab, _liveTimer, _liveOutline, _previewAnchors, _previewSettling) = (null, null, false, null, false);
     }
 
     /// <summary>Draws the live preview from the text as it is now.</summary>
@@ -188,6 +230,57 @@ internal sealed partial class MainWindow
         }
         bool html = tab.Doc.Language.Id == "html";
         string title = Loc.Get(_liveOutline ? K.PreviewOutlineTitle : html ? K.PreviewLiveHtmlTitle : K.PreviewLiveTitle, ("name", tab.Title));
-        ShowPreviewCore(new PreviewContent("", Guid.Empty, ++_liveRevision, html ? PreviewFormats.Text : PreviewFormats.Markdown, title, surface.Document.Text));
+        ShowPreviewCore(new PreviewContent("", Guid.Empty, ++_liveRevision, html ? PreviewFormats.Html : PreviewFormats.Markdown, title, surface.Document.Text));
+    }
+
+    // ---- scrolling together (P9.3.1) ----
+
+    /// <summary>The (fractional, zero-based) line at the top of the editor.</summary>
+    internal static double TopLine(EditorSurface editor)
+    {
+        var view = editor.TextArea.TextView;
+        if (view.GetDocumentLineByVisualTop(view.ScrollOffset.Y) is not { } line) return 0;
+        double top = view.GetVisualTopByDocumentLine(line.LineNumber);
+        double height = (line.LineNumber < editor.Document.LineCount ? view.GetVisualTopByDocumentLine(line.LineNumber + 1) : view.DocumentHeight) - top;
+        return line.LineNumber - 1 + (height > 0 ? Math.Clamp((view.ScrollOffset.Y - top) / height, 0, 1) : 0);
+    }
+
+    private PreviewScrollMap? ScrollMap(EditorSurface editor) =>
+        _previewAnchors is { Count: > 0 } anchors && _previewScroll.Content is Control body
+            ? new PreviewScrollMap(anchors.Select(a => (a.Line, body.Bounds.Y + a.Control.Bounds.Y)), editor.Document.LineCount, _previewScroll.Extent.Height)
+            : null;
+
+    /// <summary>Scrolls the preview to where the top of the editor is.</summary>
+    internal void SyncPreviewToEditor()
+    {
+        if (_liveTab?.Surface is not { } editor || ScrollMap(editor) is not { } map) return;
+        double target = Math.Clamp(map.OffsetFor(TopLine(editor)), 0, Math.Max(0, _previewScroll.Extent.Height - _previewScroll.Viewport.Height));
+        _quietPreviewUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        _previewScroll.Offset = new Vector(0, target);
+    }
+
+    /// <summary>Scrolls the editor to where the top of the preview is.</summary>
+    internal void SyncEditorToPreview()
+    {
+        if (_liveTab?.Surface is not { } editor || ScrollMap(editor) is not { } map) return;
+        var view = editor.TextArea.TextView;
+        double line = Math.Clamp(map.LineAt(_previewScroll.Offset.Y), 0, editor.Document.LineCount - 1);
+        int number = (int)Math.Floor(line) + 1;
+        double top = view.GetVisualTopByDocumentLine(number);
+        double height = (number < editor.Document.LineCount ? view.GetVisualTopByDocumentLine(number + 1) : view.DocumentHeight) - top;
+        _quietEditorUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        var scrollable = (ILogicalScrollable)view;
+        scrollable.Offset = new Vector(scrollable.Offset.X, top + (line - Math.Floor(line)) * height);
+    }
+
+    private void OnLiveEditorScrolled(object? sender, EventArgs e)
+    {
+        if (!_previewSettling && Environment.TickCount64 >= _quietEditorUntil) SyncPreviewToEditor();
+    }
+
+    private void OnPreviewScrolled()
+    {
+        if (_liveTab is null || _previewSettling || Environment.TickCount64 < _quietPreviewUntil) return;
+        SyncEditorToPreview();
     }
 }

@@ -106,17 +106,21 @@ public class LivePreviewTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_script_in_an_html_file_stays_text_and_a_remote_image_is_not_loaded()
+    public void A_script_in_an_html_file_stays_text_and_a_remote_image_waits_for_the_user()
     {
         Open("<html><script>alert(1)</script><img src=\"https://remote.example/a.png\"></html>", "html");
         _w.ShowLivePreview(outline: false);
+        _w.UpdateLayout();
         Assert.Contains("<script>alert(1)</script>", TextOf(_w.PreviewBody!));
-        Assert.DoesNotContain(Tree(_w.PreviewBody!), c => c is Image or Button);
+        Assert.DoesNotContain(Tree(_w.PreviewBody!), c => c is Image);
+        var ask = Assert.Single(Tree(_w.PreviewBody!).OfType<Button>());
+        Assert.Equal(Loc.Get(K.PreviewImageRemote, ("host", "remote.example"), ("alt", "")), Avalonia.Automation.AutomationProperties.GetName(ask));
 
         Open("![chart](https://remote.example/a.png) and ![local](file:///C:/private/a.png)\n", "markdown");
         _w.ShowLivePreview(outline: false);
+        _w.UpdateLayout();
         var text = TextOf(_w.PreviewBody!);
-        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "chart")), text);
+        Assert.Contains(Loc.Get(K.PreviewImageRemote, ("host", "remote.example"), ("alt", "chart")), text);
         Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "local")), text);
         Assert.DoesNotContain(Tree(_w.PreviewBody!), c => c is Image);
     }

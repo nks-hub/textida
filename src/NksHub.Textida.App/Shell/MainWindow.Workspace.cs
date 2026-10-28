@@ -1,6 +1,8 @@
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Workbench.Settings;
 
@@ -193,8 +195,11 @@ internal sealed partial class MainWindow
 
     // ---- named sessions ----
 
-    /// <summary>The tabs, their groups and carets as data. A tab with unsaved changes, or without a file, keeps its text so it comes back as it was.</summary>
-    internal SessionData CaptureNamedSession(string name)
+    /// <summary>
+    /// The tabs, their groups and carets as data. A tab with unsaved changes, or without a file, keeps its text so it comes back as it was. A large tab keeps
+    /// the edits of its file instead; the titles of those whose changes could not be kept are added to <paramref name="leftOut"/>.
+    /// </summary>
+    internal SessionData CaptureNamedSession(string name, List<string>? leftOut = null)
     {
         var session = new SessionData { Name = name };
         foreach (var group in _groups.Where(g => g.Tabs.Count > 0))
@@ -212,6 +217,7 @@ internal sealed partial class MainWindow
                     (entry.AnchorLine, entry.AnchorColumn, entry.CaretLine, entry.CaretColumn) = (anchor.Line, anchor.Column, caret.Line, caret.Column);
                     if (tab.Path is null || tab.Doc.HasUnsavedWork) entry.Text = text.Text;
                 }
+                else if (tab.Paged is { } paged && tab.Path is not null) CaptureLargeTab(tab, paged, entry, leftOut);
                 if (tab == group.Active) data.ActiveTab = data.Tabs.Count;
                 data.Tabs.Add(entry);
             }
@@ -222,10 +228,64 @@ internal sealed partial class MainWindow
         return session;
     }
 
+    /// <summary>
+    /// A large tab has no text to put in the session. It keeps the caret as a byte offset and the unsaved work as the edits that turn its file into the document,
+    /// together with the length and write time of the file they were made on. Edits that insert more than <see cref="PluginLimitsPlaceholders.SessionLargeEditsMaxBytes"/>,
+    /// or that were made on a file that has since changed under the document, are left out and the title of the tab is added to <paramref name="leftOut"/>.
+    /// </summary>
+    private static void CaptureLargeTab(DocTab tab, PagedTextView paged, SessionTabData entry, List<string>? leftOut)
+    {
+        var doc = tab.Doc.Doc;
+        var info = new FileInfo(tab.Path!);
+        if (!info.Exists) return;
+        entry.FileLength = info.Length;
+        entry.FileWriteTicks = info.LastWriteTimeUtc.Ticks;
+        if (doc.IsModified)
+        {
+            var print = doc.Fingerprint;
+            var edits = print is not null && print.Size == info.Length && print.LastWriteUtc == info.LastWriteTimeUtc && doc.Backend is PagedBackend backend
+                ? backend.Paged.EditsAgainstFile(PluginLimitsPlaceholders.SessionLargeEditsMaxBytes)
+                : null;
+            if (edits is null)
+            {
+                leftOut?.Add(tab.Title);
+                return;
+            }
+            var unsaved = WithoutWhatTheFileHas(info.FullName, edits);
+            if (unsaved.Count > 0) entry.Edits = [.. unsaved.Select(e => new SessionEditData { Start = e.Start, Deleted = e.Deleted, Bytes = Convert.ToBase64String(e.Inserted) })];
+        }
+        entry.CaretOffset = paged.CaretOffset;
+    }
+
+    /// <summary>An in-place save writes the edits into the file but leaves the pieces of the document on the bytes before them, so some edits may already be in the file.</summary>
+    private static List<FileEdit> WithoutWhatTheFileHas(string path, IReadOnlyList<FileEdit> edits)
+    {
+        var kept = new List<FileEdit>();
+        try
+        {
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            byte[] disk = [];
+            foreach (var edit in edits)
+            {
+                if (edit.Deleted == edit.Inserted.Length)
+                {
+                    if (disk.Length < edit.Inserted.Length) disk = new byte[edit.Inserted.Length];
+                    file.Position = edit.Start;
+                    file.ReadExactly(disk.AsSpan(0, edit.Inserted.Length));
+                    if (disk.AsSpan(0, edit.Inserted.Length).SequenceEqual(edit.Inserted)) continue;
+                }
+                kept.Add(edit);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return [.. edits]; }
+        return kept;
+    }
+
     /// <summary>Saves the open tabs under the name, replacing a session of that name. False when there is nothing to save.</summary>
     internal bool SaveNamedSession(string name)
     {
-        var session = CaptureNamedSession(name);
+        var leftOut = new List<string>();
+        var session = CaptureNamedSession(name, leftOut);
         if (session.Groups.Count == 0) { SetStatusMessage(Loc.Get(K.SessionNothing)); return false; }
         try
         {
@@ -237,6 +297,7 @@ internal sealed partial class MainWindow
             return false;
         }
         SetStatusMessage(Loc.Get(K.SessionSaved, ("name", name)));
+        if (leftOut.Count > 0) ShowNotice("session", Loc.Get(K.SessionLargeLeftOut, ("name", name), ("files", string.Join(", ", leftOut))), warning: true);
         return true;
     }
 
@@ -249,6 +310,7 @@ internal sealed partial class MainWindow
     internal IReadOnlyList<string> OpenNamedSession(SessionData session)
     {
         var missing = new List<string>();
+        var changed = new List<string>();
         TabGroup? wantActive = null;
         int index = 0;
         foreach (var data in session.Groups.Where(g => g.Tabs.Count > 0))
@@ -262,6 +324,7 @@ internal sealed partial class MainWindow
                 var tab = OpenSessionTab(saved, missing);
                 if (tab is null) continue;
                 if (saved.Text is not null && tab.Surface is { } surface && surface.Document.Text != saved.Text) surface.Document.Replace(0, surface.Document.TextLength, saved.Text);
+                if (tab.Paged is not null) RestoreLargeTab(tab, saved, changed);
                 ApplyCaret(tab, saved);
                 if (i == data.ActiveTab) active = tab;
             }
@@ -275,7 +338,32 @@ internal sealed partial class MainWindow
         SetStatusMessage(missing.Count == 0
             ? Loc.Get(K.SessionOpened, ("name", session.Name))
             : Loc.Get(K.SessionOpenedMissing, ("name", session.Name), ("missing", string.Join(", ", missing))));
+        if (changed.Count > 0) ShowNotice("session", Loc.Get(K.SessionEditsNotRestored, ("name", session.Name), ("files", string.Join(", ", changed))), warning: true);
         return missing;
+    }
+
+    /// <summary>
+    /// Puts the unsaved edits of a large file back, as one undo step, and the caret where it was. Both are good only for the file as it was when the session was saved: for a file
+    /// that has changed since, or edits that do not fit it, nothing is touched and the title of the tab is added to <paramref name="changed"/>.
+    /// </summary>
+    private void RestoreLargeTab(DocTab tab, SessionTabData saved, List<string> changed)
+    {
+        if (saved.FileWriteTicks == 0) return;
+        var info = new FileInfo(tab.Path!);
+        bool same = info.Exists && info.Length == saved.FileLength && info.LastWriteTimeUtc.Ticks == saved.FileWriteTicks;
+        bool unrestored = saved.Edits is { Count: > 0 };
+        // the file may be open already with changes of its own; the edits are positions in the file and fit nothing else
+        if (same && unrestored && !tab.Doc.Doc.IsModified)
+        {
+            try
+            {
+                var edits = saved.Edits!.Select(e => new ByteEdit(new ByteRange(e.Start, e.Start + e.Deleted), Convert.FromBase64String(e.Bytes))).ToList();
+                unrestored = !tab.Doc.Doc.Apply(edits).Applied;
+            }
+            catch (FormatException) { }
+        }
+        if (unrestored) changed.Add(tab.Title);
+        else if (same && saved.CaretOffset is { } caret) ApplyOffsets(tab, Math.Min(caret, tab.Doc.Doc.ByteLength), Math.Min(caret, tab.Doc.Doc.ByteLength));
     }
 
     private DocTab? OpenSessionTab(SessionTabData saved, List<string> missing)

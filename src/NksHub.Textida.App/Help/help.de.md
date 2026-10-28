@@ -113,7 +113,8 @@ Eine Verbindung merkt sich Server, Benutzer und Protokoll. Das Passwort liegt im
 - Üblich sind FTPS und SFTP. Einfaches FTP sendet Passwort und Dateien unverschlüsselt und wird erst benutzt, wenn Sie es für diese Verbindung ausdrücklich erlauben.
 - Bei der ersten Verbindung zeigt das Programm die Identität des Servers (einen SSH-Hostschlüssel oder ein TLS-Zertifikat) und fragt, ob Sie ihr vertrauen. Vergleichen Sie sie mit der, die Ihnen der Serveradministrator gegeben hat.
 - Ändert sich die Identität eines Servers, dem Sie vertraut haben, verbindet sich das Programm erst, wenn Sie die neue bestätigen. Lesen Sie vorher die Warnung.
-- Das Speichern von Passwörtern funktioniert unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux wird der Anmeldeinformationsspeicher noch nicht unterstützt; das Programm sagt das, statt das Passwort anderswo abzulegen.
+- Ein Passwort wird im Anmeldeinformationsspeicher des Systems abgelegt: unter Windows in der Anmeldeinformationsverwaltung, unter macOS im Schlüsselbund (Keychain), unter Linux im Secret Service über libsecret (zum Beispiel GNOME Keyring oder KWallet). Fehlt dieser Speicher, sagt das Programm das, statt das Passwort anderswo abzulegen. Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert.
+- ssh-rsa: Manche alten SFTP-Server akzeptieren einen RSA-Schlüssel oder zeigen ihren Hostschlüssel nur mit der schwachen SHA-1-Signatur namens ssh-rsa. Das Programm bietet sie nie von selbst an. Lehnt ein solcher Server die Verbindung ab, wählen Sie die Verbindung und dann Alte RSA-Signatur (ssh-rsa), lesen Sie die Warnung und erlauben Sie sie nur für diese Verbindung. Die Remote-Ausgabe warnt bei jeder Verbindung, die sie erlaubt; schalten Sie sie ab, sobald der Server aktualisiert ist.
 
 ## [remote.open] Remote-Datei öffnen
 commands: nks.remote.open
@@ -123,6 +124,7 @@ commands: nks.remote.open
 - Die Leiste über dem Text sagt, ob die Kopie dem Stand auf dem Server entspricht. Der Editor selbst arbeitet ohne Verbindung.
 - Eine Remote-Datei, die schon eine Kopie hat, wird aus der Kopie geöffnet, auch mit Änderungen, die Sie noch nicht gesendet haben. Die Serverversion wird nie über Ihre Arbeit geladen.
 - Das Protokoll der Übertragungen steht im Tab Remote des Ausgabefensters.
+- Ein Download zeigt seinen Fortschritt in Prozent in der Statusleiste und in der Remote-Ausgabe. Übertragung abbrechen stoppt ihn. Was angekommen ist, bleibt erhalten, und das nächste Öffnen oder Neuladen derselben Serverversion macht bei diesem Byte weiter. Haben sich Größe oder Zeit der Datei auf dem Server inzwischen geändert, wird der angefangene Teil verworfen und der Download beginnt von vorn. Bricht die Verbindung ab, wiederholt das Programm den Download einige Male mit wachsenden Pausen.
 
 ## [remote.upload] Auf Server hochladen
 commands: nks.remote.upload
@@ -132,19 +134,38 @@ commands: nks.remote.upload
 - Die Einstellung Prüfung der Serverversion legt fest, wie eine Änderung erkannt wird: stat vergleicht Größe und Änderungszeit, content holt die Serverdatei immer und vergleicht sie; es erkennt auch eine Änderung in derselben Sekunde und mit gleicher Größe.
 - Grenze: Prüfung und Austausch sind zwei Schritte, weil FTP und SFTP kein bedingtes Schreiben kennen. Eine Änderung, die jemand in diesem letzten Moment macht, wird nicht bemerkt. Die Prüfung läuft erst nach dem vollständigen Upload, der Moment ist also kurz.
 - Bricht die Verbindung beim Hochladen ab, versucht das Programm es einige Male mit wachsenden Pausen erneut. Jeder Versuch prüft zuerst wieder die Serverversion, und eine teilweise gesendete temporäre Datei wird erst fortgesetzt, wenn ihr Inhalt mit Ihrer Datei übereinstimmt. Verweigert der Server das Umbenennen, das die Datei an ihren Platz setzt, wird die alte Datei beiseitegelegt, die neue verschoben und bei einem Fehler die alte zurückgeholt.
+- Die Statusleiste zeigt den Fortschritt des Uploads in Prozent und die Remote-Ausgabe eine Zeile je Zehntel (die Schrittweite ist vorläufig). Die Prozent zählen die Bytes, die die Verbindung übernommen hat, und können dem Server etwas voraus sein.
 
 ## [remote.cancel] Übertragung abbrechen
 commands: nks.remote.cancel
-Wählen Sie Datei, dann Remote-Dateien, dann Übertragung abbrechen. Das laufende Hochladen stoppt, der Server behält seine vorherige Version, und eine teilweise gesendete temporäre Datei setzt der nächste Upload fort.
+Ein Upload oder Download, der zu lange dauert, lässt sich stoppen. Ihre Änderungen bleiben auf diesem Computer gespeichert.
+1. Starten Sie Auf Server hochladen (Thema Auf Server hochladen), oder öffnen Sie eine Remote-Datei.
+2. Wählen Sie während der Übertragung Datei, dann Remote-Dateien, dann Übertragung abbrechen.
+3. Der Upload stoppt, und die Statusleiste sagt Hochladen von Titel abgebrochen. Der Server behält seine vorherige Version.
+- Eine teilweise gesendete temporäre Datei setzt der nächste Upload fort, nachdem er ihren Inhalt mit Ihrer Datei verglichen hat.
+- Herunterladen von Pfad abgebrochen. Was angekommen ist, bleibt erhalten; der nächste Download derselben Serverversion macht dort weiter.
+- Es läuft keine Übertragung. Übertragung abbrechen wirkt nur, solange ein Upload oder Download läuft; es gibt nichts abzubrechen.
 
 ## [remote.check] Serverversion prüfen
 commands: nks.remote.check
-Wählen Sie Datei und dann Remotedateien und dann Serverversion prüfen. Die Leiste sagt: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert oder die Datei gibt es auf dem Server nicht mehr. Es wird nichts geladen oder geändert.
+Die Prüfung vergleicht die Kopie auf diesem Computer mit der Datei auf dem Server. Es wird nichts geladen oder geändert.
+1. Lassen Sie den Tab einer Remote-Datei aktiv (Thema Remote-Datei öffnen).
+2. Wählen Sie Datei, dann Remote-Dateien, dann Serverversion prüfen. Das Programm verbindet sich mit dem Server der Datei.
+3. Das Ergebnis nennt die Leiste über dem Text: Gleich wie auf dem Server. Hier geändert, noch nicht an den Server gesendet. Hochladen? Die Datei auf dem Server hat sich seit dem Öffnen geändert. Hier und auf dem Server geändert. Vergleichen Sie vor dem Hochladen. Die Datei gibt es auf dem Server nicht mehr. Die Schaltflächen der Leiste sind Erneut prüfen, Hochladen, Unterschiede zeigen und Vom Server neu laden.
+- Dieser Tab ist keine Remote-Datei. Öffnen Sie eine mit Remote-Datei öffnen. Der Befehl wirkt nur auf dem Tab einer Remote-Datei.
+- Die Verbindung dieser Datei wurde gelöscht. Die Verbindung wurde aus der Liste gelöscht, die Datei lässt sich also nicht prüfen. Legen Sie die Verbindung neu an (Thema Remote-Verbindungen).
+- Nicht mit dem Server abgeglichen. Ihre Änderungen bleiben auf diesem Computer gespeichert. Der Server war nicht erreichbar. Wählen Sie in der Leiste Erneut prüfen, sobald die Verbindung funktioniert.
+- Der Abgleich mit dem Server ist fehlgeschlagen: Grund. Es wurde nichts geladen oder geändert. Beheben Sie den Grund und prüfen Sie erneut (Thema Fehlermeldungen: Remote-Dateien und Quellen).
 
 ## [remote.unsent] Nicht gesendete Remote-Änderungen
 commands: nks.remote.unsent
 Änderungen an einer Remote-Datei werden zuerst auf diesem Computer gespeichert. Die Liste zeigt die Remote-Dateien, deren Kopie geändert und nicht gesendet wurde, auch nach dem Schließen oder einem Absturz des Programms. Wählen Sie eine aus, dann öffnet sich die Kopie; die Leiste bietet Hochladen an.
+1. Wählen Sie Datei, dann Remote-Dateien, dann Nicht gesendete Remote-Änderungen. Die Liste zeigt jede Remote-Datei, deren Kopie geändert und nicht gesendet wurde, mit dem Namen der Verbindung und dem Pfad auf dem Server.
+2. Wählen Sie eine Datei. Die Kopie öffnet sich in einem Tab, und die Leiste bietet Hochladen an.
+3. Wählen Sie in der Leiste Hochladen oder Datei, Remote-Dateien, Auf Server hochladen (Thema Auf Server hochladen).
 - Das Bearbeiten braucht keine Verbindung. Nicht gesendete Änderungen bleiben, bis Sie sie hochladen.
+- Keine Remote-Datei hat nicht gesendete Änderungen. Nichts wartet auf das Senden.
+- Die lokale Kopie von Pfad wurde gelöscht. Die Kopie wurde von diesem Computer entfernt. Öffnen Sie die Datei erneut vom Server (Thema Remote-Datei öffnen).
 
 ## [remote.cache] Cache mit dem Server abgleichen
 commands: nks.remote.pairCache
@@ -212,12 +233,16 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 - Grenzen (Revisionen pro Datei, Tage, MiB pro Datei, MiB insgesamt) stellen Sie in den Einstellungen ein; 0 heißt keine Grenze. Die neueste Revision einer Datei wird nie gelöscht.
 - Ist der Datenträger voll, meldet das die Statusleiste, und keine Revision wird beschädigt.
 - Eine angeheftete Revision löschen die Grenzen nie; Anheften im Revisionsmenü hält sie, Lösen gibt sie frei. Eine Datei über der Größengrenze bekommt keine Revisionen, und die Statusleiste meldet das. Alte Revisionen werden im Hintergrund aufgeräumt.
+- Auch eine große Datei, also eine, die in der Ansicht für große Dateien geöffnet wird, wird aufbewahrt. Sie wird bei der ersten Änderung einmal ganz kopiert, und jede weitere Revision ist ein kleiner Patch gegen diese Kopie, wenn der Patch kürzer als die Hälfte der Datei ist; die Liste zeigt eine solche Revision als Patch mit der Größe des Patches. Eine ganze Kopie bleibt, solange ein Patch sie braucht, daher kann es mehr Revisionen geben, als die Grenze sagt.
+- Bei einer großen Datei braucht Vergleichen das Externe Vergleichsprogramm aus den Einstellungen, Datei wiederherstellen und Auswahl wiederherstellen werden nicht angeboten, und Revision markieren verlangt, dass die Datei zuerst gespeichert ist. Als Kopie speichern schreibt jede Revision neben die Datei als Name (Datum Uhrzeit).Endung und öffnet sie; das geht bei jeder Datei.
+- Revisionen, die als Patch aufbewahrt werden, findet Im Verlauf suchen nicht.
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
 1. Wählen Sie Datei und dann Verlauf und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
 2. Der aktuelle Text des Tabs wird als Revision mit dieser Bezeichnung gespeichert. Enthält die neueste Revision schon denselben Text, erhält diese die Bezeichnung.
 - Die Revision finden Sie später im Lokalen Verlauf über die Bezeichnung.
+- Bei einer großen Datei ist die Revision die gespeicherte Datei auf dem Datenträger; speichern Sie die Datei also zuerst.
 
 ## [file.historySearch] Im Verlauf suchen
 commands: nks.file.historySearch
@@ -250,11 +275,15 @@ commands: nks.app.openSettings
 4. Ändern Sie den Wert direkt in der Zeile; er wirkt sofort und wird in die Einstellungsdatei geschrieben. Auf Standard zurücksetzen stellt den ursprünglichen Wert wieder her.
 - Ein unsinniger Wert wird abgelehnt, und die Zeile sagt, was daran nicht stimmt. Lässt sich die Einstellungsdatei nicht schreiben, steht der Grund über der Liste.
 - Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
+- Die Gruppe Erweitert enthält Optionen, die nur wenige brauchen: Scrollen über das Textende hinaus, eine ganze Zeile ohne Auswahl ausschneiden, den Mauszeiger beim Tippen verbergen, Links mit Strg+Klick, den Einzug umbrochener Zeilen, wie viele zuletzt geöffnete Dateien und Rückgängig-Schritte behalten werden, das Intervall der automatischen Speicherung, die Blinkzeit des Textcursors (0: er blinkt nicht), weiches Scrollen mit dem Mausrad und für wie viele Zeilen und Spalten um den Bildschirm die Syntaxfarben auf einmal berechnet werden. Der Textcursor mit der üblichen Blinkzeit ist der des Editors; jede andere Zeit zeichnet den Cursor im Programm, und der Blockauswahlmodus nimmt wieder den des Editors.
 - F1 in diesem Fenster öffnet dieses Thema.
 
 ## [app.accessibility] Barrierefreiheit
 commands: nks.view.nextPane, nks.view.previousPane
 Das Programm lässt sich allein mit der Tastatur und mit einem Screenreader bedienen. Geprüft wird es über den Zugänglichkeitsbaum des Programms; mit NVDA und VoiceOver selbst ist es noch nicht ausprobiert, melden Sie uns also, wo ein Screenreader etwas falsch vorliest.
+1. Mit F6 setzen Sie die Tastatur auf den nächsten Teil des Fensters und mit Umschalt+F6 auf den vorherigen. Dieselben Befehle heißen Nächster Bereich und Vorheriger Bereich in der Befehlspalette.
+2. Im erreichten Teil bewegen Sie sich mit Tab und Umschalt+Tab zwischen den Bedienelementen und mit den Pfeiltasten zwischen den Zeilen einer Liste.
+3. Mit Esc schließen Sie einen Dialog, die Palette oder ein Panel; die Tastatur kehrt zum Dokument zurück.
 ### Tastatur
 - Jeder Befehl steht in der Befehlspalette (Strg+Umschalt+P) und, wenn er einen hat, in einem Menü. Die Menüleiste erreichen Sie unter Windows mit der Alt-Taste; unter macOS ist es die Menüleiste des Systems (Ctrl+F2).
 - Der Editor behält die Tabulatortaste für sich. F6 setzt die Tastatur auf den nächsten Teil des Fensters: die Liste links, das Dokument, die Bereiche für Vorschau, Agent und Ausgabe, die Suchleiste, die Statusleiste. Umschalt+F6 geht zurück. Ein geschlossener Teil wird übersprungen.
@@ -302,6 +331,9 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 ## [edit.lines] Arbeiten mit Zeilen
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment
 Die Befehle betreffen die Zeile mit dem Cursor oder alle Zeilen der Auswahl. Jeder ist ein Schritt für Rückgängig.
+1. Setzen Sie den Cursor in eine Zeile oder markieren Sie mehrere Zeilen.
+2. Drücken Sie das Kürzel des Befehls oder wählen Sie ihn im Menü Bearbeiten oder in der Palette.
+3. Der Befehl ändert die ganze Zeile oder alle markierten Zeilen in einem Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Zeile löschen: Strg+Umschalt+K.
 - Zeile duplizieren: Strg+Umschalt+D fügt eine Kopie unter der Zeile ein.
 - Zeile nach oben oder unten verschieben: Alt+Pfeil nach oben, Alt+Pfeil nach unten.
@@ -323,6 +355,7 @@ commands: nks.edit.indent, nks.edit.outdent, nks.edit.insertIndent, nks.edit.tab
 commands: nks.edit.newline
 1. Die Eingabetaste beginnt eine neue Zeile mit dem Einzug der vorherigen, im Zeilenendformat des Dokuments.
 2. Steht der Cursor in einem Kommentar, setzt die neue Zeile den Kommentar fort (Einstellung Kommentare fortsetzen).
+- In einem schreibgeschützten Dokument schreibt die Eingabetaste nichts. Bei einer großen Datei im Seitenmodus wirkt sie wie Tippen (Thema Große Dateien (Seitenmodus)).
 
 ## [edit.case] Groß- und Kleinschreibung
 commands: nks.edit.upperCase, nks.edit.lowerCase
@@ -341,9 +374,14 @@ commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
 
 ## [edit.specialPaste] Als HTML und aus einer Datei einfügen
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
+1. Setzen Sie den Cursor an die Stelle, an der der Text stehen soll. Für Als HTML einfügen kopieren Sie zuerst formatierten Text in einem Browser oder einer Textverarbeitung.
+2. Wählen Sie Bearbeiten, Einfügen und dann Als HTML einfügen oder Aus Datei einfügen. Aus Datei einfügen bittet Sie, die Datei zu wählen.
+3. Der Text kommt in jeden Cursor als ein Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Als HTML einfügen (Bearbeiten, Einfügen) fügt den HTML-Quelltext ein, den ein Browser oder eine Textverarbeitung beim Kopieren von formatiertem Text in die Zwischenablage gelegt hat. Er wird als Text eingefügt, wie bei Strg+V, als ein Rückgängig-Schritt. Enthält die Zwischenablage kein HTML, sagt es die Statusleiste.
 - Aus Datei einfügen (Bearbeiten, Einfügen) setzt den Text der gewählten Datei in jeden Cursor, als ein Rückgängig-Schritt. Die Kodierung der Datei wird wie beim Öffnen erkannt, und ihre Zeilenenden werden zu denen des Dokuments. Eine Datei über 16 MiB wird nicht eingefügt.
 - Beide funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus (Thema Große Dateien).
+- Die Zwischenablage enthält kein HTML. Kopieren Sie den Text aus einem Browser oder einer Textverarbeitung, die HTML in die Zwischenablage legt. Es wurde nichts eingefügt.
+- Name ist größer als Grenze Bytes und wurde nicht eingefügt. Die Grenze liegt bei 16 MiB (ein vorläufiger Wert); es wurde nichts eingefügt. Fügen Sie eine kleinere Datei ein oder öffnen Sie die große in einem eigenen Tab.
 
 ## [edit.insertLines] In Zeilen einfügen
 commands: nks.edit.insertIntoLines
@@ -378,33 +416,41 @@ commands: nks.search.selectLinesByRange
 ## [format.block] Zeilen ausrichten und umbrechen
 commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 Diese Befehle stehen im Menü Format. Sie wirken auf die markierten Zeilen, oder auf alle Zeilen, wenn nur ein Cursor da ist (Absatz neu umbrechen: auf den Absatz mit dem Cursor). Jeder ist ein Rückgängig-Schritt.
+1. Markieren Sie die Zeilen, die sich ändern sollen. Ist nur ein Cursor da, wirken die Befehle auf alle Zeilen; Absatz neu umbrechen wirkt auf den Absatz mit dem Cursor.
+2. Wählen Sie Format und dann Absatz neu umbrechen, Absatz neu umbrechen (endet an kurzer Zeile), Zeilen linksbündig, Zeilen rechtsbündig, Zeilen zentrieren oder Zeilen im Blocksatz.
+3. Die Zeilen ändern sich in einem Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Absatz neu umbrechen bricht den Text an der Spalte der Einstellung Spalte des rechten Rands um, verbindet die Zeilen eines Absatzes und entfernt überzählige Leerzeichen. Absätze trennt eine Leerzeile, und jede Zeile eines Absatzes bekommt die Einrückung der ersten. Ist kein rechter Rand eingestellt, sagt es die Statusleiste.
-- Absatz neu umbrechen (endet an kurzer Zeile) macht dasselbe, aber ein Absatz endet auch nach einer Zeile, die kürzer als die Hälfte des rechten Rands ist, sodass sie nicht mit der nächsten Zeile verbunden wird. Das passt zu Text ohne Leerzeilen zwischen den Absätzen.
+- Absatz neu umbrechen (endet an kurzer Zeile) macht dasselbe, aber ein Absatz endet auch nach einer Zeile, die kürzer als die Hälfte des rechten Rands (ein vorläufiger Wert) ist, sodass sie nicht mit der nächsten Zeile verbunden wird. Das passt zu Text ohne Leerzeilen zwischen den Absätzen.
 - Zeilen linksbündig entfernt die Leerzeichen am Anfang und Ende der Zeilen.
 - Zeilen rechtsbündig und Zeilen zentrieren richten sich nach der Breite der längsten Zeile.
 - Zeilen im Blocksatz vergrößert die Lücken zwischen den Wörtern, bis jede Zeile so breit ist wie die längste; eine Zeile mit einem Wort bleibt.
 - Im Profil PSPad liegen Zeilen linksbündig und Zeilen rechtsbündig auf Strg+Alt+Pfeil links und Strg+Alt+Pfeil rechts.
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+- Stellen Sie zuerst die Spalte des rechten Rands in den Einstellungen ein; der Absatz wird an dieser Spalte umbrochen. Beide Befehle zum Neuumbrechen brauchen die Einstellung Spalte des rechten Rands.
 
 ## [edit.insertSmall] Datum, GUID und Wiederholen
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
+1. Setzen Sie den Cursor an die Stelle, an der der Text stehen soll; mehrere Cursor sind erlaubt.
+2. Wählen Sie Bearbeiten, Einfügen und dann Datum und Uhrzeit einfügen oder GUID einfügen. Letzten Befehl wiederholen steht unter Bearbeiten, Umwandlungen und Rezepte.
+3. Der Text kommt in jeden Cursor als ein Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Datum und Uhrzeit einfügen schreibt Datum und Uhrzeit in jeden Cursor, im Format der Einstellung Datums- und Zeitformat (ein benutzerdefiniertes .NET-Format wie yyyy-MM-dd HH:mm; Monats- und Tagesnamen folgen der Sprache der Oberfläche). Eine Auswahl wird ersetzt. Im Profil PSPad ist es Alt+D.
 - GUID einfügen schreibt in jeden Cursor eine neue GUID, jeder seine eigene: klein geschrieben, mit Bindestrichen, ohne geschweifte Klammern.
 - Letzten Befehl wiederholen führt den zuletzt ausgeführten Befehl, der Text ändert, erneut aus: Zeile löschen, Zeile duplizieren, Zeile verschieben, Zeilen verbinden, Einzug vergrößern, Einzug verkleinern, Groß-/Kleinschreibung, Kommentar umschalten, In Zeilen einfügen, Zeilen sortieren, Absatz neu umbrechen und die Ausrichtungsbefehle, Datum und Uhrzeit einfügen, GUID einfügen. Ein Befehl mit Dialog wird mit den Einstellungen des letzten Laufs ohne Nachfrage wiederholt. Im Profil PSPad ist es Alt+Q.
 - Sie funktionieren nicht in einem schreibgeschützten Dokument und nicht im seitenweisen Modus.
+- Das Datums- und Zeitformat ist ungültig: Grund. Es wurde nichts eingefügt. Korrigieren Sie die Einstellung Datums- und Zeitformat: Es muss ein benutzerdefiniertes .NET-Format sein, etwa yyyy-MM-dd HH:mm.
 
 ## [edit.macro] Makros
-commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
+commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, nks.macro.run, nks.edit.cursorLeft, nks.edit.cursorLeftSelect, nks.edit.cursorRight, nks.edit.cursorRightSelect, nks.edit.cursorWordLeft, nks.edit.cursorWordLeftSelect, nks.edit.cursorWordRight, nks.edit.cursorWordRightSelect, nks.edit.cursorUp, nks.edit.cursorUpSelect, nks.edit.cursorDown, nks.edit.cursorDownSelect, nks.edit.cursorLineStart, nks.edit.cursorLineStartSelect, nks.edit.cursorLineEnd, nks.edit.cursorLineEndSelect, nks.edit.cursorDocumentStart, nks.edit.cursorDocumentStartSelect, nks.edit.cursorDocumentEnd, nks.edit.cursorDocumentEndSelect, nks.edit.cursorPageUp, nks.edit.cursorPageUpSelect, nks.edit.cursorPageDown, nks.edit.cursorPageDownSelect, nks.edit.deleteLeft, nks.edit.deleteRight, nks.edit.deleteWordLeft, nks.edit.deleteWordRight, nks.macro.rename, nks.macro.delete
 1. Extras, Makros, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makros, Makroaufzeichnung beenden, beendet sie.
 2. Extras, Makros, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
 3. Extras, Makros, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Makros, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
 4. Extras, Makros, Gespeichertes Makro umbenennen, listet die gespeicherten auf und benennt das gewählte um; ein Name, den ein anderes Makro schon hat, wird abgelehnt. Extras, Makros, Gespeichertes Makro löschen, fragt nach und löscht das gewählte endgültig.
 - Ein Makro merkt sich Befehle, keine Tasten: Zeile duplizieren, Groß-/Kleinschreibung, Nächstes Vorkommen hinzufügen und Ähnliches, Ausschneiden, Kopieren, Einfügen sowie getippten Text. Mit mehreren Einfügemarken tut es dasselbe wie die Schritte von Hand.
-- Beim Aufzeichnen werden auch die Pfeiltasten, Pos1, Ende, Strg+Pos1, Strg+Ende, Strg mit den Pfeiltasten (mit oder ohne Umschalt), Rücktaste und Entf als Befehle aufgezeichnet. Sie bewegen und löschen an jeder Einfügemarke.
+- Beim Aufzeichnen werden auch die Pfeiltasten, Pos1, Ende, Strg+Pos1, Strg+Ende, Strg mit den Pfeiltasten (mit oder ohne Umschalt), Bild auf, Bild ab (mit oder ohne Umschalt), Rücktaste und Entf als Befehle aufgezeichnet. Sie bewegen und löschen an jeder Einfügemarke, außer Bild auf und Bild ab: diese bewegen eine Einfügemarke, wie die Tasten ohne Makro. Eine Seite ist so viele Zeilen, wie der Editor beim Abspielen zeigt; ein Makro mit Bild ab bewegt sich in einem kleineren Fenster also weniger.
 - Weitersuchen und Rückwärts suchen (F3, Umschalt+F3, Eingabe in der Suchleiste) speichern mit dem Schritt den Suchtext der Suchleiste, sodass das Makro beim späteren Abspielen denselben Text findet. Öffnen Sie die Suchleiste und tippen Sie den Suchtext vor dem Start der Aufzeichnung; ohne Suchtext wird der Schritt nicht aufgezeichnet.
 - Ersetzen und Alle in der Ersetzen-Leiste (die Befehle Nächstes ersetzen und Alle ersetzen) speichern mit dem Schritt die ganze Leiste: Suchtext, Schalter und Ersatztext. Vor dem Schritt stellt das Makro die Leiste auf diese Werte, sodass das Ergebnis nicht davon abhängt, was die Leiste vorher zeigte. Bei eingeschalteter Auswahl arbeitet der Schritt mit der Auswahl, die das Makro beim Ausführen hat. Ohne Suchtext wird der Schritt nicht aufgezeichnet.
 - Das Abspielen ist ein einziger Rückgängig-Schritt. Läuft ein Schritt nicht, hält das Makro dort an und die Statuszeile nennt den Schritt; was vorher lief, bleibt ein Rückgängig-Schritt.
-- Beim Aufzeichnen wird ein Befehl, den ein Makro nicht abspielen kann, abgelehnt und die Statuszeile sagt es: alles mit Dialog, Dateibefehle, das Öffnen der Suchleiste. Die Aufzeichnung läuft weiter. Mausklicks, Bild auf und Bild ab werden nicht aufgezeichnet.
+- Beim Aufzeichnen wird ein Befehl, den ein Makro nicht abspielen kann, abgelehnt und die Statuszeile sagt es: alles mit Dialog, Dateibefehle, das Öffnen der Suchleiste. Die Aufzeichnung läuft weiter. Mausklicks werden nicht aufgezeichnet.
 - Zum Abspielen ist ein bearbeitbares Textdokument nötig. Der Import von PSPad-Makros ist nicht verfügbar.
 - Standardkürzel, Platzhalter (OPEN, noch nicht entschieden): Strg+K Strg+R zeichnet auf, Strg+K Strg+Umschalt+R beendet, Strg+K Strg+P spielt das letzte Makro ab; auf macOS ⌘ statt Strg. Eigene Kürzel in den Einstellungen haben Vorrang.
 - Die Datei eines gespeicherten Makros über 1 MB (Platzhalter-Grenze, OPEN) wird nicht gelesen; die Liste meldet sie als beschädigt.
@@ -423,7 +469,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Dokumentstatistik und Hashes
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments oder der markierten Teile zusammen und listet die häufigsten Zeichen und Wörter auf.
-2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash, erkennt den Algorithmus an der Länge und sagt, ob er übereinstimmt.
+2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Die Liste ist die des Themas Hex: Prüfsummen und Hashes (jedes CRC, Adler-32, die Summen, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash und sagt, ob er übereinstimmt; Leerzeichen, Doppelpunkte, 0x und Groß-/Kleinschreibung spielen keine Rolle. CRC-32, MD5, SHA-1, SHA-256, SHA-384 und SHA-512 erkennt man an der Länge des eingefügten Hashs, bei jeder anderen Länge wählen Sie den Algorithmus.
 - Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
 - Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
 - Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
@@ -449,16 +495,19 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 
 ## [tools.markdown] Markdown-Vorschau, Tabellen und Inhaltsverzeichnis
 commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
-1. Extras, Markdown, Vorschau für Markdown oder HTML öffnet unter dem Editor den Vorschaubereich mit der aktuellen Datei. Der Bereich folgt dem Tippen: Er wird kurz nach der letzten Taste neu gezeichnet und behält die Scrollposition.
-2. Markdown erscheint als Seite: Überschriften, Listen, Zitate, Code, Hervorhebungen und Tabellen mit ihren Zellen (die Doppelpunkte in der Strichzeile bestimmen die Ausrichtung einer Spalte).
-3. Eine HTML-Datei erscheint als Text, samt Tags. Nichts darin wird ausgeführt und nichts aus dem Netz geladen.
+1. Extras, Markdown, Vorschau für Markdown oder HTML öffnet unter dem Editor den Vorschaubereich mit der aktuellen Datei. Der Bereich folgt dem Tippen: Er wird kurz nach der letzten Taste neu gezeichnet. Editor und Bereich scrollen gemeinsam: Wenn Sie den einen bewegen, folgt der andere.
+2. Markdown erscheint als Seite: Überschriften, Listen, Zitate, Code, Hervorhebungen und Tabellen mit ihren Zellen (die Doppelpunkte in der Strichzeile bestimmen die Ausrichtung einer Spalte). Ein mit `mermaid` gekennzeichneter Codeblock wird als Flussdiagramm gezeichnet.
+3. Eine HTML-Datei erscheint ebenfalls als Seite, doch nur ein kleiner Teil von HTML wird verstanden: Überschriften, Absätze, Listen, Tabellen, vorformatierter Text, Code, Links, Bilder und Hervorhebungen. Jedes andere Tag, jeder Kommentar und alles in `script` und `style` erscheint als der Text, der es ist. Nichts in der Datei wird ausgeführt.
 4. Extras, Markdown, Markdown-Gliederung anzeigen listet im selben Bereich die Überschriften der Datei, nach Ebene eingerückt. Ein Klick oder Enter auf eine Überschrift setzt den Cursor im Editor in ihre Zeile.
 5. Extras, Markdown, Markdown-Tabelle ausrichten schreibt die Tabelle unter dem Cursor so um, dass jede Spalte so breit ist wie ihre breiteste Zelle. Die Zeichen `:--`, `:-:` und `--:` bleiben, eine kürzere Zeile wird mit leeren Zellen aufgefüllt. Ein Rückgängig-Schritt macht es rückgängig.
 6. Extras, Markdown, Markdown-Inhaltsverzeichnis aktualisieren schreibt Links zu den Überschriften zwischen die Zeilen `<!-- TOC -->` und `<!-- /TOC -->`. Nur der Text dazwischen ändert sich. Fehlen die Zeilen, werden sie am Cursor eingefügt. Die Anker sind klein geschrieben, Leerzeichen werden zu Bindestrichen, ein wiederholter Titel bekommt `-1`, `-2`.
 7. In einer Tabelle wählt Tab die nächste Zelle und Umschalt+Tab die vorherige; dabei werden die Spalten ausgerichtet. Tab in der letzten Zelle fügt eine Zeile an. Außerhalb einer Tabelle wirken beide Tasten wie bisher. Jeder Sprung ist ein Rückgängig-Schritt.
 8. In einer Tabelle fügt Umschalt+Eingabe unter der Cursorzeile eine leere Zeile mit der richtigen Zellenzahl ein. Extras, Markdown, Markdown-Tabelle reparieren behebt eine kaputte Tabelle: Sie ergänzt eine fehlende Strichzeile, füllt kurze Zeilen auf, behält die Doppelpunkte und richtet die Spalten aus.
-- Ein Bild wird nur aus einer `data:`-Adresse mit PNG, JPEG, GIF, BMP oder WebP gezeichnet. Ein Bild aus dem Netz oder aus einer lokalen Datei erscheint als Hinweis mit seinem Alternativtext. Ein Link ins Web oder zu einer E-Mail-Adresse fragt zuerst nach Ihrer Bestätigung; jeder andere Link ist nur Text.
-- Eine Datei über dem Limit der Vorschau wird nicht gezeichnet; die Statusleiste sagt es. Esc oder Schließen beendet die Vorschau.
+- Ein Bild wird gezeichnet aus einer `data:`-Adresse mit PNG, JPEG, GIF, BMP oder WebP, aus einem Bild, das ein Plugin angehängt hat (`preview:name`), und in der Vorschau Ihrer eigenen Datei aus einer Datei daneben: aus einem relativen Pfad, der im Ordner der Datei bleibt. SVG, ein Pfad außerhalb des Ordners, eine Datei über dem Limit und ein Bild mit zu vielen Pixeln erscheinen als Hinweis mit dem Alternativtext.
+- Ein Bild aus dem Netz wird erst geladen, wenn Sie seinen Host erlauben. Die Vorschau zeigt eine Schaltfläche; ein Druck darauf fragt einmal nach dem Host, und die Erlaubnis gilt, bis das Fenster geschlossen wird. Die Anfrage nutzt die Netzwerkeinstellungen von Textida samt Proxy, Weiterleitungen werden nicht verfolgt, und ein fehlgeschlagenes Bild wird nach einer Weile erneut versucht.
+- Ein Link ins Web oder zu einer E-Mail-Adresse fragt zuerst nach Ihrer Bestätigung; jeder andere Link, etwa `file:` oder `javascript:`, ist nur Text.
+- Mermaid: Flussdiagramme (`graph` oder `flowchart`, Richtung TD, TB, BT, LR oder RL) mit Knoten wie `A[text]`, `A(text)`, `A{text}` oder `A((text))` und Verbindungen `-->`, `---`, `-.->` oder `==>`, auch mit Beschriftung, werden gezeichnet. Ein Subgraph oder eine andere Diagrammart erscheint als Quelltext. Ein Screenreader liest Knoten und Verbindungen als Namen des Diagramms.
+- Eine Datei über dem Limit der Vorschau wird nicht gezeichnet; die Statusleiste sagt es. Esc oder Schließen beendet die Vorschau. F6 setzt den Fokus auf die Vorschau; die Pfeiltasten, Bild auf, Bild ab, Pos1 und Ende scrollen sie, und Tab erreicht ihre Links und Schaltflächen.
 - Aufgelistet werden nur mit `#` geschriebene Überschriften. Die Breite einer Tabellenzelle ist ihre Anzeigebreite: breite ostasiatische Zeichen zählen als zwei Spalten. Ein senkrechter Strich in einer Zelle wird als `\|` geschrieben oder steht in einem Code-Ausschnitt.
 
 ## [tools.keys] Schlüsselpfade in YAML und JSON
@@ -476,7 +525,7 @@ commands: nks.tools.showOutline, nks.tools.goToSymbol
 2. Extras, Struktur und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
 3. Die Gliederung gehört zu einer Revision des Dokuments. Nach einer Änderung wird sie von selbst erneuert; bis die neue da ist, bleibt die alte als veraltet markiert, und ein Sprung wird über die seitdem gemachten Änderungen getragen oder abgelehnt, wenn der Text, auf dem das Symbol stand, geändert wurde. Eine Antwort für eine ältere Revision wird nie als aktuell gezeigt.
 4. Hält der Plugin-Prozess an, wird die Gliederung nach seiner Rückkehr neu gelesen.
-5. Solange eine Datei eine Gliederung hat, nennt die Statusleiste das Symbol, in dem der Cursor steht, samt Eltern (zum Beispiel `Klasse › Methode`); sie folgt dem Cursor und ist bei veralteter Gliederung ausgeblendet.
+5. Solange eine Datei eine Gliederung hat, nennt die Statusleiste das Symbol, in dem der Cursor steht, samt Eltern (zum Beispiel `Klasse › Methode`); sie folgt dem Cursor und ist bei veralteter Gliederung ausgeblendet. Die Gliederung zeigt dasselbe Element fett, und ein Screenreader nennt es „aktuelles Element“. Die Markierung ist keine Auswahl und nimmt Ihnen die Tastatur nicht weg; sie folgt dem Cursor und bleibt bei der Aktualisierung der Gliederung an ihrem Element.
 - Gelesen wird mit einfachen Regeln der Sprache, ohne Sprachserver und ohne Projektindex. Außer den Sprachen unten: JavaScript und TypeScript (Klassen, Schnittstellen, Enums, Funktionen, Pfeilfunktionen, Methoden), Python (Klassen, Funktionen, Methoden nach Einrückung), Rust (Module, Structs, Enums, Traits, impl-Blöcke, Funktionen, Makros), Dart (Klassen, Mixins, Enums, Erweiterungen, Funktionen, Methoden), C und C++ (Namensräume, Structs, Klassen, Enums, Funktionen, Makros), Bash (Funktionen), CMake (Funktionen, Makros, Ziele), Makefile (Ziele, `define`), Meson (Ziele, Tests, Unterordner). Schlüssel von YAML und JSON liefert die Schlüsselgliederung. HTML (Überschriften, Elemente mit `id`, `main`, `nav`, `section` und ähnliche), PHP (Namensräume, Klassen, Schnittstellen, Traits, Enums, Funktionen, Methoden), CSS (Regeln und At-Regeln), C# (Namensräume, Typen, Methoden, Konstruktoren, Eigenschaften), Markdown (`#`-Überschriften).
 - Kommentare und Zeichenketten werden nicht gelesen. Was die Regeln nicht erkennen, wird übersprungen.
 - Eine Datei über dem Limit des Plugins oder mit mehr Symbolen, als die Gliederung fasst, wird gekürzt gezeigt, und die Meldung sagt es. Eine große Datei in der seitenweisen Ansicht wird im Hintergrund vom Anfang bis zum Limit gelesen; ein Sprung zu einem Symbol scrollt die seitenweise Ansicht dorthin.
@@ -491,6 +540,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 - Die Statusleiste zeigt die Anzahl der Cursor.
 - Alt+Ziehen mit der Maus erzeugt je nach Einstellung Alt+Ziehen einen Cursor in jeder Zeile oder eine Blockauswahl.
 - Mit einer Eingabemethode (Japanisch, Chinesisch, Koreanisch) erscheint der Text, der gerade zusammengesetzt wird, unterstrichen an jedem Cursor. Nach dem Bestätigen wird er an allen als ein Rückgängig-Schritt eingefügt; Esc bricht ihn ab und lässt die Cursor stehen.
+- Auch eine große Datei im Seitenmodus hat mehrere Cursor, mit denselben Tasten und höchstens 1000 (Thema Große Dateien). Alt+Ziehen funktioniert dort nicht.
 
 ## [edit.mark] Marke und bis Marke auswählen
 commands: nks.edit.selectToMark
@@ -635,7 +685,7 @@ commands: nks.view.toggleSecrets
 - Im Texteditor wird nur dieser eine Wert gezeigt, wenn der Mauszeiger auf ihm ruht.
 - Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
 - Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten, in den Suchergebnissen und in den Exporten mit Formatierung (HTML, RTF) verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
-- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm und das Strukturfenster sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist.
+- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm, das Strukturfenster, die Bytekarte und die Prüfsumme sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist. Die Vorschauen von Ersetzen und der ungespeicherten Änderungen zeigen für einen Bereich, der einen Wert berührt, Sternchen.
 - Im seitenweisen Modus liest ein Screenreader für jedes Zeichen eines verborgenen Werts ein Aufzählungszeichen. Eine Zeile über 16 KiB, die einen Wert enthält, verbirgt alles hinter ihrem ersten Teil.
 - Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
 - Die Einstellung Geheime Dateien enthält die Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt (`*` steht für beliebigen Text). Ihre Standardliste ist vorläufig.
@@ -671,48 +721,78 @@ commands: nks.files.newFile, nks.files.newFolder
 ## [files.manage] Duplizieren, umbenennen, verschieben, löschen
 commands: nks.files.duplicate, nks.files.rename, nks.files.move, nks.files.delete
 Wählen Sie im Panel Dateien eine Datei oder einen Ordner. Die Vorgänge stehen im Kontextmenü und in der Palette.
+1. Wählen Sie im Panel Dateien eine Datei oder einen Ordner (Thema Panel Dateien).
+2. Klicken Sie mit der rechten Maustaste darauf oder starten Sie in der Palette Duplizieren, Umbenennen, Verschieben oder In den Papierkorb verschieben.
+3. Beantworten Sie die Frage des Befehls: neuer Name, Zielordner oder Bestätigung des Löschens.
 - Duplizieren legt eine Kopie neben dem Original an.
 - Umbenennen (F2): Tippen Sie den neuen Namen. Offene Tabs und die Listen der Stellen folgen mit.
 - Verschieben: Tippen Sie den Zielordner.
 - In den Papierkorb verschieben (Entf): Das Programm fragt nach, und die Datei kommt in den Papierkorb, aus dem Sie sie wiederherstellen können. Ist sie mit ungespeicherten Änderungen geöffnet, bleibt der Tab offen und behält sie.
 - Misslingt ein Vorgang, nennt eine Leiste über dem Dokument den Grund und sagt Es wurde nichts geändert.
+- Misslingt ein Vorgang, beheben Sie den Grund, den die Leiste nennt, und wiederholen Sie den Vorgang (Thema Fehlermeldungen: Panel Dateien).
 
 ## [files.refresh] Aktualisieren und Datei anzeigen
 commands: nks.files.refresh, nks.files.reveal
+1. Drücken Sie F5 im Panel Dateien oder starten Sie in der Palette Dateien aktualisieren. Der Baum wird erneut vom Datenträger gelesen.
+2. Um die Datei des aktiven Tabs im Baum zu sehen, starten Sie Aktive Datei im Panel anzeigen.
 - Dateien aktualisieren (F5 im Panel) liest den Baum erneut vom Datenträger.
 - Aktive Datei im Panel anzeigen öffnet das Panel und wählt darin die Datei des aktiven Tabs aus. Es funktioniert bei geöffnetem Ordner und geöffnetem Dokument.
+- Dateien aktualisieren braucht einen geöffneten Ordner; Aktive Datei im Panel anzeigen braucht einen geöffneten Ordner und ein geöffnetes Dokument. Ohne sie sind die Befehle abgeblendet.
 
 ## [workspace.projects] Projekte
 commands: nks.project.save, nks.project.open, nks.project.addFolder, nks.project.delete, nks.project.settings
 Ein Projekt ist ein benannter Satz von Ordnern mit den Dateien, die darin geöffnet waren. Es liegt im Profil und lässt sich wie ein Ordner wechseln.
+1. Öffnen Sie den Ordner des Projekts (Datei und dann Ordner öffnen) und fügen Sie weitere Ordner des Projekts mit Ordner zum Panel hinzufügen hinzu.
+2. Öffnen Sie die Dateien, die Sie wiederfinden wollen, wählen Sie Datei, Projekte und Sitzungen, Projekt speichern und tippen Sie einen Namen.
+3. Zur Rückkehr wählen Sie Datei, Projekte und Sitzungen, Projekt öffnen und das Projekt.
 - Ordner zum Panel hinzufügen zeigt einen weiteren Ordner neben den vorhandenen. Jeder Ordner ist eine oberste Zeile des Baums.
 - Projekt speichern (Datei, Projekte und Sitzungen) legt die Ordner des Panels und die darin liegenden offenen Dateien unter einem Namen ab. Ein Projekt gleichen Namens wird ersetzt.
 - Projekt öffnen zeigt die Ordner im Panel und öffnet die Dateien, die das Projekt offen hatte. Ein fehlender Ordner oder eine fehlende Datei wird in der Statusleiste genannt; die übrigen öffnen sich.
 - Beim Wechsel zu einem anderen Projekt bleiben die offenen Tabs. Das verlassene Projekt merkt sich seine eigenen Dateien.
 - Projekt löschen entfernt nur den Eintrag. Ordner und Dateien bleiben.
 - Projekteinstellungen bearbeiten öffnet die Einstellungsdatei des aktiven Projekts (gleiches Format wie die Benutzereinstellungen). Die Werte gelten, solange das Projekt aktiv ist, nach erneutem Öffnen des Projekts. Gehe zu Allem durchsucht nur den ersten Ordner.
+- Öffnen Sie zuerst einen Ordner: Ein Projekt besteht aus den Ordnern im Panel. Wählen Sie Datei und dann Ordner öffnen, danach Projekt speichern.
+- Keiner der Ordner von Projekt Name existiert. Die Ordner wurden verschoben oder gelöscht. Löschen Sie das Projekt mit Projekt löschen oder stellen Sie die Ordner wieder her.
+- Projekt Name geöffnet. Nicht gefunden: Namen. Das Projekt hat sich geöffnet; die genannten Ordner und Dateien fehlen auf dem Datenträger, die übrigen öffneten sich.
+- Die Einstellungen von Projekt Name lassen sich nicht lesen: Grund. Die Werte des Projekts gelten nicht, solange die Datei nicht lesbar ist. Öffnen Sie sie mit Projekteinstellungen bearbeiten und korrigieren Sie sie.
+- Es ist kein Projekt geöffnet. Öffnen oder speichern Sie zuerst ein Projekt. Projekteinstellungen bearbeiten wirkt nur auf das aktive Projekt.
 
 ## [workspace.favorites] Favoriten
 commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
+1. Wählen Sie im Panel Dateien eine Datei oder einen Ordner oder lassen Sie eine Datei in einem Tab geöffnet.
+2. Wählen Sie Datei, Projekte und Sitzungen, Zu Favoriten hinzufügen.
+3. Um zurückzukehren, wählen Sie im selben Menü Favoriten und den Eintrag; Aus Favoriten entfernen entfernt einen.
 - Zu Favoriten hinzufügen speichert die gewählte Zeile des Dateipanels, sonst die aktive Datei, sonst den Ordner des Panels. Der Befehl steht auch im Kontextmenü des Panels.
 - Favoriten listet sie auf (auch aus dem leeren Panel). Enter öffnet einen Ordner im Panel und eine Datei in einem Tab. Ein fehlender Pfad erscheint abgeblendet mit Nicht gefunden.
 - Aus Favoriten entfernen listet sie auf und entfernt den gewählten Eintrag.
+- Nichts hinzuzufügen: Öffnen Sie zuerst eine Datei oder einen Ordner. Der Befehl nimmt die gewählte Zeile des Panels Dateien, sonst die aktive Datei, sonst den Ordner des Panels.
+- Bereits in den Favoriten: Pfad. Der Eintrag steht schon in der Liste; nichts hat sich geändert.
 
 ## [workspace.sessions] Benannte Sitzungen
 commands: nks.session.save, nks.session.open, nks.session.delete
+1. Öffnen Sie die Tabs, die zusammenbleiben sollen.
+2. Wählen Sie Datei, Projekte und Sitzungen, Sitzung speichern und tippen Sie einen Namen.
+3. Später wählen Sie Datei, Projekte und Sitzungen, Sitzung öffnen und die Sitzung; Sitzung löschen entfernt eine.
 - Sitzung speichern legt die offenen Tabs unter einem Namen ab: Gruppen, Reihenfolge, aktiven Tab und die Auswahl jedes Tabs. Ein Tab mit ungesicherten Änderungen oder ohne Datei behält seinen Text. Eine Sitzung gleichen Namens wird ersetzt.
 - Sitzung öffnen öffnet die Tabs neben den bereits offenen. Dateien werden von der Platte gelesen, dann ersetzt der ungesicherte Text der Sitzung ihren Text, sodass er sich rückgängig machen oder verwerfen lässt. Eine fehlende Datei wird in der Statusleiste genannt; ihr Text, falls die Sitzung ihn hatte, öffnet sich in einem unbenannten Dokument.
 - Sitzung löschen fragt zuerst nach, weil die Sitzung ungesicherten Text enthalten kann.
 - Eine Sitzungsdatei, die sich nicht lesen lässt, wird übersprungen und in einer Leiste genannt; die anderen Sitzungen funktionieren.
 - Große Dateien im seitenweisen Modus werden nur mit dem Pfad gespeichert.
+- Es gibt keine offenen Tabs zum Speichern. Eine Sitzung behält Tabs mit einer Datei oder mit ungesichertem Text; eine Liste von Suchergebnissen, ein Tab eines Plugins und ein Text aus einer Quelle werden nicht gespeichert.
+- Sitzung Name geöffnet. Nicht gefunden: Namen. Die genannten Dateien fehlen; die übrigen öffneten sich.
 
 ## [format.encoding] Codierung
 commands: nks.format.reread, nks.format.convert
 Die Statusleiste zeigt die Codierung; ein Klick darauf öffnet dieselbe Auswahl. Ist die Codierung geschätzt, steht der Prozentwert der Sicherheit dabei.
+1. Wählen Sie Format und dann In Codierung konvertieren. Um die Datei in einer anderen Codierung erneut zu lesen, wählen Sie Mit Codierung neu öffnen unter Datei, Spezielles Öffnen.
+2. Wählen Sie die Codierung in der Liste. Eine Codierung, die Zeichen verlieren würde, ist als verlustbehaftet markiert, mit der Zahl der Zeichen.
+3. Prüfen Sie das Fenster Änderungen an den Bytes und bestätigen Sie es (Thema Byte-Inspektor). Die Statusleiste sagt In Codierung konvertiert.
 - Mit Codierung neu öffnen: Die Datei wird in einer anderen Codierung erneut vom Datenträger gelesen. Nutzen Sie das, wenn nach dem Öffnen falsche Buchstaben erscheinen.
 - In Codierung konvertieren: Das Dokument wird in eine andere Codierung umgewandelt. Welche Zeichen verloren gingen, zeigen die Liste (verlustbehaftet und eine Anzahl) und ein Fenster mit Zeile, Spalte und Byte jedes Zeichens. Ersetzen und konvertieren ersetzt sie durch ein Fragezeichen.
 - Standardliste der Codierungen in den Einstellungen: UTF-8 (mit und ohne BOM), UTF-16 LE und BE, Windows-1250, Windows-1252, ISO-8859-2.
 - Bei einer großen Datei im Seitenmodus sind beide Auswahlen nicht verfügbar.
+- N Zeichen lassen sich nicht in Codierung schreiben: Zeichen. Wählen Sie eine andere Codierung (zum Beispiel UTF-8) oder Ersetzen und konvertieren, was jedes Zeichen durch ein Fragezeichen ersetzt.
+- Konvertierung in Codierung fehlgeschlagen. Das Dokument wurde nicht konvertiert, zum Beispiel weil es sich bei geöffnetem Fenster geändert hat. Führen Sie den Befehl erneut aus.
 
 ## [format.eol] Zeilenenden
 commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
@@ -733,11 +813,17 @@ Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem g
 ## [format.inspector] Byte-Inspektor
 commands: nks.format.applyEditorConfig
 Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst, was sie ändert, und schreibt nichts, bis Sie bestätigen: In Codierung umwandeln, Zeilenenden, Unicode normalisieren, Speichern unter mit anderer Codierung und EditorConfig anwenden.
+1. Starten Sie eine Aktion, die Bytes umschreibt, zum Beispiel Format und dann In Codierung konvertieren oder Codierung und Zeilenenden aus EditorConfig anwenden.
+2. Lesen Sie das Fenster Änderungen an den Bytes: die geänderten Bereiche, die Größen vorher und nachher, Codierung und Zeilenenden.
+3. Bestätigen Sie das Schreiben der Änderung oder brechen Sie das Fenster ab; vor der Bestätigung wird nichts geschrieben.
 - Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Codierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
 - Kann die Zielcodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Codierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
 - Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
 - Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
 - Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
+- Kein Byte ändert sich, nur die Codierungsangabe. Die Bestätigung ändert nur die Codierungsangabe, die Bytes der Datei bleiben.
+- EditorConfig legt für diese Datei weder Codierung noch Zeilenenden fest. Es gibt nichts anzuwenden. Setzen Sie charset oder end_of_line in der .editorconfig des Ordners oder wählen Sie Codierung und Zeilenenden von Hand.
+- Die Datei entspricht bereits EditorConfig. Es gibt nichts zu ändern.
 
 ## [format.batchEncoding] Codierung vieler Dateien umwandeln
 commands: nks.file.convertEncodingBatch
@@ -817,6 +903,7 @@ Ein Plugin-Bereich ist eine Liste oder ein Baum, den ein Plugin an den Editor sc
 2. Wählen Sie einen Bereich und drücken Sie Enter. Er öffnet sich mit dem ersten Eintrag ausgewählt.
 3. Die Pfeiltasten nach oben und unten gehen durch die Einträge, nach rechts und links klappen sie einen Zweig auf und zu. Enter oder ein Doppelklick öffnet einen Eintrag.
 4. Esc im Bereich schließt ihn und bringt Sie zurück in den Text. Während Sie im Text schreiben, bleibt der Bereich offen.
+- Ein Plugin, das noch nicht läuft, aber einen Bereich angibt (Aktivierungsereignis onPanel), steht ebenfalls in der Liste, mit der Zeile „Startet das Plugin, das den Bereich dann zeigt“. Wenn Sie es wählen, startet das Plugin; der Bereich öffnet sich, sobald das Plugin ihn sendet.
 - Wenn das Plugin die Einträge erneuert, bleibt der ausgewählte Eintrag ausgewählt.
 - Abbrechen in der Statusleiste bricht eine Aufgabe eines Plugins ab. Die Zeile meldet dann, dass die Aufgabe abgebrochen wird. Beendet das Plugin sie nicht bald selbst, beendet der Editor sie und gibt ihren Platz frei.
 - Wenn der Plugin-Prozess endet, verschwinden seine Bereiche, sein Eintrag in der Statusleiste und seine Aufgaben.
@@ -838,11 +925,11 @@ Hex zeigt eine Datei Byte für Byte: Offset, Bytes hexadezimal und Zeichen. Es l
 - Ausschneiden, Kopieren und Einfügen arbeiten mit Bytes; zwischen zwei Hex-Ansichten werden sie exakt übertragen.
 
 ## [hex.find] Hex: Suchen und Gehe zu Offset
-- Strg+F öffnet das Fenster Bytes suchen. Geben Sie Bytes hexadezimal ein (50 4B ?? 04, ?? ist ein beliebiges Byte), Text in Anführungszeichen oder eine Zahl mit Typ (0x1F40 i32).
-- F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer. Die Statusleiste meldet Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam.
+- Strg+F öffnet die Suchleiste im Byte-Modus (mit Hex gekennzeichnet, ohne die Schalter für Text). Geben Sie Bytes hexadezimal ein (50 4B ?? 04, ?? ist ein beliebiges Byte), Text in Anführungszeichen, eine Zahl mit Typ (0x1F40 i32) oder einen regulären Ausdruck zwischen Schrägstrichen. Beim Tippen sagt der Zähler, wie lang ein Treffer sein darf oder warum die Eingabe abgelehnt wird. Enter sucht den nächsten Treffer, Umschalt+Enter den vorherigen, Esc schließt die Leiste. Der Wechsel zu einem Tab, der kein Hex ist (oder umgekehrt), schließt die Leiste. Strg+H öffnet weiter die Ersetzen-Fenster.
+- F3 und Umschalt+F3 finden den nächsten und vorherigen Treffer, bei offener und geschlossener Leiste. Die Statusleiste und der Zähler der Leiste melden Treffer 1 von 4 oder Mindestens N Treffer, wenn die Suche an ihre Grenze kam.
 - Strg+G öffnet Gehe zu Offset. Schreibweise: 0x1F40, +0x100 (ab dem Cursor), end-512, 50%, 4K, sel (Beginn der Auswahl), val (der Vier-Byte-Wert am Cursor).
 - Nicht gefunden: Es gibt keinen Treffer. Ungültiges Muster oder Ungültiger Ausdruck: Korrigieren Sie die Eingabe. Der Offset liegt außerhalb der Datei: Geben Sie einen kleineren Wert ein. Die Datei hat sich inzwischen auf dem Datenträger geändert, das Suchergebnis wurde verworfen: Wiederholen Sie die Suche.
-- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), gilt der eingebaute Standardwert von 256 Bytes. *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
+- Der Platzhalter *: 50 4B * 04 steht für 0 bis N Bytes zwischen 4B und 04. N ist die Einstellung Längster Platzhalter * in der Hex-Suche; solange sie 0 ist (nicht gewählt), gilt der eingebaute Standardwert von 256 Bytes (ein vorläufiger Wert). *{2,8} schreibt einen eigenen Bereich und braucht keine Einstellung.
 - Ein Muster zwischen Schrägstrichen ist ein regulärer Ausdruck über Bytes, zum Beispiel /\x50\x4B[\x01-\x08]/. Ein Byte ist ein Zeichen 0 bis 255, . ist ein beliebiges Byte (auch 0A und 0D), \xHH ist ein Byte und [...] eine Menge von Bytes. Gruppen, |, ? * + {n,m} und \n \r \t \0 \d \w \s funktionieren; ^ und $ sind Anfang und Ende der Datei (beim Ersetzen der Auswahl); \b, Rückverweise und Lookaround nicht, weil Bytes keine Zeilen oder Wörter haben. Eine offene Wiederholung (.*, +, {n,}) reicht höchstens N Bytes weit. Ein Treffer braucht mindestens ein Byte, und Treffer dürfen sich überlappen.
 - Strg+H ersetzt Bytes: zuerst das Muster (dieselben Formen wie bei Suchen), dann der Ersatz als Hex, Text in Anführungszeichen oder Zahl; ein leerer Ersatz löscht die Treffer. Bei einer Auswahl wird nur in ihr gesucht.
 - Eine Vorschau listet jeden Treffer mit den alten und neuen Bytes auf und warnt, wenn sich die Länge der Datei ändert. Alle ersetzen schreibt alles als einen Rückgängig-Schritt. Hat sich die Datei nach der Vorschau geändert, wird nichts ersetzt. Treffer, die einen früheren überlappen, bleiben außen vor.
@@ -869,6 +956,9 @@ commands: nks.hex.inspector
 ## [hex.layout] Hex: Aussehen des Rasters
 commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
 Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Palette zur Verfügung.
+1. Öffnen Sie eine Datei in Hex (Thema Hex: Öffnen und Bewegen).
+2. Wählen Sie Ansicht, Hex und dann Hex-Layout: Bytes pro Zeile, Gruppierung oder Kodierung der Zeichenspalte, oder klicken Sie auf den Eintrag in der Statusleiste.
+3. Wählen Sie den Wert; das Raster wird neu gezeichnet, und die nächste Hex-Ansicht merkt sich die Auswahl.
 - Codierung der Zeichenspalte: die Codierung, in der Bytes als Zeichen angezeigt werden.
 - Layout: Bytes pro Zeile (8, 16, 24, 32, 48, 64), Gruppierung der Bytes und Offsetformat. Jede Größe hat auch einen eigenen Befehl.
 - Strg+Mausrad über Hex fügt einen Block Bytes pro Zeile hinzu oder nimmt ihn weg (eine Gruppe, mindestens 8); die Zeile mit dem Cursor bleibt an ihrer Stelle. Es gibt keine feste Grenze, nur die Fensterbreite: Passt der nächste Block nicht, tut das Mausrad nichts.
@@ -876,6 +966,7 @@ Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Pale
 - Strg+Umschalt+Mausrad ändert die Schriftgröße auch in Hex, wie Strg+=, Strg+- und Strg+0.
 - Offsets zwischen dezimal und hexadezimal umschalten.
 - Die nächste Hex-Ansicht merkt sich die Auswahl.
+- Außerhalb von Hex sind die Befehle abgeblendet.
 
 ## [hex.save] Hex: Speichern und Änderungen vor dem Speichern
 commands: nks.hex.inspectChanges
@@ -904,7 +995,7 @@ commands: nks.hex.fill, nks.hex.operate
 
 ## [hex.checksum] Hex: Prüfsummen und Hashes
 commands: nks.hex.checksum
-1. Hex: Prüfsummen und Hashes rechnet über die Auswahl oder, wenn nichts ausgewählt ist, über die ganze Datei: CRC-16, CRC-32, CRC-64 in mehreren Varianten, CRC mit eigenem Polynom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 und SHA-512.
+1. Hex: Prüfsummen und Hashes rechnet über die Auswahl oder, wenn nichts ausgewählt ist, über die ganze Datei: CRC-16, CRC-32, CRC-64 in mehreren Varianten, CRC mit eigenem Polynom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 und SHA-512. Extras, Text und Berechnungen, Hash berechnen bietet dieselbe Liste für die Textansicht.
 2. Die Berechnung läuft im Hintergrund, der Fortschritt steht in der Statuszeile; Esc bricht sie ab.
 3. Das Ergebnis lässt sich kopieren oder mit einem eingefügten Wert vergleichen; Leerzeichen, Doppelpunkte, 0x und Groß- und Kleinschreibung spielen keine Rolle.
 - Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.
@@ -937,9 +1028,9 @@ Das Strukturpanel liest die Datei mit einer Vorlage und zeigt ihre Felder als Ba
 1. Hex: Strukturvorlage (Strg+J) öffnet das Panel oder schließt es, wenn es schon den Fokus hat. Die Vorlage wird nach der Magic Number gewählt, danach nach der Dateiendung; die Liste über dem Baum erlaubt eine andere Wahl, die für diese Endung gemerkt wird (Einstellung hex.structureTemplates, geschrieben als Endung=Vorlage).
 2. Ein Feld mit Teilen (Struktur oder Liste) wird erst beim Aufklappen gelesen, daher öffnet sich auch eine große Datei sofort. Eine lange Liste erscheint als Bereiche (Einträge[0..255]), die sich zu ihren Elementen aufklappen, und eine Liste, deren Elemente alle gleich groß sind, etwa die Dreiecke eines 3D-Modells, kann Millionen Elemente haben und öffnet sich trotzdem sofort. Jede Zeile zeigt den Namen, den Wert und grau den Offset und die Länge in Bytes. Pfeil nach oben und unten gehen durch die Zeilen, Pfeil nach rechts und links öffnen und schließen ein Feld, Enter gibt den Fokus an das Raster zurück, mit den Bytes des Feldes markiert, Esc gibt ihn ohne Markierung zurück.
 3. Ein Feld, das sich nicht lesen lässt, steht rot mit dem Grund da, zum Beispiel weil es über das Ende der Daten hinausreicht oder von den erwarteten Bytes abweicht. Die Felder dahinter erscheinen nicht, weil ihre Lage unbekannt ist.
-4. Hex: Strukturvorlagendatei öffnen fragt nach einer .ksy-Datei (die Schaltfläche unter der Liste tut dasselbe) und bietet ihre Vorlage in der Liste an. Eine Vorlage, die sich nicht verwenden lässt, wird in der Notiz unter der Liste mit ihrer Zeile genannt, zum Beispiel „nicht unterstützt: process“. So geöffnete Vorlagen bleiben bis zum Programmende in der Liste.
+4. Hex: Strukturvorlagendatei öffnen fragt nach einer .ksy-Datei (die Schaltfläche unter der Liste tut dasselbe) und bietet ihre Vorlage in der Liste an. Eine Vorlage, die sich nicht verwenden lässt, wird in der Notiz unter der Liste mit ihrer Zeile genannt, zum Beispiel „nicht unterstützt: process zlib“. So geöffnete Vorlagen bleiben bis zum Programmende in der Liste.
 - Mitgelieferte Vorlagen: BMP-Header (mit der Zeilengröße), PNG-Chunks (IHDR, gAMA, tEXt), ZIP-Archivabschnitte, Windows-PE-Header, ELF-Header (32 und 64 Bit, beide Byte-Reihenfolgen, Abschnitt dynamic) und binäres STL. Die Datei pinned.yaml neben den Vorlagen nennt zu jeder die Version, die Lizenz und die verwendeten Konstrukte. Wir haben sie für Textida geschrieben, sie stehen wie das Programm unter der MIT-Lizenz; Vorlagen anderer Projekte werden nicht kopiert. Das Panel zeigt Datei, Version und Lizenz der verwendeten Vorlage.
-- Vorlagen sind eine Teilmenge des Formats Kaitai Struct .ksy: Ganzzahlen (u1 bis u8, s1 bis s8), Gleitkommazahlen (f4, f8), bitweise Ganzzahlen (b1 bis b64; hintereinander, nicht wiederholt), Zeichenketten (str, strz), rohe Bytes, feste Bytes (contents), Aufzählungen (auch innerhalb eines Typs), verschachtelte Typen, size, size-eos, repeat (eos, expr oder until), if, switch-on mit cases (Schlüssel _ ist der Standardzweig), instances mit pos (und io: _root._io) oder value, meta endian (auch mit switch-on und cases) und bit-endian sowie Ausdrücke. Ausdrücke sind in size, repeat-expr, repeat-until, if, pos, io, value und switch-on erlaubt. Sie rechnen mit 64-Bit-Ganzzahlen, Gleitkommazahlen, true/false und Zeichenketten: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, Klammern, Zahlen (dezimal, 0x, 0b und Gleitkommazahlen wie 1.5 oder 2.5e-3), Zeichenketten in Anführungszeichen, Namen früherer Felder und Instanzen, a.b, Liste[i], enum::Mitglied und Typ::enum::Mitglied, _parent, _root, _index, _ (das letzte Element in repeat-until), _io.pos, _io.size, _io.eof, .as<Typ> (ohne Umwandlung), .to_i bei Zeichenketten, Gleitkommazahlen und Wahrheitswerten, .length bei Zeichenketten, .size, .first und .last bei Listen. Eine Gleitkommazahl ist nie eine Größe oder Anzahl (verwenden Sie .to_i), und % und die Bit-Operatoren nehmen nur Ganzzahlen. pos zählt ab dem Anfang des Datenstroms der Struktur (eine Struktur mit size ist ein eigener Strom). Array-Schreibweise, andere Methoden, process (ein xor- oder zlib-Schritt über die Bytes) und alles Übrige, was nicht aufgeführt ist, wird mit der Vorlagenzeile abgelehnt, zum Beispiel „nicht unterstützt: process“. Eine Division durch null, ein fehlendes Feld oder eine falsche Art von Wert ergibt einen Fehler an diesem Feld; eine riesige Größe oder Anzahl endet mit einem Limitfehler. Instanzen stehen hinter den Feldern.
+- Vorlagen sind eine Teilmenge des Formats Kaitai Struct .ksy: Ganzzahlen (u1 bis u8, s1 bis s8), Gleitkommazahlen (f4, f8), bitweise Ganzzahlen (b1 bis b64; hintereinander, nicht wiederholt), Zeichenketten (str, strz), rohe Bytes, feste Bytes (contents), Aufzählungen (auch innerhalb eines Typs), verschachtelte Typen, size, size-eos, repeat (eos, expr oder until), if, switch-on mit cases (Schlüssel _ ist der Standardzweig), instances mit pos (und io: _root._io) oder value, meta endian (auch mit switch-on und cases) und bit-endian sowie Ausdrücke. Ausdrücke sind in size, repeat-expr, repeat-until, if, pos, io, value und switch-on erlaubt. Sie rechnen mit 64-Bit-Ganzzahlen, Gleitkommazahlen, true/false und Zeichenketten: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, Klammern, Zahlen (dezimal, 0x, 0b und Gleitkommazahlen wie 1.5 oder 2.5e-3), Zeichenketten in Anführungszeichen, Namen früherer Felder und Instanzen, a.b, Liste[i], enum::Mitglied und Typ::enum::Mitglied, _parent, _root, _index, _ (das letzte Element in repeat-until), _io.pos, _io.size, _io.eof, .as<Typ> (ohne Umwandlung), .to_i bei Zeichenketten, Gleitkommazahlen und Wahrheitswerten, .length bei Zeichenketten, .size, .first und .last bei Listen. Eine Gleitkommazahl ist nie eine Größe oder Anzahl (verwenden Sie .to_i), und % und die Bit-Operatoren nehmen nur Ganzzahlen. pos zählt ab dem Anfang des Datenstroms der Struktur (eine Struktur mit size ist ein eigener Strom). Eine Zeichenkette oder rohe Bytes können ein process haben: xor(Schlüssel) mit einem Schlüssel von 0 bis 255, rol(Bits) oder ror(Bits) mit 0 bis 7 Bits; das Argument ist ein Ausdruck und kann ein früheres Feld oder _index nennen. Die Zeile zeigt die Bytes nach dem Process, ihr Bereich sind weiterhin die Bytes der Datei; ein Schlüssel oder eine Bitzahl außerhalb des Bereichs ist ein Fehler am Feld. Ein process einer Struktur oder eines Feldes, dessen Typ von switch-on abhängt, ist nicht möglich. Array-Schreibweise, andere Methoden, jedes andere process (zlib, ein eigenes) und alles Übrige, was nicht aufgeführt ist, wird mit der Vorlagenzeile abgelehnt, zum Beispiel „nicht unterstützt: process zlib“. Eine Division durch null, ein fehlendes Feld oder eine falsche Art von Wert ergibt einen Fehler an diesem Feld; eine riesige Größe oder Anzahl endet mit einem Limitfehler. Instanzen stehen hinter den Feldern.
 - Das Lesen endet mit einer Meldung, wenn eine Vorlage zu tief verschachtelt, ein Feld zu oft wiederholt, eine Zeichenkette oder Arbeitsmenge über einem festen Limit liest oder ein Knoten zu lange dauert.
 
 ## [hex.compare] Hex: Binärvergleich
@@ -952,6 +1043,23 @@ Zwei Hex-Raster nebeneinander, die zusammen scrollen, mit eingefärbten Untersch
 - Die Raster sind schreibgeschützt. Die Karte neben jedem Raster markiert die Unterschiede.
 - Die Liste endet bei 1.000.000 Unterschieden (das Fenster sagt es); zwei unabhängige Dateien würden sonst den Speicher füllen.
 - Zwei Revisionen einer Datei aus dem lokalen Verlauf lassen sich im Hex-Editor nicht vergleichen. Vergleichen im lokalen Verlauf vergleicht Text (Thema Lokaler Verlauf).
+
+## [hex.access] Hex: Tastatur und Screenreader
+commands: nks.hex.toggleColumn, nks.hex.selectTo, nks.hex.minimap.focus
+Alles im Hex lässt sich mit der Tastatur bedienen. Dieses Thema nennt, was nicht offensichtlich ist, und was ein Screenreader bekommt. Geprüft ist es über den Zugänglichkeitsbaum des Programms, mit NVDA und VoiceOver selbst noch nicht.
+### Tastatur
+- Die Pfeile bewegen um ein Byte oder eine Zeile, Strg+Links und Strg+Rechts um eine Gruppe, Bild auf und Bild ab um eine Bildschirmseite, Pos1 und Ende innerhalb der Zeile, Strg+Pos1 und Strg+Ende durch die ganze Datei. Umschalt erweitert die Auswahl. Strg+A wählt alles aus.
+- Tab wechselt zwischen der Bytespalte und der Zeichenspalte und bleibt im Raster (dasselbe tut aus der Palette Hex: Zwischen Hex- und Zeichenspalte wechseln). F6 verlässt das Raster und geht zum nächsten Teil des Fensters, Umschalt+F6 geht zurück. In einem Bereich neben dem Raster bewegt Tab zwischen dessen Bedienelementen und Esc führt zum Raster zurück.
+- Strg+G springt zu einem Offset. Hex: Bis Offset auswählen (Strg+K, dann Strg+A) wählt die Bytes vom Cursor bis zu einem Offset aus: +0x100 wählt 256 Bytes, end wählt bis zum Dateiende. Strg+F sucht Bytes und F3 sucht weiter.
+- Die Einfg-Taste wechselt zwischen Überschreiben und Einfügen (auf macOS ⌥⌘I). Jede Hex-Aktion steht in der Befehlspalette (Strg+Umschalt+P) und, wenn sie eines hat, in einem Menü.
+- Die Bereiche öffnen sich per Tastatur: Dateninspektor mit Strg+K, dann Strg+I, Lesezeichen mit Strg+K, dann Strg+B, Strukturvorlage mit Strg+J, Dateikarte mit Strg+K, dann Strg+G. Strg+K, dann Strg+F legt die Tastatur auf die Karte: Pfeil nach oben und Pfeil nach unten bewegen den Cursor um eine Bildschirmseite, Bild auf und Bild ab um ein Zehntel der Datei, Pos1 und Ende zu den Enden, Esc zurück zum Raster.
+### Screenreader
+- Das Raster ist ein einziges bearbeitbares Element. Sein Wert ist das Byte unter dem Cursor: der Offset, das Byte hexadezimal, sein Wert dezimal und das Zeichen; eine Auswahl fügt ihre Länge sowie ihren ersten und letzten Offset hinzu, ein seit dem letzten Speichern geändertes Byte wird als geändert gemeldet. Die Beschreibung nennt die Zeile, die Position in der Zeile, die Spalte und den Bearbeitungsmodus.
+- Ein verborgener Wert einer .env-Datei wird als verborgener Wert gelesen, nie als Bytes.
+- Ein Wechsel von Modus oder Spalte, das Ergebnis einer Suche und eine Änderung, die abgelehnt wurde, weil die Ansicht schreibgeschützt ist, werden angesagt, ohne dass sich die Tastatur bewegt.
+- Die Karte ist ein Schieberegler, dessen Wert die Stelle des Rasters in der Datei in Prozent ist. Die Beschreibung sagt, was die Zellen zeigen und wie viele Treffer, Lesezeichen und geänderte Stellen die Karte markiert.
+### Hoher Kontrast
+- Geänderte Bytes sind getönt und unterstrichen, ein Lesezeichen hat einen Balken darüber und die Karte behält ihren Rahmen. Bei hohem Kontrast unterscheiden sich die Bytearten nicht nur durch Farbe: 00 ist unterstrichen, FF fett und ein Steuerbyte kursiv.
 
 ## [tools.run] Werkzeuge: externes Programm starten
 commands: nks.tools.run, nks.tools.stop
@@ -975,7 +1083,7 @@ commands: nks.tools.logPattern
 ## [tools.edit] Werkzeuge: Definitionen bearbeiten, typisierte Variablen, Werkzeuge aus einem Ordner
 commands: nks.tools.edit
 1. Werkzeuge, Werkzeugdefinitionen bearbeiten öffnet einen Editor für die Werkzeuge der Datei tools.json. Neu, Speichern und Löschen schreiben die Datei sofort. Die Zeile unter dem Formular zeigt den Befehl genau so, wie er für die geöffnete Datei starten würde, oder warum er jetzt nicht laufen kann. Editor und Werkzeug ausführen nutzen dieselbe Definition, das Werkzeug startet also von beiden mit denselben Argumenten.
-2. Eine Definition kann Variablen deklarieren, eine pro Zeile: Name:text oder Name:path, optional mit =Wert (der Wert darf andere Variablen nutzen, etwa Out:path=${FileDir}/out). Ohne Wert gilt die eigene oder eingebaute Variable gleichen Namens. Die Reihenfolge: deklarierter Wert, Ihre eigenen Variablen (Eigene Variablen bearbeiten), eingebaute. In executable, args und cwd steht sie als ${Name}.
+2. Eine Definition kann Variablen deklarieren, eine pro Zeile: Name:text oder Name:path, optional mit =Wert (der Wert darf andere Variablen nutzen, etwa Out:path=${FileDir}/out). Ohne Wert gilt die eigene oder eingebaute Variable gleichen Namens. Die Reihenfolge: deklarierter Wert, die Variablen des Projekts (Projektvariablen bearbeiten), Ihre eigenen Variablen (Eigene Variablen bearbeiten), eingebaute. In executable, args und cwd steht sie als ${Name}.
 3. Ein Text ist eine Zeile. Ein Pfad ist eine nicht leere Zeile ohne die Zeichen * ? " < > | . Ein Wert des falschen Typs stoppt den Lauf, bevor etwas startet, und die Ausgabe nennt die Variable.
 4. Der Ordner der geöffneten Datei oder ein Ordner darüber kann .textida/tools.json mit Werkzeugen gleicher Form enthalten. Sie erscheinen in Werkzeug ausführen, laufen aber erst nach Bestätigung von Befehl und Verzeichnis, auch wenn derselbe Text in Ihrer eigenen Datei steht. Ändert sich die Definition, auch die Variablen, wird erneut gefragt. Diese Werkzeuge lassen sich im Editor nicht bearbeiten.
 - Ein leeres Argument lässt sich im Editor nicht schreiben. Beim Speichern gehen Kommentare in tools.json verloren.
@@ -987,11 +1095,11 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 2. Letztes Makefile-Ziel wiederholen führt das zuletzt gestartete Ziel noch einmal aus.
 3. Der Lauf geht über den Werkzeug-Starter: Der Befehl wird gezeigt und beim ersten Mal bestätigt, die Ausgabe geht in den Tab Aufgaben, Stopp beendet make und alles, was es gestartet hat.
 4. Eine Ausgabezeile mit Datei und Zeile (main.c:12:5: error, Makefile:7:) öffnet diese Stelle per Klick oder Enter. Ein rekursives make meldet „Entering directory“ und „Leaving directory“; ein relativer Dateiname nach einer solchen Zeile wird in diesem Ordner gesucht.
-- Make muss installiert und im PATH sein oder in der Einstellung Make-Programm stehen (zum Beispiel mingw32-make). Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl, nicht dem Inhalt des Makefile, denn ein Makefile auszuführen heißt auszuführen, was darin steht.
+- Make muss installiert und im PATH sein oder in der Einstellung Make-Programm stehen (zum Beispiel mingw32-make). Spezielle Ziele (.PHONY), Musterregeln und Namen mit Variable oder Platzhalter werden nicht aufgelistet. Die Bestätigung gilt dem Befehl und dem Inhalt des Makefile auf der Platte (der Anfang seines SHA-256 steht in der Frage): Ändert sich die Datei, kommt die Frage wieder, und die alte Antwort gilt erneut, wenn die Bytes zum früheren Stand zurückkehren. Dateien, die das Makefile einbindet, werden nicht überwacht, ebenso wenig eine Änderung nach der Frage. Der Text eines ungespeicherten Tabs ist nicht das, was make ausführt.
 
 ## [packages.registry] Paketmanifeste: Namen, Versionen und Marke für neuere Versionen
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. In package.json, composer.json, requirements.txt, einer .csproj-Datei, go.mod, Cargo.toml, Gemfile und pubspec.yaml kann der Editor das Paketregister (npm, Packagist, PyPI, NuGet, Go-Proxy, crates.io, RubyGems, pub.dev) nach Namen und Versionen fragen. Ohne Ihre Zustimmung wird nichts gesendet: Werkzeuge, Paketversionen prüfen zeigt die Server und fragt einmal je Register.
+1. In package.json, composer.json, requirements.txt, einer .csproj-Datei, go.mod, Cargo.toml, Gemfile, pubspec.yaml, pom.xml, build.gradle und build.gradle.kts kann der Editor das Paketregister (npm, Packagist, PyPI, NuGet, Go-Proxy, crates.io, RubyGems, pub.dev, Maven Central) nach Namen und Versionen fragen. In einer pom.xml werden nur Versionen ergänzt (Gruppe und Artefakt sind zwei Elemente); in einer Gradle-Datei wird auch das ganze Gruppe:Artefakt ergänzt. Nach einer neueren Version wird nur bei einer ausgeschriebenen Version gesucht, nicht bei einem Bereich, einer Variablen wie ${project.version} oder einer fehlenden Version. Ohne Ihre Zustimmung wird nichts gesendet: Werkzeuge, Paketversionen prüfen zeigt die Server und fragt einmal je Register.
 2. Nach der Zustimmung bietet Strg+J im Namen eines Eintrags Namen aus dem Register an und in einer Version die Versionen dieses Pakets, die neueste zuerst. PyPI und der Go-Proxy haben keine Suche: ein Name wird nur angeboten, wenn der getippte Text der ganze Name ist.
 3. Ein Eintrag mit genau festgelegter Version (1.2.3, ==1.2.3, v1.2.3), zu dem es ein neueres Release gibt, bekommt an der Version eine Informationsmarke. Bereiche (^, ~, >=) werden nicht markiert. Eine Vorabversion gilt nicht als neuere Version, solange es ein Release gibt. Die Prüfung läuft, wenn Sie aufhören zu tippen.
 4. Antworten bleiben im Cache im Speicher, höchstens bis zu einer Größengrenze (die ältesten fallen zuerst heraus), nur begrenzte Zeit und längstens bis zum Schließen des Editors. Ein Angebot oder eine Marke aus dem Cache sagt das („cache“). Paketversionen aktualisieren verwirft den Cache dieses Registers und fragt erneut.
@@ -1006,7 +1114,8 @@ commands: nks.schemas.allow
 3. Die Schemas von package.json, Cargo.toml, GitHub-Workflows und den Agentendateien gehören zum Editor. Das Schema einer anderen bekannten Datei und ein Schema, das eine Datei mit einer Adresse nennt, wird erst nach Ihrer Zustimmung geladen. Bis dahin sagt die Statusleiste „Download nicht erlaubt“, und Extras, Pakete, Schema-Download erlauben zeigt den Server und fragt einmal je Server. Registerabfragen und Schema-Downloads verbieten nimmt jede Zustimmung zurück. Ein Schema, das eine Datei mit einem Pfad nennt, wird von der Festplatte gelesen und braucht keine Zustimmung.
 4. Ein geladenes Schema wird auf diesem Computer gespeichert, höchstens bis zu einer Größengrenze (die ältesten werden zuerst gelöscht), und solange es aktuell ist ohne Anfrage wiederverwendet. Antwortet der Server nicht, wird die gespeicherte Kopie benutzt, und die Statusleiste sagt das. Es gilt der Proxy aus dem Befehl Netzwerk-Proxy; ein Proxy mit Benutzernamen lässt sich nicht verwenden.
 5. Ein Syntaxfehler in einer JSON-, JSONC-, TOML- oder YAML-Datei wird auch dann unterstrichen, wenn kein Schema gilt. YAML mit Ankern, Tags oder komplexen Schlüsseln lässt sich nicht lesen: Eine solche Datei wird nicht geprüft, und die Statusleiste sagt das.
-- Eine Teilmenge von JSON Schema wird verstanden: Typen, enum, required, properties, items, oneOf, anyOf, allOf, if/then, lokales $ref und pattern. Verweise auf andere Dateien oder Adressen innerhalb eines Schemas werden übergangen. Größengrenzen, Lebensdauer der gespeicherten Kopien und Wartezeiten sind vorläufig.
+6. Eigene Regeln: Die Einstellung Schema-Zuordnungen (Einstellungen, nach „Schema“ suchen) ordnet Dateien Schemas zu. Schreiben Sie MASKE=SCHEMA, getrennt durch Semikolons oder Zeilenumbrüche, zum Beispiel *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASKE ist ein Dateiname, das Ende eines Pfads oder ein Ordner mit /**. SCHEMA ist die Id eines bekannten Schemas, eine Adresse oder ein Dateipfad; die Endung as json, jsonc, toml, yaml oder markdown legt fest, wie die Datei gelesen wird. Die erste passende Regel geht den Schemas vor, die der Editor kennt; nur ein in der Datei geschriebenes $schema geht einer Regel vor. Eine anders geschriebene Regel wird übersprungen und in der Statusleiste genannt. Eine Änderung gilt sofort für die offenen Dateien.
+- Eine Teilmenge von JSON Schema wird verstanden: Typen, enum, required, properties, items, oneOf, anyOf, allOf, if/then, $ref und pattern. Ein $ref kann eine andere Schemadatei auf diesem Computer (ab der Schemadatei) oder eine Adresse nennen; eine Adresse wird wie oben erst nach Ihrer Zustimmung für ihren Server geladen, und ein Schema, das aus dem Netz kam, liest nie eine Datei. Ein Dokument wird einmal gelesen, daher enden Verweise im Kreis; die Länge der Kette von Dokumenten und ihre Anzahl sind begrenzt. Ein Verweis, dem nicht gefolgt werden kann, verlangt nichts; fehlt nur die Zustimmung für einen Server, sagt die Statusleiste „Download nicht erlaubt“. Anker (#name) werden nicht verfolgt. Größengrenzen, Lebensdauer der gespeicherten Kopien und Wartezeiten sind vorläufig.
 
 ## [packages.scripts] Paketskripte: npm und Composer
 commands: nks.packages.script
@@ -1022,7 +1131,7 @@ commands: nks.plugins.manage
 4. Nach der Wahl eines installierten Plugins können Sie es aktivieren oder deaktivieren, aus einer neueren ZIP aktualisieren, auf die vorherige Version zurücksetzen, seine Berechtigungen ändern oder es deinstallieren. Eine neue Version wird neben der alten entpackt und erst aktiv, wenn sie lädt; die alte bleibt für das Zurücksetzen. Ein Update fragt nur nach Berechtigungen, nach denen noch nie gefragt wurde; frühere Antworten gelten weiter.
 5. Eine zurückgenommene Berechtigung stoppt neue Anfragen des Plugins sofort und bricht wartende ab. Ein Plugin ohne Berechtigung erhält einen Fehler, kein leeres Ergebnis. Deaktivieren beendet den Prozess; Deinstallieren löscht nur den Ordner dieses Plugins.
 6. Ein Befehl eines installierten Plugins, das Dokumente lesen oder ändern darf, arbeitet mit dem aktiven Tab, und das Plugin sieht dieses Dokument nur, solange der Befehl läuft. Eine Änderung, die es vorschlägt, erscheint in der Änderungsprüfung und wird erst geschrieben, wenn Sie sie anwenden. Eine direkte Änderung (document.edit.direct) ist ein Schritt für Rückgängig. Endet das Plugin, bevor Sie entscheiden, verfällt sein Vorschlag, und nichts wird geschrieben.
-- Berechtigungen halten fest, was Sie erlaubt haben, und sind keine Sandbox: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Installieren Sie nur Plugins, denen Sie vertrauen. Signaturen werden noch nicht geprüft. Die Grenzen für Größe und Dateianzahl einer ZIP sind vorläufig. Neue Befehle eines aktualisierten Plugins erscheinen nach einem Neustart.
+- Berechtigungen halten fest, was Sie erlaubt haben, und sind keine Sandbox: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Installieren Sie nur Plugins, denen Sie vertrauen. Signaturen werden noch nicht geprüft. Die Grenzen für Größe und Dateianzahl einer ZIP sind vorläufig. Befehle, Menüeinträge, Tasten und Einstellungen eines Plugins erscheinen, wenn Sie es installieren oder einschalten, und verschwinden, wenn Sie es ausschalten oder entfernen; ein Update ersetzt sie, ein Neustart ist nicht nötig. Ein Plugin mit Prozess kann auch Clips, Konverter und externe Werkzeuge mitbringen; sie laufen, ohne den Prozess zu starten.
 - Ein Plugin kann Tasten und Einstellungen mitbringen. Seine Tasten (contributes.keybindings, optional mit "when") funktionieren wie die Tasten des Editors, aber eine Taste des Editors, des Profils oder Ihrer keymap.json gewinnt immer gegen eine Plugin-Taste; der Konflikt steht beim Plugin im Plugin-Manager. Seine Einstellungen (contributes.settings, Schlüssel beginnen mit der Plugin-ID) erscheinen unter dem Namen des Plugins in den Einstellungen, mit dem Standardwert aus dem Manifest, und ein laufendes Plugin bekommt die Werte beim Start und danach als Ereignis settings.changed. Ein Befehl, der im Manifest ein Werkzeug nennt (contributes.externalTools), startet es ohne Plugin-Code, nachdem Sie Befehl und Verzeichnis bestätigt haben.
 - Jedes Plugin läuft als eigener Prozess. Endet es oder antwortet es nicht mehr, beendet der Editor es, eine Leiste nennt das Plugin und sagt, wann es neu startet; nach wiederholten Abstürzen bleibt es ausgeschaltet. Ausgabe anzeigen in der Leiste öffnet das Ausgabefenster mit den letzten Fehlerzeilen des Plugins. Ein Plugin, das auf Ihre Antwort wartet (eine Änderungsprüfung, eine Frage), wird nicht beendet, weil es nicht antwortet. Ein laufender Befehl wird nach dem Neustart nicht wiederholt, es wird also nichts doppelt geschrieben oder hochgeladen. Die Zahl der Abstürze, die Wartezeiten und die Zeitlimits sind vorläufig.
 
@@ -1079,9 +1188,9 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 3. Log: Anzeigen listet die gespeicherten Anzeigen. Die gewählte setzt Stufenregeln, Filter und Cursorposition und liest die Datei einmal, um die passenden Zeilen zu finden. Wurde die Anzeige für eine andere Datei gespeichert, wird die Position nicht verwendet.
 4. Log: nächster Treffer der Anzeige und Log: vorheriger Treffer der Anzeige springen zwischen den Zeilen, die der Filter behält. Wächst die Datei, werden nur die neuen Zeilen untersucht; der früher gelesene Teil wird nicht noch einmal gelesen. Eine letzte Zeile ohne Zeilenende wird erst übernommen, wenn sie endet.
 5. Kürzt ein anderes Programm das Log oder ersetzt es (Rotation: die Datei wird umbenannt und unter dem alten Namen entsteht eine neue), sagt es die Statuszeile, die früheren Treffer werden verworfen und das Lesen beginnt am Anfang des neuen Inhalts. Eine fehlende Datei wird einmal gemeldet, dann wird gewartet.
-- Eine Rotation erkennt man an den ersten 4096 Bytes der Datei und unter Windows an der Erstellungszeit. Eine neue Datei, die mit denselben Bytes beginnt und nicht kürzer ist als die alte, ist davon nicht zu unterscheiden; eine ersetzte Datei gleicher Länge mit gleicher Zeit und gleichen Bytes fällt nicht auf.
+- Eine Rotation erkennt man an den ersten 4096 Bytes der Datei, an den 4096 Bytes unmittelbar vor der bisher gelesenen Stelle und unter Windows an der Erstellungszeit. Eine neue Datei, die mit denselben Bytes beginnt und nicht kürzer ist als die alte, erkennt man an den Bytes vor der gelesenen Stelle; das funktioniert auch unter macOS und Linux. Eine ersetzte Datei gleicher Länge wird nur dann erneut angesehen, wenn sich ihre Zeit der letzten Änderung geändert hat. Eine neue Datei, deren Bytes bis zur gelesenen Stelle alle gleich sind, fällt nicht auf.
 - Die Datei wird einmal pro Sekunde angesehen. Dieser Wert und die 4096 Bytes sind keine entschiedenen Werte.
-- Die Treffer liegen im Speicher ohne Obergrenze.
+- Im Speicher bleiben höchstens 1.000.000 Treffer einer Anzeige (Platzhalterwert, nicht entschieden). Darüber werden die ältesten Treffer verworfen, bis auf drei Viertel der Grenze, und die Statuszeile sagt, wie viele; die neuesten bleiben für nächsten und vorherigen Treffer.
 - Log: Anzeige speichern fragt auch nach einem Text zum Hervorheben (ein regulärer Ausdruck; leer markiert nichts). Wird die Anzeige angewendet, erhalten die Treffer des Ausdrucks in jeder Zeile einen Hintergrund, im Editor und im seitenweisen Modus. Gesucht wird nur in den ersten 8192 Zeichen einer Zeile, und eine Zeile, deren Suche zu lange dauert (Platzhalterwert, nicht entschieden), bleibt unmarkiert.
 
 ## [export.highlight] Export und Kopie mit Hervorhebung
@@ -1097,7 +1206,11 @@ commands: nks.log.fold, nks.log.unfold, nks.log.openFrame, nks.log.showRaw
 1. Log: Uninteressante Zeilen einklappen fragt nach einer Stufe (Zeilen mindestens dieser Stufe bleiben: error, warning, info, debug) und einem regulären Ausdruck (passende Zeilen bleiben). Jeder Abschnitt der übrigen Zeilen wird zu einer Platzhalterzeile, die ein Klick öffnet. Eine Zeile ohne Stufenwort, etwa ein Stacktrace-Frame, gehört zum Eintrag darüber. Log: Alle Zeilen anzeigen öffnet wieder alles. In einer seitenweise geladenen (sehr großen) Datei lassen sich Zeilen nicht einklappen; die Zeilen, die eingeklappt würden, werden stattdessen abgeblendet gezeichnet.
 2. Strg+Klick auf einen Stacktrace-Frame von .NET, Java, Python, PHP oder Node.js öffnet die Datei an dieser Zeile; Log: Datei der Stacktrace-Zeile öffnen tut dasselbe für die Zeile mit dem Cursor. Ein relativer Pfad wird im Ordner des Logs gesucht, dann in den Arbeitsbereich-Ordnern; ein bloßer Dateiname (Java) wird darunter gesucht.
 3. Der Streifen am rechten Rand der Minimap zeigt, wo Fehlerzeilen (rot) und Warnungen (gelb) dicht liegen. Er wird im Hintergrund gezählt. Eine Datei bis 256 MiB wird ganz gelesen, eine größere nur stichprobenartig; das Bild ist dann eine Schätzung. Diese Grenzen sind keine entschiedenen Werte.
-4. ANSI-Escape-Sequenzen in einem Log werden ausgeblendet und als Farben (16, 256 und True Color), Fett und Unterstreichung gezeichnet. Die Datei wird nie verändert, Speichern behält die Sequenzen also. Log: ANSI-Escapes unverändert anzeigen wechselt zwischen Farben und den reinen Sequenzen. Ein Stil, den eine Zeile offen lässt, geht nicht in die nächste Zeile über.
+4. ANSI-Escape-Sequenzen in einem Log werden ausgeblendet und als Farben (16, 256 und True Color), Fett und Unterstreichung gezeichnet. Die Datei wird nie verändert, Speichern behält die Sequenzen also. Log: ANSI-Escapes unverändert anzeigen wechselt zwischen Farben und den reinen Sequenzen. Ein Stil, den eine Zeile offen lässt, gilt in den folgenden Zeilen weiter, bis ihn ein Code ändert, wie in einem Terminal; um ihn zu finden, schaut das Programm über eine begrenzte Zahl von Zeilen zurück (ein länger offener Stil erscheint jenseits dieses Abstands im Standardstil), und eine für die Anzeige gekürzte Zeile wird nur so weit gelesen, wie sie zu sehen ist.
+- Unter dem Cursor steht keine Datei mit Zeile aus einem Stacktrace. Setzen Sie den Cursor auf eine Zeile mit Pfad und Zeilennummer eines Frames oder klicken Sie mit Strg auf den Frame.
+- Die Datei Pfad wurde weder neben dem Log noch in den Arbeitsbereich-Ordnern gefunden. Öffnen Sie den Ordner mit dem Quelltext (Datei und dann Ordner öffnen) oder fügen Sie ihn mit Ordner zum Panel hinzufügen hinzu, dann wiederholen Sie den Befehl.
+- Mit dieser Auswahl wird keine Zeile ausgeblendet. Wählen Sie eine höhere Stufe oder einen anderen regulären Ausdruck.
+- Zeilen, die eingeklappt würden, erscheinen abgeblendet (eine seitenweise geladene Datei lässt sich nicht einklappen). Ein Log über der Schwelle für große Dateien lässt sich nicht einklappen (Thema Große Dateien (Seitenmodus)).
 
 ## [view.options] Anzeige im Editor
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
@@ -1142,6 +1255,7 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Was geht
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
+- Mehrere Cursor: Strg+D, Strg+K und dann Strg+D, Strg+Umschalt+L, Strg+Alt+Pfeil nach oben und Strg+Alt+Pfeil nach unten, Alt+Klick und Esc funktionieren wie im Texteditor (Thema Mehrere Cursor). Die Pfeile, Pos1 und Ende bewegen alle Cursor. Tippen, Rücktaste, Entf, Eingabetaste, Tab, Ausschneiden, Kopieren, Einfügen und Rückgängig wirken auf alle zugleich als ein Schritt. Gezeichnet werden nur die Cursor auf dem Bildschirm. Eine große Datei erlaubt höchstens 1000 Cursor (vorläufige Grenze); darüber hinaus sagt es die Statusleiste.
 - Speichern (Strg+S) läuft im Hintergrund: Das Fenster bleibt benutzbar, die Statusleiste zeigt, wie viel Prozent der neuen Datei geschrieben sind, und Esc bricht das Speichern ab, bevor die Daten übernommen werden (die Datei bleibt unverändert). Sie können währenddessen weitertippen: In die Datei kommt der Text, wie er beim Speichern war, spätere Änderungen bleiben ungespeichert, und der Tab zeigt sie als ungespeicherte Änderungen. Rückgängig und Wiederholen funktionieren während des Speicherns und danach. Ein Speichern, das nur Bytes gleicher Länge überschreibt, schreibt nur diese Bytes und nimmt in seiner kurzen Zeit keine Änderungen an. Eine Datei über 1 GiB (vorläufige Grenze) wird ohne Kopie der alten Version im Sicherungsordner gespeichert; die alte Datei bleibt unberührt, bis die neue vollständig ist.
 
 - Rückgängig und Wiederholen funktionieren auch nach dem Speichern: Schritte vor dem Speichern lassen sich weiter zurücknehmen, und das nächste Speichern schreibt den Stand nach dem Zurücknehmen. Ein getipptes Wort ohne Bewegen des Cursors ist ein Schritt.
@@ -1151,7 +1265,7 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
 - Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen. Eine Zeile über 1 GiB (vorläufiger Wert) wird nicht bearbeitet; die Statusleiste sagt es, und das Dokument bleibt unverändert.
 ### Was nicht geht
-- Blockauswahl, mehrere Cursor.
+- Blockauswahl und Alt+Ziehen.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
 - Zur passenden Klammer springen, Zeilenumbruch.
 - Konvertieren und erneutes Lesen der Codierung, Vereinheitlichen der Zeilenenden, Normalisierung.
@@ -1159,11 +1273,14 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Meldungen
 - Die Zeilennummerierung läuft noch, Bearbeiten ist gleich möglich: Warten Sie, bis die Datei durchgelesen ist.
 - Das Zeichen kann in der Codierung der Datei nicht geschrieben werden: Tippen Sie ein anderes Zeichen.
-- Die Auswahl ist größer als das Kopierlimit: Wählen Sie weniger aus; die Zwischenablage blieb, wie sie war.
-- Die Änderung ist zu groß, um rückgängig gemacht zu werden: Entfernen oder fügen Sie weniger Text auf einmal ein; das Dokument wurde nicht verändert.
-- Eine Zeile ist länger als das Limit, das im Seitenmodus bearbeitet wird: Bearbeiten Sie sie in Hex; das Dokument wurde nicht verändert.
-- Der Text in der Zwischenablage ist größer als das Einfügelimit: Fügen Sie ihn in Teilen ein; das Dokument wurde nicht verändert.
-- Die Kodierung des Dokuments hat sich geändert, während der Text vorbereitet wurde: Fügen Sie ihn erneut ein.
+- Die Auswahl (Größe) ist größer als das Kopierlimit (Grenze). Die Zwischenablage wurde nicht geändert. Wählen Sie weniger aus. Die Grenze liegt bei 256 MiB, ein vorläufiger Wert.
+- Die Änderung ist zu groß, um rückgängig gemacht zu werden; das Dokument wurde nicht verändert. Entfernen oder fügen Sie weniger Text auf einmal ein.
+- Zeile L ist N lang, mehr als die M, die im seitenweisen Modus bearbeitet werden. Das Dokument wurde nicht verändert. Bearbeiten Sie sie in Hex. Die Grenze liegt bei 1 GiB, ein vorläufiger Wert.
+- Der Text in der Zwischenablage (Größe Zeichen) ist größer als das Einfügelimit (Grenze Zeichen). Das Dokument wurde nicht verändert. Fügen Sie ihn in Teilen ein. Die Grenze liegt bei 32 Mi Zeichen, ein vorläufiger Wert.
+- Die Kodierung des Dokuments hat sich während der Vorbereitung des Textes geändert; bitte erneut einfügen. Das Dokument wurde nicht verändert.
+- Eine große Datei erlaubt höchstens 1000 Cursor, weitere wurden nicht hinzugefügt: Wählen Sie weniger Stellen; die Cursor blieben, wie sie waren.
+- Die Auswahl ist zu lang, um ihre weiteren Vorkommen zu suchen: Wählen Sie einen kürzeren Text (das Limit sind vorläufig 64 KiB).
+- Der Text für alle Cursor läge über dem Limit: Fügen Sie weniger Text ein oder nehmen Sie weniger Cursor; das Dokument wurde nicht verändert.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Die Datei wird gerade gespeichert, später noch einmal versuchen: Sie haben etwas versucht, während ein Speichern lief, das Bytes an Ort und Stelle überschreibt, oder die Datei während eines beliebigen Speicherns neu geladen.
 - Das Schließen eines Tabs oder des Fensters während des Speicherns wartet auf das Ende des Speicherns; Esc bricht das Speichern ab.
@@ -1196,6 +1313,17 @@ Unten sehen Sie Zeile und Spalte des Cursors (bei einer Auswahl die Zeichenzahl,
 - Die Änderung ist fehlgeschlagen, der Text hat sich inzwischen geändert: Wiederholen Sie den Befehl.
 - Leerzeichen am Zeilenende wurden beim Speichern nicht entfernt: Die Datei wird ohne Entfernen gespeichert; schalten Sie das Entfernen in den Einstellungen aus oder verkleinern Sie die Datei.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: siehe Thema Große Dateien.
+- Titel ist in einem anderen Programm geöffnet, das anderen das Schreiben verbietet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie das andere Programm und wählen Sie dann in der Leiste Erneut versuchen (Thema Gesperrte Dateien).
+- Titel ist in einem anderen Textida-Fenster zum Bearbeiten geöffnet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie die Datei im anderen Fenster und wählen Sie dann in der Leiste Erneut versuchen oder Trotzdem bearbeiten (Thema Gesperrte Dateien).
+- Titel ist in einem anderen Textida (Prozess N) zum Bearbeiten geöffnet. Die Datei wurde schreibgeschützt geöffnet. Schließen Sie die Datei in diesem Textida und wählen Sie dann in der Leiste Erneut versuchen oder Trotzdem bearbeiten (Thema Gesperrte Dateien).
+- Titel ist weiterhin gesperrt. Erneut versuchen fand die Sperre noch vor; schließen Sie zuerst das andere Programm oder Fenster.
+- In diesem Tab wartet keine Änderung von außen auf Prüfung. Es hat etwas anzuzeigen, wenn ein anderes Programm die Datei eines Tabs ohne ungesicherte Änderungen geändert hat (Thema Änderungen von außen prüfen).
+- Der frühere Inhalt konnte nicht im lokalen Verlauf gesichert werden, die Änderungen lassen sich daher nicht prüfen. Verwenden Sie Neu laden.
+- Im Tab zurückgesetzt, aber nicht gespeichert: Grund. Die Datei auf dem Datenträger wurde nicht geändert. Beheben Sie den Grund und speichern Sie den Tab erneut.
+- Eine andere Prüfung ist offen. Beenden Sie sie zuerst und wählen Sie dann Änderungen von außen prüfen.
+- Keine Datei: Pfad. Wählen Sie eine Datei, keinen Ordner (Thema Spezielles Öffnen).
+- Das System konnte Pfad nicht öffnen. Prüfen Sie, dass diesem Dateityp im System ein Programm zugewiesen ist.
+- Kein geschlossener Tab zum erneuten Öffnen. Zuletzt geschlossenen Tab erneut öffnen hat noch keine Datei zu öffnen (Thema Spezielles Öffnen).
 
 ## [errors.files] Fehlermeldungen: Panel Dateien
 Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der Vorgang ist fehlgeschlagen mit dem Grund und immer Es wurde nichts geändert.
@@ -1222,10 +1350,10 @@ Misslingt ein Vorgang mit einer Datei, steht über dem Dokument eine Leiste Der 
 
 ## [errors.remote] Fehlermeldungen: Remote-Dateien und Quellen
 Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleiste, in der Leiste über dem Text oder in einem Dialog. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
-- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy).
+- Verbindung zu Name nicht möglich: Grund. Prüfen Sie Servername, Port, Benutzer, Passwort oder Schlüssel und Ihr Netzwerk. Wenn Sie einen Proxy verwenden, prüfen Sie auch ihn (Thema Netzwerk-Proxy). Lehnt ein alter SFTP-Server einen Schlüssel ab oder teilen Sie mit ihm keinen Schlüsselalgorithmus, siehe Alte RSA-Signatur (ssh-rsa) im Thema Remote-Verbindungen.
 - ACHTUNG: Die Identität von Server ist nicht die, der Sie zuvor vertraut haben. Das Programm verbindet sich erst, wenn Sie die neue Identität bestätigen. Fragen Sie den Serveradministrator, ob der Server neu installiert wurde, und verbinden Sie sich nur, wenn Sie wissen, warum sie sich geändert hat (Thema Remote-Verbindungen).
 - Der Port muss eine Zahl von 1 bis 65535 sein. Geben Sie eine ganze Zahl von 1 bis 65535 ein oder lassen Sie das Feld leer, dann gilt der übliche Port des Protokolls.
-- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher für Anmeldedaten (er funktioniert nur unter Windows, Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
+- Die Verbindung wurde nicht gespeichert: Grund. Der Grund sagt, was fehlschlug: der Profilordner (Berechtigungen, Speicherplatz) oder der Speicher des Systems für Anmeldedaten (Thema Was diese Version nicht kann). Beheben Sie es und speichern Sie erneut.
 - Pfad gibt es auf dem Server nicht. Prüfen Sie den Pfad. Ein Pfad zu einem Ordner zeigt dessen Inhalt, so können Sie ab / zur Datei blättern.
 - Pfad kann nicht geöffnet werden: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund (eine Berechtigung auf dem Server, eine unterbrochene Verbindung) und öffnen Sie die Datei erneut.
 - Das Hochladen von Titel ist fehlgeschlagen: Grund. Der Server behält seine vorherige Version; Ihre Änderungen bleiben hier gespeichert. Beheben Sie den Grund und wählen Sie erneut Auf Server hochladen; eine teilweise gesendete Datei wird fortgesetzt (Thema Auf Server hochladen).
@@ -1238,6 +1366,16 @@ Eine Meldung zu einer Remote-Datei oder einer Quelle erscheint in der Statusleis
 - Name nimmt keine Schreibvorgänge an. Diese Quelle kann nur lesen. Behalten Sie mit Speichern unter eine Kopie auf der Festplatte; das beendet die Verbindung zur Quelle.
 - Name hat Titel nicht angenommen: Grund. Die Änderungen bleiben im Tab. Beheben Sie den Grund und speichern Sie erneut. Das Plugin muss laufen (Thema Tabs, die ein Plugin liefert).
 - Dieser Tab ist schreibgeschützt, weil die Datei gesperrt ist. Nutzen Sie in der Leiste Trotzdem bearbeiten oder Speichern unter. Wählen Sie in der Leiste Trotzdem bearbeiten: Jedes Speichern prüft dann zuerst die Datei auf der Festplatte. Oder verwenden Sie Speichern unter (Thema Gesperrte Dateien).
+- Es gibt noch keine Verbindung. Legen Sie eine unter Remote-Verbindungen an. Wählen Sie Datei, Remote-Dateien, Remote-Verbindungen und Neue Verbindung (Thema Remote-Verbindungen).
+- Titel auf dem Server ist nicht mehr die Version, die Sie geöffnet haben. Es wurde nichts hochgeladen. Die Datei auf dem Server hat sich nach dem Öffnen geändert. Wählen Sie Unterschiede zeigen, übernehmen Sie, was Sie brauchen, speichern Sie und laden Sie erneut hoch; Trotzdem hochladen ersetzt genau die Serverversion, die Ihnen gezeigt wurde (Thema Auf Server hochladen).
+- Titel wurde auf dem Server gelöscht. Es wurde nichts hochgeladen. Die Datei ist auf dem Server verschwunden. Trotzdem hochladen legt Ihre Kopie dort wieder ab; Abbrechen lässt alles, wie es ist.
+- Das Zertifikat von Server stammt nicht von einer vertrauenswürdigen Stelle oder passt nicht zum Namen. Vertrauen Sie ihm nur, wenn Sie den Server kennen. Das Fenster Identität des Servers zeigt den Fingerabdruck. Wählen Sie Vertrauen und verbinden nur, wenn Sie den Server kennen; sonst brechen Sie ab und fragen den Administrator (Thema Remote-Verbindungen).
+- Kein Plugin stellt Dateien für ein URI-Schema bereit. Aus einer Plugin-Quelle öffnen listet die Quellen, die Plugins anbieten, und ein ausgeschaltetes Plugin bietet keine an. Starten oder aktivieren Sie das Plugin im Plugin-Manager (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen).
+- Titel wurde in Name seit dem Öffnen geändert. Es wurde nichts geschrieben, Ihr Text ist unverändert. Wählen Sie Unterschiede zeigen zum Vergleichen, Überschreiben, um genau die gefundene Version zu ersetzen, oder Abbrechen (Thema Aus einer Plugin-Quelle öffnen).
+- Titel gibt es in Name nicht mehr. Es wurde nichts geschrieben, Ihr Text ist unverändert. Überschreiben schreibt Ihren Text erneut in die Quelle; Abbrechen lässt den Text im Tab, und Speichern unter schreibt eine Kopie auf den Datenträger.
+- Die Quelle ist nicht erreichbar, ihre Version kann nicht angezeigt werden. Unterschiede zeigen braucht eine Antwort der Quelle. Speichern Sie erneut, sobald sie antwortet.
+- Für „Wörter“ wurde in Name nichts gefunden. Versuchen Sie andere Wörter oder tippen Sie die Adresse, die mit dem Schema der Quelle beginnt.
+- Die Suche in Name ist fehlgeschlagen: Grund. Es wurde nichts geöffnet. Beheben Sie den Grund und suchen Sie erneut; das Protokoll steht im Tab Remote des Ausgabefensters.
 
 ## [errors.plugins] Fehlermeldungen: Plugins
 Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem Dialog, in einer Leiste über dem Text oder in der Statusleiste gemeldet. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
@@ -1254,6 +1392,15 @@ Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem 
 - Das Plugin Name läuft nicht mehr (Grund). Es startet in N s neu. Warten Sie: Das Plugin startet von selbst neu. Ausgabe anzeigen in der Leiste öffnet die letzten Fehlerzeilen des Plugins.
 - Das Plugin Name läuft nicht mehr (Grund). Nach wiederholten Abstürzen ist es ausgeschaltet. Es bleibt ausgeschaltet. Ausgabe anzeigen in der Leiste sagt, warum; aktualisieren oder installieren Sie das Plugin neu und schalten Sie es im Plugin-Manager wieder ein.
 - Titel wurde geschlossen: Das Plugin hat ihn geschlossen oder wurde beendet. Nicht gespeicherte Änderungen sind verloren. Speichern Sie den Tab, bevor das Plugin endet: Speichern sendet den Text an das Plugin (Thema Tabs, die ein Plugin liefert).
+- Die ZIP-Datei enthält einen symbolischen Link. Es wurde nichts installiert. Der Autor muss das Plugin ohne symbolische Links neu packen.
+- Die ZIP-Datei enthält mehr Dateien als erlaubt (vorläufiges Limit). Es wurde nichts installiert. Bitten Sie den Autor um ein Paket mit weniger Dateien.
+- Die ZIP-Datei enthält dieselbe Datei zweimal. Es wurde nichts installiert. Der Autor muss das Plugin neu packen, jede Datei einmal.
+- Plugin Name wurde nicht gestartet: Grund. Lesen Sie den Grund; die letzten Zeilen des Plugins stehen im Tab Aufgaben des Ausgabefensters. Wählen Sie im Plugin-Manager erneut Starten oder Neu starten (Thema Plugin-Prozesse: wann sie starten, wie man sie sieht und wie sie enden).
+- Tasten für Befehl bewirkt nichts: dieselben Tasten hat Befehl (Herkunft). Eine eingebaute, Profil- oder Benutzerbelegung auf denselben Tasten hat Vorrang vor einem Plugin. Geben Sie dem Befehl des Plugins andere Tasten in Ihrer Tastenbelegungsdatei oder ändern Sie die andere Belegung.
+- Tasten (Befehl) ist der Anfang von Tasten (Befehl), die längere Folge lässt sich also nicht eingeben. Ändern Sie die Tasten eines der beiden Befehle so, dass keine Folge der Anfang der anderen ist.
+- Nicht lesbar: Grund. Installieren Sie das Plugin erneut aus seiner ZIP oder entfernen Sie es (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen).
+- Dieser Tab zeigt Daten, die ein Plugin liefert. Er ist schreibgeschützt und kann nicht gespeichert werden. Speichern und Speichern unter sagen es in der Statusleiste. Kopieren Sie, was Sie brauchen, in einen eigenen Tab (Thema Tabs, die ein Plugin liefert).
+- Dieser Tab gehört einem Plugin. Speichern sendet ihn an das Plugin; in eine Datei lässt er sich nicht speichern. Speichern schickt den Text an das Plugin; Speichern unter gibt es bei diesem Tab nicht.
 
 ## [errors.agents] Fehlermeldungen: MCP, /ide und Agenten
 Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in der Statusleiste, in Dialogen und im Agent-Bereich. Jede Zeile zitiert die Meldung und sagt, was zu tun ist. Ohne Ihre Bestätigung wird nichts auf Ihre Tabs angewendet, ein fehlgeschlagener Schritt lässt sie also unverändert.
@@ -1281,6 +1428,14 @@ Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in de
 - Ein Zug läuft noch. Brechen Sie ihn zuerst ab. Wählen Sie Zug des Agenten abbrechen oder warten Sie, bis der Zug endet.
 - Der Agent hat nicht rechtzeitig geantwortet: Grund. Der Zug ist beendet. Senden Sie die Nachricht erneut oder beenden Sie den Agenten und starten Sie ihn neu.
 - Der Agent ist fehlgeschlagen: Grund. Lesen Sie den Grund im Bereich; läuft der Agent nicht mehr, starten Sie ihn neu.
+- In den Dateien von Claude Code, Cursor, Codex und OpenCode gibt es keine MCP-Server. Der Befehl liest die Konfigurationsdateien dieser Agenten. Tragen Sie einen Server in die Datei eines Agenten ein und führen Sie den Befehl erneut aus (Thema MCP-Server der Agenten).
+- Nicht lesbar: Dateien. Die genannten Dateien werden übersprungen, die übrigen aufgelistet. Korrigieren Sie die genannte Datei dort, wo der Agent sie ablegt; Textida ändert sie nie.
+- Name bietet weder Tools noch Ressourcen an. Der Server hat geantwortet, bietet aber nichts zum Aufrufen an. Prüfen Sie seine Einrichtung in der Datei seines Agenten.
+- Werkzeug meldet einen Fehler; der Text steht in einem neuen Tab. Der Aufruf hat den Server erreicht, und der Server meldet den Fehler. Lesen Sie den Text im neuen Tab und rufen Sie das Werkzeug mit anderen Argumenten erneut auf.
+- Der Wert von Name konnte nicht gespeichert werden (Grund); er gilt nur für diese Verbindung. Die nächste Verbindung fragt den Wert erneut ab. Beheben Sie die Ursache, die der Grund nennt.
+- Die /ide-Brücke dieses Fensters ist aus. Einschalten unter Werkzeuge, /ide-Brücke. Wiederholen Sie dann den Befehl (Thema Die /ide-Brücke für Claude Code).
+- Agent Version N (die Tabelle nennt M). Das ist ein Hinweis im Agentenpanel, kein Fehler: Der Agent startet trotzdem, aber diese Version ist nicht geprüft (Thema Agent über ACP).
+- Agent: Die Version konnte nicht gelesen werden (Grund). Nicht verifiziert. Auch das ist ein Hinweis im Agentenpanel: Der Agent startet trotzdem, aber seine Version ist nicht geprüft.
 
 ## [errors.tools] Fehlermeldungen: Werkzeuge, Linter, Sprachserver und Git
 Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie erscheinen in der Statusleiste, in der Ausgabe Aufgaben oder in einer Leiste über dem Text. Jede Zeile zitiert die Meldung und sagt, was zu tun ist.
@@ -1296,18 +1451,29 @@ Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie ers
 - Schema Name: Download nicht erlaubt. Wählen Sie Extras, Pakete, Schema-Download erlauben und stimmen Sie für den Server zu (Thema Schemas für JSON, YAML und TOML: Prüfung, Vervollständigung und Beschreibungen).
 - Weder neben der geöffneten Datei noch in einem übergeordneten Ordner gibt es ein Makefile. Öffnen Sie eine Datei in einem Ordner mit Makefile oder das Makefile selbst (Thema Makefile: Ziel ausführen).
 - Ein Sprachserver arbeitet nur mit Textdokumenten, nicht mit großen Dateien, die seitenweise angezeigt werden. Eine Datei im Seitenmodus geht nie an einen Sprachserver (Thema Große Dateien (Seitenmodus)).
-- Für Sprache wurde kein Sprachserver gefunden: Programm. Installieren Sie den Server so, dass sein Programm im PATH gefunden wird (Thema Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose).
+- Für Sprache wurde kein Sprachserver gefunden: Programm. Installieren Sie den Server so, dass sein Programm im PATH oder in einem Ordner des Projekts gefunden wird, oder setzen Sie seinen Pfad als „lsp:“ und die Sprache in toolPaths der saveActions.json (Thema Sprachserver: Definition, Verweise, Umbenennen, Vervollständigung und Diagnose).
 - Der Sprachserver für Sprache konnte nicht gestartet werden: Grund. Lesen Sie den Grund, beheben Sie ihn und führen Sie erneut einen Befehl der Gruppe aus.
-- Der Sprachserver für Sprache wurde unerwartet beendet (Detail). Führen Sie erneut einen beliebigen Befehl der Gruppe aus: Der Server startet und erhält die offenen Dokumente erneut.
+- Der Sprachserver für Sprache wurde unerwartet beendet (Detail). Der Editor startet ihn von selbst neu. Sagt ein Hinweis, dass er aufgegeben hat, führen Sie erneut einen beliebigen Befehl der Gruppe aus: Der Server startet und erhält die offenen Dokumente erneut.
+- Der Sprachserver für Sprache lief auch nach Anzahl Versuchen nicht stabil. Der Editor startet ihn nicht mehr von selbst. Führen Sie einen beliebigen Befehl der Gruppe aus, um es erneut zu versuchen.
 - Git konnte nicht gestartet werden: Grund. Das Programm git muss installiert und im PATH zu finden sein (Thema Git: Status, Vergleich und Abschnitt vormerken).
 - Die Datei liegt in keinem Git-Repository. Öffnen Sie eine Datei aus einem Git-Repository.
 - Der Index von Datei hat sich seit dem letzten Lesen geändert (durch ein anderes Programm). Es wurde nichts geschrieben. Prüfen Sie die Änderungen und merken Sie den Abschnitt erneut vor.
 - Die Datei hat einen ungelösten Merge-Konflikt. Lösen Sie ihn, bevor Sie Abschnitte vormerken. Lösen Sie den Konflikt mit Git: Konflikt, unsere Änderungen nehmen / ihre Änderungen nehmen / beide Seiten nehmen, speichern Sie die Datei und wählen Sie dann Git: Datei als gelöst markieren.
+- Die geöffnete Datei ist kein Paketmanifest. Öffnen Sie ein Paketmanifest und wählen Sie den Befehl erneut (Thema Paketmanifeste: Namen, Versionen und Marke für neuere Versionen).
+- Die geöffnete Datei ist keine package.json oder composer.json. Öffnen Sie eine package.json oder composer.json und wählen Sie den Befehl erneut (Thema Paketskripte: npm und Composer).
+- In Datei wurden keine Skripte gefunden. Fügen Sie der Datei einen Abschnitt scripts hinzu oder öffnen Sie eine andere Datei.
+- Register hat keine brauchbare Antwort gegeben: Grund. Es wurde nichts geändert. Versuchen Sie es später; das Register oder der Netzwerk-Proxy kann schuld sein (Thema Netzwerk-Proxy).
+- Das Manifest ist zu groß für die Prüfung. Prüfen Sie ein kleineres Manifest; das Limit ist vorläufig.
+- Das Dokument wird gerade von einem anderen Befehl verwendet. Versuchen Sie es erneut. Warten Sie, bis der andere Befehl endet.
+- Die geöffnete Datei wird nicht gegen ein Schema geprüft. Schema-Download erlauben wirkt auf eine Datei, die gegen ein Schema geprüft wird (Thema Schemas für JSON, YAML und TOML: Prüfung, Vervollständigung und Beschreibungen).
+- Für diese Datei wartet kein Schema-Download auf Ihre Zustimmung. Schema-Download erlauben fragt nur, wenn die Prüfung der Datei ein Schema von einem Server braucht, den Sie noch nicht erlaubt haben.
+- Schema Name: nicht geladen. Das Schema ließ sich nicht lesen, war zu groß oder ungültig; die Datei wird nicht dagegen geprüft. Korrigieren oder ersetzen Sie das Schema.
+- Schema Name: nicht geprüft (YAML-Form nicht unterstützt). Die Datei wird nicht gegen dieses Schema geprüft; an der Datei ändert sich nichts.
 
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
 - Updates: Das Programm aktualisiert sich nur unter Windows selbst, im installierten Textida (Thema Updates und Rückkehr zur vorherigen Version). Unter macOS und Linux installieren Sie eine neue Version selbst. Ein Build ohne Update-Adresse und Signaturschlüssel sucht nicht nach Updates und sagt das.
-- Gespeicherte Passwörter: Der Speicher für Anmeldedaten funktioniert nur unter Windows (Anmeldeinformationsverwaltung). Unter macOS und Linux speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
+- Gespeicherte Passwörter: Windows (Anmeldeinformationsverwaltung), macOS (Schlüsselbund) und Linux (Secret Service über libsecret). Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert. Fehlt der Speicher des Systems, speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
 - Plugins: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Seine Berechtigungen halten fest, was Sie erlaubt haben, sie sind keine Sandbox, und die Signaturen von Plugins werden nicht geprüft (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen). Installieren Sie nur Plugins, denen Sie vertrauen.
 - Assistenten: Die /ide-Brücke und der Agent über ACP sind nicht mit den echten Programmen geprüft (Themen Die /ide-Brücke für Claude Code und Agent über ACP). Eine Verbindung, die nicht klappt, meldet das Programm mit dem Grund in der Statusleiste oder in der Ausgabe Aufgaben.
 - Große Dateien: Das Bearbeiten im Seitenmodus ist eingeschränkt (Thema Große Dateien (Seitenmodus)). Ein Sprachserver, das Formatieren und die meisten Befehle, die Text ändern, funktionieren dort nicht. Die Bytes einer Datei beliebiger Größe ändern Sie im Hex-Editor.
@@ -1315,9 +1481,10 @@ Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, u
 - Programme, die der Editor nur startet (git, Linter, Formatierer, Sprachserver, make, npm, Composer, HTML Tidy): Sie müssen installiert und im PATH zu finden sein. Der Editor lädt keines davon herunter.
 - Das Explorer-Menü und die Dateizuordnungen: nur unter Windows.
 - Sprachen der Oberfläche: Tschechisch, Englisch, Slowakisch und Deutsch. Alte PSPad-Übersetzungen lassen sich nicht übernehmen.
+- Zahlen: Die Größen, Anzahlen und Wartezeiten hinter den Limits von Plugins, Übertragungen, Exporten, großen Dateien und der Zwischenablage sind vorläufige Werte. Ein endgültiger Wert ist noch nicht entschieden, deshalb kann sich eine Zahl in dieser Hilfe in einer späteren Version ändern.
 
 ## [edit.clips] Clips
-commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
+commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.clips.editProjectVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Ein Clip ist ein Stück Text mit Stellen für Variablen und Eingabemarken. Clips liefern Datenplugins im Ordner plugins des Profils; ein Unterordner pro Plugin, mit der Datei nkspad-plugin.json und ohne Programm.
 1. Bearbeiten, Einfügen, Clip einfügen wählen. Die Liste zeigt die Clips mit einer Vorschau des Textes, der eingefügt würde.
 2. Einen Clip wählen. Hat er ein Formular, ausfüllen: Die Vorschau folgt der Eingabe, ein falscher Wert wird markiert und OK bleibt gedimmt, bis jeder Wert zu seinem Typ passt.
@@ -1326,8 +1493,10 @@ Ein Clip ist ein Stück Text mit Stellen für Variablen und Eingabemarken. Clips
 - Vorlagensprache: ${name} ist eine Variable, $| setzt eine Eingabemarke (beliebig viele), $$ ist ein Dollarzeichen. Zeilenumbrüche werden zum Zeilenumbruch des Dokuments.
 - Snippets: Ein Clip (und der Plugin-Aufruf snippet/insert mit "format": "template") darf nummerierte Platzhalter verwenden: $1, ${1:Vorgabetext}, ${1|eins,zwei,drei|}, $0 (die Endposition). Dieselbe Nummer an mehreren Stellen wird gemeinsam bearbeitet. Nach dem Einfügen ist der erste Platzhalter markiert; Tab springt zum nächsten, Umschalt+Tab zum vorherigen, nach dem letzten geht die Eingabemarke zu $0. Esc oder ein Klick außerhalb beendet das Snippet. Ein Platzhalter mit Werteliste öffnet die Auswahlliste. Bei mehreren Eingabemarken hat jede ihr eigenes Snippet, die Platzhalter werden gemeinsam durchlaufen.
 - Die Zeilen eines Snippets nach der ersten übernehmen die Einrückung der Zeile, in der es beginnt; Tabs in der eigenen Einrückung werden zur Einrückung des Dokuments (Tabs oder Leerzeichen). Ein Clip ohne nummerierte Platzhalter wird unverändert eingefügt.
-- In einem Snippet ist $| keine Eingabemarke, und ein Dollarzeichen vor einer Ziffer ist ein Platzhalter: Schreiben Sie $$ oder \$ für ein Dollarzeichen. Neben ${name} gelten die Variablen TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID und CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (auch als $NAME). Verschachtelte Platzhalter und Transformationen werden nicht unterstützt; Text, der nicht zur Syntax passt, bleibt unverändert.
-- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. Ihre eigenen Variablen (Bearbeiten, Einfügen, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 3. die eingebauten. Derselbe Name gibt in einem Clip, einem Rezept und einem externen Werkzeug denselben Wert.
+- In einem Snippet ist $| keine Eingabemarke, und ein Dollarzeichen vor einer Ziffer ist ein Platzhalter: Schreiben Sie $$ oder \$ für ein Dollarzeichen. Neben ${name} gelten die Variablen TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID und CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (auch als $NAME). Text, der nicht zur Syntax passt, bleibt unverändert.
+- Ein Vorgabetext kann weitere Platzhalter enthalten: ${1:for (${2:i} = 0)}. Tab besucht die Platzhalter wie gewohnt nach ihrer Nummer; die Stelle, die weitere enthält, wird dort bearbeitet, wo sie steht, und die übrigen Stellen ihrer Nummer zeigen den Text unverändert. Eine Transformation lässt eine Stelle geänderten Text zeigen: ${1/Regex/Format/Optionen} für einen Platzhalter (die Stelle folgt dem, was Sie in Platzhalter 1 tippen) und ${NAME/Regex/Format/Optionen} für eine Variable. Das Format kennt $1, ${1:/upcase}, ${1:/downcase}, ${1:/capitalize}, ${1:/camelcase}, ${1:/pascalcase}, ${1:+Text falls}, ${1:?Text falls:Text sonst} und ${1:-Text sonst}; die Optionen sind g (jeder Treffer, sonst nur der erste), i, m und s. Schreiben Sie \/ für einen Schrägstrich im regulären Ausdruck oder im Format; der Ausdruck hat .NET-Syntax. Tiefer als das Limit verschachtelte Platzhalter bleiben Text; ein Snippet, das über das Längenlimit wächst oder dessen Transformation zu lange läuft, wird mit einer Meldung abgelehnt.
+- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. die Variablen des Projekts, 3. Ihre eigenen Variablen (Bearbeiten, Einfügen, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 4. die eingebauten. Derselbe Name gibt in einem Clip, einem Rezept und einem externen Werkzeug denselben Wert.
+- Projektvariablen: Bearbeiten, Einfügen, Projektvariablen bearbeiten öffnet die Datei .textida/variables.json des Projekts der geöffneten Datei, in derselben Form wie variables.json des Profils. Das Projekt ist der nächste Ordner über der Datei, der eine solche Datei hat; gibt es keinen, wird die Datei im nächsten Ordner mit .textida oder .git angelegt. Ihre Namen gelten nur für die Dateien dieses Projekts und haben Vorrang vor Ihren eigenen Variablen gleichen Namens. Eine beschädigte Datei stoppt Clips, Rezepte und Werkzeuge in diesem Projekt und wird in der Meldung genannt. Ein externes Werkzeug, dessen Befehl eine Projektvariable nutzt, fragt nach einer Änderung ihres Werts erneut nach der Bestätigung, wie bei einer geänderten Definition.
 - Eingebaute Variablen: file.path, file.dir, file.name, file.base, file.ext (ein ungespeichertes Dokument hat kein file.*), date (jjjj-MM-tt), time (HH:mm:ss), datetime (die Einstellung Datums- und Zeitformat), guid (für jede Eingabemarke neu), selection (der an dieser Eingabemarke markierte Text), user.name. Ein Name ohne Wert stoppt das Einfügen und die Statusleiste nennt ihn.
 - Formularfelder: name, label, type, default, choices, required. Typen: text, integer (ganze Zahl), number (Dezimalpunkt), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (jjjj-MM-tt), file (eine vorhandene Datei), choice (einer der Werte aus choices). Ein Vorgabewert darf Variablen nutzen, etwa ${date}.
 - In nkspad-plugin.json steht ein Clip als {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} unter contributes.clips; ein Clip mit "command" bekommt zusätzlich einen Befehl dieses Namens.
@@ -1354,6 +1523,9 @@ Eine Umwandlung ändert den Text aller Auswahlen auf einmal, oder der ganzen Dat
 ## [edit.specialConversion] Spezielle Umwandlungen
 commands: nks.edit.convert.decToHex, nks.edit.convert.hexToDec, nks.edit.convert.urlEncode, nks.edit.convert.urlDecode, nks.edit.convert.quotedPrintableEncode, nks.edit.convert.quotedPrintableDecode, nks.edit.convert.base64Encode, nks.edit.convert.base64Decode, nks.edit.convert.removeAccents, nks.edit.convert.tabsToSpaces
 Umwandlungen, die der Editor selbst hat. Jede ist ein Befehl in der Befehlspalette und im Menü Bearbeiten, Umwandlungen und Rezepte, und steht auch in der Liste Umwandeln. Sie ändert den Text aller Auswahlen auf einmal als ein Rückgängig-Schritt, oder die ganze Datei, wenn nichts markiert ist. Der neue Text bleibt markiert.
+1. Markieren Sie den Text zum Umwandeln oder markieren Sie nichts, dann wird die ganze Datei umgewandelt. Mehrere Auswahlen werden auf einmal umgewandelt.
+2. Wählen Sie Bearbeiten, Umwandlungen und Rezepte und dann die Umwandlung oder starten Sie sie aus der Palette.
+3. Der neue Text ersetzt den alten als ein Rückgängig-Schritt und bleibt markiert.
 - Dezimal nach Hexadezimal und zurück: Die Auswahl muss eine ganze Zahl von 0 bis 18446744073709551615 (FFFFFFFFFFFFFFFF) sein, eine hexadezimale darf mit 0x beginnen. Leerzeichen und Zeilenenden um die Zahl bleiben. 255 ergibt FF, ACE ergibt 2766.
 - Text in URL-Kodierung schreibt alles außer den Buchstaben A bis Z, Ziffern und - _ . ~ als %XX der UTF-8-Bytes, ein Leerzeichen als %20 und ein Zeilenende als %0D%0A, oder %0A in einer Datei mit LF-Zeilenenden. URL-Kodierung in Text liest %XX zurück; ein % ohne zwei Hexadezimalziffern bleibt, wie es ist.
 - Text in Quoted-Printable behält druckbares ASCII und Leerzeichen und schreibt jedes andere UTF-8-Byte, Zeilenenden und = eingeschlossen, als =XX. Quoted-Printable in Text liest =XX und lässt = am Zeilenende weg; jedes andere = lehnt den Text ab.
@@ -1361,6 +1533,8 @@ Umwandlungen, die der Editor selbst hat. Jede ist ein Befehl in der Befehlspalet
 - Akzente entfernen nimmt Akut, Hatschek, Kringel und Umlautpunkte von den Buchstaben (č zu c, ü zu u). Buchstaben ohne Zerlegung (ł, ø, ß) und die Zeichen anderer Schriften bleiben.
 - Tabulatoren in Leerzeichen ersetzt jeden Tabulator durch Leerzeichen bis zum nächsten Tabstopp nach der Tabulatorgröße des Dokuments, gezählt ab der Spalte, in der die Auswahl beginnt.
 - Wenn die Umwandlung eine Auswahl nicht lesen kann, ändert sich nichts und die Statusleiste sagt es. Letzten Befehl wiederholen führt dieselbe Umwandlung erneut aus.
+- Die Umwandlung Titel lief nicht: der Text hat nicht die Form, die diese Umwandlung liest. Nichts wurde geändert. Markieren Sie Text in der Form, die die Umwandlung liest, zum Beispiel bei Dezimal nach Hexadezimal eine ganze Zahl.
+- Nichts zu ändern. Die Umwandlung würde denselben Text ergeben.
 
 ## [edit.recipes] Bearbeitungsrezepte
 commands: nks.edit.runRecipe
@@ -1419,7 +1593,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 
 ## [tools.git] Git: Status, Vergleich und Abschnitt vormerken
 commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
-1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Das Panel und die Statusleiste aktualisieren sich nach einer Änderung von außen von selbst, kurz nach der letzten Änderung.
+1. Öffnen Sie eine Datei aus einem Git-Repository und wählen Sie Werkzeuge, Git: Dateistatus. Das Panel zeigt, was `git status` für das ganze Repository meldet: was vorgemerkt und was im Arbeitsbaum geändert ist. Das Panel und die Statusleiste aktualisieren sich nach einer Änderung von außen von selbst, kurz nach der letzten Änderung. Jedes Repository mit einer offenen Datei wird beobachtet, auch wenn Dateien mehrerer Repositories offen sind; die Beobachtung eines Repositorys endet, wenn seine letzte offene Datei geschlossen wird. Die Statusleiste zeigt das Repository des letzten Git-Befehls oder der letzten Änderung von außen; das Panel bleibt beim Repository des letzten Dateistatus.
 2. Git: Mit Index vergleichen und Git: Mit HEAD vergleichen öffnen einen Vergleichs-Tab des offenen Textes mit seiner Version im Index oder in HEAD. Die Abschnitte sind dieselben wie in `git diff`.
 3. Git: Abschnitt am Cursor vormerken schreibt nur die Änderung in den Index, in der der Cursor steht. Die übrigen Änderungen der Datei bleiben nur im Arbeitsbaum. Die Datei auf der Festplatte wird nicht verändert.
 4. Hat ein anderes Programm den Index inzwischen geändert, wird nichts geschrieben. Das Plugin liest den Index neu und meldet einen Konflikt; prüfen Sie die Änderungen und wiederholen Sie den Befehl.
@@ -1430,7 +1604,7 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 7. Doppelklick oder Enter auf eine Datei im Statuspanel öffnet sie. Die Statusleiste zeigt den Branch und Zähler: `+` vorgemerkt, `~` geändert, `?` nicht verfolgt, `!` Konflikte; sie wird nach jedem Git-Befehl aktualisiert.
 8. In einer Datei aus einem Git-Repository markiert der linke Rand die Zeilen, die sich vom Index unterscheiden, mit einem gefüllten Balken (blau geändert, grün hinzugefügt, ein kurzer roter Balken dort, wo Zeilen entfernt wurden) und die schon vorgemerkten Zeilen mit einem Umriss. Ein Klick auf eine Markierung merkt die Änderung vor; ein Klick auf eine Umriss-Markierung nimmt sie aus dem Index. Die Einstellung Git-Änderungen am linken Rand anzeigen schaltet die Markierungen aus. Dateien über dem Größenlimit und Dateien mit verborgenen Werten (.env) haben keine.
 9. Die Tabs Git: Mit Index vergleichen und Git: Mit HEAD vergleichen haben die Schaltflächen Abschnitt vormerken und Abschnitt aus dem Index nehmen für den Unterschied, auf dem der Tab steht (per Tastatur tun das die Befehle Vergleich: erste und zweite Plugin-Aktion im Menü Extras). Nach einer Schaltfläche wird der Vergleich an der Stelle des Tabs neu geöffnet.
-10. Ein Konflikt, in dem eine Seite die Datei gelöscht hat (das Panel schreibt „Konflikt: von uns gelöscht“ oder „von ihnen gelöscht“) oder beide Seiten sie hinzugefügt haben und sie sich nicht zusammenführen lässt, hat keine Markierungen. Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen sagt das dann. Die Datei behalten Sie mit Git: Datei als gelöst markieren, löschen können Sie sie mit Git: Konflikt, Datei löschen. Eine von beiden Seiten gelöschte Datei zeigt das Panel, aber es gibt nichts zu öffnen; lösen Sie sie mit `git rm`.
+10. Ein Konflikt, in dem eine Seite die Datei gelöscht hat (das Panel schreibt „Konflikt: von uns gelöscht“ oder „von ihnen gelöscht“) oder beide Seiten sie hinzugefügt haben und sie sich nicht zusammenführen lässt, hat keine Markierungen. Git: Konflikt, unsere Änderungen / ihre Änderungen / beide Seiten nehmen sagt das dann. Die Datei behalten Sie mit Git: Datei als gelöst markieren, löschen können Sie sie mit Git: Konflikt, Datei löschen. Eine von beiden Seiten gelöschte Datei („Konflikt: beidseitig gelöscht“, etwa nach einer Umbenennung, die jede Seite anders gemacht hat) hat keine Datei zum Öffnen: Ein Doppelklick oder Enter darauf im Statuspanel fragt, ob sie aus dem Index entfernt werden soll, und Ja löst den Konflikt mit `git rm`. Eine gelöschte Datei, die kein Konflikt ist, wird nur als fehlend gemeldet.
 11. Konfliktblöcke werden auch in Dateien gefunden, die als UTF-16 und UTF-32 gespeichert sind.
 12. Mit `core.autocrlf` (oder einem `eol`-Attribut) wird ein Abschnitt einer Datei mit CRLF-Zeilenenden mit LF gespeichert, wie `git add` ihn speichert.
 - Noch nicht vorhanden: Commit und Branches.
@@ -1442,13 +1616,15 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 2. Sprachserver: Zur Definition springen springt zur Definition des Worts am Cursor, auch in eine andere Datei. Sprachserver: Verweise suchen listet alle Stellen im Panel links auf; Enter oder ein Doppelklick auf einen Eintrag öffnet ihn.
 3. Sprachserver: Symbol umbenennen fragt nach dem neuen Namen des Worts am Cursor. Die Änderungen des Servers in allen Dateien, samt dem Anlegen, Umbenennen und Löschen von Dateien, das er verlangt, erscheinen gemeinsam in der Änderungsvorschau; was Sie annehmen, wird als ein Schritt angewendet. Eine neue Datei erscheint mit ihren ersten Zeilen als hinzugefügter Text. Der Tab einer offenen Datei folgt ihr beim Umbenennen; der Tab einer gelöschten Datei wird geschlossen, und hat er ungespeicherte Änderungen, fragt der Editor, ob er ihn schließen oder offen lassen soll. Eine Datei, die in einem anderen Tab offen ist, muss ebenfalls mit dem ersten Befehl gestartet worden sein, sonst wird das Umbenennen als Ganzes abgelehnt.
 4. Strg+J (Bearbeiten, Einfügen, Wort oder Clip vervollständigen) listet auch auf, was der laufende Server am Cursor anbietet. Die Wahl eines solchen Eintrags führt im selben Rückgängig-Schritt auch die weiteren Änderungen aus, die der Server verlangt, etwa das Hinzufügen eines Imports. Eine Antwort, die nach einer Textänderung eintrifft, wird nicht angezeigt.
-5. Beendet sich der Server von selbst, meldet das ein Hinweis, und die Unterstreichungen, die er gezeichnet hat, verschwinden. Sprachserver: Neu starten (oder ein anderer Befehl dieser Gruppe) startet ihn erneut und übergibt ihm alle offenen Dokumente so, wie sie jetzt sind. Sprachserver: Beenden fährt ihn herunter. Neu starten und Beenden gelten für den Server des Projekts, zu dem das aktuelle Dokument gehört; die Server anderer Projekte laufen weiter.
+5. Beendet sich der Server von selbst, meldet das ein Hinweis, und die Unterstreichungen, die er gezeichnet hat, verschwinden. Der Editor startet ihn dann von selbst neu, nach einer Wartezeit, die mit jedem Versuch länger wird, und übergibt ihm alle offenen Dokumente so, wie sie jetzt sind. Nach einigen Versuchen in Folge gibt er auf, und ein Hinweis sagt es; ein Server, der vor seinem Ende eine Weile lief, bekommt seine Versuche zurück. Sprachserver: Neu starten (oder ein anderer Befehl dieser Gruppe) startet ihn sofort, auch nachdem der Editor aufgegeben hat. Sprachserver: Beenden fährt ihn herunter und bricht einen wartenden Start ab. Neu starten und Beenden gelten für den Server des Projekts, zu dem das aktuelle Dokument gehört; die Server anderer Projekte laufen weiter.
 - Der Editor startet von sich aus keinen Server: Solange Sie keinen Befehl dieser Gruppe wählen, läuft nichts, und der Server weiß nichts von der Datei.
 - Große Dateien, die seitenweise angezeigt werden, und Dateien über dem Größenlimit gehen nie an einen Server.
-- Der Server wird über seinen Namen im PATH gesucht. Wird er nicht gefunden, nennt ein Hinweis das gesuchte Programm.
+- Der Editor kann für jede Sprache seiner Tabelle einen Server starten: C# (Microsoft.CodeAnalysis.LanguageServer, dann csharp-ls), JavaScript und TypeScript (typescript-language-server), HTML und CSS (vscode-html-language-server, vscode-css-language-server), SQL (sqls), Python (pyright-langserver), Shell (bash-language-server), Java (jdtls), C und C++ (clangd), PHP (phpactor), Go (gopls), Rust (rust-analyzer), Kotlin (kotlin-lsp), Lua (lua-language-server), Swift (sourcekit-lsp), Ruby (ruby-lsp) und Dart (dart language-server). Er installiert oder lädt keinen herunter. Die Startzeilen stammen aus der Dokumentation der Server, und keine wurde bisher gegen den echten Server ausgeführt.
+- Der Server wird im Pfad gesucht, den Sie angeben, dann in vendor/bin, node_modules/.bin und .venv (vom Ordner der Datei aufwärts) und im PATH. Einen Pfad geben Sie in der saveActions.json des Profils an: "toolPaths": {"lsp:python": "C:\\tools\\pyright-langserver.cmd"} (eine Datei oder der Ordner mit dem Programm; der Schlüssel ist `lsp:` und die Sprache des Dokuments). Eine Projektdatei kann ihn nicht setzen. Ein Pfad, der nicht existiert, wird gemeldet, und nichts wird gestartet. Ein Server aus einem Ordner des Projekts (nicht aus Ihrem Pfad oder dem PATH) ist ein Programm, das das Projekt mitgebracht hat; der Editor zeigt deshalb seinen Befehl und fragt einmal, bevor er läuft, und fragt erneut, wenn sich die Datei ändert. Wird kein Server gefunden, nennt ein Hinweis das gesuchte Programm.
 - Die Statusleiste zeigt LSP: läuft, LSP: nicht gefunden oder LSP: aus für den Server des letzten Befehls; der Tooltipp nennt seine Sprache und den Projektordner.
 - Ein Server läuft für einen Projektordner. Das ist der nächste Ordner über der Datei, der eine Markierungsdatei der Sprache enthält (C#: zuerst eine Projektmappe `.sln` oder `.slnx`, dann `.csproj`; Rust: `Cargo.toml`; PHP: `composer.json`; Dart: `pubspec.yaml`; JavaScript und TypeScript: `tsconfig.json` oder `package.json`; C und C++: `compile_commands.json` oder `CMakeLists.txt`), sonst der nächste Ordner mit `.git` oder `.textida`, sonst der Ordner der Datei. Eine Markierung oberhalb eines Repositorys zählt nicht. Nach oben wird nur eine begrenzte Zahl von Ordnern durchsucht. Dokumente zweier Projekte erhalten zwei Serverprozesse, Dokumente eines Projekts teilen sich einen.
-- Noch nicht vorhanden: die Wahl des Projektordners von Hand und das Umbenennen in Dateien, die nicht UTF-8 sind.
+- Das Umbenennen ändert auch Dateien auf der Festplatte, die mit einer Byte-Order-Mark beginnen (UTF-8, UTF-16 oder UTF-32); eine Datei ohne Mark wird als UTF-8 gelesen, und eine Datei mit Bytes, die in ihrer Kodierung ungültig sind, wird abgelehnt.
+- Noch nicht vorhanden: die Wahl des Projektordners von Hand und das Umbenennen in Dateien mit anderer Kodierung ohne Byte-Order-Mark.
 
 ## [tools.lspPlugin] Sprachserver aus einem Plugin
 1. Ein Plugin nennt seine Server unter `languageServers` in `nkspad-plugin.json` und verlangt die Berechtigung `language.server`. Jeder Server hat eine `id`, `languages` (IDs der Sprachmodi, mindestens eine), optional `globs` (etwa `*.foo` oder `src/**/*.fx`), `command`, `args`, optional `initializationOptions` (ein Objekt, das der Server in `initialize` erhält) und `locate`.
@@ -1456,7 +1632,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 3. Bei der Installation des Plugins zeigt der Editor die Berechtigung und wartet auf Ihre Antwort. Ohne sie wird der Server nie gestartet.
 4. Die Befehle der Gruppe Sprachserver nutzen den Server für jedes Dokument, dessen Sprache genannt ist oder dessen Dateiname zu einem Muster passt. Ein Server aus einem Plugin hat Vorrang vor dem mit dem Editor gelieferten.
 - Pro Sprache, Projektordner und Servereinstellung (Programm, Argumente, Umgebung und `initializationOptions`) läuft ein Serverprozess, den alle offenen Dokumente dieses Projekts teilen. Ein Dokument, das nur über ein Muster passt, wird für die erste Sprache des Servers bedient.
-- Fehlt das Programm oder startet es nicht, nennt eine Meldung es einmal und die Bearbeitung geht weiter. Beendet es sich selbst, starten Sie einen beliebigen Befehl der Gruppe, dann startet es neu.
+- Fehlt das Programm oder startet es nicht, nennt eine Meldung es einmal und die Bearbeitung geht weiter. Beendet es sich selbst, startet der Editor es neu, wie im Thema Sprachserver beschrieben; hat er aufgegeben, starten Sie einen beliebigen Befehl der Gruppe.
 - Ein Server ohne offenes Dokument seines Projekts wird nach einer Zeit beendet und vom nächsten Befehl neu gestartet. Die Server anderer Projekte laufen weiter.
 - Fragt der Server nach Einstellungen (`workspace/configuration`), erhält er den Teil von `initializationOptions`, den der verlangte Abschnitt nennt: `a.b` ist das Objekt `b` in `a`, eine Anfrage ohne Abschnitt erhält das ganze Objekt. Alles andere wird mit `null` beantwortet.
 - Ein Manifest mit fehlerhaftem Eintrag wird als Ganzes abgelehnt, mit Begründung.
@@ -1465,7 +1641,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 commands: nks.edit.complete
 1. Drücken Sie Strg+J (Bearbeiten, Einfügen, Wort oder Clip vervollständigen). Die Liste bietet die Wörter an, die das Wort vor dem Cursor fortsetzen, danach die Clips, die zur Sprache des Dokuments passen.
 2. Wählen Sie einen Eintrag. Ein Wort ersetzt das Wort vor jedem Cursor; ein Clip wird wie im Thema Clips eingefügt und ersetzt dieses Wort. Es ist ein Schritt für Rückgängig.
-- Die Wörter stammen aus allen offenen Text-Tabs. Das Wort, das gerade getippt wird, wird nicht angeboten, und ein Wort wird nur angeboten, wenn es länger ist als das Getippte. Zuerst kommen Wörter des bearbeiteten Dokuments, dann die häufigeren.
+- Die Wörter stammen aus allen offenen Text-Tabs. Das Wort, das gerade getippt wird, wird nicht angeboten, und ein Wort wird nur angeboten, wenn es länger ist als das Getippte. Zuerst kommen Wörter des bearbeiteten Dokuments, darunter die dem Cursor nächsten (innerhalb einer begrenzten Zahl von Zeichen auf jeder Seite), dann die häufigeren.
 - Clips stammen aus der Bibliothek des Themas Clips. Ein Clip ohne Sprache passt zu jedem Dokument; ein Clip mit Sprache nur zu Dokumenten dieser Sprache.
 - Die Werte einer Geheimnisdatei (`.env`) werden nie angeboten, solange sie verborgen sind. Sie werden nur in der Datei selbst und nur angezeigt angeboten.
 - Die Liste hält eine begrenzte Zahl von Wörtern; Sie engen sie durch Tippen im Feld ein. Einträge eines laufenden Sprachservers kommen dazu, siehe das Thema Sprachserver.
@@ -1481,7 +1657,7 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 - Einrückung (4 Leerzeichen) und Schreibung der Schlüsselwörter (Großbuchstaben) sind vorerst fest; es sind noch keine Einstellungen.
 
 ## [edit.html] HTML: Entitäten und HTML Tidy
-commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags
+commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags, nks.edit.htmlInsertImage, nks.edit.htmlInsertLink
 1. Bearbeiten, Formatierung, In HTML-Entitäten umwandeln ersetzt in den Auswahlen (in der ganzen Datei, wenn nichts markiert ist) die Zeichen & < > " ' durch Entitäten. Aus HTML-Entitäten umwandeln liest benannte, dezimale und hexadezimale Entitäten zurück. Ein kodierter Text, zurückgewandelt, ergibt den ursprünglichen Text. Jedes ist ein Rückgängig-Schritt.
 2. Bearbeiten, Formatierung, Mit HTML Tidy formatieren schickt das HTML an das Programm HTML Tidy und zeigt das Ergebnis in der Änderungsvorschau. Die Meldungen von Tidy gehen ins Ausgabefenster.
 3. Tidy ist ein eigenes Programm. Der Editor sucht es am Pfad der Einstellung HTML-Tidy-Programm, im Ordner `tidy` neben dem Formatierer-Plugin, in `tools/tidy` des Programmordners und in den Ordnern von PATH. Wird es nicht gefunden, nennt die Meldung alle Orte.
@@ -1490,7 +1666,8 @@ commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.
 - In HTML-Entitäten umwandeln, auch Nicht-ASCII schreibt zusätzlich jedes Zeichen außerhalb von ASCII als numerische Entität (`&#233;`); die Rückwandlung ergibt wieder den Text.
 4. Tag-Werkzeuge (HTML-, XML- und PHP-Dateien): Bearbeiten, Formatierung, Offenes Tag schließen schreibt das End-Tag des nächsten Tags, das am Cursor noch offen ist. Zum Gegen-Tag springen setzt den Cursor auf den Partner des Tags am Cursor. Element auswählen wählt das Element um die Auswahl; wiederholt wählt es das nächste äußere. Tag entfernen löscht Start- und End-Tag des Elements am Cursor und behält den Inhalt. In Tag einschließen fragt nach einem Namen und umschließt jede Auswahl damit. Alle Tags entfernen löscht aus den Auswahlen alle Tags und Kommentare (aus der ganzen Datei, wenn nichts markiert ist).
 - Tags werden nach Verschachtelung gepaart. Kommentare und der Inhalt von `script` und `style` enthalten keine Tags. Die optionalen End-Tags von HTML (`li`, `p`) werden nicht ergänzt; ein solches Tag gilt also als offen.
-- Das Einfügen eines Bildes oder Links mit Größe gibt es noch nicht.
+5. Bearbeiten, Formatierung, Bild einfügen fragt nach einer Bilddatei und schreibt anstelle jeder Auswahl `<img src="…" width="…" height="…" alt="">`. Die Adresse ist relativ zum Dokument (eine Datei auf einem anderen Laufwerk oder ein nicht gespeichertes Dokument bekommt eine `file:///`-Adresse). Breite und Höhe werden aus dem Kopf von PNG-, GIF-, JPEG-, BMP- und WebP-Dateien gelesen; bei jeder anderen Datei, etwa SVG, hat das Tag keine Größe. Markierter Text in einer Zeile wird zum Alternativtext; ist nichts markiert, steht der Cursor im leeren alt.
+6. Link einfügen fragt nach einer Adresse und schreibt `<a href="…">` um jede Auswahl. Ist nichts markiert, zeigt der Link die Adresse oder, bei einer Bilddatei, das Bild mit Breite und Höhe. Eine Adresse, die der Pfad einer vorhandenen Datei ist, wird relativ zum Dokument geschrieben.
 
 ## [help.language] Hilfe zu einer Sprache
 commands: nks.help.languageHelp
@@ -1505,7 +1682,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Eine CSV- oder TSV-Datei kann als Tabelle angezeigt werden: eine Zeile der Datei je Tabellenzeile, ein Feld je Zelle. Es ist dasselbe Dokument wie in der Textansicht, mit demselben Rückgängig-Verlauf; nichts wird umgewandelt, und das Bearbeiten einer Zelle ändert nur die Bytes dieser Zelle.
 1. Strg+K und dann Strg+T (Menü Ansicht, Tabelle, Tabellenansicht umschalten) wechselt zwischen Tabelle und Text. Eine .tsv- oder .tab-Datei wird an Tabulatoren geteilt, jede andere an Kommas.
-2. Ansicht, Tabelle, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist. Solange Sie nichts wählen, wird das Trennzeichen aus den ersten Zeilen der Datei erkannt (bei unklarem Ergebnis entscheidet die Endung).
+2. Ansicht, Tabelle, Tabellentrennzeichen und Kopfzeile wählt Komma, Semikolon, Tabulator oder senkrechten Strich als Trennzeichen, ob Anführungszeichen Werte umschließen und ob die erste Zeile die Kopfzeile ist. Solange Sie nichts wählen, wird das Trennzeichen aus den ersten Zeilen der Datei erkannt (bei unklarem Ergebnis entscheidet die Endung). Eine Zelle in Anführungszeichen mit Zeilenumbrüchen gehört zu ihrer Zeile, und eine Zeile, die das Ende des untersuchten Teils einer langen Datei abschneidet, bleibt unberücksichtigt.
 - Eine große Datei öffnet sich sofort: Die Zeilen werden im Hintergrund gezählt, und der Bildlaufbereich wächst, während die Datei gelesen wird. Bis das Ende erreicht ist, zeigt die Statusleiste die Zeilenzahl mit einem Plus, etwa 12+.
 - Pfeiltasten, Tab, Bild auf und Bild ab, Pos1 und Ende (innerhalb der Zeile), Strg+Pos1 und Strg+Ende bewegen die aktuelle Zelle; Umschalt erweitert die Auswahl. Ein Klick auf eine Spaltenüberschrift wählt die Spalte, ein Klick auf eine Zeilennummer die Zeile.
 - Eine Zelle in Anführungszeichen kann Zeilenumbrüche enthalten; die Tabelle zeigt ihre erste Zeile und das Zeichen ↵.
@@ -1523,6 +1700,9 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 ## [table.copyAs] Zellen als Markdown, SQL, JSON oder HTML kopieren
 commands: nks.table.copyAs
 Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle, Tabelle kopieren als und dann eine Form. Die Zwischenablage enthält die markierten Spalten und Zeilen in dieser Form.
+1. Öffnen Sie eine CSV- oder TSV-Datei in der Tabellenansicht (Thema Tabellenansicht für CSV und TSV) und markieren Sie die Zellen.
+2. Wählen Sie Ansicht, Tabelle, Tabelle kopieren als und dann Markdown-Tabelle, SQL INSERT, JSON oder HTML-Tabelle. SQL INSERT fragt zuerst nach dem Tabellennamen.
+3. Die Statusleiste nennt die Form, zum Beispiel Die markierten Zellen wurden als Markdown-Tabelle kopiert. Fügen Sie sie dort ein, wo Sie sie brauchen.
 - Markdown-Tabelle: eine Tabelle mit senkrechten Strichen, mit Kopfzeile (ohne Kopfzeile mit den Spaltenbuchstaben A, B, ...). Sonderzeichen wie der senkrechte Strich, der Backslash, Sternchen, Unterstriche und spitze Klammern erhalten einen Backslash, und ein Zeilenumbruch in einer Zelle wird zu `<br>`.
 - SQL INSERT: eine Anweisung pro Zeile, die Werte als Text in einfachen Anführungszeichen (ein Anführungszeichen wird verdoppelt). Die Spaltennamen stammen aus der Kopfzeile. Das Programm fragt nach dem Tabellennamen und schlägt den Dateinamen vor.
 - Die Quotierung richtet sich nach dem SQL-Dialekt: `sql_dialect` in einer `.editorconfig` des Ordners, sonst die Einstellung Standard-SQL-Dialekt (Thema SQL: Dialekt und Formatierung). MySQL setzt Namen in Backticks und verdoppelt einen Backslash im Wert; T-SQL setzt Namen in eckige Klammern und schreibt Werte als N'...'; die übrigen Dialekte setzen Namen in doppelte Anführungszeichen und lassen einen Backslash, wie er ist.
@@ -1531,6 +1711,8 @@ Markieren Sie Zellen in der Tabellenansicht und wählen Sie Ansicht, Tabelle, Ta
 - Ein verborgener Wert einer .env-Datei wird als Sterne kopiert, nicht als sein Text. Kopieren und Ausschneiden mit Strg+C und Strg+X setzen ebenfalls den Platzhalter ein, und ein Ausschneiden, das einen berührt, löscht nichts.
 - Ändert sich die Datei während des Befehls, wird nichts kopiert, und ein Hinweis fordert zum erneuten Ausführen auf.
 - Eine eigene Form ist ein Konverter eines Datenplugins mit "table": true (Thema Text umwandeln). Sie erscheint unter den eingebauten Formen. Sie erhält die markierten Zellen so, wie Kopieren sie schreibt: durch Tabulatoren getrennt, eine Tabellenzeile pro Textzeile, die Kopfzeile, wenn sie markiert ist, und ein Wert mit Tabulator, Anführungszeichen oder Zeilenumbruch in doppelten Anführungszeichen. Das Ergebnis kommt in die Zwischenablage; schlägt die Umwandlung fehl, bleibt die Zwischenablage unverändert.
+- Die Tabelle ist über dem Limit: Die Zwischenablage nimmt höchstens N Zeichen einer Form auf. Es wurde nichts kopiert und die Zwischenablage wurde nicht geändert. Die Grenze liegt bei 1 Mi Zeichen (ein vorläufiger Wert). Markieren Sie weniger Zeilen.
+- Der Konverter Titel lief nicht: Grund. Die Zwischenablage wurde nicht geändert. Ihre eigene Form, der Konverter eines Datenplugins, ist fehlgeschlagen. Korrigieren Sie den Konverter oder nehmen Sie eine eingebaute Form.
 
 ## [table.region] Ausgewählten Text als Tabelle bearbeiten
 commands: nks.table.editRegion
@@ -1587,7 +1769,7 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
 
 ## [tools.ide] Die /ide-Brücke für Claude Code
-commands: nks.tools.ideBridge, nks.tools.ideDisconnect
+commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mit dem Befehl /ide mit einem Fenster von Textida. Der Agent weiß dann, wo Ihre Auswahl liegt und welche Datei offen ist, und Änderungen, die er an einem freigegebenen Tab vornehmen will, erscheinen in der Änderungsprüfung. Er sieht nur Tabs, die Sie freigeben, und Textida übernimmt nur, was Sie bestätigen.
 1. Schalten Sie zuerst den MCP-Server ein (Werkzeuge, MCP-Server) und geben Sie einen Tab frei (Werkzeuge, Diesen Tab mit MCP teilen). Die Brücke nutzt dieselben freigegebenen Tabs.
 2. Wählen Sie Werkzeuge, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token und den Ordnern des Fensters nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
@@ -1596,8 +1778,10 @@ Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mi
 - Jedes Fenster hat eine eigene Brücke mit eigenem Port und Token, ebenso jede Instanz von Textida. Ein Agent, der mit einem Fenster verbunden ist, sieht nur die in diesem Fenster freigegebenen Tabs. Eine Sperrdatei, die eine abgestürzte Instanz hinterlassen hat, wird beim Start der nächsten Brücke gelöscht.
 - Der Agent erfährt Auswahl und Pfad eines freigegebenen Tabs bei jeder Änderung der Auswahl und beim Wechsel zu dem Tab. Ein Tab, der nicht freigegeben ist oder noch keine Datei hat, wird nicht gemeldet. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
 - Eine Änderung, die Claude Code für einen freigegebenen Tab vorschlägt, öffnet sich in der Änderungsprüfung (Tab Suchergebnisse). Wenden Sie alles an, lautet die Antwort FILE_SAVED, lehnen Sie ab, DIFF_REJECTED; wenden Sie nur einige Abschnitte an, antwortet die Brücke mit einem Fehler, damit der Agent die Datei neu liest. Textida übernimmt im Tab, was Sie bestätigen, und speichert die Datei nicht. Eine Datei, die im Fenster nicht offen oder nicht freigegeben ist, und eine .env-Datei werden abgelehnt.
-- getDiagnostics liefert die Fehler und Warnungen der freigegebenen Tabs.
-- Nicht verifiziert: Claude Code veröffentlicht keine Spezifikation dieses Protokolls. Die Brücke folgt der offiziellen Seite zum eingebauten IDE-Server und einer Beschreibung der Community (coder/claudecode.nvim); bisher ist keine Claude-Code-Version als funktionierend bestätigt. Nicht umgesetzt: Dateien vom Agenten öffnen, die Liste der offenen Tabs, Speichern über die Brücke, Notebook-Zellen ausführen und @-Erwähnungen.
+- getDiagnostics liefert die Fehler und Warnungen der freigegebenen Tabs. getOpenEditors listet die freigegebenen Tabs mit Name, Sprache und dem Hinweis auf ungespeicherte Änderungen; checkDocumentDirty antwortet dasselbe für eine Datei; getWorkspaceFolders liefert die Ordner des Fensters, die aus der Sperrdatei.
+- openFile öffnet eine Datei für Sie in einem Tab und kann darin Text auswählen. Es geht nur für eine Datei in einem Ordner des Fensters oder in einem freigegebenen Tab, nie für einen Netzwerkpfad oder einen relativen Pfad. Eine Datei, die es öffnet, wird dem Agenten nicht freigegeben: Der Agent erhält die Antwort „Opened file“ und nichts über den Inhalt. Dem Agenten wird nur ein freigegebener Tab beschrieben (Sprache, Zeilenzahl), und ein genannter Text wird in einer .env-Datei nicht gesucht.
+- Mit Werkzeuge, MCP, /ide-Brücke: Auswahl als Kontext an den Agenten senden geben Sie dem Agenten die Datei des aktiven freigegebenen Tabs und die Zeilen der Auswahl (eine @-Erwähnung). Ohne Auswahl geht nur die Datei. Der Agent bekommt den Pfad und die Zeilennummern, nicht den Text.
+- Nicht verifiziert: Claude Code veröffentlicht keine Spezifikation dieses Protokolls. Die Brücke folgt der offiziellen Seite zum eingebauten IDE-Server und einer Beschreibung der Community (coder/claudecode.nvim); bisher ist keine Claude-Code-Version als funktionierend bestätigt. Nicht umgesetzt: Speichern über die Brücke (die Brücke schreibt nie eine Datei) und Notebook-Zellen ausführen.
 
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
@@ -1611,6 +1795,37 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 - Jeder Agent steht als „nicht überprüft“ in der Liste: Noch kein Lauf mit dem echten Programm hat die Testszenarien bestanden. Ein Zug, in dem der Agent zu lange weder etwas sagt noch fragt, endet als Zeitüberschreitung. Die Zeitlimits und die Größe einer an den Agenten übergebenen Datei sind vorläufig.
 - Ein Plugin kann im selben Bereich eine eigene Unterhaltung führen (Berechtigung agent.panel). Der Bereich lässt sich mit der Tastatur bedienen: Er öffnet sich mit dem Cursor im Nachrichtenfeld, Enter sendet, Tab geht durch Senden, Zug abbrechen, Agent stoppen und Schließen, Leertaste oder Enter drückt die Schaltfläche, und Esc schließt den Bereich und kehrt zum Editor zurück. Agent-Zug abbrechen und Agent stoppen sind auch Befehle im Menü und in der Palette. Ein Screenreader bekommt einen Namen für den Bereich, die Unterhaltung, das Nachrichtenfeld, den Status und jede Schaltfläche, und eine Änderung des Status (startet, bereit, arbeitet, beendet) wird angesagt. Geprüft am Zugänglichkeitsbaum des Programms, noch nicht mit einem echten Screenreader.
 
+## [tools.hooks] Editor für Agent-Hooks
+commands: nks.agent.hooks
+Bearbeitet die Hooks von Claude Code (settings.json, settings.local.json, hooks.json eines Plugins) und von Codex (hooks.json) in einem Formular. Er führt nie einen Hook aus: Ein Hook ist ein Befehl, und hier wird kein Befehl gestartet.
+1. Öffnen Sie die Einstellungsdatei in einem Tab und wählen Sie Extras, Agent, Agent-Hooks bearbeiten... Der Baum zeigt die Ereignisse, die Filtergruppen und die Handler der Datei. Wählen Sie einen Handler, um ihn zu ändern, oder eine Gruppe, um einen Handler hinzuzufügen.
+2. Füllen Sie das Formular aus: Ereignis, Filter, Typ des Handlers und sein Befehl (oder URL, Prompt, MCP-Server und Werkzeug), auf Wunsch auch Zeitlimit, Statusmeldung, Bedingung (if) und was geschieht, wenn der Hook fehlschlägt. In Liste übernehmen ändert die Liste nur in diesem Fenster.
+3. Probelauf zeigt, was der Hook über die Standardeingabe erhielte (ein Muster aus der öffentlichen Dokumentation des Programms), ob der Filter für den eingegebenen Wert greift und was jeder Exit-Code bei diesem Ereignis bewirkt. Bei Claude Code ist Exit-Code 1 ein nicht blockierender Fehler und 2 blockiert, wo das Ereignis blockiert werden kann. Bei Codex wird nur angezeigt, was seine Dokumentation sagt.
+4. Änderungen vorschlagen sendet den neuen Text an die Änderungsprüfung (der Tab Suchergebnisse). Sie sehen die Änderungen als Abschnitte und übernehmen sie in einem Rückgängig-Schritt; danach speichern Sie die Datei wie gewohnt. Der Editor lehnt den Vorschlag ab, solange die Liste Fehler hat, und wenn sich der Tab nach dem Öffnen des Fensters geändert hat.
+- Befunde: Die Datei wird mit einem JSON-Schema geprüft, das aus der öffentlichen Dokumentation des Programms stammt. Ein Ereignis, das es nicht gibt, ein fehlender Befehl oder ein Feld vom falschen Typ ist ein Fehler. Ein Feld, das die Dokumentation nicht nennt, ist eine Warnung, ebenso eine Einstellung, die laut Dokumentation keine Wirkung hat (ein Filter bei einem Ereignis ohne Filter, eine Bedingung bei einem Ereignis, das kein Werkzeug-Ereignis ist).
+- Die Datei ist striktes JSON: Ein Kommentar darin ist ein Syntaxfehler. Geändert werden nur der Eintrag hooks und die Stellen, die Sie bearbeiten; der Rest der Datei bleibt Byte für Byte erhalten.
+- Codex führt Hooks auch in [hooks]-Tabellen von config.toml; diese Tabellen ändert der Editor nicht. Die Tabellen der Exit-Codes stammen aus der Dokumentation, die an dem im Probelauf genannten Tag gelesen wurde, und gelten nicht automatisch für andere Versionen oder das andere Programm.
+
+## [tools.transcript] Protokolle von Agenten
+commands: nks.agent.transcript
+Öffnet das Protokoll einer Agentensitzung (eine .jsonl-Datei, bei Claude Code unter ~/.claude/projects, bei Codex unter ~/.codex/sessions) als Liste von Zügen. Es ist nur lesbar: In die Datei wird nie geschrieben, und nichts wird irgendwohin gesendet.
+1. Wählen Sie Extras, Agent, Agenten-Protokoll öffnen... und die Datei aus, oder öffnen Sie die .jsonl-Datei zuerst in einem Tab und führen Sie den Befehl aus. Das Fenster listet die Züge auf, während die Datei indiziert wird; eine Datei von vielen Gigabyte öffnet sich sofort, und die Liste wächst mit dem Index.
+2. Wählen Sie einen Zug, um die Eingabe, die Antworten, die Werkzeugaufrufe mit den geänderten Zeilen (rot und grün) und die Ergebnisse zu sehen. Die Kopfzeile zeigt die Zeilen des Zugs und eine Schätzung seiner Tokens.
+3. Die Suche durchsucht das ganze Protokoll, auch während es noch indiziert wird, und listet die gefundenen Zeilen auf. Wählen Sie einen Treffer, um zu seinem Zug und seiner Zeile zu springen. Eine Zeile, die zu lang zum vollständigen Lesen ist, wird nicht durchsucht; die Statuszeile nennt, wie viele übersprungen wurden.
+4. Dateien in diesem Zug listet die Dateien auf, die der Agent gelesen, geschrieben oder bearbeitet hat; Datei öffnen öffnet eine davon im Editor. Rohzeile öffnen öffnet die Zeile hinter der gewählten Zeile als Dokument, das sich nicht speichern lässt.
+- Datensätze, die keine Benutzernachricht, Antwort oder Werkzeugaufruf sind, und Blöcke, die der Leser nicht kennt, werden als rohes JSON angezeigt. Eine Claude-Code-Datei wird nur nach dem gelesen, was die öffentliche Dokumentation der Messages API und des Agent SDK definiert, weil Claude Code angibt, dass das Format seiner Datei intern ist und sich zwischen Versionen ändert. Auch das Format einer Codex-Datei hat keine Textdokumentation; ihre Zeilen werden nach den Open-Source-Protokolldefinitionen von Codex gelesen, und nur die Zeilen vom Typ response_item: Nachrichten (Blöcke input_text und output_text), Zusammenfassungen des Denkens, Funktionsaufrufe, Shell-Aufrufe und Aufrufe eigener Werkzeuge wie apply_patch sowie deren Ausgaben. Ereignisse, Sitzungsdaten und Zugkontexte einer Codex-Datei werden als rohes JSON angezeigt. Ein Zug beginnt bei einer Benutzernachricht, sodass die Anweisungen, die Codex selbst als Benutzernachrichten hinzufügt, eigene Züge bilden, und die Dateien eines Zugs sind die, die die Markierungen eines apply_patch-Aufrufs nennen.
+- Werte von .env-Dateien sind verborgen (Thema Verborgene Werte): in den Zeilen, in Rohzeilen, in den Titeln der Züge und in den Treffern. Der Editor lernt sie aus den geheimen Dateien der offenen Tabs und des geöffneten Ordners und aus dem Protokoll selbst, wenn der Agent eine solche Datei liest. Ein Wert, den das Protokoll vor dem ersten Lesen zeigt, lässt sich in dem schon Gezeigten nicht mehr verbergen. In einer Codex-Datei gilt ein Aufruf als Lesen oder Schreiben einer geheimen Datei, wenn irgendein Text seiner Argumente eine nennt, und ein Wert wird auch in den Argumenten eines späteren Aufrufs verborgen, wo JSON in JSON geschrieben ist.
+- Eine Zeile über dem Limit wird nach ihrem Anfang eingeordnet und gekürzt angezeigt. Der Index hält nie mehr als sein Speicherlimit: Eine Zeile, die nicht mehr hineinpasst, wird nicht eingetragen, und die Statuszeile sagt, dass die Liste abgeschnitten ist. Die Größenlimits und der Speicher des Index sind vorläufig.
+
+## [tools.tokens] Token-Schätzung
+commands: nks.agent.tokens
+Zeigt, wie groß ein Text in Tokens ist: bei einer Auswahl, dem Dokument oder einer Kopie für einen KI-Assistenten. Die Zahl ist immer eine Schätzung (Zeichen ≈), auf diesem Rechner berechnet; kein Text wird irgendwohin gesendet.
+1. Solange etwas ausgewählt ist, zeigt die Statusleiste die Schätzung, zum Beispiel „≈ 1.240 Tokens“. Ein Klick wählt die Regel: allgemein 4 Zeichen pro Token oder die veröffentlichte Regel von OpenAI, Gemini oder Claude (vor und nach Opus 4.7).
+2. Extras, Agent, Tokens schätzen... zeigt die Auswahl und das Dokument mit der Regel und ihrer Quelle. Im seitenweisen Modus wird nur eine Auswahl gezählt.
+3. Als KI-Kontext kopieren zeigt in der Vorschau die Schätzung für den Markdown- und den XML-Text.
+- Die Regeln sind Faustregeln für englischen Text, die die Hersteller veröffentlichen, nicht die Tokenizer der Modelle. Andere Sprachen und Code können stark abweichen. Eine genaue Zählung braucht den Tokenizer des Modells oder den Dienst des Herstellers; dieser Editor verlangt keins von beiden.
+- Die Regel gilt, bis das Fenster geschlossen wird.
+
 ## [tools.mcpAgents] MCP-Server der Agenten
 commands: nks.tools.mcpServers
 Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Textida liest Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) und OpenCode (opencode.json, opencode.jsonc). Projektdateien werden im Ordner der aktiven Datei und in den übergeordneten Ordnern gesucht. Textida liest diese Dateien nur und schreibt nie hinein.
@@ -1620,7 +1835,7 @@ Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Text
 4. Mit Verbinden benutzen Sie den Server. Eine Liste zeigt seine Tools und Ressourcen. Eine Ressource öffnet sich in einem neuen, schreibgeschützten Tab. Bei einem Tool werden die Argumente als JSON-Objekt abgefragt (beim Tippen wird das Schema des Tools gezeigt), dann zeigt eine eigene Frage den Server, das Tool, die Argumente und ob der Server angibt, dass das Tool nur liest. Nichts wird gesendet, bevor Sie Aufrufen drücken; die Standardschaltfläche ist Abbrechen. Die Antwort öffnet sich in einem neuen, schreibgeschützten Tab, und die Ausgabe Aufgaben vermerkt, dass das Tool aufgerufen wurde und wie viele Zeichen die Argumente hatten, nicht die Argumente selbst.
 5. Mit Eintrag für einen anderen Agenten umwandeln erscheint der Eintrag im Format dieses Agenten in einem neuen Tab. Der Ausschnitt wird zuerst gegen dieses Format geprüft. Werte von Variablen und Headern sind durch *** ersetzt; ergänzen Sie sie, bevor Sie den Ausschnitt in die Datei dieses Agenten einfügen.
 - ${NAME} in einem Befehl, Argument, einer Variable, Adresse oder einem Header wird aus der Umgebung von Textida ersetzt, ${NAME:-text} liefert einen Standardwert. Ein dort nicht gesetzter Name wird in der Windows-Anmeldeinformationsverwaltung unter textida:mcp:env:NAME gesucht. Ein Name, den es auch dort nicht gibt, wird abgefragt (die Eingabe ist verborgen) und nur in der Anmeldeinformationsverwaltung abgelegt, nirgends sonst; ist der Anmeldeinformationsspeicher nicht verfügbar, gilt der Wert nur für diese Verbindung. Wer die Frage abbricht, startet nichts.
-- Ein Server mit Adresse bekommt Schlüssel in seinen Headern, deshalb muss die Adresse mit https:// beginnen, sofern sie nicht auf diesem Computer liegt. Textida spricht Streamable HTTP (MCP 2025-11-25); der ältere Transport mit getrenntem Ereigniskanal (Typ sse aus MCP 2024-11-05) wird nicht unterstützt. Der Netzwerk-Proxy des Programms gilt. Ein Schlüssel, den der Server ablehnt (HTTP 401 oder 403), wird aus der Anmeldeinformationsverwaltung verworfen und einmal neu abgefragt; ein Schlüssel aus der Umgebung oder direkt in der Konfigurationsdatei wird von Textida nicht geändert, und die Meldung sagt das. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, sodass kein cmd.exe zwischen Editor und Server steht. Jede andere Batchdatei wird über cmd.exe gestartet.
+- Ein Server mit Adresse bekommt Schlüssel in seinen Headern, deshalb muss die Adresse mit https:// beginnen, sofern sie nicht auf diesem Computer liegt. Textida spricht Streamable HTTP (MCP 2025-11-25). Ein Eintrag vom Typ sse wird über den älteren Transport mit getrenntem Ereigniskanal verbunden (MCP 2024-11-05): Textida öffnet die Adresse als Ereignisstrom und sendet seine Nachrichten an die Adresse, die der Server dort nennt und die auf demselben Host wie der Strom liegen muss. Eine Adresse ohne Typ, deren Server die erste Nachricht mit einem HTTP-4xx-Status außer 401 und 403 ablehnt, wird ebenso versucht. Der Netzwerk-Proxy des Programms gilt. Ein Schlüssel, den der Server ablehnt (HTTP 401 oder 403), wird aus der Anmeldeinformationsverwaltung verworfen und einmal neu abgefragt; ein Schlüssel aus der Umgebung oder direkt in der Konfigurationsdatei wird von Textida nicht geändert, und die Meldung sagt das. npx und npm werden als node mit dem Skript des Node.js-Shims gestartet, sodass kein cmd.exe zwischen Editor und Server steht. Jede andere Batchdatei wird über cmd.exe gestartet.
 - Grenzen (vorläufig): Eine Antwort oder Ressource über 262144 Zeichen wird abgeschnitten, und die Statuszeile nennt die ursprüngliche Länge. Eine Liste, ein Aufruf oder ein Lesevorgang, der länger als 120 Sekunden dauert, endet mit einer Meldung, und der Server wird aufgefordert, die Anfrage zu stoppen. Ein Programm, das endet oder gestoppt wird, wird mit Exitcode und den letzten Zeilen der Fehlerausgabe gemeldet, und die Liste schließt sich.
 - Geheimnisse sind in der Liste, im Dialog, in der Ausgabe und in den Ausschnitten verborgen, auch wenn eines in einem Argument oder in der Fehlerausgabe des Programms vorkommt. Werte unter 4 Zeichen werden im Text nicht gesucht.
 
@@ -1651,7 +1866,7 @@ Nur Windows, in der installierten Textida (der mit Setup.ps1 angelegte Ordner). 
 - Es gibt keine vorherige Version, zu der man zurückkehren könnte. Eine vorherige Version gibt es nur nach einem Update.
 
 ## [review.external] Änderungen von außen prüfen
-commands: nks.review.open, nks.review.next, nks.review.previous
+commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previous
 Ändert ein anderes Programm (Skript, Assistent, Build-Werkzeug) die Datei eines Tabs ohne ungespeicherte Änderungen, bietet die Leiste Änderungen prüfen an.
 1. Wählen Sie Änderungen prüfen. Der Tab übernimmt den neuen Inhalt, der frühere Inhalt bleibt im lokalen Verlauf und wird während der Prüfung nicht gelöscht, und der Tab Suchergebnisse listet die Änderungen zeilenweise auf.
 2. Haken Sie die Änderungen an, die bleiben sollen. Nicht angehakte, oder die ganze Datei bei nicht angehaktem Feld, gehen mit Anwenden auf den früheren Inhalt zurück.
@@ -1661,3 +1876,6 @@ commands: nks.review.open, nks.review.next, nks.review.previous
 - Tippen Sie während der Prüfung im Tab, werden die Änderungen aus dem neuen Text erneut angezeigt.
 - Dateien mit geheimen Werten (.env) und Dateien mit ungespeicherten Änderungen behalten die ältere Leiste: Neu laden, Meine behalten, Vergleichen.
 - Mit Änderungen von außen ohne Prüfung behalten in den Einstellungen übernimmt der Tab den neuen Inhalt sofort. Standardmäßig ist es aus.
+- Auch Dateien des geöffneten Ordners, die kein Tab zeigt, werden beobachtet. Ändert ein anderes Programm eine solche Datei und hat der lokale Verlauf den früheren Inhalt (die Datei wurde hier einmal geöffnet oder gespeichert), wird dieser Inhalt als Basis behalten und die Datei wartet auf Prüfung. Datei und Änderungen von außen im Ordner prüfen listet die wartenden Dateien auf; die gewählte öffnet sich mit Marke und Änderungen nach Abschnitten, wie oben. Die wartenden Dateien überstehen einen Neustart.
+- Die Beobachtung lässt .git, .codegraph, was die Dateien .gitignore und .ignore des Ordners ignorieren (ein ignorierter Ordner nimmt seinen Inhalt mit) und die Protokolle von Agenten aus (einen Ordner projects unter .claude* und einen Ordner sessions unter .codex*). Ausgelassen werden auch Dateien mit geheimen Werten (.env), für einen Tab zu große Dateien, Binärdateien, Dateien, deren neuen Inhalt der Verlauf schon kennt, von einem anderen Programm erzeugte Dateien (es gibt keinen früheren Inhalt) und Dateien, die der Editor selbst geschrieben hat, einige Sekunden nach In Dateien ersetzen oder nach einem Stapel von Kodierungen.
+- Es warten höchstens 200 Dateien gleichzeitig, und ein Blick erfasst höchstens 500 Dateien; die Statuszeile sagt es, wenn eine Grenze erreicht ist. Diese Grenzen, die halbe Sekunde vor dem Ansehen einer geänderten Datei und die paar Sekunden nach eigenen Schreibvorgängen des Editors sind keine entschiedenen Werte.

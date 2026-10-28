@@ -12,7 +12,7 @@ public sealed partial class Document
     {
         public ReadOnlyMemory<byte> Read()
         {
-            if (Memory is not null) return Memory;
+            if (Memory is not null) return new ReadOnlyMemory<byte>(Memory, (int)At, Length);
             var bytes = new byte[Length];
             File!.ReadExactly(At, bytes);
             return bytes;
@@ -42,6 +42,39 @@ public sealed partial class Document
     }
 
     private AppliedEdit Applied(long offset, byte[] removed, byte[] inserted) => new(offset, Keep(removed), Keep(inserted));
+
+    /// <summary>Below this many inserted bytes the many edits of one step keep them in one array (and never on the large object heap).</summary>
+    private const int SharedInsertLimit = 60 * 1024;
+
+    /// <summary>
+    /// The undo record of the edits just made. A step of many small edits (typing at a thousand carets) keeps the inserted bytes of all of them in one
+    /// array instead of one array per edit: a thousand more objects for every keystroke made each collection of the heap slower.
+    /// </summary>
+    private AppliedEdit[] AppliedEdits(List<Pending> work, byte[][] removed)
+    {
+        var applied = new AppliedEdit[work.Count];
+        long total = 0;
+        foreach (var w in work) total += w.Insert.Length;
+        byte[]? shared = work.Count >= 16 && total <= SharedInsertLimit && _undoHeld + total <= _backend.UndoMemoryBudget ? new byte[total] : null;
+        int at = 0;
+        for (int k = 0; k < applied.Length; k++)
+        {
+            var w = work[k];
+            var kept = Keep(removed[k]);
+            UndoBytes inserted;
+            if (shared is not null && !w.Insert.IsEmpty)
+            {
+                var slice = shared.AsMemory(at, w.Insert.Length);
+                w.Insert.CopyTo(slice);
+                inserted = new(shared, null, at, slice.Length, HasLineBreakByte(slice.Span));
+                _undoHeld += slice.Length;
+                at += slice.Length;
+            }
+            else inserted = Keep(w.Insert.IsEmpty ? [] : w.Insert.ToArray());
+            applied[k] = new(w.Start, kept, inserted);
+        }
+        return applied;
+    }
     private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
@@ -73,9 +106,45 @@ public sealed partial class Document
 
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
-    /// <summary>Number of undo steps; a journal uses it to tell a new undo step from an edit merged into the previous one.</summary>
-    public int UndoDepth => _undo.Count;
+    /// <summary>
+    /// Number of undo steps, counting the ones <see cref="UndoLimit"/> dropped; a journal uses it to tell a new undo step from an edit merged into the previous one,
+    /// so a step that pushes the oldest one out still counts as a new step.
+    /// </summary>
+    public int UndoDepth => _undo.Count + _undoTrimmed;
     public int RedoDepth => _redo.Count;
+
+    private int _undoLimit, _undoTrimmed;
+
+    /// <summary>
+    /// Most undo steps the document keeps; 0 keeps all of them. Past the limit the oldest steps are dropped, and a document whose saved state lies beyond them stays modified
+    /// until it is saved again, so closing it still asks. Lowering the limit drops the steps at once.
+    /// </summary>
+    public int UndoLimit
+    {
+        get => _undoLimit;
+        set
+        {
+            _undoLimit = Math.Max(0, value);
+            TrimUndo();
+        }
+    }
+
+    private void TrimUndo()
+    {
+        int excess = _undoLimit > 0 ? _undo.Count - _undoLimit : 0;
+        if (excess <= 0) return;
+        var dropped = _undo.GetRange(0, excess);
+        // the saved state is the stack as it was, or the empty one; either way undo cannot reach it any more
+        if (_saved is null || dropped.Contains(_saved)) _savedUnreachable = true;
+        // a save under way writes the stack as it was (its newest step, or the empty stack): dropping that step, or any step on top of the empty stack, loses its state
+        if (_saving && (_joinBarrier is null || dropped.Contains(_joinBarrier))) _barrierLost = true;
+        foreach (var entry in dropped)
+            foreach (var step in entry.Steps)
+                foreach (var edit in step.Edits)
+                    _undoHeld -= (edit.Removed.Memory?.Length ?? 0) + (edit.Inserted.Memory?.Length ?? 0);
+        _undo.RemoveRange(0, excess);
+        _undoTrimmed += excess;
+    }
 
     /// <summary>
     /// True when <see cref="Undo"/> would do nothing now because a save runs. A save that keeps edits (<see cref="EditsDuringSave"/>) lets undo move the
@@ -138,7 +207,7 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
+        var step = new Step(AppliedEdits(work, removed!), options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -266,15 +335,16 @@ public sealed partial class Document
 
     private void Commit(ChangeKind kind, string? source, List<Pending> work, Step? step, string? coalesceKey)
     {
-        var spans = work.Select(w => new ChangeSet.Span(w.Start, w.Deleted, w.Insert.Length)).ToArray();
+        var spans = new ChangeSet.Span[work.Count];
+        for (int i = 0; i < spans.Length; i++) spans[i] = new ChangeSet.Span(work[i].Start, work[i].Deleted, work[i].Insert.Length);
         Commit(kind, source, spans, step, coalesceKey);
     }
 
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => e.Removed.HasLineBreak || e.Inserted.HasLineBreak) };
-        if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || HasLineBreak(step.Edits) };
+        if (StartsInBom(spans)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
         long tAnchors = TypingTrace.Begin();
@@ -282,7 +352,7 @@ public sealed partial class Document
         TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
         long tChanged = TypingTrace.Begin();
-        var args = new DocumentChangedEventArgs(change);
+        var args = new DocumentChangedEventArgs(change) { Step = step };
         if (TypingTrace.Enabled && Changed is { } changed)
             foreach (var handler in changed.GetInvocationList())
             {
@@ -294,7 +364,30 @@ public sealed partial class Document
         TypingTrace.End("doc.changedEvent", tChanged);
     }
 
-    private static bool HasLineBreakByte(byte[] bytes) => bytes.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0;
+    /// <summary>The bytes the edit <paramref name="index"/> of a change inserted, as the undo step keeps them (never to be changed); null when the step does not hold them in memory.</summary>
+    internal bool TryGetInserted(DocumentChangedEventArgs e, int index, out ReadOnlyMemory<byte> bytes)
+    {
+        bytes = default;
+        if (e.Step is not Step { Fill: null } step || step.Edits.Length != e.Change.Edits.Count || step.Edits[index].Inserted is not { Memory: not null } kept || kept.Length != e.Change.Edits[index].Inserted) return false;
+        bytes = kept.Read();
+        return true;
+    }
+
+    private static bool HasLineBreak(AppliedEdit[] edits)
+    {
+        foreach (var e in edits)
+            if (e.Removed.HasLineBreak || e.Inserted.HasLineBreak) return true;
+        return false;
+    }
+
+    private static bool StartsInBom(ChangeSet.Span[] spans)
+    {
+        foreach (var s in spans)
+            if (s.Start < 4) return true;
+        return false;
+    }
+
+    private static bool HasLineBreakByte(ReadOnlySpan<byte> bytes) => bytes.IndexOfAny((byte)10, (byte)13) >= 0;
 
     private const int TypingRunBytes = 16;
     private enum TypingKind { None, Insert, Remove }
@@ -459,6 +552,7 @@ public sealed partial class Document
             entry.Steps.Add(step);
             _undo.Add(entry);
             if (_groupDepth > 0) _groupEntry = entry;
+            TrimUndo();
         }
     }
 
@@ -508,6 +602,7 @@ public sealed partial class Document
         var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
         _undo.Add(entry);
+        TrimUndo(); // the limit may have been lowered while the step waited
         foreach (var step in entry.Steps)
         {
             if (step.Fill is { } fill)
@@ -541,9 +636,9 @@ public sealed partial class Document
     /// <summary>Undo steps that were there at the last save (all of them when nothing changed since).</summary>
     internal int SavedUndoDepth =>
         _savedUnreachable ? int.MaxValue
-        : _saved is null ? 0
-        : _undo.IndexOf(_saved) is var at and >= 0 ? at + 1
-        : _undo.Count + _redo.Count - _redo.IndexOf(_saved);
+        : _saved is null ? _undoTrimmed
+        : _undo.IndexOf(_saved) is var at and >= 0 ? at + 1 + _undoTrimmed
+        : _undo.Count + _undoTrimmed + _redo.Count - _redo.IndexOf(_saved);
 
     /// <summary>Revision of the last save; the revision the document was created or opened at (0) until then.</summary>
     public long SavedRevision { get; private set; }

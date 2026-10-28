@@ -1,0 +1,261 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claude Code hooks",
+  "description": "The hooks of a Claude Code settings file or plugin hooks.json, as the public documentation (https://code.claude.com/docs/en/hooks.md) describes them. Other keys of a settings file are not checked here.",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "hooks": {
+      "$ref": "#/definitions/hooks"
+    }
+  },
+  "definitions": {
+    "hooks": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "SessionStart",
+          "Setup",
+          "UserPromptSubmit",
+          "UserPromptExpansion",
+          "MessageDisplay",
+          "PreToolUse",
+          "PermissionRequest",
+          "PermissionDenied",
+          "PostToolUse",
+          "PostToolUseFailure",
+          "PostToolBatch",
+          "Notification",
+          "SubagentStart",
+          "SubagentStop",
+          "TaskCreated",
+          "TaskCompleted",
+          "Stop",
+          "StopFailure",
+          "TeammateIdle",
+          "InstructionsLoaded",
+          "ConfigChange",
+          "CwdChanged",
+          "DirectoryAdded",
+          "FileChanged",
+          "WorktreeCreate",
+          "WorktreeRemove",
+          "PreCompact",
+          "PostCompact",
+          "PreModelSwitch",
+          "PostModelSwitch",
+          "Elicitation",
+          "ElicitationResult",
+          "SessionEnd"
+        ]
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/definitions/group"
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "hooks"
+      ],
+      "properties": {
+        "matcher": {
+          "type": "string"
+        },
+        "hooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/handler"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "handler": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "command",
+            "http",
+            "mcp_tool",
+            "prompt",
+            "agent"
+          ]
+        },
+        "if": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "statusMessage": {
+          "type": "string"
+        },
+        "once": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "async": {
+          "type": "boolean"
+        },
+        "asyncRewake": {
+          "type": "boolean"
+        },
+        "shell": {
+          "enum": [
+            "bash",
+            "powershell"
+          ]
+        },
+        "onFailure": {
+          "enum": [
+            "continue",
+            "block"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "allowedEnvVars": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "server": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input": {
+          "type": "object"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "command"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "command"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "http"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "mcp_tool"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "server",
+              "tool"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "prompt"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "prompt"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "agent"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

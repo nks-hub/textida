@@ -3,6 +3,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Snippets;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Manifest;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
@@ -78,7 +79,7 @@ internal sealed partial class MainWindow
     {
         var context = _app.VariableContextFor(Active?.Path, SelectionTexts().FirstOrDefault() ?? "", out _);
         var scope = new VariableScope(context);
-        var result = Variables.Expand(text, new VariableScope(context, ClipFields.Defaults(fields, scope)));
+        var result = Variables.Expand(text, new VariableScope(context, ClipFields.Defaults(fields, scope)), snippets: PluginLimitsPlaceholders.Snippets());
         return result.Ok ? result.Text : (result.SyntaxError is { } why ? Loc.Get(K.ClipBadText, ("reason", why)) : Loc.Get(K.ClipNoValue, ("names", string.Join(", ", result.Missing))));
     }
 
@@ -105,7 +106,7 @@ internal sealed partial class MainWindow
         ClipFormState Evaluate(IReadOnlyDictionary<string, string> values)
         {
             var problems = ClipFields.Validate(fields, values);
-            var result = Variables.Expand(text, new VariableScope(context, values));
+            var result = Variables.Expand(text, new VariableScope(context, values), snippets: PluginLimitsPlaceholders.Snippets());
             return new ClipFormState(problems, result.Text, ProblemOf(result));
         }
         var answer = await _app.Dialogs.ClipFormAsync(this, formTitle, fields, initial, Evaluate);
@@ -142,7 +143,7 @@ internal sealed partial class MainWindow
         var pieces = new List<ExpandResult>(selections.Count);
         foreach (var selected in selections)
         {
-            var result = Variables.Expand(clip.Text, new VariableScope(context.WithSelection(selected), values), newLine);
+            var result = Variables.Expand(clip.Text, new VariableScope(context.WithSelection(selected), values), newLine, PluginLimitsPlaceholders.Snippets());
             if (ProblemOf(result) is { } problem) { SetStatusMessage(problem); return; }
             if (result.Text.Length > PluginLimitsPlaceholders.SnippetLength || result.Carets.Count > PluginLimitsPlaceholders.SnippetCarets)
             {
@@ -226,6 +227,34 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>
+    /// Opens the variables file of the project of the open file. A project that has none yet gets one with no variables, in its root: the nearest folder above the file that
+    /// has a <c>.textida</c> or <c>.git</c> folder. A saved change counts from the next use.
+    /// </summary>
+    internal CommandOutcome EditProjectVariables()
+    {
+        string? directory = Active is { Custom: null } tab && tab.Path is { } document ? Path.GetDirectoryName(Path.GetFullPath(document)) : null;
+        string? path = ProjectVariables.FindFile(directory);
+        if (path is null && ToolVariables.FindProjectRoot(directory) is { } root) path = Path.Combine(root, ProjectVariables.FolderName, UserVariables.FileName);
+        if (path is null)
+        {
+            SetStatusMessage(Loc.Get(K.ProjectVariablesNone));
+            return CommandOutcome.Handled;
+        }
+        try
+        {
+            if (!File.Exists(path))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "{\n}\n");
+            }
+            OpenFile(path, null);
+        }
+        catch (IOException e) { SetStatusMessage(e.Message); }
+        catch (UnauthorizedAccessException e) { SetStatusMessage(e.Message); }
+        return CommandOutcome.Handled;
+    }
+
     // ---- new file from a template ----
 
     /// <summary>A new tab with the template's text; the carets stand at its marks (at the start when it has none).</summary>
@@ -237,11 +266,11 @@ internal sealed partial class MainWindow
         var values = await FillFormAsync(Loc.Get(K.TemplateFormTitle, ("title", template.Title)), template.Text, template.Fields, context);
         if (values is null) return;
         var scope = new VariableScope(context, values);
-        if (ProblemOf(Variables.Expand(template.Text, scope)) is { } problem) { SetStatusMessage(problem); return; }
+        if (ProblemOf(Variables.Expand(template.Text, scope, snippets: PluginLimitsPlaceholders.Snippets())) is { } problem) { SetStatusMessage(problem); return; }
 
         var tab = NewDocument();
         if (tab.Surface is not { } surface) return;
-        var result = Variables.Expand(template.Text, scope, tab.Doc.NewLine(surface.Settings.ConfiguredEol));
+        var result = Variables.Expand(template.Text, scope, tab.Doc.NewLine(surface.Settings.ConfiguredEol), PluginLimitsPlaceholders.Snippets());
         surface.Document.Text = result.Text;
         surface.SetSelections(result.Carets.Count == 0 ? [Sel.At(0)] : [.. result.Carets.Select(Sel.At)]);
         FocusView(tab);

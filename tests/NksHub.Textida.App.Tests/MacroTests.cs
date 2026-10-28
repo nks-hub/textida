@@ -206,6 +206,39 @@ public class MacroTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Page_keys_are_recorded_as_commands_and_play_back_to_the_same_caret_and_selection_as_the_keys()
+    {
+        string text = string.Concat(Enumerable.Range(0, 400).Select(i => $"line {i}\n"));
+        var manual = OpenDocument(text, Sel.At(0));
+        Run("nks.macro.record");
+        TestApp.Press(_w, Key.PageDown);
+        int afterFirst = manual.Editor!.CaretOffset;
+        Assert.True(afterFirst > 0, "Page Down moved the caret");
+        TestApp.Press(_w, Key.PageDown, RawInputModifiers.Shift);
+        Assert.True(manual.Editor.TextArea.Selection.Length > 0, "Shift+Page Down selected");
+        TestApp.Press(_w, Key.PageUp);
+        Run("nks.macro.stop");
+        Assert.Equal(["nks.edit.cursorPageDown", "nks.edit.cursorPageDownSelect", "nks.edit.cursorPageUp"], Registry.LastMacro.Select(s => s.Command));
+
+        var played = OpenDocument(text, Sel.At(0));
+        Run("nks.macro.playLast");
+        Assert.Equal(manual.Editor.CaretOffset, played.Editor!.CaretOffset);
+        Assert.Equal(manual.Editor.TextArea.Selection.Length, played.Editor.TextArea.Selection.Length);
+        Assert.Equal(text, played.Editor.Document.Text); // moving changes nothing
+    }
+
+    [AvaloniaFact]
+    public void A_page_key_at_several_carets_leaves_one_caret_like_the_key_without_a_macro()
+    {
+        string text = string.Concat(Enumerable.Range(0, 400).Select(i => $"line {i}\n"));
+        var tab = OpenDocument(text, new Sel(0, 4));
+        Run("nks.edit.addNextOccurrence");
+        Assert.True(tab.Editor!.IsMulti);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.cursorPageDown"));
+        Assert.False(tab.Editor.IsMulti);
+    }
+
+    [AvaloniaFact]
     public async Task Copy_and_paste_in_a_macro_wait_for_the_clipboard_and_give_the_manual_result()
     {
         var ctx = new ShellContext(_w, forMenu: true);

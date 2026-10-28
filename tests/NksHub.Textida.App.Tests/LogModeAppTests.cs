@@ -20,8 +20,8 @@ namespace NksHub.Textida.App.Tests;
 public class LogModeAppTests : IDisposable
 {
     private readonly TempDir _temp = new();
-    private readonly App _app;
-    private readonly MainWindow _w;
+    private App _app;
+    private MainWindow _w;
 
     public LogModeAppTests()
     {
@@ -162,6 +162,55 @@ public class LogModeAppTests : IDisposable
         Assert.True(Matching(shot, PagedRow(log, 0), Level(LogLevel.Error)) > 10, "error line");
         Assert.True(Matching(shot, PagedRow(log, 1), Level(LogLevel.Info)) > 10, "info line");
         Assert.Equal(0, Matching(shot, PagedRow(log, 1), Level(LogLevel.Error)));
+    }
+
+    private static readonly Color AnsiRed = Color.FromRgb(0xCD, 0x31, 0x31); // the standard red of AnsiColor.Indexed(1)
+
+    [AvaloniaFact]
+    public void An_ansi_style_left_open_colors_the_next_lines_of_a_log_in_the_editor_until_a_code_resets_it()
+    {
+        var log = Open("carry.log", "\x1b[31mred starts here\nsecond line goes on\n\x1b[0mthird line is plain\nfourth line is plain\n");
+        var shot = Capture();
+        Assert.True(Matching(shot, EditorRow(log, 0), AnsiRed) > 10, "the line with the code");
+        Assert.True(Matching(shot, EditorRow(log, 1), AnsiRed) > 10, "the line after it, which has no code of its own");
+        Assert.Equal(0, Matching(shot, EditorRow(log, 2), AnsiRed));
+        Assert.Equal(0, Matching(shot, EditorRow(log, 3), AnsiRed));
+        Assert.StartsWith("\x1b[31m", log.Editor!.Document.Text, StringComparison.Ordinal); // the text keeps its escapes
+
+        // the style of a line is read again after an edit: a reset typed at the start of the second line ends the red there
+        log.Editor.Document.Insert(log.Editor.Document.GetLineByNumber(2).Offset, "\x1b[0m");
+        shot = Capture();
+        Assert.True(Matching(shot, EditorRow(log, 0), AnsiRed) > 10);
+        Assert.Equal(0, Matching(shot, EditorRow(log, 1), AnsiRed));
+
+        // the escapes shown as they are in the file: no colors at all
+        log.Editor.AnsiRaw = true;
+        Assert.Equal(0, Matching(Capture(), EditorRow(log, 0), AnsiRed));
+        log.Editor.AnsiRaw = false;
+        Assert.True(Matching(Capture(), EditorRow(log, 0), AnsiRed) > 10);
+    }
+
+    [AvaloniaFact]
+    public void An_ansi_style_left_open_colors_the_next_lines_on_the_paged_surface_whatever_line_the_view_starts_at()
+    {
+        var text = new StringBuilder("\x1b[31mred starts here\n");
+        for (int i = 1; i < 80_000; i++) text.Append(i == 100 ? "\x1b[0mstops here\n" : $"line number {i} goes on\n");
+        var log = Open("carry.log", text.ToString(), paged: true);
+        var shot = Capture();
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10, "the line with the code");
+        Assert.True(Matching(shot, PagedRow(log, 1), AnsiRed) > 10, "the line after it");
+
+        // the first line on screen is far below the code: its style comes from the lines above it
+        ((IMinimapHost)log.Paged!).ScrollToLine(50);
+        shot = Capture();
+        Assert.Equal(50, log.Paged.TopLine);
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10);
+
+        ((IMinimapHost)log.Paged).ScrollToLine(99);
+        shot = Capture();
+        Assert.True(Matching(shot, PagedRow(log, 0), AnsiRed) > 10, "the line before the reset");
+        Assert.Equal(0, Matching(shot, PagedRow(log, 1), AnsiRed));
+        Assert.Equal(0, Matching(shot, PagedRow(log, 2), AnsiRed));
     }
 
     private void Step(bool forward)
@@ -361,6 +410,143 @@ public class LogModeAppTests : IDisposable
         ToolTestKit.WaitFor(() => tab.Minimap.FilterMarks.Count == 3, "the last failure was not marked", rounds: 6000);
         Assert.Equal(MinimapMarkKind.Error, tab.Minimap.FilterMarks[2].Kind);
         Assert.Equal(4, tab.Minimap.FilterMarks[2].Line);
+    }
+
+    // ---- P9.4.1 as a user lives it: save a view, close the app, open the log again, pick the view, walk its matches ----
+
+    private void RestartApp()
+    {
+        _app = TestApp.Restart(_temp, _app, (ScriptedDialogs)_app.Dialogs);
+        _w = _app.CreateWindow(null);
+        _w.Width = 1200;
+        _w.Height = 800;
+    }
+
+    private void Command(string id)
+    {
+        var run = _app.Workbench.Commands.ExecuteAsync(id, new ShellContext(_w, forMenu: false)).AsTask();
+        ToolTestKit.WaitFor(() => run.IsCompleted, id);
+        Assert.Equal(CommandOutcome.Handled, run.Result);
+    }
+
+    /// <summary>The user answers the four questions of "Save View": name, filter, highlight and levels.</summary>
+    private void SaveView(string name, string filter, string highlight, string levels)
+    {
+        var dialogs = (ScriptedDialogs)_app.Dialogs;
+        foreach (string answer in new[] { name, filter, highlight, levels }) dialogs.Prompts.Enqueue(answer);
+        Command("nks.log.saveView");
+        ToolTestKit.WaitFor(() => _w.StatusMessageText == Loc.Get(K.LogViewSaved, ("name", name)), "the view was not saved");
+    }
+
+    [AvaloniaFact]
+    public void A_saved_view_comes_back_after_a_restart_with_its_filter_highlight_and_place_and_the_matches_lead_to_their_lines_even_in_a_log_that_grew()
+    {
+        var lines = Enumerable.Range(0, 30).Select(i => i is 2 or 11 or 24 ? $"ERROR disk is full on node {i}" : i == 7 ? "WARN disk slow on node 7" : $"INFO all fine on node {i}").ToList();
+        string text = string.Concat(lines.Select(l => l + "\n"));
+        long LineStart(int index) => lines.Take(index).Sum(l => l.Length + 1L);
+        var tab = Open("scenario.log", text);
+        string path = tab.Path!;
+        tab.Editor!.CaretOffset = (int)LineStart(11);
+
+        SaveView("errors", "disk", "slow|full", "error");
+
+        // what the profile keeps: the same filter, levels, highlight and the byte the caret stood on
+        var stored = _app.LogViews.Load(out var problem).Single();
+        Assert.Null(problem);
+        Assert.Equal(("errors", "disk", true, "slow|full", path, LineStart(11)), (stored.Name, stored.Filter.Text, stored.Filter.TextIsRegex, stored.Highlight, stored.FilePath, stored.Position));
+        Assert.Equal([LogLevel.Error], stored.Filter.Levels);
+
+        RestartApp();
+        tab = _w.OpenFile(path, null);
+        _w.UpdateLayout();
+        Settle();
+        Assert.Equal((1L, 1L), tab.CaretPosition());
+        var plain = Capture();
+        Assert.True(Matching(plain, EditorRow(tab, 2), Level(LogLevel.Error)) > 10, "the level colour of the reopened log");
+        Assert.Equal(0, Matching(plain, EditorRow(tab, 2), Highlight));
+
+        Command("nks.log.views");
+        var row = Assert.Single(_w.QuickResults);
+        Assert.Equal("errors", row.Title);
+        Assert.Equal("error · disk · scenario.log", row.Detail);
+        row.Run();
+        _w.ClosePalette(); // the list stays open over the editor after a row ran, and a dimmed editor has no colours to find
+        ToolTestKit.WaitFor(() => tab.Minimap!.FilterMarks.Count == 3, "the kept lines were not marked");
+        Assert.Equal([new MinimapMark(2, MinimapMarkKind.Error), new MinimapMark(11, MinimapMarkKind.Error), new MinimapMark(24, MinimapMarkKind.Error)], tab.Minimap!.FilterMarks);
+        ToolTestKit.WaitFor(() => _w.StatusMessageText == Loc.Get(K.LogViewApplied, ("name", "errors"), ("matches", 3)), "the view was not applied");
+
+        // the place the view was saved at, and the highlight drawn on the lines that hold it, whatever the filter keeps
+        Assert.Equal((12L, 1L), tab.CaretPosition());
+        var shot = Capture();
+        Assert.True(Matching(shot, EditorRow(tab, 2), Highlight) > 10, "line with full");
+        Assert.True(Matching(shot, EditorRow(tab, 7), Highlight) > 10, "line with slow");
+        Assert.Equal(0, Matching(shot, EditorRow(tab, 3), Highlight));
+
+        // the matches lead to their lines: forward from the saved place, then back to the first one
+        Command("nks.log.nextMatch");
+        Assert.Equal((25L, 1L), tab.CaretPosition());
+        Command("nks.log.nextMatch");
+        Assert.Equal(Loc.Get(K.LogViewNoNext), _w.StatusMessageText);
+        Command("nks.log.previousMatch");
+        Assert.Equal((12L, 1L), tab.CaretPosition());
+        Command("nks.log.previousMatch");
+        Assert.Equal((3L, 1L), tab.CaretPosition());
+        Command("nks.log.previousMatch");
+        Assert.Equal(Loc.Get(K.LogViewNoPrevious), _w.StatusMessageText);
+
+        // another program appends an error line: the view finds it in the added bytes and the step reads the file again to reach it
+        File.AppendAllText(path, "ERROR disk is full on node 30\n");
+        ToolTestKit.WaitFor(() => { _w.LogFollowTick(); return tab.Minimap!.FilterMarks.Count == 4; }, "the new line was not marked");
+        Command("nks.log.nextMatch");
+        Assert.Equal((12L, 1L), tab.CaretPosition());
+        Command("nks.log.nextMatch");
+        Command("nks.log.nextMatch");
+        Assert.Equal((31L, 1L), tab.CaretPosition());
+        Assert.Equal("ERROR disk is full on node 30", tab.Editor.Document.Text.Split('\n')[30]);
+    }
+
+    [AvaloniaFact]
+    public void A_saved_view_of_a_paged_log_comes_back_after_a_restart_at_its_byte_and_draws_its_highlight_there()
+    {
+        var log = Open("scenario-big.log", BigLog(out var errors), paged: true);
+        string path = log.Path!;
+        log.Paged!.GoToOffset(errors[1]);
+
+        SaveView("errors", "", "ERROR", "error");
+        Assert.Equal(errors[1], _app.LogViews.Load(out _).Single().Position);
+
+        RestartApp();
+        _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
+        log = _w.OpenFile(path, null);
+        Assert.True(log.Doc.IsLarge);
+        ToolTestKit.WaitFor(() => log.Paged!.Index.Complete, "line index");
+        _w.UpdateLayout();
+        Settle();
+        Assert.Equal(0, log.Paged!.CaretOffset);
+        Assert.Equal(0, Enumerable.Range(0, 40).Count(r => Matching(Capture(), PagedRow(log, r), Highlight) > 10));
+
+        Command("nks.log.views");
+        _w.QuickResults.Single().Run();
+        _w.ClosePalette();
+        ToolTestKit.WaitFor(() => log.Minimap!.FilterMarks.Count == 3, "the error lines were not marked");
+        Assert.Equal([0L, 20_000L, 45_000L], log.Minimap!.FilterMarks.Select(m => m.Line));
+        Assert.Equal(errors[1], log.Paged.CaretOffset);
+
+        // the one error line on the screen is the line of the saved place, and it is the one that is drawn in the colour of the highlight
+        var shot = Capture();
+        Assert.Equal(1, Enumerable.Range(0, 40).Count(r => Matching(shot, PagedRow(log, r), Highlight) > 10));
+
+        Command("nks.log.nextMatch");
+        Assert.Equal(errors[2], log.Paged.CaretOffset);
+        Command("nks.log.nextMatch");
+        Assert.Equal(Loc.Get(K.LogViewNoNext), _w.StatusMessageText);
+        Command("nks.log.previousMatch");
+        Assert.Equal(errors[1], log.Paged.CaretOffset);
+        Command("nks.log.previousMatch");
+        Assert.Equal(errors[0], log.Paged.CaretOffset);
+        Command("nks.log.previousMatch");
+        Assert.Equal(Loc.Get(K.LogViewNoPrevious), _w.StatusMessageText);
+        Assert.Equal(path, log.Path);
     }
 
     [AvaloniaFact]

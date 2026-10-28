@@ -82,6 +82,9 @@ public sealed partial class App : Application
 
     /// <summary>Opens a web address in the browser of the system; true when it was opened. Null uses the launcher of the window. Settable so tests open nothing.</summary>
     internal Func<Uri, Task<bool>>? UriOpener { get; set; }
+
+    /// <summary>Hands a file or folder to the default app or the file manager of the system; true when it was started. Null starts the process of <see cref="SystemLauncher"/>. Settable so tests start nothing.</summary>
+    internal Func<string, Task<bool>>? PathOpener { get; set; }
     internal LastParameters LastParameters { get; private set; } = new();
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>
@@ -97,7 +100,11 @@ public sealed partial class App : Application
     private HelpWindow? _helpWindow;
     private DispatcherTimer? _sessionTimer;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        TimerResolution.Request();
+        AvaloniaXamlLoader.Load(this);
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -187,7 +194,7 @@ public sealed partial class App : Application
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
         LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
-        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.DataFolders, Plugins.DeclarePlugin);
+        Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.ContributingFolders, Plugins.DeclarePlugin, Plugins.UndeclarePlugin);
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());
@@ -208,15 +215,18 @@ public sealed partial class App : Application
 
     /// <summary>
     /// The facts every variable is resolved from (see <see cref="VariableScope"/>): the file, the selection, the clock in the date format of the settings and the
-    /// user's own variables. Clips, recipes and tools all take their variables from here. Problem: why the user variables file could not be read, or null.
+    /// user's own variables and those of the project the file is in. Clips, recipes and tools all take their variables from here. Problem: why the user variables
+    /// file or the one of the project could not be read, or null.
     /// </summary>
     internal VariableContext VariableContextFor(string? path, string selection, out string? problem)
     {
-        var (user, why) = UserVariables.Load(Path.Combine(ProfileDirectory, UserVariables.FileName));
-        problem = why;
+        string userFile = Path.Combine(ProfileDirectory, UserVariables.FileName);
+        var (user, why) = UserVariables.Load(userFile);
+        var (project, projectWhy, _) = ProjectVariables.Load(path, userFile);
+        problem = why ?? projectWhy;
         return new VariableContext
         {
-            FilePath = path, Selection = selection, Now = Clock(), User = user,
+            FilePath = path, Selection = selection, Now = Clock(), User = user, Project = project,
             DateTimeFormat = Workbench.Settings.GetString("editor.dateTimeFormat"),
             Culture = CultureInfo.GetCultureInfo(Loc.Language),
         };
@@ -243,9 +253,9 @@ public sealed partial class App : Application
         _server = null;
     }
 
-    internal MainWindow CreateWindow(SavedWindow? saved, bool show = true)
+    internal MainWindow CreateWindow(SavedWindow? saved, bool show = true, ShellLook? look = null)
     {
-        var window = new MainWindow(this, ShellLook.ForThisMachine(), saved);
+        var window = new MainWindow(this, look ?? ShellLook.ForThisMachine(), saved);
         window.Activated += (_, _) => _active = window;
         _windows.Add(window);
         _active = window;
@@ -430,6 +440,8 @@ public sealed partial class App : Application
             MaxBytesPerFile = Limit("history.maxMiBPerFile", 1L << 20),
             MaxTotalBytes = Limit("history.maxTotalMiB", 1L << 20),
             MaxRevisionBytes = PluginLimitsPlaceholders.HistoryRevisionMaxBytes,
+            PatchAboveBytes = PluginLimitsPlaceholders.HistoryPatchAboveBytes,
+            MaxPatchPercent = PluginLimitsPlaceholders.HistoryPatchMaxPercent,
         };
     }
 

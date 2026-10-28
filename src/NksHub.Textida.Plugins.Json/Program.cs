@@ -12,6 +12,8 @@ using NksHub.Textida.Rpc;
 // --registry-cache-max-bytes N and --registry-cache-seconds N bound the cache of registry answers (without them it is not bounded and does not expire).
 // Schemas from the network (a $schema address, the catalog of known schemas) need the registry options and all of: --schema-cache DIR, --schema-cache-max-bytes N, --schema-download-max-bytes N,
 // --schema-cache-max-age-seconds N, --schema-retry-seconds N; without them only carried schemas and schema files on disk are used.
+// A $ref to another document is followed only with both --schema-ref-depth N and --schema-ref-documents N (0 follows none).
+// --schema-mappings FILE is the file the editor keeps the user's rules (setting schema.mappings) in; it is read again when it changes.
 long maxBytes = -1;
 int indent = -1, maxDepth = -1;
 long schemaMaxBytes = -1;
@@ -22,7 +24,8 @@ long registryBytes = -1, registryManifestBytes = -1, registryCacheBytes = 0;
 int registryCacheSeconds = 0;
 string? schemaCache = null;
 long schemaCacheBytes = -1, schemaDownloadBytes = -1;
-int schemaCacheAge = -1, schemaRetry = -1;
+int schemaCacheAge = -1, schemaRetry = -1, schemaRefDepth = 0, schemaRefDocuments = 0;
+string? schemaMappings = null;
 var registryUrls = new Dictionary<string, string>();
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -45,6 +48,9 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--schema-download-max-bytes") schemaDownloadBytes = long.Parse(args[i + 1]);
     else if (args[i] == "--schema-cache-max-age-seconds") schemaCacheAge = int.Parse(args[i + 1]);
     else if (args[i] == "--schema-retry-seconds") schemaRetry = int.Parse(args[i + 1]);
+    else if (args[i] == "--schema-ref-depth") schemaRefDepth = int.Parse(args[i + 1]);
+    else if (args[i] == "--schema-ref-documents") schemaRefDocuments = int.Parse(args[i + 1]);
+    else if (args[i] == "--schema-mappings") schemaMappings = args[i + 1];
     else if (args[i] == "--registry-url" && args[i + 1].Split('=', 2) is [var registryId, var registryUrl]) registryUrls[registryId] = registryUrl;
 }
 if (maxBytes < 1 || indent < 0 || maxDepth < 1)
@@ -66,11 +72,11 @@ if (registryConfig is not null && registryTimeout > 0 && registryBytes > 0 && re
 Func<JsonRpcDispatcher, SchemaService>? schema = null;
 if (schemaMaxBytes > 0 && schemaDepth > 0 && schemaRegexMs > 0)
 {
-    var schemaSettings = new SchemaSettings(schemaMaxBytes, schemaDepth, schemaRegexMs);
+    var schemaSettings = new SchemaSettings(schemaMaxBytes, schemaDepth, schemaRegexMs, Math.Max(schemaRefDepth, 0), Math.Max(schemaRefDocuments, 0));
     var cache = schemaCache is not null && schemaCacheBytes > 0 && schemaDownloadBytes > 0 && schemaCacheAge >= 0 && schemaRetry >= 0
         ? new SchemaCacheSettings(schemaCache, schemaCacheBytes, schemaDownloadBytes, TimeSpan.FromSeconds(schemaCacheAge), TimeSpan.FromSeconds(schemaRetry))
         : null;
-    schema = rpc => new SchemaService(rpc, schemaSettings, new SchemaCatalog([]), new SchemaLoader(registryClient, cache, schemaSettings));
+    schema = rpc => new SchemaService(rpc, schemaSettings, new SchemaCatalog([]), new SchemaLoader(registryClient, cache, schemaSettings), schemaMappings is null ? null : new SchemaMappingFile(schemaMappings, schemaMaxBytes));
 }
 
 var plugin = new JsonPlugin(new FormatSettings(maxBytes, indent, maxDepth), schema, packages);

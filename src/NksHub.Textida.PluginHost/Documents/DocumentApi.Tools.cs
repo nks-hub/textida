@@ -199,6 +199,9 @@ public sealed partial class DocumentApi
         return sb.ToString();
     }
 
+    /// <summary>The limits of the parser with the text size of the API.</summary>
+    private SnippetLimits SnippetLimitsOf => (_options.Snippets ?? SnippetLimits.Fallback) with { MaxChars = _options.MaxSnippetLength };
+
     private sealed record SnippetItem(long Start, long End, string Text, int[] Carets, ParsedSnippet? Snippet = null);
 
     /// <summary>
@@ -207,8 +210,9 @@ public sealed partial class DocumentApi
     /// Instead of <c>text</c> a plugin may send <c>items</c>: each has its own byte range <c>start</c>/<c>end</c> of the revision, its own <c>text</c> and <c>carets</c>
     /// (an abbreviation in front of the caret, a selection wrapped in markup); the ranges must not overlap and must not touch a hidden secret.
     /// One revision and one undo step for all of them, or nothing; undo brings the old selections back.
-    /// With <c>"format": "template"</c> the <c>text</c> is a template of clips (variables, <c>$|</c> carets) or a snippet (<c>$1</c>, <c>${1:text}</c>, <c>${1|a,b|}</c>, <c>$0</c>):
-    /// the lines after the first take the indentation of the line, and the tab stops of a snippet become a session in the editor (Tab walks through them).
+    /// With <c>"format": "template"</c> the <c>text</c> is a template of clips (variables, <c>$|</c> carets) or a snippet (<c>$1</c>, <c>${1:text}</c>, <c>${1|a,b|}</c>, <c>$0</c>, stops
+    /// inside a default, transforms <c>${1/regex/format/options}</c>): the lines after the first take the indentation of the line, and the tab stops of a snippet become a session in the
+    /// editor (Tab walks through them). A snippet longer than <c>MaxSnippetLength</c> after the expansion, or with a transform that runs too long, is refused as invalid params.
     /// With <c>items</c> the format 'template' makes the <c>text</c> of each item a snippet exactly as the plugin wrote it: only the tab stops are read (<c>\$</c> and <c>\\</c>
     /// are the escapes), no variable is replaced, nothing is indented again, and the item's <c>carets</c> are not used (the caret goes to <c>$0</c> or the end).
     /// The items with stops are one session; its stops are visited together, so every item that has stops should have as many as the others.
@@ -296,7 +300,8 @@ public sealed partial class DocumentApi
     {
         string selected = selection.End - selection.Start <= _options.MaxReadBytes ? d.ReadText(new ByteRange(selection.Start, selection.End)) : "";
         var context = new VariableContext { FilePath = _options.Tools.FilePath(d.Id), Selection = selected };
-        var result = Variables.Expand(template, new VariableScope(context), newLine);
+        var result = Variables.Expand(template, new VariableScope(context), newLine, SnippetLimitsOf);
+        if (result.SyntaxError is { } tooBig && SnippetParser.HasStops(template)) throw Invalid(tooBig);
         if (result.Missing.Count > 0) throw Invalid($"No value for: {string.Join(", ", result.Missing)}.");
         if (result.Snippet is not { } snippet)
         {
@@ -317,7 +322,9 @@ public sealed partial class DocumentApi
     /// <summary>The text of an item of the format 'template' read as a snippet: the tab stops become the session of the item, the caret goes to <c>$0</c>; the text is otherwise taken as it is.</summary>
     private SnippetItem ReadItemSnippet(SnippetItem item, string newLine)
     {
-        var snippet = SnippetParser.Parse(item.Text, null, newLine);
+        ParsedSnippet snippet;
+        try { snippet = SnippetParser.Parse(item.Text, null, newLine, SnippetLimitsOf); }
+        catch (SnippetLimitException e) { throw Invalid(e.Message); }
         if (snippet.Missing.Count > 0) throw Invalid($"No value for: {string.Join(", ", snippet.Missing)}.");
         if (snippet.Text.Length > _options.MaxSnippetLength) throw Invalid($"A snippet is at most {_options.MaxSnippetLength} characters long.");
         return item with { Text = snippet.Text, Carets = [snippet.FinalOffset], Snippet = snippet };

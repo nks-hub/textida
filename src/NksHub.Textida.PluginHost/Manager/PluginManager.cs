@@ -312,6 +312,10 @@ public sealed class PluginManager
     public IEnumerable<string> DataFolders() =>
         ReadState().Plugins.Where(p => p.Value.Enabled && Loaded(p.Key) is { Spec: null }).Select(p => VersionFolder(p.Key, p.Value.Current));
 
+    /// <summary>Folders of the active versions of all enabled plugins, with a process or without, for the app to read what they contribute as data (clips, converters, external tools, grammars).</summary>
+    public IEnumerable<string> ContributingFolders() =>
+        ReadState().Plugins.Where(p => p.Value.Enabled && Loaded(p.Key) is not null).Select(p => VersionFolder(p.Key, p.Value.Current));
+
     /// <summary>The plugin as loaded, for the app to register its commands; null when it is not installed or cannot be read.</summary>
     public LoadedPlugin? Loaded(string id)
     {

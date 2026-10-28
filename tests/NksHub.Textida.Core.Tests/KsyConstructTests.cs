@@ -39,12 +39,12 @@ public class KsyConstructTests
     }
 
     [Fact]
-    public void Every_construct_of_the_subset_is_used_by_a_sample_and_no_sample_uses_another()
+    public void Every_construct_of_the_subset_is_used_by_a_sample_and_no_sample_uses_another_unknown_one()
     {
         var used = KsyConstructSamples.All.SelectMany(s => Parse(s.Ksy).Constructs).ToHashSet();
         var unused = KsyParser.Constructs.Where(c => !used.Contains(c)).ToList();
         Assert.True(unused.Count == 0, "no sample uses: " + string.Join(", ", unused));
-        var unknown = used.Where(c => !KsyParser.Constructs.Contains(c)).ToList();
+        var unknown = used.Where(c => !KsyParser.Constructs.Contains(c) && !KsyParser.OtherConstructs.Contains(c)).ToList();
         Assert.True(unknown.Count == 0, "not in the list of constructs: " + string.Join(", ", unknown));
     }
 
@@ -190,8 +190,9 @@ public class KsyConstructTests
     // ---- what the subset does not have ----
 
     [Theory]
-    [InlineData("size: 4\n    process: xor(0x55)", "process")]
-    [InlineData("size: 4\n    process: zlib", "process")]
+    [InlineData("size: 4\n    process: zlib", "process zlib")]
+    [InlineData("size: 4\n    process: custom(my.Module, 1)", "process custom")]
+    [InlineData("size: 4\n    process: xor([1, 2])", "expression array literal")]
     [InlineData("size: 4\n    terminator: 0", "terminator")]
     [InlineData("type: u1\n    valid: 1", "valid")]
     public void A_construct_outside_the_subset_is_refused_by_its_name_and_line(string field, string subject)
@@ -202,10 +203,90 @@ public class KsyConstructTests
     }
 
     [Fact]
-    public void Process_names_its_line_exactly()
+    public void A_process_the_subset_does_not_have_names_its_line_exactly()
     {
-        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: xor(0x55)\n");
-        Assert.Equal((KsyErrorKind.Unsupported, "process", 6), (e.Kind, e.Subject, e.Line));
+        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: zlib\n");
+        Assert.Equal((KsyErrorKind.Unsupported, "process zlib", 6), (e.Kind, e.Subject, e.Line));
+    }
+
+    // ---- process: xor, rol, ror ----
+
+    [Fact]
+    public void Every_construct_of_the_subset_beyond_the_pinned_templates_is_used_by_a_sample_too()
+    {
+        var used = KsyConstructSamples.All.SelectMany(s => Parse(s.Ksy).Constructs).ToHashSet();
+        Assert.All(KsyParser.OtherConstructs, c => Assert.Contains(c, used));
+        Assert.Empty(KsyParser.OtherConstructs.Intersect(KsyParser.Constructs)); // the list of the pinned templates and this one do not overlap
+    }
+
+    private static KsyError ReadError(string template, byte[] data) => Read(template, data).Single(n => n.Error is not null).Error!;
+
+    [Fact]
+    public void A_processed_string_is_decoded_after_the_process_and_its_node_still_covers_the_bytes_of_the_file()
+    {
+        var nodes = Read("meta:\n  id: x\n  encoding: UTF-8\nseq:\n  - id: s\n    type: str\n    size: 4\n    process: xor(0xFF)\n  - id: after\n    type: u1\n", [0x97, 0x96, 0xDE, 0xC0, 9]); // "hi!?" with every bit turned over
+        Assert.Equal([("s", "\"hi!?\"", 0L, 4L), ("after", "9", 4L, 1L)], nodes.Select(n => (n.Name, n.Value, n.Start, n.Length)));
+    }
+
+    [Theory]
+    [InlineData("xor(0)", new byte[] { 0x12, 0x34 }, "1234")]
+    [InlineData("xor(255)", new byte[] { 0x00, 0xFF }, "FF00")]
+    [InlineData("rol(0)", new byte[] { 0x81 }, "81")]
+    [InlineData("rol(1)", new byte[] { 0x81, 0x40 }, "0380")]
+    [InlineData("rol(7)", new byte[] { 0x01 }, "80")]
+    [InlineData("ror(1)", new byte[] { 0x03, 0x80 }, "8140")]
+    [InlineData("ror(7)", new byte[] { 0x80 }, "01")]
+    public void Xor_rol_and_ror_turn_every_byte_alone(string process, byte[] data, string expected)
+    {
+        var node = Read($"meta:\n  id: x\nseq:\n  - id: b\n    size-eos: true\n    process: {process}\n", data).Single();
+        Assert.Equal(expected, node.Value);
+    }
+
+    [Fact]
+    public void The_argument_of_a_process_is_an_expression_that_may_name_an_earlier_field()
+    {
+        var nodes = Read("meta:\n  id: x\nseq:\n  - id: key\n    type: u1\n  - id: b\n    size: 2\n    process: xor(key + 1)\n", [0x0F, 0x10, 0x20]);
+        Assert.Equal("0030", nodes[1].Value);
+        Assert.Equal(KsyErrorKind.UnknownField, Refuse("meta:\n  id: x\nseq:\n  - id: b\n    size: 2\n    process: xor(later)\n  - id: later\n    type: u1\n").Kind);
+    }
+
+    [Theory]
+    [InlineData("xor(256)")]
+    [InlineData("xor(0 - 1)")]
+    [InlineData("rol(8)")]
+    [InlineData("ror(0 - 1)")]
+    [InlineData("xor(1 / 0)")]
+    public void A_key_or_a_number_of_bits_out_of_range_and_a_division_by_zero_are_an_error_of_the_field_and_not_a_crash(string process)
+    {
+        var error = ReadError($"meta:\n  id: x\nseq:\n  - id: a\n    type: u1\n  - id: b\n    size: 2\n    process: {process}\n", [1, 2, 3]);
+        Assert.Equal(KsyErrorKind.Expression, error.Kind);
+    }
+
+    [Fact]
+    public void Contents_are_compared_after_the_process_and_a_wrong_key_is_a_contents_error()
+    {
+        const string template = "meta:\n  id: x\nseq:\n  - id: magic\n    contents: [0x7f, E, L, F]\n    process: xor(0x55)\n";
+        Assert.Equal("7F454C46", Read(template, [0x2A, 0x10, 0x19, 0x13]).Single().Value);
+        Assert.Equal(KsyErrorKind.Contents, ReadError(template, [0x7F, 0x45, 0x4C, 0x46]).Kind);
+    }
+
+    [Fact]
+    public void Each_element_of_a_repeated_field_is_processed_with_its_own_argument()
+    {
+        var nodes = Read("meta:\n  id: x\nseq:\n  - id: n\n    type: u1\n  - id: items\n    size: 1\n    repeat: expr\n    repeat-expr: n\n    process: xor(_index)\n", [3, 0, 0, 0]);
+        Assert.Equal(["00", "01", "02"], nodes[1].Children.Select(c => c.Value));
+    }
+
+    [Theory]
+    [InlineData("type: u1\n    process: xor(1)", KsyErrorKind.Invalid, "process")]
+    [InlineData("type: strz\n    encoding: UTF-8\n    process: xor(1)", KsyErrorKind.Invalid, "process")]
+    [InlineData("type: inner\n    size: 2\n    process: xor(1)", KsyErrorKind.Unsupported, "process of a structure")]
+    [InlineData("size: 2\n    type:\n      switch-on: len\n      cases:\n        1: u1\n    process: xor(1)", KsyErrorKind.Unsupported, "process of a switch-on type")]
+    [InlineData("size: 2\n    process: 5", KsyErrorKind.Invalid, "process")]
+    public void A_process_of_anything_but_a_string_or_raw_bytes_is_refused_by_name(string field, KsyErrorKind kind, string subject)
+    {
+        var e = Refuse($"meta:\n  id: x\nseq:\n  - id: len\n    type: u1\n  - id: a\n    {field}\ntypes:\n  inner:\n    seq:\n      - id: b\n        type: u1\n");
+        Assert.Equal((kind, subject), (e.Kind, e.Subject));
     }
 
     [Fact]

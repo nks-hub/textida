@@ -118,6 +118,40 @@ public class PluginUiTests : IDisposable
         Assert.Empty(_w.PluginTree.Items);
     }
 
+    private static bool IsBold(TreeViewItem node) => ((TextBlock)((StackPanel)node.Header!).Children[0]).FontWeight == Avalonia.Media.FontWeight.Bold;
+
+    [AvaloniaFact]
+    public async Task The_current_item_of_a_panel_is_drawn_in_bold_named_so_and_moves_without_the_tree_being_built_again()
+    {
+        await StartPluginAsync();
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"Outline\",\"kind\":\"tree\",\"reveal\":true,\"current\":\"b\",\"items\":[{\"id\":\"a\",\"label\":\"first\",\"detail\":\"class\",\"children\":[{\"id\":\"b\",\"label\":\"second\"}]},{\"id\":\"c\",\"label\":\"third\"}]}"));
+        await Until(() => _w.PluginPanelOpen, "the revealed panel");
+        var a = OutlineItem("a");
+        var b = a.Items.OfType<TreeViewItem>().Single();
+        var c = OutlineItem("c");
+        Assert.Equal([false, true, false], new[] { IsBold(a), IsBold(b), IsBold(c) });
+        Assert.Equal(("second, current item", "first, class", "third"), (Avalonia.Automation.AutomationProperties.GetName(b), Avalonia.Automation.AutomationProperties.GetName(a), Avalonia.Automation.AutomationProperties.GetName(c)));
+
+        // the mark is no selection: the item the user walked to stays selected, and the nodes stay the very same ones
+        _w.PluginTree.SelectedItem = a;
+        await Pump(Editor(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":\"c\"}"));
+        await Until(() => IsBold(c), "the mark moving to the last item");
+        Assert.Equal([false, false, true], new[] { IsBold(a), IsBold(b), IsBold(c) });
+        Assert.Equal("second", Avalonia.Automation.AutomationProperties.GetName(b));
+        Assert.Same(a, _w.PluginTree.SelectedItem);
+        Assert.Same(a, OutlineItem("a"));
+        Assert.Same(c, OutlineItem("c"));
+
+        await Pump(Editor(UiMethods.PanelCurrent, "{\"panel\":\"outline\",\"current\":null}"));
+        await Until(() => !IsBold(c), "the mark going");
+        Assert.DoesNotContain(true, new[] { IsBold(a), IsBold(b), IsBold(c) });
+
+        // new items without a current item draw none
+        await Pump(Editor(UiMethods.PanelSet, "{\"panel\":\"outline\",\"title\":\"Outline\",\"kind\":\"tree\",\"items\":[{\"id\":\"a\",\"label\":\"first\"},{\"id\":\"c\",\"label\":\"third\"}]}"));
+        await Until(() => !ReferenceEquals(OutlineItem("c"), c), "the new items");
+        Assert.False(IsBold(OutlineItem("a")) || IsBold(OutlineItem("c")));
+    }
+
     [AvaloniaFact]
     public async Task A_plugin_has_one_status_item_and_a_task_with_progress_and_a_cancel_button()
     {
@@ -752,6 +786,73 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Insert_expression_writes_the_result_behind_the_selection_or_the_line_in_the_plain_form_and_each_is_one_undo_step()
+    {
+        const string original = "žluťoučký: 10/4\r\n1000*1.5+2\r\nbez výrazu\r\n";
+        var tab = _w.OpenFile(_temp.File("calc.txt", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        // the selection is the expression; the characters before it are two bytes each, the result goes behind the selection and not in front of the line break
+        tab.Editor.Select(original.IndexOf("10/4", StringComparison.Ordinal), 4);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2\r\nbez výrazu\r\n", Utf8(tab));
+        Assert.True(HasNotice("10/4 = 2,5"), string.Join(" | ", _w.Notices.Select(n => n.Message))); // the notice follows the language of the interface, the document does not
+
+        // no selection: the line of the caret is the expression, and a thousands separator or a decimal comma never reaches the file
+        tab.Editor.Select(tab.Editor.Text.IndexOf("1000*", StringComparison.Ordinal) + 3, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2 = 1502\r\nbez výrazu\r\n", Utf8(tab));
+        Assert.Equal(2, tab.Doc.Doc.UndoDepth);
+
+        _w.Undo();
+        Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2\r\nbez výrazu\r\n", Utf8(tab));
+        _w.Undo();
+        Assert.Equal(original, Utf8(tab));
+    }
+
+    [AvaloniaFact]
+    public async Task Insert_expression_changes_nothing_when_the_text_is_no_expression_or_calls_the_system()
+    {
+        const string original = "2 $ 3\r\nSystem(\"calc\")\r\n\r\n";
+        var tab = _w.OpenFile(_temp.File("nope.txt", original), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+
+        tab.Editor.Select(2, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Chyba ve výrazu na pozici"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        tab.Editor.Select(original.IndexOf("System", StringComparison.Ordinal) + 2, 0);
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Neznámý název 'System'"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        tab.Editor.Select(original.Length, 0); // the empty line behind the last break
+        await RunAsync("nks.tools.insertExpression");
+        Assert.True(HasNotice("Označte výraz, nebo dejte kurzor na řádek s výrazem."), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+
+        Assert.Equal(original, Utf8(tab));
+        Assert.Equal(0, tab.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
+    public async Task Insert_expression_is_off_in_the_large_file_mode_and_the_document_stays_as_it_was()
+    {
+        // longer than the threshold of the paged surface, which the test sets to 1 MiB
+        string original = "first line\n2^10\nlast\n" + string.Concat(Enumerable.Repeat("a line that only makes the file larger than the threshold\n", 25_000));
+        var tab = OpenPaged("expr.txt", Encoding.UTF8.GetBytes(original));
+        await Until(() => tab.Paged!.Index.Complete, "the line index");
+        Assert.True(tab.GoToLine(2, 3));
+
+        var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.insertExpression", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => run.IsCompleted, "the command");
+
+        Assert.Equal(CommandOutcome.Disabled, await run);
+        Assert.Equal(original, Utf8(tab));
+        Assert.Equal(0, tab.Doc.Doc.UndoDepth);
+    }
+
+    [AvaloniaFact]
     public async Task Preview_shows_the_change_first_and_applies_it_only_when_the_user_agrees()
     {
         var tab = _w.OpenFile(_temp.File("p.json", "[1,2]"), null);
@@ -927,6 +1028,29 @@ public class PluginUiTests : IDisposable
         var plain = _w.OpenFile(_temp.File("n.txt", "x"), null);
         Dispatcher.UIThread.RunJobs();
         Assert.False(PluginServices.IsSchemaFile(plain));
+    }
+
+    [AvaloniaFact]
+    public async Task A_file_the_user_mapped_to_a_schema_is_checked_at_once_and_the_rules_reach_the_plugin_through_their_file()
+    {
+        var schema = _temp.File("thing.schema.json", """{ "type": "object", "properties": { "n": { "type": "integer" } } }""");
+        var tab = _w.OpenFile(_temp.File("app.cfg", "{ \"n\": \"x\" }"), null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(PluginServices.IsSchemaFile(tab)); // .cfg is not a configuration extension the editor knows
+
+        var rules = $"*.cfg={schema} as json";
+        Assert.Null(_app.Workbench.Set("schema.mappings", System.Text.Json.Nodes.JsonValue.Create(rules)));
+        Assert.True(PluginServices.IsSchemaFile(tab));
+        Assert.Equal(rules, File.ReadAllText(Path.Combine(_app.ProfileDirectory, "schema-mappings.txt")));
+
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the schema the rule names");
+        var mark = Assert.Single(tab.Editor!.Diagnostics);
+        Assert.Equal("\"x\"", tab.Editor.Document.GetText(mark.Start, mark.End - mark.Start));
+        _app.Plugins.TrackSchema(_w, tab);
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.schema.json")), "the schema of the rule in the status bar");
+
+        Assert.Null(_app.Workbench.Set("schema.mappings", System.Text.Json.Nodes.JsonValue.Create("")));
+        Assert.False(PluginServices.IsSchemaFile(tab)); // without the rule the extension is unknown again
     }
 
     /// <summary>A server on the loopback address that answers one path with a body and counts what it was asked; the schemas of the tests come from here, never from a real host.</summary>

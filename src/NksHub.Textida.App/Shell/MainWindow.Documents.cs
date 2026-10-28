@@ -56,9 +56,13 @@ internal sealed partial class MainWindow
         return AddView(od, group);
     }
 
+    /// <summary>The setting <c>advanced.undoLimit</c>: the most undo steps a document keeps; 0 keeps all.</summary>
+    private int UndoLimit => (int)Math.Clamp(_app.Workbench.Settings.GetInt("advanced.undoLimit"), 0, int.MaxValue);
+
     private void Adopt(OpenDocument od)
     {
         _docs.Add(od);
+        od.Doc.UndoLimit = UndoLimit;
         od.Changed += () => OnDocChanged(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
@@ -130,7 +134,7 @@ internal sealed partial class MainWindow
         AttachEditorMenu(tab);
         group.Add(tab, index);
         _activeGroup = group;
-        if (od.Lock is not null || od.IsVirtual) ApplyLock(od);
+        if (od.Lock is not null || od.IsVirtual || od.UserReadOnly) ApplyLock(od);
         if (od.RemoteCopy is not null && !od.LockedReadOnly) ShowRemoteBarOffline(tab);
         OnActiveTabChanged();
         _app.SessionChanged();

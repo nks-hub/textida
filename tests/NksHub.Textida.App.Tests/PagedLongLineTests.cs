@@ -29,6 +29,7 @@ public class PagedLongLineTests : IDisposable
     public PagedLongLineTests()
     {
         _app = TestApp.Prepare(_temp);
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false }; // the first edit of a large file would copy it into the history, which these tests do not look at and the measurements must not feel
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
     }
@@ -308,6 +309,7 @@ public class PagedLongLineTests : IDisposable
         paged.Focus();
         Draw();
         paged.GoToOffset(50_000_000);
+        TestApp.Settle(paged); // the first jump into the line counts its columns on the pool
         Draw();
 
         long managed = GC.GetTotalMemory(true);
@@ -320,6 +322,111 @@ public class PagedLongLineTests : IDisposable
 
         Assert.Equal((1L, 50_000_000L + 99 + (1 << 20) + 1), tab.CaretPosition());
         Assert.True(grown < 16 << 20, $"managed memory grew by {grown >> 20} MiB");
+    }
+
+    // ---- the first jump into a far place of a long line (P7.1.5) ----
+
+    private const int FarLine = 6_000_000;
+
+    private (DocTab Tab, PagedTextView Paged) OpenFarLine(string line)
+    {
+        var tab = OpenLine(line);
+        tab.Paged!.FarMoveBytes = 1 << 20; // the line is far shorter than 100 MiB, so the limit is lowered to make its far places far
+        return (tab, tab.Paged);
+    }
+
+    [AvaloniaFact]
+    public async Task A_far_jump_into_a_long_line_counts_its_columns_on_the_pool_and_the_caret_moves_when_that_ends()
+    {
+        var (_, paged) = OpenFarLine(new string('a', FarLine));
+        using var gate = new ManualResetEventSlim();
+        paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
+
+        paged.GoToOffset(5_000_000);
+        Draw();
+        Assert.True(paged.CaretMovePending);
+        Assert.Equal(0, paged.CaretOffset); // the caret stays where it is while the columns are counted
+
+        gate.Set();
+        await Eventually(() => !paged.CaretMovePending);
+        Assert.Equal(5_000_000, paged.CaretOffset);
+        Assert.Equal((0L, 5_000_000L), paged.CaretLineColumn());
+    }
+
+    [AvaloniaFact]
+    public async Task A_newer_move_replaces_one_that_waits_for_the_count()
+    {
+        var (_, paged) = OpenFarLine(new string('a', FarLine));
+        int walks = 0;
+        paged.FarMoveHook = token =>
+        {
+            if (Interlocked.Increment(ref walks) == 1) token.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)); // ends when the second move cancels it
+            token.ThrowIfCancellationRequested();
+        };
+
+        paged.GoToOffset(5_000_000);
+        Assert.True(paged.CaretMovePending);
+        paged.GoToOffset(4_000_000);
+        await Eventually(() => !paged.CaretMovePending);
+        await Task.Delay(100);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(4_000_000, paged.CaretOffset);
+        Assert.False(paged.CaretMovePending);
+    }
+
+    [AvaloniaFact]
+    public async Task An_edit_while_the_columns_are_counted_drops_the_move()
+    {
+        string line = new('a', FarLine);
+        var (tab, paged) = OpenFarLine(line);
+        using var gate = new ManualResetEventSlim();
+        paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
+
+        paged.GoToOffset(5_000_000);
+        Assert.True(paged.CaretMovePending);
+        TestApp.Type(_w, "x"); // typed at the caret, which has not moved
+        gate.Set();
+        await Eventually(() => !paged.CaretMovePending);
+
+        Assert.Equal(1, paged.CaretOffset);
+        Assert.True("x" + line + "\nnext\n" == Text(tab), "the typed character is not at the start of the line");
+    }
+
+    [AvaloniaFact]
+    public async Task Go_to_a_far_column_of_a_long_line_waits_for_the_count_too()
+    {
+        var (_, paged) = OpenFarLine(new string('a', FarLine));
+
+        Assert.True(paged.GoToLine(1, 5_000_001));
+        Assert.True(paged.CaretMovePending);
+        Assert.Equal(0, paged.CaretOffset);
+        await Eventually(() => !paged.CaretMovePending);
+
+        Assert.Equal(5_000_000, paged.CaretOffset);
+        Assert.Equal((0L, 5_000_000L), paged.CaretLineColumn());
+    }
+
+    [AvaloniaFact]
+    public async Task Down_to_a_far_wanted_column_of_another_long_line_waits_for_the_count_too()
+    {
+        string first = new('a', FarLine), second = new('b', FarLine);
+        var tab = OpenBytes(Encoding.UTF8.GetBytes(first + "\n" + second + "\n"));
+        var paged = tab.Paged!;
+        paged.FarMoveBytes = 1 << 20;
+        paged.GoToOffset(5_000_000);
+        await Eventually(() => !paged.CaretMovePending);
+
+        using var gate = new ManualResetEventSlim();
+        paged.FarMoveHook = _ => gate.Wait(TimeSpan.FromSeconds(30));
+        TestApp.Press(_w, Key.Down);
+        Assert.True(paged.CaretMovePending);
+        Assert.Equal(5_000_000, paged.CaretOffset);
+        gate.Set();
+        await Eventually(() => !paged.CaretMovePending);
+
+        Assert.Equal(FarLine + 1 + 5_000_000, paged.CaretOffset);
+        Assert.Equal((1L, 5_000_000L), paged.CaretLineColumn());
     }
 
     [AvaloniaFact]
@@ -447,6 +554,7 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
     private (MainWindow Window, DocTab Tab) Open()
     {
         _app = TestApp.Prepare(_temp);
+        _app.History.Policy = new Core.History.HistoryPolicy { Enabled = false }; // the first edit of a large file would copy it into the history, which these tests do not look at and the measurements must not feel
         var w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
         string path = Path.Combine(_temp.Path, "line.txt");
@@ -545,6 +653,7 @@ public class PagedLongLinePerfTests(ITestOutputHelper output) : IDisposable
         var (w, tab) = Open();
         var paged = tab.Paged!;
         paged.GoToOffset(column);
+        TestApp.Settle(paged);
         Present(w);
         TestApp.Type(w, new string('w', 400)); // material for Backspace, and the first, cold edits stay out of the measurement
         Present(w);

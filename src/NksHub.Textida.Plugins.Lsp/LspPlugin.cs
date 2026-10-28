@@ -15,7 +15,8 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <summary>
 /// The built-in language server client. A server is started on the first command for a language in a project (its root found by the marker files of the language, then by <c>.git</c> or <c>.textida</c>), told about the documents the editor shows (with the revision as the
 /// version, as ranges when the server wants them) and asked for definitions and references; what it finds wrong is published through the diagnostics API of the editor.
-/// A server that ends by itself is reported; the next command starts it again and hands it every document that is still open.
+/// A server that ends by itself is reported; the next command starts it again and hands it every document that is still open. With the restart settings the plugin starts it again by itself, after a
+/// wait that doubles with each attempt, until it stays up or the attempts are used up.
 /// It also answers the completion requests of the editor for the documents it follows, and renames a symbol: the server's workspace edit goes to the editor as one batch for the change review.
 /// </summary>
 public sealed class LspPlugin : PluginBase
@@ -31,9 +32,14 @@ public sealed class LspPlugin : PluginBase
 
     private enum State { Stopped, Running, Crashed, NotFound }
 
+    /// <summary>The catalog entry (by its program name) the editor found a program for, and where: a path of the user, a folder of the project or the PATH.</summary>
+    private sealed record Located(string Name, string Path);
+
     /// <summary>One server process, for the documents of one language in one project root with one server configuration.</summary>
     private sealed class Slot(string language, string root, ServerLaunch? declared)
     {
+        /// <summary>What the editor found for the catalog server with its latest command; the next start runs it, so a path the user changes takes effect with the next start.</summary>
+        public volatile Located? Located;
         public readonly string Language = language;
         public readonly string Root = root;
         public readonly SemaphoreSlim Lifecycle = new(1, 1);
@@ -44,6 +50,12 @@ public sealed class LspPlugin : PluginBase
         public readonly ServerLaunch? Declared = declared;
         /// <summary>Changes when a document joins or the last one leaves, so a pending idle stop knows it is out of date.</summary>
         public int IdleTicket;
+        /// <summary>Automatic starts made since the server last ran for <see cref="LspSettings.RestartStableMs"/>; a start the user asked for sets it back to 0.</summary>
+        public int RestartAttempts;
+        /// <summary>Changes when the server is stopped on purpose or ends again, so a restart that waits for its turn knows it is out of date.</summary>
+        public int RestartTicket;
+        /// <summary><see cref="Environment.TickCount64"/> when the running server was started.</summary>
+        public long StartedAt;
     }
 
     private sealed class Doc(Guid id, Slot slot, string uri, string? path)
@@ -143,6 +155,8 @@ public sealed class LspPlugin : PluginBase
             var declared = p.TryGetProperty("lspServer", out var launch) && launch.ValueKind == JsonValueKind.Object ? ServerCatalog.ParseLaunch(launch) with { Language = r.Language } : null;
             var doc = await TrackAsync(r.Language, declared, r.Document, ct).ConfigureAwait(false);
             var slot = doc.Slot;
+            if (p.TryGetProperty("lspProgram", out var program) && program.ValueKind == JsonValueKind.Object && Text(program, "name") is { Length: > 0 } programName && Text(program, "path") is { Length: > 0 } programPath)
+                slot.Located = new Located(programName, programPath);
             if (r.Command == StopCommand)
             {
                 await StopServerAsync(slot).ConfigureAwait(false);
@@ -150,7 +164,7 @@ public sealed class LspPlugin : PluginBase
                 return await TellAsync("stopped", NoticeLevel.Info, "stopped", ("language", slot.Language)).ConfigureAwait(false);
             }
             await EnsureSizeAsync(doc, ct).ConfigureAwait(false); // a file that is too large never starts a server
-            if (await EnsureServerAsync(slot, r.Command == RestartCommand, ct).ConfigureAwait(false) is { } failure) return Status(failure);
+            if (await EnsureServerAsync(slot, r.Command == RestartCommand, null, ct).ConfigureAwait(false) is { } failure) return Status(failure);
             if (slot.Server is not { } server) return Status("crashed");
             try
             {
@@ -404,16 +418,21 @@ public sealed class LspPlugin : PluginBase
 
     // ---- the server ----
 
-    /// <summary>Starts the server of the slot when none runs (or restarts it) and hands it every document of the slot. Null when it runs, otherwise the status to answer with.</summary>
-    private async Task<string?> EnsureServerAsync(Slot slot, bool restart, CancellationToken ct)
+    /// <summary>
+    /// Starts the server of the slot when none runs (or restarts it) and hands it every document of the slot. Null when it runs, otherwise the status to answer with.
+    /// <paramref name="autoTicket"/> is set for a start the plugin makes by itself after a crash: it does nothing (answer <c>cancelled</c>) when the server was stopped, started by the user
+    /// or ended again meanwhile, or when no document is left.
+    /// </summary>
+    private async Task<string?> EnsureServerAsync(Slot slot, bool restart, int? autoTicket, CancellationToken ct)
     {
         await slot.Lifecycle.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (autoTicket is { } ticket && (Volatile.Read(ref slot.RestartTicket) != ticket || slot.State != State.Crashed || slot.Docs.IsEmpty)) return "cancelled";
             if (restart) await StopServerCoreAsync(slot).ConfigureAwait(false);
             if (slot.Server is { Alive: true }) return null;
             bool found;
-            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : _catalog.Resolve(slot.Language, out found);
+            var launch = slot.Declared is { } declared ? ServerCatalog.Locate(declared, out found) : CatalogLaunch(slot, out found);
             if (launch is null || !found)
             {
                 slot.State = State.NotFound;
@@ -432,9 +451,15 @@ public sealed class LspPlugin : PluginBase
             }
             slot.Server = server;
             slot.State = State.Running;
+            slot.StartedAt = Environment.TickCount64;
+            if (autoTicket is null) Volatile.Write(ref slot.RestartAttempts, 0);
             await ShowStateAsync(slot).ConfigureAwait(false);
             server.Ended += detail => _ = OnEndedAsync(slot, server, detail);
-            if (!server.Alive) return "crashed";
+            if (!server.Alive)
+            {
+                slot.State = State.Crashed; // it ended before the handler was there to hear it
+                return "crashed";
+            }
             // a server that was not there when the documents changed must get all of them again, as they are now
             foreach (var d in slot.Docs.Values) d.Open = false;
             foreach (var d in slot.Docs.Values.ToList())
@@ -449,6 +474,17 @@ public sealed class LspPlugin : PluginBase
         finally { slot.Lifecycle.Release(); }
     }
 
+    /// <summary>The catalog server of the slot: the program the editor found for it when that is still there, otherwise the first entry of the language whose program is on the PATH.</summary>
+    private ServerLaunch? CatalogLaunch(Slot slot, out bool found)
+    {
+        if (slot.Located is { } located && _catalog.Entry(slot.Language, located.Name) is { } entry && File.Exists(located.Path))
+        {
+            found = true;
+            return entry with { Program = located.Path };
+        }
+        return _catalog.Resolve(slot.Language, out found);
+    }
+
     private async Task StopServerAsync(Slot slot)
     {
         await slot.Lifecycle.WaitAsync().ConfigureAwait(false);
@@ -460,6 +496,7 @@ public sealed class LspPlugin : PluginBase
     {
         var server = Interlocked.Exchange(ref slot.Server, null);
         slot.State = State.Stopped;
+        Interlocked.Increment(ref slot.RestartTicket); // a stop on purpose ends a wait for an automatic start
         foreach (var d in slot.Docs.Values)
         {
             d.Open = false;
@@ -472,10 +509,16 @@ public sealed class LspPlugin : PluginBase
     public async Task StopAllAsync()
     {
         foreach (var slot in _slots.Values)
+        {
+            Interlocked.Increment(ref slot.RestartTicket);
             if (Interlocked.Exchange(ref slot.Server, null) is { } server) await server.StopAsync().ConfigureAwait(false);
+        }
     }
 
-    /// <summary>The server ended by itself: its diagnostics are no longer true, the user is told, and the documents wait to be handed to the next server.</summary>
+    /// <summary>
+    /// The server ended by itself: its diagnostics are no longer true, the user is told, and the documents wait to be handed to the next server. With the restart settings that server is
+    /// started by <see cref="RestartAsync"/>, unless the attempts are used up.
+    /// </summary>
     private async Task OnEndedAsync(Slot slot, LspServer server, string detail)
     {
         if (Interlocked.CompareExchange(ref slot.Server, null, server) != server) return;
@@ -486,7 +529,55 @@ public sealed class LspPlugin : PluginBase
             d.Open = false;
             await ClearDiagnosticsAsync(d).ConfigureAwait(false);
         }
-        await NotifyAsync(NoticeLevel.Warning, "crashed", ("language", slot.Language), ("detail", detail)).ConfigureAwait(false);
+        int ticket = Interlocked.Increment(ref slot.RestartTicket); // a wait for an earlier crash is out of date
+        if (_settings.RestartMaxAttempts <= 0 || slot.Docs.IsEmpty)
+        {
+            await NotifyAsync(NoticeLevel.Warning, "crashed", ("language", slot.Language), ("detail", detail)).ConfigureAwait(false);
+            return;
+        }
+        if (Environment.TickCount64 - slot.StartedAt >= _settings.RestartStableMs) Volatile.Write(ref slot.RestartAttempts, 0);
+        int made = Volatile.Read(ref slot.RestartAttempts);
+        if (made >= _settings.RestartMaxAttempts)
+        {
+            await NotifyAsync(NoticeLevel.Error, "crashedGaveUp", ("language", slot.Language), ("attempts", made.ToString())).ConfigureAwait(false);
+            return;
+        }
+        await NotifyAsync(NoticeLevel.Warning, "crashedRestart", ("language", slot.Language), ("detail", detail), ("seconds", WholeSeconds(RestartDelay(made + 1)).ToString())).ConfigureAwait(false);
+        _ = Task.Run(() => RestartAsync(slot, ticket));
+    }
+
+    /// <summary>The wait before automatic start number <paramref name="attempt"/> (counted from 1): the base wait, doubled with each attempt, up to the longest wait.</summary>
+    private TimeSpan RestartDelay(int attempt) =>
+        TimeSpan.FromMilliseconds(Math.Min(_settings.RestartMaxDelayMs, (long)_settings.RestartBaseDelayMs << Math.Min(attempt - 1, 20)));
+
+    private static long WholeSeconds(TimeSpan time) => Math.Max(1, (long)Math.Ceiling(time.TotalSeconds));
+
+    /// <summary>
+    /// Starts the crashed server of the slot again, waiting longer before each attempt, until it runs or <see cref="LspSettings.RestartMaxAttempts"/> are used up. The start hands the server every
+    /// document that is still open, as the command of a user does. It stops when <paramref name="ticket"/> is out of date: the user stopped or started the server, or it ended again and a newer wait took over.
+    /// </summary>
+    private async Task RestartAsync(Slot slot, int ticket)
+    {
+        while (Volatile.Read(ref slot.RestartTicket) == ticket)
+        {
+            await Task.Delay(RestartDelay(Volatile.Read(ref slot.RestartAttempts) + 1)).ConfigureAwait(false);
+            if (Volatile.Read(ref slot.RestartTicket) != ticket) return;
+            int attempt = Interlocked.Increment(ref slot.RestartAttempts);
+            string? failure;
+            try { failure = await EnsureServerAsync(slot, restart: false, ticket, CancellationToken.None).ConfigureAwait(false); }
+            catch (Exception e) when (e is RpcException or IOException) { failure = "startFailed"; }
+            if (failure is "cancelled" or "noServer" or "noLanguage") return; // nothing a wait can change
+            if (failure is null && slot.Server is { Alive: true })
+            {
+                await NotifyAsync(NoticeLevel.Info, "restartedAuto", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false);
+                return;
+            }
+            if (attempt >= _settings.RestartMaxAttempts && Volatile.Read(ref slot.RestartTicket) == ticket)
+            {
+                await NotifyAsync(NoticeLevel.Error, "crashedGaveUp", ("language", slot.Language), ("attempts", attempt.ToString())).ConfigureAwait(false);
+                return;
+            }
+        }
     }
 
     // ---- diagnostics ----
@@ -584,7 +675,11 @@ public sealed class LspPlugin : PluginBase
         return list;
     }
 
-    /// <summary>The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk read as UTF-8 (<paramref name="strict"/>: null for bytes that are not valid UTF-8); null when it cannot be read or is larger than the limit.</summary>
+    /// <summary>
+    /// The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk; null when it cannot be read or is larger than the limit. A file that starts with a byte order mark is
+    /// read as the encoding the mark names (UTF-8, UTF-16 or UTF-32), any other as UTF-8: <paramref name="strict"/> is null for bytes that are not valid in that encoding, and for a text with a NUL in it
+    /// (UTF-16 without a mark reads as such), so an edit is never built on a reading of the file that the editor would not make.
+    /// </summary>
     private Loaded? Load(string path, bool strict = false)
     {
         foreach (var d in _docs.Values)
@@ -594,11 +689,22 @@ public sealed class LspPlugin : PluginBase
             var info = new FileInfo(path);
             if (!info.Exists || info.Length > _settings.MaxBytes) return null;
             var bytes = File.ReadAllBytes(path);
-            int bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-            var text = new UTF8Encoding(false, strict).GetString(bytes, bom, bytes.Length - bom);
-            return new Loaded(text, new LineMap(text), TextCodec.Utf8, bom, Convert.ToHexString(SHA256.HashData(bytes)));
+            var (codec, bom, encoding) = Sniff(bytes, strict);
+            var text = encoding.GetString(bytes, bom, bytes.Length - bom);
+            if (strict && text.Contains('\0')) return null;
+            return new Loaded(text, new LineMap(text), codec, bom, Convert.ToHexString(SHA256.HashData(bytes)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException) { return null; }
+    }
+
+    /// <summary>The encoding a file starts with by its byte order mark (the UTF-32 marks first: the one of UTF-32 LE starts with the one of UTF-16 LE), the length of the mark, and a decoder that throws on invalid bytes when asked.</summary>
+    private static (TextCodec Codec, int Bom, Encoding Encoding) Sniff(byte[] bytes, bool strict)
+    {
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32LEBom.Bom)) return (TextCodec.Utf32LE, 4, new UTF32Encoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32BEBom.Bom)) return (TextCodec.Utf32BE, 4, new UTF32Encoding(true, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16LEBom.Bom)) return (TextCodec.Utf16LE, 2, new UnicodeEncoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16BEBom.Bom)) return (TextCodec.Utf16BE, 2, new UnicodeEncoding(true, false, strict));
+        return (TextCodec.Utf8, bytes.AsSpan().StartsWith(TextCodec.Utf8Bom.Bom) ? 3 : 0, new UTF8Encoding(false, strict));
     }
 
     private List<Place> Resolve(Doc current, List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> raw)

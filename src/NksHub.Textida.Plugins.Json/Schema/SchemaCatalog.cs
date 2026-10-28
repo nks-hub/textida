@@ -69,7 +69,10 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
         new("golangci-lint", "golangci-lint", "", [".golangci.yml", ".golangci.yaml"], DataDialect.Yaml, "https://json.schemastore.org/golangci-lint.json"),
     ];
 
-    private readonly List<SchemaMapping> _user = [.. userMappings];
+    private SchemaMapping[] _user = [.. userMappings];
+
+    /// <summary>Replaces the rules of the user; a check that is running keeps the rules it started with.</summary>
+    public void SetMappings(IEnumerable<SchemaMapping> userMappings) => Volatile.Write(ref _user, [.. userMappings]);
 
     public static DataDialect DialectOf(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
@@ -155,7 +158,7 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
     {
         var dialect = DialectOf(path);
         if (declared is { Length: > 0 } && ByAddress(declared) is { } named) return (named, named.Dialect ?? dialect);
-        foreach (var m in _user)
+        foreach (var m in Volatile.Read(ref _user))
         {
             if (!Glob.IsMatch(m.Glob, path)) continue;
             if (Find(m.SchemaId) is { } e) return (e, m.Dialect ?? e.Dialect ?? dialect);
@@ -192,11 +195,18 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
     /// </summary>
     public SchemaCheckResult Check(string path, string text, SchemaOptions options, SchemaEntry? schema, DataDialect dialect, string? schemaText)
     {
+        DataNode? schemaNode = null;
+        if (schema is not null && schemaText is not null && !TryParse(schemaText, DataDialect.Json, options.MaxDepth, out schemaNode, out _) && schema.IsBundled)
+            throw new InvalidOperationException($"The bundled schema {schema.Id} is not valid JSON.");
+        return Check(path, text, options, schema, dialect, schemaNode);
+    }
+
+    /// <summary>As the overload with the text of the schema, for a schema that is parsed already (and whose references were linked, see <see cref="SchemaOptions.Links"/>).</summary>
+    public SchemaCheckResult Check(string path, string text, SchemaOptions options, SchemaEntry? schema, DataDialect dialect, DataNode? schemaNode)
+    {
         if (!TryParse(text, dialect, options.MaxDepth, out var data, out var syntax)) return new(schema, dialect, syntax, []);
-        if (schema is null || schemaText is null) return new(schema, dialect, null, []);
-        if (!TryParse(schemaText, DataDialect.Json, options.MaxDepth, out var schemaNode, out _))
-            return schema.IsBundled ? throw new InvalidOperationException($"The bundled schema {schema.Id} is not valid JSON.") : new(schema, dialect, null, []);
-        var issues = new SchemaValidator(schemaNode!, options).Validate(data!);
+        if (schema is null || schemaNode is null) return new(schema, dialect, null, []);
+        var issues = new SchemaValidator(schemaNode, options).Validate(data!);
         if (schema.Id == "skill-agentskills") issues.AddRange(FolderNameIssues(path, data!));
         return new(schema, dialect, null, issues);
     }
@@ -233,10 +243,10 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
         {
             DataNode? inner = null;
             foreach (var m in node.Members)
-                if (offset > m.NameEnd && offset <= m.Value.End && offset >= m.Value.Start && (scalars || m.Value.Kind is DataKind.Object or DataKind.Array)) { inner = m.Value; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth)).Select(s => ChildSchema(s, m.Name, options)).OfType<DataNode>().ToList(); break; }
+                if (offset > m.NameEnd && offset <= m.Value.End && offset >= m.Value.Start && (scalars || m.Value.Kind is DataKind.Object or DataKind.Array)) { inner = m.Value; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options)).Select(s => ChildSchema(s, m.Name, options)).OfType<DataNode>().ToList(); break; }
             if (inner is null && node.Kind == DataKind.Array)
                 foreach (var i in node.Items)
-                    if (offset >= i.Start && offset <= i.End && (scalars || i.Kind is DataKind.Object or DataKind.Array)) { inner = i; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth)).Select(s => s.Get("items")).OfType<DataNode>().ToList(); break; }
+                    if (offset >= i.Start && offset <= i.End && (scalars || i.Kind is DataKind.Object or DataKind.Array)) { inner = i; schemas = schemas.SelectMany(s => Flatten(schemaRoot, s, options)).Select(s => s.Get("items")).OfType<DataNode>().ToList(); break; }
             if (inner is null) break;
             node = inner;
         }
@@ -249,63 +259,23 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
         var (node, schemas) = Locate(schemaRoot, data, offset, options, scalars: false);
         if (node.Kind != DataKind.Object) return [];
         var existing = node.Members.Select(m => m.Name).ToHashSet();
-        return schemas.SelectMany(s => Flatten(schemaRoot, s, options.MaxDepth))
+        return schemas.SelectMany(s => Flatten(schemaRoot, s, options))
             .Where(s => s.Get("properties") is { Kind: DataKind.Object })
             .SelectMany(s => s.Get("properties")!.Members.Select(m => m.Name))
             .Where(n => !existing.Contains(n)).Distinct().Order(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>The schema with its <c>$ref</c>, <c>allOf</c>, <c>oneOf</c> and <c>anyOf</c> parts folded in, as a list of schemas to read <c>properties</c> from.</summary>
-    internal static IEnumerable<DataNode> Flatten(DataNode root, DataNode s, int depth)
+    /// <summary>The schema with its <c>$ref</c>, <c>allOf</c>, <c>oneOf</c> and <c>anyOf</c> parts folded in, as a list of schemas to read <c>properties</c> from. A schema that is reached twice is listed once, so a reference cycle ends.</summary>
+    internal static IEnumerable<DataNode> Flatten(DataNode root, DataNode s, SchemaOptions options) => Flatten(root, s, options, options.MaxDepth, []);
+
+    private static IEnumerable<DataNode> Flatten(DataNode root, DataNode s, SchemaOptions options, int depth, HashSet<DataNode> seen)
     {
-        if (depth < 0 || s.Kind != DataKind.Object) yield break;
+        if (depth < 0 || s.Kind != DataKind.Object || !seen.Add(s)) yield break;
         yield return s;
-        if (s.Get("$ref") is { Kind: DataKind.String } r && r.Text.StartsWith("#/", StringComparison.Ordinal))
-        {
-            DataNode? t = root;
-            foreach (var part in r.Text[2..].Split('/')) t = t?.Get(part);
-            if (t is not null) foreach (var x in Flatten(root, t, depth - 1)) yield return x;
-        }
+        if (s.Get("$ref") is { Kind: DataKind.String } r && SchemaValidator.TargetOf(root, r, options) is { } t)
+            foreach (var x in Flatten(root, t, options, depth - 1, seen)) yield return x;
         foreach (var combinator in new[] { "allOf", "oneOf", "anyOf" }) // alternatives are all candidates for a suggestion
             if (s.Get(combinator) is { Kind: DataKind.Array } parts)
-                foreach (var a in parts.Items) foreach (var x in Flatten(root, a, depth - 1)) yield return x;
-    }
-}
-
-/// <summary>Glob masks over paths with '/' or '\' separators: <c>*</c> and <c>?</c> inside one segment, <c>**</c> over any number of segments.</summary>
-public static class Glob
-{
-    public static bool IsMatch(string pattern, string path)
-    {
-        var p = path.Replace('\\', '/');
-        var g = pattern.Replace('\\', '/');
-        if (!g.Contains('/')) return Segment(g, p[(p.LastIndexOf('/') + 1)..]);
-        if (!g.StartsWith("**/", StringComparison.Ordinal) && !g.StartsWith('/')) g = "**/" + g; // a relative mask may start anywhere in the path
-        return Segments(g.Split('/', StringSplitOptions.RemoveEmptyEntries), 0, p.Split('/', StringSplitOptions.RemoveEmptyEntries), 0);
-    }
-
-    private static bool Segments(string[] g, int gi, string[] p, int pi)
-    {
-        if (gi == g.Length) return pi == p.Length;
-        if (g[gi] == "**")
-        {
-            for (int k = pi; k <= p.Length; k++) if (Segments(g, gi + 1, p, k)) return true;
-            return false;
-        }
-        return pi < p.Length && Segment(g[gi], p[pi]) && Segments(g, gi + 1, p, pi + 1);
-    }
-
-    private static bool Segment(string g, string s)
-    {
-        int gi = 0, si = 0, star = -1, mark = 0;
-        while (si < s.Length)
-        {
-            if (gi < g.Length && (g[gi] == '?' || g[gi] == s[si])) { gi++; si++; }
-            else if (gi < g.Length && g[gi] == '*') { star = gi++; mark = si; }
-            else if (star >= 0) { gi = star + 1; si = ++mark; }
-            else return false;
-        }
-        while (gi < g.Length && g[gi] == '*') gi++;
-        return gi == g.Length;
+                foreach (var a in parts.Items) foreach (var x in Flatten(root, a, options, depth - 1, seen)) yield return x;
     }
 }

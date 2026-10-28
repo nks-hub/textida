@@ -420,8 +420,11 @@ public class FileFlowTests : IDisposable
         }
         else
         {
-            tool = "/bin/sh";
-            arguments = $"-c 'cp \"{{right}}\" \"{seen}\"; cp \"{{left}}\" \"{seen}.left\"'";
+            // .NET splits the argument string at double quotes only, so a quoted shell command would fall apart; a script takes the two paths instead
+            tool = Path.Combine(_temp.Path, "diff-tool.sh");
+            File.WriteAllText(tool, $"#!/bin/sh\ncp \"$2\" \"{seen}\"\ncp \"$1\" \"{seen}.left\"\n");
+            File.SetUnixFileMode(tool, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            arguments = "\"{left}\" \"{right}\"";
         }
         _app.Workbench.Set("tools.diffTool", tool);
         _app.Workbench.Set("tools.diffArguments", arguments);

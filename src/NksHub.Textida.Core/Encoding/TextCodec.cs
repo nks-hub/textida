@@ -106,6 +106,7 @@ public sealed class TextCodec
         if (blockSize < 4) throw new ArgumentOutOfRangeException(nameof(blockSize));
         var span = bytes.Span;
         int bom = Bom.Length > 0 && span.StartsWith(Bom) ? Bom.Length : 0;
+        if (Kind == CodecKind.Utf8 && System.Text.Unicode.Utf8.IsValid(span[bom..])) return DecodeValidUtf8(bytes, bom);
         var text = new StringBuilder(span.Length);
         var map = new List<int>(span.Length + 1);
         var invalid = new List<int>();
@@ -140,12 +141,55 @@ public sealed class TextCodec
     private char ReadUnit(ReadOnlySpan<byte> d, int i) =>
         BigEndian ? (char)((d[i] << 8) | d[i + 1]) : (char)((d[i + 1] << 8) | d[i]);
 
+    /// <summary>
+    /// Valid UTF-8 in one pass: the system decoder makes the text and the map takes the lead bytes. The unit-by-unit decoder below is for text that is not valid;
+    /// both give the same text and map, but this one allocates the text and the map and nothing per character.
+    /// </summary>
+    private DecodedText DecodeValidUtf8(ReadOnlyMemory<byte> bytes, int bom)
+    {
+        var body = bytes.Span[bom..];
+        string text = Encoding.UTF8.GetString(body);
+        var map = new int[text.Length + 1];
+        int k = 0;
+        for (int i = 0; i < body.Length;)
+        {
+            byte lead = body[i];
+            if (lead < 0x80)
+            {
+                int run = body[i..].IndexOfAnyExceptInRange((byte)0, (byte)0x7F);
+                if (run < 0) run = body.Length - i;
+                for (int j = 0; j < run; j++) map[k++] = bom + i + j;
+                i += run;
+                continue;
+            }
+            map[k++] = bom + i;
+            if (lead >= 0xF0) map[k++] = bom + i; // a supplementary character is two chars that start at one place
+            i += lead < 0xE0 ? 2 : lead < 0xF0 ? 3 : 4;
+        }
+        map[k] = bytes.Length;
+        return new DecodedText(this, bytes, bom, text, map, []);
+    }
+
     private void DecodeCore(ReadOnlySpan<byte> d, int baseOffset, StringBuilder text, List<int>? map, List<int>? invalid)
     {
-        void Add(string s, int at, bool bad)
+        void AddChar(char c, int at)
         {
-            if (bad) invalid?.Add(text.Length);
-            foreach (char c in s) { map?.Add(baseOffset + at); text.Append(c); }
+            map?.Add(baseOffset + at);
+            text.Append(c);
+        }
+        void AddRune(uint v, int at)
+        {
+            if (v <= 0xFFFF) AddChar((char)v, at);
+            else
+            {
+                AddChar((char)(0xD7C0 + (v >> 10)), at);
+                AddChar((char)(0xDC00 + (v & 0x3FF)), at);
+            }
+        }
+        void AddBad(int at)
+        {
+            invalid?.Add(text.Length);
+            AddChar(Bad[0], at);
         }
         int i = 0;
         switch (Kind)
@@ -153,34 +197,47 @@ public sealed class TextCodec
             case CodecKind.Utf8:
                 while (i < d.Length)
                 {
+                    if (d[i] < 0x80)
+                    {
+                        int run = d[i..].IndexOfAnyExceptInRange((byte)0, (byte)0x7F);
+                        if (run < 0) run = d.Length - i;
+                        for (int k = 0; k < run; k++) AddChar((char)d[i + k], i + k);
+                        i += run;
+                        continue;
+                    }
                     var status = Rune.DecodeFromUtf8(d[i..], out Rune r, out int used);
                     bool ok = status == System.Buffers.OperationStatus.Done;
                     if (status == System.Buffers.OperationStatus.NeedMoreData) used = d.Length - i;
                     if (used < 1) used = 1;
-                    Add(ok ? r.ToString() : Bad, i, !ok);
+                    if (ok) AddRune((uint)r.Value, i);
+                    else AddBad(i);
                     i += used;
                 }
                 break;
             case CodecKind.Utf16:
                 while (i < d.Length)
                 {
-                    if (i + 1 >= d.Length) { Add(Bad, i, true); break; }
+                    if (i + 1 >= d.Length) { AddBad(i); break; }
                     char u = ReadUnit(d, i);
                     if (char.IsHighSurrogate(u) && i + 3 < d.Length && char.IsLowSurrogate(ReadUnit(d, i + 2)))
-                    { Add(new string([u, ReadUnit(d, i + 2)]), i, false); i += 4; }
-                    else if (char.IsSurrogate(u)) { Add(Bad, i, true); i += 2; }
-                    else { Add(u.ToString(), i, false); i += 2; }
+                    {
+                        AddChar(u, i);
+                        AddChar(ReadUnit(d, i + 2), i);
+                        i += 4;
+                    }
+                    else if (char.IsSurrogate(u)) { AddBad(i); i += 2; }
+                    else { AddChar(u, i); i += 2; }
                 }
                 break;
             case CodecKind.Utf32:
                 while (i < d.Length)
                 {
-                    if (i + 3 >= d.Length) { Add(Bad, i, true); break; }
+                    if (i + 3 >= d.Length) { AddBad(i); break; }
                     uint v = BigEndian
                         ? (uint)(d[i] << 24 | d[i + 1] << 16 | d[i + 2] << 8 | d[i + 3])
                         : (uint)(d[i + 3] << 24 | d[i + 2] << 16 | d[i + 1] << 8 | d[i]);
-                    if (Rune.IsValid(v)) Add(new Rune(v).ToString(), i, false);
-                    else Add(Bad, i, true);
+                    if (Rune.IsValid(v)) AddRune(v, i);
+                    else AddBad(i);
                     i += 4;
                 }
                 break;

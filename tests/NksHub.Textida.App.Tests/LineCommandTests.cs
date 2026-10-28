@@ -94,7 +94,7 @@ public class LineCommandTests : IDisposable
         Mod(Key.Z);
         Assert.Equal(original, Text(tab));
         Assert.Equal(original, Bytes(tab));
-        Mod(Key.Y);
+        TestApp.Redo(_w);
         Assert.Equal(expected, Text(tab));
     }
 

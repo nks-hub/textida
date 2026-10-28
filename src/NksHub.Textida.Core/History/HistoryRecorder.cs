@@ -4,7 +4,8 @@ namespace NksHub.Textida.Core.History;
 
 /// <summary>
 /// Feeds a <see cref="FileHistory"/> from a document: the state on disk when the file is attached, every save, and a change made by another program
-/// (taken at the moment it is detected, before a later save can overwrite it). The files are read from disk on a worker, one at a time.
+/// (taken at the moment it is detected, before a later save can overwrite it). The files are read from disk on a worker, one at a time; this holds for a
+/// document of any size, since a large file is never copied into memory (the history keeps it as a patch when it can).
 /// </summary>
 public sealed class HistoryRecorder : IDisposable
 {
@@ -22,11 +23,21 @@ public sealed class HistoryRecorder : IDisposable
         Failed = onFailed;
         doc.Saved += OnSaved;
         doc.ExternalChangeDetected += OnExternal;
-        if (doc.FilePath is { } path && File.Exists(path)) Enqueue(path, HistorySource.Initial, onlyIfEmpty: true);
+        if (doc.FilePath is not { } path || !File.Exists(path)) return;
+        // a file large enough to be kept as patches is copied whole once, which a document that is only read does not need: the state it was opened in is taken at the first edit,
+        // when the file on disk is still that state
+        if (history.Policy.PatchAboveBytes is { } above && new FileInfo(path).Length > above) doc.Changed += OnFirstChange;
+        else Enqueue(path, HistorySource.Initial, onlyIfEmpty: true);
     }
 
     /// <summary>Completes when everything queued so far is stored.</summary>
     public Task Pending => _queue;
+
+    private void OnFirstChange(object? sender, DocumentChangedEventArgs e)
+    {
+        _doc.Changed -= OnFirstChange;
+        if (_doc.FilePath is { } path && File.Exists(path)) Enqueue(path, HistorySource.Initial, onlyIfEmpty: true);
+    }
 
     private void OnSaved(object? sender, EventArgs e)
     {
@@ -38,12 +49,18 @@ public sealed class HistoryRecorder : IDisposable
         if (change.Kind == ExternalChangeKind.Modified) Enqueue(change.Path, HistorySource.External, false);
     }
 
+    private readonly HashSet<(string Path, HistorySource Source)> _waiting = [];
+
     private void Enqueue(string path, HistorySource source, bool onlyIfEmpty)
     {
         lock (this)
         {
+            // a record of the same kind that has not started yet reads the file when it does, so it sees the state this change made: a large file that changes
+            // all the time (a log) must not queue a read of the whole file for each change
+            if (!_waiting.Add((path, source))) return;
             _queue = _queue.ContinueWith(_ =>
             {
+                lock (this) _waiting.Remove((path, source));
                 try
                 {
                     if (onlyIfEmpty && _history.List(path).Count > 0) return;
@@ -60,6 +77,7 @@ public sealed class HistoryRecorder : IDisposable
 
     public void Dispose()
     {
+        _doc.Changed -= OnFirstChange;
         _doc.Saved -= OnSaved;
         _doc.ExternalChangeDetected -= OnExternal;
     }

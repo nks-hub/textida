@@ -401,6 +401,130 @@ public class IdeAppTests : IDisposable
         Assert.Contains("API_KEY=", moved.GetRawText());
     }
 
+    // ---- open editors, openFile, @-mention ----
+
+    [AvaloniaFact]
+    public async Task The_agent_lists_the_shared_tabs_and_asks_whether_they_have_unsaved_changes()
+    {
+        await SwitchOnServerAsync();
+        await SwitchOnBridgeAsync(_w);
+        var shared = Open(_w, "shared.txt", "alpha beta gamma\n");
+        var hidden = Open(_w, "hidden.txt", "secret words\n");
+        await ShareAsync(_w, shared);
+        var agent = await ConnectAsync(_w);
+        await Pump(agent.NextNotificationAsync(), "the selection pushed on connect"); // from now on the bridge knows the active tab
+
+        JsonElement Tabs(string text) => JsonDocument.Parse(text).RootElement.GetProperty("tabs");
+        var listed = Assert.Single(Tabs((await Pump(agent.ToolTextAsync("getOpenEditors"), "the open editors")).Text).EnumerateArray());
+        Assert.Equal(new Uri(shared.Path!).AbsoluteUri, listed.GetProperty("uri").GetString());
+        Assert.Equal("shared.txt", listed.GetProperty("label").GetString());
+        Assert.Equal(shared.Doc.Language.Id, listed.GetProperty("languageId").GetString());
+        Assert.True(listed.GetProperty("isActive").GetBoolean());
+        Assert.False(listed.GetProperty("isDirty").GetBoolean());
+
+        string Args(string path) => JsonSerializer.Serialize(new { filePath = path });
+        shared.Editor!.Document.Insert(0, "x");
+        Settle();
+        var dirty = JsonDocument.Parse((await Pump(agent.ToolTextAsync("checkDocumentDirty", Args(shared.Path!)), "the dirty check")).Text).RootElement;
+        Assert.True(dirty.GetProperty("success").GetBoolean());
+        Assert.True(dirty.GetProperty("isDirty").GetBoolean());
+        var unshared = JsonDocument.Parse((await Pump(agent.ToolTextAsync("checkDocumentDirty", Args(hidden.Path!)), "the dirty check of a tab that is not shared")).Text).RootElement;
+        Assert.False(unshared.GetProperty("success").GetBoolean());
+        Assert.Contains("Document not open", unshared.GetProperty("message").GetString());
+
+        var folders = JsonDocument.Parse((await Pump(agent.ToolTextAsync("getWorkspaceFolders"), "the folders")).Text).RootElement;
+        Assert.Equal(Path.GetDirectoryName(shared.Path), folders.GetProperty("rootPath").GetString());
+    }
+
+    [AvaloniaFact]
+    public async Task A_file_the_agent_opens_comes_in_a_tab_of_the_user_that_is_not_shared_and_the_text_it_names_is_selected()
+    {
+        await SwitchOnServerAsync();
+        await SwitchOnBridgeAsync(_w);
+        var shared = Open(_w, "shared.txt", "alpha\n");
+        await ShareAsync(_w, shared);
+        var other = _temp.File("other.txt", "function hello() {\n  return 1;\n}\nrest\n");
+        var agent = await ConnectAsync(_w);
+        string Args(string path, string more = "") => $"{{\"filePath\":{JsonSerializer.Serialize(path)}{more}}}";
+
+        var opened = await Pump(agent.ToolTextAsync("openFile", Args(other, ",\"startText\":\"function hello\",\"endText\":\"}\"")), "openFile");
+        Assert.Equal((false, "Opened file: " + other), opened);
+        var tab = Assert.Single(_w.Tabs, t => t.Path == other);
+        Assert.Same(tab, _w.Active); // the user sees it
+        Assert.False(_app.Plugins.Mcp.IsShared(tab)); // opening does not share
+        Assert.Equal("function hello() {\n  return 1;\n}", tab.Editor!.Document.GetText(tab.Editor.SelectionStart, tab.Editor.SelectionLength));
+
+        // a shared tab can be described without being brought forward
+        _w.SelectTab(tab);
+        var described = await Pump(agent.ToolTextAsync("openFile", Args(shared.Path!, ",\"makeFrontmost\":false")), "openFile of a shared tab in the background");
+        Assert.False(described.IsError, described.Text);
+        var info = JsonDocument.Parse(described.Text).RootElement;
+        Assert.Equal(shared.Path, info.GetProperty("filePath").GetString());
+        Assert.Equal(2, info.GetProperty("lineCount").GetInt32());
+        Assert.Same(tab, _w.Active);
+
+        // not shared, so not described; outside the folders of the window, so not opened
+        var background = await Pump(agent.ToolTextAsync("openFile", Args(other, ",\"makeFrontmost\":false")), "openFile of an unshared tab in the background");
+        Assert.True(background.IsError);
+        var outside = Path.Combine(Path.GetTempPath(), "elsewhere-" + Guid.NewGuid().ToString("N") + ".txt");
+        Assert.True((await Pump(agent.ToolTextAsync("openFile", Args(outside)), "openFile outside the workspace")).IsError);
+        Assert.DoesNotContain(_w.Tabs, t => t.Path == outside);
+    }
+
+    [AvaloniaFact]
+    public async Task A_file_the_agent_opens_that_is_gone_is_an_error_and_a_secrets_file_gets_no_selection()
+    {
+        await SwitchOnServerAsync();
+        await SwitchOnBridgeAsync(_w);
+        var shared = Open(_w, "shared.txt", "alpha\n");
+        await ShareAsync(_w, shared);
+        var env = _temp.File(".env", "API_KEY=hunter2\n");
+        var agent = await ConnectAsync(_w);
+        string Args(string path, string more = "") => $"{{\"filePath\":{JsonSerializer.Serialize(path)}{more}}}";
+
+        var gone = await Pump(agent.ToolTextAsync("openFile", Args(Path.Combine(_temp.Path, "gone.txt"))), "openFile of a file that is not there");
+        Assert.True(gone.IsError);
+
+        Assert.False((await Pump(agent.ToolTextAsync("openFile", Args(env, ",\"startText\":\"hunter2\"")), "openFile of a secrets file")).IsError);
+        var tab = Assert.Single(_w.Tabs, t => t.Path == env);
+        Assert.Equal(0, tab.Editor!.SelectionLength); // the text it named was not looked for in a secrets file
+    }
+
+    [AvaloniaFact]
+    public async Task The_user_hands_the_agent_the_lines_of_the_selection_of_a_shared_tab()
+    {
+        await SwitchOnServerAsync();
+        var hidden = Open(_w, "hidden.txt", "secret words\n");
+        _w.SendIdeMention();
+        await Until(() => _w.McpTask.IsCompleted, "the command to finish");
+        Assert.Equal(Loc.Get(K.IdeMentionNone, ("name", hidden.Title)), _w.StatusMessageText); // the bridge is off
+
+        await SwitchOnBridgeAsync(_w);
+        var shared = Open(_w, "shared.txt", "alpha\nbeta\ngamma\ndelta\n");
+        await ShareAsync(_w, shared);
+        var agent = await ConnectAsync(_w);
+        await Pump(agent.NextNotificationAsync(), "the selection pushed on connect");
+
+        shared.Editor!.Select(6, 4); // "beta"
+        await Pump(agent.NextNotificationAsync(), "the selection of the user");
+        _w.SendIdeMention();
+        await Until(() => _w.McpTask.IsCompleted, "the command to finish");
+        await _w.McpTask;
+        Assert.Equal(Loc.Get(K.IdeMentionSent, ("name", shared.Title)), _w.StatusMessageText);
+        JsonElement mention;
+        do mention = await Pump(agent.NextNotificationAsync(), "the @-mention");
+        while (mention.GetProperty("method").GetString() != IdeBridge.AtMentionMethod); // a move of the caret may be announced first
+        Assert.Equal(shared.Path, mention.GetProperty("params").GetProperty("filePath").GetString());
+        Assert.Equal(1, mention.GetProperty("params").GetProperty("lineStart").GetInt32());
+        Assert.Equal(1, mention.GetProperty("params").GetProperty("lineEnd").GetInt32());
+
+        _w.SelectTab(hidden); // not shared: nothing goes out
+        _w.SendIdeMention();
+        await Until(() => _w.McpTask.IsCompleted, "the command to finish");
+        await _w.McpTask;
+        Assert.Equal(Loc.Get(K.IdeMentionNone, ("name", hidden.Title)), _w.StatusMessageText);
+    }
+
     // ---- openDiff ----
 
     [AvaloniaFact]

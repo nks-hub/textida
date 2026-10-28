@@ -212,6 +212,18 @@ public sealed class MappedFileSource : IPagedTextSource
         return _cum[b] + LineScanner.CountTerminators(span, len, Codec);
     }
 
+    /// <summary>
+    /// Zero-based line that holds <paramref name="offset"/>, which is the number of terminators before it (an offset between the CR and the LF of one terminator is on the line of the CR):
+    /// the block table and the block of the offset tell it, so no other block is read. False while the index does not reach the offset yet.
+    /// </summary>
+    public bool TryGetLineOfOffset(long offset, out long line)
+    {
+        line = 0;
+        if (offset < 0 || offset > _file.Length || offset / _blockSize > Volatile.Read(ref _published)) return false;
+        line = CountTerminatorsBefore(offset);
+        return true;
+    }
+
     public ValueTask<IReadOnlyList<string>> ReadLinesAtAsync(long byteOffset, int maxLines, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -303,6 +315,12 @@ public sealed class MappedFileSource : IPagedTextSource
 
     /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="ColumnIndex.Spacing"/> columns before it, so it is short.</summary>
     public bool IsColumnNear(long lineStart, long column) => _columns.IsNear(lineStart, column);
+
+    /// <summary>True when a read at <paramref name="column"/> resumes from a known point, or the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsColumnNear(long lineStart, long column, long within) => _columns.IsNear(lineStart, column, within);
+
+    /// <summary>True when <see cref="PagedDocument.ColumnOf"/> at <paramref name="offset"/> resumes from a known point, or the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsOffsetNear(long lineStart, long offset, long within) => _columns.IsNearPosition(lineStart, offset, within);
 
     internal ColumnIndex Columns => _columns;
     internal int BomLength => _bomLength;

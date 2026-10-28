@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NkspadPlugin/NkspadPlugin.csproj" />
+  <Project Path="NkspadPlugin.Tests/NkspadPlugin.Tests.csproj" />
+</Solution>

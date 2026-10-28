@@ -78,6 +78,20 @@ public sealed class WorkbenchHost
         return duplicates;
     }
 
+    /// <summary>
+    /// Takes back everything a plugin added: its commands, menu items, keybindings and the settings named in <paramref name="settingKeys"/>.
+    /// The caller builds the keymap again.
+    /// </summary>
+    public void RemovePlugin(string manifestId, IEnumerable<string> settingKeys)
+    {
+        Commands.RemoveSource(manifestId);
+        _layers.RemoveAll(l => l.Kind == KeymapLayerKind.Plugin && l.Source == manifestId);
+        foreach (var key in settingKeys)
+        {
+            Settings.Remove(key);
+        }
+    }
+
     private List<string> DuplicateSettings(ContributionManifest manifest) =>
         manifest.Settings.Where(s => Settings.TryGet(s.Key, out _)).Select(s => $"Setting '{s.Key}' from '{manifest.Id}' is already defined.").ToList();
 

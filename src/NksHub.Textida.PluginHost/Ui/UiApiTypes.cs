@@ -1,46 +1,13 @@
 namespace NksHub.Textida.PluginHost.Ui;
 
-/// <summary>Method names of the UI contributions (requests from the plugin to the editor). The plugin sends data, the editor draws it.</summary>
-public static class UiMethods
-{
-    public const string PanelSet = "ui/panel/set";
-    public const string PanelRemove = "ui/panel/remove";
-    public const string StatusSet = "ui/status/set";
-    public const string StatusClear = "ui/status/clear";
-    public const string QuickPick = "ui/quickPick";
-    public const string Input = "ui/input";
-    public const string Confirm = "ui/confirm";
-    public const string Notify = "ui/notify";
-    public const string TaskStart = "ui/task/start";
-    public const string TaskProgress = "ui/task/progress";
-    public const string TaskEnd = "ui/task/end";
-}
-
-/// <summary>Events (<c>$/event</c> payloads) the editor sends to a plugin about its UI.</summary>
-public static class UiEvents
-{
-    /// <summary>The user opened an item of a panel (payload: <c>panel</c>, <c>item</c>).</summary>
-    public const string PanelActivated = "ui/panelActivated";
-    /// <summary>The user pressed cancel on a task (payload: <c>task</c>).</summary>
-    public const string TaskCancelled = "ui/taskCancelled";
-}
-
-/// <summary>JSON-RPC error codes of the UI API (implementation-defined range -32050..-32059; the document API owns -32020..-32049, so no number is shared).</summary>
-public static class UiErrorCodes
-{
-    public const int QuotaExceeded = -32050;
-    public const int UnknownTask = -32051;
-}
-
 public enum PanelKind { List, Tree }
-
-public enum NoticeLevel { Info, Warning, Error }
 
 /// <param name="Children">Empty for a list; a list panel never has children.</param>
 public sealed record PanelItem(string Id, string Label, string? Detail, IReadOnlyList<PanelItem> Children);
 
 /// <param name="Reveal">The editor shows the panel at once, not only when the user opens it.</param>
-public sealed record PanelModel(string Id, string Title, PanelKind Kind, IReadOnlyList<PanelItem> Items, bool Reveal);
+/// <param name="Current">The id of the item the plugin marks as the current one (the symbol the caret is in, say), or null. The editor draws it in bold and names it so for a screen reader; it is no selection and takes no focus.</param>
+public sealed record PanelModel(string Id, string Title, PanelKind Kind, IReadOnlyList<PanelItem> Items, bool Reveal, string? Current = null);
 
 public sealed record StatusModel(string Text, string? Tooltip);
 
@@ -66,6 +33,8 @@ public interface IPluginUi
 {
     void SetPanel(string pluginId, PanelModel panel);
     void RemovePanel(string pluginId, string panelId);
+    /// <summary>Moves the mark of the current item of a panel that is shown (<see cref="PanelModel.Current"/>) without replacing its items; null takes it away. Nothing happens for a panel that is not shown.</summary>
+    void SetCurrentItem(string pluginId, string panelId, string? itemId);
     /// <summary>At most one status item per plugin; null removes it.</summary>
     void SetStatus(string pluginId, StatusModel? status);
     /// <summary>The id of the chosen item, or null.</summary>

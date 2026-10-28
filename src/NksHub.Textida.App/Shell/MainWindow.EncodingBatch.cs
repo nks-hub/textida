@@ -61,7 +61,8 @@ internal sealed partial class MainWindow
         if (!replace && clean.Count == 0) return;
 
         string? journal = BatchJournalDirectory;
-        var result = await Task.Run(() => EncodingBatch.Run(plan, replace ? "?" : null, journal, modified));
+        EncodingBatchResult result;
+        using (OwnWrite()) result = await Task.Run(() => EncodingBatch.Run(plan, replace ? "?" : null, journal, modified));
         await ShowBatchResultAsync(folder, target, result);
     }
 

@@ -41,6 +41,10 @@ internal sealed class ColumnIndex
         }
     }
 
+    /// <summary>True when a count of columns up to <paramref name="position"/> resumes from a known point, or from the line start, at most <paramref name="within"/> bytes before it.</summary>
+    public bool IsNearPosition(long lineStart, long position, long within) =>
+        TryNearestAtPosition(lineStart, position, out _, out long known) ? position - known <= within : position - lineStart <= within;
+
     /// <summary>Known point at the largest position not above <paramref name="position"/> on the line starting at <paramref name="lineStart"/>.</summary>
     public bool TryNearestAtPosition(long lineStart, long position, out long foundColumn, out long foundPosition)
     {
@@ -160,8 +164,11 @@ internal sealed class ColumnIndex
     }
 
     /// <summary>True when a read at <paramref name="column"/> resumes from a known point at most <see cref="Spacing"/> columns before it, so it is short.</summary>
-    public bool IsNear(long lineStart, long column) =>
-        TryNearest(lineStart, column, out long known, out _) ? column - known <= Spacing : column <= Spacing;
+    public bool IsNear(long lineStart, long column) => IsNear(lineStart, column, Spacing);
+
+    /// <summary>True when a read at <paramref name="column"/> resumes from a known point, or from the line start, at most <paramref name="within"/> columns before it.</summary>
+    public bool IsNear(long lineStart, long column, long within) =>
+        TryNearest(lineStart, column, out long known, out _) ? column - known <= within : column <= within;
 
     /// <summary>Adds the points and line lengths that <paramref name="other"/> noted about the same text and takes its last read point.</summary>
     public void Merge(ColumnIndex other)
@@ -235,6 +242,18 @@ public sealed class ColumnSnapshot
     internal ColumnIndex Index { get; }
     internal long Version { get; }
     internal bool Edited => _content is not null;
+
+    /// <summary>What <see cref="PagedDocument.ColumnOf"/> returned for the revision this snapshot was made from; the points it notes on the way are kept like those of <see cref="ReadColumns"/>.</summary>
+    public long ColumnOf(long lineStart, long offset, CancellationToken ct = default) =>
+        _content is null
+            ? ColumnReader.ColumnOf((pos, max) => _source.File.GetSpanClamped(pos, max), _source.File.Length, _codec, _source.BomLength, Index, lineStart, offset, ct)
+            : ColumnReader.ColumnOf(Window, _content.ByteLength, _codec, _source.BomLength, Index, lineStart, offset, ct);
+
+    /// <summary>What <see cref="PagedDocument.OffsetOfColumn"/> returned for the revision this snapshot was made from.</summary>
+    public long OffsetOfColumn(long lineStart, long column, CancellationToken ct = default) =>
+        _content is null
+            ? ColumnReader.OffsetOf((pos, max) => _source.File.GetSpanClamped(pos, max), _source.File.Length, _codec, _source.BomLength, Index, lineStart, column, ct)
+            : ColumnReader.OffsetOf(Window, _content.ByteLength, _codec, _source.BomLength, Index, lineStart, column, ct);
 
     /// <summary>What <see cref="PagedDocument.ReadColumns"/> returned for the revision this snapshot was made from.</summary>
     public string ReadColumns(long lineStart, long startColumn, int maxColumns, CancellationToken ct = default) =>
