@@ -408,7 +408,9 @@ public class AccessibilityGateTests : IDisposable
         var tabItem = _w.ActiveGroup.Strip.GetVisualDescendants().OfType<TabStripItem>().First();
         var outputText = _w.OutputPanelControl.GetVisualDescendants().OfType<TextBox>().First();
         int panel = At(_w.DocumentFilter), tabs = At(tabItem), agent = At(_w.AgentInputBox), output = At(outputText), find = At(_w.FindBar.FindBox), status = At(_w.EncodingItem);
-        Assert.True(panel < tabs && tabs < agent && agent < output && output < find && find < status,
+        // on macOS the tabs share the title bar, above the documents panel
+        bool top = OperatingSystem.IsMacOS() ? tabs < panel && panel < agent : panel < tabs && tabs < agent;
+        Assert.True(top && agent < output && output < find && find < status,
             $"documents {panel}, tabs {tabs}, agent {agent}, output {output}, find {find}, status {status}: the parts are not visited from top to bottom");
     }
 
