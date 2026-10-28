@@ -58,7 +58,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         // a document of the largest size, written as JSON, can be six times its text
         var limits = new RpcLimits((int)Math.Min(int.MaxValue / 2, Math.Max(4L << 20, settings.MaxBytes * 6 + (64 << 10))), 8, 16, 100_000, 64L << 20, 64L << 20);
         _rpc = new JsonRpcDispatcher(input, output, RpcProtocols.Lsp, limits, this);
-        _ = DrainErrorsAsync();
+        _ = StderrPump.RunAsync(process.StandardError, _stderr, settings.StderrLines);
         _ = WatchAsync();
     }
 
@@ -73,6 +73,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         Process process;
         try { process = Process.Start(info) ?? throw new ServerStartException("The process did not start."); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { throw new ServerStartException(e.Message); }
+        ProcessLaunch.Track(process);
         var rootUri = PathUri.FromPath(root);
         var server = new LspServer(process, process.StandardOutput.BaseStream, process.StandardInput.BaseStream, settings, rootUri, launch.InitializationOptions, onNotification);
         try
@@ -169,20 +170,6 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     ValueTask IRpcHandler.HandleNotificationAsync(string method, JsonElement p) => _onNotification(method, p.Clone());
 
     // ---- the end of the process ----
-
-    private async Task DrainErrorsAsync()
-    {
-        try
-        {
-            while (await _process.StandardError.ReadLineAsync().ConfigureAwait(false) is { } line)
-                lock (_stderr)
-                {
-                    _stderr.Enqueue(line);
-                    while (_stderr.Count > _settings.StderrLines) _stderr.Dequeue();
-                }
-        }
-        catch (IOException) { }
-    }
 
     private string StderrTail()
     {

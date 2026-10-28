@@ -328,6 +328,7 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested) { response = Cancelled(id); }
         catch (RpcException e) { response = RpcWire.Error(id, e.Code, e.Message, e.DataJson); }
+        catch (TimeoutException e) { response = RpcWire.Error(id, RpcErrorCodes.RequestTimeout, e.Message); }
         catch (Exception e) { response = RpcWire.Error(id, RpcErrorCodes.InternalError, e.Message); }
         finally
         {

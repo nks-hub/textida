@@ -55,6 +55,7 @@ public static class Tidy
         info.StandardOutputEncoding = new UTF8Encoding(false);
         info.StandardErrorEncoding = new UTF8Encoding(false);
         using var process = Process.Start(info) ?? throw new IOException("The program did not start.");
+        ProcessLaunch.Track(process);
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
         limit.CancelAfter(timeout);
         try
