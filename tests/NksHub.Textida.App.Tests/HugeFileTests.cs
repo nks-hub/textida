@@ -155,6 +155,20 @@ public sealed class HugeFileTests : IDisposable
 
     // ---- P9.4.2 ----
 
+    /// <summary>A snapshot that counts the bytes read through it.</summary>
+    private sealed class CountingSnapshot(IByteSnapshot inner) : IByteSnapshot
+    {
+        public long Bytes;
+        public long ByteLength => inner.ByteLength;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            int n = inner.Read(offset, destination);
+            Interlocked.Add(ref Bytes, n);
+            return n;
+        }
+    }
+
     /// <summary>The level of every line of a block of 1 MiB of the log of the heatmap tests: two clusters of errors and one of warnings in a log of INFO lines.</summary>
     private static int LevelOfBlock(long block, long blocks)
     {
@@ -184,13 +198,12 @@ public sealed class HugeFileTests : IDisposable
         Assert.True(heat.Sampled);
 
         // the same count again, now to see how much of the file it reads
-        var file = PagedOf(tab).Source.File;
-        file.BeginBlockCount();
         clock.Restart();
         var snapshot = tab.Doc.Doc.GetSnapshot();
-        var again = LogHeat.Compute(snapshot, snapshot.Codec, tab.Doc.Doc.BomLength, tab.Doc.LogLevels, PluginLimitsPlaceholders.LogHeatBuckets, PluginLimitsPlaceholders.LogHeat());
+        var counting = new CountingSnapshot(snapshot);
+        var again = LogHeat.Compute(counting, snapshot.Codec, tab.Doc.Doc.BomLength, tab.Doc.LogLevels, PluginLimitsPlaceholders.LogHeatBuckets, PluginLimitsPlaceholders.LogHeat());
         double againSeconds = clock.Elapsed.TotalSeconds;
-        int read = file.BlocksTouched;
+        long read = Interlocked.Read(ref counting.Bytes);
 
         int buckets = heat.Buckets, errorBuckets = 0, warningBuckets = 0, judged = 0;
         var problems = new List<string>();
@@ -207,11 +220,13 @@ public sealed class HugeFileTests : IDisposable
             if (Math.Abs(error - (level == 2 ? 1 : 0)) > 1e-9 || Math.Abs(warning - (level == 1 ? 1 : 0)) > 1e-9)
                 problems.Add($"bucket {b}: error {error:F3}, warning {warning:F3}, expected level {level}");
         }
-        _output.WriteLine($"OpenFile held the window for {callMs / 1000:F1} s; the heatmap of {size / 1073741824.0:F1} GiB was in the minimap {heatSeconds:F1} s later; counted again in {againSeconds:F1} s reading {read} blocks of 1 MiB (the file has {blocksInFile})");
+        _output.WriteLine($"OpenFile held the window for {callMs / 1000:F1} s; the heatmap of {size / 1073741824.0:F1} GiB was in the minimap {heatSeconds:F1} s later; counted again in {againSeconds:F1} s reading {read >> 20} MiB of the {size >> 20} MiB");
         _output.WriteLine($"{judged} of {buckets} buckets judged: {errorBuckets} in the clusters of errors, {warningBuckets} in the cluster of warnings, the rest quiet; {problems.Count} wrong");
         Assert.True(errorBuckets > 0 && warningBuckets > 0, "the test log has no cluster that a bucket falls into");
         Assert.True(problems.Count == 0, string.Join("; ", problems.Take(5)));
-        Assert.True(read <= 2 * buckets + 8, $"the count read {read} blocks of {blocksInFile}");
+        // per bucket: the window, and the two looks (64 KiB each) for the start of the first whole line at its two ends
+        long allowed = (long)buckets * (PluginLimitsPlaceholders.LogHeatSampleBytesPerBucket + 2 * 64 * 1024) * 21 / 20;
+        Assert.True(read <= allowed, $"the count read {read >> 20} MiB, a window of {PluginLimitsPlaceholders.LogHeatSampleBytesPerBucket >> 10} KiB per bucket allows {allowed >> 20} MiB");
         Assert.Equal(heat.Errors, again.Errors);
         Assert.Equal(heat.Lines, again.Lines);
     }
