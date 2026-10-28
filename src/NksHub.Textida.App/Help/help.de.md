@@ -423,7 +423,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Dokumentstatistik und Hashes
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Menü Extras, Text und Berechnungen, Dokumentstatistik, zählt Bytes, Zeichen, Wörter, Zeilen und die längste Zeile des ganzen Dokuments oder der markierten Teile zusammen und listet die häufigsten Zeichen und Wörter auf.
-2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 oder SHA-512) und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash, erkennt den Algorithmus an der Länge und sagt, ob er übereinstimmt.
+2. Menü Extras, Text und Berechnungen, Hash berechnen, fragt nach dem Algorithmus und berechnet den Hash der rohen Bytes der ganzen Datei oder jedes markierten Teils. Die Liste ist die des Themas Hex: Prüfsummen und Hashes (jedes CRC, Adler-32, die Summen, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Hash berechnen und kopieren legt den Hash auch in die Zwischenablage. Hash mit eingefügtem vergleichen fragt nach einem Hash und sagt, ob er übereinstimmt; Leerzeichen, Doppelpunkte, 0x und Groß-/Kleinschreibung spielen keine Rolle. CRC-32, MD5, SHA-1, SHA-256, SHA-384 und SHA-512 erkennt man an der Länge des eingefügten Hashs, bei jeder anderen Länge wählen Sie den Algorithmus.
 - Beide Befehle lesen das Dokument blockweise, während Sie weiterarbeiten, zeigen den Fortschritt und lassen sich abbrechen. Keiner hält die ganze Datei im Speicher, daher funktionieren sie bei Dateien jeder Größe, auch in der seitenweisen und der Hex-Ansicht.
 - Eine abgebrochene Statistik wird als unvollständig angezeigt, mit der Zahl der gezählten Bytes. Ein abgebrochener Hash hat kein Ergebnis.
 - Statistik und Hash gelten für das Dokument, wie es beim Start des Befehls war; Änderungen währenddessen ändern sie nicht.
@@ -904,7 +904,7 @@ commands: nks.hex.fill, nks.hex.operate
 
 ## [hex.checksum] Hex: Prüfsummen und Hashes
 commands: nks.hex.checksum
-1. Hex: Prüfsummen und Hashes rechnet über die Auswahl oder, wenn nichts ausgewählt ist, über die ganze Datei: CRC-16, CRC-32, CRC-64 in mehreren Varianten, CRC mit eigenem Polynom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 und SHA-512.
+1. Hex: Prüfsummen und Hashes rechnet über die Auswahl oder, wenn nichts ausgewählt ist, über die ganze Datei: CRC-16, CRC-32, CRC-64 in mehreren Varianten, CRC mit eigenem Polynom, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 und SHA-512. Extras, Text und Berechnungen, Hash berechnen bietet dieselbe Liste für die Textansicht.
 2. Die Berechnung läuft im Hintergrund, der Fortschritt steht in der Statuszeile; Esc bricht sie ab.
 3. Das Ergebnis lässt sich kopieren oder mit einem eingefügten Wert vergleichen; Leerzeichen, Doppelpunkte, 0x und Groß- und Kleinschreibung spielen keine Rolle.
 - Jede CRC-Variante hat ein festes Polynom und feste Parameter (Breite, Startwert, gespiegelte Ein- und Ausgabe, End-XOR) nach dem Katalog der CRC-Algorithmen.

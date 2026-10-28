@@ -423,7 +423,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Statistika dokumentu a hashe
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Nabídka Nástroje, Text a výpočty, Statistika dokumentu, spočítá bajty, znaky, slova, řádky a nejdelší řádek celého dokumentu, nebo označených částí dohromady, a vypíše nejčastější znaky a slova.
-2. Nabídka Nástroje, Text a výpočty, Spočítat hash, se zeptá na algoritmus (CRC-32, MD5, SHA-1, SHA-256, SHA-384 nebo SHA-512) a spočítá hash surových bajtů celého souboru nebo každé označené části. Spočítat hash a zkopírovat dá hash i do schránky. Porovnat hash s vloženým se zeptá na hash, algoritmus pozná podle délky a řekne, jestli se shoduje.
+2. Nabídka Nástroje, Text a výpočty, Spočítat hash, se zeptá na algoritmus a spočítá hash surových bajtů celého souboru nebo každé označené části. Seznam je stejný jako v tématu Hex: kontrolní součty a hashe (každé CRC, Adler-32, součty, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Spočítat hash a zkopírovat dá hash i do schránky. Porovnat hash s vloženým se zeptá na hash a řekne, jestli se shoduje; mezery, dvojtečky, 0x a velikost písmen nevadí. CRC-32, MD5, SHA-1, SHA-256, SHA-384 a SHA-512 se poznají podle délky vloženého hashe, u jiné délky algoritmus vyberete.
 - Oba příkazy čtou dokument po blocích a vy můžete dál pracovat, ukazují průběh a jdou zrušit. Žádný nedrží celý soubor v paměti, takže fungují na souborech libovolné velikosti, i ve stránkovaném a hex zobrazení.
 - Zrušená statistika se ukáže jako neúplná s počtem spočítaných bajtů. Zrušený hash výsledek nemá.
 - Statistika i hash platí pro dokument, jaký byl při spuštění příkazu; úpravy během výpočtu je nemění.
@@ -904,7 +904,7 @@ commands: nks.hex.fill, nks.hex.operate
 
 ## [hex.checksum] Hex: kontrolní součty a hashe
 commands: nks.hex.checksum
-1. Hex: Kontrolní součty a hashe počítá nad výběrem, nebo nad celým souborem, když nic není vybráno: CRC-16, CRC-32, CRC-64 v několika variantách, CRC s vlastním polynomem, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 a SHA-512.
+1. Hex: Kontrolní součty a hashe počítá nad výběrem, nebo nad celým souborem, když nic není vybráno: CRC-16, CRC-32, CRC-64 v několika variantách, CRC s vlastním polynomem, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 a SHA-512. Nástroje, Text a výpočty, Spočítat hash nabízí stejný seznam pro textový pohled.
 2. Výpočet běží na pozadí a postup ukazuje stavový řádek; Esc ho zruší.
 3. Výsledek jde zkopírovat nebo porovnat s vloženou hodnotou; na mezerách, dvojtečkách, 0x a velikosti písmen nezáleží.
 - Každá varianta CRC má pevný polynom a parametry (šířka, počáteční hodnota, zrcadlení vstupu a výsledku, koncové xor) podle katalogu algoritmů CRC.

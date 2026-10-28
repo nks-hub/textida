@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.PluginSdk;
@@ -239,20 +240,16 @@ public sealed class TextToolsPlugin : PluginBase
             expected = await AskHashAsync(c, ct);
             if (expected is null) return "cancelled";
         }
-        expected = expected is null ? null : new string([.. expected.Where(ch => !char.IsWhiteSpace(ch))]).ToLowerInvariant();
+        expected = expected is null ? null : Checksums.Digits(expected);
         var chosen = Text(c, "algorithm");
-        if (expected is not null && chosen is null)
-        {
-            chosen = BlockHash.IdForHexLength(expected.Length);
-            if (chosen is null) return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "hash.compareLength", ("length", expected.Length.ToString())), ct);
-        }
+        if (expected is not null && chosen is null) chosen = BlockHash.IdForHexLength(expected.Length); // another length: the user picks the algorithm
         chosen ??= await PickAlgorithmAsync(c, ct);
         if (chosen.Length == 0) return "cancelled";
         if (!BlockHash.TryGet(chosen, out var algorithm))
             return await ReportAsync("failed", NoticeLevel.Error, Texts.Get(c.Language, "hash.unknown", ("algorithm", chosen)), ct);
         var selected = await SelectedAsync(c, ct);
         var ranges = selected.Count > 0 ? selected : [new Range(0, info.Length)];
-        var (scan, cancel) = await BeginAsync(c, Texts.Get(c.Language, "hash.task", ("algorithm", algorithm.Label)), ct);
+        var (scan, cancel) = await BeginAsync(c, Texts.Get(c.Language, "hash.task", ("algorithm", algorithm.Name)), ct);
         await using var _ = scan;
         using var __ = cancel;
         var format = NumberFormat.For(c.Language);
@@ -262,15 +259,15 @@ public sealed class TextToolsPlugin : PluginBase
         foreach (var range in ranges)
         {
             long length = range.End - range.Start;
-            var (hex, outcome) = await BlockHash.ComputeAsync(algorithm.Algorithm, range.Start, range.End, _settings.ChunkBytes, scan.Reader, scan.Progress(length, algorithm.Label), cancel.Token);
+            var (hex, outcome) = await BlockHash.ComputeAsync(algorithm, range.Start, range.End, _settings.ChunkBytes, scan.Reader, scan.Progress(length, algorithm.Name), cancel.Token);
             ct.ThrowIfCancellationRequested();
             if (hex is null)
                 return await ReportAsync("cancelled", NoticeLevel.Warning, Texts.Get(c.Language, "hash.cancelled", ("done", format.Format(outcome.Done)), ("total", format.Format(length))), ct);
             var line = (ranges.Count > 1 ? Texts.Get(c.Language, "hash.block", ("number", (lines.Count + 1).ToString())) : "")
-                + Texts.Get(c.Language, "hash.result", ("algorithm", algorithm.Label), ("bytes", format.Format(length)), ("hash", hex));
+                + Texts.Get(c.Language, "hash.result", ("algorithm", algorithm.Name), ("bytes", format.Format(length)), ("hash", hex));
             if (expected is not null)
             {
-                bool match = hex == expected;
+                bool match = Checksums.SameValue(hex, expected);
                 allMatch &= match;
                 line += Texts.Get(c.Language, match ? "hash.match" : "hash.differ");
             }
@@ -297,7 +294,7 @@ public sealed class TextToolsPlugin : PluginBase
     /// <summary>The id of the algorithm the user picks, or an empty string when the pick is dismissed.</summary>
     private async Task<string> PickAlgorithmAsync(Context c, CancellationToken ct)
     {
-        var items = string.Join(',', BlockHash.Algorithms.Select(x => $"{{\"id\":\"{x.Id}\",\"label\":\"{x.Label}\"}}"));
+        var items = string.Join(',', BlockHash.Algorithms.Select(x => $"{{\"id\":\"{Quote(x.Id)}\",\"label\":\"{Quote(x.Name)}\"}}"));
         var answer = await CallAsync(UiMethods.QuickPick,
             $"{{\"title\":\"{Quote(Texts.Get(c.Language, "hash.pickTitle"))}\",\"placeholder\":\"{Quote(Texts.Get(c.Language, "hash.pickPlaceholder"))}\",\"items\":[{items}]}}", ct);
         return answer.GetProperty("id").ValueKind == JsonValueKind.String ? answer.GetProperty("id").GetString()! : "";

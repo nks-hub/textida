@@ -1,6 +1,8 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Hex;
 
 namespace NksHub.Textida.Plugins.TextTools;
 
@@ -152,55 +154,39 @@ public sealed class TextStatistics(TextCodec codec, int maxDistinctWords = 0, in
     }
 }
 
-/// <summary>Hash algorithms of the hash command, over raw bytes. The full list is not decided yet (placeholder: what <see cref="IncrementalHash"/> offers, and CRC-32).</summary>
+/// <summary>
+/// The hash command over raw bytes. The algorithms are those of the checksum dialog of the hex view (<see cref="Checksums"/>): every CRC variant, Adler-32, the sums,
+/// xxHash and XXH3, MD5, SHA-1 and SHA-2.
+/// </summary>
 public static class BlockHash
 {
-    /// <summary>CRC-32 (IEEE 802.3, the one of zip and PNG) is not in <see cref="IncrementalHash"/>; this name selects the code below.</summary>
+    /// <summary>CRC-32 (IEEE 802.3, the one of zip and PNG); the name selects the checksum of that id in the overload that takes a <see cref="HashAlgorithmName"/>.</summary>
     public static readonly HashAlgorithmName Crc32 = new("CRC32");
 
-    private static readonly uint[] Crc32Table = Enumerable.Range(0, 256).Select(i =>
+    /// <summary>The algorithm a pasted hash of this many hex digits belongs to, for the lengths where one of the common algorithms is meant; null for any other length.</summary>
+    public static string? IdForHexLength(int length) => length switch { 8 => "crc-32", 32 => "md5", 40 => "sha1", 64 => "sha256", 96 => "sha384", 128 => "sha512", _ => null };
+
+    public static IReadOnlyList<ChecksumSpec> Algorithms => Checksums.All;
+
+    /// <summary>The algorithm with this id (<c>crc32</c>, the id this command had before the list was shared, finds <c>crc-32</c>).</summary>
+    public static bool TryGet(string id, [NotNullWhen(true)] out ChecksumSpec? algorithm)
     {
-        uint c = (uint)i;
-        for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-        return c;
-    }).ToArray();
-
-    /// <summary>Length of the lower-case hex digest of each algorithm, to tell which one a pasted hash belongs to.</summary>
-    public static string? IdForHexLength(int length) => length switch { 8 => "crc32", 32 => "md5", 40 => "sha1", 64 => "sha256", 96 => "sha384", 128 => "sha512", _ => null };
-
-    public static IReadOnlyList<(string Id, string Label, HashAlgorithmName Algorithm)> Algorithms { get; } =
-    [
-        ("md5", "MD5", HashAlgorithmName.MD5),
-        ("sha1", "SHA-1", HashAlgorithmName.SHA1),
-        ("sha256", "SHA-256", HashAlgorithmName.SHA256),
-        ("sha384", "SHA-384", HashAlgorithmName.SHA384),
-        ("sha512", "SHA-512", HashAlgorithmName.SHA512),
-        ("crc32", "CRC-32", Crc32),
-    ];
-
-    public static bool TryGet(string id, out (string Id, string Label, HashAlgorithmName Algorithm) algorithm)
-    {
-        foreach (var a in Algorithms)
-            if (string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase)) { algorithm = a; return true; }
-        algorithm = default;
-        return false;
+        algorithm = Checksums.Find(string.Equals(id, "crc32", StringComparison.OrdinalIgnoreCase) ? "crc-32" : id);
+        return algorithm is not null;
     }
 
-    /// <summary>Lower-case hex digest of the bytes of a range read in chunks.</summary>
-    public static async Task<(string? Hex, ScanOutcome Outcome)> ComputeAsync(HashAlgorithmName algorithm, long start, long end, int chunkBytes, ChunkReader read,
+    /// <summary>Lower-case hex digest of the bytes of a range read in chunks; null when the run was cancelled.</summary>
+    public static async Task<(string? Hex, ScanOutcome Outcome)> ComputeAsync(ChecksumSpec algorithm, long start, long end, int chunkBytes, ChunkReader read,
         Func<long, ValueTask>? progress, CancellationToken cancellation)
     {
-        if (algorithm == Crc32)
-        {
-            uint crc = 0xFFFFFFFFu;
-            var scanned = await ByteScan.RunAsync(start, end, chunkBytes, read, bytes =>
-            {
-                foreach (var b in bytes) crc = Crc32Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
-            }, progress, cancellation).ConfigureAwait(false);
-            return (scanned.Completed ? (~crc).ToString("x8") : null, scanned);
-        }
-        using var hash = IncrementalHash.CreateHash(algorithm);
-        var outcome = await ByteScan.RunAsync(start, end, chunkBytes, read, bytes => hash.AppendData(bytes), progress, cancellation).ConfigureAwait(false);
-        return (outcome.Completed ? Convert.ToHexStringLower(hash.GetHashAndReset()) : null, outcome);
+        using var state = algorithm.Create();
+        var outcome = await ByteScan.RunAsync(start, end, chunkBytes, read, bytes => state.Append(bytes), progress, cancellation).ConfigureAwait(false);
+        return (outcome.Completed ? state.Finish() : null, outcome);
     }
+
+    public static Task<(string? Hex, ScanOutcome Outcome)> ComputeAsync(HashAlgorithmName algorithm, long start, long end, int chunkBytes, ChunkReader read,
+        Func<long, ValueTask>? progress, CancellationToken cancellation) =>
+        TryGet(algorithm == Crc32 ? "crc32" : algorithm.Name!.Replace("-", "", StringComparison.Ordinal), out var spec)
+            ? ComputeAsync(spec, start, end, chunkBytes, read, progress, cancellation)
+            : throw new ArgumentException($"No algorithm named {algorithm.Name}.", nameof(algorithm));
 }

@@ -423,7 +423,7 @@ commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, 
 ## [tools.stats] Document statistics and hashes
 commands: nks.tools.statistics, nks.tools.hash, nks.tools.hashCopy, nks.tools.hashCompare
 1. Tools menu, Text and Calculations, Document Statistics, counts bytes, characters, words, lines and the longest line of the whole document, or of the selected parts together, and lists the most frequent characters and words.
-2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm (CRC-32, MD5, SHA-1, SHA-256, SHA-384 or SHA-512) and computes the hash of the raw bytes of the whole file, or of every selected part. Calculate Hash and Copy also puts the hash on the clipboard. Compare Hash with Pasted asks for a hash, picks the algorithm by its length and says whether it matches.
+2. Tools menu, Text and Calculations, Calculate Hash, asks for the algorithm and computes the hash of the raw bytes of the whole file, or of every selected part. The list is the one of the topic Hex: checksums and hashes (every CRC, Adler-32, the sums, xxHash32, xxHash64, XXH3, MD5, SHA-1, SHA-2). Calculate Hash and Copy also puts the hash on the clipboard. Compare Hash with Pasted asks for a hash and says whether it matches; spaces, colons, 0x and case do not matter. CRC-32, MD5, SHA-1, SHA-256, SHA-384 and SHA-512 are told by the length of the pasted hash, for any other length you choose the algorithm.
 - Both read the document in blocks while you keep working, show progress and can be cancelled. Neither holds the whole file in memory, so they work on files of any size, also in paged and hex view.
 - A cancelled statistic is shown as incomplete, with how many bytes were counted. A cancelled hash gives no result.
 - The statistic and the hash are of the document as it was when the command started; if you edit meanwhile, they do not change.
@@ -904,7 +904,7 @@ commands: nks.hex.fill, nks.hex.operate
 
 ## [hex.checksum] Hex: checksums and hashes
 commands: nks.hex.checksum
-1. Hex: Checksums and Hashes calculates over the selection, or over the whole file when nothing is selected: CRC-16, CRC-32, CRC-64 in several variants, a CRC with your own polynomial, Adler-32, Sum-8/16/32, xxHash32, xxHash64, MD5, SHA-1, SHA-256, SHA-384 and SHA-512.
+1. Hex: Checksums and Hashes calculates over the selection, or over the whole file when nothing is selected: CRC-16, CRC-32, CRC-64 in several variants, a CRC with your own polynomial, Adler-32, Sum-8/16/32, xxHash32, xxHash64, XXH3-64, XXH3-128, MD5, SHA-1, SHA-256, SHA-384 and SHA-512. Tools, Text and Calculations, Calculate Hash offers the same list for the text view.
 2. The calculation runs in the background and shows its progress in the status line; Esc cancels it.
 3. The result can be copied, or compared with a pasted value; spaces, colons, 0x and case do not matter.
 - Every CRC variant has a fixed polynomial and parameters (width, start value, reflected input and result, final xor), the same as in the catalogue of CRC algorithms.
