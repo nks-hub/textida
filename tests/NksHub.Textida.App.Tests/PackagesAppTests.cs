@@ -4,6 +4,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Tools;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Remote;
 using NksHub.Textida.Workbench.Commands;
 
@@ -87,7 +88,7 @@ public class PackagesAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_proxy_of_the_network_policy_is_passed_on_and_one_with_a_login_stops_the_lookups()
+    public void The_proxy_of_the_network_policy_is_passed_on_a_login_sends_the_lookups_through_the_editor_and_a_proxy_that_cannot_log_in_stops_them()
     {
         var consent = _app.Plugins.Registries;
 
@@ -95,18 +96,52 @@ public class PackagesAppTests : IDisposable
         var file = JsonNode.Parse(File.ReadAllText(consent.FilePath))!;
         Assert.Equal("socks5://proxy.example:1080", (string?)file["proxy"]);
         Assert.False((bool)file["blocked"]!);
+        Assert.False(consent.ViaEditor);
 
+        // a login: the plugin is told to go through the editor, which holds the password; the file never does
         consent.Sync(new NetworkPolicy(new ProxySettings(ProxyType.Http, "proxy.example", 3128, "user"), "secret"));
         file = JsonNode.Parse(File.ReadAllText(consent.FilePath))!;
-        Assert.True((bool)file["blocked"]!);
+        Assert.False((bool)file["blocked"]!);
+        Assert.True((bool)file["viaEditor"]!);
+        Assert.Equal("http://proxy.example:3128", (string?)file["proxy"]);
         Assert.DoesNotContain("secret", File.ReadAllText(consent.FilePath), StringComparison.Ordinal);
+        Assert.DoesNotContain("user", File.ReadAllText(consent.FilePath), StringComparison.Ordinal); // not even the name
+
+        // a user name with no saved password cannot log in: nothing is looked up, and the reason is the password
+        consent.Sync(new NetworkPolicy(new ProxySettings(ProxyType.Http, "proxy.example", 3128, "user"), null));
+        file = JsonNode.Parse(File.ReadAllText(consent.FilePath))!;
+        Assert.True((bool)file["blocked"]!);
+        Assert.Equal("password", (string?)file["blockedReason"]);
+        Assert.Null(file["viaEditor"]);
+        Assert.Equal("password", consent.BlockedReason);
 
         consent.Sync(null); // unreadable policy: do not go direct
-        Assert.True((bool)JsonNode.Parse(File.ReadAllText(consent.FilePath))!["blocked"]!);
+        file = JsonNode.Parse(File.ReadAllText(consent.FilePath))!;
+        Assert.True((bool)file["blocked"]!);
+        Assert.Equal("policy", (string?)file["blockedReason"]);
         consent.Sync(NetworkPolicy.Direct);
         file = JsonNode.Parse(File.ReadAllText(consent.FilePath))!;
         Assert.False((bool)file["blocked"]!);
+        Assert.Null(file["blockedReason"]);
         Assert.Null(file["proxy"]);
+        Assert.False(consent.ViaEditor);
+    }
+
+    [AvaloniaFact]
+    public void A_sync_keeps_what_the_user_allowed_and_the_JSON_plugin_may_send_requests_through_the_editor()
+    {
+        var consent = _app.Plugins.Registries;
+        consent.Allow("npm");
+
+        consent.Sync(new NetworkPolicy(new ProxySettings(ProxyType.Http, "proxy.example", 3128, "user"), "secret"));
+        consent.Allow("pypi");
+
+        Assert.True(consent.IsAllowed("npm"));
+        Assert.True(consent.IsAllowed("pypi"));
+        Assert.True(consent.ViaEditor);
+        consent.RevokeAll();
+        Assert.True(consent.ViaEditor); // a revoke takes the consent back, not the proxy
+        Assert.True(_app.Plugins.Permissions.IsGranted(PluginServices.JsonPluginId, PluginPermissionNames.Network, GrantScope.All));
     }
 
     [AvaloniaFact]

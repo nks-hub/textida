@@ -149,7 +149,8 @@ internal sealed partial class MainWindow
         _planPattern = null;
         _planFolder = System.IO.Path.GetDirectoryName(state.Path) ?? "";
         view.AddPlan(shown, _ => tab.Title);
-        view.SetHeader(title, Loc.Get(K.ReviewHint));
+        bool wholeFile = baseBytes.Length == 0 || baseBytes.AsSpan().SequenceEqual(Utf8Bom); // a new file: the base holds nothing but its byte order mark
+        view.SetHeader(title, Loc.Get(wholeFile ? K.ReviewNewHint : K.ReviewHint));
         view.SetApplyVisible(true, false);
         view.SetCancelVisible(true);
         ShowQueueNote();
@@ -207,6 +208,7 @@ internal sealed partial class MainWindow
         string done = Loc.Get(K.ReviewDone, ("kept", file.Hunks.Count - reverted), ("reverted", reverted));
         view.SetHeader(view.TitleText, done);
         SetStatusMessage(done);
+        if (reverted == 0 && od.Path is { } keptPath) _app.History.RecordFile(keptPath, HistorySource.Manual); // what was kept counts as seen, so the next review starts from it
         if (reverted > 0 && wasClean) _ = SaveReviewedAsync(tab);
         DrainProposals();
         return report;

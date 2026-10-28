@@ -115,6 +115,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
+        // a registry lookup behind a proxy with a login goes through net/request, so the password stays in the editor; the plugin asks nothing before the user allowed the registry
+        permissions.Grant(JsonPluginId, PluginPermissionNames.Network, GrantScope.All);
         Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
         Mcp = new McpService(this, App.Startup.Channel);
         Acp = new AcpService(this, app);
@@ -157,6 +159,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--registry-max-bytes", PluginLimitsPlaceholders.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimitsPlaceholders.RegistryPageSize.ToString(),
              "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(),
              "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
+             "--registry-max-redirects", PluginLimitsPlaceholders.RegistryMaxRedirects.ToString(),
              "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
              "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
              "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString(),
@@ -584,10 +587,14 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         return await review.ConfigureAwait(false);
     }
 
-    private WorkspaceEditOptions WorkspaceEdits() => new(this,
-        () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])],
-        path => _app.Windows.SelectMany(w => w.Documents).Any(d => string.Equals(d.Path, path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)),
-        PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes, PluginLimitsPlaceholders.WorkspaceEditTotalBytes);
+    private WorkspaceEditOptions WorkspaceEdits()
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        Document? OpenDocumentOf(string path) => _app.Windows.SelectMany(w => w.Documents).FirstOrDefault(d => string.Equals(d.Path, path, comparison))?.Doc;
+        return new(this, () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])], path => OpenDocumentOf(path) is not null,
+            PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes, PluginLimitsPlaceholders.WorkspaceEditTotalBytes)
+        { OpenDocument = OpenDocumentOf };
+    }
 
     /// <summary>The active window shows the workspace edit in the change review and the answer waits for the decision of the user; nothing is written before.</summary>
     public async ValueTask<ProposalDecision> SubmitAsync(WorkspaceEditRequest request, CancellationToken cancellation)
@@ -616,6 +623,26 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// </summary>
     public Task<bool> RunTextToolAsync(MainWindow window, DocTab tab, string command, string extra = "") =>
         tab.Custom is not null ? Task.FromResult(false) : RunCommandAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command, extra);
+
+    /// <summary>
+    /// Hashes the selections, or the document, through the text tools plugin and shows the result in the dialog the hex view uses for its checksums (Copy, Compare), so a hash looks and
+    /// works the same wherever it is asked for. The algorithm is picked from the list the hex view offers. False when nothing was started.
+    /// </summary>
+    public async Task<bool> RunHashDialogAsync(MainWindow window, DocTab tab)
+    {
+        if (tab.Custom is not null) return false;
+        var outcome = await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", "text.hash", ",\"dialog\":true");
+        if (!outcome.Started) return false;
+        if (outcome.Result is { ValueKind: JsonValueKind.Object } answer && answer.TryGetProperty("blocks", out var blocks) && blocks.ValueKind == JsonValueKind.Array
+            && answer.TryGetProperty("algorithm", out var algorithm) && algorithm.GetString() is { } name)
+        {
+            var parts = blocks.EnumerateArray().Select(b => (Start: b.GetProperty("start").GetInt64(), End: b.GetProperty("end").GetInt64())).ToList();
+            var values = blocks.EnumerateArray().Select(b => b.GetProperty("hash").GetString()!).ToList();
+            bool selection = answer.TryGetProperty("selection", out var picked) && picked.ValueKind == JsonValueKind.True;
+            await window.ShowChecksumResultAsync(name, Loc.Get(K.HexSumResult, ("name", name), ("scope", MainWindow.HashScope(selection, parts))), values);
+        }
+        return true;
+    }
 
     /// <summary>
     /// Copies the selected cells of the table view as Markdown, SQL INSERT, JSON or HTML (<c>table.copyAs.*</c>) through the text tools plugin, which reads them with the

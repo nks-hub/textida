@@ -7,16 +7,50 @@ using NksHub.Textida.Rpc;
 namespace NksHub.Textida.Plugins.Json.Packages;
 
 /// <summary>Texts of the package check, in the languages of the editor (cs, en, sk, de); the editor passes the language with the command.</summary>
-internal sealed record PackageTexts(string Newer, string Cached)
+internal sealed record PackageTexts(string Newer, string Cached, string[] Proxy)
 {
     public string NewerVersion(string latest, string pinned, bool cached) => Newer.Replace("{latest}", latest).Replace("{pinned}", pinned) + (cached ? " " + Cached : "");
 
+    /// <summary>What the user is told when the network proxy is why a lookup did not happen; the English text of the exception for a problem without a text here.</summary>
+    public string Failure(RegistryException e) => e.Problem switch
+    {
+        RegistryProblem.ProxyNeedsLogin => Proxy[0],
+        RegistryProblem.ProxyLoginRefused => Proxy[1],
+        RegistryProblem.ProxyUnavailable => Proxy[2],
+        RegistryProblem.ProxyNoPassword => Proxy[3],
+        _ => e.Message,
+    };
+
     public static PackageTexts For(string language) => language switch
     {
-        "cs" => new("Je dostupná novější verze: {latest} (soubor má {pinned}).", "(odpověď z cache)"),
-        "sk" => new("Je dostupná novšia verzia: {latest} (súbor má {pinned}).", "(odpoveď z cache)"),
-        "de" => new("Neuere Version verfügbar: {latest} (die Datei legt {pinned} fest).", "(Antwort aus dem Cache)"),
-        _ => new("A newer version is available: {latest} (the file pins {pinned}).", "(answer from cache)"),
+        "cs" => new("Je dostupná novější verze: {latest} (soubor má {pinned}).", "(odpověď z cache)",
+        [
+            "Proxy žádá přihlášení. Zadejte uživatelské jméno a heslo v nastavení síťové proxy editoru.",
+            "Proxy přihlášení odmítla. Zkontrolujte uživatelské jméno a heslo v nastavení síťové proxy editoru.",
+            "Síťové nastavení editoru nelze použít, proto se žádný dotaz neposílá.",
+            "Proxy vyžaduje přihlášení, ale její heslo není uložené. Zadejte síťovou proxy znovu.",
+        ]),
+        "sk" => new("Je dostupná novšia verzia: {latest} (súbor má {pinned}).", "(odpoveď z cache)",
+        [
+            "Proxy žiada prihlásenie. Zadajte používateľské meno a heslo v nastaveniach sieťového proxy editora.",
+            "Proxy odmietol prihlásenie. Skontrolujte používateľské meno a heslo v nastaveniach sieťového proxy editora.",
+            "Sieťové nastavenia editora nemožno použiť, preto sa žiadny dotaz neposiela.",
+            "Proxy vyžaduje prihlásenie, ale jeho heslo nie je uložené. Zadajte sieťový proxy znova.",
+        ]),
+        "de" => new("Neuere Version verfügbar: {latest} (die Datei legt {pinned} fest).", "(Antwort aus dem Cache)",
+        [
+            "Der Proxy verlangt eine Anmeldung. Geben Sie Benutzername und Passwort in den Netzwerk-Proxy-Einstellungen des Editors ein.",
+            "Der Proxy hat die Anmeldung abgelehnt. Prüfen Sie Benutzername und Passwort in den Netzwerk-Proxy-Einstellungen des Editors.",
+            "Die Netzwerkeinstellungen des Editors können nicht verwendet werden, deshalb wird keine Abfrage gesendet.",
+            "Der Proxy verlangt eine Anmeldung, aber sein Passwort ist nicht gespeichert. Geben Sie den Netzwerk-Proxy erneut ein.",
+        ]),
+        _ => new("A newer version is available: {latest} (the file pins {pinned}).", "(answer from cache)",
+        [
+            "The proxy asks for a login. Enter the user name and password in the network proxy settings of the editor.",
+            "The proxy refused the login. Check the user name and password in the network proxy settings of the editor.",
+            "The network settings of the editor cannot be used, so no lookup is made.",
+            "The proxy needs a login, but its password is not saved. Enter the network proxy settings again.",
+        ]),
     };
 }
 
@@ -153,7 +187,7 @@ public sealed class PackageService(JsonRpcDispatcher rpc, RegistryClient client,
         catch (RegistryException e)
         {
             status = "error";
-            message = $"\"{DocumentAccess.Quote(e.Message)}\"";
+            message = $"\"{DocumentAccess.Quote(texts.Failure(e))}\"";
             await PublishEmptyAsync(id, revision);
         }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict) { status = "stale"; }

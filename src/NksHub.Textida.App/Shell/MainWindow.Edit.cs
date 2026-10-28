@@ -27,7 +27,7 @@ internal sealed partial class MainWindow
         if ((ActiveEditor is { IsComposing: true } || Active?.Paged is { IsComposing: true }) && (e.KeyModifiers & ~Avalonia.Input.KeyModifiers.Shift) == Avalonia.Input.KeyModifiers.None) return;
         if (e.Key == Key.Escape)
         {
-            if (!IsPaletteOpen && CancelLogSearch()) { e.Handled = true; return; }
+            if (!IsPaletteOpen && (CancelLogSearch() || CancelExport())) { e.Handled = true; return; }
             if (IsPaletteOpen) { ClosePalette(); e.Handled = true; return; }
             if (CloseLeftPanel()) { e.Handled = true; return; }
             if (_find.IsVisible) { HideFind(); e.Handled = true; return; }

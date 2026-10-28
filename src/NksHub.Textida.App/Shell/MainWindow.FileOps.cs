@@ -28,7 +28,8 @@ internal sealed partial class MainWindow
         if (string.IsNullOrWhiteSpace(name)) return;
         try
         {
-            string path = folder ? FileOperations.CreateFolder(directory, name) : FileOperations.CreateFile(directory, name);
+            string path;
+            using (OwnWrite()) path = folder ? FileOperations.CreateFolder(directory, name) : FileOperations.CreateFile(directory, name);
             await ShowChangeAsync(directory, path);
             SetStatusMessage(Loc.Get(K.FilesStatusCreated, ("name", Path.GetFileName(path))));
             if (!folder) JumpToFile(path, null);
@@ -44,7 +45,8 @@ internal sealed partial class MainWindow
         if (SelectedFileRow is not { } row) return;
         try
         {
-            string copy = await Task.Run(() => FileOperations.Duplicate(row.Entry.Path));
+            string copy;
+            using (OwnWrite()) copy = await Task.Run(() => FileOperations.Duplicate(row.Entry.Path));
             await ShowChangeAsync(Path.GetDirectoryName(copy)!, copy);
             SetStatusMessage(Loc.Get(K.FilesStatusCreated, ("name", Path.GetFileName(copy))));
         }
@@ -78,7 +80,8 @@ internal sealed partial class MainWindow
     {
         try
         {
-            string moved = await Task.Run(move);
+            string moved;
+            using (OwnWrite()) moved = await Task.Run(move);
             foreach (var window in _app.Windows.ToList()) window.ApplyPathMove(oldPath, moved);
             _app.Recent.Rename(oldPath, moved);
             if (_fileTree is { } tree && Path.GetDirectoryName(oldPath) is { } oldParent) await tree.RefreshAsync(oldParent);

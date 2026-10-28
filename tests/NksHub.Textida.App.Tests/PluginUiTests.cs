@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
@@ -735,11 +736,12 @@ public class PluginUiTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task A_hash_of_a_paged_file_is_picked_from_the_algorithms_and_matches_the_bytes()
+    public async Task A_hash_of_a_paged_file_is_picked_from_the_algorithms_and_shown_in_the_dialog_of_the_hex_view()
     {
         var bytes = new byte[3 * (1 << 20) + 17];
         new Random(5).NextBytes(bytes);
         OpenPaged("big.bin", bytes);
+        _dialogs.Answers.Enqueue(2); // Close
 
         var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.hash", new ShellContext(_w, forMenu: false)).AsTask();
         await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the algorithm pick");
@@ -752,7 +754,42 @@ public class PluginUiTests : IDisposable
         await Until(() => run.IsCompleted, "the command");
         await Until(() => !_app.Plugins.IsBusy, "the plugin command to finish");
 
-        Assert.True(HasNotice(Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(bytes))), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        // the result is in the dialog of the hex view for its checksums, not in a notice of its own
+        string md5 = Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(bytes));
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Equal([md5], asked.Details);
+        Assert.Equal(Loc.Get(K.HexSumTitle), asked.Title);
+        Assert.Equal([Loc.Get(K.HexSumCopy), Loc.Get(K.HexSumCompare), Loc.Get(K.HexChangesClose)], asked.Buttons.Select(b => b.Label));
+        Assert.Equal(Loc.Get(K.HexSumResult, ("name", "MD5"), ("scope", Loc.Get(K.HexSumScopeFile, ("bytes", bytes.Length)))), asked.Message);
+        Assert.False(HasNotice(md5), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+    }
+
+    [AvaloniaFact]
+    public async Task The_hash_dialog_of_the_text_tools_copies_every_part_and_compares_a_pasted_value_with_each_one()
+    {
+        var tab = _w.OpenFile(_temp.File("parts.txt", "abcdef"), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.TextArea.Focus();
+        tab.Editor.SetSelections([new Sel(0, 2), new Sel(3, 5)]);
+        string Sha1(string text) => Convert.ToHexStringLower(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(text)));
+        _dialogs.Answers.Enqueue(1); // Compare
+        _dialogs.Prompts.Enqueue(Sha1("de").ToUpperInvariant());
+        _dialogs.Answers.Enqueue(0); // Copy
+
+        var run = _app.Workbench.Commands.ExecuteAsync("nks.tools.hash", new ShellContext(_w, forMenu: false)).AsTask();
+        await Until(() => _w.IsPaletteOpen && _w.PaletteModeNow == PaletteMode.Choice, "the algorithm pick");
+        _w.SetPaletteQuery("SHA-1");
+        Assert.Equal(["SHA-1"], _w.QuickResults.Select(r => r.Title));
+        _w.RunPaletteSelection();
+        await Until(() => run.IsCompleted, "the command");
+
+        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal([Sha1("ab"), Sha1("de")], _dialogs.Asked[0].Details);
+        Assert.Contains(Loc.Get(K.HexSumScopeParts, ("count", 2), ("bytes", 4)), _dialogs.Asked[0].Message);
+        // the second time the dialog says, for each part, whether the pasted value is its hash
+        Assert.EndsWith(Loc.Get(K.HexSumPart, ("number", 1), ("result", Loc.Get(K.HexSumDiffers))) + "\n" + Loc.Get(K.HexSumPart, ("number", 2), ("result", Loc.Get(K.HexSumMatch))), _dialogs.Asked[1].Message);
+        Assert.Equal(Sha1("ab") + "\n" + Sha1("de"), await _w.Clipboard!.TryGetTextAsync());
+        Assert.Equal(Loc.Get(K.HexSumCopied, ("name", "SHA-1")), _w.StatusMessageText);
     }
 
     [AvaloniaFact]

@@ -158,6 +158,107 @@ public class ReviewFolderTests : IDisposable
 
         Assert.Empty(_app.Reviews.List());
         Assert.DoesNotContain(_app.History.List(same), r => r.Pinned);
+        Assert.Equal(HistorySource.Initial, Assert.Single(_app.History.List(unseen)).Source); // no review, but its content is the base from now on
+        Assert.Empty(_app.History.List(secret));
+        Assert.Empty(_app.History.List(binary).Where(r => r.Source != HistorySource.Save));
+    }
+
+    private async Task<string> EmptyFolder()
+    {
+        string folder = Directory.CreateDirectory(Path.Combine(_temp.Path, "proj")).FullName;
+        Assert.True(await _w.ShowFolderAsync(folder));
+        return folder;
+    }
+
+    private static FolderChangeBatch Created(params string[] files) => new(files, 0, new HashSet<string>(files));
+
+    [AvaloniaFact]
+    public async Task A_file_another_program_creates_waits_for_review_as_an_addition_of_the_whole_content_and_unticking_it_leaves_it_empty()
+    {
+        string path = Path.Combine(await EmptyFolder(), "new.txt");
+        File.WriteAllText(path, After);
+
+        await _w.ReviewFolderChangesAsync(Created(path));
+
+        var state = Assert.IsType<ReviewState>(_app.Reviews.Find(path));
+        Assert.Empty(_app.History.Read(path, state.BaseRevisionId));
+        Assert.Equal(["review"], Assert.Single(_app.History.List(path), r => r.Pinned).Pins);
+        Assert.Equal(Loc.Plural(K.ReviewFolderWaiting, 1), _w.StatusMessageText);
+
+        _w.ShowFolderReviews();
+        Assert.Single(_w.QuickResults).Run();
+        Dispatcher.UIThread.RunJobs();
+        var tab = Assert.Single(_w.Tabs, t => t.Path == path);
+        Assert.Equal("± 1", tab.Doc.ReviewBadge);
+        Assert.Equal(Loc.Get(K.ReviewNewHint), _w.ResultsView!.SummaryText);
+        Assert.Single(_w.ResultsView.Rows.OfType<SearchResultsView.HunkRow>());
+
+        _w.ResultsView.Rows.OfType<SearchResultsView.FileRow>().Single().Selected = false;
+        _w.ApplyPlan();
+        await Until(() => File.ReadAllText(path) == "" && !tab.Doc.Doc.IsModified, "the empty base to be saved");
+        Assert.Null(_app.Reviews.Find(path));
+    }
+
+    [AvaloniaFact]
+    public async Task A_new_file_with_a_byte_order_mark_has_the_mark_as_its_base_and_an_empty_new_file_waits_for_nothing_yet()
+    {
+        string folder = await EmptyFolder();
+        string withMark = Path.Combine(folder, "mark.txt"), empty = Path.Combine(folder, "empty.txt");
+        File.WriteAllBytes(withMark, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(After)]);
+        File.WriteAllBytes(empty, []);
+
+        await _w.ReviewFolderChangesAsync(Created(withMark, empty));
+
+        var state = Assert.IsType<ReviewState>(_app.Reviews.Find(withMark));
+        Assert.Equal(Encoding.UTF8.GetPreamble(), _app.History.Read(withMark, state.BaseRevisionId));
+        Assert.Null(_app.Reviews.Find(empty));
+        Assert.Single(_app.History.List(empty)); // the empty file is the base of its first write
+
+        File.WriteAllText(empty, After);
+        await _w.ReviewFolderChangesAsync(Batch(empty));
+
+        Assert.NotNull(_app.Reviews.Find(empty));
+    }
+
+    [AvaloniaFact]
+    public async Task A_changed_file_the_history_has_no_content_of_takes_its_content_at_first_sight_as_base_and_says_so()
+    {
+        string path = Path.Combine(await EmptyFolder(), "first.txt");
+        File.WriteAllText(path, Before);
+
+        await _w.ReviewFolderChangesAsync(Batch(path));
+
+        Assert.Null(_app.Reviews.Find(path));
+        var first = Assert.Single(_app.History.List(path));
+        Assert.Equal(HistorySource.Initial, first.Source);
+        Assert.Equal(Encoding.UTF8.GetBytes(Before), _app.History.Read(path, first.Id));
+        Assert.Equal(Loc.Plural(K.ReviewFolderBaseTaken, 1), _w.StatusMessageText);
+
+        File.WriteAllText(path, After);
+        await _w.ReviewFolderChangesAsync(Batch(path));
+
+        Assert.Equal(first.Id, Assert.IsType<ReviewState>(_app.Reviews.Find(path)).BaseRevisionId);
+    }
+
+    [AvaloniaFact]
+    public async Task What_the_user_kept_is_the_base_of_the_next_review_of_the_file()
+    {
+        var (_, path) = await FolderWithSeenFile();
+        File.WriteAllText(path, After);
+        await _w.ReviewFolderChangesAsync(Batch(path));
+        _w.ShowFolderReviews();
+        Assert.Single(_w.QuickResults).Run();
+        Dispatcher.UIThread.RunJobs();
+        var tab = Assert.Single(_w.Tabs, t => t.Path == path);
+        _w.ApplyPlan(); // every change stays ticked: all are kept
+        Assert.Null(_app.Reviews.Find(path));
+        Assert.True(await _w.CloseTabAsync(tab));
+
+        File.WriteAllText(path, After + "five\n");
+        await _w.ReviewFolderChangesAsync(Batch(path));
+
+        var state = Assert.IsType<ReviewState>(_app.Reviews.Find(path));
+        Assert.Equal(Encoding.UTF8.GetBytes(After), _app.History.Read(path, state.BaseRevisionId));
     }
 
     [AvaloniaFact]
