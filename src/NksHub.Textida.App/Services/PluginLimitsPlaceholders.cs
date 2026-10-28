@@ -35,6 +35,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
+    /// <summary>Placeholder, OPEN: most bytes that the unsaved edits of one large file may insert for a named session to keep them in its file; a larger change is left out and the session says so. The owner has not decided it.</summary>
+    public const int SessionLargeEditsMaxBytes = 16 * 1024 * 1024;
+
     /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 

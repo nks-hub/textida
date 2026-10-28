@@ -2018,6 +2018,8 @@
   "session.deleted": "Relace {name} je smazána.",
   "session.opened": "Relace {name} je otevřena.",
   "session.openedMissing": "Relace {name} je otevřena. Nenalezeno: {missing}",
+  "session.largeLeftOut": "Relace {name} je uložena, ale neuložené změny těchto velkých souborů v ní nejsou (jsou příliš velké, nebo se soubor na disku změnil): {files}. Uložte soubory.",
+  "session.editsNotRestored": "Neuložené změny relace {name} se neobnovily u těchto souborů: {files}. Soubor se od uložení relace změnil, nebo je už otevřený s vlastními změnami.",
   "a11y.sessions": "Relace",
   "tokens.status": "≈ {count} tokenů",
   "tokens.status.tip": "Odhad pro výběr podle pravidla: {rule}. Nic se nikam neposílá. Kliknutím zvolíte jiné pravidlo.",

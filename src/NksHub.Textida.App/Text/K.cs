@@ -1960,6 +1960,8 @@ public static class K
     public const string SessionDeleted = "session.deleted";
     public const string SessionOpened = "session.opened";
     public const string SessionOpenedMissing = "session.openedMissing";
+    public const string SessionLargeLeftOut = "session.largeLeftOut";
+    public const string SessionEditsNotRestored = "session.editsNotRestored";
     public const string A11ySessions = "a11y.sessions";
     public const string TokensStatus = "tokens.status";
     public const string TokensStatusTip = "tokens.status.tip";

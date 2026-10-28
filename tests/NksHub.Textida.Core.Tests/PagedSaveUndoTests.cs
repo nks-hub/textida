@@ -19,7 +19,7 @@ public class PagedSaveUndoTests
     private const int Window = 500;
 
     /// <summary>Byte sequence kept as 64 KiB chunks so thousands of edits stay cheap.</summary>
-    private sealed class ChunkModel
+    internal sealed class ChunkModel
     {
         private readonly List<byte[]> _chunks = [];
 
@@ -80,13 +80,13 @@ public class PagedSaveUndoTests
         }
     }
 
-    private static string DiskSha(string path)
+    internal static string DiskSha(string path)
     {
         using var fs = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(fs));
     }
 
-    private static string DocSha(Doc d)
+    internal static string DocSha(Doc d)
     {
         using var h = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         var buf = new byte[1 << 20];
@@ -100,7 +100,7 @@ public class PagedSaveUndoTests
         return Convert.ToHexString(h.GetHashAndReset());
     }
 
-    private static string Generate(string path, bool utf8Log)
+    internal static string Generate(string path, bool utf8Log)
     {
         using (var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20))
         using (var w = new StreamWriter(fs, new UTF8Encoding(false), 1 << 20))
@@ -118,6 +118,43 @@ public class PagedSaveUndoTests
         return DiskSha(path);
     }
 
+    /// <summary>
+    /// One edit at a random line of the document, the same in the model: an insert of a tag (with a multi-byte character and a CR LF in the UTF-8 log), the deletion of a line, a
+    /// replacement of four bytes by two, or, for <paramref name="sameLength"/>, four bytes over four that neither cut a character nor split a CR LF pair.
+    /// </summary>
+    internal static void Edit(Doc d, ChunkModel model, Random r, int i, bool sameLength, bool utf8Log)
+    {
+        long at, del;
+        byte[] ins;
+        byte[] none = [];
+        while (true)
+        {
+            var head = new byte[400];
+            long off = r.NextInt64(0, d.ByteLength - 800);
+            int got = d.Read(off, head);
+            long start = off + Array.IndexOf(head, (byte)'\n', 0, got) + 1;
+            var line = new byte[400];
+            int n = d.Read(start, line);
+            int eol = Array.IndexOf(line, (byte)'\n', 0, n);
+            Assert.True(eol >= 0);
+            // a 4 byte overwrite must neither cut a character nor split a CR LF pair
+            bool plain4 = line.Take(4).All(b => b is >= 0x20 and < 0x80);
+            if (sameLength && !plain4) continue;
+            string tag = utf8Log ? $"Ž{i}ě—\r\n" : $"X{i}\r\n";
+            int kind = sameLength ? 3 : i % 3 == 2 && !plain4 ? 0 : i % 3;
+            (at, del, ins) = kind switch
+            {
+                0 => (start, 0L, Encoding.UTF8.GetBytes(tag)),
+                1 => (start, (long)eol + 1, none),
+                2 => (start, 4L, Encoding.ASCII.GetBytes($"Q{i % 10}")),
+                _ => (start, 4L, Encoding.ASCII.GetBytes($"{i % 10000:D4}")),
+            };
+            break;
+        }
+        Assert.True(d.Replace(new(at, at + del), ins).Applied);
+        model.Replace(at, del, ins);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -133,42 +170,11 @@ public class PagedSaveUndoTests
             var r = new Random(5);
             var checkpoints = new Dictionary<int, string>();
 
-            void Edit(int i, bool sameLength)
-            {
-                long at, del;
-                byte[] ins;
-                byte[] none = [];
-                while (true)
-                {
-                    var head = new byte[400];
-                    long off = r.NextInt64(0, d.ByteLength - 800);
-                    int got = d.Read(off, head);
-                    long start = off + Array.IndexOf(head, (byte)'\n', 0, got) + 1;
-                    var line = new byte[400];
-                    int n = d.Read(start, line);
-                    int eol = Array.IndexOf(line, (byte)'\n', 0, n);
-                    Assert.True(eol >= 0);
-                    // a 4 byte overwrite must neither cut a character nor split a CR LF pair
-                    bool plain4 = line.Take(4).All(b => b is >= 0x20 and < 0x80);
-                    if (sameLength && !plain4) continue;
-                    string tag = utf8Log ? $"Ž{i}ě—\r\n" : $"X{i}\r\n";
-                    int kind = sameLength ? 3 : i % 3 == 2 && !plain4 ? 0 : i % 3;
-                    (at, del, ins) = kind switch
-                    {
-                        0 => (start, 0L, Encoding.UTF8.GetBytes(tag)),
-                        1 => (start, (long)eol + 1, none),
-                        2 => (start, 4L, Encoding.ASCII.GetBytes($"Q{i % 10}")),
-                        _ => (start, 4L, Encoding.ASCII.GetBytes($"{i % 10000:D4}")),
-                    };
-                    break;
-                }
-                Assert.True(d.Replace(new(at, at + del), ins).Applied);
-                model.Replace(at, del, ins);
-            }
+            void One(int i, bool sameLength) => Edit(d, model, r, i, sameLength, utf8Log);
 
             for (int i = 0; i < Edits; i++)
             {
-                Edit(i, sameLength: false);
+                One(i, sameLength: false);
                 if (i + 1 >= Edits - Window && (i + 1) % 50 == 0) checkpoints[i + 1] = model.Sha256();
             }
             Assert.Equal(Edits, d.UndoDepth);
@@ -205,7 +211,7 @@ public class PagedSaveUndoTests
 
             // same-length changes go in place, and undo still reaches the original afterwards
             model = new ChunkModel(path);
-            for (int i = 0; i < Edits; i++) Edit(i, sameLength: true);
+            for (int i = 0; i < Edits; i++) One(i, sameLength: true);
             string patchedSha = model.Sha256();
             Assert.Equal(SaveMode.InPlace, d.PlanSave().Mode);
             Assert.True(d.Save().Saved);

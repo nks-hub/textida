@@ -82,6 +82,9 @@ public sealed partial class App : Application
 
     /// <summary>Opens a web address in the browser of the system; true when it was opened. Null uses the launcher of the window. Settable so tests open nothing.</summary>
     internal Func<Uri, Task<bool>>? UriOpener { get; set; }
+
+    /// <summary>Hands a file or folder to the default app or the file manager of the system; true when it was started. Null starts the process of <see cref="SystemLauncher"/>. Settable so tests start nothing.</summary>
+    internal Func<string, Task<bool>>? PathOpener { get; set; }
     internal LastParameters LastParameters { get; private set; } = new();
     internal IDialogs Dialogs { get; set; } = new AvaloniaDialogs();
     /// <summary>Folder of the settings, journal and backups of this run; a private subfolder in smoke mode so a check never touches the real profile.</summary>

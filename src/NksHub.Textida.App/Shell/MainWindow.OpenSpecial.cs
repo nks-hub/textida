@@ -1,5 +1,5 @@
-using Avalonia.Platform.Storage;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
@@ -108,11 +108,8 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Hands a file or folder to the program the system assigns to it.</summary>
-    private async Task<bool> LaunchPathAsync(string path)
-    {
-        IStorageItem? item = Directory.Exists(path) ? await StorageProvider.TryGetFolderFromPathAsync(path) : await StorageProvider.TryGetFileFromPathAsync(path);
-        return item is not null && await Launcher.LaunchFileAsync(item);
-    }
+    private Task<bool> LaunchPathAsync(string path) =>
+        _app.PathOpener is { } open ? open(path) : Task.FromResult(SystemLauncher.Start(SystemLauncher.StartInfo(path, SystemLauncher.Current)));
 
     internal async Task OpenWithDefaultAppAsync()
     {

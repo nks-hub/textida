@@ -4,6 +4,9 @@ using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core;
 
+/// <summary>One replacement of a file: the <paramref name="Deleted"/> bytes at <paramref name="Start"/> become <paramref name="Inserted"/>.</summary>
+public readonly record struct FileEdit(long Start, long Deleted, byte[] Inserted);
+
 /// <summary>
 /// Editable document over a memory-mapped file: a piece tree references the original file and an
 /// append-only add buffer, so edits cost O(log pieces) and never copy the file. Offsets are bytes
@@ -90,6 +93,45 @@ public sealed class PagedDocument : IPagedTextSource
 
     /// <summary>Immutable view of the current content; cheap (pieces only) and safe to read from other threads.</summary>
     public PagedSnapshot CreateSnapshot() => new([.. _tree.EnumerateRange(0, ByteLength)], _add, _source.File);
+
+    /// <summary>
+    /// The edits that turn the file as this document mapped it into the current content, in file order, each one the replacement of <c>Deleted</c> bytes at <c>Start</c>.
+    /// They are read from the pieces, so the cost follows the number of edits and the bytes they insert, not the size of the file. Null when they insert more than
+    /// <paramref name="maxInsertedBytes"/> bytes. After an in-place save the mapped file is the one before the write: the edits then describe the saved bytes again,
+    /// and a caller that wants the unsaved ones compares them with the file.
+    /// </summary>
+    public IReadOnlyList<FileEdit>? EditsAgainstFile(long maxInsertedBytes)
+    {
+        var edits = new List<FileEdit>();
+        var pending = new MemoryStream();
+        long fileAt = 0, inserted = 0;
+        void Close(long deleted)
+        {
+            if (deleted > 0 || pending.Length > 0) edits.Add(new FileEdit(fileAt, deleted, pending.ToArray()));
+            pending.SetLength(0);
+        }
+        var buffer = new byte[1 << 16];
+        foreach (var piece in _tree.EnumerateRange(0, ByteLength))
+        {
+            if (piece.Length == 0) continue;
+            if (piece.Original)
+            {
+                if (piece.Start < fileAt) return null;
+                Close(piece.Start - fileAt);
+                fileAt = piece.Start + piece.Length;
+                continue;
+            }
+            if ((inserted += piece.Length) > maxInsertedBytes) return null;
+            for (long done = 0; done < piece.Length; done += buffer.Length)
+            {
+                int n = (int)Math.Min(buffer.Length, piece.Length - done);
+                CopyPiece(piece, done, buffer.AsSpan(0, n));
+                pending.Write(buffer, 0, n);
+            }
+        }
+        Close(_source.ByteLength - fileAt);
+        return edits;
+    }
 
     /// <summary>The unmodified file underneath; searches run against it.</summary>
     public MappedFileSource Source => _source;

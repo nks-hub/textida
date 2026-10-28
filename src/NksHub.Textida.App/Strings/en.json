@@ -1984,6 +1984,8 @@
   "session.deleted": "Session {name} deleted.",
   "session.opened": "Session {name} opened.",
   "session.openedMissing": "Session {name} opened. Not found: {missing}",
+  "session.largeLeftOut": "Session {name} is saved, but the unsaved changes of these large files are not in it (too large, or the file on disk changed): {files}. Save the files.",
+  "session.editsNotRestored": "The unsaved changes of session {name} were not restored for these files: {files}. The file changed since the session was saved, or it is already open with changes of its own.",
   "a11y.sessions": "Sessions",
   "tokens.status": "≈ {count} tokens",
   "tokens.status.tip": "Estimate for the selection by this rule: {rule}. Nothing is sent anywhere. Click to choose another rule.",
