@@ -941,6 +941,20 @@ public class ViewOptionsTests : IDisposable
         Assert.True(map.IsSampled);
         var origin = map.TranslatePoint(default, _w)!.Value;
         var start = new Point(origin.X + 40, origin.Y + 2);
+        var colors = SyntaxColors(["keyword", "comment"]).ToList();
+        var text = InWindow(tab.Paged!, new Rect(60, 0, Math.Max(100, tab.Paged!.Bounds.Width - 120), tab.Paged.Bounds.Height));
+        bool TextColored()
+        {
+            var clock = Stopwatch.StartNew();
+            while (clock.Elapsed.TotalSeconds < 10)
+            {
+                Dispatcher.UIThread.RunJobs();
+                if (Matching(Capture(), text, colors) > 20) return true;
+                Thread.Sleep(50);
+            }
+            return false;
+        }
+        Assert.True(TextColored(), "the first screen of the file has no colors before the drag");
         _w.MouseDown(start, MouseButton.Left);
         for (int i = 0; i < 120; i++)
         {
@@ -951,17 +965,7 @@ public class ViewOptionsTests : IDisposable
         _w.MouseUp(new Point(start.X, start.Y + 360), MouseButton.Left);
         Assert.True(tab.Paged!.TopLine > 100_000, $"the drag moved the text to line {tab.Paged.TopLine}");
 
-        var colors = SyntaxColors(["keyword", "comment"]).ToList();
-        var text = InWindow(tab.Paged, new Rect(60, 0, Math.Max(100, tab.Paged.Bounds.Width - 120), tab.Paged.Bounds.Height));
-        var clock = Stopwatch.StartNew();
-        bool colored = false;
-        while (!colored && clock.Elapsed.TotalSeconds < 10)
-        {
-            Dispatcher.UIThread.RunJobs();
-            colored = Matching(Capture(), text, colors) > 20;
-            if (!colored) Thread.Sleep(50);
-        }
-        Assert.True(colored, "the lines where the drag ended stayed without colors");
+        Assert.True(TextColored(), "the lines where the drag ended stayed without colors");
         Assert.True(WaitForColors(tab, ["keyword"]), "the map lost its colors after the drag");
     }
 
