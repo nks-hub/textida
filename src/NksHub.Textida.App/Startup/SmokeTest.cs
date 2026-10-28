@@ -23,6 +23,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     private const string Sample = "smoke";
     private const string Lines = "a\nb\nc";
     private readonly List<string> _log = [];
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     public async Task RunAsync()
     {
@@ -398,7 +399,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     private void Check(bool condition, string what)
     {
         if (!condition) throw new InvalidOperationException(what);
-        _log.Add("ok:" + what.Replace(' ', '_'));
+        _log.Add("ok:" + what.Replace(' ', '_') + "@" + _clock.ElapsedMilliseconds);
     }
 
     private Task NextFrameAsync()
