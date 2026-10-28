@@ -52,7 +52,7 @@ public sealed record RegistryAnswer(string Body, bool Cached);
 /// <param name="MaxLookups">Most registry requests one check of a manifest makes; the rest of the entries are left unchecked.</param>
 /// <param name="CacheMaxBytes">Most bytes of answers the cache of this process holds; the oldest answers are dropped to make room, and one larger than this is not kept. Zero means no bound.</param>
 /// <param name="CacheLifetimeSeconds">How long an answer is served from the cache; an older one is asked for again. Zero means it never expires.</param>
-/// <param name="MaxRedirects">Most redirects followed for a request that goes through the editor (it hands a redirect back instead of following it); zero follows none.</param>
+/// <param name="MaxRedirects">Most redirects followed for one request, to other pages of the host that was asked (a redirect to another host is an error); zero follows none.</param>
 public sealed record RegistrySettings(string ConfigPath, int TimeoutMilliseconds, long MaxResponseBytes, int PageSize, int MaxLookups, long ManifestMaxBytes, long CacheMaxBytes = 0, int CacheLifetimeSeconds = 0, int MaxRedirects = 0);
 
 /// <summary>
@@ -161,7 +161,7 @@ public sealed class RegistryClient(RegistrySettings settings, TimeProvider? cloc
         if (_http is not null && key == _httpKey) return _http;
         HttpMessageHandler handler = config.ViaEditor
             ? _editorHandler?.Invoke() ?? throw RegistryException.Proxy(RegistryProblem.ProxyUnavailable)
-            : new SocketsHttpHandler { UseProxy = config.Proxy is not null, Proxy = config.Proxy is null ? null : new WebProxy(new Uri(config.Proxy), false) };
+            : new SocketsHttpHandler { UseProxy = config.Proxy is not null, Proxy = config.Proxy is null ? null : new WebProxy(new Uri(config.Proxy), false), AllowAutoRedirect = false };
         _http?.Dispose();
         _httpKey = key;
         return _http = new HttpClient(handler, true) { Timeout = Timeout.InfiniteTimeSpan };
@@ -215,10 +215,11 @@ public sealed class RegistryClient(RegistrySettings settings, TimeProvider? cloc
                 if (accept is not null) request.Headers.Accept.ParseAdd(accept);
                 Interlocked.Increment(ref _requests);
                 using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
-                // the editor hands a redirect back instead of following it; a request of this client carries no header that must not reach the other host
-                if (config.ViaEditor && redirects < settings.MaxRedirects && (int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
+                // redirects are followed here, not by the handler (the editor hands one back as well): the user allowed this host, and a redirect may lead to another page of it, never to another host
+                if (redirects < settings.MaxRedirects && (int)response.StatusCode is >= 300 and < 400 && response.Headers.Location is { } location)
                 {
                     var next = location.IsAbsoluteUri ? location : new Uri(target, location);
+                    if (!string.Equals(next.Host, url.Host, StringComparison.OrdinalIgnoreCase)) throw new RegistryException($"{url.Host} sent the request on to {next.Host}, which was not allowed.");
                     if (next.Scheme == Uri.UriSchemeHttps || next.Scheme == Uri.UriSchemeHttp && target.Scheme == Uri.UriSchemeHttp)
                     {
                         target = next;
