@@ -93,7 +93,10 @@ public sealed partial class DocumentApi
         });
     }
 
-    /// <summary>Matches of a hex pattern (<c>4D 5A ?? 90</c>, <c>?</c> is a wildcard nibble). A match that touches a hidden value of a secrets file is left out, as in <c>document/find</c>.</summary>
+    /// <summary>
+    /// Matches of a hex pattern (<c>4D 5A ?? 90</c>, <c>?</c> is a wildcard nibble). A match that touches a hidden value of a secrets file is left out, as in <c>document/find</c>.
+    /// Like <c>document/find</c> it looks at the starts of matches in at most <see cref="DocumentApiOptions.MaxScanBytes"/> bytes: past that <c>truncated</c> is true and <c>next</c> is the <c>start</c> to go on from.
+    /// </summary>
     private async Task<byte[]> FindBytesAsync(string pluginId, JsonElement p, CancellationToken ct)
     {
         var t = await ResolveAsync(pluginId, p);
@@ -106,8 +109,13 @@ public sealed partial class DocumentApi
         long from = OptionalOffset(p, "start", 0), to = OptionalOffset(p, "end", t.Snap.ByteLength);
         if (to < from || to > t.Snap.ByteLength) throw Fail(DocumentErrorCodes.InvalidRange, $"The range [{from}, {to}) is outside the document ({t.Snap.ByteLength} bytes).");
         int max = OptionalCount(p, "max", DefaultMatches, _options.MaxFindMatches);
-        ByteSearchResult result = Guarded(t.Snap, () => ByteSearch.Find(t.Snap, pattern, new ByteSearchOptions { MaxResults = max, Range = new ByteRange(from, to) }, ct));
-        var matches = result.Matches.Where(m => t.Secrets is null || !SecretValues.Overlaps(t.Secrets, m.Start, m.End)).ToList();
+        // matches that start before scanEnd are looked for (the last ones may reach past it); a stop there says where to go on
+        long scanEnd = ScanEnd(from, to);
+        bool limited = scanEnd < to;
+        long readEnd = Math.Min(to, scanEnd + pattern.Length - 1);
+        ByteSearchResult result = Guarded(t.Snap, () => ByteSearch.Find(t.Snap, pattern, new ByteSearchOptions { MaxResults = max, Range = new ByteRange(from, readEnd) }, ct));
+        var matches = result.Matches.Where(m => m.Start < scanEnd && (t.Secrets is null || !SecretValues.Overlaps(t.Secrets, m.Start, m.End))).ToList();
+        bool full = result.LimitReached && matches.Count >= max;
         return Obj(w =>
         {
             w.WriteNumber("revision", t.Snap.Revision);
@@ -121,7 +129,8 @@ public sealed partial class DocumentApi
                 w.WriteEndObject();
             }
             w.WriteEndArray();
-            w.WriteBoolean("truncated", result.LimitReached);
+            w.WriteBoolean("truncated", result.LimitReached || limited);
+            if (limited && !full) w.WriteNumber("next", scanEnd); else w.WriteNull("next");
         });
     }
 

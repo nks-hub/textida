@@ -203,6 +203,24 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: bytes one inspection call (file facts, log query) reads before it stops and says where to go on.</summary>
     public const long InspectionMaxScanBytes = 256L << 20;
 
+    /// <summary>Placeholder, OPEN: largest range one <c>document/readBytes</c> or <c>document/readText</c> returns, in bytes; a larger one is refused. The plugin chunk sizes above must not exceed it. The owner has not decided it.</summary>
+    public const int DocumentReadMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: matches one <c>document/find</c> returns before it says <c>truncated</c>. The owner has not decided it.</summary>
+    public const int DocumentFindMaxMatches = 1000;
+
+    /// <summary>Placeholder, OPEN: snapshots one plugin may hold at once; a further one is refused with a quota error. The owner has not decided it.</summary>
+    public const int SnapshotsPerPlugin = 4;
+
+    /// <summary>Placeholder, OPEN: seconds a snapshot lives after its last read, then it is released. The owner has not decided it.</summary>
+    public const int SnapshotLifetimeSeconds = 30;
+
+    /// <summary>Placeholder, OPEN: bytes the snapshots of one plugin may hold in memory together (a snapshot of a mapped file counts only its piece list, a copy counts all of it); a snapshot over it is refused with a quota error. The owner has not decided it.</summary>
+    public const long SnapshotBytesPerPlugin = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: ranges or positions one <c>document/mapRanges</c> or <c>document/mapPositions</c> call maps; a larger call is refused. The owner has not decided it.</summary>
+    public const int MapItemsPerCall = 10_000;
+
     /// <summary>Placeholder: virtual documents (read only tabs a plugin supplies) one plugin keeps open at once.</summary>
     public const int VirtualDocumentsPerPlugin = 8;
 
@@ -422,10 +440,12 @@ internal static class PluginLimitsPlaceholders
         CompletionTimeout = TimeSpan.FromMilliseconds(CompletionTimeoutMilliseconds),
         MaxHoverChars = HoverMaxChars,
         Tools = tools,
-        MaxReadBytes = 1 << 20,
-        MaxFindMatches = 1000,
-        MaxSnapshotsPerPlugin = 4,
-        SnapshotLifetime = TimeSpan.FromSeconds(30),
+        MaxReadBytes = DocumentReadMaxBytes,
+        MaxFindMatches = DocumentFindMaxMatches,
+        MaxSnapshotsPerPlugin = SnapshotsPerPlugin,
+        SnapshotLifetime = TimeSpan.FromSeconds(SnapshotLifetimeSeconds),
+        MaxSnapshotBytesPerPlugin = SnapshotBytesPerPlugin,
+        MaxMapItems = MapItemsPerCall,
         EventQueueCapacity = EventQueueCapacity,
         MaxRememberedBatches = 64,
         Permissions = permissions,

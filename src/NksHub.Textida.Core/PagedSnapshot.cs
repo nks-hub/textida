@@ -29,6 +29,8 @@ public sealed class PagedSnapshot : IByteSnapshot
 
     public long ByteLength { get; }
 
+    public long RetainedBytes => _copy?.Length ?? (long)_pieces.Length * (System.Runtime.CompilerServices.Unsafe.SizeOf<Piece>() + sizeof(long));
+
     public int Read(long offset, Span<byte> destination)
     {
         if (offset < 0 || offset > ByteLength) throw new ArgumentOutOfRangeException(nameof(offset));

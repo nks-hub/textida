@@ -10,17 +10,43 @@ namespace NksHub.Textida.PluginHost.Documents;
 /// <summary>Method names of the document API v1 (requests from the plugin to the editor).</summary>
 public static class DocumentMethods
 {
+    /// <summary>The documents the plugin may read, each as <see cref="Info"/>.</summary>
     public const string List = "document/list";
+    /// <summary>Revision, <c>oldestMappableRevision</c> (the oldest revision <see cref="MapRanges"/> and <see cref="MapPositions"/> can still map from), length in bytes, encoding, BOM length, path and the state of the line index.</summary>
     public const string Info = "document/info";
     public const string Subscribe = "document/subscribe";
     public const string Unsubscribe = "document/unsubscribe";
+    /// <summary>
+    /// Bytes <c>[start, end)</c> of one revision as base64, at most <see cref="DocumentApiOptions.MaxReadBytes"/>. The revision must be the current one, or one the plugin holds a snapshot of;
+    /// otherwise the answer is a <see cref="DocumentErrorCodes.RevisionConflict"/>. Or <c>{"snapshot":id}</c> instead of document and revision.
+    /// </summary>
     public const string ReadBytes = "document/readBytes";
+    /// <summary>
+    /// The same range decoded, on character boundaries (<c>snap</c> grows it to them instead of refusing). Bytes that are not valid in the encoding come out as U+FFFD and their
+    /// indexes in <c>text</c> (UTF-16 units) are listed in <c>invalid</c>; the bytes themselves are what <see cref="ReadBytes"/> returns, so they can be written back unchanged.
+    /// </summary>
     public const string ReadText = "document/readText";
+    /// <summary>
+    /// Literal case-sensitive search over <c>[start, end)</c>. A call looks at match starts in at most <see cref="DocumentApiOptions.MaxScanBytes"/> bytes; when it stopped there
+    /// <c>truncated</c> is true and <c>next</c> is the <c>start</c> to go on from. At most <see cref="DocumentApiOptions.MaxFindMatches"/> matches are returned.
+    /// </summary>
     public const string Find = "document/find";
     public const string Selections = "document/selections";
+    /// <summary>Byte offset to <c>line</c> and <c>column</c> (0-based, the column in UTF-16 units) of the current revision; <see cref="DocumentErrorCodes.PositionUnknown"/> where the index does not reach or the offset is not a position.</summary>
     public const string OffsetToPosition = "document/offsetToPosition";
     public const string PositionToOffset = "document/positionToOffset";
+    /// <summary>
+    /// Ranges of an older revision (<c>fromRevision</c>, or <c>snapshot</c> for the revision of a held snapshot) moved to the current one through the change log. One range that a later
+    /// change touched fails the whole call with a <see cref="DocumentErrorCodes.RevisionConflict"/> naming it (<c>index</c>). At most <see cref="DocumentApiOptions.MaxMapItems"/> ranges.
+    /// </summary>
     public const string MapRanges = "document/mapRanges";
+    /// <summary>
+    /// Single positions (<c>offset</c>, <c>gravity</c> <c>left</c> or <c>right</c>: which side text inserted exactly there goes) of an older revision moved to the current one. Each answer is
+    /// <c>mapped</c> with its new <c>offset</c>, or <c>deleted</c> when a later change removed the text the position was in; one position never fails the others.
+    /// A log that no longer reaches back, or a future revision, is a conflict for the whole call.
+    /// </summary>
+    public const string MapPositions = "document/mapPositions";
+    /// <summary>Pins the current revision of a document for <see cref="DocumentApiOptions.SnapshotLifetime"/> (each read starts the time again), within the count and byte budget of the plugin.</summary>
     public const string SnapshotCreate = "snapshot/create";
     public const string SnapshotRelease = "snapshot/release";
     public const string EditApply = "edit/apply";
@@ -39,7 +65,7 @@ public static class DocumentMethods
     public const string ClipboardWrite = "clipboard/write";
     /// <summary>Encoding, byte order mark, line endings, invalid sequences and storage mode of one revision.</summary>
     public const string Facts = "document/facts";
-    /// <summary>Byte pattern search (hex with <c>?</c> wildcards) over a range of one revision.</summary>
+    /// <summary>Byte pattern search (hex with <c>?</c> wildcards) over a range of one revision, bounded like <see cref="Find"/> (<c>truncated</c>, <c>next</c>).</summary>
     public const string FindBytes = "document/findBytes";
     /// <summary>Lines of a given log level, found block by block from a snapshot.</summary>
     public const string FindLog = "document/findLog";
@@ -172,7 +198,9 @@ public static class DocumentErrorCodes
 {
     /// <summary>The revision is not the current one (data: <c>reason</c>, <c>currentRevision</c>), or the change log cannot map a position unambiguously.</summary>
     public const int RevisionConflict = -32020;
+    /// <summary>The snapshot ran out of time, was released, or its plugin or document ended.</summary>
     public const int SnapshotExpired = -32021;
+    /// <summary>The plugin holds as many snapshots, or as many bytes in them, as it may (data: <c>reason</c> <c>Count</c> with <c>limit</c>, or <c>Bytes</c> with <c>limitBytes</c> and <c>retainedBytes</c>).</summary>
     public const int SnapshotQuotaExceeded = -32022;
     public const int PermissionDenied = -32023;
     public const int UnknownDocument = -32024;
@@ -219,6 +247,10 @@ public sealed record DocumentApiOptions
     public required int MaxSnapshotsPerPlugin { get; init; }
     /// <summary>How long a snapshot lives without being read; each read starts the time again.</summary>
     public required TimeSpan SnapshotLifetime { get; init; }
+    /// <summary>Memory the snapshots of one plugin may hold together (<see cref="IByteSnapshot.RetainedBytes"/>); null sets no byte budget, only the count.</summary>
+    public long? MaxSnapshotBytesPerPlugin { get; init; }
+    /// <summary>Ranges or positions one <see cref="DocumentMethods.MapRanges"/> or <see cref="DocumentMethods.MapPositions"/> call maps; null leaves it to the size of the message.</summary>
+    public int? MaxMapItems { get; init; }
     /// <summary>Events waiting for one plugin; beyond it the events of a document are dropped and replaced by one <see cref="DocumentEvents.EventsLost"/>.</summary>
     public required int EventQueueCapacity { get; init; }
     /// <summary>Applied batch ids remembered per plugin, so a repeated batch is answered and not applied twice.</summary>

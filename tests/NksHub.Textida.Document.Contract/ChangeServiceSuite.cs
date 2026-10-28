@@ -28,6 +28,41 @@ public abstract partial class DocumentContractSuite
     }
 
     [Fact]
+    public void PointsMapForwardAndSayWhenTheirTextIsGone()
+    {
+        using var d = New(B(Digits));
+        d.Insert(2, B("XX"));
+        d.Delete(new(10, 12));
+        PointMapResult Map(long offset, AnchorGravity gravity = AnchorGravity.Left, long from = 0) => d.MapPoint(offset, gravity, from);
+        Assert.Equal(0, Map(0).Offset);
+        Assert.Equal(2, Map(2).Offset);
+        Assert.Equal(4, Map(2, AnchorGravity.Right).Offset);
+        Assert.Equal(5, Map(3).Offset);
+        Assert.Equal(10, Map(8).Offset);
+        Assert.Equal(10, Map(10).Offset);
+        Assert.Equal(16, Map(16).Offset);
+        var gone = Map(9);
+        Assert.False(gone.Ok);
+        Assert.Equal(ConflictReason.Overlap, gone.Conflict);
+        Assert.Equal(new PointMapResult(true, 3, ConflictReason.None), Map(3, from: 2));
+    }
+
+    [Fact]
+    public void APointBeyondTheLogOrTheFutureIsRejected()
+    {
+        using var d = New(B(Digits), logCapacity: 2);
+        d.Insert(0, B("a"));
+        d.Insert(0, B("b"));
+        d.Insert(0, B("c"));
+        Assert.Equal(ConflictReason.LogTruncated, d.MapPoint(5, AnchorGravity.Left, 0).Conflict);
+        Assert.Equal(7, d.MapPoint(5, AnchorGravity.Left, 1).Offset);
+        Assert.Equal(0, d.MapPoint(0, AnchorGravity.Left, 1).Offset);
+        Assert.Equal(2, d.MapPoint(0, AnchorGravity.Right, 1).Offset);
+        Assert.Equal(5, d.MapPoint(5, AnchorGravity.Left, 3).Offset);
+        Assert.Equal(ConflictReason.FutureRevision, d.MapPoint(5, AnchorGravity.Left, 4).Conflict);
+    }
+
+    [Fact]
     public void OverlapWithAChangeIsAConflictNotAGuess()
     {
         using var d = New(B(Digits));

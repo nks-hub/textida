@@ -13,7 +13,10 @@ namespace NksHub.Textida.PluginHost.Documents;
 /// Document API v1 of the plugin protocol: reading by revision, snapshots, position mapping, events and edits.
 /// Plug <see cref="HandleAsync"/> in as the host's <see cref="PluginApiCallback"/> and the instance in as its <see cref="IPluginStateSource"/>.
 /// Only documents handed to <see cref="Expose"/> are visible. Every read names a revision or a snapshot; a read of a revision that is not
-/// the current one is a <see cref="DocumentErrorCodes.RevisionConflict"/>, never a silent read of other bytes. Positions are 64-bit byte offsets.
+/// the current one is a <see cref="DocumentErrorCodes.RevisionConflict"/>, never a silent read of other bytes, unless the plugin holds a snapshot of exactly that revision (then it is answered from it).
+/// Positions are 64-bit byte offsets; lines and columns count UTF-16 units. A snapshot lives <see cref="DocumentApiOptions.SnapshotLifetime"/> after its last read and counts against the
+/// number and the bytes a plugin may hold; it is released when the plugin or the document ends. <see cref="DocumentMethods.MapRanges"/> and <see cref="DocumentMethods.MapPositions"/>
+/// move positions of an older revision (or of a snapshot) to the current one through the change log, and say where the text they were in is gone.
 /// </summary>
 public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
 {
@@ -25,11 +28,13 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     private readonly object _gate = new();
     private readonly Dictionary<Guid, Exposed> _exposed = [];
     private readonly Dictionary<string, List<Pinned>> _snapshots = [];
+    private ITimer? _sweep;
+    private bool _closed;
 
     public DocumentApi(DocumentApiOptions options, IDocumentOwnerThread owner, PluginEventSender send, PluginRequestSender request, TimeProvider? time = null)
     {
         if (options.MaxReadBytes < 1 || options.MaxFindMatches < 1 || options.MaxSnapshotsPerPlugin < 1 || options.SnapshotLifetime <= TimeSpan.Zero
-            || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
+            || options.MaxSnapshotBytesPerPlugin is < 1 || options.MaxMapItems is < 1 || options.EventQueueCapacity < 1 || options.MaxRememberedBatches < 1 || options.MaxSymbolsPerDocument < 1 || options.MaxSymbolTextLength < 1
             || options.MaxSnippetLength < 1 || options.MaxSnippetCarets < 1 || options.TabTimeout <= TimeSpan.Zero || options.MaxSecretScanBytes < 1 || options.MaxClipboardChars < 1 || options.MaxScanBytes < 1
             || options.MaxVirtualDocumentsPerPlugin < 1 || options.MaxVirtualBytes < 1 || options.VirtualSaveTimeout is { Ticks: <= 0 }
             || options.MaxDiagnosticsPerDocument < 1 || options.MaxCompletionItems < 1 || options.MaxCompletionEdits < 0 || options.CompletionTimeout <= TimeSpan.Zero || options.MaxHoverChars < 0
@@ -66,7 +71,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         public EventHandler<DocumentChangedEventArgs>? Handler;
     }
 
-    private sealed record Pinned(string Id, DocumentSnapshot Snap, int Bom, DateTimeOffset Expires, Lazy<IReadOnlyList<ByteRange>>? Secrets);
+    /// <param name="Retained">What the snapshot holds in memory, counted against <see cref="DocumentApiOptions.MaxSnapshotBytesPerPlugin"/>.</param>
+    private sealed record Pinned(string Id, DocumentSnapshot Snap, int Bom, DateTimeOffset Expires, Lazy<IReadOnlyList<ByteRange>>? Secrets, long Retained);
 
     /// <param name="Secrets">The byte ranges to hide from this plugin; null when the document has none or the plugin may see them.</param>
     private sealed record Target(DocumentSnapshot Snap, int Bom, IReadOnlyList<ByteRange>? Secrets);
@@ -103,6 +109,9 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             subscribers = [.. e.Subscribers];
         }
         document.Changed -= e.Handler;
+        // a snapshot of a document that is gone would keep its file open until it expired
+        lock (_gate)
+            foreach (var pins in _snapshots.Values) pins.RemoveAll(x => x.Snap.DocumentId == document.Id);
         ForgetVirtual(document.Id);
         ClearPreviews(key => key.Document == document.Id);
         ClearSymbols(key => key.Document == document.Id);
@@ -175,7 +184,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.Selections: return await SelectionsAsync(p);
             case DocumentMethods.OffsetToPosition: return await OffsetToPositionAsync(p);
             case DocumentMethods.PositionToOffset: return await PositionToOffsetAsync(p);
-            case DocumentMethods.MapRanges: return await MapRangesAsync(p);
+            case DocumentMethods.MapRanges: return await MapRangesAsync(pluginId, p);
+            case DocumentMethods.MapPositions: return await MapPositionsAsync(pluginId, p);
             case DocumentMethods.SnapshotCreate: return await SnapshotCreateAsync(pluginId, p);
             case DocumentMethods.SnapshotRelease: return SnapshotRelease(pluginId, p);
             case DocumentMethods.EditApply: return await ApplyAsync(pluginId, p, lease!);
@@ -278,6 +288,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         var (lines, complete) = d.LineIndexState;
         w.WriteString("id", d.Id);
         w.WriteNumber("revision", d.Revision);
+        w.WriteNumber("oldestMappableRevision", d.OldestMappableRevision);
         w.WriteNumber("byteLength", d.ByteLength);
         w.WriteString("codec", d.Codec.Name);
         w.WriteNumber("bomLength", d.BomLength);
@@ -331,31 +342,40 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
 
     // ---- reading ----
 
+    /// <summary>The snapshot a request names, or the current revision of the document it names; a stale revision is answered from a snapshot of exactly that revision when the plugin holds one.</summary>
     private async Task<Target> ResolveAsync(string pluginId, JsonElement p)
     {
         if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("snapshot", out var s))
         {
             var id = s.ValueKind == JsonValueKind.String ? s.GetString()! : throw Invalid("Parameter 'snapshot' must be a string.");
-            lock (_gate)
-            {
-                PurgeExpired(pluginId);
-                // the lifetime counts from the last read, so a long scan of one snapshot keeps it alive while a forgotten one still expires
-                if (_snapshots.TryGetValue(pluginId, out var list) && list.FindIndex(x => x.Id == id) is var at and >= 0)
-                {
-                    var pin = list[at] = list[at] with { Expires = _time.GetUtcNow() + _options.SnapshotLifetime };
-                    return new Target(pin.Snap, pin.Bom, Hidden(pluginId, pin.Snap.DocumentId, pin.Secrets));
-                }
-            }
-            throw Fail(DocumentErrorCodes.SnapshotExpired, "The snapshot has expired or was released.");
+            return Held(pluginId, x => x.Id == id) ?? throw Fail(DocumentErrorCodes.SnapshotExpired, "The snapshot has expired or was released.");
         }
         var e = Find(NeedDocumentId(p));
         var revision = NeedLong(p, "revision");
         return await _owner.InvokeAsync(() =>
         {
+            if (e.Doc.Revision != revision && Held(pluginId, x => x.Snap.DocumentId == e.Doc.Id && x.Snap.Revision == revision) is { } held) return held;
             CheckCurrent(e.Doc, revision);
             var snap = e.Doc.GetSnapshot();
             return new Target(snap, e.Doc.BomLength, Hidden(pluginId, e.Doc.Id, SecretsOf(e.Doc, snap, e.Doc.BomLength)));
         });
+    }
+
+    /// <summary>
+    /// A snapshot of the plugin that matches, with its lifetime started again: it counts from the last read, so a long scan of one snapshot keeps it alive while a forgotten one still expires.
+    /// Null when there is none (it expired, was released or never existed).
+    /// </summary>
+    private Target? Held(string pluginId, Predicate<Pinned> match)
+    {
+        lock (_gate)
+        {
+            PurgeExpired();
+            if (!_snapshots.TryGetValue(pluginId, out var list)) return null;
+            int at = list.FindIndex(match);
+            if (at < 0) return null;
+            var pin = list[at] = list[at] with { Expires = _time.GetUtcNow() + _options.SnapshotLifetime };
+            return new Target(pin.Snap, pin.Bom, Hidden(pluginId, pin.Snap.DocumentId, pin.Secrets));
+        }
     }
 
     private ByteRange ReadRange(Target t, JsonElement p, bool limit)
@@ -455,16 +475,19 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         long to = p.TryGetProperty("end", out _) ? NeedLong(p, "end") : snap.ByteLength;
         if (from < 0 || to < from || to > snap.ByteLength) throw Fail(DocumentErrorCodes.InvalidRange, $"The range [{from}, {to}) is outside the document ({snap.ByteLength} bytes).");
 
+        // matches that start before scanEnd are looked for; the last ones may reach past it, up to the end of the range
+        long scanEnd = ScanEnd(from, to);
+        long readEnd = Math.Min(to, scanEnd + needle.Length - 1);
         var matches = new List<long>();
-        bool truncated = false;
+        bool truncated = false, done = false;
         var buffer = new byte[Math.Max(1 << 16, needle.Length * 2)];
         int alignment = snap.Codec.Alignment;
         Guarded(snap, () =>
         {
-            for (long pos = from; pos + needle.Length <= to && !truncated;)
+            for (long pos = from; pos + needle.Length <= readEnd && !truncated && !done;)
             {
                 ct.ThrowIfCancellationRequested();
-                int want = (int)Math.Min(buffer.Length, to - pos);
+                int want = (int)Math.Min(buffer.Length, readEnd - pos);
                 int got = snap.Read(pos, buffer.AsSpan(0, want));
                 if (got < needle.Length) break;
                 var span = buffer.AsSpan(0, got);
@@ -474,6 +497,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
                     if (i < 0) break;
                     long absolute = pos + at + i;
                     at += i + 1;
+                    if (absolute >= scanEnd) { done = true; break; }
                     if (absolute < t.Bom || (absolute - t.Bom) % alignment != 0) continue;
                     if (t.Secrets is not null && SecretValues.Overlaps(t.Secrets, absolute, absolute + needle.Length)) continue; // a match that touches a hidden value would tell what it is
                     if (matches.Count == _options.MaxFindMatches) { truncated = true; break; }
@@ -483,6 +507,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             }
             return 0;
         });
+        bool limited = scanEnd < to;
         return Obj(w =>
         {
             w.WriteNumber("revision", snap.Revision);
@@ -495,9 +520,13 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
                 w.WriteEndObject();
             }
             w.WriteEndArray();
-            w.WriteBoolean("truncated", truncated);
+            w.WriteBoolean("truncated", truncated || limited);
+            if (limited && !truncated) w.WriteNumber("next", scanEnd); else w.WriteNull("next");
         });
     }
+
+    /// <summary>Where the match starts of a search over <c>[from, to)</c> stop: at most <see cref="DocumentApiOptions.MaxScanBytes"/> bytes from <paramref name="from"/>.</summary>
+    private long ScanEnd(long from, long to) => to - from > _options.MaxScanBytes ? from + _options.MaxScanBytes : to;
 
     private async Task<byte[]> SelectionsAsync(JsonElement p)
     {
@@ -570,12 +599,12 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     /// Maps ranges of an older revision to the current one through the change log. One range that a later change touched, or a log
     /// that no longer reaches back, fails the whole call with a conflict that names the range; no position is guessed.
     /// </summary>
-    private async Task<byte[]> MapRangesAsync(JsonElement p)
+    private async Task<byte[]> MapRangesAsync(string pluginId, JsonElement p)
     {
-        var e = Find(NeedDocumentId(p));
-        long from = NeedLong(p, "fromRevision");
+        var (e, from, knownLength) = MapSource(pluginId, p);
         var items = Need(p, "ranges");
         if (items.ValueKind != JsonValueKind.Array) throw Invalid("Parameter 'ranges' must be an array.");
+        CheckMapCount(items.GetArrayLength());
         List<ByteRange> ranges = [];
         foreach (var item in items.EnumerateArray())
         {
@@ -586,8 +615,8 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         return await _owner.InvokeAsync(() =>
         {
             var d = e.Doc;
-            if (from > d.Revision || from < 0) throw Conflict("FutureRevision", d.Revision);
-            if (from < d.OldestMappableRevision) throw Conflict("LogTruncated", d.Revision);
+            CheckMappable(d, from);
+            CheckInside(d, from, knownLength, ranges.Count == 0 ? 0 : ranges.Max(r => r.End));
             var mapped = new List<ByteRange>(ranges.Count);
             for (int i = 0; i < ranges.Count; i++)
             {
@@ -611,30 +640,163 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         });
     }
 
-    // ---- snapshots ----
-
-    private void PurgeExpired(string pluginId)
+    /// <summary>
+    /// Maps single positions of an older revision to the current one: <c>mapped</c> with the new <c>offset</c>, or <c>deleted</c> when a later change removed the text the position was in.
+    /// The positions are independent, so one that has no place does not fail the others; a log that no longer reaches back fails the whole call.
+    /// </summary>
+    private async Task<byte[]> MapPositionsAsync(string pluginId, JsonElement p)
     {
-        if (_snapshots.TryGetValue(pluginId, out var list)) list.RemoveAll(s => s.Expires <= _time.GetUtcNow());
+        var (e, from, knownLength) = MapSource(pluginId, p);
+        var items = Need(p, "positions");
+        if (items.ValueKind != JsonValueKind.Array) throw Invalid("Parameter 'positions' must be an array.");
+        CheckMapCount(items.GetArrayLength());
+        List<(long Offset, AnchorGravity Gravity)> positions = [];
+        foreach (var item in items.EnumerateArray())
+        {
+            long offset = NeedLong(item, "offset");
+            if (offset < 0) throw Invalid($"The offset {offset} is not valid.");
+            var gravity = AnchorGravity.Left;
+            if (item.TryGetProperty("gravity", out var g) && g.ValueKind != JsonValueKind.Null)
+                gravity = (g.ValueKind == JsonValueKind.String ? g.GetString() : null) switch
+                {
+                    "left" => AnchorGravity.Left,
+                    "right" => AnchorGravity.Right,
+                    _ => throw Invalid("Parameter 'gravity' must be 'left' or 'right'."),
+                };
+            positions.Add((offset, gravity));
+        }
+        return await _owner.InvokeAsync(() =>
+        {
+            var d = e.Doc;
+            CheckMappable(d, from);
+            CheckInside(d, from, knownLength, positions.Count == 0 ? 0 : positions.Max(x => x.Offset));
+            return Obj(w =>
+            {
+                w.WriteNumber("revision", d.Revision);
+                w.WriteStartArray("positions");
+                foreach (var (offset, gravity) in positions)
+                {
+                    var m = d.MapPoint(offset, gravity, from);
+                    w.WriteStartObject();
+                    w.WriteString("status", m.Ok ? "mapped" : "deleted");
+                    if (m.Ok) w.WriteNumber("offset", m.Offset);
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+            });
+        });
     }
 
+    /// <summary>The document and revision a mapping starts from (the length of that revision when it is known): the named document and <c>fromRevision</c>, or the document and revision of a held snapshot.</summary>
+    private (Exposed Doc, long From, long? Length) MapSource(string pluginId, JsonElement p)
+    {
+        if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("snapshot", out var s))
+        {
+            var id = s.ValueKind == JsonValueKind.String ? s.GetString()! : throw Invalid("Parameter 'snapshot' must be a string.");
+            var held = Held(pluginId, x => x.Id == id) ?? throw Fail(DocumentErrorCodes.SnapshotExpired, "The snapshot has expired or was released.");
+            return (Find(held.Snap.DocumentId), held.Snap.Revision, held.Snap.ByteLength);
+        }
+        return (Find(NeedDocumentId(p)), NeedLong(p, "fromRevision"), null);
+    }
+
+    private void CheckMapCount(int count)
+    {
+        if (_options.MaxMapItems is { } max && count > max) throw new RpcException(RpcErrorCodes.MessageTooLarge, $"A call maps at most {max} items; got {count}.");
+    }
+
+    /// <summary>The change log must reach from the revision to the current one. Call on the thread that owns the document.</summary>
+    private static void CheckMappable(Document d, long from)
+    {
+        if (from > d.Revision || from < 0) throw Conflict("FutureRevision", d.Revision);
+        if (from < d.OldestMappableRevision) throw Conflict("LogTruncated", d.Revision);
+    }
+
+    /// <summary>An offset past the end of the revision is refused when the length of that revision is known: the revision of a snapshot, or the current one.</summary>
+    private static void CheckInside(Document d, long from, long? knownLength, long end)
+    {
+        long? length = knownLength;
+        if (length is null && from == d.Revision) length = d.ByteLength;
+        if (length is { } l && end > l) throw Fail(DocumentErrorCodes.InvalidRange, $"The offset {end} is outside the revision ({l} bytes).");
+    }
+
+    // ---- snapshots ----
+
+    /// <summary>Drops the expired snapshots of every plugin, so what a plugin that went quiet pinned is released too. Call under <c>_gate</c>.</summary>
+    private void PurgeExpired()
+    {
+        var now = _time.GetUtcNow();
+        foreach (var plugin in _snapshots.Keys.ToArray())
+        {
+            var pins = _snapshots[plugin];
+            pins.RemoveAll(s => s.Expires <= now);
+            if (pins.Count == 0) _snapshots.Remove(plugin);
+        }
+    }
+
+    /// <summary>Makes sure the snapshots are looked at again when the oldest of them is due, even if no plugin calls the API until then. Call under <c>_gate</c>.</summary>
+    private void ArmSweep()
+    {
+        if (_sweep is not null || _closed) return;
+        DateTimeOffset? first = null;
+        foreach (var pins in _snapshots.Values)
+            foreach (var pin in pins)
+                if (first is null || pin.Expires < first) first = pin.Expires;
+        if (first is not { } oldest) return;
+        var due = oldest - _time.GetUtcNow();
+        if (due < MinSweepDelay) due = MinSweepDelay;
+        else if (due > MaxSweepDelay) due = MaxSweepDelay; // a timer cannot wait for weeks; it is armed again after each sweep
+        // the timer holds the API weakly, so an API nobody references any more is not kept alive by it
+        _sweep = _time.CreateTimer(static state => { if (((WeakReference<DocumentApi>)state!).TryGetTarget(out var api)) api.Sweep(); }, new WeakReference<DocumentApi>(this), due, Timeout.InfiniteTimeSpan);
+    }
+
+    private static readonly TimeSpan MinSweepDelay = TimeSpan.FromMilliseconds(250), MaxSweepDelay = TimeSpan.FromHours(1);
+
+    private void Sweep()
+    {
+        lock (_gate)
+        {
+            _sweep?.Dispose();
+            _sweep = null;
+            PurgeExpired();
+            ArmSweep();
+        }
+    }
+
+    /// <summary>Snapshots the API still holds for the plugin, expired ones not yet released included (for tests).</summary>
+    internal int PinnedSnapshots(string pluginId)
+    {
+        lock (_gate) return _snapshots.TryGetValue(pluginId, out var pins) ? pins.Count : 0;
+    }
+
+    /// <summary>
+    /// Pins the current revision for the plugin. It counts against the number and, when the options set one, the bytes the plugin may hold; a request that would go over is refused
+    /// (<see cref="DocumentErrorCodes.SnapshotQuotaExceeded"/>) and nothing is dropped to make room. With <c>revision</c> the snapshot is only taken if the document is still at it.
+    /// </summary>
     private async Task<byte[]> SnapshotCreateAsync(string pluginId, JsonElement p)
     {
         var e = Find(NeedDocumentId(p));
+        long? expected = p.TryGetProperty("revision", out _) ? NeedLong(p, "revision") : null;
         var (snap, bom, secrets) = await _owner.InvokeAsync(() =>
         {
+            if (expected is { } revision) CheckCurrent(e.Doc, revision);
             var s = e.Doc.GetSnapshot();
             return (s, e.Doc.BomLength, SecretsOf(e.Doc, s, e.Doc.BomLength));
         });
-        var pin = new Pinned(Guid.NewGuid().ToString("N"), snap, bom, _time.GetUtcNow() + _options.SnapshotLifetime, secrets);
+        var pin = new Pinned(Guid.NewGuid().ToString("N"), snap, bom, _time.GetUtcNow() + _options.SnapshotLifetime, secrets, snap.RetainedBytes);
         lock (_gate)
         {
-            PurgeExpired(pluginId);
-            if (!_snapshots.TryGetValue(pluginId, out var list)) _snapshots[pluginId] = list = [];
+            PurgeExpired();
+            if (!_snapshots.TryGetValue(pluginId, out var list)) list = [];
             if (list.Count >= _options.MaxSnapshotsPerPlugin)
                 throw Fail(DocumentErrorCodes.SnapshotQuotaExceeded, $"A plugin may hold {_options.MaxSnapshotsPerPlugin} snapshots; release one or wait for one to expire.",
-                    w => w.WriteNumber("limit", _options.MaxSnapshotsPerPlugin));
+                    w => { w.WriteString("reason", "Count"); w.WriteNumber("limit", _options.MaxSnapshotsPerPlugin); });
+            long held = list.Sum(x => x.Retained);
+            if (_options.MaxSnapshotBytesPerPlugin is { } budget && held + pin.Retained > budget)
+                throw Fail(DocumentErrorCodes.SnapshotQuotaExceeded, $"A plugin may hold {budget} bytes in snapshots; this one needs {pin.Retained} and {held} are held. Release one or wait for one to expire.",
+                    w => { w.WriteString("reason", "Bytes"); w.WriteNumber("limitBytes", budget); w.WriteNumber("retainedBytes", held); w.WriteNumber("neededBytes", pin.Retained); });
             list.Add(pin);
+            _snapshots[pluginId] = list;
+            ArmSweep();
         }
         return Obj(w =>
         {
@@ -642,6 +804,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             w.WriteString("document", snap.DocumentId);
             w.WriteNumber("revision", snap.Revision);
             w.WriteNumber("byteLength", snap.ByteLength);
+            w.WriteNumber("retainedBytes", pin.Retained);
             w.WriteNumber("lifetimeMs", (long)_options.SnapshotLifetime.TotalMilliseconds);
         });
     }
@@ -650,8 +813,18 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
     {
         var id = NeedString(p, "snapshot");
         bool released;
-        lock (_gate) released = _snapshots.TryGetValue(pluginId, out var list) && list.RemoveAll(s => s.Id == id) > 0;
+        lock (_gate)
+        {
+            released = _snapshots.TryGetValue(pluginId, out var list) && list.RemoveAll(s => s.Id == id) > 0;
+            if (released && list!.Count == 0) _snapshots.Remove(pluginId);
+        }
         return Obj(w => w.WriteBoolean("released", released));
+    }
+
+    /// <summary>The plugin ended (crashed, was turned off, the editor is closing): what it pinned is released now and not when it would have expired.</summary>
+    private void ReleaseSnapshots(string pluginId)
+    {
+        lock (_gate) _snapshots.Remove(pluginId);
     }
 
     /// <summary>

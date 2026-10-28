@@ -146,11 +146,12 @@ public sealed partial class DocumentApi
     }
 
     /// <summary>
-    /// A plugin ended (crashed, was turned off, the editor is closing): the virtual documents it provided close, because nobody is left to save them or to bring them up to date.
-    /// Call on the thread that owns the documents.
+    /// A plugin ended (crashed, was turned off, the editor is closing): the virtual documents it provided close, because nobody is left to save them or to bring them up to date,
+    /// and the snapshots it pinned are released. Call on the thread that owns the documents.
     /// </summary>
     public void PluginEnded(string pluginId)
     {
+        ReleaseSnapshots(pluginId);
         List<Exposed> mine;
         lock (_gate) mine = [.. _provided.Where(x => x.Value.PluginId == pluginId && _exposed.ContainsKey(x.Key)).Select(x => _exposed[x.Key])];
         foreach (var e in mine) CloseProvided(e.Doc);
