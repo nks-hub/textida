@@ -841,6 +841,7 @@ commands: nks.format.language
 2. Vyberte jazyk, například Prostý text.
 - Jazyk určuje nastavení platná jen pro tento jazyk (například zalamování řádků nebo odsazení) a pravidla zvýraznění.
 - Při otevření se jazyk určí podle přípony souboru.
+- Blade obarví kód mezi `@php` a `@endphp` jako PHP; `@php(...)` na jednom řádku je direktiva. Visual Basic obarví literály XML (element, komentář, sekci CDATA nebo dokument `<?xml ?>`) za `=`, `Return`, `Yield`, `Await` nebo `In`, s `<%= ... %>` jako kódem Visual Basicu, a `Imports <xmlns:...>`. Literál, který začíná na řádku po `=`, a vlastnosti `x.<name>` a `x.@name` se jako XML neobarví.
 - Vlastní zvýrazňovače jsou data: contributes.grammars v nkspad-plugin.json uvádí soubory gramatik (JSON, formatVersion 1, popsané v grammar.schema.json): id, name, extensions, fileNames, comments, keywords a rules. Pravidlo je match (regulární výraz), words, operators, include, nebo oblast s begin a end, která může vnořit jiný jazyk.
 - Zvýrazňovač může zahrnout a vnořit vestavěné jazyky, například "embed": "javascript". Soubor, který končí jednou z jeho přípon nebo má jeden z jeho fileNames, se otevře v tomto jazyce; id zvýrazňovače je jazyk v nastavení jazyka.
 - Zvýrazňovač se špatným regulárním výrazem, neznámou vlastností, neznámým include nebo embed, nebo s id vestavěného jazyka se při načtení pluginu odmítne. Plugin se přeskočí a stavový řádek řekne, který soubor a které pravidlo.
