@@ -46,7 +46,7 @@ internal sealed class HexTemplatePanel : Border
         Classes.Add("sidepanel");
         Width = 320;
         Padding = new Thickness(10, 8);
-        _picker.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<KsyPinned>((p, _) => new TextBlock { Text = Label(p) });
+        _picker.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<KsyPinned>((p, _) => new TextBlock { Text = p is null ? "" : Label(p) }); // the box of a combo without a choice builds its content from null
         _picker.SelectionChanged += (_, _) => PickerChanged();
         _open.Click += (_, _) => _ = OpenFileAsync();
         AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite); // a refused template is announced without moving the focus
@@ -197,7 +197,7 @@ internal sealed class HexTemplatePanel : Border
         DocumentSnapshot snapshot;
         try { snapshot = _owner.Document.GetSnapshot(); }
         catch (ObjectDisposedException) { return; }
-        _rootNode = new KsyReader(snapshot, pinned.Template).Root;
+        _rootNode = new KsyReader(_owner.ShownBytes(snapshot), pinned.Template).Root; // the fields of a hidden value read as stars
         _rootItem = Item(_rootNode);
         _tree.Items.Add(_rootItem);
         _rootItem.IsExpanded = true;

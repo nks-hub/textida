@@ -97,8 +97,12 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_fileList, Loc.Get(K.A11yFilesTree));
         AutomationProperties.SetName(_filesOpenButton, Loc.Get(K.PanelFilesOpen));
         _fileList.ContextMenu = BuildFileMenu();
-        if (_fileTree is not null) SyncFileList();
+        bool redraw = _fileRowsLanguage != Loc.Language;
+        _fileRowsLanguage = Loc.Language;
+        if (_fileTree is not null) SyncFileList(redraw);
     }
+
+    private string _fileRowsLanguage = Loc.Language;
 
     private ContextMenu BuildFileMenu()
     {
@@ -226,7 +230,7 @@ internal sealed partial class MainWindow
         _fileTree?.Dispose();
         _fileTree = tree;
         InvalidateWorkspaceIndex();
-        tree.Changed += SyncFileList;
+        tree.Changed += () => SyncFileList();
         tree.DiskChanged += OnFolderChangedOnDisk;
         tree.Watch();
         _app.Recent.SetFolder(tree.Root);
@@ -263,14 +267,15 @@ internal sealed partial class MainWindow
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the next change tries again */ }
     });
 
-    /// <summary>Shows the rows of the tree in the list, keeping the selection and the scroll position.</summary>
-    private void SyncFileList()
+    /// <summary>Shows the rows of the tree in the list, keeping the selection and the scroll position. <paramref name="redraw"/>: the rows are the same ones, but their names are written again (the language changed).</summary>
+    private void SyncFileList(bool redraw = false)
     {
         if (_fileTree is not { } tree) return;
         string? keep = SelectedFileRow?.Entry.Path;
         var scroll = _fileList.Scroll as ScrollViewer;
         var offset = scroll?.Offset;
         bool hadFocus = _fileList.IsKeyboardFocusWithin;
+        if (redraw) _fileList.ItemsSource = null;
         _fileList.ItemsSource = tree.Rows;
         _fileList.SelectedIndex = keep is null ? -1 : tree.IndexOf(keep);
         // the row that held the keyboard was replaced with the others; without this the keys would go nowhere

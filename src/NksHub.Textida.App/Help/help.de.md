@@ -254,6 +254,21 @@ commands: nks.app.openSettings
 - Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
 - F1 in diesem Fenster öffnet dieses Thema.
 
+## [app.accessibility] Barrierefreiheit
+commands: nks.view.nextPane, nks.view.previousPane
+Das Programm lässt sich allein mit der Tastatur und mit einem Screenreader bedienen. Geprüft wird es über den Zugänglichkeitsbaum des Programms; mit NVDA und VoiceOver selbst ist es noch nicht ausprobiert, melden Sie uns also, wo ein Screenreader etwas falsch vorliest.
+### Tastatur
+- Jeder Befehl steht in der Befehlspalette (Strg+Umschalt+P) und, wenn er einen hat, in einem Menü. Die Menüleiste erreichen Sie unter Windows mit der Alt-Taste; unter macOS ist es die Menüleiste des Systems (Ctrl+F2).
+- Der Editor behält die Tabulatortaste für sich. F6 setzt die Tastatur auf den nächsten Teil des Fensters: die Liste links, das Dokument, die Bereiche für Vorschau, Agent und Ausgabe, die Suchleiste, die Statusleiste. Umschalt+F6 geht zurück. Ein geschlossener Teil wird übersprungen.
+- In den übrigen Teilen bewegen Tab und Umschalt+Tab zwischen den Bedienelementen von oben nach unten und von links nach rechts; in einer Liste wechseln Sie mit den Pfeiltasten zwischen den Zeilen. Esc schließt einen Dialog, die Palette und die Bereiche und gibt die Tastatur an das Dokument zurück.
+- Nach dem Schließen eines Dialogs kehrt die Tastatur zu dem Element zurück, das sie vorher hatte.
+### Was ein Screenreader erhält
+- Jedes Bedienelement, jedes Fenster und jeder Dialog hat in allen vier Sprachen der Oberfläche (Tschechisch, Englisch, Slowakisch, Deutsch) einen Namen und eine Rolle. Die Namen folgen einem Sprachwechsel sofort.
+- Eine Meldung der Statusleiste, ein Hinweis über dem Dokument, die Zahl der Treffer einer Suche, die gewählte Zeile der Palette und der Zustand des Agenten werden vorgelesen, sobald sie erscheinen, ohne dass sich die Tastatur bewegt.
+### Hoher Kontrast
+- Verlangt das System hohen Kontrast (ein Kontrastdesign unter Windows), nimmt das Programm für Fenster, Karteireiter, Listen, Rahmen und den Fokusrahmen die Farben des Systems, auch im Editor. Der Text einer gewählten Zeile hat die Farbe, die das System dafür vorgibt. Unter macOS gilt das, wenn das System die Einstellung Kontrast erhöhen an das Programm meldet.
+- Die Farben der Syntaxhervorhebung ändern sich nicht. Der Tastaturfokus ist ein Rahmen um das Bedienelement in der Akzentfarbe (bei hohem Kontrast in der Farbe, die das System für Links nutzt).
+
 ## [app.quit] Beenden
 commands: nks.app.quit
 1. Drücken Sie Strg+Q oder wählen Sie Datei und dann Beenden.
@@ -615,12 +630,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Verborgene Werte in .env-Dateien
 commands: nks.view.toggleSecrets
-1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`. Ansicht, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
-- Ruht der Mauszeiger auf einem Wert, wird nur dieser eine gezeigt.
+1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`, im Texteditor, im seitenweisen Modus und in der Hex-Ansicht. Ansicht, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
+- Im Texteditor wird nur dieser eine Wert gezeigt, wenn der Mauszeiger auf ihm ruht.
 - Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
-- Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten und in den Suchergebnissen verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
+- Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten, in den Suchergebnissen und in den Exporten mit Formatierung (HTML, RTF) verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
+- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm und das Strukturfenster sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist.
+- Im seitenweisen Modus liest ein Screenreader für jedes Zeichen eines verborgenen Werts ein Aufzählungszeichen. Eine Zeile über 16 KiB, die einen Wert enthält, verbirgt alles hinter ihrem ersten Teil.
 - Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
-- Der seitenweise Modus und die Hex-Ansicht zeigen die Bytes, wie sie sind.
+- Die Einstellung Geheime Dateien enthält die Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt (`*` steht für beliebigen Text). Ihre Standardliste ist vorläufig.
 
 ## [view.tabs] Tabs wechseln
 commands: nks.view.nextTab, nks.view.previousTab

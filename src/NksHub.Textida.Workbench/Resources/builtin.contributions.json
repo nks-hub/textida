@@ -327,7 +327,7 @@
       "id": "nks.view.toggleSecrets",
       "title": "cmd.view.toggleSecrets",
       "category": "cat.view",
-      "enablement": "hasDocument && !largeFileMode"
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.nextTab",
@@ -789,6 +789,16 @@
     {
       "id": "nks.view.fullScreen",
       "title": "cmd.view.fullScreen",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.nextPane",
+      "title": "cmd.view.nextPane",
+      "category": "cat.view"
+    },
+    {
+      "id": "nks.view.previousPane",
+      "title": "cmd.view.previousPane",
       "category": "cat.view"
     },
     {
@@ -5027,6 +5037,14 @@
       "command": "nks.view.fullScreen"
     },
     {
+      "key": "f6",
+      "command": "nks.view.nextPane"
+    },
+    {
+      "key": "shift+f6",
+      "command": "nks.view.previousPane"
+    },
+    {
       "key": "mod+k mod+e",
       "command": "nks.search.recentEdits"
     },
@@ -5678,6 +5696,21 @@
         "history",
         "revisions",
         "backup"
+      ]
+    },
+    {
+      "key": "files.secretFilePatterns",
+      "type": "string",
+      "default": ".env;.env.*;*.env",
+      "title": "setting.files.secretFilePatterns.title",
+      "description": "setting.files.secretFilePatterns.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "secrets",
+        "env",
+        "hidden",
+        "mask"
       ]
     },
     {

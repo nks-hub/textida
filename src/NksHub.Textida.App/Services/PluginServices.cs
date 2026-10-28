@@ -551,7 +551,7 @@ internal sealed class PluginServices : IEditProposals, IWorkspaceEdits, IDocumen
     /// </summary>
     public async Task<bool> RunTableCopyAsync(MainWindow window, DocTab tab, string command) =>
         tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command,
-            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.Surface is { SecretsHidden: true }, tooLarge: Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)))).Started;
+            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.SecretsHidden, tooLarge: Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)))).Started;
 
     // ---- web data: colours and key paths ----
 

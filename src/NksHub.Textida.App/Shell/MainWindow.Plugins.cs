@@ -403,7 +403,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.StatusChangeConflict));
             return new ProposalDecision(id, ProposalOutcome.Stale, 0, total);
         }
-        if (total > 0 && !proposal.RawBytes && tab.Surface is not { SecretsHidden: true } && TextReplacements(doc, proposal.Edits) is { } replacements)
+        if (total > 0 && !proposal.RawBytes && !tab.SecretsHidden && TextReplacements(doc, proposal.Edits) is { } replacements)
         {
             FileChange? change = null;
             try { change = ChangeBuilder.ForDocument(doc, replacements); }

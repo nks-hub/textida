@@ -46,7 +46,7 @@ internal sealed class HexInspectorPanel : Border
         _list.KeyDown += OnListKey;
         _list.DoubleTapped += (_, _) => BeginEdit();
         var order = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 6, 0, 6), Children = { _little, _big } };
-        var stack = new DockPanel { LastChildFill = true };
+        var stack = new Shell.ReadingDockPanel { LastChildFill = true };
         DockPanel.SetDock(_title, Dock.Top);
         DockPanel.SetDock(order, Dock.Top);
         var editor = new StackPanel { Spacing = 4, Margin = new Thickness(0, 6, 0, 0), Children = { _hint, _edit, _error } };
@@ -162,13 +162,15 @@ internal sealed class HexInspectorPanel : Border
             var data = new byte[(int)Math.Max(0, Math.Min(ReadWindow, doc.ByteLength - start))];
             try { doc.Read(start, data); }
             catch (IOException) { _owner.FileChangedBehind(); return; }
+            bool hidden = _owner.TouchesHidden(start, start + data.Length); // a value of a secrets file is not shown as any type
+            _owner.MaskHidden(start, data);
             _values = [.. _kinds.Select(k => DataInspector.Decode(k, data, _bigEndian))];
             int selected = Math.Max(0, _list.SelectedIndex);
             _list.Items.Clear();
             for (int i = 0; i < _kinds.Length; i++)
             {
                 var v = _values[i]!;
-                string name = KindName(_kinds[i]), shown = Show(v);
+                string name = KindName(_kinds[i]), shown = hidden ? Loc.Get(K.SecretHiddenValue) : Show(v);
                 var row = new Grid { ColumnDefinitions = new ColumnDefinitions("100,*") };
                 row.Children.Add(new TextBlock { Text = name, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center });
                 var value = new TextBlock { Text = shown, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, FontFamily = new Avalonia.Media.FontFamily(_owner.Options.FontFamily) };

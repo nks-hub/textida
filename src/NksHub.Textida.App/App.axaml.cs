@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
@@ -15,6 +16,7 @@ using NksHub.Textida.Core.Conversions;
 using NksHub.Textida.Core.History;
 using NksHub.Textida.Core.Journal;
 using NksHub.Textida.Core.Search;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
@@ -160,7 +162,9 @@ public sealed partial class App : Application
         Workbench.SetLanguage(Settings.Language);
         Loc.SetLanguage(Settings.Language);
         ApplyThemeVariant();
+        WatchContrast();
         ApplyRegexTimeout();
+        ApplySecretFilePatterns();
 
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
@@ -397,8 +401,14 @@ public sealed partial class App : Application
             case "search.regexTimeoutMs":
                 ApplyRegexTimeout();
                 break;
+            case "files.secretFilePatterns":
+                ApplySecretFilePatterns();
+                foreach (var w in _windows) w.RefreshSecrets();
+                break;
         }
     }
+
+    private void ApplySecretFilePatterns() => SecretValues.FilePatterns = Workbench.Settings.GetString("files.secretFilePatterns");
 
     /// <summary>The history settings; 0 in a limit means no limit.</summary>
     private HistoryPolicy ReadHistoryPolicy()
@@ -430,10 +440,40 @@ public sealed partial class App : Application
 
     private void ApplyRegexTimeout() => RegexTools.MatchTimeoutMs = (int)Workbench.Settings.GetInt("search.regexTimeoutMs");
 
-    private void ApplyThemeVariant() => RequestedThemeVariant = Settings.Theme switch
+    private void ApplyThemeVariant() => RequestedThemeVariant = Contrast.Colors is { } contrast ? (contrast.IsDark ? ThemeVariant.Dark : ThemeVariant.Light) : Settings.Theme switch
     {
         "light" => ThemeVariant.Light,
         "dark" => ThemeVariant.Dark,
         _ => ThemeVariant.Default,
     };
+
+    private ContrastTheme? _contrast;
+    private bool _contrastWatched;
+
+    /// <summary>The colours of high contrast, while the system asks for it.</summary>
+    internal ContrastTheme Contrast => _contrast ??= new ContrastTheme(this);
+
+    /// <summary>Tests set this to ask for high contrast, or to refuse it, without the system doing so; null follows the system.</summary>
+    internal bool? ForceContrast { get; set; }
+
+    private void WatchContrast()
+    {
+        UpdateContrast();
+        if (_contrastWatched || PlatformSettings is not { } settings) return;
+        _contrastWatched = true;
+        settings.ColorValuesChanged += (_, _) => Dispatcher.UIThread.Post(UpdateContrast);
+    }
+
+    /// <summary>Follows the system: when it asks for high contrast its colours go over the shell; when it stops asking, the theme of the settings shows again.</summary>
+    internal void UpdateContrast()
+    {
+        var values = PlatformSettings?.GetColorValues();
+        bool high = ForceContrast ?? values?.ContrastPreference == ColorContrastPreference.High;
+        if (high) Contrast.Apply(ContrastColors.FromSystem() ?? (values?.ThemeVariant == PlatformThemeVariant.Dark ? ContrastColors.Black : ContrastColors.White));
+        else if (Contrast.IsOn)
+        {
+            Contrast.Restore();
+            ApplyThemeVariant();
+        }
+    }
 }

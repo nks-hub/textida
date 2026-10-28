@@ -259,6 +259,21 @@ commands: nks.app.openSettings
 - Konflikty zkratek jsou vidět u příslušných řádků.
 - F1 v tomto okně otevře toto téma.
 
+## [app.accessibility] Přístupnost
+commands: nks.view.nextPane, nks.view.previousPane
+Program jde ovládat jen klávesnicí a se čtečkou obrazovky. Ověřuje se přes přístupnostní strom programu; s NVDA ani VoiceOverem samotným zatím vyzkoušený není, takže napište, kde čtečka čte něco špatně.
+### Klávesnice
+- Každý příkaz je v paletě příkazů (Ctrl+Shift+P) a, pokud ho má, i v nabídce. K liště nabídek se dostanete klávesou Alt ve Windows; na macOS je to lišta nabídek systému (Ctrl+F2).
+- Editor si nechává klávesu Tab pro sebe. F6 přesune klávesnici na další část okna: seznam vlevo, dokument, panely náhledu, agenta a výstupu, lištu hledání, stavový řádek. Shift+F6 jde zpět. Zavřená část se přeskočí.
+- V ostatních částech se Tab a Shift+Tab pohybují mezi ovládacími prvky shora dolů a zleva doprava; v seznamu se mezi řádky pohybujete šipkami. Esc zavře dialog, paletu a panely a vrátí klávesnici do dokumentu.
+- Po zavření dialogu se klávesnice vrátí na prvek, který ji měl předtím.
+### Co dostane čtečka obrazovky
+- Každý ovládací prvek, okno a dialog má jméno a roli ve všech čtyřech jazycích rozhraní (čeština, angličtina, slovenština, němčina). Jména se při změně jazyka změní hned.
+- Zpráva ve stavovém řádku, upozornění nad dokumentem, počet shod při hledání, vybraný řádek v paletě a stav agenta se přečtou, jakmile se objeví, aniž by se hnula klávesnice.
+### Vysoký kontrast
+- Když systém žádá vysoký kontrast (vysoce kontrastní motiv ve Windows), program pro okna, karty, seznamy, rámečky a rámeček fokusu použije barvy systému, i v editoru. Text vybraného řádku má barvu, kterou pro něj systém určuje. Na macOS to platí, když systém tento údaj programu sdělí (volba Zvýšit kontrast).
+- Barvy zvýraznění syntaxe se nemění. Fokus klávesnice je rámeček kolem ovládacího prvku v barvě akcentu (ve vysokém kontrastu v barvě systému pro odkazy).
+
 ## [app.quit] Konec programu
 commands: nks.app.quit
 1. Stiskněte Ctrl+Q, nebo zvolte Soubor a Konec.
@@ -620,12 +635,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Skryté hodnoty v souborech .env
 commands: nks.view.toggleSecrets
-1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`. Zobrazit a Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
-- Když na hodnotu najedete ukazatelem myši, ukáže se jen ta jedna.
+1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`, v textovém editoru, ve stránkovaném režimu i v hexadecimálním zobrazení. Zobrazit a Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
+- V textovém editoru se po najetí ukazatelem myši na hodnotu ukáže jen ta jedna.
 - Text souboru se nemění: uložení zapíše stejné bajty.
-- Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav a ve výsledcích hledání. Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
+- Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav, ve výsledcích hledání a v exportech s formátováním (HTML, RTF). Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
+- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram a panel struktury vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá.
+- Ve stránkovaném režimu čtečka obrazovky čte za každý znak skryté hodnoty odrážku. Řádek delší než 16 KiB, který hodnotu obsahuje, skryje vše za svou první částí.
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
-- Stránkovaný režim a hexadecimální zobrazení ukazují bajty tak, jak jsou.
+- Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.
 
 ## [view.tabs] Přepínání karet
 commands: nks.view.nextTab, nks.view.previousTab

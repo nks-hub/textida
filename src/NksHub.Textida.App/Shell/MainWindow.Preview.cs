@@ -64,6 +64,7 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_previewClose, Loc.Get(K.PreviewPanelClose));
         AutomationProperties.SetName(_previewPanel, Loc.Get(K.A11yPreviewPanel));
         AutomationProperties.SetName(_previewScroll, Loc.Get(K.A11yPreviewBody));
+        AutomationProperties.SetLiveSetting(_previewStatus, AutomationLiveSetting.Polite); // "outdated" appears while the user types elsewhere
         if (_liveTab is not null) RefreshLive();
         else if (_preview is not null) RenderPreview(keepScroll: true);
     }

@@ -94,7 +94,7 @@ internal sealed class HexCompareWindow : Window
         bottom.Children.Add(frame);
         bottom.Children.Add(_close);
 
-        var root = new DockPanel { Children = { top, bottom, grids } };
+        var root = new ReadingDockPanel { Children = { top, bottom, grids } };
         DockPanel.SetDock(top, Dock.Top);
         DockPanel.SetDock(bottom, Dock.Bottom);
         Content = root;
@@ -169,6 +169,8 @@ internal sealed class HexCompareWindow : Window
         AutomationProperties.SetName(_list, Loc.Get(K.HexCompareListA11y));
         AutomationProperties.SetName(_leftView, Loc.Get(K.HexCompareLeftA11y));
         AutomationProperties.SetName(_rightView, Loc.Get(K.HexCompareRightA11y));
+        AutomationProperties.SetLiveSetting(_summary, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite);
         if (_result is not null) Show(_result);
     }
 

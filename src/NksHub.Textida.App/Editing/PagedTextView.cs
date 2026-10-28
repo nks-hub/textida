@@ -18,6 +18,7 @@ using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.Core.Syntax;
 using NksHub.Textida.Core.Tools;
 
@@ -40,6 +41,7 @@ internal sealed partial class PagedTextView : Grid
     private const int LineEndMarkColumns = 4;
 
     private readonly OpenDocument _doc;
+    private readonly ByteSecrets _secrets;
     private readonly LinesSurface _canvas;
     private readonly ScrollBar _bar = new() { Orientation = Orientation.Vertical, Minimum = 0, SmallChange = 1, AllowAutoHide = false };
     private readonly DispatcherTimer _indexTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
@@ -74,6 +76,7 @@ internal sealed partial class PagedTextView : Grid
     public PagedTextView(OpenDocument doc, EditorOptions options)
     {
         _doc = doc;
+        _secrets = new ByteSecrets(doc);
         _options = options;
         EditorFontFallbacks.Shared.Use(options.FullFontFamily);
         _caret = doc.Doc.BomLength;
@@ -167,8 +170,49 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>
     /// The selected text exactly as the bytes of the current revision decode, line breaks included; empty when nothing is selected or the selection is
     /// larger than <see cref="CopyLimitBytes"/>. It is decoded straight to a string, without the table of byte offsets that a line on screen needs.
+    /// While the values of a secrets file are hidden, each one in the selection is <see cref="SecretValues.Placeholder"/>.
     /// </summary>
-    public string SelectedText() => HasSelection && SelectionRange.Length <= CopyLimitBytes ? Doc.Codec.GetString(Doc.ReadBytes(SelectionRange)) : "";
+    public string SelectedText() => HasSelection && SelectionRange.Length <= CopyLimitBytes ? TextOf(SelectionRange) : "";
+
+    private string TextOf(ByteRange range) => _secrets.Touches(range.Start, range.End)
+        ? MaskedText(Doc.Codec, Doc.ReadBytes(range), range.Start, _secrets.Ranges())
+        : Doc.Codec.GetString(Doc.ReadBytes(range));
+
+    private static string MaskedText(TextCodec codec, byte[] bytes, long start, IReadOnlyList<ByteRange> hidden)
+    {
+        var decoded = codec.WithBom(false).Decode(bytes);
+        return SecretValues.Mask(decoded.Text, SecretValues.SpansIn(decoded, start, hidden));
+    }
+
+    // ---- hidden values of a secrets file (P4.6.2) ----
+
+    /// <summary>The values of the file are hidden now: it is a secrets file and the user did not show them in this tab.</summary>
+    public bool SecretsHidden => _secrets.Hidden;
+
+    /// <summary>The user showed the values in this tab.</summary>
+    public bool SecretsRevealed => _secrets.Revealed;
+
+    /// <summary>Shows or hides the values of this tab again.</summary>
+    public void ToggleSecrets()
+    {
+        _secrets.Toggle();
+        RefreshSecretsState();
+    }
+
+    /// <summary>The lines are built again: the values were shown or hidden, or the setting of the secret files changed.</summary>
+    internal void RefreshSecretsState()
+    {
+        _lines.Clear();
+        _mapBlock = (-1, 0, []);
+        _canvas.InvalidateVisual();
+        RaiseViewChanged();
+    }
+
+    /// <summary>The characters of <paramref name="map"/>, which starts at byte <paramref name="start"/>, that stand in a hidden value; null when nothing is hidden.</summary>
+    private IReadOnlyList<SecretSpan>? HiddenIn(DecodedText map, long start) => _secrets.Hidden ? SecretValues.SpansIn(map, start, _secrets.Ranges()) : null;
+
+    // shortcut: a line longer than MaxLineBytes that touches a value hides everything beyond its first part; upgrade by mapping the hidden ranges to columns of the windows
+    private bool HidesTail(LineView view) => _secrets.Touches(view.Start, view.Start + view.ByteLength);
 
     /// <summary>When the last draw that showed a new revision, caret or first line ended (a <see cref="System.Diagnostics.Stopwatch"/> timestamp); the measurement mode reads it.</summary>
     internal long RenderedAt { get; private set; }
@@ -264,6 +308,7 @@ internal sealed partial class PagedTextView : Grid
     private void KeepUntouchedLines(ChangeSet change)
     {
         if (change.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || change.Edits.Count == 0 || _linesRevision != change.Revision - 1) return;
+        if (_secrets.Hidden) return; // an edit can open or close a quote, which moves the values of the lines after it
         var last = change.Edits[^1];
         long first = change.Edits[0].Start, lastEnd = last.Start + last.Deleted, moved = 0;
         foreach (var edit in change.Edits) moved += edit.Inserted - edit.Deleted;
@@ -465,6 +510,12 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>Token runs the view colors a line with, for tests; null when the line has none.</summary>
     internal IReadOnlyList<Token>? TokensOf(long line) => _tokens.GetValueOrDefault(line);
 
+    /// <summary>The text the view draws for a zero-based line (tabs expanded, hidden values as the placeholder), for tests; null while the line is not known.</summary>
+    internal string? DisplayOf(long line) => GetLine(line)?.Display;
+
+    /// <summary>Whether the part of a long line beyond its decoded start is withheld because the line holds a hidden value, for tests.</summary>
+    internal bool HidesTailOf(long line) => GetLine(line) is { Truncated: true } view && HidesTail(view);
+
     /// <summary>Token columns are 32 bit and the feeder adds a margin of the requested width, so a window further out than this has no colors.</summary>
     private const long MaxTokenColumn = int.MaxValue / 4;
 
@@ -640,7 +691,8 @@ internal sealed partial class PagedTextView : Grid
         bool truncated = length > take;
         if (truncated) take = Doc.Codec.CompleteLength(bytes);
         DecodedLines++;
-        return new LineView(start, truncated, length, Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take)), _options.TabSize, HideAnsi);
+        var map = Doc.Codec.WithBom(false).Decode(bytes.AsMemory(0, take));
+        return new LineView(start, truncated, length, map, _options.TabSize, HideAnsi, HiddenIn(map, start));
     }
 
     /// <summary>
@@ -695,7 +747,8 @@ internal sealed partial class PagedTextView : Grid
             bool truncated = length > take;
             if (truncated) take = Doc.Codec.CompleteLength(buffer.AsSpan(pos, take));
             DecodedLines++;
-            _lines[line] = new LineView(origin + pos, truncated, length, Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray()), _options.TabSize, HideAnsi);
+            var map = Doc.Codec.WithBom(false).Decode(buffer.AsSpan(pos, take).ToArray());
+            _lines[line] = new LineView(origin + pos, truncated, length, map, _options.TabSize, HideAnsi, HiddenIn(map, origin + pos));
             if (last) return;
             pos = next;
         }
@@ -757,7 +810,8 @@ internal sealed partial class PagedTextView : Grid
         if (from > full.Start)
             for (first = (3 + unit - 1) / unit * unit; first < bytes.Length && !codec.IsBoundary(bytes, first); first += unit) { }
         int last = to < end ? first + codec.CompleteLength(bytes.AsSpan(first)) : bytes.Length;
-        return new LineView(from + first, false, last - first, codec.WithBom(false).Decode(bytes.AsMemory(first, last - first)), _options.TabSize);
+        var map = codec.WithBom(false).Decode(bytes.AsMemory(first, last - first));
+        return new LineView(from + first, false, last - first, map, _options.TabSize, hidden: HiddenIn(map, from + first));
     }
 
     private long _columnsRevision = -1;
@@ -1084,12 +1138,14 @@ internal sealed partial class PagedTextView : Grid
             return;
         }
         long revision = Doc.Revision;
+        bool masked = _secrets.Touches(range.Start, range.End); // a value never leaves the view by the clipboard, and a cut that touches one deletes nothing
         string text;
         if (range.Length <= InlineCopyBytes) text = SelectedText();
         else
         {
             var snapshot = Doc.GetSnapshot();
-            try { text = await Task.Run(() => snapshot.ReadText(range)); }
+            var hidden = masked ? _secrets.Ranges() : null;
+            try { text = await Task.Run(() => hidden is null ? snapshot.ReadText(range) : MaskedText(snapshot.Codec, snapshot.ReadBytes(range), range.Start, hidden)); }
             catch (IOException e)
             {
                 Refused?.Invoke(e.Message); // the file changed under the snapshot
@@ -1098,7 +1154,7 @@ internal sealed partial class PagedTextView : Grid
         }
         await clipboard.SetTextAsync(text);
         Copied?.Invoke(text);
-        if (cut && Doc.Revision == revision && HasSelection && SelectionRange == range) DeleteSelection();
+        if (cut && !masked && Doc.Revision == revision && HasSelection && SelectionRange == range) DeleteSelection();
     }
 
     /// <summary>Pastes the clipboard text over the selection as one undo step, with the line breaks of the document.</summary>
@@ -1364,20 +1420,33 @@ internal sealed partial class PagedTextView : Grid
     /// <summary>One decoded line: its text, the map between characters and bytes, and the text with tabs expanded for drawing.</summary>
     private sealed class LineView
     {
-        public LineView(long start, bool truncated, long byteLength, DecodedText map, int tabSize, bool hideAnsi = false)
+        /// <param name="hidden">Characters of <paramref name="map"/> that stand in a hidden value, sorted; each run is drawn as one <see cref="SecretValues.Placeholder"/>.</param>
+        public LineView(long start, bool truncated, long byteLength, DecodedText map, int tabSize, bool hideAnsi = false, IReadOnlyList<SecretSpan>? hidden = null)
         {
             Start = start;
             Truncated = truncated;
             ByteLength = byteLength;
             Map = map;
+            _hidden = hidden is { Count: > 0 } ? hidden : null;
             var text = map.Text;
             var display = new StringBuilder(text.Length);
             DisplayAt = new int[text.Length + 1];
             var escapes = hideAnsi && AnsiSgr.Contains(text) ? AnsiSgr.Parse(text).Escapes : [];
             HidesAnsi = escapes.Count > 0;
-            for (int i = 0, e = 0; i < text.Length; i++)
+            for (int i = 0, e = 0, h = 0; i < text.Length; i++)
             {
                 DisplayAt[i] = display.Length;
+                if (_hidden is not null)
+                {
+                    while (h < _hidden.Count && _hidden[h].End <= i) h++;
+                    if (h < _hidden.Count && i >= _hidden[h].Start)
+                    {
+                        // the first character of a value stands at the placeholder, the others after it, so a click on the placeholder lands before or after the value
+                        if (i == _hidden[h].Start) display.Append(SecretValues.Placeholder);
+                        else DisplayAt[i] = display.Length;
+                        continue;
+                    }
+                }
                 while (e < escapes.Count && escapes[e].Start + escapes[e].Length <= i) e++;
                 if (e < escapes.Count && i >= escapes[e].Start) continue; // an escape sequence of a log takes no room
                 if (text[i] == '\t') display.Append(' ', Math.Max(1, tabSize) - display.Length % Math.Max(1, tabSize));
@@ -1396,7 +1465,24 @@ internal sealed partial class PagedTextView : Grid
             DisplayAt = other.DisplayAt;
             Display = other.Display;
             HidesAnsi = other.HidesAnsi;
+            _hidden = other._hidden;
             _marked = other._marked;
+        }
+
+        private readonly IReadOnlyList<SecretSpan>? _hidden;
+        private string? _readAloud;
+
+        /// <summary>
+        /// <see cref="Map"/> text with a bullet for every character of a hidden value, so a screen reader never gets a value. It is as long as the text, so the offsets of the
+        /// reader still fit. shortcut: the length of a value shows; upgrade by giving the reader one marker and mapping its offsets.
+        /// </summary>
+        public string ReadAloud => _hidden is null ? Map.Text : _readAloud ??= HideCharacters();
+
+        private string HideCharacters()
+        {
+            var chars = Map.Text.ToCharArray();
+            foreach (var span in _hidden!) Array.Fill(chars, '•', span.Start, span.Length);
+            return new string(chars);
         }
 
         /// <summary>The same decoded part of a line whose length changed behind it.</summary>
@@ -1668,7 +1754,8 @@ internal sealed partial class PagedTextView : Grid
                         {
                             long column = (long)Math.Floor(owner._hScroll / _digitWidth);
                             double x = TextLeft + column * _digitWidth - owner._hScroll;
-                            if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
+                            if (owner.HidesTail(view)) context.DrawText(Format(SecretValues.Placeholder, dim), new Point(x, y));
+                            else if (owner.WindowOf(view, column, WindowColumns) is not { } window) context.DrawText(Format("…", dim), new Point(x, y));
                             else
                             {
                                 if (owner.HasSelection) DrawWindowSelection(context, view, y, x, column, window, selection);

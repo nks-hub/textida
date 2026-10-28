@@ -48,7 +48,6 @@ internal sealed partial class AvaloniaDialogs
         ok.Click += (_, _) => dialog.Close(Current());
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { Refresh(); delimiters.First(d => d.Radio.IsChecked == true).Radio.Focus(); };
-        Shown?.Invoke(dialog);
-        return await dialog.ShowDialog<CsvDialect?>(owner);
+        return await ShowAsync<CsvDialect?>(dialog, owner);
     }
 }

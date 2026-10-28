@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Hex;
 
@@ -28,11 +29,13 @@ internal sealed partial class AvaloniaDialogs
         preset.Items.Add(Loc.Get(K.HexBmColorNone));
         foreach (var (_, key) in BookmarkPalette) preset.Items.Add(Loc.Get(key));
         var code = new TextBox { MinWidth = 100, HorizontalAlignment = HorizontalAlignment.Left };
-        var error = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#C0392B")), FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        var error = new TextBlock { Foreground = ThemeColors.Danger, FontSize = 12, TextWrapping = TextWrapping.Wrap };
         var comment = new TextBox { Text = initial.Comment ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 64, MaxHeight = 120 };
         var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
         var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
         AutomationProperties.SetName(preset, Loc.Get(K.HexBmColor));
+        AutomationProperties.SetName(code, Loc.Get(K.HexBmColorCode));
+        AutomationProperties.SetLiveSetting(error, AutomationLiveSetting.Polite);
 
         bool syncing = false;
         void ShowColor(string? color)
@@ -93,7 +96,6 @@ internal sealed partial class AvaloniaDialogs
         ok.Click += (_, _) => dialog.Close(new HexBookmarkForm(name.Text ?? "", Parsed(out _), string.IsNullOrWhiteSpace(comment.Text) ? null : comment.Text, initial.Type, initial.Region));
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { name.Focus(); name.SelectAll(); };
-        Shown?.Invoke(dialog);
-        return await dialog.ShowDialog<HexBookmarkForm?>(owner);
+        return await ShowAsync<HexBookmarkForm?>(dialog, owner);
     }
 }

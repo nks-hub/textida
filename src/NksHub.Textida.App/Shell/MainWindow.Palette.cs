@@ -41,6 +41,8 @@ internal sealed partial class MainWindow
 
     internal bool IsPaletteOpen => _paletteHost.IsVisible;
     internal PaletteMode PaletteModeNow => _paletteMode;
+    /// <summary>The overlay with the input and the rows, for tests.</summary>
+    internal Control PaletteHost => _paletteHost;
     internal TextBox PaletteInput => _paletteInput;
     /// <summary>The command rows of the palette; empty in the other modes.</summary>
     internal IReadOnlyList<PaletteItem> PaletteResults => _paletteMode == PaletteMode.Commands ? _paletteItems : [];
@@ -69,7 +71,11 @@ internal sealed partial class MainWindow
         _paletteInput.TextChanged += (_, _) => RefreshPalette();
         _paletteInput.AddHandler(KeyDownEvent, OnPaletteKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         _paletteList.DoubleTapped += (_, _) => RunPaletteSelection();
-        _paletteList.SelectionChanged += (_, _) => UpdatePalettePreview();
+        _paletteList.SelectionChanged += (_, _) =>
+        {
+            UpdatePalettePreview();
+            AnnouncePaletteChoice();
+        };
         _paletteOnlyModified.Classes.Add("panelaction");
         _paletteOnlyModified.IsCheckedChanged += (_, _) => RefreshPalette();
         _paletteHost.Children.Add(scrim);
@@ -91,6 +97,13 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_paletteList, results);
         AutomationProperties.SetName(_paletteOnlyModified, Loc.Get(K.PaletteOnlyModified));
         AutomationProperties.SetName(_palettePreview, Loc.Get(K.A11yPreview));
+    }
+
+    /// <summary>The language changed: the texts of the palette and, when it is open on a list the program builds, its rows are written again.</summary>
+    private void RetranslatePalette()
+    {
+        ApplyPaletteTexts();
+        if (IsPaletteOpen && _paletteMode != PaletteMode.Choice) RefreshPalette();
     }
 
     // ---- opening in a mode ----
@@ -181,7 +194,14 @@ internal sealed partial class MainWindow
         }
         RenderRows(highlight);
         _paletteEmpty.Text = emptyText ?? _paletteEmpty.Text;
+        if (_quickRows.Count == 0) Announce(_paletteEmpty.Text ?? "");
         UpdatePalettePreview();
+    }
+
+    /// <summary>The keyboard stays in the input while the arrows move through the rows, so the row that is chosen is read out as a message.</summary>
+    private void AnnouncePaletteChoice()
+    {
+        if (IsPaletteOpen && _paletteList.SelectedIndex is var i and >= 0 && i < _quickRows.Count) Announce(_quickRows[i].AutomationName);
     }
 
     private static bool Matches(string query, string text) =>

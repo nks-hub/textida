@@ -79,6 +79,7 @@ internal sealed class SearchResultsView : DockPanel
     {
         Classes.Add("results");
         Focusable = true;
+        IsTabStop = false; // the view only hands the keyboard to its list; Tab goes to the list itself
         GotFocus += (_, e) => { if (ReferenceEquals(e.Source, this)) _list.Focus(); };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(28, 0, 28, 8), Children = { _cancel, _apply, _repreview } };
         foreach (var b in new[] { _cancel, _apply, _repreview }) b.Classes.Add("barbutton");
@@ -136,7 +137,18 @@ internal sealed class SearchResultsView : DockPanel
         _apply.Content = Loc.Get(K.ResultsApply);
         _repreview.Content = Loc.Get(K.ResultsRepreview);
         AutomationProperties.SetName(_list, Loc.Get(K.A11yResultsList));
+        AutomationProperties.SetLiveSetting(_summary, AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(_limit, AutomationLiveSetting.Polite);
+        if (_rowsLanguage == Loc.Language) return;
+        // the names of the rows are written when a row is drawn: draw them again in the new language
+        _rowsLanguage = Loc.Language;
+        int selected = _list.SelectedIndex;
+        _list.ItemsSource = null;
+        _list.ItemsSource = _rows;
+        _list.SelectedIndex = selected;
     }
+
+    private string _rowsLanguage = Loc.Language;
 
     public void Clear()
     {

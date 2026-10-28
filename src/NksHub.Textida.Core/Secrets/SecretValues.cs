@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 
@@ -19,13 +20,31 @@ public static class SecretValues
     /// <summary>What replaces a hidden value, whatever its length.</summary>
     public const string Placeholder = "••••";
 
-    /// <summary>A file whose variables are secrets: <c>.env</c>, <c>.env.*</c> (<c>.env.local</c>) and <c>*.env</c> (<c>prod.env</c>).</summary>
+    /// <summary>
+    /// The default of the setting <c>files.secretFilePatterns</c>: <c>.env</c>, <c>.env.*</c> (<c>.env.local</c>) and <c>*.env</c> (<c>prod.env</c>).
+    /// OPEN: which files count as secret is the owner's decision; this list is a placeholder.
+    /// </summary>
+    public const string DefaultFilePatterns = ".env;.env.*;*.env";
+
+    private static volatile string[] _filePatterns = SplitPatterns(DefaultFilePatterns);
+
+    /// <summary>Name masks of the secret files, separated by semicolons (<c>*</c> and <c>?</c> stand for any text and any one character). The app sets it from the setting.</summary>
+    public static string FilePatterns
+    {
+        get => string.Join(';', _filePatterns);
+        set => _filePatterns = SplitPatterns(value);
+    }
+
+    private static string[] SplitPatterns(string? text) => text is null ? [] : [.. text.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+
+    /// <summary>A file whose variables are secrets: its name (without the folder, in any case) fits one of the <see cref="FilePatterns"/>.</summary>
     public static bool IsSecretFile(string? path)
     {
         if (string.IsNullOrEmpty(path)) return false;
         var name = path.AsSpan(path.AsSpan().LastIndexOfAny('/', '\\') + 1);
-        return name.Equals(".env", StringComparison.OrdinalIgnoreCase) || name.StartsWith(".env.", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(".env", StringComparison.OrdinalIgnoreCase);
+        foreach (var mask in _filePatterns)
+            if (FileSystemName.MatchesSimpleExpression(mask, name, ignoreCase: true)) return true;
+        return false;
     }
 
     private static int LineEnd(ReadOnlySpan<char> text, int from)
@@ -152,6 +171,31 @@ public static class SecretValues
         return [.. Find(decoded.Text).Select(s => new ByteRange(bomLength + decoded.ByteOffsetOf(s.Start), bomLength + decoded.ByteOffsetOf(s.End)))];
     }
 
+    /// <summary>
+    /// The secrets of a revision for a view that shows bytes. A file larger than <paramref name="maxScanBytes"/> is hidden whole, because finding its values
+    /// would read all of it.
+    /// </summary>
+    public static List<ByteRange> HiddenRanges(DocumentSnapshot snapshot, int bomLength, long maxScanBytes) =>
+        snapshot.ByteLength > maxScanBytes ? [new ByteRange(bomLength, snapshot.ByteLength)] : ByteRanges(snapshot, bomLength);
+
+    /// <summary>
+    /// The parts of <paramref name="text"/> (bytes of the document decoded without a byte order mark, starting at byte <paramref name="start"/>) that lie in
+    /// <paramref name="secrets"/>, as character spans of its text. <paramref name="secrets"/> are sorted, as <see cref="ByteRanges"/> returns them.
+    /// </summary>
+    public static List<SecretSpan> SpansIn(DecodedText text, long start, IReadOnlyList<ByteRange> secrets)
+    {
+        var spans = new List<SecretSpan>();
+        long end = start + text.Bytes.Length;
+        foreach (var r in secrets)
+        {
+            if (r.End <= start) continue;
+            if (r.Start >= end) break;
+            int from = text.CharIndexOf(Math.Max(r.Start, start) - start), to = text.CharIndexOf(Math.Min(r.End, end) - start);
+            if (to > from) spans.Add(new SecretSpan(from, to - from));
+        }
+        return spans;
+    }
+
     /// <summary>Whether [<paramref name="start"/>, <paramref name="end"/>) of the document touches a secret (an empty range: lies strictly inside one).</summary>
     public static bool Overlaps(IReadOnlyList<ByteRange> secrets, long start, long end)
     {
@@ -178,5 +222,21 @@ public static class SecretValues
             for (long p = Math.Max(r.Start, dataStart); p < Math.Min(r.End, dataEnd); p++)
                 data[(int)(p - dataStart)] = star[(int)((p - r.Start) % star.Length)];
         }
+    }
+}
+
+/// <summary>
+/// Bytes of a document with every secret read as <c>*</c> (see <see cref="SecretValues.MaskBytes"/>). A copy, a histogram or a template that runs over it
+/// never sees a value; the document itself is not touched.
+/// </summary>
+public sealed class MaskedSnapshot(IByteSnapshot inner, IReadOnlyList<ByteRange> secrets, TextCodec codec) : IByteSnapshot
+{
+    public long ByteLength => inner.ByteLength;
+
+    public int Read(long offset, Span<byte> destination)
+    {
+        int n = inner.Read(offset, destination);
+        SecretValues.MaskBytes(destination[..n], offset, secrets, codec);
+        return n;
     }
 }

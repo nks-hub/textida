@@ -47,7 +47,7 @@ internal sealed class HexBookmarksPanel : Border
         _import.Click += (_, _) => Raise(HexBookmarkAction.Import);
         var top = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { _add, _edit, _delete } };
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 6, 0, 0), Children = { _export, _import } };
-        var stack = new DockPanel { LastChildFill = true };
+        var stack = new Shell.ReadingDockPanel { LastChildFill = true };
         DockPanel.SetDock(_title, Dock.Top);
         DockPanel.SetDock(_filter, Dock.Top);
         DockPanel.SetDock(top, Dock.Top);

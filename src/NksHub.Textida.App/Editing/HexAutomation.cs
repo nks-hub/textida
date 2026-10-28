@@ -40,7 +40,8 @@ internal sealed class HexAutomationPeer(HexView owner) : ControlAutomationPeer(o
         var info = view.Describe(view.Caret);
         string offset = view.OffsetText(info.Offset);
         if (info.AtEnd) return Loc.Get(K.HexA11yEnd, ("offset", offset));
-        string text = Loc.Get(K.HexA11yByte, ("offset", offset), ("hex", info.Value.ToString("X2")), ("value", info.Value), ("char", CharacterName(info)));
+        string text = info.Hidden ? Loc.Get(K.HexA11yHidden, ("offset", offset))
+            : Loc.Get(K.HexA11yByte, ("offset", offset), ("hex", info.Value.ToString("X2")), ("value", info.Value), ("char", CharacterName(info)));
         if (view.Editor.HasSelection) text += ", " + Loc.Plural(K.HexA11ySelection, view.Editor.Selection.Length);
         if (info.Changed) text += ", " + Loc.Get(K.HexA11yChanged);
         return text;

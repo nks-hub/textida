@@ -254,6 +254,21 @@ commands: nks.app.openSettings
 - Shortcut conflicts are shown on the rows concerned.
 - F1 in this window opens this topic.
 
+## [app.accessibility] Accessibility
+commands: nks.view.nextPane, nks.view.previousPane
+The program can be used with the keyboard alone and with a screen reader. It is tested through the accessibility tree of the program; it has not yet been tried with NVDA or VoiceOver themselves, so tell us where a screen reader reads something wrongly.
+### Keyboard
+- Every command is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu. The menu bar is reached with the Alt key on Windows; on macOS it is the menu bar of the system (Ctrl+F2).
+- The editor keeps the Tab key for itself. F6 moves the keyboard to the next part of the window: the list on the left, the document, the preview, agent and output panels, the find bar, the status bar. Shift+F6 goes back. A part that is closed is skipped.
+- In the other parts Tab and Shift+Tab move between the controls from top to bottom and from left to right; in a list the arrow keys move between the rows. Esc closes a dialog, the palette and the panels and returns the keyboard to the document.
+- When a dialog closes, the keyboard returns to the control that had it before.
+### What a screen reader gets
+- Every control, window and dialog has a name and a role in all four languages of the interface (Czech, English, Slovak, German). The names follow a change of language at once.
+- A message in the status bar, a notice above the document, the number of matches of a search, the chosen row of the palette and the state of the agent are read out as they appear, without the keyboard moving.
+### High contrast
+- When the system asks for high contrast (a high contrast theme in Windows), the program uses the colours of the system for its windows, tabs, lists, borders and the focus frame, in the editor as well. The text of a chosen row has the colour the system sets for it. On macOS this applies when the system tells the program about it (the Increase contrast option).
+- The colours of the syntax highlighting do not change. The keyboard focus is a frame around the control in the accent colour (in high contrast, in the colour the system uses for links).
+
 ## [app.quit] Exit
 commands: nks.app.quit
 1. Press Ctrl+Q, or choose File and then Exit.
@@ -615,12 +630,14 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Hidden values in .env files
 commands: nks.view.toggleSecrets
-1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`. View, Show Hidden Values shows them in the current tab, and using it again hides them.
-- Resting the pointer on a value shows just that one.
+1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. View, Show Hidden Values shows them in the current tab, and using it again hides them.
+- In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
-- Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, and in search results. Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
+- Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
+- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram and the structure panel see `*` for those bytes, and the status line says the value is hidden.
+- In paged mode a screen reader reads a bullet for each character of a hidden value. A line longer than 16 KiB hides everything beyond its first part when it holds a value.
 - A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
-- Paged mode and the hex view show the bytes as they are.
+- The setting Secret files holds the name masks of the files whose values are hidden, separated by semicolons (`*` stands for any text). Its default list is provisional.
 
 ## [view.tabs] Switching tabs
 commands: nks.view.nextTab, nks.view.previousTab
