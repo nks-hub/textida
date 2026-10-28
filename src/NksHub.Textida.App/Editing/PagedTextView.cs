@@ -813,6 +813,8 @@ internal sealed partial class PagedTextView : Grid
     private long LineOfCore(long offset)
     {
         if (_detour is { } d) return DetourLineOf(d, offset);
+        // the block table and one block tell the line; the search below reads a block for each of its steps, a dozen of them in a file of gigabytes
+        if (Paged.TryGetLineOfOffset(offset, out long exact)) return Math.Min(exact, LineCount - 1);
         long lo = 0, hi = LineCount - 1;
         while (lo < hi)
         {

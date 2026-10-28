@@ -110,16 +110,34 @@ public sealed unsafe class MappedFile : IDisposable
         return n <= 0 ? default : new ReadOnlySpan<byte>(_ptr + offset, (int)n);
     }
 
+    private long[]? _counted; // one bit per 1 MiB chunk read since BeginBlockCount; null while nothing is counted
+    private int _countedBlocks;
+
+    /// <summary>
+    /// Starts counting the distinct 1 MiB blocks that reads touch, apart from the residency count (a trim does not reset this one): what a view reads to show one place of a
+    /// file. <see cref="BlocksTouched"/> is the count; a file in memory has no blocks. For tests and measurements.
+    /// </summary>
+    public void BeginBlockCount()
+    {
+        Interlocked.Exchange(ref _countedBlocks, 0);
+        Volatile.Write(ref _counted, new long[(((Length + (1L << ChunkShift) - 1) >> ChunkShift) + 63) >> 6]);
+    }
+
+    /// <summary>Distinct 1 MiB blocks read since <see cref="BeginBlockCount"/>.</summary>
+    public int BlocksTouched => Volatile.Read(ref _countedBlocks);
+
     /// <summary>Notes the chunks of a read; the read that takes the count over the budget starts a trim.</summary>
     private void Touch(long offset, long length)
     {
         if (_touched is null || length <= 0) return;
+        var counted = Volatile.Read(ref _counted);
         long added = 0;
         for (long c = offset >> ChunkShift, last = (offset + length - 1) >> ChunkShift; c <= last; c++)
         {
             long bit = 1L << (int)(c & 63);
             ref long word = ref _touched[c >> 6];
             if ((Volatile.Read(ref word) & bit) == 0 && (Interlocked.Or(ref word, bit) & bit) == 0) added++;
+            if (counted is not null && (Interlocked.Or(ref counted[c >> 6], bit) & bit) == 0) Interlocked.Increment(ref _countedBlocks);
         }
         if (added > 0 && OverBudget(Interlocked.Add(ref _touchedChunks, added)) && Interlocked.CompareExchange(ref _trimming, 1, 0) == 0)
             ThreadPool.UnsafeQueueUserWorkItem(static file => file.TrimWhileOverBudget(), this, preferLocal: false);

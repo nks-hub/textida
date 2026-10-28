@@ -137,6 +137,16 @@ public sealed class PagedDocument : IPagedTextSource
         return true;
     }
 
+    /// <summary>
+    /// Zero-based line that holds <paramref name="offset"/> without searching for it through the starts of lines (which reads a block per step): for a document that is not
+    /// edited the block table and one block tell it. False for an edited document, and while the index does not reach the offset; <see cref="TryGetLineStart"/> then finds it by search.
+    /// </summary>
+    public bool TryGetLineOfOffset(long offset, out long line)
+    {
+        line = 0;
+        return !IsModified && _source.TryGetLineOfOffset(offset, out line);
+    }
+
     private bool EnsureLineTracking()
     {
         if (_tree.TracksLines) return true;
