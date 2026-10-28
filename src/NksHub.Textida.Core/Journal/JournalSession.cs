@@ -492,8 +492,10 @@ public sealed class JournalSession : IDisposable
                     edits[i] = new(s.Start, s.Deleted, [], 0, reference);
                     continue;
                 }
-                var inserted = args is null ? null : doc.InsertedBytes(args, i);
-                if (inserted is null)
+                // the step has the inserted bytes already; reading them back from the text costs a lookup for every edit
+                byte[] inserted;
+                if (args is not null && doc.TryGetInserted(args, i, out var kept)) inserted = kept.ToArray();
+                else
                 {
                     inserted = new byte[checked((int)s.Inserted)];
                     if (inserted.Length > 0) doc.Read(s.Start + shift, inserted);

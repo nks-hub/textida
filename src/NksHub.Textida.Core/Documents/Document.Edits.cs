@@ -12,7 +12,7 @@ public sealed partial class Document
     {
         public ReadOnlyMemory<byte> Read()
         {
-            if (Memory is not null) return Memory;
+            if (Memory is not null) return new ReadOnlyMemory<byte>(Memory, (int)At, Length);
             var bytes = new byte[Length];
             File!.ReadExactly(At, bytes);
             return bytes;
@@ -42,6 +42,39 @@ public sealed partial class Document
     }
 
     private AppliedEdit Applied(long offset, byte[] removed, byte[] inserted) => new(offset, Keep(removed), Keep(inserted));
+
+    /// <summary>Below this many inserted bytes the many edits of one step keep them in one array (and never on the large object heap).</summary>
+    private const int SharedInsertLimit = 60 * 1024;
+
+    /// <summary>
+    /// The undo record of the edits just made. A step of many small edits (typing at a thousand carets) keeps the inserted bytes of all of them in one
+    /// array instead of one array per edit: a thousand more objects for every keystroke made each collection of the heap slower.
+    /// </summary>
+    private AppliedEdit[] AppliedEdits(List<Pending> work, byte[][] removed)
+    {
+        var applied = new AppliedEdit[work.Count];
+        long total = 0;
+        foreach (var w in work) total += w.Insert.Length;
+        byte[]? shared = work.Count >= 16 && total <= SharedInsertLimit && _undoHeld + total <= _backend.UndoMemoryBudget ? new byte[total] : null;
+        int at = 0;
+        for (int k = 0; k < applied.Length; k++)
+        {
+            var w = work[k];
+            var kept = Keep(removed[k]);
+            UndoBytes inserted;
+            if (shared is not null && !w.Insert.IsEmpty)
+            {
+                var slice = shared.AsMemory(at, w.Insert.Length);
+                w.Insert.CopyTo(slice);
+                inserted = new(shared, null, at, slice.Length, HasLineBreakByte(slice.Span));
+                _undoHeld += slice.Length;
+                at += slice.Length;
+            }
+            else inserted = Keep(w.Insert.IsEmpty ? [] : w.Insert.ToArray());
+            applied[k] = new(w.Start, kept, inserted);
+        }
+        return applied;
+    }
     private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
@@ -138,9 +171,7 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var applied = new AppliedEdit[work.Count];
-        for (int k = 0; k < applied.Length; k++) applied[k] = Applied(work[k].Start, removed![k], work[k].Insert.IsEmpty ? [] : work[k].Insert.ToArray());
-        var step = new Step(applied, options.SelectionsBefore, options.SelectionsAfter);
+        var step = new Step(AppliedEdits(work, removed!), options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -297,9 +328,14 @@ public sealed partial class Document
         TypingTrace.End("doc.changedEvent", tChanged);
     }
 
-    /// <summary>The bytes the edit <paramref name=index/> of a change inserted, as the undo step keeps them (never to be changed); null when the step does not hold them in memory.</summary>
-    internal byte[]? InsertedBytes(DocumentChangedEventArgs e, int index) =>
-        e.Step is Step { Fill: null } step && step.Edits.Length == e.Change.Edits.Count && step.Edits[index].Inserted is { Memory: { } bytes, At: 0 } kept && kept.Length == bytes.Length ? bytes : null;
+    /// <summary>The bytes the edit <paramref name="index"/> of a change inserted, as the undo step keeps them (never to be changed); null when the step does not hold them in memory.</summary>
+    internal bool TryGetInserted(DocumentChangedEventArgs e, int index, out ReadOnlyMemory<byte> bytes)
+    {
+        bytes = default;
+        if (e.Step is not Step { Fill: null } step || step.Edits.Length != e.Change.Edits.Count || step.Edits[index].Inserted is not { Memory: not null } kept || kept.Length != e.Change.Edits[index].Inserted) return false;
+        bytes = kept.Read();
+        return true;
+    }
 
     private static bool HasLineBreak(AppliedEdit[] edits)
     {
@@ -315,7 +351,7 @@ public sealed partial class Document
         return false;
     }
 
-    private static bool HasLineBreakByte(byte[] bytes) => bytes.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0;
+    private static bool HasLineBreakByte(ReadOnlySpan<byte> bytes) => bytes.IndexOfAny((byte)10, (byte)13) >= 0;
 
     private const int TypingRunBytes = 16;
     private enum TypingKind { None, Insert, Remove }
