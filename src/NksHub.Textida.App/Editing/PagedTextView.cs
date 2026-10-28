@@ -935,7 +935,7 @@ internal sealed partial class PagedTextView : Grid
 
     private long _columnsRevision = -1;
     private readonly Dictionary<long, long> _columnMemo = [];
-    private readonly Dictionary<long, long> _offsetMemo = [];
+    private readonly Dictionary<(long LineStart, long Column), long> _offsetMemo = []; // per line: two long lines in a row have the same columns
 
     private void ForgetColumns()
     {
@@ -981,8 +981,8 @@ internal sealed partial class PagedTextView : Grid
     private long OffsetOfColumn(LineView line, long column)
     {
         ForgetColumns();
-        if (_offsetMemo.TryGetValue(column, out long known)) return known;
-        return _offsetMemo[column] = Paged.OffsetOfColumn(line.Start, column);
+        if (_offsetMemo.TryGetValue((line.Start, column), out long known)) return known;
+        return _offsetMemo[(line.Start, column)] = Paged.OffsetOfColumn(line.Start, column);
     }
 
     /// <summary>Remembers the column of an offset that an edit has just put the caret on, so that the next move does not count it again.</summary>
@@ -1126,7 +1126,7 @@ internal sealed partial class PagedTextView : Grid
     private bool ColumnIsFar(LineView view, long column)
     {
         ForgetColumns();
-        return !_offsetMemo.ContainsKey(column) && !Paged.IsColumnNear(view.Start, column, FarMoveBytes);
+        return !_offsetMemo.ContainsKey((view.Start, column)) && !Paged.IsColumnNear(view.Start, column, FarMoveBytes);
     }
 
     private void CancelFarMove()

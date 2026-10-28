@@ -358,14 +358,20 @@ public class PagedLongLineTests : IDisposable
     {
         var (_, paged) = OpenFarLine(new string('a', FarLine));
         int walks = 0;
+        using var firstWaits = new ManualResetEventSlim();
         paged.FarMoveHook = token =>
         {
-            if (Interlocked.Increment(ref walks) == 1) token.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)); // ends when the second move cancels it
+            if (Interlocked.Increment(ref walks) == 1)
+            {
+                firstWaits.Set();
+                token.WaitHandle.WaitOne(TimeSpan.FromSeconds(30)); // ends when the second move cancels it
+            }
             token.ThrowIfCancellationRequested();
         };
 
         paged.GoToOffset(5_000_000);
         Assert.True(paged.CaretMovePending);
+        Assert.True(firstWaits.Wait(TimeSpan.FromSeconds(10)), "the first count did not start"); // a count that was cancelled before the pool started it never runs the hook, and the second would take its place
         paged.GoToOffset(4_000_000);
         await Eventually(() => !paged.CaretMovePending);
         await Task.Delay(100);
@@ -457,6 +463,23 @@ public class PagedLongLineTests : IDisposable
 
         Assert.Equal(FarLine + 1 + 5_000_000, paged.CaretOffset);
         Assert.Equal((1L, 5_000_000L), paged.CaretLineColumn());
+    }
+
+    [AvaloniaFact]
+    public void Down_and_then_up_between_two_long_lines_come_back_to_the_first_line()
+    {
+        string first = new('a', 40_000), second = new('b', 40_000);
+        var tab = OpenBytes(Encoding.UTF8.GetBytes(first + "\n" + second + "\n"));
+        var paged = tab.Paged!;
+        paged.GoToOffset(30_000);
+        TestApp.Settle(paged);
+
+        TestApp.Press(_w, Key.Down);
+        TestApp.Settle(paged);
+        Assert.Equal(40_001 + 30_000, paged.CaretOffset);
+        TestApp.Press(_w, Key.Up); // the column of the first line is not the offset that the second line gave for the same column
+        TestApp.Settle(paged);
+        Assert.Equal(30_000, paged.CaretOffset);
     }
 
     [AvaloniaFact]
