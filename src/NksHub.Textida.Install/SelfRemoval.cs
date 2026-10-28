@@ -8,7 +8,7 @@ namespace NksHub.Textida.Install;
 /// </summary>
 public static class SelfRemoval
 {
-    public static ProcessStartInfo Command(string program, string dir) => new("cmd.exe", $"/c ping -n 4 127.0.0.1 >nul & del /f /q \"{program}\" & rmdir \"{dir}\"")
+    public static ProcessStartInfo Command(string program, string dir) => new("cmd.exe", $"/c ping -n {InstallLimitsPlaceholders.SelfRemovalPings} 127.0.0.1 >nul & del /f /q \"{program}\" & rmdir \"{dir}\"")
     {
         UseShellExecute = false,
         CreateNoWindow = true,
