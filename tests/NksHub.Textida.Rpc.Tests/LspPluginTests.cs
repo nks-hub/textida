@@ -63,26 +63,36 @@ public partial class LspPluginTests
         /// <summary>The launch description of the server a plugin manifest declares; sent with every command, as the editor does. Null: the server comes from the catalog.</summary>
         public string? Launch { get; init; }
 
+        /// <summary>The language the commands are for (the id of a mode of the editor).</summary>
+        public string Language { get; init; } = "fake";
+
         /// <param name="declared">The server is not in the catalog (it is empty) but sent with each command, as the editor does for a server of a plugin manifest.</param>
         /// <param name="externalCodec">The encoding of the external file; null is UTF-8 without a byte order mark. One with a mark has it written at the start.</param>
+        /// <param name="builtInCatalog">The plugin uses the catalog of the editor (a real server found in PATH) and not the file with the fake server; <paramref name="language"/> is then the language of that catalog.</param>
         public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
-            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null, TextCodec? externalCodec = null)
+            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null, TextCodec? externalCodec = null,
+            string language = "fake", bool builtInCatalog = false, int startTimeoutMs = 20000, int requestTimeoutMs = 10000, string[]? realArguments = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
             Directory.CreateDirectory(dump);
             var fake = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.FakeLsp.dll");
-            Assert.True(File.Exists(fake), fake);
-            var arguments = new List<string> { fake, "--dump", dump };
-            if (externalName is not null)
+            List<string> arguments;
+            if (realArguments is not null) arguments = [.. realArguments]; // a real server: its own arguments, nothing of the fake one
+            else
             {
-                byte[] external = externalCodec is null ? new UTF8Encoding(false).GetBytes(externalContent!) : [.. externalCodec.Bom, .. externalCodec.WithBom(false).Encode(externalContent!)];
-                File.WriteAllBytes(Path.Combine(folder, externalName), external);
-                arguments.AddRange(["--external", Path.Combine(folder, externalName)]);
+                Assert.True(File.Exists(fake), fake);
+                arguments = [fake, "--dump", dump];
+                if (externalName is not null)
+                {
+                    byte[] external = externalCodec is null ? new UTF8Encoding(false).GetBytes(externalContent!) : [.. externalCodec.Bom, .. externalCodec.WithBom(false).Encode(externalContent!)];
+                    File.WriteAllBytes(Path.Combine(folder, externalName), external);
+                    arguments.AddRange(["--external", Path.Combine(folder, externalName)]);
+                }
+                arguments.AddRange(serverArgs ?? []);
             }
-            arguments.AddRange(serverArgs ?? []);
             var catalog = Path.Combine(folder, "catalog.json");
-            var entry = new { language = "fake", program = program ?? T.DotnetFullPath, arguments };
+            var entry = new { language, program = program ?? T.DotnetFullPath, arguments };
             File.WriteAllText(catalog, declared ? "[]" : JsonSerializer.Serialize(new[] { entry }));
             string? launch = null;
             if (declared)
@@ -116,13 +126,14 @@ public partial class LspPluginTests
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
             Assert.True(File.Exists(dll), dll);
             List<string> pluginArguments =
-                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", "20000", "--request-timeout-ms", "10000", "--stop-timeout-ms", "3000", "--max-locations", "50",
-                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--catalog", catalog, "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
+                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50",
+                 "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
+            if (!builtInCatalog) pluginArguments.AddRange(["--catalog", catalog]);
             if (restart is { } r)
                 pluginArguments.AddRange(["--restart-max-attempts", r.Attempts.ToString(), "--restart-base-delay-ms", r.BaseMs.ToString(), "--restart-max-delay-ms", r.MaxMs.ToString(), "--restart-stable-ms", r.StableMs.ToString()]);
             host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost, pluginArguments, ["onCommand:lsp"]));
             await host.ActivateAsync("onCommand:lsp");
-            return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools, Launch = launch };
+            return new Rig { Review = review, Host = host, Docs = docs, Folder = folder, Dump = dump, Owner = owner, Ui = ui, Tools = tools, Launch = launch, Language = language };
         }
 
         /// <summary>Opens a file with this content and shows it to plugins.</summary>
@@ -151,7 +162,7 @@ public partial class LspPluginTests
         {
             launch ??= Launch;
             var located = program is { } p ? $",\"lspProgram\":{{\"name\":{JsonSerializer.Serialize(p.Name)},\"path\":{JsonSerializer.Serialize(p.Path)}}}" : "";
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"fake\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}{located}}}";
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"language\":\"en\",\"lspLanguage\":\"{Language}\"{(offset is { } o ? $",\"offset\":{o}" : "")}{(launch is null ? "" : ",\"lspServer\":" + launch)}{located}}}";
             return (await Host.CallAsync("lsp", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 
@@ -182,7 +193,7 @@ public partial class LspPluginTests
             await Docs.DisposeAsync();
             foreach (var doc in Documents) doc.Dispose();
             try { Directory.Delete(Folder, true); }
-            catch (IOException) { }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { } // a real server may still hold its caches for a moment
         }
     }
 
