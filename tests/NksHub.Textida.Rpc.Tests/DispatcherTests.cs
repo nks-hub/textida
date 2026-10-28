@@ -80,12 +80,14 @@ public class DispatcherTests
     public async Task ALateAnswerAfterCancellationFindsNoOwnerAndTheNextCallIsAnsweredCorrectly(string name)
     {
         var started = new TaskCompletionSource();
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new DelegateHandler(async (method, p, ct) =>
         {
             if (method == "ignoresCancel")
             {
                 started.TrySetResult();
-                await Task.Delay(300, CancellationToken.None);
+                // not a timer: on a busy machine the cancel could come later than any fixed delay, and the call would then finish with "stale" instead of being cancelled
+                await finish.Task;
                 return T.Json("\"stale\"");
             }
             return T.Json("\"fresh\"");
@@ -96,8 +98,10 @@ public class DispatcherTests
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+        // the cancel went through the pipe before this request, so the peer has handled it when this one is answered
         var next = await pair.A.RequestAsync("other");
         Assert.Equal("fresh", next.GetString());
+        finish.SetResult();
         if (P(name).RespondsToCancelled)
         {
             await T.Until(() => pair.A.LateResponses == 1);
@@ -106,7 +110,8 @@ public class DispatcherTests
         }
         else
         {
-            await Task.Delay(500);
+            await T.Until(() => pair.B.InFlightIncoming == 0);
+            await Task.Delay(300);
             Assert.Equal(0, pair.A.LateResponses);
         }
     }
@@ -138,12 +143,13 @@ public class DispatcherTests
     public async Task AnotherProtocolsCancelIsAnOrdinaryNotificationAndCancelsNothing()
     {
         var started = new TaskCompletionSource();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var seen = new List<string>();
         var observedCancel = false;
         var handler = new DelegateHandler(async (method, p, ct) =>
         {
             started.SetResult();
-            await Task.Delay(400, CancellationToken.None);
+            await release.Task;
             observedCancel = ct.IsCancellationRequested;
             return T.Json("true");
         }, (method, p) => { lock (seen) seen.Add(method); return ValueTask.CompletedTask; });
@@ -151,6 +157,8 @@ public class DispatcherTests
         var call = pair.A.RequestAsync("work");
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await pair.A.NotifyAsync(RpcProtocols.Lsp.CancelMethod, RpcProtocols.Lsp.CancelParams(RpcId.FromNumber(1)));
+        await T.Until(() => { lock (seen) return seen.Count == 1; });
+        release.SetResult();
         Assert.True((await call).GetBoolean());
         Assert.False(observedCancel);
         lock (seen) Assert.Equal(["$/cancelRequest"], seen);
