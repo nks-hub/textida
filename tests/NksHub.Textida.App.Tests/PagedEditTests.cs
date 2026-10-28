@@ -16,14 +16,16 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public class PagedEditTests : IDisposable
 {
+    private readonly ITestOutputHelper _output;
     private readonly TempDir _temp = new();
     private readonly App _app;
     private readonly MainWindow _w;
 
     static PagedEditTests() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-    public PagedEditTests()
+    public PagedEditTests(ITestOutputHelper output)
     {
+        _output = output;
         _app = TestApp.Prepare(_temp);
         _w = _app.CreateWindow(null);
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
@@ -665,6 +667,7 @@ public class PagedEditTests : IDisposable
 
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)], p99 = times[(int)(times.Count * 0.99)];
+        _output.WriteLine($"Typing during a 3 GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} keystrokes fitted in the save");
         Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms during the save");
         Assert.True(p99 <= Core.PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");

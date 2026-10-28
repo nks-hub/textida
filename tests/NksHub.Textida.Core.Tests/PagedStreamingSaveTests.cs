@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
+using Xunit.Abstractions;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -10,7 +11,7 @@ namespace NksHub.Textida.Core.Tests;
 /// P7.1.3: a paged document is saved by streaming an immutable snapshot to a temporary file and swapping it in, while the user keeps editing.
 /// The expected bytes come from <see cref="LargeModel"/>, which generates them from the edit script and never reads the product.
 /// </summary>
-public sealed class PagedStreamingSaveTests : IDisposable
+public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-stream-").FullName;
 
@@ -571,6 +572,7 @@ public sealed class PagedStreamingSaveTests : IDisposable
         times.Sort();
         double p99 = times[(int)(times.Count * 0.99)];
         double stall = Stopwatch.GetElapsedTime(swapAt, doneAt).TotalMilliseconds;
+        output.WriteLine($"Edits during a 3 GiB streaming save: {times.Count} edits, p50 {times[times.Count / 2]:0.0}, p95 {times[(int)(times.Count * 0.95)]:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms; SaveAsync call {callMs:0.0} ms; swap to done {stall:0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} edits fitted in the save");
         Assert.True(callMs <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"starting the save held the caller for {callMs:0.0} ms");
         Assert.True(p99 <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"edit p99 {p99:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
