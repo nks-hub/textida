@@ -96,12 +96,12 @@ internal static partial class ContrastNative
 }
 
 /// <summary>
-/// Puts the colours of the system over the shell when the system asks for high contrast, and takes them off again. The brushes of the shell change in place, so every
-/// control that uses one repaints; the controls of the theme are drawn from its dark or light variant, whichever the window colour is closer to.
+/// Puts the colours of the system over the shell when the system asks for high contrast, and takes them off again. The brushes of the shell are replaced in the theme, so every
+/// control that looks one up by name repaints; the controls of the theme are drawn from its dark or light variant, whichever the window colour is closer to.
 /// </summary>
 internal sealed class ContrastTheme(Application app)
 {
-    private readonly Dictionary<(ThemeVariant Variant, string Key), (object? Entry, SolidColorBrush Brush, Color Color)> _saved = [];
+    private readonly Dictionary<(ThemeVariant Variant, string Key), object?> _saved = [];
     private (ThemeVariant Variant, Color Accent, Color Region)? _palette;
 
     public bool IsOn => Colors is not null;
@@ -132,11 +132,8 @@ internal sealed class ContrastTheme(Application app)
     private void Restore(bool raise)
     {
         if (Colors is null) return;
-        foreach (var ((variant, key), saved) in _saved)
-        {
-            saved.Brush.Color = saved.Color;
-            if (Dictionary(variant) is { } dictionary) dictionary[key] = saved.Entry;
-        }
+        foreach (var ((variant, key), entry) in _saved)
+            if (Dictionary(variant) is { } dictionary) dictionary[key] = entry;
         _saved.Clear();
         if (_palette is { } palette0 && app.Styles.OfType<FluentTheme>().FirstOrDefault() is { } fluent && fluent.Palettes.TryGetValue(palette0.Variant, out var palette))
         {
@@ -152,19 +149,18 @@ internal sealed class ContrastTheme(Application app)
         app.Resources.ThemeDictionaries.TryGetValue(variant, out var provider) ? provider as IDictionary<object, object?> : null;
 
     /// <summary>
-    /// Gives the brush its new colour. The brush the theme holds is changed in place, which repaints what draws with it, and put back into the dictionary,
-    /// which tells the controls that look it up by name; the entry as it was is kept to put back.
+    /// Gives the brush its new colour. The brushes the theme holds are immutable, so the entry is replaced by a new brush, which tells the controls that look it
+    /// up by name to draw again; the entry as it was is kept to put back.
     /// </summary>
     private void SetBrush(ThemeVariant variant, string key, Color color)
     {
         if (!app.Resources.ThemeDictionaries.TryGetValue(variant, out var provider) || provider is not IDictionary<object, object?> dictionary || provider is not IResourceNode node
-            || !node.TryGetResource(key, null, out var value) || value is not SolidColorBrush brush) return;
+            || !node.TryGetResource(key, null, out var value) || value is not IBrush) return;
         if (!_saved.ContainsKey((variant, key)))
         {
             dictionary.TryGetValue(key, out var entry);
-            _saved[(variant, key)] = (entry, brush, brush.Color);
+            _saved[(variant, key)] = entry;
         }
-        brush.Color = color;
-        dictionary[key] = brush;
+        dictionary[key] = new SolidColorBrush(color);
     }
 }

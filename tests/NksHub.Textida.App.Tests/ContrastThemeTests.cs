@@ -54,7 +54,7 @@ public class ContrastThemeTests : IDisposable
         return Assert.IsAssignableFrom<ISolidColorBrush>(value).Color;
     }
 
-    [Theory, MemberData(nameof(Themes))]
+    [AvaloniaTheory, MemberData(nameof(Themes))]
     public void Every_text_of_the_shell_reads_on_the_fill_it_is_drawn_on(string theme)
     {
         var palette = Colors(theme).Brushes;
@@ -73,7 +73,7 @@ public class ContrastThemeTests : IDisposable
         Assert.True(ContrastColors.Ratio(palette["BgHover"], palette["Bg0"]) > 1.2, $"{theme}: the hover can be told from the window");
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void The_two_themes_of_windows_are_what_the_system_sets()
     {
         Assert.True(ContrastColors.Black.IsDark);
@@ -150,6 +150,7 @@ public class ContrastThemeTests : IDisposable
         var window = new Window { Content = button, Width = 200, Height = 100 };
         window.Show();
         window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs(); // the adorner layer is there once the window has been through its first jobs
         Assert.True(button.Focus(NavigationMethod.Tab));
         Dispatcher.UIThread.RunJobs();
         var ring = Assert.Single(AdornerLayer.GetAdornerLayer(button)!.Children.OfType<Border>());
