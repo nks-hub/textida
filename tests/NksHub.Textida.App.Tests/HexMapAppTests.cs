@@ -246,17 +246,21 @@ public class HexMapAppTests : IDisposable
         Assert.Equal(0, Changed(atTop, back, left, top, width, height).Count);
     }
 
-    [AvaloniaFact]
-    public async Task The_file_check_runs_on_a_worker_and_leaves_a_file_with_the_recorded_size_and_time_alone()
+    /// <summary>A hex view of a small file whose watcher is off and whose reports of an external change are collected with the thread they came on.</summary>
+    private (HexView Hex, string Path, FileFingerprint Print, List<int> Threads) WatchedHex()
     {
         var hex = OpenHex(Quarters(1000));
         var doc = hex.Document;
         doc.StopWatching();
-        string path = doc.FilePath!;
-        var print = doc.Fingerprint!;
-        int uiThread = Environment.CurrentManagedThreadId;
         var threads = new List<int>();
         doc.ExternalChangeDetected += (_, _) => { lock (threads) threads.Add(Environment.CurrentManagedThreadId); };
+        return (hex, doc.FilePath!, doc.Fingerprint!, threads);
+    }
+
+    [AvaloniaFact]
+    public async Task The_file_check_leaves_a_file_with_the_recorded_size_and_time_alone()
+    {
+        var (hex, path, print, threads) = WatchedHex();
 
         // other bytes with the same size and write time: the hash would tell, the quick look at size and time does not start a check
         var bytes = File.ReadAllBytes(path);
@@ -267,13 +271,21 @@ public class HexMapAppTests : IDisposable
         hex.FileChangedBehind();
         Dispatcher.UIThread.RunJobs();
         await Task.Delay(500);
-        lock (threads) Assert.Empty(threads);
 
-        // a file of another size is checked, and the hash is read off the UI thread
+        lock (threads) Assert.Empty(threads);
+    }
+
+    [AvaloniaFact]
+    public void The_file_check_of_a_file_of_another_size_hashes_it_on_a_worker_not_on_the_ui_thread()
+    {
+        var (hex, path, _, threads) = WatchedHex();
+        int uiThread = Environment.CurrentManagedThreadId;
+
         File.AppendAllText(path, "more");
         hex.FileChangedBehind();
         Dispatcher.UIThread.RunJobs();
         PumpUntil(() => { lock (threads) return threads.Count > 0; }, "the changed file was not reported");
+
         lock (threads) Assert.NotEqual(uiThread, Assert.Single(threads));
     }
 

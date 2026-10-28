@@ -163,6 +163,19 @@ public class ByteMapTests
     }
 
     [Fact]
+    [Trait("Category", "Large")]
+    public void A_file_of_one_gibibyte_is_mapped_in_full_and_one_byte_more_is_only_sampled()
+    {
+        Assert.Equal(1L << 30, ByteMapBuilder.FullComputeLimit);
+
+        Assert.True(ByteMapBuilder.Build(new Synthetic(1L << 30), 200).IsExact);
+
+        var over = new Synthetic((1L << 30) + 1);
+        Assert.False(ByteMapBuilder.Build(over, 200).IsExact);
+        Assert.True(over.BytesRead <= ByteMapBuilder.FullComputeLimit, $"read {over.BytesRead} bytes");
+    }
+
+    [Fact]
     [Trait("Category", "Perf")]
     public void The_first_pass_of_a_fifty_gibibyte_file_is_ready_within_a_second()
     {

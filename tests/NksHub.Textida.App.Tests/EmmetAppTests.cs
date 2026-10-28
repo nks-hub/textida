@@ -269,6 +269,24 @@ public class EmmetAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Turning_Emmet_off_after_it_has_started_stops_the_expansion_at_the_next_Tab()
+    {
+        var first = Open("on.html", "p");
+        await TabAsync();
+        Assert.Equal("<p></p>", Text(first));
+        Assert.True(_app.Plugins.Documents.HasTabProviders);
+
+        _app.Workbench.Set("editor.emmet", JsonValue.Create(false));
+        var reference = Open("off.txt", "ul>li*3");
+        await TabAsync();
+        var tab = Open("off.html", "ul>li*3");
+        await TabAsync();
+
+        Assert.Equal(Text(reference), Text(tab));
+        Assert.False(tab.Editor!.InSnippet);
+    }
+
+    [AvaloniaFact]
     public async Task A_selection_is_indented_by_Tab_and_not_expanded()
     {
         var html = Open("s.html", "ul>li*3\nx", 0);
