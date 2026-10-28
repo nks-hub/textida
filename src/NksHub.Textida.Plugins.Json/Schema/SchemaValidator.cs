@@ -7,14 +7,17 @@ namespace NksHub.Textida.Plugins.Json.Schema;
 /// <summary>One finding of a check against a schema. <see cref="Code"/> is the keyword that failed; <see cref="Detail"/> is English text for logs.</summary>
 public sealed record SchemaIssue(string Code, string Detail, int Start, int End, string Pointer, string[]? Args = null);
 
-/// <summary>Limits the caller decides; there are no defaults.</summary>
-public sealed record SchemaOptions(int MaxDepth, TimeSpan RegexTimeout);
+/// <summary>
+/// Limits the caller decides; there are no defaults. <see cref="Links"/> is what <see cref="SchemaRefs"/> resolved: for the value node of each <c>$ref</c> of the schema and of the documents it pulled in,
+/// the schema it points to. Without links only references inside the one schema (<c>#</c>, <c>#/...</c>) are followed.
+/// </summary>
+public sealed record SchemaOptions(int MaxDepth, TimeSpan RegexTimeout, IReadOnlyDictionary<DataNode, DataNode>? Links = null);
 
 /// <summary>
 /// Checks a <see cref="DataNode"/> against a JSON Schema (draft-07 / 2019-09 / 2020-12 subset): type, enum, const, properties, patternProperties, additionalProperties,
 /// required, propertyNames, min/maxProperties, items (schema or array), prefixItems, additionalItems, contains, min/maxItems, uniqueItems, min/maxLength, pattern,
-/// minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, allOf, anyOf, oneOf, not, if/then/else and local <c>$ref</c> (<c>#</c>, <c>#/...</c>).
-/// <c>format</c>, remote references and <c>unevaluated*</c> are ignored.
+/// minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf, allOf, anyOf, oneOf, not, if/then/else and <c>$ref</c> (<c>#</c>, <c>#/...</c>, and, linked by <see cref="SchemaRefs"/>, other documents).
+/// A reference that leads back to a schema already being applied to the same value counts as met. <c>format</c>, anchors and <c>unevaluated*</c> are ignored.
 /// </summary>
 public sealed class SchemaValidator(DataNode root, SchemaOptions options)
 {
@@ -27,12 +30,16 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
 
     private static string Join(string pointer, string part) => pointer + "/" + part.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
 
-    private DataNode? Resolve(string reference)
+    private readonly HashSet<(DataNode Schema, DataNode Data)> _active = [];
+
+    /// <summary>The node a JSON pointer fragment (<c>#</c> or <c>#/a/b</c>, or just <c>/a/b</c>) leads to inside <paramref name="document"/>, or null.</summary>
+    internal static DataNode? Pointer(DataNode document, string reference)
     {
-        if (reference == "#") return root;
-        if (!reference.StartsWith("#/", StringComparison.Ordinal)) return null;
-        var node = root;
-        foreach (var raw in reference[2..].Split('/'))
+        if (reference is "#" or "") return document;
+        if (reference.StartsWith('#')) reference = reference[1..];
+        if (!reference.StartsWith('/')) return null;
+        var node = document;
+        foreach (var raw in reference[1..].Split('/'))
         {
             var part = Uri.UnescapeDataString(raw).Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
             node = node.Kind == DataKind.Array && int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out var ix) && ix < node.Items.Count ? node.Items[ix] : node.Get(part);
@@ -40,6 +47,10 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
         }
         return node;
     }
+
+    /// <summary>The schema a <c>$ref</c> value node points to: its link when links were made, else a reference inside <paramref name="root"/>. Null when it leads nowhere (it then asks nothing).</summary>
+    internal static DataNode? TargetOf(DataNode root, DataNode reference, SchemaOptions options) =>
+        options.Links is { } links ? links.GetValueOrDefault(reference) : reference.Text.StartsWith('#') ? Pointer(root, reference.Text) : null;
 
     private void Add(List<SchemaIssue> issues, string code, string detail, int start, int end, string pointer, params string[] args) => issues.Add(new(code, detail, start, end, pointer, args.Length == 0 ? null : args));
 
@@ -72,7 +83,11 @@ public sealed class SchemaValidator(DataNode root, SchemaOptions options)
         }
         if (schema.Kind != DataKind.Object) return;
 
-        if (schema.Get("$ref") is { Kind: DataKind.String } r && Resolve(r.Text) is { } target) Check(target, d, ptr, issues, depth + 1);
+        if (schema.Get("$ref") is { Kind: DataKind.String } r && TargetOf(root, r, options) is { } target && _active.Add((target, d)))
+        {
+            try { Check(target, d, ptr, issues, depth + 1); }
+            finally { _active.Remove((target, d)); }
+        }
 
         if (schema.Get("type") is { } t)
         {

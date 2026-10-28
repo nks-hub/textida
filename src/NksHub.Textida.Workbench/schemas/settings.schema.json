@@ -481,6 +481,12 @@
           "description": "Default SQL dialect. Dialect of SQL files that neither the file nor the folder sets. Folder: sql_dialect in .editorconfig.",
           "x-scope": "application"
         },
+        "schema.mappings": {
+          "type": "string",
+          "default": "",
+          "description": "Schema mappings. Rules that choose the schema of a file, written MASK=SCHEMA and separated by semicolons or line breaks, for example *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address (downloaded only after you allow its host) or a file path. The ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas Textida knows; only a $schema written in the file wins over a rule.",
+          "x-scope": "application"
+        },
         "html.tidyPath": {
           "type": "string",
           "default": "",

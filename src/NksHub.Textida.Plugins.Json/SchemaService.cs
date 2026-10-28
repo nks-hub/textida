@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Plugins.Json.Schema;
@@ -11,14 +12,17 @@ namespace NksHub.Textida.Plugins.Json;
 
 /// <summary>Limits of the schema features; the editor passes them on the command line, so no number is fixed in the plugin.</summary>
 /// <param name="MaxBytes">Largest file that is read whole to be checked or completed; a larger one gets no diagnostics and no offers. Must not exceed what one read returns.</param>
-public sealed record SchemaSettings(long MaxBytes, int MaxDepth, int RegexTimeoutMilliseconds);
+/// <param name="RefDepth">Longest chain of schema documents a <c>$ref</c> may lead through; 0 follows no reference to another document.</param>
+/// <param name="RefDocuments">Most other documents the references of one schema may pull in.</param>
+public sealed record SchemaSettings(long MaxBytes, int MaxDepth, int RegexTimeoutMilliseconds, int RefDepth = 0, int RefDocuments = 0);
 
 /// <summary>
 /// The schema engine behind the language service API: <c>schema.check</c> reads a JSON, JSONC, TOML or YAML file (or the YAML frontmatter of a Markdown file), checks it against the schema that applies to its path
 /// (or that it names itself) and publishes the findings as diagnostics of the source <see cref="Source"/>; <c>completion/request</c> offers the keys and the enum values the schema allows around the caret;
 /// <c>hover/request</c> describes the key or value under the pointer. All work on one revision and say so.
 /// </summary>
-public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings, SchemaCatalog catalog, SchemaLoader loader)
+/// <param name="mappings">The rules of the user, read from the file the editor keeps them in; null when there is none.</param>
+public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings, SchemaCatalog catalog, SchemaLoader loader, SchemaMappingFile? mappings = null)
 {
     public const string Check = "schema.check";
     public const string Source = "schema";
@@ -51,6 +55,7 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
     /// <summary>The schema of the file: the one it names itself, else the one its path maps to; when the first cannot be loaded and the path maps to another, that one is used.</summary>
     private async Task<(SchemaEntry? Entry, SchemaText Load, DataDialect Dialect)> PickAsync(string path, string text, bool network)
     {
+        mappings?.Refresh(catalog);
         var declared = SchemaCatalog.DeclaredSchema(SchemaCatalog.DialectOf(path), text, settings.MaxDepth);
         var (entry, dialect) = catalog.Resolve(path, declared);
         if (entry is null) return (null, new SchemaText(null, SchemaState.Ready), dialect);
@@ -61,6 +66,19 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
             if (byMask is not null && byMask.Id != entry.Id && await loader.LoadAsync(byMask, path, network) is { Text: not null } second) return (byMask, second, maskDialect);
         }
         return (entry, load, dialect);
+    }
+
+    /// <summary>
+    /// Parses the text of the schema and links its references. The root is null when there is no text or it is not JSON (a schema that is carried must be). <see cref="SchemaLinks.NoConsentHost"/> of the result is
+    /// the host of a referenced document that is not allowed to be downloaded.
+    /// </summary>
+    private async Task<(DataNode? Root, SchemaOptions Options, SchemaLinks? Links)> OpenAsync(SchemaEntry? entry, SchemaText load, string path, bool network)
+    {
+        if (entry is null || load.Text is null) return (null, Options, null);
+        if (!SchemaCatalog.TryParse(load.Text, DataDialect.Json, settings.MaxDepth, out var root, out _))
+            return entry.IsBundled ? throw new InvalidOperationException($"The bundled schema {entry.Id} is not valid JSON.") : (null, Options, null);
+        var links = await SchemaRefs.LinkAsync(root!, entry, path, loader, new SchemaRefLimits(settings.RefDepth, settings.RefDocuments), Options, network);
+        return (root, Options with { Links = links.Map }, links);
     }
 
     /// <summary>A YAML file with template tags (Helm, Jinja) is not YAML until it is rendered, so a syntax error in it is not an error of the file.</summary>
@@ -93,10 +111,12 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
         SchemaEntry? schema = null;
         SchemaText load = new(null, SchemaState.Ready);
         string status = "ok", state = "ready";
+        string? refHostName = null;
         int issues = 0;
         try
         {
             var d = await InfoAsync(id, revision);
+            mappings?.Refresh(catalog);
             schema = catalog.Resolve(d.Path ?? "").Schema;
             var items = new List<(int Start, int End, string Message, string Code)>();
             string? text = null;
@@ -106,8 +126,10 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
             {
                 var (picked, pickedLoad, dialect) = await PickAsync(d.Path ?? "", text, network: true);
                 (schema, load) = (picked, pickedLoad);
-                var result = catalog.Check(d.Path ?? "", text, Options, picked, dialect, load.Text);
+                var (schemaRoot, options, links) = await OpenAsync(picked, pickedLoad, d.Path ?? "", network: true);
+                var result = catalog.Check(d.Path ?? "", text, options, picked, dialect, schemaRoot);
                 state = StateName(load.State);
+                if (links?.NoConsentHost is { } refHost && state == "ready") (state, refHostName) = ("noConsent", refHost); // the schema applies as far as it reaches; the status line asks for the host of the rest
                 if (result.Syntax is { } syntax)
                 {
                     if (syntax.Unsupported || IsTemplate(dialect, text)) state = "unsupported";
@@ -134,7 +156,8 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
         }
         catch (RpcException e) when (e.Code == DocumentErrorCodes.RevisionConflict) { status = "stale"; }
         var name = schema is null ? "null" : $"\"{Quote(schema.Name)}\"";
-        var host = load.Host is null ? "null" : $"\"{Quote(load.Host)}\"";
+        var shownHost = refHostName ?? load.Host;
+        var host = shownHost is null ? "null" : $"\"{Quote(shownHost)}\"";
         return Encoding.UTF8.GetBytes($"{{\"status\":\"{status}\",\"schema\":{(schema is null ? "null" : $"\"{Quote(schema.Id)}\"")},\"name\":{name},\"issues\":{issues},\"state\":\"{state}\",\"host\":{host},\"cached\":{(load.FromCache ? "true" : "false")},\"offline\":{(load.Offline ? "true" : "false")}}}");
     }
 
@@ -158,14 +181,15 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
             if (d.Length <= settings.MaxBytes && offset >= d.Bom && offset <= d.Length && await ReadAsync(d) is { } text && await ReadAsync(d, offset) is { } before)
             {
                 var (schema, load, dialect) = await PickAsync(d.Path ?? "", text, network: false);
-                if (schema is not null && load.Text is not null && SchemaCatalog.TryParse(load.Text, DataDialect.Json, settings.MaxDepth, out var root, out _))
+                var (root, options, _) = await OpenAsync(schema, load, d.Path ?? "", network: false);
+                if (schema is not null && root is not null)
                 {
-                    if (KeyCompletion.Offer(root!, dialect, text, before.Length, Options) is { } offer)
+                    if (KeyCompletion.Offer(root, dialect, text, before.Length, options) is { } offer)
                     {
                         var bytes = ToBytes(d, text, [offer.Start, offer.End]);
                         foreach (var key in offer.Keys) Add(schema.Name, key, "property", offer.Start, offer.End, offer.Insert(key), bytes);
                     }
-                    else if (ValueCompletion.Offer(root!, dialect, text, before.Length, Options) is { } values)
+                    else if (ValueCompletion.Offer(root, dialect, text, before.Length, options) is { } values)
                     {
                         var bytes = ToBytes(d, text, [values.Start, values.End]);
                         foreach (var (label, insert) in values.Items) Add(schema.Name, label, "value", values.Start, values.End, insert, bytes);
@@ -193,8 +217,8 @@ public sealed class SchemaService(JsonRpcDispatcher rpc, SchemaSettings settings
             if (d.Length <= settings.MaxBytes && offset >= d.Bom && offset <= d.Length && await ReadAsync(d) is { } text && await ReadAsync(d, offset) is { } before)
             {
                 var (schema, load, dialect) = await PickAsync(d.Path ?? "", text, network: false);
-                if (schema is not null && load.Text is not null && SchemaCatalog.TryParse(load.Text, DataDialect.Json, settings.MaxDepth, out var root, out _)
-                    && SchemaHover.Describe(root!, dialect, text, before.Length, Options, texts) is { } info)
+                var (root, options, _) = await OpenAsync(schema, load, d.Path ?? "", network: false);
+                if (schema is not null && root is not null && SchemaHover.Describe(root, dialect, text, before.Length, options, texts) is { } info)
                 {
                     var bytes = ToBytes(d, text, [info.Start, info.End]);
                     said = $",\"text\":\"{Quote(info.Text)}\",\"start\":{bytes[info.Start]},\"end\":{bytes[info.End]}";

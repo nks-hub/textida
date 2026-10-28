@@ -638,7 +638,7 @@ commands: nks.view.toggleSecrets
 - V textovém editoru se po najetí ukazatelem myši na hodnotu ukáže jen ta jedna.
 - Text souboru se nemění: uložení zapíše stejné bajty.
 - Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav, ve výsledcích hledání a v exportech s formátováním (HTML, RTF). Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
-- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram a panel struktury vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá.
+- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram, panel struktury, mapa bajtů a kontrolní součet vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá. Náhledy Nahradit a neuložených změn ukazují u rozsahu, který se hodnoty dotýká, hvězdičky.
 - Ve stránkovaném režimu čtečka obrazovky čte za každý znak skryté hodnoty odrážku. Řádek delší než 16 KiB, který hodnotu obsahuje, skryje vše za svou první částí.
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
 - Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.
@@ -841,8 +841,8 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 - Vyjmout, Kopírovat a Vložit pracují s bajty; mezi dvěma hexy se přenesou přesně.
 
 ## [hex.find] Hex: hledání a skok na offset
-- Ctrl+F otevře okno Hledat bajty. Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, nebo číslo s typem (0x1F40 i32).
-- F3 a Shift+F3 najdou další a předchozí shodu. Stavový řádek napíše Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
+- Ctrl+F otevře vyhledávací lištu v režimu bajtů (označená Hex, bez přepínačů pro text). Zadejte bajty šestnáctkově (50 4B ?? 04, ?? je libovolný bajt), text v uvozovkách, číslo s typem (0x1F40 i32) nebo regulární výraz mezi lomítky. Při psaní počítadlo říká, jak dlouhá shoda může být, nebo proč je zadání odmítnuto. Enter najde další shodu, Shift+Enter předchozí, Esc lištu zavře. Přepnutí na kartu, která není hex (nebo naopak), lištu zavře. Ctrl+H dál otevírá okna nahrazení.
+- F3 a Shift+F3 najdou další a předchozí shodu, s lištou otevřenou i zavřenou. Stavový řádek i počítadlo lišty napíšou Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
 - Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
@@ -1026,7 +1026,8 @@ commands: nks.schemas.allow
 3. Schémata package.json, Cargo.toml, workflow GitHubu a souborů agentů jsou součástí editoru. Schéma jiného známého souboru a schéma, které soubor pojmenuje adresou, se stáhne až po vašem souhlasu. Do té doby stavový řádek říká „stažení není povoleno“ a Nástroje, Balíčky, Povolit stažení schématu ukáže server a zeptá se jednou pro každý server. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy. Schéma, které soubor pojmenuje cestou, se čte z disku a souhlas nepotřebuje.
 4. Stažené schéma se ukládá do tohoto počítače, nejvýše do limitu velikosti (nejstarší se mažou první), a dokud je čerstvé, použije se bez dotazu. Když server neodpoví, použije se uložená kopie a stavový řádek to říká. Použije se síťová proxy z příkazu Síťová proxy; proxy s uživatelským jménem použít nejde.
 5. Syntaktická chyba v souboru JSON, JSONC, TOML nebo YAML se podtrhne i tehdy, když žádné schéma neplatí. YAML s kotvami, tagy nebo složitými klíči se číst nedá: takový soubor se nekontroluje a stavový řádek to říká.
-- Rozumí se podmnožině JSON Schema: typy, enum, required, properties, items, oneOf, anyOf, allOf, if/then, místní $ref a pattern. Odkazy na jiné soubory nebo adresy uvnitř schématu se přeskakují. Limity velikosti, doba života uložených kopií a čekací doby jsou prozatímní.
+6. Vlastní pravidla: nastavení Mapování schémat (Nastavení, hledejte „schéma“) přiřazuje souborům schémata. Zapište MASKA=SCHÉMA, oddělené středníky nebo zalomením řádku, například *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASKA je název souboru, konec cesty nebo složka s /**. SCHÉMA je id známého schématu, adresa nebo cesta k souboru; koncovka as json, jsonc, toml, yaml nebo markdown určuje, jak se soubor čte. První vyhovující pravidlo má přednost před schématy, která editor zná; před pravidlem vyhrává jen $schema zapsané v souboru. Pravidlo zapsané jinak se přeskočí a stavový řádek ho jmenuje. Změna se na otevřené soubory projeví hned.
+- Rozumí se podmnožině JSON Schema: typy, enum, required, properties, items, oneOf, anyOf, allOf, if/then, $ref a pattern. $ref může pojmenovat jiný soubor schématu v tomto počítači (od souboru schématu) nebo adresu; adresa se stáhne až po vašem souhlasu s jejím serverem, jak je psáno výše, a schéma, které přišlo ze sítě, nikdy nečte soubor. Dokument se čte jednou, takže odkazy do kruhu skončí; délka řetězu dokumentů i jejich počet jsou omezené. Odkaz, který nejde sledovat, nic nepožaduje; chybí-li jen souhlas se serverem, stavový řádek říká „stažení není povoleno“. Kotvy (#název) se nesledují. Limity velikosti, doba života uložených kopií a čekací doby jsou prozatímní.
 
 ## [packages.scripts] Skripty balíčku: npm a Composer
 commands: nks.packages.script
@@ -1526,7 +1527,7 @@ commands: nks.help.languageHelp
 commands: nks.view.table, nks.table.dialect
 Soubor CSV nebo TSV lze zobrazit jako tabulku: jeden řádek souboru je jeden řádek tabulky, jedno pole je jedna buňka. Je to týž dokument jako v textovém zobrazení, se stejnou historií Zpět; nic se nepřevádí a úprava buňky změní jen bajty té buňky.
 1. Ctrl+K a pak Ctrl+T (nabídka Zobrazení, Přepnout tabulku a text) přepíná mezi tabulkou a textem. Soubor .tsv nebo .tab se dělí podle tabulátorů, ostatní soubory podle čárek.
-2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona).
+2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona). Buňka v uvozovkách se zalomením řádku patří ke svému řádku a řádek utržený koncem prozkoumané části dlouhého souboru se vynechá.
 - Velký soubor se otevře hned: řádky se počítají na pozadí a rozsah posuvníku roste, jak se soubor čte. Než se dojde na konec, stavový řádek ukazuje počet řádků s plusem, například 12+.
 - Šipky, Tab, PageUp a PageDown, Home a End (v rámci řádku), Ctrl+Home a Ctrl+End přesouvají aktuální buňku; Shift rozšiřuje výběr. Klepnutí na záhlaví sloupce vybere sloupec, klepnutí na číslo řádku vybere řádek.
 - Buňka v uvozovkách může obsahovat zalomení řádku; tabulka ukáže její první řádek a značku ↵.

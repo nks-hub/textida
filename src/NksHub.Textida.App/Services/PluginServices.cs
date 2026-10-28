@@ -6,6 +6,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Secrets;
@@ -130,6 +131,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _exitHook = (_, _) => _host.KillAll();
         AppDomain.CurrentDomain.ProcessExit += _exitHook;
         app.Workbench.SettingChanged += OnSettingChanged;
+        SyncSchemaMappings(report: false);
         _host.StateChanged += (id, state) =>
         {
             if (state is PluginState.WaitingRestart or PluginState.Disabled or PluginState.Stopped or PluginState.Inactive)
@@ -156,7 +158,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
              "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
              "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
-             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString()],
+             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString(),
+             "--schema-ref-depth", PluginLimitsPlaceholders.SchemaRefMaxDepth.ToString(), "--schema-ref-documents", PluginLimitsPlaceholders.SchemaRefMaxDocuments.ToString(),
+             "--schema-mappings", SchemaMappingsPath],
             [JsonActivation], folder));
 
         // the text tools read: statistics and hashes stream from a snapshot, the rest works on a selection or typed text; only inserting an expression result writes
@@ -294,6 +298,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>A setting of a plugin changed: a running process hears it as the event <c>settings.changed</c> with all its values; a stopped one gets them at its next start.</summary>
     private void OnSettingChanged(string key)
     {
+        if (key == SchemaMappingsSetting) SyncSchemaMappings(report: true);
         if (_app.Workbench.PluginOfSetting(key) is not { } id) return;
         RefreshSettings(id);
         if (_host.IsRegistered(id) && _pluginSettings.TryGetValue(id, out var values)) _ = _host.SendEventAsync(id, "settings.changed", Encoding.UTF8.GetBytes(values.GetRawText()));
@@ -1099,7 +1104,32 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     // ---- language services: diagnostics and completion from plugins, the schema check of the JSON plugin ----
 
-    /// <summary>A text tab of a JSON, JSONC, TOML or YAML file, or of a Markdown file with frontmatter that has a profile, which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
+    private const string SchemaMappingsSetting = "schema.mappings";
+
+    private static volatile string[] s_mappedMasks = [];
+
+    private string SchemaMappingsPath => Path.Combine(_app.ProfileDirectory, "schema-mappings.txt");
+
+    /// <summary>
+    /// Keeps the text of the setting <c>schema.mappings</c> in the file the JSON plugin reads its rules from (it reads the file again when it changes) and remembers the masks, so a file the user mapped to a schema
+    /// is checked whatever its extension. A rule that is not written as <c>MASK=SCHEMA</c> is left out and named in the status line when <paramref name="report"/>.
+    /// </summary>
+    private void SyncSchemaMappings(bool report)
+    {
+        var text = _app.Workbench.Settings.GetString(SchemaMappingsSetting);
+        s_mappedMasks = [.. SchemaMappingText.Parse(text, out var rejected).Select(e => e.Glob)];
+        try
+        {
+            Directory.CreateDirectory(_app.ProfileDirectory);
+            var temp = SchemaMappingsPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            File.WriteAllText(temp, text, new UTF8Encoding(false));
+            File.Move(temp, SchemaMappingsPath, overwrite: true);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the plugin keeps the rules it has */ }
+        if (report && rejected.Count > 0) _app.ActiveWindow?.SetStatusMessage(Loc.Get(K.SchemaMappingRejected, ("entry", rejected[0])));
+    }
+
+    /// <summary>A text tab of a JSON, JSONC, TOML or YAML file, of a Markdown file with frontmatter that has a profile, or of a file the user mapped to a schema (setting <c>schema.mappings</c>), which the JSON plugin checks against a schema. A paged (large) tab has no text surface, so it is never one.</summary>
     internal static bool IsSchemaFile(DocTab tab) =>
         tab.Surface is not null && tab.Doc.Doc.FilePath is { } path && IsSchemaPath(path);
 
@@ -1110,6 +1140,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>Markdown is only checked where the plugin has a frontmatter profile: <c>SKILL.md</c>, <c>agents/*.md</c>, <c>rules/*.md</c>, <c>.claude/rules</c> and <c>.mdc</c>.</summary>
     internal static bool IsSchemaPath(string path)
     {
+        if (s_mappedMasks.Any(mask => Glob.IsMatch(mask, path))) return true;
         var extension = Path.GetExtension(path).ToLowerInvariant();
         if (extension is ".json" or ".jsonc" or ".toml" or ".yaml" or ".yml" or ".mdc") return true;
         if (extension != ".md") return false;

@@ -389,6 +389,7 @@ internal sealed partial class MainWindow : Window
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
         if (key == "git.gutter") foreach (var tab in Tabs) ScheduleGitGutter(tab);
+        if (key == "schema.mappings") foreach (var tab in Tabs.Where(PluginServices.IsSchemaFile).ToList()) _ = _app.Plugins.CheckSchemaAsync(this, tab);
         if (key == "files.autoSave") foreach (var od in _docs) ConfigureAutosave(od);
         else if (key == "advanced.autosaveIntervalSeconds")
             foreach (var od in _docs)

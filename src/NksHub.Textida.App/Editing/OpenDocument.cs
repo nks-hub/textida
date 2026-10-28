@@ -192,7 +192,7 @@ internal sealed class OpenDocument : IDisposable
         var byPath = CsvDialect.ForPath(Path);
         long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimitsPlaceholders.CsvDetectSampleBytes);
         while (end > start && end < Doc.ByteLength && !Doc.IsCharBoundary(end)) end--;
-        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath);
+        return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath, truncated: end < Doc.ByteLength);
     }
 
     // ---- hex ----

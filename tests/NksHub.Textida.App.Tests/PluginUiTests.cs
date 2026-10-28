@@ -963,6 +963,29 @@ public class PluginUiTests : IDisposable
         Assert.False(PluginServices.IsSchemaFile(plain));
     }
 
+    [AvaloniaFact]
+    public async Task A_file_the_user_mapped_to_a_schema_is_checked_at_once_and_the_rules_reach_the_plugin_through_their_file()
+    {
+        var schema = _temp.File("thing.schema.json", """{ "type": "object", "properties": { "n": { "type": "integer" } } }""");
+        var tab = _w.OpenFile(_temp.File("app.cfg", "{ \"n\": \"x\" }"), null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(PluginServices.IsSchemaFile(tab)); // .cfg is not a configuration extension the editor knows
+
+        var rules = $"*.cfg={schema} as json";
+        Assert.Null(_app.Workbench.Set("schema.mappings", System.Text.Json.Nodes.JsonValue.Create(rules)));
+        Assert.True(PluginServices.IsSchemaFile(tab));
+        Assert.Equal(rules, File.ReadAllText(Path.Combine(_app.ProfileDirectory, "schema-mappings.txt")));
+
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the schema the rule names");
+        var mark = Assert.Single(tab.Editor!.Diagnostics);
+        Assert.Equal("\"x\"", tab.Editor.Document.GetText(mark.Start, mark.End - mark.Start));
+        _app.Plugins.TrackSchema(_w, tab);
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.schema.json")), "the schema of the rule in the status bar");
+
+        Assert.Null(_app.Workbench.Set("schema.mappings", System.Text.Json.Nodes.JsonValue.Create("")));
+        Assert.False(PluginServices.IsSchemaFile(tab)); // without the rule the extension is unknown again
+    }
+
     /// <summary>A server on the loopback address that answers one path with a body and counts what it was asked; the schemas of the tests come from here, never from a real host.</summary>
     private sealed class SchemaServer : IDisposable
     {

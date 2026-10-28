@@ -540,12 +540,14 @@ internal sealed partial class MainWindow
             ? Loc.Get(K.HexSumScopeSelection, ("bytes", range.Length), ("start", hex.OffsetText(range.Start)))
             : Loc.Get(K.HexSumScopeFile, ("bytes", range.Length));
         var snapshot = doc.GetSnapshot();
+        bool masked = hex.TouchesHidden(range.Start, range.End);
+        var source = hex.ShownBytes(snapshot); // the sum of a hidden value would let the value be tested by guessing
         var cts = hex.Job = new CancellationTokenSource();
         var progress = new Progress<long>(done => SetStatusMessage(Loc.Get(K.HexSumRunning, ("name", spec.Name), ("percent", range.Length == 0 ? 100 : done * 100 / range.Length))));
         string value;
         try
         {
-            value = await Task.Run(() => Checksums.Compute(spec, snapshot, range, progress, cts.Token), CancellationToken.None);
+            value = await Task.Run(() => Checksums.Compute(spec, source, range, progress, cts.Token), CancellationToken.None);
         }
         catch (OperationCanceledException)
         {
@@ -565,7 +567,7 @@ internal sealed partial class MainWindow
         }
         SetStatusMessage("");
         string title = Loc.Get(K.HexSumResult, ("name", spec.Name), ("scope", scope));
-        string note = "";
+        string note = masked ? Loc.Get(K.HexSumMasked) : "";
         while (true)
         {
             var request = new ChoiceRequest(Loc.Get(K.HexSumTitle), note.Length > 0 ? title + "\n\n" + note : title,

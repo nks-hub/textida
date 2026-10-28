@@ -28,7 +28,7 @@ public static class ValueCompletion
         if (ReferenceEquals(node, data) || node.Kind is DataKind.Object or DataKind.Array || node.Start != start) return null;
 
         var candidates = new List<DataNode>();
-        foreach (var s in schemas.SelectMany(x => SchemaCatalog.Flatten(schemaRoot, x, options.MaxDepth)))
+        foreach (var s in schemas.SelectMany(x => SchemaCatalog.Flatten(schemaRoot, x, options)))
         {
             if (s.Get("enum") is { Kind: DataKind.Array } values) candidates.AddRange(values.Items);
             if (s.Get("const") is { } constant) candidates.Add(constant);

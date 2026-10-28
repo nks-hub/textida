@@ -368,6 +368,9 @@ public static class K
     public const string A11yWorkspace = "a11y.workspace";
     public const string A11yGroupsSplitter = "a11y.groups.splitter";
     public const string FindWatermark = "find.watermark";
+    public const string FindHexWatermark = "find.hexWatermark";
+    public const string FindHexMode = "find.hexMode";
+    public const string A11yFindHexInput = "a11y.find.hexInput";
     public const string FindReplaceWatermark = "find.replaceWatermark";
     public const string FindFolderWatermark = "find.folderWatermark";
     public const string FindCase = "find.case";
@@ -596,6 +599,7 @@ public static class K
     public const string HexGotoInvalid = "hex.goto.invalid";
     public const string HexGotoOutside = "hex.goto.outside";
     public const string HexFindTitle = "hex.find.title";
+    public const string HexSumMasked = "hex.sum.masked";
     public const string HexFindLabel = "hex.find.label";
     public const string HexFindNone = "hex.find.none";
     public const string HexFindCount = "hex.find.count";
@@ -939,6 +943,7 @@ public static class K
     public const string SchemaTipConsent = "schema.tipConsent";
     public const string SchemaNotFile = "schema.notFile";
     public const string SchemaNothingToAllow = "schema.nothingToAllow";
+    public const string SchemaMappingRejected = "schema.mappingRejected";
     public const string SchemaConsentTitle = "schema.consent.title";
     public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";

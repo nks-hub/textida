@@ -148,20 +148,28 @@ public sealed class SchemaLoader
         return LoadFile(address, documentPath);
     }
 
+    private const string OtherComputer = "A schema on another computer is not read; allow it as a download from its address instead.";
+
+    /// <summary>
+    /// The path on this computer a schema file address stands for: a <c>file:</c> address, an absolute path, or a path relative to the folder of <paramref name="documentPath"/>. Null for a path to another
+    /// computer (UNC), which a file may not reach on its own: it needs the consent of a download; and for a relative path with no folder to start from.
+    /// </summary>
+    internal static string? FilePathOf(string address, string? documentPath)
+    {
+        if (address.StartsWith("file:", StringComparison.OrdinalIgnoreCase) && Uri.TryCreate(address, UriKind.Absolute, out var fileUri))
+            return fileUri.IsUnc || fileUri.Host.Length > 0 ? null : fileUri.LocalPath;
+        if (address.StartsWith(@"\\", StringComparison.Ordinal) || address.StartsWith("//", StringComparison.Ordinal)) return null;
+        if (Path.IsPathRooted(address)) return address;
+        return documentPath is { Length: > 0 } && Path.GetDirectoryName(documentPath) is { } folder ? Path.Combine(folder, address) : null;
+    }
+
     private SchemaText LoadFile(string address, string? documentPath)
     {
-        string path;
-        // a path to another computer (UNC) is a request to that computer, which a file may not make on its own: it needs the consent of a download
-        const string OtherComputer = "A schema on another computer is not read; allow it as a download from its address instead.";
-        if (address.StartsWith("file:", StringComparison.OrdinalIgnoreCase) && Uri.TryCreate(address, UriKind.Absolute, out var fileUri))
+        if (FilePathOf(address, documentPath) is not { } path)
         {
-            if (fileUri.IsUnc || fileUri.Host.Length > 0) return new SchemaText(null, SchemaState.Unavailable, Reason: OtherComputer);
-            path = fileUri.LocalPath;
+            bool other = address.StartsWith(@"\\", StringComparison.Ordinal) || address.StartsWith("//", StringComparison.Ordinal) || address.StartsWith("file:", StringComparison.OrdinalIgnoreCase);
+            return new SchemaText(null, SchemaState.Unavailable, Reason: other ? OtherComputer : "The schema file has no folder to be found in.");
         }
-        else if (address.StartsWith(@"\\", StringComparison.Ordinal) || address.StartsWith("//", StringComparison.Ordinal)) return new SchemaText(null, SchemaState.Unavailable, Reason: OtherComputer);
-        else if (Path.IsPathRooted(address)) path = address;
-        else if (documentPath is { Length: > 0 } && Path.GetDirectoryName(documentPath) is { } folder) path = Path.Combine(folder, address);
-        else return new SchemaText(null, SchemaState.Unavailable, Reason: "The schema file has no folder to be found in.");
         try
         {
             var file = new FileInfo(path);

@@ -6366,6 +6366,23 @@
       ]
     },
     {
+      "key": "schema.mappings",
+      "type": "string",
+      "default": "",
+      "title": "setting.schema.mappings.title",
+      "description": "setting.schema.mappings.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "schema",
+        "json",
+        "yaml",
+        "toml",
+        "mapping",
+        "validate"
+      ]
+    },
+    {
       "key": "html.tidyPath",
       "type": "string",
       "default": "",
