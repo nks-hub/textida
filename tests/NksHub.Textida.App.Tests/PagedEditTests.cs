@@ -636,15 +636,85 @@ public class PagedEditTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Closing_the_window_during_a_save_waits_for_the_save_and_then_closes()
+    {
+        var (tab, _, atSave, gate) = StreamedSaveHeldOpen();
+        string path = tab.Path!;
+        _w.Close();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains(_w, _app.Windows); // the window stays while the worker writes from its document
+        Assert.Contains(Loc.Get(K.StatusSaveWaiting), _w.StatusLeftText);
+
+        gate.Set();
+        PumpUntil(() => !_app.Windows.Contains(_w));
+        Assert.Equal(atSave, File.ReadAllBytes(path));
+    }
+
+    private string[] BackupCopies() => Directory.Exists(_app.Backups.Policy.Directory) ? Directory.GetFiles(_app.Backups.Policy.Directory!, "*.bak", SearchOption.AllDirectories) : [];
+
+    private static long WriteRows(string path, long atLeast)
+    {
+        byte[] unit = Rows(100_000);
+        long length = 0;
+        using var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20);
+        for (; length < atLeast; length += unit.Length) fs.Write(unit);
+        return length;
+    }
+
+    private static string HashOfFile(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 20, FileOptions.SequentialScan);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fs));
+    }
+
+    [AvaloniaFact]
+    public void A_streamed_save_first_copies_the_old_file_and_then_replaces_it()
+    {
+        string path = Path.Combine(_temp.Path, "backed.log");
+        long length = WriteRows(path, 4L << 20);
+        string oldHash = HashOfFile(path);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 120);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 120);
+
+        var copy = Assert.Single(BackupCopies());
+        Assert.Equal(oldHash, HashOfFile(copy));
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Large")]
+    public void A_file_over_the_backup_limit_is_saved_without_a_copy_and_without_an_error()
+    {
+        string path = Path.Combine(_temp.Path, "over.log");
+        long length = WriteRows(path, Core.PagedSpillPlaceholders.SaveBackupMaxBytes + 1);
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        tab.Paged!.Focus();
+        PumpUntil(() => tab.Paged!.Index.Complete, seconds: 300);
+        var doc = tab.Doc.Doc;
+
+        TestApp.Type(_w, "ab");
+        Press(Key.S, TestApp.Mod);
+        PumpUntil(() => !tab.Doc.SaveInFlight && !doc.IsModified, seconds: 600);
+
+        Assert.Empty(BackupCopies());
+        Assert.Equal(length + 2, new FileInfo(path).Length);
+    }
+
+    [AvaloniaFact]
     [Trait("Category", "Large")]
     [Trait("Category", "Perf")]
     public void Typing_during_the_save_of_a_multi_GiB_file_stays_within_the_limits()
     {
         string path = Path.Combine(_temp.Path, "huge.log");
-        byte[] unit = Rows(100_000);
-        long length = 0;
-        using (var fs = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 20))
-            for (; length < 3L << 30; length += unit.Length) fs.Write(unit);
+        long length = WriteRows(path, 3L << 30);
         var tab = _w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
         tab.Paged!.Focus();
