@@ -211,6 +211,7 @@ internal sealed partial class HexView : Grid
     private void OnMarksChanged()
     {
         _canvas.InvalidateVisual();
+        Minimap.InvalidateVisual();
         BookmarkList.Refresh();
         RaiseViewChanged();
     }
@@ -224,6 +225,7 @@ internal sealed partial class HexView : Grid
 
     private void RaiseViewChanged()
     {
+        Minimap.NoteView();
         ViewChanged?.Invoke();
         (Avalonia.Automation.Peers.ControlAutomationPeer.FromElement(this) as HexAutomationPeer)?.CaretMoved();
     }
