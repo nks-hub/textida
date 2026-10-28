@@ -624,7 +624,8 @@ public class PluginUiTests : IDisposable
 
         await RunAsync("nks.edit.formatJson");
 
-        Assert.Equal("head ě\r\n{\n  \"a\": [\n    1,\n    2\n  ],\n  \"b\": \"č\"\n}\r\ntail\r\n", Utf8(tab));
+        // the selection holds no line break, so the lines the formatter breaks take the line ending of the file (all three are CRLF)
+        Assert.Equal("head ě\r\n{\r\n  \"a\": [\r\n    1,\r\n    2\r\n  ],\r\n  \"b\": \"č\"\r\n}\r\ntail\r\n", Utf8(tab));
         _w.Undo();
         Assert.Equal("head ě\r\n{\"a\":[1,2],\"b\":\"č\"}\r\ntail\r\n", Utf8(tab));
     }

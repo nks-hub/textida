@@ -410,11 +410,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - The file of a saved macro larger than 1 MB (placeholder limit, OPEN) is not read; the list reports it as damaged.
 
 ## [edit.json] Format JSON
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Select JSON text, or select nothing to format the whole document.
-2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Select JSON text, or select nothing to work on the whole document.
+2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings and the encoding.
 3. Preview JSON Formatting shows the change as a proposal first. Apply it from the bar above the editor, or discard it.
-- A syntax error is reported with its line and column and nothing is changed. Text larger than the limit is refused with a message.
+4. Minify JSON writes the value on one line without white space and removes comments. Sort JSON Keys orders the members of every object by name (a comment moves with its member) and lays the text out like Format JSON. Remove JSON Trailing Commas removes only the commas in front of a closing bracket and changes nothing else.
+- Comments and trailing commas are part of JSONC files (.jsonc, tsconfig.json and the like). Format JSON and Sort JSON Keys keep both there. In a plain JSON file they are reported as errors; Remove JSON Trailing Commas repairs the commas.
+- A syntax error is reported with its line and column in the document, and nothing is changed. Text larger than the limit, or nested deeper than the limit, is refused with a message.
+- A selection without a line break takes the line ending that most lines of the file use.
 - If the document changed after the command started, the command stops and asks you to run it again.
 
 ## [tools.stats] Document statistics and hashes

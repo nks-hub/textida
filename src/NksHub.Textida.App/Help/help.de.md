@@ -410,11 +410,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - Die Datei eines gespeicherten Makros über 1 MB (Platzhalter-Grenze, OPEN) wird nicht gelesen; die Liste meldet sie als beschädigt.
 
 ## [edit.json] JSON formatieren
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu formatieren.
-2. Menü Bearbeiten, Formatierung, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Markieren Sie JSON-Text, oder markieren Sie nichts, um das ganze Dokument zu bearbeiten.
+2. Menü Bearbeiten, Formatierung, JSON formatieren, formatiert die markierten Bereiche (jede Auswahl) oder das ganze Dokument. Alle Bereiche sind ein Rückgängig-Schritt; Text außerhalb bleibt Byte für Byte unverändert, auch die Zeilenenden und die Kodierung.
 3. Vorschau der JSON-Formatierung zeigt die Änderung zuerst als Vorschlag. Wenden Sie ihn in der Leiste über dem Editor an oder verwerfen Sie ihn.
-- Ein Syntaxfehler wird mit Zeile und Spalte gemeldet, und nichts wird geändert. Text über dem Limit wird mit einer Meldung abgelehnt.
+4. JSON verdichten schreibt den Wert in eine Zeile ohne Leerraum und entfernt Kommentare. JSON-Schlüssel sortieren ordnet die Member jedes Objekts nach Namen (ein Kommentar wandert mit seinem Member) und legt den Text wie JSON formatieren aus. Abschließende Kommas in JSON entfernen löscht nur die Kommas vor einer schließenden Klammer und ändert sonst nichts.
+- Kommentare und abschließende Kommas gehören zu JSONC-Dateien (.jsonc, tsconfig.json und ähnliche). JSON formatieren und JSON-Schlüssel sortieren behalten beides dort bei. In einer normalen JSON-Datei werden sie als Fehler gemeldet; die Kommas repariert Abschließende Kommas in JSON entfernen.
+- Ein Syntaxfehler wird mit Zeile und Spalte im Dokument gemeldet, und nichts wird geändert. Text über dem Limit oder tiefer verschachtelt als das Limit wird mit einer Meldung abgelehnt.
+- Eine Auswahl ohne Zeilenumbruch übernimmt das Zeilenende, das die meisten Zeilen der Datei haben.
 - Hat sich das Dokument nach dem Start des Befehls geändert, bricht der Befehl ab und bittet Sie, ihn erneut auszuführen.
 
 ## [tools.stats] Dokumentstatistik und Hashes

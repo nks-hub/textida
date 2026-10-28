@@ -13,7 +13,7 @@ namespace NksHub.Textida.Rpc.Tests;
 /// <summary>The JSON formatter plugin: a real plugin process against the real host, document API and UI API.</summary>
 public class JsonFormatterTests
 {
-    sealed class Owner : IDocumentOwnerThread
+    internal sealed class Owner : IDocumentOwnerThread
     {
         readonly object _gate = new();
 
@@ -24,7 +24,7 @@ public class JsonFormatterTests
         }
     }
 
-    sealed class Proposals : IEditProposals
+    internal sealed class Proposals : IEditProposals
     {
         public readonly List<EditProposal> Items = [];
 
@@ -34,7 +34,7 @@ public class JsonFormatterTests
         }
     }
 
-    sealed class Rig : IAsyncDisposable
+    internal sealed class Rig : IAsyncDisposable
     {
         public required PluginHost.PluginHost Host { get; init; }
         public required DocumentApi Docs { get; init; }
@@ -42,7 +42,10 @@ public class JsonFormatterTests
         public required UiApiTests.RecordingUi Ui { get; init; }
         public required Proposals Proposals { get; init; }
 
-        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections, long maxBytes = 1 << 16)
+        /// <param name="fileName">The document is a file of this name, so the plugin can tell JSONC from JSON; without it the document has no path.</param>
+        /// <param name="program">A published (NativeAOT) program to run instead of the plugin DLL.</param>
+        public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections, long maxBytes = 1 << 16,
+            string? fileName = null, string? program = null, int maxDepth = 64)
         {
             var proposals = new Proposals();
             var ui = new UiApiTests.RecordingUi();
@@ -59,20 +62,32 @@ public class JsonFormatterTests
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 10, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 2000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, ui, send);
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
-            var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Json.dll");
-            Assert.True(File.Exists(dll), dll);
-            host.Register(new PluginSpec("json", "JSON", T.DotnetHost, [dll, "--max-bytes", maxBytes.ToString(), "--indent", "2"], ["onCommand:json"]));
+            string[] options = ["--max-bytes", maxBytes.ToString(), "--indent", "2", "--max-depth", maxDepth.ToString()];
+            if (program is not null) host.Register(new PluginSpec("json", "JSON", program, options, ["onCommand:json"]));
+            else
+            {
+                var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Json.dll");
+                Assert.True(File.Exists(dll), dll);
+                host.Register(new PluginSpec("json", "JSON", T.DotnetHost, [dll, .. options], ["onCommand:json"]));
+            }
             await host.ActivateAsync("onCommand:json");
-            var doc = Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec });
+            string? path = null;
+            if (fileName is not null)
+            {
+                path = Path.Combine(T.TempDir(), fileName);
+                File.WriteAllBytes(path, content);
+            }
+            var options2 = new DocumentOptions { Format = codec };
+            var doc = path is null ? Document.FromBytes(content, PagedBackendFactory.Instance, options2) : Document.Open(path, PagedBackendFactory.Instance, options2);
             Func<SelectionSet?>? selector = selections is null ? null
                 : () => SelectionSet.Create([.. selections.Select(s => new TextSelection(s.Anchor, s.Caret))], 0);
             docs.Expose(doc, selector);
             return new Rig { Host = host, Docs = docs, Doc = doc, Ui = ui, Proposals = proposals };
         }
 
-        public async Task<string> RunAsync(string command, long? revision = null)
+        public async Task<string> RunAsync(string command, long? revision = null, string language = "en", string extra = "")
         {
-            var json = $"{{\"command\":\"{command}\",\"document\":\"{Doc.Id}\",\"revision\":{revision ?? Doc.Revision},\"language\":\"en\"}}";
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{Doc.Id}\",\"revision\":{revision ?? Doc.Revision},\"language\":\"{language}\"{extra}}}";
             return (await Host.CallAsync("json", "command/execute", Encoding.UTF8.GetBytes(json))).GetProperty("status").GetString()!;
         }
 
@@ -107,16 +122,20 @@ public class JsonFormatterTests
     }
 
     [Fact]
-    public async Task Two_selections_in_a_CP1250_file_with_mixed_line_endings_change_only_the_selected_ranges_in_one_undo_step()
+    public Task Two_selections_in_a_CP1250_file_with_mixed_line_endings_change_only_the_selected_ranges_in_one_undo_step() => TwoSelectionsInCp1250Async(null);
+
+    /// <summary>The scenario of the test above; the NativeAOT test runs it against the published program.</summary>
+    internal static async Task TwoSelectionsInCp1250Async(string? program)
     {
         var (all, first, second) = MixedFile();
-        await using var rig = await Rig.CreateAsync(all, TextCodec.Cp1250, [(first.Start, first.End), (second.End, second.Start)]); // the second one is selected backwards
+        await using var rig = await Rig.CreateAsync(all, TextCodec.Cp1250, [(first.Start, first.End), (second.End, second.Start)], program: program); // the second one is selected backwards
         var undoBefore = rig.Doc.UndoDepth;
 
-        Assert.Equal("applied", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
 
         var after = rig.Bytes();
-        var expected = Cp1250Bytes(Head + Format(Json1) + Middle + Format(Json2) + Tail);
+        // neither selection holds a line break, so the lines the formatter breaks follow the file: CRLF is its most frequent ending (two against two LF and one CR, and CRLF wins a tie)
+        var expected = Cp1250Bytes(Head + Format(Json1, "\r\n") + Middle + Format(Json2, "\r\n") + Tail);
         Assert.Equal(expected, after);
         // everything outside the two ranges is byte for byte what it was, including the three kinds of line ending
         Assert.Equal(all[..(int)first.Start], after[..(int)first.Start]);
@@ -128,9 +147,12 @@ public class JsonFormatterTests
         Assert.Equal(all, rig.Bytes());
     }
 
-    static string Format(string json)
+    static readonly JsonStyle Strict = new("\n", 2, Jsonc: false, MaxDepth: 64);
+    static readonly JsonStyle Jsonc = Strict with { Jsonc = true };
+
+    static string Format(string json, string newLine = "\n")
     {
-        Assert.True(JsonFormatter.TryFormat(json, "\n", 2, out var formatted, out _));
+        Assert.True(JsonFormatter.TryFormat(json, Strict with { NewLine = newLine }, out var formatted, out _));
         return formatted;
     }
 
@@ -139,7 +161,7 @@ public class JsonFormatterTests
     {
         var content = Encoding.UTF8.GetBytes("  {\"a\":1.50,\r\n\"b\":\"\\u00e9 é\"}  \n");
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null);
-        Assert.Equal("applied", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
         Assert.Equal("  {\r\n  \"a\": 1.50,\r\n  \"b\": \"\\u00e9 é\"\r\n}  \n", Encoding.UTF8.GetString(rig.Bytes()));
     }
 
@@ -148,7 +170,7 @@ public class JsonFormatterTests
     {
         var content = new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Encoding.UTF8.GetBytes("[1,{\"a\":2}]")).ToArray();
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8Bom, null);
-        Assert.Equal("applied", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
         var after = rig.Bytes();
         Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, after[..3]);
         Assert.Equal("JSON formatted.", rig.Ui.Notices[^1].Message);
@@ -162,13 +184,14 @@ public class JsonFormatterTests
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, [(0, 5), (6, 14)]);
         var revision = rig.Doc.Revision;
 
-        Assert.Equal("syntaxError", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format));
 
         Assert.Equal(revision, rig.Doc.Revision);
         Assert.Equal(content, rig.Bytes());
         var (level, message) = Assert.Single(rig.Ui.Notices);
         Assert.Equal(NoticeLevel.Error, level);
-        Assert.StartsWith("Range 2 of 2: JSON syntax error at line 1, column 8:", message);
+        // the second range starts on the second line of the document, so the place is counted there and not from the start of the selection
+        Assert.StartsWith("Range 2 of 2: JSON syntax error at line 2, column 8:", message);
     }
 
     [Fact]
@@ -178,7 +201,7 @@ public class JsonFormatterTests
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null);
         var revision = rig.Doc.Revision;
 
-        Assert.Equal("proposed", await rig.RunAsync(FormatCommand.Preview));
+        Assert.Equal("proposed", await rig.RunAsync(JsonPlugin.Preview));
 
         Assert.Equal(content, rig.Bytes());
         var proposal = Assert.Single(rig.Proposals.Items);
@@ -197,8 +220,8 @@ public class JsonFormatterTests
         rig.Doc.Apply([new ByteEdit(new ByteRange(7, 7), Encoding.UTF8.GetBytes(" "))], new EditOptions { BaseRevision = old, Source = "test" });
         var changed = rig.Bytes();
 
-        Assert.Equal("stale", await rig.RunAsync(FormatCommand.Format, old));
-        Assert.Equal("stale", await rig.RunAsync(FormatCommand.Preview, old));
+        Assert.Equal("stale", await rig.RunAsync(JsonPlugin.Format, old));
+        Assert.Equal("stale", await rig.RunAsync(JsonPlugin.Preview, old));
 
         Assert.Equal(changed, rig.Bytes());
         Assert.Empty(rig.Proposals.Items);
@@ -213,12 +236,12 @@ public class JsonFormatterTests
         var content = Encoding.UTF8.GetBytes(json);
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, maxBytes: 30);
 
-        Assert.Equal("tooLarge", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("tooLarge", await rig.RunAsync(JsonPlugin.Format));
 
         Assert.Equal(content, rig.Bytes());
         var (level, message) = Assert.Single(rig.Ui.Notices);
         Assert.Equal(NoticeLevel.Error, level);
-        Assert.Equal($"The text to format is {content.Length} bytes; the limit is 30 bytes. Select a smaller part.", message);
+        Assert.Equal($"The text is {content.Length} bytes; the limit is 30 bytes. Select a smaller part.", message);
     }
 
     [Fact]
@@ -227,7 +250,7 @@ public class JsonFormatterTests
         var content = Encoding.UTF8.GetBytes("{\n  \"a\": 1\n}");
         await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null);
         var undo = rig.Doc.UndoDepth;
-        Assert.Equal("unchanged", await rig.RunAsync(FormatCommand.Format));
+        Assert.Equal("unchanged", await rig.RunAsync(JsonPlugin.Format));
         Assert.Equal(undo, rig.Doc.UndoDepth);
         Assert.Equal("The JSON is already formatted.", rig.Ui.Notices[^1].Message);
     }
@@ -239,7 +262,7 @@ public class JsonFormatterTests
     [InlineData("\n\t{\"a\":true}\r\n", "\n\t{\n  \"a\": true\n}\r\n")]
     public void The_pretty_printer_handles_empty_containers_and_keeps_outer_white_space(string input, string expected)
     {
-        Assert.True(JsonFormatter.TryFormat(input, "\n", 2, out var formatted, out _));
+        Assert.True(JsonFormatter.TryFormat(input, Strict, out var formatted, out _));
         Assert.Equal(expected, formatted);
     }
 
@@ -251,7 +274,251 @@ public class JsonFormatterTests
     [InlineData("{\"č\":x}", 1, 6)]
     public void Errors_carry_a_line_and_a_column_in_characters(string input, int line, int column)
     {
-        Assert.False(JsonFormatter.TryFormat(input, "\n", 2, out _, out var error));
+        Assert.False(JsonFormatter.TryFormat(input, Strict, out _, out var error));
         Assert.Equal((line, column), (error.Line, error.Column));
     }
+
+    // ---- minify, sort keys, trailing commas ----
+
+    [Fact]
+    public async Task Minify_writes_formatted_text_of_a_CP1250_file_on_one_line_in_one_undo_step()
+    {
+        var head = Cp1250Bytes(Head);
+        var body = Cp1250Bytes(Format(Json1));
+        byte[] all = [.. head, .. body, .. Cp1250Bytes(Middle + Tail)];
+        await using var rig = await Rig.CreateAsync(all, TextCodec.Cp1250, [(head.Length, head.Length + body.Length)]);
+        var undoBefore = rig.Doc.UndoDepth;
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Minify));
+
+        Assert.Equal(Cp1250Bytes(Head + Json1 + Middle + Tail), rig.Bytes());
+        Assert.Equal(undoBefore + 1, rig.Doc.UndoDepth);
+        Assert.Equal((NoticeLevel.Info, "JSON minified."), rig.Ui.Notices[^1]);
+        rig.Doc.Undo();
+        Assert.Equal(all, rig.Bytes());
+    }
+
+    [Fact]
+    public async Task Sort_keys_orders_the_members_in_a_CP1250_file_and_writes_them_with_the_line_ending_of_the_document()
+    {
+        const string unsorted = "{\"žaba\":1,\"abeceda\":[{\"b\":2,\"a\":1}],\"čáp\":3}";
+        var before = Cp1250Bytes("řádek\r\n");
+        var range = Cp1250Bytes(unsorted);
+        byte[] all = [.. before, .. range, .. Cp1250Bytes("\r\nkonec\n")];
+        await using var rig = await Rig.CreateAsync(all, TextCodec.Cp1250, [(before.Length, before.Length + range.Length)]);
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.SortKeys));
+
+        // the selection holds no line break, so the lines it breaks follow the document (two CRLF, one LF)
+        var expected = "řádek\r\n{\r\n  \"abeceda\": [\r\n    {\r\n      \"a\": 1,\r\n      \"b\": 2\r\n    }\r\n  ],\r\n  \"čáp\": 3,\r\n  \"žaba\": 1\r\n}\r\nkonec\n";
+        Assert.Equal(Cp1250Bytes(expected), rig.Bytes());
+        Assert.Equal((NoticeLevel.Info, "Keys sorted."), rig.Ui.Notices[^1]);
+    }
+
+    [Fact]
+    public async Task Sorting_two_selections_is_one_undo_step()
+    {
+        var content = Encoding.UTF8.GetBytes("{\"b\":1,\"a\":2}\n{\"d\":1,\"c\":2}\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, [(0, 13), (14, 27)]);
+        var undoBefore = rig.Doc.UndoDepth;
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.SortKeys));
+
+        Assert.Equal("{\n  \"a\": 2,\n  \"b\": 1\n}\n{\n  \"c\": 2,\n  \"d\": 1\n}\n", Encoding.UTF8.GetString(rig.Bytes()));
+        Assert.Equal(undoBefore + 1, rig.Doc.UndoDepth);
+        Assert.Equal((NoticeLevel.Info, "2 ranges sorted."), rig.Ui.Notices[^1]);
+    }
+
+    [Fact]
+    public async Task Removing_trailing_commas_repairs_a_JSON_document_and_changes_nothing_else()
+    {
+        var content = Encoding.UTF8.GetBytes("{\n  \"a\": [1, 2,],\n  \"b\": {\"c\": 1,},\n}\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null);
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.FixCommas));
+
+        Assert.Equal("{\n  \"a\": [1, 2],\n  \"b\": {\"c\": 1}\n}\n", Encoding.UTF8.GetString(rig.Bytes()));
+        Assert.Equal((NoticeLevel.Info, "Trailing commas removed."), rig.Ui.Notices[^1]);
+        Assert.Equal("unchanged", await rig.RunAsync(JsonPlugin.FixCommas));
+        Assert.Equal((NoticeLevel.Info, "No trailing comma was found."), rig.Ui.Notices[^1]);
+    }
+
+    [Fact]
+    public async Task Sorting_with_the_preview_flag_proposes_the_edit_and_leaves_the_document_alone()
+    {
+        var content = Encoding.UTF8.GetBytes("{\"b\":1,\"a\":2}");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null);
+
+        Assert.Equal("proposed", await rig.RunAsync(JsonPlugin.SortKeys, extra: ",\"preview\":true"));
+
+        Assert.Equal(content, rig.Bytes());
+        var proposal = Assert.Single(rig.Proposals.Items);
+        Assert.Equal("Sort JSON Keys", proposal.Title);
+        Assert.Equal("{\n  \"a\": 2,\n  \"b\": 1\n}", Encoding.UTF8.GetString(Assert.Single(proposal.Edits).Insert.Span));
+    }
+
+    [Fact]
+    public async Task Minify_sort_and_comma_removal_obey_the_size_limit_of_the_formatter()
+    {
+        var content = Encoding.UTF8.GetBytes("{\"key\":\"" + new string('x', 40) + "\"}");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, maxBytes: 30);
+
+        foreach (var command in new[] { JsonPlugin.Minify, JsonPlugin.SortKeys, JsonPlugin.FixCommas })
+            Assert.Equal("tooLarge", await rig.RunAsync(command));
+
+        Assert.Equal(content, rig.Bytes());
+        Assert.All(rig.Ui.Notices, n => Assert.Equal((NoticeLevel.Error, $"The text is {content.Length} bytes; the limit is 30 bytes. Select a smaller part."), n));
+    }
+
+    // ---- JSONC, line endings, error places ----
+
+    [Fact]
+    public async Task A_JSONC_file_keeps_its_comments_and_trailing_commas_when_formatted()
+    {
+        var content = Encoding.UTF8.GetBytes("// settings\n{\"a\":1, // one\n\"b\":[1,2,],}\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, fileName: "settings.jsonc");
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
+
+        Assert.Equal("// settings\n{\n  \"a\": 1, // one\n  \"b\": [\n    1,\n    2,\n  ],\n}\n", Encoding.UTF8.GetString(rig.Bytes()));
+    }
+
+    [Fact]
+    public async Task A_file_named_like_a_JSONC_file_is_read_as_JSONC()
+    {
+        var content = Encoding.UTF8.GetBytes("{\"compilerOptions\":{/* c */\"strict\":true}}");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, fileName: "tsconfig.json");
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
+    }
+
+    [Fact]
+    public async Task The_same_comment_in_a_plain_JSON_file_is_a_syntax_error_that_says_what_to_do_and_nothing_changes()
+    {
+        var content = Encoding.UTF8.GetBytes("{\n  // note\n  \"a\": 1\n}");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, fileName: "settings.json");
+
+        Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format));
+
+        Assert.Equal(content, rig.Bytes());
+        var (level, message) = Assert.Single(rig.Ui.Notices);
+        Assert.Equal(NoticeLevel.Error, level);
+        Assert.Equal("JSON syntax error at line 2, column 3: Comments are not allowed in JSON. Use a .jsonc file or remove them.", message);
+    }
+
+    [Fact]
+    public async Task A_selection_without_a_line_break_takes_the_line_ending_of_the_document()
+    {
+        var content = Encoding.UTF8.GetBytes("a\r\n{\"k\":[1]}\r\nb\r\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, [(3, 12)]);
+
+        Assert.Equal("applied", await rig.RunAsync(JsonPlugin.Format));
+
+        Assert.Equal("a\r\n{\r\n  \"k\": [\r\n    1\r\n  ]\r\n}\r\nb\r\n", Encoding.UTF8.GetString(rig.Bytes()));
+    }
+
+    [Theory]
+    [InlineData("en", "JSON syntax error at line 3, column 11: A trailing comma is not allowed in JSON. Run \"Remove JSON Trailing Commas\" first.")]
+    [InlineData("cs", "Chyba syntaxe JSON na řádku 3, sloupci 11: V JSON není čárka před zavírací závorkou povolená.")]
+    [InlineData("sk", "Chyba syntaxe JSON na riadku 3, stĺpci 11: V JSON nie je čiarka pred zatváracou zátvorkou povolená.")]
+    [InlineData("de", "JSON-Syntaxfehler in Zeile 3, Spalte 11: Ein abschließendes Komma ist in JSON nicht erlaubt.")]
+    public async Task An_error_in_a_selection_is_placed_in_the_document_and_worded_in_the_language_of_the_editor(string language, string start)
+    {
+        // the selection starts on the third line after three spaces, so the error of the range (line 1, column 8) is at line 3, column 11 of the document
+        var content = Encoding.UTF8.GetBytes("one\ntwo\n   {\"a\":1,}\nend\n");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, [(11, 19)]);
+
+        Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format, language: language));
+
+        Assert.StartsWith(start, Assert.Single(rig.Ui.Notices).Message);
+        Assert.Equal(content, rig.Bytes());
+    }
+
+    [Fact]
+    public async Task Nesting_deeper_than_the_limit_is_refused_with_the_limit_in_the_message()
+    {
+        var content = Encoding.UTF8.GetBytes("[[[[1]]]]");
+        await using var rig = await Rig.CreateAsync(content, TextCodec.Utf8, null, maxDepth: 3);
+
+        Assert.Equal("syntaxError", await rig.RunAsync(JsonPlugin.Format));
+
+        Assert.Equal("JSON syntax error at line 1, column 4: The nesting is deeper than 3 levels.", Assert.Single(rig.Ui.Notices).Message);
+    }
+
+    // ---- the formatter without a process ----
+
+    const string Commented = "// top\n{ // after open\n  \"b\": 1, // about b\n  // own line\n  \"a\": [1, /* inline */ 2,],\n  /* block\n  two lines */\n  \"c\": /* val */ \"x\" // last\n  // dangling\n}\n// end";
+
+    [Fact]
+    public void Format_keeps_every_comment_with_its_member_and_every_trailing_comma_of_a_JSONC_text()
+    {
+        Assert.True(JsonFormatter.TryFormat(Commented, Jsonc, out var formatted, out _));
+        Assert.Equal("// top\n{ // after open\n  \"b\": 1, // about b\n  // own line\n  \"a\": [\n    1,\n    /* inline */\n    2,\n  ],\n  /* block\n  two lines */\n  /* val */\n  \"c\": \"x\" // last\n  // dangling\n}\n// end", formatted);
+
+        Assert.True(JsonFormatter.TryFormat(formatted, Jsonc, out var again, out _));
+        Assert.Equal(formatted, again);
+    }
+
+    [Fact]
+    public void Sort_keys_moves_a_comment_with_its_member_and_leaves_the_comments_of_the_object_in_place()
+    {
+        Assert.True(JsonFormatter.TrySortKeys(Commented, Jsonc, out var sorted, out _));
+        Assert.Equal("// top\n{ // after open\n  // own line\n  \"a\": [\n    1,\n    /* inline */\n    2,\n  ],\n  \"b\": 1, // about b\n  /* block\n  two lines */\n  /* val */\n  \"c\": \"x\" // last\n  // dangling\n}\n// end", sorted);
+    }
+
+    [Fact]
+    public void Minify_drops_comments_and_trailing_commas_so_the_result_is_strict_JSON()
+    {
+        Assert.True(JsonFormatter.TryMinify(Commented, Jsonc, out var minified, out _));
+        Assert.Equal("{\"b\":1,\"a\":[1,2],\"c\":\"x\"}", minified);
+        Assert.True(JsonFormatter.TryMinify("\n  [ 1 , { \"k\" : \"v w\" } ]  \n", Strict, out var outer, out _));
+        Assert.Equal("\n  [1,{\"k\":\"v w\"}]  \n", outer);
+    }
+
+    [Fact]
+    public void Removing_trailing_commas_touches_only_those_commas_also_next_to_a_comment()
+    {
+        Assert.True(JsonFormatter.TryFixTrailingCommas(Commented, 64, out var fixedText, out _));
+        Assert.Equal(Commented.Replace("2,]", "2]"), fixedText);
+        Assert.True(JsonFormatter.TryFixTrailingCommas("[1, // c\n]", 64, out var withComment, out _));
+        Assert.Equal("[1 // c\n]", withComment);
+        Assert.True(JsonFormatter.TryFixTrailingCommas("{\"a\":\"x,]\",}", 64, out var inString, out _));
+        Assert.Equal("{\"a\":\"x,]\"}", inString);
+    }
+
+    [Fact]
+    public void Equal_names_keep_their_order_and_a_name_is_compared_as_the_characters_it_stands_for()
+    {
+        Assert.True(JsonFormatter.TrySortKeys("{\"b\":1,\"\\u0061\":2,\"a\":3}", Strict, out var sorted, out _));
+        Assert.Equal("{\n  \"\\u0061\": 2,\n  \"a\": 3,\n  \"b\": 1\n}", sorted);
+    }
+
+    [Theory]
+    [InlineData("// c\n[]", JsonErrorKind.Comment)]
+    [InlineData("[1,]", JsonErrorKind.TrailingComma)]
+    [InlineData("{\"a\":1,\n}", JsonErrorKind.TrailingComma)]
+    [InlineData("[1 2]", JsonErrorKind.Syntax)]
+    [InlineData("[[[[1]]]]", JsonErrorKind.Depth)]
+    public void A_strict_text_names_what_is_wrong_with_it(string input, JsonErrorKind kind)
+    {
+        Assert.False(JsonFormatter.TryFormat(input, Strict with { MaxDepth = 3 }, out _, out var error));
+        Assert.Equal(kind, error.Kind);
+    }
+
+    [Fact]
+    public void The_depth_limit_is_the_one_that_was_asked_for_and_never_deeper_than_the_stack_allows()
+    {
+        var style = Strict with { MaxDepth = 3 };
+        Assert.True(JsonFormatter.TryFormat("[[[1]]]", style, out _, out _));
+        Assert.False(JsonFormatter.TryFormat("[[[[1]]]]", style, out _, out _));
+        var deep = new string('[', JsonFormatter.StackSafeDepth + 1) + new string(']', JsonFormatter.StackSafeDepth + 1);
+        Assert.False(JsonFormatter.TryFormat(deep, Strict with { MaxDepth = int.MaxValue }, out _, out var error));
+        Assert.Equal(JsonErrorKind.Depth, error.Kind);
+    }
+
+    [Theory]
+    [InlineData("C:\\work\\settings.jsonc", true)]
+    [InlineData("C:\\work\\tsconfig.json", true)]
+    [InlineData("C:\\work\\settings.json", false)]
+    [InlineData(null, false)]
+    public void A_file_counts_as_JSONC_by_its_name(string? path, bool jsonc) => Assert.Equal(jsonc, JsonPlugin.IsJsonc(path));
 }

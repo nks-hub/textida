@@ -410,11 +410,14 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - Súbor uloženého makra väčší ako 1 MB (zástupný limit, OPEN) sa nečíta; zoznam ho ohlási ako poškodený.
 
 ## [edit.json] Formátovanie JSON
-commands: nks.edit.formatJson, nks.edit.previewFormatJson
-1. Označte text JSON, alebo neoznačujte nič a naformátuje sa celý dokument.
-2. Ponuka Úpravy, Formátovanie, Formátovať JSON, naformátuje označené časti (každý výber) alebo celý dokument. Všetky časti sú jeden krok Späť; text mimo nich zostane bajt po bajte rovnaký, vrátane koncov riadkov.
+commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
+1. Označte text JSON, alebo neoznačujte nič a príkaz sa vykoná nad celým dokumentom.
+2. Ponuka Úpravy, Formátovanie, Formátovať JSON, naformátuje označené časti (každý výber) alebo celý dokument. Všetky časti sú jeden krok Späť; text mimo nich zostane bajt po bajte rovnaký, vrátane koncov riadkov a kódovania.
 3. Náhľad formátovania JSON ukáže zmenu najprv ako návrh. Použite ho z lišty nad editorom, alebo ho zahoďte.
-- Chyba syntaxe sa ohlási s riadkom a stĺpcom a nič sa nezmení. Text väčší ako limit sa odmietne so správou.
+4. Zbaliť JSON zapíše hodnotu na jeden riadok bez medzier a odstráni komentáre. Zoradiť kľúče JSON zoradí členy každého objektu podľa názvu (komentár sa presunie so svojím členom) a text rozvrhne ako Formátovať JSON. Odstrániť čiarky na konci JSON odstráni iba čiarky pred zatváracou zátvorkou a nič iné nezmení.
+- Komentáre a čiarky na konci patria do súborov JSONC (.jsonc, tsconfig.json a podobné). Formátovať JSON aj Zoradiť kľúče JSON ich tam zachovajú. V bežnom súbore JSON sa ohlásia ako chyby; čiarky opraví Odstrániť čiarky na konci JSON.
+- Chyba syntaxe sa ohlási s riadkom a stĺpcom v dokumente a nič sa nezmení. Text väčší ako limit alebo vnorený hlbšie ako limit sa odmietne so správou.
+- Výber bez zalomenia riadku prevezme koniec riadku, ktorý má väčšina riadkov súboru.
 - Ak sa dokument po spustení príkazu zmenil, príkaz sa zastaví a vyzve vás na opätovné spustenie.
 
 ## [tools.stats] Štatistika dokumentu a hashe

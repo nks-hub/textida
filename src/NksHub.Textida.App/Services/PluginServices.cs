@@ -145,6 +145,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
             ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
+             "--max-depth", PluginLimitsPlaceholders.JsonFormatterMaxDepth.ToString(),
              "--schema-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(), "--schema-depth", PluginLimitsPlaceholders.SchemaMaxDepth.ToString(),
              "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString(),
              "--registry-config", Registries.FilePath, "--registry-timeout-ms", PluginLimitsPlaceholders.RegistryTimeoutMilliseconds.ToString(),
@@ -564,8 +565,11 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// Runs "Format JSON" (or its preview) on the text tab through the JSON plugin process. The document is visible to plugins only while the
     /// command runs. Returns false when nothing was started (no text editor, or the command is already running on this document).
     /// </summary>
-    public Task<bool> RunJsonAsync(MainWindow window, DocTab tab, bool preview) =>
-        tab.Surface is null ? Task.FromResult(false) : RunCommandAsync(window, tab, JsonPluginId, JsonActivation, "JSON", preview ? "json.preview" : "json.format");
+    public Task<bool> RunJsonAsync(MainWindow window, DocTab tab, bool preview) => RunJsonAsync(window, tab, preview ? "json.preview" : "json.format");
+
+    /// <summary>As above for any command of the JSON plugin on a selection: <c>json.format</c>, <c>json.preview</c>, <c>json.minify</c>, <c>json.sortKeys</c> or <c>json.fixCommas</c>.</summary>
+    public Task<bool> RunJsonAsync(MainWindow window, DocTab tab, string command) =>
+        tab.Surface is null ? Task.FromResult(false) : RunCommandAsync(window, tab, JsonPluginId, JsonActivation, "JSON", command);
 
     /// <summary>
     /// Runs one of the text tools (<c>text.stats</c>, <c>text.hash</c>, <c>text.calculate</c>, <c>text.expression</c>, <c>text.bases</c>) on the tab through the text tools plugin

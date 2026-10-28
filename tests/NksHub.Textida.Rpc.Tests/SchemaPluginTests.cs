@@ -66,7 +66,7 @@ public class SchemaPluginTests
             host = new PluginHost.PluginHost(PluginHostTests.Options(), docs.HandleAsync, docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Json.dll");
             Assert.True(File.Exists(dll), dll);
-            var args = new List<string> { dll, "--max-bytes", "65536", "--indent", "2", "--schema-max-bytes", schemaMaxBytes.ToString(), "--schema-depth", "64", "--schema-regex-ms", "200" };
+            var args = new List<string> { dll, "--max-bytes", "65536", "--indent", "2", "--max-depth", "64", "--schema-max-bytes", schemaMaxBytes.ToString(), "--schema-depth", "64", "--schema-regex-ms", "200" };
             args.AddRange(extraArgs?.Invoke(folder) ?? []);
             host.Register(new PluginSpec("json", "JSON", T.DotnetHost, args, ["onCommand:json"]));
             await host.ActivateAsync("onCommand:json");
