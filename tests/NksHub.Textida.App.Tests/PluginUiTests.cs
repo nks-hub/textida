@@ -901,6 +901,101 @@ public class PluginUiTests : IDisposable
         Assert.False(PluginServices.IsSchemaFile(plain));
     }
 
+    /// <summary>A server on the loopback address that answers one path with a body and counts what it was asked; the schemas of the tests come from here, never from a real host.</summary>
+    private sealed class SchemaServer : IDisposable
+    {
+        private readonly System.Net.HttpListener _listener = new();
+        public List<string> Requests { get; } = [];
+        public string Url { get; }
+
+        public SchemaServer(string path, string body)
+        {
+            int port;
+            using (var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0))
+            {
+                probe.Start();
+                port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+            }
+            Url = $"http://127.0.0.1:{port}";
+            _listener.Prefixes.Add(Url + "/");
+            _listener.Start();
+            _ = Task.Run(async () =>
+            {
+                while (_listener.IsListening)
+                {
+                    System.Net.HttpListenerContext context;
+                    try { context = await _listener.GetContextAsync(); }
+                    catch (Exception e) when (e is System.Net.HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
+                    lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
+                    var bytes = Encoding.UTF8.GetBytes(context.Request.Url.AbsolutePath == path ? body : "{}");
+                    context.Response.ContentLength64 = bytes.Length;
+                    await context.Response.OutputStream.WriteAsync(bytes);
+                    context.Response.Close();
+                }
+            });
+        }
+
+        public int Count
+        {
+            get { lock (Requests) return Requests.Count; }
+        }
+
+        public void Dispose() => _listener.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task A_schema_at_an_address_waits_for_consent_then_underlines_completes_and_describes_from_the_download()
+    {
+        using var server = new SchemaServer("/schemas/thing.json", """{ "type": "object", "properties": { "n": { "type": "integer", "description": "A number." } } }""");
+        var tab = _w.OpenFile(_temp.File("thing.json", $"{{ \"$schema\": \"{server.Url}/schemas/thing.json\", \"n\": \"x\" }}"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab);
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaNoConsent, ("name", "thing.json")), "the status bar says the download is not allowed");
+        Assert.Empty(tab.Editor!.Diagnostics);
+        Assert.Equal(0, server.Count);
+
+        _dialogs.Answers.Enqueue(1); // refused
+        var refused = _w.SchemaAllowDownloadAsync(tab);
+        await Until(() => refused.IsCompleted, "the refused consent");
+        Assert.Contains(Assert.Single(_dialogs.Asked).Details!, d => d.Contains("127.0.0.1", StringComparison.Ordinal));
+        Assert.False(_app.Plugins.Registries.IsAllowed(PackageRegistryConsent.SchemaId("127.0.0.1")));
+        Assert.Equal(0, server.Count);
+
+        _dialogs.Answers.Enqueue(0); // agreed
+        var agreed = _w.SchemaAllowDownloadAsync(tab);
+        await Until(() => agreed.IsCompleted, "the agreed consent");
+        Assert.True(_app.Plugins.Registries.IsAllowed(PackageRegistryConsent.SchemaId("127.0.0.1")));
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the downloaded schema");
+        var mark = Assert.Single(tab.Editor!.Diagnostics);
+        Assert.Equal("\"x\"", tab.Editor.Document.GetText(mark.Start, mark.End - mark.Start));
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.json")), "the schema in the status bar");
+        Assert.Equal(1, server.Count);
+
+        Loc.SetLanguage("en"); // the hover is written in the language of the editor, which is Czech by default; Dispose puts it back
+        var hover = await Pump(tab.Editor.HoverProvider!(tab.Editor.Document.Text.IndexOf("\"n\"", StringComparison.Ordinal) + 2));
+        Assert.Equal("A number.\n\nType: integer", hover!.Value.Text);
+        Assert.Equal("\"n\"", tab.Editor.Document.GetText(hover.Value.Start, hover.Value.End - hover.Value.Start));
+        Assert.Equal(1, server.Count); // the description came from the copy, not from the host
+
+        _w.PackageRevoke(); // forbids every download: the file is checked again without the schema
+        await Until(() => tab.Editor!.Diagnostics.Count == 0, "the underline gone after the revoke");
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaNoConsent, ("name", "thing.json")), "the status bar after the revoke");
+        Assert.Equal(1, server.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task A_schema_file_on_disk_is_used_without_asking_for_consent()
+    {
+        _temp.File("thing.schema.json", """{ "type": "object", "properties": { "n": { "type": "integer" } } }""");
+        var tab = _w.OpenFile(_temp.File("thing.json", "{ \"$schema\": \"thing.schema.json\", \"n\": \"x\" }"), null);
+        Dispatcher.UIThread.RunJobs();
+        _app.Plugins.TrackSchema(_w, tab);
+
+        await Until(() => tab.Editor!.Diagnostics.Count > 0, "the underline from the schema file");
+        await StatusItemAsync(t => t == Loc.Get(K.SchemaName, ("name", "thing.schema.json")), "the schema file in the status bar");
+        Assert.Empty(_dialogs.Asked);
+    }
+
     // ---- P8.5.4 and P8.5.5: language server commands (the protocol itself is tested with a fake server in Rpc.Tests) ----
 
     [AvaloniaFact]

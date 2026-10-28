@@ -62,6 +62,9 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
     readonly List<string> _completions = [];
     volatile string _completionAnswer = "{\"revision\":0,\"items\":[]}";
     volatile int _completionDelayMs;
+    readonly List<string> _hovers = [];
+    volatile string _hoverAnswer = "{\"revision\":0}";
+    volatile int _hoverDelayMs;
     readonly Dictionary<string, (byte[] Content, int Revision)> _files = [];
     volatile bool _sourceOffline;
     volatile bool _sourceAtomic = true;
@@ -218,6 +221,16 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
                 return Raw("true");
             case "completionRequests":
                 lock (_completions) return Raw("[" + string.Join(",", _completions) + "]");
+            case DocumentRequests.Hover:
+                lock (_hovers) _hovers.Add(p.GetRawText());
+                if (_hoverDelayMs > 0) await Task.Delay(_hoverDelayMs, ct);
+                return Raw(_hoverAnswer);
+            case "setHover":
+                _hoverAnswer = p.GetProperty("answer").GetRawText();
+                _hoverDelayMs = p.TryGetProperty("delayMs", out var hd) ? hd.GetInt32() : 0;
+                return Raw("true");
+            case "hoverRequests":
+                lock (_hovers) return Raw("[" + string.Join(",", _hovers) + "]");
             case DocumentRequests.SourceRead:
                 lock (_files)
                 {
@@ -237,6 +250,16 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
                     SourceReachable();
                     var folder = Str(p, "uri");
                     return Raw("{\"entries\":[" + string.Join(",", _files.Where(f => f.Key.StartsWith(folder, StringComparison.Ordinal)).Select(f => $"{{\"uri\":{Q(f.Key)},\"size\":{f.Value.Content.Length}}}")) + "]}");
+                }
+            case DocumentRequests.SourceSearch:
+                lock (_files)
+                {
+                    SourceReachable();
+                    var root = Str(p, "uri");
+                    var query = Str(p, "query");
+                    return Raw("{\"entries\":[" + string.Join(",", _files
+                        .Where(f => f.Key.StartsWith(root, StringComparison.Ordinal) && Encoding.UTF8.GetString(f.Value.Content).Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .Select(f => $"{{\"uri\":{Q(f.Key)},\"name\":{Q(f.Key[(f.Key.LastIndexOf('/') + 1)..])}}}")) + "]}");
                 }
             case DocumentRequests.SourceWrite:
                 lock (_files)

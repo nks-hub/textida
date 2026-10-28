@@ -442,6 +442,46 @@ public static class McpConfig
         catch (ToolException e) { throw new McpClientException(e.Message); }
     }
 
+    /// <summary>
+    /// What it takes to connect to a server that is reached by an address: the address and the headers with their variables filled in. An address that would send headers without
+    /// encryption to another computer (plain <c>http://</c>) is refused.
+    /// </summary>
+    public static McpRemote BuildRemote(McpServerEntry entry, Func<string, string?> variables)
+    {
+        if (entry.Transport != McpTransport.Remote || string.IsNullOrWhiteSpace(entry.Url))
+            throw new McpClientException("Only a server that is reached by an address can be connected this way.");
+        if (!Uri.TryCreate(Expand(entry.Url, variables), UriKind.Absolute, out var url) || url.Scheme is not ("http" or "https"))
+            throw new McpClientException("The address of the server must be a full http:// or https:// address.");
+        var headers = entry.Headers.ToDictionary(h => h.Key, h => Expand(h.Value, variables));
+        if (headers.Count > 0 && url.Scheme == "http" && !url.IsLoopback)
+            throw new McpClientException("The address would send keys without encryption; use https:// or an address on this computer.");
+        const string bearer = "Bearer ";
+        var secrets = new List<string>();
+        foreach (var value in headers.Values) secrets.AddRange(value.StartsWith(bearer, StringComparison.Ordinal) ? [value, value[bearer.Length..]] : [value]);
+        if (url.UserInfo.IndexOf(':') is var colon and >= 0) secrets.Add(url.UserInfo[(colon + 1)..]);
+        foreach (var pair in url.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            if (pair.IndexOf('=') is var eq and >= 0) secrets.Add(pair[(eq + 1)..]);
+        return new McpRemote(url, headers, [.. secrets.Where(s => s.Length > 0)]);
+    }
+
+    /// <summary>The first <c>${NAME}</c> (one without a default) in the command, arguments, folder, address, variables or headers of the entry that <paramref name="variables"/> has no value for; null when all are known.</summary>
+    public static string? FirstMissingVariable(McpServerEntry entry, Func<string, string?> variables)
+    {
+        foreach (var text in new[] { entry.Command, entry.Url, entry.Cwd }.Concat(entry.Args).Concat(entry.Env.Values).Concat(entry.Headers.Values).OfType<string>())
+        {
+            string? missing = null;
+            string? Lookup(string name)
+            {
+                var value = variables(name);
+                if (value is null) missing ??= name;
+                return value;
+            }
+            try { Expand(text, Lookup); }
+            catch (McpClientException) when (missing is not null) { return missing; }
+        }
+        return null;
+    }
+
     /// <summary>Replaces <c>${NAME}</c> and <c>${NAME:-default}</c>; a name without a value and without a default is an error.</summary>
     public static string Expand(string text, Func<string, string?> variables)
     {

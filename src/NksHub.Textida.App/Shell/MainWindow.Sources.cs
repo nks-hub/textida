@@ -12,6 +12,7 @@ namespace NksHub.Textida.App.Shell;
 /// Files served by a plugin for a URI scheme (P6.2.1, P6.2.3). The text opens in an ordinary tab without a file of its own; the bar above it says where it comes from, at which
 /// revision, what the source can do, and whether it is the cached copy of an unreachable source. A save is conditional on that revision: when the source moved on, nothing is
 /// written and the user gets the same choice as for a file changed on disk (differences, overwrite, leave). Everything shown or logged carries the URI masked.
+/// A source that searches takes words instead of an address, and the log of every access states the adapter and the service the source named.
 /// </summary>
 internal sealed partial class MainWindow
 {
@@ -25,8 +26,13 @@ internal sealed partial class MainWindow
     {
         var caps = source.Capabilities;
         string write = Loc.Get(!caps.Write ? K.SourceWriteNone : caps.AtomicWrite ? K.SourceWriteAtomic : K.SourceWritePlain);
-        return Loc.Get(K.SourceCapabilities, ("scheme", source.Scheme), ("write", write), ("list", Loc.Get(caps.List ? K.SourceListYes : K.SourceListNo)));
+        return Loc.Get(K.SourceCapabilities, ("scheme", source.Scheme), ("write", write), ("list", Loc.Get(caps.List ? K.SourceListYes : K.SourceListNo)))
+            + (caps.Search ? ", " + Loc.Get(K.SourceSearchYes) : "") + SourceVersions(source);
     }
+
+    /// <summary>The adapter and service versions the source named, as a parenthesis to append to a line; empty when it named none.</summary>
+    private static string SourceVersions(FileSource source) =>
+        source.AdapterVersion is null && source.ServiceVersion is null ? "" : " (" + Loc.Get(K.SourceVersions, ("adapter", source.AdapterVersion ?? "-"), ("service", source.ServiceVersion ?? "-")) + ")";
 
     // ---- opening ----
 
@@ -43,8 +49,32 @@ internal sealed partial class MainWindow
         if (sources.Count == 0) { SetStatusMessage(Loc.Get(K.SourceNone)); return; }
         var pick = await PickAsync(Loc.Get(K.SourceWatermark), Loc.Get(K.SourceA11y), [.. sources.Select(s => (s.Name, (string?)DescribeSource(s), s))]);
         if (!pick.Chosen) return;
-        string? uri = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.SourceOpenTitle), Loc.Get(K.SourceOpenPrompt, ("scheme", pick.Value!.Scheme)), pick.Value.Scheme + "://"))?.Trim();
-        if (!string.IsNullOrEmpty(uri)) await OpenSourceAsync(uri);
+        var source = pick.Value!;
+        bool searches = source.Capabilities.Search;
+        string? text = (await _app.Dialogs.PromptAsync(this, Loc.Get(K.SourceOpenTitle), Loc.Get(searches ? K.SourceOpenPromptSearch : K.SourceOpenPrompt, ("scheme", source.Scheme)), searches ? "" : source.Scheme + "://"))?.Trim();
+        if (string.IsNullOrEmpty(text)) return;
+        if (searches && !text.Contains("://", StringComparison.Ordinal)) await SearchSourceAsync(source, text);
+        else await OpenSourceAsync(text);
+    }
+
+    /// <summary>Asks the source for the pages that match the words and opens the one the user picks.</summary>
+    private async Task SearchSourceAsync(FileSource source, string query)
+    {
+        IReadOnlyList<SourceEntry> found;
+        try { found = [.. (await SourceApi.SourceSearchAsync(source.Scheme, query)).Where(e => !e.IsDirectory)]; }
+        catch (SourceException e)
+        {
+            SourceLog(source, Loc.Get(K.SourceLogFailed, ("uri", source.Scheme + "://"), ("reason", SourceReason(e))));
+            SetStatusMessage(Loc.Get(K.SourceSearchFailed, ("name", source.Name), ("reason", SourceReason(e))));
+            return;
+        }
+        if (found.Count == 0)
+        {
+            SetStatusMessage(Loc.Get(K.SourceSearchNone, ("query", query), ("name", source.Name)));
+            return;
+        }
+        var chosen = await PickAsync(Loc.Get(K.SourceSearchWatermark, ("query", query)), Loc.Get(K.SourceSearchA11y), [.. found.Select(e => (e.Name, (string?)UriMask.Mask(e.Uri), e.Uri))]);
+        if (chosen.Chosen) await OpenSourceAsync(chosen.Value!);
     }
 
     /// <summary>Opens the file at <paramref name="uri"/> in a tab, or selects the tab that already shows it. Null (and a message in the status bar) when no plugin serves it or it cannot be read.</summary>
@@ -81,7 +111,7 @@ internal sealed partial class MainWindow
         od.Doc.MarkClean(); // the view loading its text must not count as an edit
         ShowSourceBar(tab);
         FocusView(tab);
-        SourceLog(source, Loc.Get(read.FromCache ? K.SourceLogCached : K.SourceLogOpened, ("uri", masked), ("revision", read.Revision)));
+        SourceLog(source, Loc.Get(read.FromCache ? K.SourceLogCached : K.SourceLogOpened, ("uri", masked), ("revision", read.Revision)) + SourceVersions(source));
         SetStatusMessage(Loc.Get(K.SourceOpened, ("uri", masked), ("name", source.Name)));
         return tab;
     }
@@ -151,7 +181,7 @@ internal sealed partial class MainWindow
             if (od.Doc.Revision == revision) od.Doc.MarkClean(); // text typed while the source answered stays unsaved
             od.NotifyChanged();
             ShowSourceBar(tab);
-            SourceLog(b.Source, Loc.Get(K.SourceLogSaved, ("uri", b.MaskedUri), ("revision", b.Revision)));
+            SourceLog(b.Source, Loc.Get(K.SourceLogSaved, ("uri", b.MaskedUri), ("revision", b.Revision)) + SourceVersions(b.Source));
             SetStatusMessage(Loc.Get(K.SourceSaved, ("title", od.Title), ("name", b.Source.Name)));
             _app.SessionChanged();
             return true;
@@ -174,7 +204,7 @@ internal sealed partial class MainWindow
         var od = tab.Doc;
         var b = od.Source!;
         bool gone = conflict.CurrentRevision is null;
-        SourceLog(b.Source, Loc.Get(K.SourceLogConflict, ("uri", b.MaskedUri)));
+        SourceLog(b.Source, Loc.Get(K.SourceLogConflict, ("uri", b.MaskedUri)) + SourceVersions(b.Source));
         var kinds = new List<int>();
         var buttons = new List<DialogButton>();
         if (!gone) { buttons.Add(new DialogButton(Loc.Get(K.SourceConflictDifferences), IsDefault: true)); kinds.Add(0); }

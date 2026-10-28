@@ -7,13 +7,14 @@ using NksHub.Textida.Rpc;
 namespace NksHub.Textida.PluginHost.Documents;
 
 /// <summary>
-/// The API for language services: diagnostics a plugin publishes (the editor draws them) and completion a plugin answers (the editor lists and applies it).
-/// Both name the revision they were made for; an answer for an older revision is mapped through the change log or dropped, never shown as if it were current.
+/// The API for language services: diagnostics a plugin publishes (the editor draws them), completion a plugin answers (the editor lists and applies it) and hover text a plugin answers (the editor shows it).
+/// All name the revision they were made for; an answer for an older revision is mapped through the change log or dropped, never shown as if it were current.
 /// </summary>
 public sealed partial class DocumentApi
 {
     private readonly Dictionary<(string Plugin, Guid Document, string Source), DiagnosticSet> _diagnostics = [];
     private readonly List<string> _completionProviders = [];
+    private readonly List<string> _hoverProviders = [];
 
     // ---- diagnostics ----
 
@@ -257,6 +258,72 @@ public sealed partial class DocumentApi
             }
             return new CompletionAnswer(revision, false, items);
         });
+    }
+
+    // ---- hover ----
+
+    private byte[] RegisterHover(string pluginId, JsonElement p)
+    {
+        bool enabled = !p.TryGetProperty("enabled", out var v) || v.ValueKind != JsonValueKind.False;
+        lock (_gate)
+        {
+            if (!enabled) _hoverProviders.Remove(pluginId);
+            else if (!_hoverProviders.Contains(pluginId)) _hoverProviders.Add(pluginId);
+        }
+        return Obj(w => w.WriteBoolean("enabled", enabled));
+    }
+
+    /// <summary>True when the editor takes hover text and a plugin offered to answer hover requests.</summary>
+    public bool HasHoverProviders
+    {
+        get { lock (_gate) return _options.MaxHoverChars > 0 && _hoverProviders.Count > 0; }
+    }
+
+    /// <summary>
+    /// Asks the plugins that registered for hover at <paramref name="offset"/> (bytes) of the current revision, one after the other, and takes the first text. Like completion, an answer counts only when
+    /// it names the revision that was asked and the document is still at it afterwards (otherwise <see cref="HoverAnswer.Stale"/> is set); a plugin that fails, hangs or has no read grant says nothing.
+    /// The text is cut at <see cref="DocumentApiOptions.MaxHoverChars"/>. <paramref name="uiLanguage"/> is the language of the editor's interface.
+    /// </summary>
+    public async Task<HoverAnswer> RequestHoverAsync(Guid document, long offset, string? uiLanguage = null, CancellationToken cancellation = default)
+    {
+        string[] providers;
+        Exposed? e;
+        lock (_gate)
+        {
+            providers = _options.MaxHoverChars > 0 ? [.. _hoverProviders] : [];
+            _exposed.TryGetValue(document, out e);
+        }
+        if (providers.Length == 0 || e is null) return new HoverAnswer(0, false, null, null, null);
+        long revision = await _owner.InvokeAsync(() => e.Doc.Revision);
+        var request = Obj(w =>
+        {
+            w.WriteString("document", document);
+            w.WriteNumber("revision", revision);
+            w.WriteNumber("offset", offset);
+            if (uiLanguage is not null) w.WriteString("language", uiLanguage);
+        });
+        foreach (var plugin in providers)
+        {
+            if (!_options.Permissions.IsGranted(plugin, DocumentPermissions.Read, GrantScope.OfDocument(document))) continue;
+            JsonElement answer;
+            try { answer = (await _request(plugin, DocumentRequests.Hover, request, _options.CompletionTimeout, cancellation)).Clone(); }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
+            catch (Exception) { continue; } // a plugin that fails or hangs says nothing; it must not stop the others
+            if (answer.ValueKind != JsonValueKind.Object || !answer.TryGetProperty("revision", out var answered) || !answered.TryGetInt64(out var r) || r != revision) continue;
+            if (!answer.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.String || text.GetString() is not { Length: > 0 } said) continue;
+            if (!answer.TryGetProperty("start", out var s) || !s.TryGetInt64(out var start) || !answer.TryGetProperty("end", out var en) || !en.TryGetInt64(out var end)) continue;
+            string owner = plugin;
+            var result = await _owner.InvokeAsync<HoverAnswer?>(() =>
+            {
+                var d = e.Doc;
+                if (d.Revision != revision) return new HoverAnswer(revision, true, null, null, null);
+                try { CheckRange(d, start, end); }
+                catch (RpcException) { return null; }
+                return new HoverAnswer(revision, false, said.Length <= _options.MaxHoverChars ? said : said[.._options.MaxHoverChars], new ByteRange(start, end), owner);
+            });
+            if (result is not null) return result;
+        }
+        return new HoverAnswer(revision, false, null, null, null);
     }
 
     private CompletionItem? ParseCompletionItem(string pluginId, Document d, long revision, JsonElement item)

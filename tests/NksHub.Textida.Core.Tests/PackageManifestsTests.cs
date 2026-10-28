@@ -13,6 +13,7 @@ public class PackageManifestsTests
     [InlineData("go.mod", "go")]
     [InlineData("Cargo.toml", "crates")]
     [InlineData("Gemfile", "rubygems")]
+    [InlineData("pubspec.yaml", "pub")]
     public void A_manifest_has_the_registry_of_its_file_name(string file, string registry) =>
         Assert.Equal(registry, PackageManifests.For(Path.Combine("some", "folder", file))?.Id);
 

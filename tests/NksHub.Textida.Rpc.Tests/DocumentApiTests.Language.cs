@@ -7,7 +7,7 @@ using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Rpc.Tests;
 
-/// <summary>P8.4.1 and P8.4.2: diagnostics a plugin publishes and completion a plugin answers, through a real plugin process.</summary>
+/// <summary>P8.4.1 and P8.4.2: diagnostics a plugin publishes, completion a plugin answers and (P8.7.1) hover text a plugin answers, through a real plugin process.</summary>
 public partial class DocumentApiTests
 {
     static string Diag(long start, long end, string severity = "error", string message = "bad") =>
@@ -180,5 +180,89 @@ public partial class DocumentApiTests
         await SetCompletionAsync(rig, Answer(rev, FooItem));
         rig.Permissions.RevokeAll("p");
         Assert.Empty((await rig.Api.RequestCompletionAsync(rig.Doc.Id, 5)).Items);
+    }
+
+    // ---- hover ----
+
+    private static string Said(long revision, string text, long start, long end) => $"{{\"revision\":{revision},\"text\":\"{text}\",\"start\":{start},\"end\":{end}}}";
+
+    private static Task SetHoverAsync(Rig rig, string answer, int delayMs = 0) =>
+        rig.Host.CallAsync("p", "setHover", T.Json($"{{\"answer\":{answer},\"delayMs\":{delayMs}}}"));
+
+    [Fact]
+    public async Task AHoverTextIsTakenWithTheRangeItDescribesAndCutAtTheLimit()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\nf2\n"), o => o with { MaxHoverChars = 12 }, codec: TextCodec.Utf8);
+        Assert.False(rig.Api.HasHoverProviders);
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text); // nobody offered to answer
+
+        await rig.CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":true}");
+        Assert.True(rig.Api.HasHoverProviders);
+        var rev = rig.Revision;
+        await SetHoverAsync(rig, Said(rev, "short text", 4, 6));
+
+        var answer = await rig.Api.RequestHoverAsync(rig.Doc.Id, 5, "cs");
+        Assert.Equal((rev, false, "short text", new ByteRange(4, 6), "p"), (answer.Revision, answer.Stale, answer.Text, answer.Range, answer.PluginId));
+        var asked = (await rig.Host.CallAsync("p", "hoverRequests"))[0];
+        Assert.Equal((rev, 5L, "cs"), (asked.GetProperty("revision").GetInt64(), asked.GetProperty("offset").GetInt64(), asked.GetProperty("language").GetString()));
+
+        await SetHoverAsync(rig, Said(rev, "a text that is longer than the limit", 4, 6));
+        Assert.Equal("a text that ", (await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text);
+
+        await rig.CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":false}");
+        Assert.False(rig.Api.HasHoverProviders);
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text);
+    }
+
+    [Fact]
+    public async Task TheEditorTakesNoHoverTextWhileItsLimitIsZero()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\nf2\n"), codec: TextCodec.Utf8);
+        await rig.CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":true}");
+        await SetHoverAsync(rig, Said(rig.Revision, "text", 4, 6));
+
+        Assert.False(rig.Api.HasHoverProviders);
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text);
+        Assert.Equal(0, (await rig.Host.CallAsync("p", "hoverRequests")).GetArrayLength()); // the plugin was not even asked
+    }
+
+    [Fact]
+    public async Task AHoverAnswerForAnotherRevisionOrAnInvalidRangeIsNotShownAndTheDocumentMovingOnMakesItStale()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\nf2\n"), o => o with { MaxHoverChars = 100 }, codec: TextCodec.Utf8);
+        await rig.CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":true}");
+        var rev = rig.Revision;
+
+        await SetHoverAsync(rig, Said(rev - 1, "old", 4, 6));
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text); // the plugin names another revision
+        await SetHoverAsync(rig, Said(rev, "inside", 1, 2));
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text); // inside "é"
+        await SetHoverAsync(rig, Said(rev, "past", 4, 99));
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text); // past the end of the document
+
+        await SetHoverAsync(rig, Said(rev, "fine", 4, 6), delayMs: 300);
+        var pending = rig.Api.RequestHoverAsync(rig.Doc.Id, 5);
+        await Task.Delay(100);
+        rig.Owner.Run(() => rig.Doc.Insert(0, Utf8("z"))); // the document moves on while the plugin thinks
+        var late = await pending;
+        Assert.True(late.Stale);
+        Assert.Null(late.Text);
+    }
+
+    [Fact]
+    public async Task ASlowPluginOrOneWithoutTheRightToReadSaysNothingAboutAHover()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\nf2\n"), o => o with { MaxHoverChars = 100, CompletionTimeout = TimeSpan.FromMilliseconds(300) }, codec: TextCodec.Utf8);
+        await rig.CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":true}");
+        var rev = rig.Revision;
+
+        await SetHoverAsync(rig, Said(rev, "fine", 4, 6), delayMs: 5000);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text);
+        Assert.True(started.ElapsedMilliseconds < 4000, "Hover waited for a plugin that is too slow.");
+
+        await SetHoverAsync(rig, Said(rev, "fine", 4, 6));
+        rig.Permissions.RevokeAll("p");
+        Assert.Null((await rig.Api.RequestHoverAsync(rig.Doc.Id, 5)).Text);
     }
 }

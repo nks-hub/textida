@@ -7,7 +7,7 @@ using NksHub.Textida.Remote;
 namespace NksHub.Textida.App.Services;
 
 /// <summary>
-/// The package registries the user allowed to be asked about the dependencies of a manifest (P8.7.3), kept in <c>package-registries.json</c> of the profile.
+/// The package registries the user allowed to be asked about the dependencies of a manifest (P8.7.3) and the hosts the user allowed schemas to be downloaded from (P8.7.1), kept in <c>package-registries.json</c> of the profile.
 /// The JSON plugin reads the same file before every request, so an entry added here takes effect at once and a revoke ends the answers of its cache. The file also
 /// carries the proxy of the network policy (P5.4.4) because the plugin builds its own HTTP client; a proxy it cannot log in to sets <c>blocked</c> and no lookup is made.
 /// </summary>
@@ -37,6 +37,12 @@ internal sealed class PackageRegistryConsent(string path)
     }
 
     public bool IsAllowed(string registry) => Read().Allowed.Contains(registry);
+
+    /// <summary>Whether the user allowed schemas to be downloaded from any host; only then the proxy has to be passed on to the plugin for a schema check.</summary>
+    public bool AllowsAnySchema() => Read().Allowed.Any(a => a.StartsWith("schemas:", StringComparison.Ordinal));
+
+    /// <summary>The consent id of downloading schemas from a host, kept in the same list as the registries; the JSON plugin builds the same text (<c>schemas:host</c>).</summary>
+    public static string SchemaId(string host) => "schemas:" + host.ToLowerInvariant();
 
     public void Allow(string registry)
     {

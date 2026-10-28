@@ -60,14 +60,51 @@ internal sealed partial class MainWindow
         }
     }
 
-    /// <summary>Takes every registry consent back and has the open manifests drop the marks they got from a registry.</summary>
+    /// <summary>Takes every registry consent and every schema download consent back, and has the open manifests drop the marks they got from a registry and the open schema files the findings of a downloaded schema.</summary>
     internal CommandOutcome PackageRevoke()
     {
         _app.Plugins.Registries.RevokeAll();
-        foreach (var tab in Tabs.Where(PluginServices.IsManifestFile).ToList())
-            _ = _app.Plugins.CheckPackagesAsync(this, tab, refresh: false, background: true, force: true);
+        foreach (var tab in Tabs.Where(t => PluginServices.IsManifestFile(t) || PluginServices.IsSchemaFile(t)).ToList()) _ = RecheckAfterRevokeAsync(tab);
         SetStatusMessage(Loc.Get(K.PackagesRevoked));
         return CommandOutcome.Handled;
+    }
+
+    private async Task RecheckAfterRevokeAsync(DocTab tab)
+    {
+        if (PluginServices.IsManifestFile(tab)) await _app.Plugins.CheckPackagesAsync(this, tab, refresh: false, background: true, force: true);
+        if (PluginServices.IsSchemaFile(tab)) await _app.Plugins.CheckSchemaAsync(this, tab);
+    }
+
+    // ---- schema downloads ----
+
+    /// <summary>Asks for the consent to download the schema the open file needs, when its host is not allowed yet; the file is checked again once the user agreed.</summary>
+    internal CommandOutcome SchemaAllowDownload()
+    {
+        if (Active is not { Custom: null, Hex: null } tab || !PluginServices.IsSchemaFile(tab))
+        {
+            SetStatusMessage(Loc.Get(K.SchemaNotFile));
+            return CommandOutcome.Handled;
+        }
+        _ = SchemaAllowDownloadAsync(tab);
+        return CommandOutcome.Handled;
+    }
+
+    internal async Task SchemaAllowDownloadAsync(DocTab tab)
+    {
+        var plugins = _app.Plugins;
+        if (plugins.SchemaResultOf(tab) is not { State: "noConsent", Host: { } host })
+        {
+            SetStatusMessage(Loc.Get(K.SchemaNothingToAllow));
+            return;
+        }
+        var request = new ChoiceRequest(Loc.Get(K.SchemaConsentTitle), Loc.Get(K.SchemaConsentMessage, ("host", host)),
+            [new DialogButton(Loc.Get(K.PackagesConsentAllow), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
+            [Loc.Get(K.PackagesConsentHosts, ("hosts", host))]);
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
+        plugins.Registries.Allow(PackageRegistryConsent.SchemaId(host));
+        plugins.SyncRegistryProxy();
+        await plugins.CheckSchemaAsync(this, tab);
+        SetStatusMessage(plugins.SchemaResultOf(tab) is { } done ? PluginServices.SchemaStatusText(done) : Loc.Get(K.PackagesBusy));
     }
 
     // ---- scripts ----

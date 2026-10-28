@@ -138,6 +138,62 @@ public class PackagesAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_schema_host_is_allowed_in_the_same_file_by_its_own_id_and_the_one_revoke_takes_it_back_with_the_registries()
+    {
+        var consent = _app.Plugins.Registries;
+        Assert.Equal("schemas:json.schemastore.org", PackageRegistryConsent.SchemaId("JSON.SchemaStore.org"));
+        Assert.False(consent.AllowsAnySchema());
+
+        consent.Allow("npm");
+        Assert.False(consent.AllowsAnySchema()); // a registry is no schema host
+        consent.Allow(PackageRegistryConsent.SchemaId("json.schemastore.org"));
+
+        Assert.True(consent.AllowsAnySchema());
+        Assert.True(consent.IsAllowed("schemas:json.schemastore.org"));
+        Assert.False(consent.IsAllowed("schemas:example.test")); // another host is asked about separately
+        _w.PackageRevoke();
+        Assert.False(consent.AllowsAnySchema());
+        Assert.False(consent.IsAllowed("npm"));
+        Assert.Equal(Loc.Get(K.PackagesRevoked), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void The_consent_command_for_a_schema_refuses_a_file_that_waits_for_nothing_and_asks_nothing()
+    {
+        _w.OpenFile(Manifest("notes.txt", "x"), null);
+        _w.SchemaAllowDownload();
+        Assert.Equal(Loc.Get(K.SchemaNotFile), _w.StatusMessageText);
+
+        var tab = _w.OpenFile(Manifest("plain.json", "{ \"a\": 1 }"), null);
+        Finish(_w.SchemaAllowDownloadAsync(tab)); // it has not been checked, and a schema that is not wanted waits for no consent
+        Assert.Equal(Loc.Get(K.SchemaNothingToAllow), _w.StatusMessageText);
+        Assert.Empty(_dialogs.Asked);
+    }
+
+    [AvaloniaFact]
+    public void The_status_text_of_a_schema_says_what_became_of_it_in_every_language()
+    {
+        var ready = new PluginServices.SchemaResult(1, "thing.json", "ready", null, false, false);
+        foreach (var language in new[] { "cs", "en", "sk", "de" })
+        {
+            Loc.SetLanguage(language);
+            var texts = new[]
+            {
+                PluginServices.SchemaStatusText(ready),
+                PluginServices.SchemaStatusText(ready with { Cached = true }),
+                PluginServices.SchemaStatusText(ready with { Cached = true, Offline = true }),
+                PluginServices.SchemaStatusText(ready with { State = "noConsent", Host = "example.test" }),
+                PluginServices.SchemaStatusText(ready with { State = "unavailable" }),
+                PluginServices.SchemaStatusText(ready with { State = "unsupported" }),
+                PluginServices.SchemaStatusText(ready with { Name = null }),
+            };
+            Assert.All(texts, t => Assert.DoesNotContain("{", t, StringComparison.Ordinal));
+            Assert.Equal(texts.Length - 1, texts.Take(texts.Length - 1).Distinct().Count()); // each state reads differently
+            Assert.All(texts.Take(texts.Length - 1), t => Assert.Contains("thing.json", t, StringComparison.Ordinal));
+        }
+    }
+
+    [AvaloniaFact]
     public void The_commands_are_in_the_tools_menu()
     {
         var ids = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
@@ -145,5 +201,6 @@ public class PackagesAppTests : IDisposable
         Assert.Contains("nks.packages.refresh", ids);
         Assert.Contains("nks.packages.revoke", ids);
         Assert.Contains("nks.packages.script", ids);
+        Assert.Contains("nks.schemas.allow", ids);
     }
 }
