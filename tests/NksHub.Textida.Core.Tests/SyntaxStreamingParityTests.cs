@@ -236,7 +236,7 @@ public class SyntaxStreamingParityTests
             var result = session.TokenizeViewport(first, count, TimeSpan.FromMilliseconds(2), firstColumn: column, columnCount: columns);
             Assert.NotEqual(SyntaxViewportStatus.FullLineRequired, result.Status);
             if (result.IsComplete) return result;
-        } while (timer.Elapsed < TimeSpan.FromSeconds(20));
+        } while (timer.Elapsed < TimeSpan.FromMinutes(3)); // CPU-bound and deterministic (13 to 32 s here): the wall clock grows with the load, so this only guards against a hang
         throw new TimeoutException("The requested syntax viewport did not complete.");
     }
 

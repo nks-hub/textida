@@ -110,7 +110,8 @@ public unsafe partial class MappedResidencyTests
             for (int at = 0; at < size; at += Mib)
             {
                 Assert.True(file.GetSpan(at, Mib).SequenceEqual(content.AsSpan(at, Mib)), $"chunk at {at}");
-                Thread.Sleep(2); // the pages are given back on the thread pool; give it the time a real scroll leaves it
+                // the pages are given back on the thread pool: read the next chunk only once that trim has caught up, as a scroll that leaves it time would, so a busy pool cannot let the scan run ahead
+                if (budget > 0) WaitUntil(() => file.ResidentEstimate <= budget, "the trim caught up with the scan");
                 peak = Math.Max(peak, ResidentBytes(start, size));
             }
             if (budget > 0) WaitUntil(() => ResidentBytes(start, size) <= budget + 2 * Mib, "the working set is back near the budget");

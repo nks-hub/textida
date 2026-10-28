@@ -722,8 +722,10 @@ public class JournalRecoveryTests
         session.Flush();
         long start = new FileInfo(session.JournalPath!).Length;
         var sw = Stopwatch.StartNew();
-        while (new FileInfo(session.JournalPath!).Length >= start && sw.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(100);
-        Assert.True(new FileInfo(session.JournalPath!).Length < start / 2);
+        // the compaction check is a pool timer with a 2 s period and compacting fsyncs: on a loaded machine the first one comes late, so this only guards against a hang
+        while (new FileInfo(session.JournalPath!).Length >= start && sw.Elapsed < TimeSpan.FromSeconds(60)) Thread.Sleep(100);
+        long now = new FileInfo(session.JournalPath!).Length;
+        Assert.True(now < start / 2, $"the journal went from {start} to {now} bytes in {sw.Elapsed.TotalSeconds:F1} s; fault: {session.Fault?.Message ?? "none"}");
         doc.Insert(1, U("b"));
         Assert.Equal(U("ab"), All(Assert.Single(Crash(session).Documents).Document!));
     }

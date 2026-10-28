@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Shared\ThreadPoolFloor.cs" Link="ThreadPoolFloor.cs" />
   </ItemGroup>
 
   <ItemGroup>

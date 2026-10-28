@@ -143,6 +143,28 @@ internal static class T
         return path;
     }
 
+    /// <summary>
+    /// Deletes a folder that held a program a test started or killed: the system keeps the image file of an ended program locked for a moment, so the delete is repeated for a few seconds
+    /// (on a loaded machine that moment is long). A folder that is still locked after that is left to the temp cleanup.
+    /// </summary>
+    public static void DeleteFolder(string path)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (DirectoryNotFoundException) { return; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= 50) return;
+                Thread.Sleep(100);
+            }
+        }
+    }
+
     public static string TempFile()
     {
         var path = Path.Combine(Path.GetTempPath(), "textida-rpc-" + Guid.NewGuid().ToString("N") + ".txt");

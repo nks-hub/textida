@@ -6,11 +6,11 @@ namespace NksHub.Textida.Plugin.Tests;
 
 /// <summary>
 /// P8b.2.1: the packages of the SDK are made locally (nothing is published), the template makes a plugin from them, and that plugin builds for the three runtime identifiers, passes its own tests on the
-/// test host, is published as a NativeAOT program and passes the validator while it runs. It needs the network to restore the test packages (xunit) and several minutes, so it is a category of its own.
+/// test host, is published as a NativeAOT program and passes the validator while it runs. It needs the network to restore the test packages (xunit) and several minutes, so that test is a category of its own (Packaging);
+/// it also has the category Large, which the quick suite (Category!=Large) leaves out and the full suite runs.
 /// A NativeAOT program is linked on the system it runs on, so only the identifier of the machine is published here: win-x64 on Windows, osx-arm64 or osx-x64 on a Mac of that kind;
 /// the other two are built (managed code and launcher) but not published.
 /// </summary>
-[Trait("Category", "Packaging")]
 public class TemplateTests
 {
     private static readonly string[] Rids = ["win-x64", "osx-arm64", "osx-x64"];
@@ -42,6 +42,8 @@ public class TemplateTests
     }
 
     [Fact]
+    [Trait("Category", "Packaging")]
+    [Trait("Category", "Large")]
     public async Task A_plugin_made_from_the_template_builds_for_the_three_rids_passes_its_tests_and_passes_the_validator_as_a_native_program()
     {
         var repo = T.RepoRoot();
@@ -86,7 +88,7 @@ public class TemplateTests
 
             // 4. the tests of the generated plugin run on the test host
             var tests = await DotnetAsync(generated, TimeSpan.FromMinutes(10), "test", solution, "--no-build", "--nologo");
-            Assert.Matches(@"Passed:s+4", tests);
+            Assert.Matches(@"Passed:\s+4\b", tests);
 
             // 5. the plugin builds for each runtime identifier
             foreach (var rid in Rids) await DotnetAsync(generated, TimeSpan.FromMinutes(10), "build", plugin, "-r", rid, "--nologo");

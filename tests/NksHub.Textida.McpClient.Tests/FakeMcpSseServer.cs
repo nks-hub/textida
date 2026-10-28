@@ -107,9 +107,13 @@ internal sealed class FakeMcpSseServer : IDisposable
                     break;
                 case "tools/list":
                     var tools = Result(id, "{\"tools\":[{\"name\":\"echo\",\"inputSchema\":{\"type\":\"object\"}},{\"name\":\"slow\",\"inputSchema\":{\"type\":\"object\"}},{\"name\":\"close\",\"inputSchema\":{\"type\":\"object\"}}]}");
-                    Write("event: message\r\ndata: " + tools[..20]);
-                    await Task.Delay(40);
-                    Write(tools[20..] + "\r\n\r\n");
+                    // the pause splits the line on the wire; it is held under the lock of the stream because the keep-alive comment every 50 ms would otherwise land inside the line when the pause runs long
+                    lock (_gate)
+                    {
+                        Write("event: message\r\ndata: " + tools[..20]);
+                        Thread.Sleep(40);
+                        Write(tools[20..] + "\r\n\r\n");
+                    }
                     break;
                 case "resources/list":
                     Message(Result(id, "{\"resources\":[{\"uri\":\"test://notes\",\"name\":\"notes\"}]}"));
