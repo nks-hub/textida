@@ -196,7 +196,7 @@ public static class LanguageCatalog
                     ["Gemfile", "Rakefile", "Guardfile", "Capfile", "Vagrantfile", "Podfile", "Brewfile", "Berksfile", "Fastfile", "Appfile"]),
                 M("erb", [".erb", ".rhtml"], "erb"), M("haml", [".haml"], "haml"), M("slim", [".slim"], "slim"), M("rbs", [".rbs"], "rbs")],
             [new("ruby", "ruby-lsp", [])],
-            [new("rubocop", "RuboCop", "rubocop", ["-a", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"])],
+            [new("rubocop", "RuboCop", "rubocop", ["-a", "--fail-level", "fatal", "--format", "quiet", "${File}"], [".rubocop.yml"], [".rb", ".rake"])], // without it an offense that is left after the correction makes the exit code 1
             [new("rubocop-lint", "RuboCop", "rubocop", ["--format", "json", "${File}"], "rubocop-json",
                 [new("fatal", ToolSeverity.Error), new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("convention", ToolSeverity.Info), new("refactor", ToolSeverity.Info), new("info", ToolSeverity.Info)], [".rubocop.yml"], [".rb", ".rake"], Supported: new("1.0.0", "2.0.0"))],
             [C([".rubocop.yml"], "AllCops:\n  NewCops: disable\n")],
