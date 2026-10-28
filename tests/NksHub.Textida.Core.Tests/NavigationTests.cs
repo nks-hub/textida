@@ -103,6 +103,47 @@ public class PlacesTests
     }
 
     [Fact]
+    public void Two_offsets_are_told_to_be_on_one_line_or_not_from_the_bytes_between_them_and_a_long_stretch_is_unknown()
+    {
+        using var doc = Open("ab\ncd\r\nef" + new string('x', 70_000));
+        Assert.True(doc.OnOneLine(0, 2));
+        Assert.True(doc.OnOneLine(5, 3)); // either order
+        Assert.True(doc.OnOneLine(4, 4));
+        Assert.False(doc.OnOneLine(0, 3)); // the LF stands in front of the second offset
+        Assert.False(doc.OnOneLine(3, 7)); // the CR of the pair
+        Assert.False(doc.OnOneLine(0, 40_000)); // far away, but the first terminator is near
+        Assert.True(doc.OnOneLine(8, 8 + 60_000));
+        Assert.Null(doc.OnOneLine(8, 8 + 70_000)); // a stretch over 64 KiB without a break is left to the line index
+        Assert.Null(doc.OnOneLine(0, doc.ByteLength + 1));
+    }
+
+    [Fact]
+    public void A_byte_of_another_character_that_looks_like_a_line_break_leaves_the_answer_unknown_in_utf16()
+    {
+        using var doc = Doc.FromBytes(new byte[] { 0xFF, 0xFE, (byte)'a', 0, 0x0A, 0x01, (byte)'b', 0 }, ReferenceBackendFactory.Instance); // BOM, "a", U+010A, "b"
+        Assert.Equal(2, doc.Codec.Alignment);
+        Assert.Null(doc.OnOneLine(2, 8)); // the byte 0x0A is half of U+010A, not a line feed
+        Assert.True(doc.OnOneLine(2, 4));
+    }
+
+    [Fact]
+    public void Places_far_apart_are_one_per_line_whether_a_break_lies_between_them_or_the_line_is_long()
+    {
+        using var doc = Open(string.Concat(Enumerable.Range(0, 20_000).Select(i => $"row {i}\n")) + new string('y', 100_000) + "\nlast\n");
+        var list = new PlaceList();
+        list.Attach(doc);
+        doc.Insert(10, "1"u8.ToArray()); // row 1
+        doc.Insert(doc.ByteLength - 3, "2"u8.ToArray()); // "last"
+        doc.Insert(11, "3"u8.ToArray()); // row 1 again, far from the place before it
+        Assert.Equal([1L, 20_001L], list.Places.Select(p => p.Line));
+
+        Assert.True(doc.TryGetOffset(new LinePosition(20_000, 0), out long longLine));
+        doc.Insert(longLine + 10, "4"u8.ToArray());
+        doc.Insert(longLine + 90_000, "5"u8.ToArray()); // 90 000 bytes away on the same line: the line index tells
+        Assert.Equal([20_000L, 1L, 20_001L], list.Places.Select(p => p.Line));
+    }
+
+    [Fact]
     public void A_place_keeps_its_text_when_lines_are_inserted_above_it()
     {
         using var doc = Open("l0\nl1\nl2\nl3\n");
