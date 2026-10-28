@@ -32,9 +32,15 @@ commands: nks.help.contents
 
 ## [help.about] Info
 commands: nks.help.about
-Zeigt den Programmnamen und die Versionsnummer.
+Zeigt Version und Build des Programms, das System, auf dem es läuft, die Plugins, die Lizenz und die Links des Projekts.
 1. Wählen Sie Hilfe und dann Info.
-2. Schließen Sie das Fenster mit der Schaltfläche Schließen oder mit Esc.
+2. Oben im Fenster stehen die Version, der Build (Commit und Datum) und die beiden Links des Projekts. Die Registerkarte Technische Daten nennt die .NET-Laufzeit, NativeAOT oder JIT, System, Architektur, Sprache der Oberfläche, Profiltyp sowie die Ordner von Profil und Protokollen. Einen Wert können Sie markieren und kopieren. Die Schaltfläche Ordner öffnen neben einem Ordner zeigt ihn im Dateimanager.
+3. Um einen Fehler zu melden, drücken Sie Informationen kopieren. Der Block in der Zwischenablage enthält Version, Build, Laufzeit, System, Architektur, Sprache, Profiltyp und Plugins. Die Ordner kommen nur dazu, wenn Sie das Kästchen über der Schaltfläche anhaken, weil sie Ihren Benutzernamen enthalten.
+4. Schließen Sie das Fenster mit der Schaltfläche Schließen oder mit Esc.
+- Die Registerkarte Plugins listet die Plugins mit ihrer Version; jedes ist eingebaut oder installiert (ein installiertes kann deaktiviert oder nicht lesbar sein).
+- Die Registerkarte Lizenz nennt die MIT-Lizenz und ihr Copyright. Das Feld darunter zeigt die Datei THIRD-PARTY-NOTICES.md, die neben dem Programm liegt; fehlt sie, sagt das Feld es. Blättern Sie mit der Maus oder den Pfeiltasten und markieren Sie Text mit Umschalt und den Pfeiltasten.
+- Die Projektseite und die Fehlermeldungen (die Links unter dem Build) öffnen sich im Browser erst, wenn Sie den Link drücken und die Frage bestätigen. Das Fenster selbst baut keine Netzwerkverbindung auf.
+- Die Bezeichnungen im Block für eine Fehlermeldung sind immer englisch, gleich in welcher Sprache das Programm läuft.
 - Dieselbe Versionsnummer steht oben in jedem Hilfethema.
 
 ## [file.new] Neues Dokument

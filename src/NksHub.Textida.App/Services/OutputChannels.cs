@@ -36,6 +36,9 @@ internal sealed class OutputChannels
     /// <summary>Raised after a channel was emptied.</summary>
     public event Action<OutputChannel>? Cleared;
 
+    /// <summary>The folder with the channel files, the log folder of the About window. It exists after the first line was written.</summary>
+    public string Folder => _directory;
+
     public string PathOf(OutputChannel channel) => Path.Combine(_directory, channel.ToString().ToLowerInvariant() + ".log");
 
     /// <summary>Stores the text, one stored line per text line, with the secrets of any URI in it masked. Failure to write never reaches the caller: output must not break the work that produced it.</summary>

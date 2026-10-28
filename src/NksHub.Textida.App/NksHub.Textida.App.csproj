@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\textida.ico" />
+    <AvaloniaResource Include="Assets\textida-256.png" />
     <EmbeddedResource Include="Strings\*.json" />
     <!-- help.cs.md would be taken for a satellite resource of the culture "cs" -->
     <EmbeddedResource Include="Help\*.md" LogicalName="NksHub.Textida.App.Help.%(Filename)%(Extension)" WithCulture="false" />
@@ -55,6 +56,37 @@
     <ProjectReference Include="..\NksHub.Textida.Document.AvaloniaEdit\NksHub.Textida.Document.AvaloniaEdit.csproj" />
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
+
+  <!-- the MIT copyright notice and the notices of the libraries travel with every copy of the program; the About window reads both from the folder of the program -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    The commit and the date of the build go into a source file (BuildStamp), so the program shows them without git, a network or reflection. The commit is the revision the SDK
+    reads from the git checkout (SourceRevisionId, the same one it puts into the informational version); a build outside a checkout leaves it empty, and -p:TextidaCommit=sha sets it there.
+    The date is the UTC day of the build, so the file changes (and the project is compiled again) once a day at most.
+  -->
+  <Target Name="StampBuild" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <TextidaStampFile>$(IntermediateOutputPath)BuildStamp.g.cs</TextidaStampFile>
+      <TextidaStampCommit>$(TextidaCommit)</TextidaStampCommit>
+      <TextidaStampCommit Condition="'$(TextidaStampCommit)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(SourceRevisionId)', '^[0-9a-f]{8}').Value)</TextidaStampCommit>
+      <TextidaStampVersion>$([System.Text.RegularExpressions.Regex]::Replace('$(InformationalVersion)', '\+.*$', ''))</TextidaStampVersion>
+      <TextidaStampVersion Condition="'$(TextidaStampVersion)' == ''">$(Version)</TextidaStampVersion>
+      <TextidaStampDate>$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))</TextidaStampDate>
+    </PropertyGroup>
+    <ItemGroup>
+      <TextidaStampLine Include="// &lt;auto-generated&gt; by the StampBuild target of NksHub.Textida.App.csproj" />
+      <TextidaStampLine Include="namespace NksHub.Textida.App.Services%3B internal static class BuildStamp { public const string Version = &quot;$(TextidaStampVersion)&quot;%3B public const string Commit = &quot;$(TextidaStampCommit)&quot;%3B public const string Date = &quot;$(TextidaStampDate)&quot;%3B }" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(TextidaStampFile)" Lines="@(TextidaStampLine)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(TextidaStampFile)" />
+      <FileWrites Include="$(TextidaStampFile)" />
+    </ItemGroup>
+  </Target>
 
   <!-- the native libraries of the Skia and HarfBuzz packages come with their .pdb files -->
   <Target Name="DropPackageSymbols" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSymbols)' != 'true'">

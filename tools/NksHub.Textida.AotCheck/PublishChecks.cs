@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 /// <summary>
 /// Checks a publish output of the app (<c>--publish DIR</c>) or a Windows package built from it (<c>--package ZIP</c>, unpacked first):every built-in plugin and <c>textida-mcp</c> sits where <c>PluginServices</c> and <c>McpService</c> look for it,
-/// starts, and reaches its own <c>Main</c> (each exits with 2 when started without its options); no runtimeconfig.json, and no .pdb or .xml unless <c>--symbols</c> is given.
+/// starts, and reaches its own <c>Main</c> (each exits with 2 when started without its options); <c>LICENSE</c> and <c>THIRD-PARTY-NOTICES.md</c> sit next to the program; no runtimeconfig.json, and no .pdb or .xml unless <c>--symbols</c> is given.
 /// </summary>
 internal static class PublishChecks
 {
@@ -45,6 +45,8 @@ internal static class PublishChecks
         var root = args[at + 1];
         var suffix = OperatingSystem.IsWindows() ? ".exe" : "";
         check(File.Exists(Path.Combine(root, "Textida" + suffix)), "publish: Textida" + suffix);
+        // the About window shows both; the MIT notice and the notices of the libraries travel with every copy
+        foreach (var notice in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md" }) check(File.Exists(Path.Combine(root, notice)), "publish: missing " + notice);
         foreach (var (folder, program) in Programs)
         {
             var path = Path.Combine(root, folder, program + suffix);

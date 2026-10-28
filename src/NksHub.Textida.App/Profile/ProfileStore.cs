@@ -3,6 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace NksHub.Textida.App.Profile;
 
+/// <summary>Where a profile lives: next to the program (portable), in the folder of the user, or in a folder the start named (the TEXTIDA_PROFILE variable).</summary>
+public enum ProfileKind { Portable, User, Custom }
+
 /// <summary>Where the profile lives: next to the executable when it carries a marker file, else in the user's profile.</summary>
 public static class ProfileLocation
 {
@@ -17,6 +20,21 @@ public static class ProfileLocation
             ? Path.Combine(homeDirectory, "Library", "Application Support", "Textida")
             : Path.Combine(appDataDirectory, "Textida");
     }
+
+    /// <summary>Which of the places <see cref="Resolve"/> picks <paramref name="profileDirectory"/> is; a folder that is neither is a custom one.</summary>
+    public static ProfileKind KindOf(string profileDirectory, string exeDirectory, bool markerExists, bool isMac, string homeDirectory, string appDataDirectory)
+    {
+        if (markerExists && SamePath(profileDirectory, Resolve(exeDirectory, true, isMac, homeDirectory, appDataDirectory))) return ProfileKind.Portable;
+        return SamePath(profileDirectory, Resolve(exeDirectory, false, isMac, homeDirectory, appDataDirectory)) ? ProfileKind.User : ProfileKind.Custom;
+    }
+
+    public static ProfileKind KindForThisMachine(string profileDirectory, string exeDirectory) =>
+        KindOf(profileDirectory, exeDirectory, File.Exists(Path.Combine(exeDirectory, PortableMarker)), OperatingSystem.IsMacOS(),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData));
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)), Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)),
+            OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase);
 
     public static string ResolveForThisMachine()
     {
