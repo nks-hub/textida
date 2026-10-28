@@ -258,6 +258,15 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
         </Style>
+        <Style Selector="Border.modebar">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+        <Style Selector="Border.splitpreview">
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+        </Style>
 
         <Style Selector="Border.palette">
             <Setter Property="Background" Value="{DynamicResource BgEditor}" />

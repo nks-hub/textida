@@ -12,6 +12,7 @@ namespace NksHub.Textida.App.Shell;
 internal sealed class DocTab
 {
     private readonly ContentControl _barSlot = new() { [DockPanel.DockProperty] = Dock.Top };
+    private readonly ContentControl _modeSlot = new() { [DockPanel.DockProperty] = Dock.Top };
 
     public DocTab(OpenDocument doc, EditorOptions options, Control? custom = null)
     {
@@ -20,7 +21,7 @@ internal sealed class DocTab
         if (custom is null && doc.IsHex) Hex = new HexView(doc, options);
         else if (custom is null && doc.IsLarge) Paged = new PagedTextView(doc, options);
         else if (custom is null) Surface = new EditorSurface(doc, options);
-        Root = new DockPanel { Children = { _barSlot } };
+        Root = new DockPanel { Children = { _modeSlot, _barSlot } };
         if ((Surface is not null || Paged is not null) && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
         {
             _automation = Surface?.CreateAutomationHost() ?? Paged!.CreateAutomationHost();
@@ -52,6 +53,8 @@ internal sealed class DocTab
     {
         ViewClosed?.Invoke();
         Table?.Dispose();
+        SidePreview?.Dispose();
+        if (Custom is ImageView or MarkdownPreview) ((IDisposable)Custom).Dispose();
         Minimap?.Dispose();
         Syntax?.Dispose();
         _automation?.Dispose();
@@ -140,8 +143,25 @@ internal sealed class DocTab
         _automation?.IsVisible = !on;
     }
 
+    /// <summary>The rendered page beside the editor in the editing mode of a Markdown file (P9.3.4); null in every other mode.</summary>
+    public MarkdownPreview? SidePreview { get; private set; }
+
+    /// <summary>Puts the rendered page right of the editor, half the width of the tab, with a line between them.</summary>
+    public void ShowSidePreview(MarkdownPreview preview)
+    {
+        SidePreview = preview;
+        var host = new Border { Child = preview, MinWidth = 200, Width = 420, [DockPanel.DockProperty] = Dock.Right };
+        host.Classes.Add("splitpreview");
+        Root.SizeChanged += (_, e) => host.Width = Math.Max(200, e.NewSize.Width / 2);
+        Root.Children.Insert(Root.Children.IndexOf((Control?)Minimap ?? View), host);
+    }
+
     public void ShowBar(Control? bar) => _barSlot.Content = bar;
     public Control? Bar => _barSlot.Content as Control;
+
+    /// <summary>The switcher bar of the view mode (P3.6.11, P9.3.4), above the other bars; null for a tab that has no modes.</summary>
+    public void ShowModeBar(Control? bar) => _modeSlot.Content = bar;
+    public ViewModeBar? ModeBar => _modeSlot.Content as ViewModeBar;
 
     /// <summary>1-based line and column; for a paged view whose line index is not complete yet the first line on screen.</summary>
     public (long Line, long Column) CaretPosition()

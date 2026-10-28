@@ -69,6 +69,8 @@ public class TranslationGateTests
         ["make.title"] = "cs sk de",
         ["a11y.plugins.manager"] = "de",
         ["update.title"] = "de",
+        ["viewmode.text"] = "cs sk de",
+        ["viewmode.hex"] = "cs sk de",
     };
 
     private static readonly Dictionary<string, string> WorkbenchSameAsEnglish = new()

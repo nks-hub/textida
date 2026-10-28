@@ -326,6 +326,11 @@ internal sealed partial class MainWindow
 
     internal void Zoom(int delta)
     {
+        if (Active?.Custom is ImageView image)
+        {
+            image.ZoomBy(delta);
+            return;
+        }
         var settings = _app.Workbench.Settings;
         double size = settings.GetNumber("editor.fontSize");
         _app.Workbench.Set("editor.fontSize", System.Text.Json.Nodes.JsonValue.Create((int)Math.Clamp(Math.Round(size) + delta, 6, MaxFontSize(Math.Round(size)))));
@@ -338,7 +343,11 @@ internal sealed partial class MainWindow
         return Math.Max(6, height > 0 ? Math.Max(current, Math.Floor(height / 1.6)) : 1000);
     }
 
-    internal void ZoomReset() => _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
+    internal void ZoomReset()
+    {
+        if (Active?.Custom is ImageView image) image.Fit();
+        else _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
+    }
 
     /// <summary>Switches to the opposite of what the menu shows; when a giant line holds the wrap back, the setting stays on and the status bar says why.</summary>
     internal void ToggleWordWrap()

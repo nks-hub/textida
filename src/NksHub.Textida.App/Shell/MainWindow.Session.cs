@@ -63,6 +63,12 @@ internal sealed partial class MainWindow
         {
             if (opened.TryGetValue(rd.DocId, out var existing)) return existing;
             var od = OpenDocument.FromRecovered(rd, numbers.TryGetValue(rd.DocId, out var n) ? n : null);
+            od.IsImageFile = od.Path is { } path && Core.Markdown.RasterImage.Detect(ReadHead(path)) is not null;
+            if (od.IsImageFile && !od.Doc.IsModified && FirstMode(od.Path!, out _) is (ViewMode.Image or ViewMode.Hex) and var mode)
+            {
+                try { od.ChooseMode(mode); }
+                catch (Exception e) when (e is NotSupportedException or InvalidOperationException or OutOfMemoryException) { } // the tab stays text, and the bar offers the picture
+            }
             Adopt(od);
             return opened[rd.DocId] = od;
         }

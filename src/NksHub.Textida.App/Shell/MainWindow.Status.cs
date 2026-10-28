@@ -110,6 +110,11 @@ internal sealed partial class MainWindow
             _statusLeft.Text = Loc.Get(K.StatusReady);
             return;
         }
+        if (tab.Custom is ImageView or MarkdownPreview)
+        {
+            ShowViewerStatus(tab);
+            return;
+        }
         if (tab.Custom is not null)
         {
             ShowResultsStatus();

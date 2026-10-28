@@ -26,6 +26,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.TableMode => Bool(tab?.TableShown == true),
             ContextKeys.InMarkdownTable => Bool(window.InMarkdownTable),
             ContextKeys.InSnippet => Bool(tab?.Surface?.InSnippet == true),
+            ContextKeys.ImageFile => Bool(tab?.Doc.IsImageFile == true),
             ContextKeys.CompareMode => Bool(tab?.Custom is DiffView),
             ContextKeys.Platform => OperatingSystem.IsMacOS() ? "macos" : OperatingSystem.IsWindows() ? "windows" : "linux",
             ContextKeys.IsDirty => Bool(tab?.Doc.Doc.IsModified == true),

@@ -50,9 +50,11 @@ public static class ContextKeys
     public const string InSnippet = "inSnippet";
     /// <summary>A side panel (open documents, files, a plug-in panel) is open: the commands that dock, resize and hide it work on it.</summary>
     public const string PanelOpen = "panelOpen";
+    /// <summary>The file of the active tab starts like a picture the viewer draws, so the tab can be shown as picture, text or hex.</summary>
+    public const string ImageFile = "imageFile";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile];
 }
 
 /// <summary>

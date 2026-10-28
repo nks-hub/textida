@@ -352,6 +352,7 @@ internal sealed partial class MainWindow : Window
         ApplyOutputTexts();
         ApplyAgentTexts();
         ApplyPreviewTexts();
+        ApplyModeTexts();
         RefreshPluginUi();
         RefreshIdeItem();
         foreach (var g in _groups) AutomationProperties.SetName(g.Strip, Loc.Get(K.A11yTabs));

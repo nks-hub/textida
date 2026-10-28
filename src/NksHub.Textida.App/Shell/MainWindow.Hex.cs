@@ -86,6 +86,7 @@ internal sealed partial class MainWindow
         }
         if (tab.Paged is { } paged) return (paged.CaretOffset, paged.CaretOffset);
         if (tab.Hex is { } hex) return (hex.Editor.Anchor, hex.Editor.Caret);
+        if (tab.Custom is MarkdownPreview page) return page.Selection;
         return (0, 0);
     }
 
@@ -108,76 +109,19 @@ internal sealed partial class MainWindow
             surface.SetSelections([new Sel(Char(anchor), Char(caret))]);
         }
         else if (tab.Paged is { } paged) paged.GoToOffset(caret);
+        else if (tab.Custom is MarkdownPreview page) page.Selection = (anchor, caret);
     }
 
     /// <summary>
-    /// Shows a document in hex or as text again, in every view of it. Nothing is read again and nothing is written: identity, revision, undo and the
-    /// unsaved state stay, and the caret and the selection move to the same bytes. Returns false when the document cannot change (a save is running).
+    /// Shows a document in hex, or leaves the hex view for the mode it came from (text, a picture, the page of a Markdown file); see <see cref="SetViewMode"/>. Leaving does nothing when the document
+    /// is not in hex.
     /// </summary>
     internal bool SetHex(OpenDocument od, bool hex, long? offset = null)
     {
-        if (od.IsResults || !_docs.Contains(od) || od.Views.Count == 0) return false;
-        if (od.IsHex == hex)
-        {
-            if (offset is { } o && od.Views.FirstOrDefault(v => v.Hex is not null) is { } existing) { SelectTab(existing); ApplyOffsets(existing, o, o); }
-            return true;
-        }
-        if (od.Doc.IsSaving)
-        {
-            SetStatusMessage(Loc.Get(K.HexBusy));
-            return false;
-        }
-        long t = Core.TypingTrace.Begin();
-        var views = od.Views.ToList();
-        var from = Active is { } a && a.Doc == od ? a : views[0];
-        var (anchor, caret) = CaptureOffsets(from);
-        var slots = views.Select(v => (Group: v.Group!, Index: v.Group!.Tabs.ToList().IndexOf(v), Active: v == Active, Source: v == from)).ToList();
-        foreach (var v in views)
-        {
-            v.Group!.Remove(v);
-            od.Views.Remove(v);
-            v.Close();
-            v.ShowBar(null);
-        }
-        Core.TypingTrace.End("hex.switch.close", t);
-        t = Core.TypingTrace.Begin();
-        Exception? failure = null;
-        try
-        {
-            if (hex) od.EnterHex(); else od.LeaveHex();
-        }
-        catch (Exception e) when (e is NotSupportedException or InvalidOperationException or ArgumentException or OutOfMemoryException)
-        {
-            failure = e;
-        }
-        Core.TypingTrace.End("hex.switch.enter", t);
-        t = Core.TypingTrace.Begin();
-        DocTab? activeTab = null, source = null;
-        foreach (var slot in slots)
-        {
-            var fresh = AddView(od, slot.Group, slot.Index);
-            if (slot.Active) activeTab = fresh;
-            if (slot.Source) source = fresh;
-        }
-        Core.TypingTrace.End("hex.switch.addViews", t);
-        t = Core.TypingTrace.Begin();
-        if (failure is null && source is not null) ApplyOffsets(source, offset ?? anchor, offset ?? caret);
-        if (activeTab is not null) SelectTab(activeTab);
-        Core.TypingTrace.End("hex.switch.offsets", t);
-        t = Core.TypingTrace.Begin();
-        od.NotifyChanged();
-        Core.TypingTrace.End("hex.switch.notify", t);
-        t = Core.TypingTrace.Begin();
-        OnDocReplacedRefresh(od);
-        Core.TypingTrace.End("hex.switch.refresh", t);
-        if (failure is not null) SetStatusMessage(Loc.Get(K.HexSwitchFailed, ("reason", failure.Message)));
-        if (activeTab is not null)
-        {
-            FocusView(activeTab);
-            var focusTab = activeTab; // the view has no size and no focus until the first layout
-            Dispatcher.UIThread.Post(() => { if (Active == focusTab) FocusView(focusTab); }, DispatcherPriority.Background);
-        }
-        return failure is null;
+        if (hex) return SetViewMode(od, ViewMode.Hex, offset);
+        if (od.Mode != ViewMode.Hex) return true;
+        var back = od.PreviousMode == ViewMode.Hex || !CanShow(od, od.PreviousMode) ? ViewMode.Text : od.PreviousMode;
+        return SetViewMode(od, back, offset);
     }
 
     /// <summary>The views of a document were rebuilt; settings, autosave and the status follow the new kind of view.</summary>
@@ -193,7 +137,7 @@ internal sealed partial class MainWindow
     /// <summary>The command <c>nks.view.hex</c>: the document of the active tab switches between the text view and hex.</summary>
     internal CommandOutcome ToggleHex()
     {
-        if (Active is not { Custom: null } tab) return CommandOutcome.NotHandled;
+        if (Active is not { } tab || tab.Custom is not (null or ImageView or MarkdownPreview)) return CommandOutcome.NotHandled;
         _ = SwitchHexAsync(tab);
         return CommandOutcome.Handled;
     }
@@ -202,8 +146,8 @@ internal sealed partial class MainWindow
     internal async Task<bool> SwitchHexAsync(DocTab tab)
     {
         var od = tab.Doc;
-        if (!od.IsHex && !await ConfirmTypedLossAsync(tab, Loc.Get(K.LossHexShow))) return false;
-        return SetHex(od, !od.IsHex);
+        if (od.Mode != ViewMode.Hex && !await ConfirmTypedLossAsync(tab, Loc.Get(K.LossHexShow))) return false;
+        return SetHex(od, od.Mode != ViewMode.Hex);
     }
 
     /// <summary>Opens a file in hex, optionally at a byte offset.</summary>
@@ -245,7 +189,7 @@ internal sealed partial class MainWindow
     /// </summary>
     private DocTab OfferHex(DocTab tab)
     {
-        if (tab.Doc.IsHex || tab.Doc.IsResults || tab.Surface is null && tab.Paged is null || !LooksBinary(tab.Doc.Doc)) return tab;
+        if (tab.Doc.IsHex || tab.Doc.IsResults || tab.Doc.IsImageFile || tab.Surface is null && tab.Paged is null || !LooksBinary(tab.Doc.Doc)) return tab;
         var od = tab.Doc;
         string mode = _app.Workbench.Settings.GetString("files.binaryAsHex");
         if (mode == "never") return tab;

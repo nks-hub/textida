@@ -345,6 +345,12 @@ internal static class AppCommands
         Do("nks.view.previousTab", w => w.CycleTab(-1));
         Do("nks.view.toggleDocumentList", w => w.ToggleDocuments());
         On("nks.view.hex", w => w.ToggleHex());
+        On("nks.view.cycleMode", w => w.CycleMode());
+        On("nks.view.modeRead", w => w.PickMode(ViewMode.Read));
+        On("nks.view.modeEdit", w => w.PickMode(ViewMode.Edit));
+        On("nks.view.modeSource", w => w.PickMode(ViewMode.Text));
+        On("nks.view.modeImage", w => w.PickMode(ViewMode.Image));
+        On("nks.view.modeText", w => w.PickMode(ViewMode.Text));
         Do("nks.file.openAsHex", w => _ = w.OpenAsHexDialogAsync());
         On("nks.compare.clipboard", w => { _ = w.CompareWithClipboardAsync(); return CommandOutcome.Handled; });
         On("nks.compare.file", w => { _ = w.CompareWithFileAsync(); return CommandOutcome.Handled; });
