@@ -57,7 +57,8 @@ public class PagedMeasureTests : IDisposable
         var run = new PagedMeasure(_app, _w, lifetime).RunAsync();
         for (var clock = System.Diagnostics.Stopwatch.StartNew(); !shutDown && clock.Elapsed.TotalSeconds < 90;)
         {
-            await Task.Delay(20);
+            // pump by hand: once the run shuts the application down, a continuation of an await would never be dispatched again
+            Thread.Sleep(20);
             Dispatcher.UIThread.RunJobs();
             _w.CaptureRenderedFrame();
         }

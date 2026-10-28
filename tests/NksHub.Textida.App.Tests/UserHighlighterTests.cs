@@ -48,7 +48,7 @@ public class UserHighlighterTests : IDisposable
         Install(Grammar);
         Assert.Empty(_app.Clips.Problems);
         Assert.Equal("acme-lang", LanguageModes.ForPath("x.acme").Id);
-        Assert.Equal("acme-lang", LanguageModes.ForPath("C:\\work\\Acmefile").Id);
+        Assert.Equal("acme-lang", LanguageModes.ForPath(Path.Combine(_temp.Path, "Acmefile")).Id);
         Assert.Equal("#", LanguageModes.ById("acme-lang").Comments.Line);
         Assert.Equal("acme-lang", LanguageModes.GrammarId(LanguageModes.ById("acme-lang")));
 

@@ -747,6 +747,18 @@ public class LspPluginTests
 
     static string RootUri(Rig rig, string project) => PathUri.FromPath(Path.Combine(rig.Folder, project));
 
+    /// <summary>The path with every symbolic link resolved, as a child process reports its working folder (the temp folder of macOS is under the link /var).</summary>
+    static string RealPath(string path)
+    {
+        var current = Path.GetPathRoot(path)!;
+        foreach (var part in path[current.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            if (new DirectoryInfo(current).ResolveLinkTarget(true) is { } target) current = target.FullName;
+        }
+        return current;
+    }
+
     static bool Running(int pid)
     {
         try
@@ -773,8 +785,8 @@ public class LspPluginTests
         var forB = Assert.Single(servers, s => s.Root == RootUri(rig, "projB"));
         Assert.Equal([$"open {PathUri.FromPath(a.FilePath!)}"], forA.Events);
         Assert.Equal([$"open {PathUri.FromPath(b.FilePath!)}"], forB.Events);
-        Assert.True(PathUri.SamePath(Path.Combine(rig.Folder, "projA"), forA.Cwd));
-        Assert.True(PathUri.SamePath(Path.Combine(rig.Folder, "projB"), forB.Cwd));
+        Assert.True(PathUri.SamePath(RealPath(Path.Combine(rig.Folder, "projA")), forA.Cwd));
+        Assert.True(PathUri.SamePath(RealPath(Path.Combine(rig.Folder, "projB")), forB.Cwd));
 
         // the server of projB never saw the file of projA, so the definition that lives there is not found
         var none = await rig.RunAsync(b, LspPlugin.DefinitionCommand, Bytes("use f"));

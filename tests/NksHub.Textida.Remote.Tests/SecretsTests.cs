@@ -72,7 +72,7 @@ public class SecretsTests
     public void MacKeychainKeepsAndDeletesASecret()
     {
         if (!OperatingSystem.IsMacOS()) return;
-        KeepsAndDeletesASecret(CredentialStores.ForCurrentPlatform());
+        KeepsAndDeletesASecret(new MacKeychainCredentialStore("Textida.Test." + Guid.NewGuid().ToString("N"))); // a service of its own: the items of the application stay untouched
     }
 
     [Fact]

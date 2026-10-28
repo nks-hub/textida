@@ -227,10 +227,43 @@ internal static class TestApp
         Dispatcher.UIThread.RunJobs();
     }
 
-    public static RawInputModifiers Mod => Shortcuts.Primary == KeyModifiers.Meta ? RawInputModifiers.Meta : RawInputModifiers.Control;
+    /// <summary>The window frame of Windows 11: the menu is drawn inside the window. On macOS the default look puts it into the system menu bar.</summary>
+    public static ShellLook WindowsLook { get; } = ShellLook.Choose(true, false, 22621);
+
+    public static RawInputModifiers Mod =>Shortcuts.Primary == KeyModifiers.Meta ? RawInputModifiers.Meta : RawInputModifiers.Control;
 
     public static void Press(Window w, Key key, RawInputModifiers mods = RawInputModifiers.None, string? text = null) =>
         w.KeyPress(key, mods, PhysicalKeyFor(key), text);
+
+    // The default keymap gives these commands another chord on macOS (the "mac" entries); each helper presses the chord of the platform.
+    private static readonly bool Mac = OperatingSystem.IsMacOS();
+    private const RawInputModifiers Cmd = RawInputModifiers.Meta;
+
+    /// <summary>The modifier of the word keys: Ctrl, Option on macOS.</summary>
+    public static RawInputModifiers Word => Mac ? RawInputModifiers.Alt : RawInputModifiers.Control;
+
+    /// <summary>Alt+Left or Alt+Right, Command+Control+Left or Right on macOS, where Option+arrow moves by word.</summary>
+    public static void Jump(Window w, bool back = true) => Press(w, back ? Key.Left : Key.Right, Mac ? Cmd | RawInputModifiers.Control : RawInputModifiers.Alt);
+
+    /// <summary>Ctrl+Y, Command+Shift+Z on macOS.</summary>
+    public static void Redo(Window w) => Press(w, Mac ? Key.Z : Key.Y, Mac ? Cmd | RawInputModifiers.Shift : RawInputModifiers.Control);
+
+    /// <summary>F3 or Shift+F3, Command+G or Command+Shift+G on macOS.</summary>
+    public static void FindNext(Window w, bool backwards = false)
+    {
+        var shift = backwards ? RawInputModifiers.Shift : RawInputModifiers.None;
+        if (Mac) Press(w, Key.G, Cmd | shift);
+        else Press(w, Key.F3, shift);
+    }
+
+    /// <summary>Ctrl+H, Command+Option+F on macOS.</summary>
+    public static void Replace(Window w) => Press(w, Mac ? Key.F : Key.H, Mac ? Cmd | RawInputModifiers.Alt : RawInputModifiers.Control);
+
+    /// <summary>Ctrl+F3, Command+E on macOS.</summary>
+    public static void FindWord(Window w) => Press(w, Mac ? Key.E : Key.F3, Mac ? Cmd : RawInputModifiers.Control);
+
+    /// <summary>Insert, Command+Option+I on macOS.</summary>
+    public static void ToggleInsert(Window w) => Press(w, Mac ? Key.I : Key.Insert, Mac ? Cmd | RawInputModifiers.Alt : RawInputModifiers.None);
 
     private static PhysicalKey PhysicalKeyFor(Key key) => Enum.TryParse<PhysicalKey>(key.ToString(), out var p) ? p : PhysicalKey.None;
 

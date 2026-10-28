@@ -34,7 +34,7 @@ public class MenuPaletteTests : IDisposable
     public MenuPaletteTests()
     {
         _app = TestApp.Prepare(_temp, _dialogs);
-        _w = _app.CreateWindow(null);
+        _w = _app.CreateWindow(null, look: TestApp.WindowsLook);
     }
 
     public void Dispose()
@@ -211,6 +211,20 @@ public class MenuPaletteTests : IDisposable
         _w.NewDocument();
         file.RaiseEvent(new RoutedEventArgs(MenuItem.SubmenuOpenedEvent));
         Assert.True(save.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public void On_macOS_the_menu_is_the_system_menu_with_the_headers_of_the_model_and_the_window_draws_none()
+    {
+        Assert.SkipUnless(OperatingSystem.IsMacOS(), "the system menu bar exists on macOS only");
+        var w = _app.CreateWindow(null);
+        var native = NativeMenu.GetMenu(w);
+        Assert.NotNull(native);
+        Assert.Equal(w.MenuHeaders, native.Items.OfType<NativeMenuItem>().Select(i => i.Header));
+        var file = native.Items.OfType<NativeMenuItem>().First();
+        Assert.Contains(file.Menu!.Items.OfType<NativeMenuItem>(), i => i.Header == "Nový" && new KeyGesture(Key.N, KeyModifiers.Meta).Equals(i.Gesture));
+        Assert.Empty(w.GetVisualDescendants().OfType<Menu>());
+        w.Close();
     }
 
     // ---- keys ----

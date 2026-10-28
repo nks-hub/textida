@@ -250,9 +250,9 @@ public sealed partial class App : Application
         _server = null;
     }
 
-    internal MainWindow CreateWindow(SavedWindow? saved, bool show = true)
+    internal MainWindow CreateWindow(SavedWindow? saved, bool show = true, ShellLook? look = null)
     {
-        var window = new MainWindow(this, ShellLook.ForThisMachine(), saved);
+        var window = new MainWindow(this, look ?? ShellLook.ForThisMachine(), saved);
         window.Activated += (_, _) => _active = window;
         _windows.Add(window);
         _active = window;

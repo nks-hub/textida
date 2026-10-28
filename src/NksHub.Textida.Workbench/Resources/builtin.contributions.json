@@ -5246,11 +5246,13 @@
     },
     {
       "key": "alt+left",
-      "command": "nks.search.jumpBack"
+      "command": "nks.search.jumpBack",
+      "mac": "meta+ctrl+left"
     },
     {
       "key": "alt+right",
-      "command": "nks.search.jumpForward"
+      "command": "nks.search.jumpForward",
+      "mac": "meta+ctrl+right"
     },
     {
       "key": "ctrl+f2",

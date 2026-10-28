@@ -218,7 +218,7 @@ public class CsvViewTests : IDisposable
         Press(Key.Z, TestApp.Mod);
         Assert.Equal(before, Bytes(tab));
         Assert.Equal("plain", view.CellText(1, 2));
-        Press(Key.Y, TestApp.Mod);
+        TestApp.Redo(_w);
         Assert.Equal(expected, Text(tab));
     }
 

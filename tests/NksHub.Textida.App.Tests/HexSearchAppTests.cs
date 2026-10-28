@@ -50,7 +50,7 @@ public class HexSearchAppTests : IDisposable
         Assert.True(_w.FindBar.HexMode);
         _w.FindBar.FindBox.Text = query;
         Dispatcher.UIThread.RunJobs();
-        TestApp.Press(_w, Key.F3);
+        TestApp.FindNext(_w);
     }
 
     private void PumpUntil(Func<bool> condition)
@@ -87,7 +87,7 @@ public class HexSearchAppTests : IDisposable
         for (int i = 1; i < expected.Count; i++)
         {
             long previous = hex.Editor.Selection.Start;
-            TestApp.Press(_w, Key.F3);
+            TestApp.FindNext(_w);
             PumpUntil(() => hex.Editor.Selection.Start != previous);
             seen.Add(hex.Editor.Selection.Start);
         }
@@ -127,7 +127,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("C1 C2 C3");
         _dialogs.Answers.Enqueue(0);
 
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => tab.Doc.Doc.ByteLength == 10);
 
         var ask = Assert.Single(_dialogs.Asked);
@@ -151,7 +151,7 @@ public class HexSearchAppTests : IDisposable
         Assert.False(hex.Insert);
         _dialogs.Prompts.Enqueue("AA BB");
         _dialogs.Prompts.Enqueue("C1 C2 C3");
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexReplaceOverwrite)));
         Assert.Empty(_dialogs.Asked);
         Assert.Equal(Data(), tab.Doc.Doc.ReadBytes(new(0, 8)));
@@ -160,7 +160,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("DD EE");
         _dialogs.Answers.Enqueue(0);
         _dialogs.WhileAsking = () => { _dialogs.WhileAsking = null; Assert.True(hex.Editor.Write(new(0, 1), [0x7F]).Applied); }; // the file changes while the preview is open
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => _w.StatusLeftText.Contains(Loc.Get(K.HexReplaceStale)));
         Assert.Equal([0x7F, 0x01, 0xAA, 0xBB, 0x02, 0xAA, 0xBB, 0x03], tab.Doc.Doc.ReadBytes(new(0, 8)));
     }
@@ -217,7 +217,7 @@ public class HexSearchAppTests : IDisposable
 
         TestApp.Press(_w, Key.Escape);
         Assert.False(bar.IsVisible);
-        TestApp.Press(_w, Key.F3); // the query is kept: F3 searches it without the bar
+        TestApp.FindNext(_w); // the query is kept: F3 searches it without the bar
         PumpUntil(() => hex.Editor.Selection.Start == 30);
         Assert.False(bar.IsVisible);
     }
@@ -293,7 +293,7 @@ public class HexSearchAppTests : IDisposable
         _dialogs.Prompts.Enqueue("01");
         _dialogs.Prompts.Enqueue("09");
         _dialogs.Answers.Enqueue(0);
-        TestApp.Press(_w, Key.H, TestApp.Mod);
+        TestApp.Replace(_w);
         PumpUntil(() => hex.Editor.Document.ReadBytes(new(0, 1))[0] == 9);
         Assert.False(_w.FindBar.IsVisible);
     }

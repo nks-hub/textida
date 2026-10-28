@@ -127,7 +127,7 @@ public class EditorTests : IDisposable
         Assert.Equal(1, tab.Doc.Doc.UndoDepth);
         Mod(Key.Z);
         Assert.Equal("", Text(tab));
-        Mod(Key.Y);
+        TestApp.Redo(_w);
         Assert.Equal("hello", Text(tab));
         Assert.Equal(5, tab.Editor!.CaretOffset);
     }

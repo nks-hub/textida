@@ -475,6 +475,8 @@ public class LockedFileTests : IDisposable
     [AvaloniaFact]
     public async Task A_file_another_program_forbids_writing_to_opens_read_only_with_the_reason_and_cannot_be_saved()
     {
+        // FileShare.Read lets others read but not write only on Windows; elsewhere .NET takes advisory flocks, and an exclusive one keeps readers out too
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "a share mode that forbids writing but allows reading exists on Windows only");
         string path = _temp.File("locked.txt", "content");
         using var other = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
