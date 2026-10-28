@@ -964,6 +964,8 @@ public static class K
     public const string SchemaConsentTitle = "schema.consent.title";
     public const string SchemaConsentMessage = "schema.consent.message";
     public const string LspTextOnly = "lsp.textOnly";
+    public const string LspToolPathMissing = "lsp.toolPathMissing";
+    public const string LspServerName = "lsp.serverName";
     public const string KeysCompareHeader = "keys.compare.header";
     public const string KeysCompareSyntax = "keys.compare.syntax";
     public const string KeysCompareNoneMissing = "keys.compare.none";
@@ -1426,6 +1428,8 @@ public static class K
     public const string IdeNotOn = "ide.notOn";
     public const string IdeProposal = "ide.proposal";
     public const string IdeIncompatible = "ide.incompatible";
+    public const string IdeMentionSent = "ide.mention.sent";
+    public const string IdeMentionNone = "ide.mention.none";
     public const string McpOnTitle = "mcp.on.title";
     public const string McpOnMessage = "mcp.on.message";
     public const string McpOnConfirm = "mcp.on.confirm";

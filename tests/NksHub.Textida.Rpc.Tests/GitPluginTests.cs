@@ -88,6 +88,7 @@ public class GitPluginTests
         public required string Path { get; init; }
         public required UiApiTests.RecordingUi Ui { get; init; }
         public required DocumentApiTests.RecordingTools Tools { get; init; }
+        public required UiApi UiApi { get; init; }
         public long Caret;
 
         public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0)
@@ -116,7 +117,7 @@ public class GitPluginTests
             host.Register(new PluginSpec("git", "Git", T.DotnetHost, args, ["onCommand:git"]));
             await host.ActivateAsync("onCommand:git");
             var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = codec ?? TextCodec.Utf8 });
-            var rig = new Rig { Host = host, Docs = docs, Doc = doc, Path = path, Ui = ui, Tools = tools, Caret = caret };
+            var rig = new Rig { Host = host, Docs = docs, Doc = doc, Path = path, Ui = ui, Tools = tools, UiApi = uiApi, Caret = caret };
             docs.Expose(doc, () => SelectionSet.Single(new TextSelection(rig.Caret, rig.Caret)));
             return rig;
         }
@@ -664,6 +665,67 @@ public class GitPluginTests
         Assert.Contains((NoticeLevel.Info, "c.txt is deleted and the conflict is resolved."), rig.Ui.Notices);
         Assert.Equal("notInConflict", await rig.RunAsync(GitPlugin.ConflictDeleteCommand));
         Assert.Equal("keep.txt\n", repo.Run("ls-files"));
+    }
+
+    /// <summary>A repository whose merge stopped on a file both sides renamed, each to another name: <c>c.txt</c> is deleted by both and has no file in the working tree.</summary>
+    static Repo DeletedByBothRepo()
+    {
+        var repo = new Repo(("c.txt", "a\nb\nc\nd\ne\nf\n"), ("keep.txt", "k\n"));
+        var main = repo.Run("branch", "--show-current").Trim();
+        repo.Run("checkout", "-q", "-b", "other");
+        repo.Run("mv", "c.txt", "b.txt");
+        repo.Run("commit", "-q", "-m", "other");
+        repo.Run("checkout", "-q", main);
+        repo.Run("mv", "c.txt", "a.txt");
+        repo.Run("commit", "-q", "-m", "ours");
+        repo.RunAllowFailure("merge", "other");
+        return repo;
+    }
+
+    [Fact]
+    public async Task A_file_both_sides_deleted_is_resolved_from_the_status_panel_after_a_question_and_not_without_a_yes()
+    {
+        using var repo = DeletedByBothRepo();
+        Assert.Contains("DD c.txt", repo.Run("status", "--porcelain=v1"));
+        Assert.False(File.Exists(repo.PathOf("c.txt")));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("keep.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        var item = Assert.Single(rig.LatestPanel()!.Items, i => i.Label == "c.txt");
+        Assert.Equal("conflict: deleted by both", item.Detail);
+
+        ConfirmRequest? asked = null;
+        rig.Ui.Confirm = request => { asked = request; return false; };
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+        await T.Until(() => asked is not null);
+        Assert.Contains("c.txt", asked!.Message);
+        await Task.Delay(300);
+        Assert.Contains("c.txt", repo.Run("ls-files", "-u")); // declined: nothing was changed
+
+        rig.Ui.Confirm = _ => true;
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+        await T.Until(() => !repo.Run("ls-files", "-u").Contains("c.txt"));
+        await T.Until(() => { lock (rig.Ui.Panels) return rig.Ui.Panels[^1].Items.All(i => i.Label != "c.txt"); });
+        lock (rig.Ui.Notices) Assert.Contains((NoticeLevel.Info, "c.txt is deleted and the conflict is resolved."), rig.Ui.Notices);
+        Assert.Contains("a.txt", repo.Run("ls-files", "-u")); // the other conflicts of the merge are not touched
+        Assert.Contains("keep.txt", repo.Run("ls-files"));
+    }
+
+    [Fact]
+    public async Task A_missing_file_that_is_no_conflict_is_only_said_to_be_missing_from_the_status_panel()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), ("gone.txt", "g\n"));
+        File.Delete(repo.PathOf("gone.txt"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"));
+        Assert.Equal("status", await rig.RunAsync(GitPlugin.StatusCommand));
+        var item = Assert.Single(rig.LatestPanel()!.Items, i => i.Label == "gone.txt");
+        var asked = false;
+        rig.Ui.Confirm = _ => { asked = true; return true; };
+
+        Assert.True(await rig.UiApi.ActivateItemAsync("git", GitPlugin.StatusPanel, item.Id));
+
+        await T.Until(() => { lock (rig.Ui.Notices) return rig.Ui.Notices.Contains((NoticeLevel.Warning, "gone.txt is not in the working tree, so there is nothing to open.")); });
+        Assert.False(asked);
+        Assert.Contains("gone.txt", repo.Run("ls-files")); // still tracked: the plugin deleted nothing
     }
 
     [Fact]

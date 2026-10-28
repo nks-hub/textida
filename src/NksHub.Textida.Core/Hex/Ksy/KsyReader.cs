@@ -539,7 +539,7 @@ public sealed class KsyReader
         if (attr.Contents is { } expected)
         {
             if (expected.Length > room) return Fail(attr, name, pos, expected.Length, end, KsyErrorKind.OutOfFile);
-            var actual = Read(pos, expected.Length);
+            var actual = Process(attr, scope, pos, budget, index, Read(pos, expected.Length));
             return actual.AsSpan().SequenceEqual(expected)
                 ? new KsyNode(name, pos, expected.Length, Preview(actual), "bytes")
                 : Fail(attr, name, pos, expected.Length, end, KsyErrorKind.Contents);
@@ -615,9 +615,9 @@ public sealed class KsyReader
                 if (type.Kind == KsyKind.User) return ReadStruct(scope, attr, name, pos, size, budget, out value);
                 if (size < 0) return Fail(attr, name, pos, 0, end, KsyErrorKind.LimitSize);
                 if (size > room) return Fail(attr, name, pos, size, end, KsyErrorKind.OutOfFile);
-                if (type.Kind == KsyKind.Bytes) return new KsyNode(name, pos, size, Preview(Read(pos, (int)Math.Min(size, 16))) + (size > 16 ? " …" : ""), label);
+                if (type.Kind == KsyKind.Bytes) return new KsyNode(name, pos, size, Preview(Process(attr, scope, pos, budget, index, Read(pos, (int)Math.Min(size, 16)))) + (size > 16 ? " …" : ""), label);
                 if (size > _limits.MaxStringBytes) return Fail(attr, name, pos, size, end, KsyErrorKind.LimitSize);
-                string decoded = Decode(attr.Encoding!, Read(pos, (int)size));
+                string decoded = Decode(attr.Encoding!, Process(attr, scope, pos, budget, index, Read(pos, (int)size)));
                 value = decoded;
                 return new KsyNode(name, pos, size, Quote(decoded), label);
             }
@@ -648,6 +648,26 @@ public sealed class KsyReader
             return new KsyNode(name, pos, fields[^1].End - pos, error: error);
         long length = fields.Count == 0 ? 0 : fields[^1].End - pos;
         return new KsyNode(name, pos, length, type: def.Name, expand: () => Layout(child, NewBudget(), true));
+    }
+
+    /// <summary>
+    /// The bytes turned back through the <c>process</c> of the field (every byte on its own, so any piece of them can be processed alone). The argument is computed here, so it can name an earlier field:
+    /// a key of <c>xor</c> must fit a byte, the bits of <c>rol</c> and <c>ror</c> are 0 to 7; otherwise the field is an expression error.
+    /// </summary>
+    private byte[] Process(KsyAttr attr, KsyScope scope, long pos, Budget budget, long index, byte[] bytes)
+    {
+        if (attr.Process is not { } process) return bytes;
+        long argument = Num(process.Argument, scope, pos, budget, index);
+        if (argument < 0 || argument > (process.Kind == KsyProcessKind.Xor ? 255 : 7)) throw new KsyExprException(KsyErrorKind.Expression, process.Argument.Source);
+        int by = (int)argument;
+        for (int i = 0; i < bytes.Length; i++)
+            bytes[i] = process.Kind switch
+            {
+                KsyProcessKind.Xor => (byte)(bytes[i] ^ by),
+                KsyProcessKind.Rol => (byte)((bytes[i] << by) | (bytes[i] >> (8 - by))),
+                _ => (byte)((bytes[i] >> by) | (bytes[i] << (8 - by))),
+            };
+        return bytes;
     }
 
     private byte[] Read(long offset, int length)

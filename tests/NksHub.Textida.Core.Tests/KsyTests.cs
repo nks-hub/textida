@@ -86,7 +86,7 @@ public class KsyTests
     }
 
     [Theory]
-    [InlineData("process: xor(1)", "process")]
+    [InlineData("size: 1\n    process: zlib", "process zlib")]
     [InlineData("size: '[1, 2].size'", "expression array literal")]
     [InlineData("size: len.substring(0, 1)", "expression call .substring(...)")]
     [InlineData("type:\n      switch-on: len\n      cases:\n        1: u1\n      terminator: 0", "type/terminator")]
