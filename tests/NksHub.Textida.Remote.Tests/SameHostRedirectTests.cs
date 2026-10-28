@@ -4,6 +4,7 @@ using NksHub.Textida.Remote;
 
 namespace NksHub.Textida.Remote.Tests;
 
+[Trait("Category", "Network")]
 public class SameHostRedirectTests
 {
     /// <summary>The pages the handler asked for, as method, address and body at the moment of the call, and the answers it was given in turn.</summary>

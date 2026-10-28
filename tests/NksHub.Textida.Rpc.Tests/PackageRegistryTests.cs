@@ -388,6 +388,7 @@ public class PackageRegistryTests
     }
 
     [Fact]
+    [Trait("Category", "Network")]
     public async Task A_redirect_leads_to_another_page_of_the_allowed_host_and_never_to_another_host_with_or_without_the_editor()
     {
         using var stub = new Stub();
