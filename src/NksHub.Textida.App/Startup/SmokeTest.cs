@@ -141,9 +141,18 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
 
     private static string Digits(string text) => new(text.Where(char.IsAsciiDigit).ToArray());
 
-    /// <summary>The command returns at once and the plugin answers later; waits until no plugin command runs on the UI side any more.</summary>
-    private async Task RunPluginCommandAsync(string command)
+    /// <summary>
+    /// Runs a command of the editor on the tab, which has to hold the keyboard focus (the commands are enabled for a focused editor only). The command returns at once and the plugin answers
+    /// later; waits until no plugin command runs on the UI side any more.
+    /// </summary>
+    private async Task RunPluginCommandAsync(DocTab tab, string command)
     {
+        for (int i = 0; i < 60 && !tab.Editor!.TextArea.IsFocused; i++)
+        {
+            tab.Editor.TextArea.Focus();
+            await Task.Delay(50);
+        }
+        Check(tab.Editor!.TextArea.IsFocused, $"the editor of the tab has the focus for {command}");
         var outcome = await app.Workbench.Commands.ExecuteAsync(command, new ShellContext(window, forMenu: false));
         Check(outcome == NksHub.Textida.Workbench.Commands.CommandOutcome.Handled, $"{command} is handled");
         for (int i = 0; i < 200 && app.Plugins.IsBusy; i++) await Task.Delay(50);
@@ -177,7 +186,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         var tab = window.OpenFile(file, null);
         await NextFrameAsync();
         tab.Editor!.Select(head.Length, json.Length);
-        await RunPluginCommandAsync("nks.edit.formatJson");
+        await RunPluginCommandAsync(tab, "nks.edit.formatJson");
         var formatted = tab.Editor.Document.Text;
         Check(formatted.StartsWith(head + "{", StringComparison.Ordinal) && formatted.EndsWith("}" + tail, StringComparison.Ordinal) && formatted.Length > original.Length, "the JSON plugin formats the selected range only");
         Check(formatted[head.Length..^tail.Length].Contains('\n') && JsonNode.DeepEquals(JsonNode.Parse(formatted[head.Length..^tail.Length]), JsonNode.Parse(json)), "the formatted range holds the same JSON");
@@ -192,7 +201,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         var restart = await app.Plugins.RestartPluginAsync(PluginServices.JsonPluginId);
         Check(restart is null && app.Plugins.StatusOf(PluginServices.JsonPluginId)?.State == PluginState.Running && tab.Editor.Document.Text == head + json + tail, $"a restart of the JSON plugin repeats no write ({restart})");
         tab.Editor.Select(head.Length, json.Length);
-        await RunPluginCommandAsync("nks.edit.formatJson");
+        await RunPluginCommandAsync(tab, "nks.edit.formatJson");
         Check(tab.Editor.Document.Text == formatted, "the restarted plugin formats the same way");
         window.CloseTab(tab);
 
@@ -202,7 +211,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         var big = window.OpenFile(bigFile, null);
         await NextFrameAsync();
         Check(big.Surface is not null, "a JSON text of 1 MiB opens as text");
-        await RunPluginCommandAsync("nks.edit.formatJson");
+        await RunPluginCommandAsync(big, "nks.edit.formatJson");
         Check(big.Editor!.Document.TextLength == bigText.Length, "a text over the limit of the formatter is left alone");
         await CheckNoticeAsync(m => Digits(m).Contains("1048576", StringComparison.Ordinal) && Digits(m).Contains(bigText.Length.ToString(), StringComparison.Ordinal), "the notice names the size and the limit");
         window.CloseTab(big);
