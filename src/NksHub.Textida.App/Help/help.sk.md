@@ -32,9 +32,15 @@ Otvorí toto okno pomocníka.
 
 ## [help.about] O aplikácii
 commands: nks.help.about
-Ukáže názov programu a číslo verzie.
+Ukáže verziu a zostavenie programu, systém, na ktorom beží, pluginy, licenciu a odkazy projektu.
 1. Zvoľte Pomocník a O aplikácii.
-2. Okno zavriete tlačidlom Zavrieť alebo klávesom Esc.
+2. Hore v okne je verzia, zostavenie (revízia a dátum) a dva odkazy projektu. Karta Technické údaje uvádza behové prostredie .NET, NativeAOT alebo JIT, systém, architektúru, jazyk rozhrania, typ profilu a priečinky profilu a protokolov. Hodnotu si môžete označiť a skopírovať. Tlačidlo Otvoriť priečinok vedľa priečinka ho ukáže v správcovi súborov.
+3. Ak chcete nahlásiť chybu, stlačte Kopírovať informácie. Blok v schránke obsahuje verziu, zostavenie, prostredie, systém, architektúru, jazyk, typ profilu a pluginy. Priečinky sa pridajú, len keď zaškrtnete políčko nad tlačidlom, pretože obsahujú vaše používateľské meno.
+4. Okno zatvoríte tlačidlom Zavrieť alebo klávesom Esc.
+- Karta Pluginy vypisuje pluginy s verziou; každý je vstavaný alebo nainštalovaný (nainštalovaný môže byť vypnutý alebo nečitateľný).
+- Karta Licencia uvádza licenciu MIT a jej copyright. Pole pod ňou ukazuje súbor THIRD-PARTY-NOTICES.md, ktorý leží vedľa programu; ak chýba, pole to povie. Posúvajte ho myšou alebo šípkami a text v ňom označte klávesom Shift so šípkami.
+- Stránka projektu a hlásenia chýb (odkazy pod zostavením) sa otvoria v prehliadači, až keď odkaz stlačíte a potvrdíte otázku. Samotné okno nenadväzuje žiadne spojenie so sieťou.
+- Popisky v bloku na nahlásenie chyby sú vždy po anglicky, nech je program v akomkoľvek jazyku.
 - Rovnaké číslo verzie je uvedené hore v každej téme pomocníka.
 
 ## [file.new] Nový dokument

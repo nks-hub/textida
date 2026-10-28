@@ -32,9 +32,15 @@ Otevře toto okno nápovědy.
 
 ## [help.about] O aplikaci
 commands: nks.help.about
-Ukáže název programu a číslo verze.
+Ukáže verzi a sestavení programu, systém, na kterém běží, pluginy, licenci a odkazy projektu.
 1. Zvolte Nápověda a O aplikaci.
-2. Okno zavřete tlačítkem Zavřít nebo klávesou Esc.
+2. Nahoře v okně je verze, sestavení (revize a datum) a dva odkazy projektu. Karta Technické údaje uvádí běhové prostředí .NET, NativeAOT nebo JIT, systém, architekturu, jazyk rozhraní, typ profilu a složky profilu a protokolů. Hodnotu si můžete označit a zkopírovat. Tlačítko Otevřít složku vedle složky ji ukáže ve správci souborů.
+3. Chcete-li nahlásit chybu, stiskněte Kopírovat informace. Blok ve schránce obsahuje verzi, sestavení, prostředí, systém, architekturu, jazyk, typ profilu a pluginy. Složky se přidají, jen když zaškrtnete políčko nad tlačítkem, protože obsahují vaše uživatelské jméno.
+4. Okno zavřete tlačítkem Zavřít nebo klávesou Esc.
+- Karta Pluginy vypisuje pluginy s verzí; každý je vestavěný nebo nainstalovaný (nainstalovaný může být vypnutý nebo nečitelný).
+- Karta Licence uvádí licenci MIT a její copyright. Pole pod ní ukazuje soubor THIRD-PARTY-NOTICES.md, který leží vedle programu; chybí-li, pole to řekne. Posouvejte ho myší nebo šipkami a text v něm označte klávesou Shift se šipkami.
+- Stránka projektu a hlášení chyb (odkazy pod sestavením) se otevřou v prohlížeči, až když odkaz stisknete a potvrdíte otázku. Samotné okno nenavazuje žádné spojení se sítí.
+- Popisky v bloku pro hlášení chyby jsou vždy anglicky, ať je program v jakémkoli jazyce.
 - Stejné číslo verze je uvedeno nahoře v každém tématu nápovědy.
 
 ## [file.new] Nový dokument
