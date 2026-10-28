@@ -49,7 +49,7 @@ public class InstallerTests : IDisposable
         Assert.Equal("2.3.4", entry.GetValue("DisplayVersion"));
         Assert.Equal("NKS Hub", entry.GetValue("Publisher"));
         Assert.Equal(_box.Dir, entry.GetValue("InstallLocation"));
-        Assert.Equal(_box.Exe, entry.GetValue("DisplayIcon"));
+        Assert.Equal($"\"{_box.Exe}\",0", entry.GetValue("DisplayIcon"));
         Assert.Equal($"\"{setup}\" --uninstall", entry.GetValue("UninstallString"));
         Assert.Equal($"\"{setup}\" --uninstall --silent", entry.GetValue("QuietUninstallString"));
         Assert.Equal("https://github.com/nks-hub/textida", entry.GetValue("URLInfoAbout"));
@@ -81,6 +81,12 @@ public class InstallerTests : IDisposable
         Assert.Equal([".log", ".md"], integration.AssociatedExtensions());
         Assert.Equal(_box.Exe, ShortcutFile.ReadTarget(integration.StartMenuShortcut), ignoreCase: true);
         Assert.Equal(_box.Exe, ShortcutFile.ReadTarget(integration.DesktopShortcut), ignoreCase: true);
+        foreach (var shortcut in new[] { integration.StartMenuShortcut, integration.DesktopShortcut })
+        {
+            var icon = ShortcutFile.ReadIcon(shortcut)!.Value; // the icon of the program, which carries the application icon
+            Assert.Equal(_box.Exe, icon.Path, ignoreCase: true);
+            Assert.Equal(0, icon.Index);
+        }
         using var verb = _box.Key.OpenSubKey(@"Classes\*\shell\Textida")!;
         Assert.Equal("Open with Textida", verb.GetValue(""));
         using var command = verb.OpenSubKey("command")!;

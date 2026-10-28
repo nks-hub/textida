@@ -202,6 +202,17 @@ public sealed class Installer(SystemLocations locations)
         }
     }
 
+    /// <summary>The version a package carries (<c>version.txt</c>), without installing it; "0" when it names none or is not a package.</summary>
+    public static string PackageVersion(Stream package)
+    {
+        try
+        {
+            using var zip = new ZipArchive(package, ZipArchiveMode.Read, leaveOpen: true);
+            return ReadVersion(zip);
+        }
+        catch (InvalidDataException) { return "0"; }
+    }
+
     private static string ReadVersion(ZipArchive zip)
     {
         if (zip.GetEntry("version.txt") is not { } entry) return "0";
@@ -217,7 +228,7 @@ public sealed class Installer(SystemLocations locations)
         key.SetValue("DisplayVersion", version);
         key.SetValue("Publisher", Publisher);
         key.SetValue("InstallLocation", dir);
-        key.SetValue("DisplayIcon", exe);
+        key.SetValue("DisplayIcon", $"\"{exe}\",0"); // the icon of the program, the same one the shortcuts show
         key.SetValue("URLInfoAbout", HomePage);
         key.SetValue("UninstallString", $"\"{setup}\" --uninstall");
         key.SetValue("QuietUninstallString", $"\"{setup}\" --uninstall --silent");

@@ -44,6 +44,19 @@ public static partial class ShortcutFile
         });
     }
 
+    /// <summary>The file and the index of the icon the shortcut shows, or null when the file is missing or is not a shortcut.</summary>
+    public static unsafe (string Path, int Index)? ReadIcon(string path)
+    {
+        if (!File.Exists(path)) return null;
+        return OnApartmentThread<(string, int)?>(() =>
+        {
+            var link = NewLink();
+            if (((IPersistFile)link).Load(path, 0) < 0) return null;
+            char* buffer = stackalloc char[1024];
+            return link.GetIconLocation(buffer, 1024, out var index) < 0 ? null : (new string(buffer), index);
+        });
+    }
+
     private static IShellLinkW NewLink()
     {
         Check(CoCreateInstance(ShellLinkClass, 0, 1, ShellLinkInterface, out var instance), "CoCreateInstance");
