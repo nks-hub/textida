@@ -65,4 +65,55 @@ public class RasterImageTests
         Assert.False(RasterImage.IsSupported(Padded([.. "RIFF"u8, 0, 0, 0, 0, .. "WAVEfmt "u8])));
         Assert.Null(RasterImage.Size(Padded([.. "BM"u8], 30))); // an old bitmap header of 12 bytes has no 32-bit size
     }
+
+    private static byte[] Icon(params (int Width, int Height)[] entries)
+    {
+        var bytes = new byte[6 + 16 * entries.Length + 8];
+        bytes[2] = 1;
+        bytes[4] = (byte)entries.Length;
+        for (int i = 0; i < entries.Length; i++)
+        {
+            int at = 6 + 16 * i;
+            bytes[at] = (byte)(entries[i].Width == 256 ? 0 : entries[i].Width);
+            bytes[at + 1] = (byte)(entries[i].Height == 256 ? 0 : entries[i].Height);
+            BitConverter.GetBytes(6 + 16 * entries.Length).CopyTo(bytes, at + 12);
+        }
+        return bytes;
+    }
+
+    [Fact]
+    public void An_icon_is_sized_by_its_largest_entry_and_four_zero_bytes_alone_are_not_an_icon()
+    {
+        var ico = Icon((16, 16), (256, 256), (32, 32));
+        Assert.True(RasterImage.IsSupported(ico));
+        Assert.Equal((256, 256), RasterImage.Size(ico));
+        Assert.Equal("ICO", RasterImage.FormatName(ico));
+        Assert.Equal("ICO", RasterImage.Detect(ico));
+
+        var notIcon = Icon((16, 16));
+        BitConverter.GetBytes(2).CopyTo(notIcon, 18); // the data would start inside the directory
+        Assert.False(RasterImage.IsSupported(notIcon));
+        Assert.False(RasterImage.IsSupported(Padded([0, 0, 1, 0, 0, 0], 64))); // no entry
+        Assert.False(RasterImage.IsSupported(Padded([0, 0, 2, 0, 1, 0], 64))); // a cursor
+    }
+
+    [Fact]
+    public void Every_format_has_a_name_and_a_bitmap_needs_a_real_header_to_be_detected_while_plain_text_with_the_same_two_letters_is_not_a_picture()
+    {
+        var png = Convert.FromBase64String(OnePixelPng);
+        Assert.Equal("PNG", RasterImage.FormatName(png));
+        Assert.Equal("PNG", RasterImage.Detect(png));
+        Assert.Equal("GIF", RasterImage.FormatName(Padded([.. "GIF89a"u8, 3, 0, 2, 0], 16)));
+        Assert.Equal("JPEG", RasterImage.Detect(Padded([0xFF, 0xD8, 0xFF, 0xE0], 40)));
+        Assert.Equal("WebP", RasterImage.FormatName(Padded([.. "RIFF"u8, 0, 0, 0, 0, .. "WEBPVP8L"u8, 0, 0, 0, 0, 0x2F, 0x63, 0x40, 0x0C, 0x00])));
+        Assert.Null(RasterImage.FormatName(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>")));
+
+        var bmp = Padded([.. "BM"u8], 54);
+        bmp[14] = 40;
+        bmp[26] = 1;
+        BitConverter.GetBytes(4).CopyTo(bmp, 18);
+        BitConverter.GetBytes(3).CopyTo(bmp, 22);
+        Assert.Equal("BMP", RasterImage.Detect(bmp));
+        Assert.Null(RasterImage.Detect(Encoding.UTF8.GetBytes("BMW is a car maker, and this is a plain text file that happens to start with two letters.")));
+    }
 }
