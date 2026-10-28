@@ -219,7 +219,7 @@ public class HexTemplateAppTests : IDisposable
         var root = (TreeViewItem)panel.Tree.Items[0]!;
         var chunks = (TreeViewItem)root.Items[1]!;
         var first = Open(chunks, 0);
-        var length = (TreeViewItem)first.Items[0]!;
+        var length = Open(first, 0);
         Assert.Equal("length: 13 (0x0000000D), 0x8 +4", Avalonia.Automation.AutomationProperties.GetName(length));
     }
 
