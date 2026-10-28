@@ -665,8 +665,9 @@ public class PagedSurfaceTests : IDisposable
             Assert.Equal(caret, paged.CaretOffset);
 
             // down is the next view line at the same column, one scan further on, and up is the way back
+            var before = paged.CaretLineColumn();
             TestApp.Press(_w, Key.Down);
-            Assert.Equal(caret + scan, paged.CaretOffset);
+            Assert.True(caret + scan == paged.CaretOffset, $"down went from {caret} at {before} to {paged.CaretOffset} at {paged.CaretLineColumn()}, a view line is {scan} bytes");
             TestApp.Press(_w, Key.Up);
             Assert.Equal(caret, paged.CaretOffset);
         }

@@ -139,12 +139,14 @@ public sealed class MappedFileSource : IPagedTextSource
     private void StartIndexing(int parallelism)
     {
         if (_blocks == 0) { IndexTask = Task.CompletedTask; return; }
-        IndexTask = Task.Run(() =>
+        var token = _cts.Token;
+        IndexTask = Task.Run(async () =>
         {
-            var po = new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = _cts.Token };
             try
             {
-                Parallel.For(0, _blocks, po, IndexBlock);
+                // a huge file is mapped and first looked at before its index starts to compete for the same pages: with the workers running, the first picture of a 50 GiB file took a second more
+                if (_file.Length >= PagedSpillPlaceholders.IndexDelayAboveBytes) await Task.Delay(PagedSpillPlaceholders.IndexStartDelayMs, token).ConfigureAwait(false);
+                Parallel.For(0, _blocks, new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = token }, IndexBlock);
             }
             catch (OperationCanceledException) { return; }
             IndexProgress?.Invoke(this, EventArgs.Empty);
