@@ -1728,12 +1728,13 @@ public static class K
     public const string SaveActionsServerConfirmFile = "saveActions.serverConfirmFile";
     public const string SaveActionsUploadChanged = "saveActions.uploadChanged";
     public const string LintNone = "lint.none";
-    public const string LintNoLimit = "lint.noLimit";
+    public const string LintMissing = "lint.missing";
     public const string LintFailed = "lint.failed";
     public const string LintTimedOut = "lint.timedOut";
     public const string LintClean = "lint.clean";
     public const string LintFound = "lint.found";
     public const string LintDropped = "lint.dropped";
+    public const string LintStale = "lint.stale";
     public const string FragmentTab = "fragment.tab";
     public const string FragmentTabDetached = "fragment.tabDetached";
     public const string FragmentLanguage = "fragment.language";

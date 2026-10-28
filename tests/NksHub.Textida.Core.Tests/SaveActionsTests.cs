@@ -200,6 +200,9 @@ public sealed class SaveActionsTests : IDisposable
         new("dart-format", "lib/a.dart", "void main( ){}\n", "line 1, column 13 of a.dart: Expected to find '}'.", 65),
     ];
 
+    /// <summary>The formatters these cases cover; the matrix of the catalog is checked against it.</summary>
+    public static IReadOnlyList<string> FormatterCaseIds => [.. FormatterCases.Select(c => c.Id)];
+
     public static TheoryData<string> FormatterIds
     {
         get
@@ -527,6 +530,41 @@ public sealed class SaveActionsTests : IDisposable
         Assert.False(format.OnlyManual);
         Assert.Equal(SaveActionSource.Project, format.Source);
         Assert.Contains(set.Actions, a => a.Kind == SaveActionKind.Upload);
+    }
+
+    [Fact]
+    public void Program_paths_come_from_the_profile_only_and_a_project_that_names_one_is_told_so()
+    {
+        string profile = Path.Combine(_dir, "saveActions.json");
+        string project = Path.Combine(_dir, "proj", ".textida", "saveActions.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(project)!);
+        File.WriteAllText(profile, """{ "toolPaths": { "phpstan": " C:\\tools\\phpstan.phar ", "eslint": "  ", "ruff": null }, "actions": [] }""");
+        File.WriteAllText(project, """{ "toolPaths": { "phpstan": "C:\\evil\\phpstan.exe", "psalm": "C:\\evil\\psalm.exe" }, "actions": [] }""");
+
+        var set = SaveActionConfig.Load(profile, SaveActionConfig.FindProjectFile(Path.Combine(_dir, "proj", "src")));
+
+        Assert.Equal(new Dictionary<string, string> { ["phpstan"] = "C:\\tools\\phpstan.phar" }, set.ToolPaths);
+        var error = Assert.Single(set.Errors);
+        Assert.Contains("toolPaths", error);
+        Assert.Contains("profile", error);
+        Assert.Empty(SaveActionConfig.Load(Path.Combine(_dir, "none.json"), null).ToolPaths!);
+    }
+
+    [Fact]
+    public async Task A_program_path_from_the_user_is_used_for_a_formatter_and_a_path_that_does_not_exist_is_reported()
+    {
+        var s = PrepareFormatter("shfmt", "#format");
+        using var doc = s.Doc;
+        var bare = s.Def with { Executable = ConfigFormatters.Find("shfmt")!.Executable }; // the name only: the copy is not in PATH
+
+        var wrong = await ConfigFormatters.FormatAsync(doc, bare, TimeSpan.FromSeconds(60), toolPath: Path.Combine(_dir, "nothing-here"));
+        Assert.Equal(FormatResult.Missing, wrong.Result);
+        Assert.Contains("does not exist", wrong.Reason);
+        Assert.Equal(s.Unchanged, Text(doc));
+
+        var outcome = await ConfigFormatters.FormatAsync(doc, bare, TimeSpan.FromSeconds(60), toolPath: Path.GetDirectoryName(s.Tool));
+        Assert.Equal(FormatResult.Formatted, outcome.Result);
+        Assert.Equal(s.Unchanged.ToUpperInvariant(), Text(doc));
     }
 
     [Fact]

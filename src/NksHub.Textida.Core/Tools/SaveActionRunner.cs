@@ -68,7 +68,7 @@ public sealed class SaveActionRunner
         if (_formatters(action.Id) is not { } def) return new(action, SaveActionState.Skipped, $"Unknown formatter '{action.Id}'.");
         if (set.FormatTimeout is not { } timeout) return new(action, SaveActionState.Skipped, "No time limit is set for formatters (formatTimeoutSeconds in saveActions.json).");
         if (!doc.IsModified) return new(action, SaveActionState.Skipped, "");
-        var outcome = await ConfigFormatters.FormatAsync(doc, def, timeout, ct, path);
+        var outcome = await ConfigFormatters.FormatAsync(doc, def, timeout, ct, path, set.ToolPaths?.GetValueOrDefault(def.Id));
         var state = outcome.Result switch
         {
             FormatResult.Formatted => SaveActionState.Done,
