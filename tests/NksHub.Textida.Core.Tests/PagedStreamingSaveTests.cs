@@ -569,7 +569,11 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
 
     private async Task SaveWhileEditingAsync(long size)
     {
+        long room = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(_dir))!).AvailableFreeSpace;
+        Assert.True(room > 2 * size + size / 5, $"{room >> 30} GiB are free; a file of {size >> 30} GiB and its saved copy need {2 * size >> 30} GiB");
+        var clock = Stopwatch.StartNew();
         string path = NewFile(size);
+        output.WriteLine($"{size >> 30} GiB file written in {clock.Elapsed.TotalSeconds:F0} s; the machine has {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes >> 20} MiB of memory");
         using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
         var model = new LargeModel(size);
         Edit(doc, model, size / 3, 0, 41, 80 << 20); // spilled to the scratch file, not held
@@ -577,20 +581,24 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         var snapshot = model.Clone();
 
         GC.Collect();
-        long before = Process.GetCurrentProcess().PrivateMemorySize64, peak = before;
+        long before = Process.GetCurrentProcess().PrivateMemorySize64, peak = before, peakSet = 0;
         using var stop = new CancellationTokenSource();
         var watcher = Task.Run(() =>
         {
             while (!stop.IsCancellationRequested)
             {
-                peak = Math.Max(peak, Process.GetCurrentProcess().PrivateMemorySize64);
+                using var self = Process.GetCurrentProcess();
+                peak = Math.Max(peak, self.PrivateMemorySize64);
+                peakSet = Math.Max(peakSet, self.WorkingSet64);
                 Thread.Sleep(50);
             }
         });
+        clock.Restart();
         var task = doc.SaveAsync();
+        int edits = 0;
         for (int i = 0; !task.IsCompleted; i++)
         {
-            if (i < 300) Edit(doc, model, 4096L * i, 0, 100 + i, 64); // typing and pasting while the file streams; few enough that the model stays small
+            if (i < 300) { Edit(doc, model, 4096L * i, 0, 100 + i, 64); edits++; } // typing and pasting while the file streams; few enough that the model stays small
             await Task.Delay(20);
         }
         Assert.True((await task).Saved);
@@ -598,9 +606,15 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         await watcher;
 
         long grown = peak - before;
+        output.WriteLine($"save of {size >> 30} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
         Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
-        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        clock.Restart();
+        string fileHash = HashFile(path), expected = snapshot.Sha256();
+        output.WriteLine($"SHA-256 of the saved file {fileHash} against the independent {expected}, both in {clock.Elapsed.TotalSeconds:F0} s");
+        Assert.Equal(expected, fileHash);
         Assert.Equal(model.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+        Assert.NotNull(doc.Undo()); // undo after the save
         Assert.True(doc.IsModified);
     }
 
