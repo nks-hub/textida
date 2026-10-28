@@ -32,8 +32,10 @@ public sealed record RegistrySettings(string ConfigPath, int TimeoutMilliseconds
 /// check), keeps the answers of this process in a bounded cache that expires, tells the caller whether an answer came from it, and can drop it per registry.
 /// There is no vulnerability lookup and nothing here downloads a package.
 /// </summary>
-public sealed class RegistryClient(RegistrySettings settings) : IDisposable
+/// <param name="clock">The time source of the cache lifetime; the system clock when omitted.</param>
+public sealed class RegistryClient(RegistrySettings settings, TimeProvider? clock = null) : IDisposable
 {
+    private readonly TimeProvider _clock = clock ?? TimeProvider.System;
     private readonly Dictionary<string, (string Body, long Stored, long Order)> _cache = new(StringComparer.Ordinal);
     private readonly object _gate = new();
     private long _cacheBytes;
@@ -87,7 +89,7 @@ public sealed class RegistryClient(RegistrySettings settings) : IDisposable
         {
             if (_cache.TryGetValue(key, out var hit))
             {
-                if (settings.CacheLifetimeSeconds <= 0 || Environment.TickCount64 - hit.Stored < settings.CacheLifetimeSeconds * 1000L)
+                if (settings.CacheLifetimeSeconds <= 0 || _clock.GetElapsedTime(hit.Stored) < TimeSpan.FromSeconds(settings.CacheLifetimeSeconds))
                 {
                     body = hit.Body;
                     return true;
@@ -108,7 +110,7 @@ public sealed class RegistryClient(RegistrySettings settings) : IDisposable
             Remove(key);
             while (settings.CacheMaxBytes > 0 && _cacheBytes + size > settings.CacheMaxBytes && _cache.Count > 0)
                 Remove(_cache.MinBy(x => x.Value.Order).Key);
-            _cache[key] = (body, Environment.TickCount64, _order++);
+            _cache[key] = (body, _clock.GetTimestamp(), _order++);
             _cacheBytes += size;
         }
     }
