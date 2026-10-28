@@ -336,7 +336,7 @@ internal sealed class HexTemplatePanel : Border
         _busy++;
         var task = _tail.ContinueWith(_ =>
         {
-            if (generation != Volatile.Read(ref _generation)) return (Value: default(T), Error: (Exception?)null);
+            if (generation != Volatile.Read(ref _generation)) return (default(T), (Exception?)null);
             try
             {
                 ReadGate?.Invoke();
@@ -390,7 +390,8 @@ internal sealed class HexTemplatePanel : Border
         var read = root.PathToRead(offset, out bool complete);
         if (complete) return Select(read);
         bool selected = false;
-        Read(() => root.PathTo(offset), path => selected = Select(path)); // the nodes on the way are read on the worker and opened here when it is ready
+        // the nodes on the way are read on the worker and opened here when it is ready, unless the user has gone into the tree meanwhile
+        Read(() => root.PathTo(offset), path => selected = !_tree.IsKeyboardFocusWithin && Select(path));
         return selected;
     }
 
