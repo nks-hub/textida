@@ -295,6 +295,7 @@ internal sealed partial class HexView : Grid
         Inspector.Refresh();
         Statistics.Reload();
         Structure.Refresh();
+        Minimap.Rebuild();
         RaiseViewChanged();
     }
 

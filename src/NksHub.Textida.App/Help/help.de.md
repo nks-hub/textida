@@ -635,7 +635,7 @@ commands: nks.view.toggleSecrets
 - Im Texteditor wird nur dieser eine Wert gezeigt, wenn der Mauszeiger auf ihm ruht.
 - Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
 - Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten, in den Suchergebnissen und in den Exporten mit Formatierung (HTML, RTF) verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
-- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm und das Strukturfenster sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist.
+- In der Hex-Ansicht ist ein verborgener Wert ein Punkt je Byte in beiden Spalten. Kopieren, Kopieren als, Exportieren, der Dateninspektor, das Histogramm, das Strukturfenster, die Bytekarte und die Prüfsumme sehen für diese Bytes `*`, und die Statuszeile sagt, dass der Wert verborgen ist. Die Vorschauen von Ersetzen und der ungespeicherten Änderungen zeigen für einen Bereich, der einen Wert berührt, Sternchen.
 - Im seitenweisen Modus liest ein Screenreader für jedes Zeichen eines verborgenen Werts ein Aufzählungszeichen. Eine Zeile über 16 KiB, die einen Wert enthält, verbirgt alles hinter ihrem ersten Teil.
 - Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
 - Die Einstellung Geheime Dateien enthält die Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt (`*` steht für beliebigen Text). Ihre Standardliste ist vorläufig.

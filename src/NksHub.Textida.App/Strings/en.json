@@ -592,6 +592,7 @@
   "hex.goto.invalid": "Invalid expression: {reason}",
   "hex.goto.outside": "The offset is outside the file ({size} B).",
   "hex.find.title": "Find Bytes",
+  "hex.sum.masked": "Hidden values are counted as stars (*). Show the values to get the checksum of the real bytes.",
   "hex.find.label": "Hex (50 4B ?? 04, * = 0 to N bytes), \"text\", number (0x1F40 i32) or /regex/ over bytes:",
   "hex.find.none": "Not found.",
   "hex.find.count": "Match {index} of {total}",

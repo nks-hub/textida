@@ -569,7 +569,7 @@ internal sealed partial class MainWindow
         if (within is not null) message += " " + Loc.Get(K.HexReplaceInSelection);
         if (plan.ChangesLength) message += "\n" + Loc.Get(K.HexReplaceLength, ("delta", plan.LengthDelta), ("old", report.SizeBefore), ("new", report.SizeAfter));
         var request = new ChoiceRequest(Loc.Get(K.HexReplaceTitle), message,
-            [new DialogButton(Loc.Get(K.HexReplaceApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(doc, report));
+            [new DialogButton(Loc.Get(K.HexReplaceApply), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)], InspectionDetails(doc, report, hex));
         if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
         report.Confirm();
         var result = ByteReplace.Apply(doc, plan);
@@ -788,7 +788,7 @@ internal sealed partial class MainWindow
             : Loc.Get(K.HexChangesStream, ("old", original), ("new", doc.ByteLength));
         if (!doc.IsModified) message = Loc.Get(K.HexChangesNone);
         var request = new ChoiceRequest(Loc.Get(K.HexChangesTitle), message,
-            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], InspectionDetails(doc, report));
+            [new DialogButton(Loc.Get(K.DialogSave), IsDefault: true), new DialogButton(Loc.Get(K.HexChangesClose), IsCancel: true)], InspectionDetails(doc, report, tab.Hex));
         if (await _app.Dialogs.ChooseAsync(this, request) == 0 && doc.IsModified) await SaveAsync(tab);
     }
 }

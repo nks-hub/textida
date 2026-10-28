@@ -592,6 +592,7 @@
   "hex.goto.invalid": "Ungültiger Ausdruck: {reason}",
   "hex.goto.outside": "Der Offset liegt außerhalb der Datei ({size} B).",
   "hex.find.title": "Bytes suchen",
+  "hex.sum.masked": "Verborgene Werte werden als Sternchen (*) gerechnet. Zeigen Sie die Werte an, um die Prüfsumme der echten Bytes zu erhalten.",
   "hex.find.label": "Hex (50 4B ?? 04, * = 0 bis N Bytes), \"Text\", Zahl (0x1F40 i32) oder /Regex/ über Bytes:",
   "hex.find.none": "Nicht gefunden.",
   "hex.find.count": "Treffer {index} von {total}",

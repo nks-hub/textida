@@ -593,6 +593,7 @@ public static class K
     public const string HexGotoInvalid = "hex.goto.invalid";
     public const string HexGotoOutside = "hex.goto.outside";
     public const string HexFindTitle = "hex.find.title";
+    public const string HexSumMasked = "hex.sum.masked";
     public const string HexFindLabel = "hex.find.label";
     public const string HexFindNone = "hex.find.none";
     public const string HexFindCount = "hex.find.count";

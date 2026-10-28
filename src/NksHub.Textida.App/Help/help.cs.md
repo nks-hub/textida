@@ -635,7 +635,7 @@ commands: nks.view.toggleSecrets
 - V textovém editoru se po najetí ukazatelem myši na hodnotu ukáže jen ta jedna.
 - Text souboru se nemění: uložení zapíše stejné bajty.
 - Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav, ve výsledcích hledání a v exportech s formátováním (HTML, RTF). Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
-- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram a panel struktury vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá.
+- V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram, panel struktury, mapa bajtů a kontrolní součet vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá. Náhledy Nahradit a neuložených změn ukazují u rozsahu, který se hodnoty dotýká, hvězdičky.
 - Ve stránkovaném režimu čtečka obrazovky čte za každý znak skryté hodnoty odrážku. Řádek delší než 16 KiB, který hodnotu obsahuje, skryje vše za svou první částí.
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
 - Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.

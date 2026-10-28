@@ -89,18 +89,23 @@ internal sealed partial class MainWindow
         return report.RangeCount == 0 ? text + "\n" + Loc.Get(K.InspectNoBytes) : text;
     }
 
-    /// <summary>One line per listed range of the report: where it is, old and new length, the first old and new bytes.</summary>
-    internal static List<string> InspectionDetails(Document doc, ByteInspection report)
+    /// <summary>
+    /// One line per listed range of the report: where it is, old and new length, the first old and new bytes. A range that touches a hidden value of <paramref name="hex"/> (a secrets file) shows stars for
+    /// the bytes of both sides, because the old bytes are the value itself.
+    /// </summary>
+    internal static List<string> InspectionDetails(Document doc, ByteInspection report, HexView? hex = null)
     {
         var lines = new List<string>();
         foreach (var r in report.Ranges.Take(500))
         {
+            bool hide = hex is not null && hex.TouchesHidden(r.Start, r.Start + Math.Max(r.NewLength, r.OldLength ?? 0));
+            byte[] Shown(byte[] head) => hide ? [.. head.Select(_ => (byte)'*')] : head;
             string where = report.Action != InspectedAction.Save && doc.Revision == report.Revision && doc.TryGetPosition(r.Start, out var p)
                 ? Loc.Get(K.InspectAtLine, ("line", p.Line + 1), ("column", p.Column + 1))
                 : Loc.Get(K.InspectAtByte, ("start", r.Start));
-            string newHex = HexEditor.ToHexText(r.NewHead) + (r.NewLength > r.NewHead.Length ? " …" : "");
+            string newHex = HexEditor.ToHexText(Shown(r.NewHead)) + (r.NewLength > r.NewHead.Length ? " …" : "");
             lines.Add(r.OldLength is { } old && r.OldHead is { } oldHead
-                ? Loc.Get(K.InspectRange, ("where", where), ("old", old), ("new", r.NewLength), ("oldHex", HexEditor.ToHexText(oldHead) + (old > oldHead.Length ? " …" : "")), ("newHex", newHex))
+                ? Loc.Get(K.InspectRange, ("where", where), ("old", old), ("new", r.NewLength), ("oldHex", HexEditor.ToHexText(Shown(oldHead)) + (old > oldHead.Length ? " …" : "")), ("newHex", newHex))
                 : Loc.Get(K.InspectRangeNew, ("where", where), ("new", r.NewLength), ("newHex", newHex)));
         }
         if (report.RangeCount > lines.Count) lines.Add(Loc.Get(K.PreviewMore, ("count", report.RangeCount - lines.Count)));

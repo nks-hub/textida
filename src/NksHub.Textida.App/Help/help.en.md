@@ -635,7 +635,7 @@ commands: nks.view.toggleSecrets
 - In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
 - Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
-- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram and the structure panel see `*` for those bytes, and the status line says the value is hidden.
+- In the hex view a hidden value is a dot for each byte in both columns. Copy, Copy as, Export, the data inspector, the histogram, the structure panel, the byte map and the checksum see `*` for those bytes, and the status line says the value is hidden. The previews of Replace and of the unsaved changes show stars for a range that touches a value.
 - In paged mode a screen reader reads a bullet for each character of a hidden value. A line longer than 16 KiB hides everything beyond its first part when it holds a value.
 - A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
 - The setting Secret files holds the name masks of the files whose values are hidden, separated by semicolons (`*` stands for any text). Its default list is provisional.

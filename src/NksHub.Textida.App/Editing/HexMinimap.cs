@@ -153,6 +153,7 @@ internal sealed class HexMinimap : Control
         DocumentSnapshot snapshot;
         try { snapshot = doc.GetSnapshot(); }
         catch (ObjectDisposedException) { return; }
+        var shown = _owner.ShownBytes(snapshot); // the entropy and the classes of a hidden value would tell what it holds
         int buckets = Buckets();
         _builtRevision = snapshot.Revision;
         _builtBuckets = buckets;
@@ -162,7 +163,7 @@ internal sealed class HexMinimap : Control
         {
             try
             {
-                ByteMapBuilder.Build(snapshot, buckets, map => Dispatcher.UIThread.Post(() =>
+                ByteMapBuilder.Build(shown, buckets, map => Dispatcher.UIThread.Post(() =>
                 {
                     if (generation != _generation) return;
                     _map = map;

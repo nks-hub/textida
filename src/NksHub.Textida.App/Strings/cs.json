@@ -610,6 +610,7 @@
   "hex.goto.invalid": "Neplatný výraz: {reason}",
   "hex.goto.outside": "Offset leží mimo soubor (velikost {size} B).",
   "hex.find.title": "Hledat bajty",
+  "hex.sum.masked": "Skryté hodnoty se počítají jako hvězdičky (*). Pro kontrolní součet skutečných bajtů hodnoty zobrazte.",
   "hex.find.label": "Hex (50 4B ?? 04, * = 0 až N bajtů), \"text\", číslo (0x1F40 i32) nebo /regex/ nad bajty:",
   "hex.find.none": "Nenalezeno.",
   "hex.find.count": "Shoda {index} z {total}",
