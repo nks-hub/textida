@@ -67,6 +67,32 @@ internal static class KsySamples
         return ms.ToArray();
     }
 
+    /// <summary>A local entry whose two size fields are <paramref name="sizeField"/> and that carries <paramref name="extra"/>; with 0xFFFFFFFF the real sizes are in a Zip64 extra field.</summary>
+    public static byte[] ZipLocalWithExtra(string name, byte[] body, byte[] extra, uint sizeField)
+    {
+        using var ms = new MemoryStream();
+        using var w = new BinaryWriter(ms);
+        w.Write(new byte[] { (byte)'P', (byte)'K', 3, 4 });
+        w.Write((ushort)45); w.Write((ushort)0); w.Write((ushort)0); w.Write((ushort)0x6000); w.Write((ushort)0x5821);
+        w.Write(0xDEADBEEFu); w.Write(sizeField); w.Write(sizeField);
+        w.Write((ushort)name.Length); w.Write((ushort)extra.Length);
+        w.Write(Encoding.UTF8.GetBytes(name));
+        w.Write(extra);
+        w.Write(body);
+        return ms.ToArray();
+    }
+
+    /// <summary>The Zip64 extended information field of a local header: id 1, 16 bytes, the uncompressed and the compressed size.</summary>
+    public static byte[] Zip64Extra(ulong uncompressed, ulong compressed)
+    {
+        var extra = new byte[20];
+        BinaryPrimitives.WriteUInt16LittleEndian(extra, 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(extra.AsSpan(2), 16);
+        BinaryPrimitives.WriteUInt64LittleEndian(extra.AsSpan(4), uncompressed);
+        BinaryPrimitives.WriteUInt64LittleEndian(extra.AsSpan(12), compressed);
+        return extra;
+    }
+
     public static byte[] ZipCentral(string name, uint localOffset, uint size)
     {
         using var ms = new MemoryStream();

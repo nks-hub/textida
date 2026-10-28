@@ -122,6 +122,45 @@ public class KsyTemplatesTests
     }
 
     [Fact]
+    public void A_zip_entry_of_four_gigabytes_or_more_takes_its_size_from_the_zip64_extra_field()
+    {
+        var body = new byte[30];
+        var data = new List<byte>(KsySamples.ZipLocalWithExtra("big.bin", body, KsySamples.Zip64Extra(30, 30), 0xFFFFFFFF));
+        data.AddRange(KsySamples.ZipEnd(0, 0, 0));
+        var sections = Child(KsySamples.Read("zip_archive", [.. data]), "sections");
+        Assert.Null(sections.Error);
+        Assert.Equal(["local_file (1027)", "end_of_central_directory (1541)"], sections.Children.Select(s => Child(s, "kind").Value));
+
+        var local = Child(sections.Children[0], "body");
+        Assert.Equal(("4294967295 (0xFFFFFFFF)", "4294967295 (0xFFFFFFFF)"), (Child(local, "compressed_size").Value, Child(local, "uncompressed_size").Value));
+        var zip64 = Child(Child(local, "extra"), "first");
+        Assert.Equal(("zip64_sizes", 41L, 16L), (zip64.TypeName, zip64.Start, zip64.Length));
+        Assert.Equal(["30 (0x000000000000001E)", "30 (0x000000000000001E)"], zip64.Children.Select(c => c.Value));
+        var content = Child(local, "body");
+        Assert.Equal((57L, 30L), (content.Start, content.Length));
+        Assert.Equal(87L, sections.Children[1].Start);
+    }
+
+    [Fact]
+    public void A_zip_size_of_ffffffff_without_a_zip64_field_is_an_error_and_other_extra_fields_do_not_change_the_walk()
+    {
+        var missing = new List<byte>(KsySamples.ZipLocalWithExtra("a", new byte[4], [], 0xFFFFFFFF));
+        missing.AddRange(KsySamples.ZipEnd(0, 0, 0));
+        Assert.Equal(KsyErrorKind.Expression, Child(KsySamples.Read("zip_archive", [.. missing]), "sections").Error?.Kind);
+
+        byte[][] others = [[0x55, 0x54, 5, 0, 1, 1, 2, 3, 4], [0x55, 0x54], [0x55, 0x54, 200, 0, 1]];
+        foreach (var extra in others)
+        {
+            var data = new List<byte>(KsySamples.ZipLocalWithExtra("a", new byte[4], extra, 4));
+            data.AddRange(KsySamples.ZipEnd(0, 0, 0));
+            var sections = Child(KsySamples.Read("zip_archive", [.. data]), "sections");
+            Assert.Null(sections.Error);
+            Assert.Equal(2, sections.Children.Count);
+            Assert.Equal(35L + extra.Length, sections.Children[1].Start);
+        }
+    }
+
+    [Fact]
     public void The_raw_data_of_a_pe_section_is_an_instance_at_the_offset_the_section_header_names()
     {
         var pe = Child(KsySamples.Read("pe_file", KsySamples.Pe()), "pe");

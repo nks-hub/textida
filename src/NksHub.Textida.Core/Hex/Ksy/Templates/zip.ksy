@@ -2,6 +2,8 @@
 # Written for Textida from that document; MIT, like the rest of this repository.
 # An entry that has a data descriptor (general purpose flag bit 3) stores its sizes after the data, so the walk
 # from section to section ends at that entry, with the error of the first byte that does not start a section.
+# An entry of 4 GiB or more has 0xFFFFFFFF in its local header and the real sizes in the Zip64 extra field; the walk reads
+# that field as the first of the extra fields, where the common writers put it.
 meta:
   id: zip_archive
   title: ZIP archive sections
@@ -80,9 +82,33 @@ types:
         type: str
         size: name_len
       - id: extra
+        type: local_extra
         size: extra_len
       - id: body
-        size: compressed_size
+        size: 'compressed_size != 0xffffffff ? compressed_size : extra.first.compressed_size'
+  local_extra:
+    seq:
+      - id: first_code
+        type: u2
+        if: _parent.extra_len >= 4
+      - id: first_size
+        type: u2
+        if: _parent.extra_len >= 4
+      - id: first
+        size: first_size
+        type:
+          switch-on: first_code
+          cases:
+            1: zip64_sizes
+        if: _parent.extra_len >= 4 and first_size <= _parent.extra_len - 4
+      - id: rest
+        size-eos: true
+  zip64_sizes:
+    seq:
+      - id: uncompressed_size
+        type: u8
+      - id: compressed_size
+        type: u8
   general_flags:
     seq:
       - id: encrypted

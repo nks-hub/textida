@@ -16,7 +16,7 @@
   version: 1
   license: MIT
   source: "Textida repository; written from the PKWARE APPNOTE"
-  constructs: [bits, bytes, contents, enum, enums.nested, expr, expr.enum, int, meta, meta.bit-endian, meta.encoding, meta.endian, meta.file-extension, repeat.eos, seq, size, size-eos, str, switch-on, types, user-type]
+  constructs: [bits, bytes, contents, enum, enums.nested, expr, expr.enum, if, int, meta, meta.bit-endian, meta.encoding, meta.endian, meta.file-extension, repeat.eos, seq, size, size-eos, str, switch-on, types, user-type]
 - file: pe.ksy
   version: 1
   license: MIT
