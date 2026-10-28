@@ -14,6 +14,9 @@ public class PackageManifestsTests
     [InlineData("Cargo.toml", "crates")]
     [InlineData("Gemfile", "rubygems")]
     [InlineData("pubspec.yaml", "pub")]
+    [InlineData("pom.xml", "maven")]
+    [InlineData("build.gradle", "maven")]
+    [InlineData("build.gradle.kts", "maven")]
     public void A_manifest_has_the_registry_of_its_file_name(string file, string registry) =>
         Assert.Equal(registry, PackageManifests.For(Path.Combine("some", "folder", file))?.Id);
 

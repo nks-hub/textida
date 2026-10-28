@@ -303,6 +303,69 @@ public static partial class Manifests
         return result;
     }
 
+    // ---- pom.xml and build.gradle ----
+
+    [GeneratedRegex(@"<!--.*?(?:-->|\z)|<exclusions\b.*?(?:</exclusions>|\z)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex PomIgnored();
+
+    [GeneratedRegex(@"<dependency\b[^>]*>(?<body>.*?)(?=</dependency>|<dependency\b|</dependencies>|\z)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex PomDependency();
+
+    [GeneratedRegex(@"<(?<tag>groupId|artifactId|version)>(?<v>[^<]*)", RegexOptions.CultureInvariant)]
+    private static partial Regex PomElement();
+
+    [GeneratedRegex(@"//[^\r\n]*|/\*.*?(?:\*/|\z)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex GradleComment();
+
+    [GeneratedRegex(@"\b(?:implementation|api|compileOnly|runtimeOnly|testImplementation|testCompileOnly|testRuntimeOnly|annotationProcessor|kapt|ksp|classpath|compile|runtime|testCompile|debugImplementation|releaseImplementation)\b[ \t]*\(?[ \t]*['""](?<name>[^'""\s:]*(?::[^'""\s:]*)?)(?::(?<ver>[^'""\s:]*))?", RegexOptions.CultureInvariant)]
+    private static partial Regex GradleDependency();
+
+    /// <summary>The same text with the parts that are not dependencies written as spaces, so every offset stays what it is in the file.</summary>
+    private static string Blank(Regex pattern, string text) => pattern.Replace(text, m => new string(' ', m.Length));
+
+    /// <summary>
+    /// The dependencies of a <c>pom.xml</c> (a text that starts with <c>&lt;</c>) or of a Gradle build file (string notation <c>"group:artifact:version"</c> after a configuration such as <c>implementation</c>).
+    /// The name is <c>group:artifact</c>. In a pom the name span is -1: group and artifact are two elements, so there is no one piece of text to complete.
+    /// </summary>
+    public static IReadOnlyList<Dependency> ReadMaven(string text) => text.AsSpan().TrimStart().StartsWith("<", StringComparison.Ordinal) ? ReadPom(text) : ReadGradle(text);
+
+    private static IReadOnlyList<Dependency> ReadPom(string text)
+    {
+        var result = new List<Dependency>();
+        foreach (Match block in PomDependency().Matches(Blank(PomIgnored(), text)))
+        {
+            var body = block.Groups["body"];
+            (string Text, int Start)? group = null, artifact = null, version = null;
+            foreach (Match element in PomElement().Matches(body.Value))
+            {
+                var value = element.Groups["v"];
+                int lead = value.Value.Length - value.Value.TrimStart().Length;
+                var found = (value.Value.Trim(), body.Index + value.Index + lead);
+                switch (element.Groups["tag"].Value)
+                {
+                    case "groupId": group ??= found; break;
+                    case "artifactId": artifact ??= found; break;
+                    default: version ??= found; break;
+                }
+            }
+            if (artifact is null) continue;
+            string name = group is { } g ? g.Text + ":" + artifact.Value.Text : artifact.Value.Text;
+            result.Add(version is { } v ? With(name, 0, v.Text, v.Start) with { NameStart = -1, NameEnd = -1 } : new Dependency(name, -1, -1, null, -1, -1, false));
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<Dependency> ReadGradle(string text)
+    {
+        var result = new List<Dependency>();
+        foreach (Match m in GradleDependency().Matches(Blank(GradleComment(), text)))
+        {
+            var name = m.Groups["name"];
+            result.Add(m.Groups["ver"].Success ? With(name.Value, name.Index, m.Groups["ver"].Value, m.Groups["ver"].Index) : Named(name.Value, name.Index));
+        }
+        return result;
+    }
+
     /// <summary>The lines of the text without their line ends, with the character offset where each starts.</summary>
     private static IEnumerable<(string Line, int Offset)> Lines(string text)
     {
