@@ -468,18 +468,18 @@ public class PagedLongLineTests : IDisposable
     [AvaloniaFact]
     public void Down_and_then_up_between_two_long_lines_come_back_to_the_first_line()
     {
-        string first = new('a', 40_000), second = new('b', 40_000);
+        string first = new('a', 600_000), second = new('b', 600_000); // above the threshold of a large file, which the tests set to 1 MiB
         var tab = OpenBytes(Encoding.UTF8.GetBytes(first + "\n" + second + "\n"));
         var paged = tab.Paged!;
-        paged.GoToOffset(30_000);
+        paged.GoToOffset(300_000);
         TestApp.Settle(paged);
 
         TestApp.Press(_w, Key.Down);
         TestApp.Settle(paged);
-        Assert.Equal(40_001 + 30_000, paged.CaretOffset);
+        Assert.Equal(600_001 + 300_000, paged.CaretOffset);
         TestApp.Press(_w, Key.Up); // the column of the first line is not the offset that the second line gave for the same column
         TestApp.Settle(paged);
-        Assert.Equal(30_000, paged.CaretOffset);
+        Assert.Equal(300_000, paged.CaretOffset);
     }
 
     [AvaloniaFact]
