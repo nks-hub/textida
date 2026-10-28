@@ -657,7 +657,11 @@ public sealed class LspPlugin : PluginBase
         return list;
     }
 
-    /// <summary>The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk read as UTF-8 (<paramref name="strict"/>: null for bytes that are not valid UTF-8); null when it cannot be read or is larger than the limit.</summary>
+    /// <summary>
+    /// The file a place is in: the text the plugin holds for a document it follows, otherwise the file on disk; null when it cannot be read or is larger than the limit. A file that starts with a byte order mark is
+    /// read as the encoding the mark names (UTF-8, UTF-16 or UTF-32), any other as UTF-8: <paramref name="strict"/> is null for bytes that are not valid in that encoding, and for a text with a NUL in it
+    /// (UTF-16 without a mark reads as such), so an edit is never built on a reading of the file that the editor would not make.
+    /// </summary>
     private Loaded? Load(string path, bool strict = false)
     {
         foreach (var d in _docs.Values)
@@ -667,11 +671,22 @@ public sealed class LspPlugin : PluginBase
             var info = new FileInfo(path);
             if (!info.Exists || info.Length > _settings.MaxBytes) return null;
             var bytes = File.ReadAllBytes(path);
-            int bom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-            var text = new UTF8Encoding(false, strict).GetString(bytes, bom, bytes.Length - bom);
-            return new Loaded(text, new LineMap(text), TextCodec.Utf8, bom, Convert.ToHexString(SHA256.HashData(bytes)));
+            var (codec, bom, encoding) = Sniff(bytes, strict);
+            var text = encoding.GetString(bytes, bom, bytes.Length - bom);
+            if (strict && text.Contains('\0')) return null;
+            return new Loaded(text, new LineMap(text), codec, bom, Convert.ToHexString(SHA256.HashData(bytes)));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException) { return null; }
+    }
+
+    /// <summary>The encoding a file starts with by its byte order mark (the UTF-32 marks first: the one of UTF-32 LE starts with the one of UTF-16 LE), the length of the mark, and a decoder that throws on invalid bytes when asked.</summary>
+    private static (TextCodec Codec, int Bom, Encoding Encoding) Sniff(byte[] bytes, bool strict)
+    {
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32LEBom.Bom)) return (TextCodec.Utf32LE, 4, new UTF32Encoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf32BEBom.Bom)) return (TextCodec.Utf32BE, 4, new UTF32Encoding(true, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16LEBom.Bom)) return (TextCodec.Utf16LE, 2, new UnicodeEncoding(false, false, strict));
+        if (bytes.AsSpan().StartsWith(TextCodec.Utf16BEBom.Bom)) return (TextCodec.Utf16BE, 2, new UnicodeEncoding(true, false, strict));
+        return (TextCodec.Utf8, bytes.AsSpan().StartsWith(TextCodec.Utf8Bom.Bom) ? 3 : 0, new UTF8Encoding(false, strict));
     }
 
     private List<Place> Resolve(Doc current, List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> raw)

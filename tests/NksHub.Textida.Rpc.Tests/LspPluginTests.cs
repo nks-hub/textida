@@ -64,8 +64,9 @@ public class LspPluginTests
         public string? Launch { get; init; }
 
         /// <param name="declared">The server is not in the catalog (it is empty) but sent with each command, as the editor does for a server of a plugin manifest.</param>
+        /// <param name="externalCodec">The encoding of the external file; null is UTF-8 without a byte order mark. One with a mark has it written at the start.</param>
         public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
-            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null)
+            bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null, TextCodec? externalCodec = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -75,7 +76,8 @@ public class LspPluginTests
             var arguments = new List<string> { fake, "--dump", dump };
             if (externalName is not null)
             {
-                File.WriteAllBytes(Path.Combine(folder, externalName), new UTF8Encoding(false).GetBytes(externalContent!));
+                byte[] external = externalCodec is null ? new UTF8Encoding(false).GetBytes(externalContent!) : [.. externalCodec.Bom, .. externalCodec.WithBom(false).Encode(externalContent!)];
+                File.WriteAllBytes(Path.Combine(folder, externalName), external);
                 arguments.AddRange(["--external", Path.Combine(folder, externalName)]);
             }
             arguments.AddRange(serverArgs ?? []);
@@ -481,6 +483,52 @@ public class LspPluginTests
         Assert.False(File.Exists(Path.Combine(rig.Folder, "doomed.fake")));
         Assert.False(File.Exists(Path.Combine(rig.Folder, "moveme.fake")));
         Assert.Equal("move", File.ReadAllText(Path.Combine(rig.Folder, "moved.fake")));
+    }
+
+    [Theory]
+    [InlineData("UTF-16 LE with BOM")]
+    [InlineData("UTF-16 BE with BOM")]
+    [InlineData("UTF-32 LE with BOM")]
+    [InlineData("UTF-32 BE with BOM")]
+    [InlineData("UTF-8 with BOM")]
+    public async Task A_rename_edits_a_file_on_disk_that_starts_with_a_byte_order_mark_by_the_bytes_of_the_encoding_the_mark_names(string codecName)
+    {
+        var codec = TextCodec.ByName(codecName)!;
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "😀é foo on disk\n", externalCodec: codec);
+        var doc = rig.Add("main.fake", "foo\n");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var bytes = File.ReadAllBytes(Path.Combine(rig.Folder, "disk.fake"));
+        Assert.True(bytes.AsSpan().StartsWith(codec.Bom)); // the mark is still there
+        Assert.Equal("😀é bar on disk\n", codec.WithBom(false).Decode(bytes[codec.Bom.Length..]).Text);
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0xFF, 0x0A })] // "foo" and a byte that UTF-8 does not have
+    [InlineData(new byte[] { 0x66, 0x6F, 0x6F, 0x00, 0x0A })] // "foo" and a NUL: how a UTF-16 file without a mark reads as UTF-8
+    public async Task A_rename_does_not_edit_a_file_on_disk_it_cannot_read_the_way_the_editor_does(byte[] content)
+    {
+        await using var rig = await Rig.CreateAsync(["--fileops"], externalName: "disk.fake", externalContent: "foo\n");
+        var disk = Path.Combine(rig.Folder, "disk.fake");
+        File.WriteAllBytes(disk, content);
+        var doc = rig.Add("main.fake", "foo\n");
+        File.WriteAllText(Path.Combine(rig.Folder, "doomed.fake"), "bye");
+        File.WriteAllText(Path.Combine(rig.Folder, "moveme.fake"), "move");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "bar";
+
+        var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+        Assert.Equal("unreadable", r.GetProperty("status").GetString());
+        Assert.Empty(rig.Review.Shown);
+        Assert.Equal("foo\n", Rig.TextOf(doc));
+        Assert.Equal(content, File.ReadAllBytes(disk));
     }
 
     [Fact]
