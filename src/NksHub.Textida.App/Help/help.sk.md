@@ -1139,10 +1139,12 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 ### Čo ide
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
 - Písať, mazať (Backspace a Delete), Enter a Tab na mieste kurzora. Späť a Znova. Uložiť.
+- Späť a Znova fungujú aj po uložení: kroky urobené pred uložením sa dajú ďalej vrátiť a ďalšie uloženie zapíše stav po vrátení. Napísané slovo bez presunu kurzora je jeden krok.
 - Hľadať (Ctrl+F). Hľadanie v súboroch.
 - Výber (Shift so šípkami, myš, Ctrl+A), Kopírovať, Vystrihnúť a Vložiť. Výber väčší ako limit kopírovania (256 MiB, zatiaľ provizórna hodnota) sa neskopíruje a stavový riadok to povie. Dlhý výber sa číta na pozadí a vystrihnutie zmaže len vtedy, keď sa text medzitým nezmenil.
+- Vložiť prijme najviac 32 Mi znakov (zatiaľ provizórna hodnota); dlhší text sa nevloží a stavový riadok to povie. Text nad 1 Mi znakov sa pripraví na pozadí a vloží sa tam, kde je kurzor, keď bude hotovo.
 - Riadok dlhší ako 16 KiB posuniete do strán posuvníkom pod textom. Vzdialená časť riadku sa na chvíľu ukáže ako …, kým sa nenačíta. Farby v nej pribudnú, keď program prečíta riadok až po ňu.
-- Riadok s desiatkami či stovkami MiB sa upravuje na mieste: písanie, Backspace, Delete, Enter, Tab, vloženie, výber aj Späť čítajú len text okolo kurzora, nikdy celý riadok, takže pamäť nerastie s dĺžkou riadku. Prvý presun kurzora do vzdialenej časti takého riadku musí napočítať znaky až po ňu, čo chvíľu trvá; počet si program pamätá pre ďalšie presuny.
+- Riadok s desiatkami či stovkami MiB sa upravuje na mieste: písanie, Backspace, Delete, Enter, Tab, vloženie, výber aj Späť čítajú len text okolo kurzora, nikdy celý riadok, takže pamäť nerastie s dĺžkou riadku. Prvý presun kurzora do vzdialenej časti takého riadku musí napočítať znaky až po ňu, čo chvíľu trvá; počet si program pamätá pre ďalšie presuny. Riadok dlhší ako 1 GiB (zatiaľ provizórna hodnota) sa neupravuje; stavový riadok to povie a dokument sa nezmení.
 ### Čo nejde
 - Blokový výber, viac kurzorov.
 - Príkazy nad riadkami, odsadením, veľkosťou písmen, nahradenie.
@@ -1154,6 +1156,9 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Znak sa nedá zapísať v kódovaní súboru: napíšte iný znak.
 - Výber je väčší ako limit kopírovania: vyberte menej; schránka zostala, ako bola.
 - Úprava je príliš veľká na to, aby sa dala vrátiť späť: odoberte alebo vložte naraz menej textu; dokument sa nezmenil.
+- Riadok je dlhší ako limit, ktorý sa v stránkovanom režime upravuje: upravte ho v hexe; dokument sa nezmenil.
+- Text v schránke je väčší ako limit vloženia: vložte ho po častiach; dokument sa nezmenil.
+- Kódovanie dokumentu sa zmenilo, kým sa text pripravoval: vložte ho znova.
 - Veľký súbor v kódovaní ... sa zatiaľ nedá otvoriť: súbor sa neotvorí; iné kódovanie vo veľkom súbore program zatiaľ neprečíta.
 - Ukladanie veľkého súboru zdrží okno.
 

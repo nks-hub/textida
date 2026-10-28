@@ -61,6 +61,15 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest selection of a large file in the paged view that Copy and Cut take to the clipboard, in bytes; a larger one is refused with a message and the clipboard stays as it was. The owner has not decided it.</summary>
     public const long PagedCopyMaxBytes = 256L << 20;
 
+    /// <summary>Placeholder, OPEN: longest line of a large file in the paged view that can be edited, in bytes; typing, deleting or pasting in a longer one is refused with a message and the document does not change. The owner has not decided it.</summary>
+    public const long PagedEditLineMaxBytes = 1L << 30;
+
+    /// <summary>Placeholder, OPEN: most UTF-16 characters of clipboard text that Paste takes into the paged view (its encoded copy and the clipboard string are both in memory at once); a longer text is refused with a message and the document does not change. The owner has not decided it.</summary>
+    public const long PagedPasteMaxChars = 32L << 20;
+
+    /// <summary>Placeholder, OPEN: milliseconds in which the largest measured paste (<see cref="PagedPasteMaxChars"/> characters into a file of 100 MiB) must end on a development PC; only the measuring test reads it. The owner has not decided it.</summary>
+    public const int PagedPasteMeasureMilliseconds = 5000;
+
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
