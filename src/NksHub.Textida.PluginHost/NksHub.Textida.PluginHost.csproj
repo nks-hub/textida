@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NksHub.Textida.Rpc.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NksHub.Textida.Rpc\NksHub.Textida.Rpc.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
     <ProjectReference Include="..\NksHub.Textida.Workbench\NksHub.Textida.Workbench.csproj" />

@@ -163,6 +163,10 @@ public sealed partial class DocumentApi
         List<Outbox> boxes;
         lock (_gate)
         {
+            _closed = true;
+            _sweep?.Dispose();
+            _sweep = null;
+            _snapshots.Clear();
             exposed = [.. _exposed.Values];
             boxes = [.. _outboxes.Values];
         }
