@@ -132,6 +132,7 @@ internal sealed partial class MainWindow
             position = tab.Paged!.LinesExact && tab.Paged.CaretLineColumn() is not null
                 ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))
                 : Loc.Get(K.StatusLine, ("line", "≈" + line));
+            if (tab.Paged.IsMulti) position += " " + Loc.Plural(K.StatusCarets, tab.Paged.CaretCount);
         }
         if (tab.TableShown) position = tab.Table!.StatusText();
         string message = _message.Length > 0 ? _message : tab.Syntax is { LineTooLong: true } ? Loc.Get(K.StatusSyntaxLongLine) : tab.Syntax is { Pending: true } ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);

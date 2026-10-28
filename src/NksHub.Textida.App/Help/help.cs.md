@@ -532,6 +532,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 - Stavový řádek ukazuje počet kurzorů.
 - Alt+tažení myší vytvoří kurzor na každém řádku nebo blokový výběr podle nastavení Alt+tažení.
 - Se vstupní metodou (japonština, čínština, korejština) je rozepsaný text vidět podtržený u každého kurzoru. Po potvrzení se zapíše do všech naráz jako jeden krok Zpět; Esc ho zruší a kurzory nechá.
+- Více kurzorů má i velký soubor ve stránkovaném režimu, se stejnými klávesami a nejvýš 1000 kurzory (téma Velké soubory). Alt+tažení tam nefunguje.
 
 ## [edit.mark] Značka a výběr po značku
 commands: nks.edit.selectToMark
@@ -1246,6 +1247,7 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Co jde
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).
 - Psát, mazat (Backspace a Delete), Enter a Tab na místě kurzoru. Zpět a Znovu. Uložit.
+- Více kurzorů: Ctrl+D, Ctrl+K a potom Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+šipka nahoru a Ctrl+Alt+šipka dolů, Alt+klik a Esc fungují jako v textovém editoru (téma Více kurzorů). Šipky, Home a End posunou všechny kurzory. Psaní, Backspace, Delete, Enter, Tab, Vyjmout, Kopírovat, Vložit a Zpět působí na všechny najednou jako jeden krok. Kreslí se jen kurzory na obrazovce. Velký soubor má nejvýš 1000 kurzorů (zatím provizorní limit); nad ním to stavový řádek řekne.
 - Uložení (Ctrl+S) běží na pozadí: okno zůstává použitelné, stavový řádek ukazuje, kolik procent nového souboru je zapsáno, a Esc uložení zruší dřív, než se data potvrdí (soubor zůstane beze změny). Můžete mezitím psát dál: do souboru se zapíše text, jaký byl ve chvíli stisku Uložit, pozdější úpravy zůstanou neuložené a karta je ukazuje jako neuložené změny. Zpět a Znovu fungují během uložení i po něm. Uložení, které jen přepisuje bajty stejné délky, zapíše jen tyto bajty a po svou krátkou dobu úpravy nepřijímá. Soubor větší než 1 GiB (zatím provizorní limit) se uloží bez kopie staré verze ve složce záloh; starý soubor zůstane nedotčený, dokud není nový celý.
 
 - Zpět a Znovu fungují i po uložení: kroky provedené před uložením jdou dál vrátit a další uložení zapíše stav po vrácení. Napsané slovo bez přesunu kurzoru je jeden krok.
@@ -1255,7 +1257,7 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 - Řádek delší než 16 KiB posunete do stran posuvníkem pod textem. Vzdálená část řádku se na chvíli ukáže jako …, dokud se nenačte. Barvy v ní přibudou, jakmile program přečte řádek až k ní.
 - Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny. Řádek delší než 1 GiB (zatím provizorní hodnota) se neupravuje; stavový řádek to řekne a dokument se nezmění.
 ### Co nejde
-- Blokový výběr, více kurzorů.
+- Blokový výběr a Alt+tažení.
 - Příkazy nad řádky, odsazením, velikostí písmen, nahrazení.
 - Přejít na párovou závorku, zalamování řádků.
 - Převod a opětovné čtení kódování, sjednocení konců řádků, normalizace.
@@ -1268,6 +1270,9 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 - Řádek L má N, což je víc než M, které se ve stránkovaném režimu upravují. Dokument se nezměnil. Upravte ho v hexu. Mez je 1 GiB, zatím provizorní hodnota.
 - Text ve schránce (velikost znaků) je větší než limit vložení (mez znaků). Dokument se nezměnil. Vložte ho po částech. Mez je 32 Mi znaků, zatím provizorní hodnota.
 - Kódování dokumentu se změnilo, zatímco se text připravoval; vložte ho znovu. Dokument se nezměnil.
+- Velký soubor má nejvýš 1000 kurzorů, další se nepřidaly: vyberte méně míst; kurzory zůstaly, jak byly.
+- Výběr je příliš dlouhý na hledání dalších výskytů: vyberte kratší text (limit je zatím provizorních 64 KiB).
+- Text pro všechny kurzory by byl přes limit: vložte méně textu nebo použijte méně kurzorů; dokument se nezměnil.
 - Velký soubor v kódování ... se zatím nedá otevřít: soubor se neotevře; jiné kódování ve velkém souboru program zatím nepřečte.
 - Soubor se právě ukládá, zkuste to po skončení uložení: zkusili jste něco během uložení, které přepisuje bajty na místě, nebo jste soubor načetli znovu během jakéhokoli uložení.
 - Zavření karty nebo okna během uložení počká na konec uložení; Esc uložení zruší.

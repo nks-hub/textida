@@ -19,7 +19,8 @@ public sealed class LinterTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
+        // a tool stopped at its time limit may still hold its program for a moment
+        try { Directory.Delete(_dir, recursive: true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 
     private static string ExeName(string name) => OperatingSystem.IsWindows() ? name + ".exe" : name;

@@ -532,6 +532,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 - Die Statusleiste zeigt die Anzahl der Cursor.
 - Alt+Ziehen mit der Maus erzeugt je nach Einstellung Alt+Ziehen einen Cursor in jeder Zeile oder eine Blockauswahl.
 - Mit einer Eingabemethode (Japanisch, Chinesisch, Koreanisch) erscheint der Text, der gerade zusammengesetzt wird, unterstrichen an jedem Cursor. Nach dem Bestätigen wird er an allen als ein Rückgängig-Schritt eingefügt; Esc bricht ihn ab und lässt die Cursor stehen.
+- Auch eine große Datei im Seitenmodus hat mehrere Cursor, mit denselben Tasten und höchstens 1000 (Thema Große Dateien). Alt+Ziehen funktioniert dort nicht.
 
 ## [edit.mark] Marke und bis Marke auswählen
 commands: nks.edit.selectToMark
@@ -1246,6 +1247,7 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 ### Was geht
 - Bewegen mit den Pfeilen, Bild auf, Bild ab, Pos1, Ende sowie Strg+Pos1 und Strg+Ende. Gehe zu Zeile, Prozent oder Byte (Strg+G).
 - Tippen, Löschen (Rücktaste und Entf), Eingabetaste und Tab an der Cursorposition. Rückgängig und Wiederholen. Speichern.
+- Mehrere Cursor: Strg+D, Strg+K und dann Strg+D, Strg+Umschalt+L, Strg+Alt+Pfeil nach oben und Strg+Alt+Pfeil nach unten, Alt+Klick und Esc funktionieren wie im Texteditor (Thema Mehrere Cursor). Die Pfeile, Pos1 und Ende bewegen alle Cursor. Tippen, Rücktaste, Entf, Eingabetaste, Tab, Ausschneiden, Kopieren, Einfügen und Rückgängig wirken auf alle zugleich als ein Schritt. Gezeichnet werden nur die Cursor auf dem Bildschirm. Eine große Datei erlaubt höchstens 1000 Cursor (vorläufige Grenze); darüber hinaus sagt es die Statusleiste.
 - Speichern (Strg+S) läuft im Hintergrund: Das Fenster bleibt benutzbar, die Statusleiste zeigt, wie viel Prozent der neuen Datei geschrieben sind, und Esc bricht das Speichern ab, bevor die Daten übernommen werden (die Datei bleibt unverändert). Sie können währenddessen weitertippen: In die Datei kommt der Text, wie er beim Speichern war, spätere Änderungen bleiben ungespeichert, und der Tab zeigt sie als ungespeicherte Änderungen. Rückgängig und Wiederholen funktionieren während des Speicherns und danach. Ein Speichern, das nur Bytes gleicher Länge überschreibt, schreibt nur diese Bytes und nimmt in seiner kurzen Zeit keine Änderungen an. Eine Datei über 1 GiB (vorläufige Grenze) wird ohne Kopie der alten Version im Sicherungsordner gespeichert; die alte Datei bleibt unberührt, bis die neue vollständig ist.
 
 - Rückgängig und Wiederholen funktionieren auch nach dem Speichern: Schritte vor dem Speichern lassen sich weiter zurücknehmen, und das nächste Speichern schreibt den Stand nach dem Zurücknehmen. Ein getipptes Wort ohne Bewegen des Cursors ist ein Schritt.
@@ -1255,7 +1257,7 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Eine Zeile über 16 KiB verschieben Sie mit der Leiste unter dem Text zur Seite. Ein weit entfernter Teil der Zeile zeigt kurz …, bis er gelesen ist. Seine Farben erscheinen, sobald das Programm die Zeile bis dorthin gelesen hat.
 - Eine Zeile von Dutzenden oder Hunderten MiB wird an Ort und Stelle bearbeitet: Tippen, Rücktaste, Entf, Eingabetaste, Tab, Einfügen, Auswählen und Rückgängig lesen nur den Text um den Cursor, nie die ganze Zeile, deshalb wächst der Speicher nicht mit der Länge der Zeile. Das erste Bewegen des Cursors in einen entfernten Teil einer solchen Zeile muss die Zeichen bis dorthin zählen, das dauert einen Moment; das Programm merkt sich die Zahl für die nächsten Bewegungen. Eine Zeile über 1 GiB (vorläufiger Wert) wird nicht bearbeitet; die Statusleiste sagt es, und das Dokument bleibt unverändert.
 ### Was nicht geht
-- Blockauswahl, mehrere Cursor.
+- Blockauswahl und Alt+Ziehen.
 - Befehle für Zeilen, Einzug, Schreibweise, Ersetzen.
 - Zur passenden Klammer springen, Zeilenumbruch.
 - Konvertieren und erneutes Lesen der Codierung, Vereinheitlichen der Zeilenenden, Normalisierung.
@@ -1268,6 +1270,9 @@ Die Statusleiste zeigt dann Große Datei, ihre Größe und die Revision.
 - Zeile L ist N lang, mehr als die M, die im seitenweisen Modus bearbeitet werden. Das Dokument wurde nicht verändert. Bearbeiten Sie sie in Hex. Die Grenze liegt bei 1 GiB, ein vorläufiger Wert.
 - Der Text in der Zwischenablage (Größe Zeichen) ist größer als das Einfügelimit (Grenze Zeichen). Das Dokument wurde nicht verändert. Fügen Sie ihn in Teilen ein. Die Grenze liegt bei 32 Mi Zeichen, ein vorläufiger Wert.
 - Die Kodierung des Dokuments hat sich während der Vorbereitung des Textes geändert; bitte erneut einfügen. Das Dokument wurde nicht verändert.
+- Eine große Datei erlaubt höchstens 1000 Cursor, weitere wurden nicht hinzugefügt: Wählen Sie weniger Stellen; die Cursor blieben, wie sie waren.
+- Die Auswahl ist zu lang, um ihre weiteren Vorkommen zu suchen: Wählen Sie einen kürzeren Text (das Limit sind vorläufig 64 KiB).
+- Der Text für alle Cursor läge über dem Limit: Fügen Sie weniger Text ein oder nehmen Sie weniger Cursor; das Dokument wurde nicht verändert.
 - Eine große Datei in einer Codierung lässt sich noch nicht öffnen: Die Datei wird nicht geöffnet; andere Codierungen liest das Programm in einer großen Datei noch nicht.
 - Die Datei wird gerade gespeichert, später noch einmal versuchen: Sie haben etwas versucht, während ein Speichern lief, das Bytes an Ort und Stelle überschreibt, oder die Datei während eines beliebigen Speicherns neu geladen.
 - Das Schließen eines Tabs oder des Fensters während des Speicherns wartet auf das Ende des Speicherns; Esc bricht das Speichern ab.

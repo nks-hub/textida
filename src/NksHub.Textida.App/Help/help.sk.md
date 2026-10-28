@@ -532,6 +532,7 @@ commands: nks.edit.addNextOccurrence, nks.edit.skipOccurrence, nks.edit.selectAl
 - Stavový riadok ukazuje počet kurzorov.
 - Alt+ťahanie myšou vytvorí kurzor na každom riadku alebo blokový výber podľa nastavenia Alt+ťahanie.
 - So vstupnou metódou (japončina, čínština, kórejčina) je rozpísaný text vidieť podčiarknutý pri každom kurzore. Po potvrdení sa zapíše do všetkých naraz ako jeden krok Späť; Esc ho zruší a kurzory nechá.
+- Viac kurzorov má aj veľký súbor v stránkovanom režime, s rovnakými klávesmi a najviac 1000 kurzormi (téma Veľké súbory). Alt+ťahanie tam nefunguje.
 
 ## [edit.mark] Značka a výber po značku
 commands: nks.edit.selectToMark
@@ -1246,6 +1247,7 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 ### Čo ide
 - Prechádzať šípkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Prejsť na riadok, na percento alebo na bajt (Ctrl+G).
 - Písať, mazať (Backspace a Delete), Enter a Tab na mieste kurzora. Späť a Znova. Uložiť.
+- Viac kurzorov: Ctrl+D, Ctrl+K a potom Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+šípka nahor a Ctrl+Alt+šípka nadol, Alt+klik a Esc fungujú ako v textovom editore (téma Viac kurzorov). Šípky, Home a End posunú všetky kurzory. Písanie, Backspace, Delete, Enter, Tab, Vystrihnúť, Kopírovať, Vložiť a Späť pôsobia na všetky naraz ako jeden krok. Kreslia sa len kurzory na obrazovke. Veľký súbor má najviac 1000 kurzorov (zatiaľ provizórny limit); nad ním to stavový riadok povie.
 - Uloženie (Ctrl+S) beží na pozadí: okno zostáva použiteľné, stavový riadok ukazuje, koľko percent nového súboru je zapísaných, a Esc uloženie zruší skôr, ako sa dáta potvrdia (súbor zostane bez zmeny). Môžete medzitým písať ďalej: do súboru sa zapíše text, aký bol v okamihu stlačenia Uložiť, neskoršie úpravy zostanú neuložené a karta ich ukazuje ako neuložené zmeny. Späť a Znova fungujú počas ukladania aj po ňom. Uloženie, ktoré len prepisuje bajty rovnakej dĺžky, zapíše len tieto bajty a počas svojho krátkeho trvania úpravy neprijíma. Súbor väčší ako 1 GiB (zatiaľ provizórny limit) sa uloží bez kópie starej verzie v priečinku záloh; starý súbor zostane nedotknutý, kým nie je nový celý.
 
 - Späť a Znova fungujú aj po uložení: kroky urobené pred uložením sa dajú ďalej vrátiť a ďalšie uloženie zapíše stav po vrátení. Napísané slovo bez presunu kurzora je jeden krok.
@@ -1255,7 +1257,7 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Riadok dlhší ako 16 KiB posuniete do strán posuvníkom pod textom. Vzdialená časť riadku sa na chvíľu ukáže ako …, kým sa nenačíta. Farby v nej pribudnú, keď program prečíta riadok až po ňu.
 - Riadok s desiatkami či stovkami MiB sa upravuje na mieste: písanie, Backspace, Delete, Enter, Tab, vloženie, výber aj Späť čítajú len text okolo kurzora, nikdy celý riadok, takže pamäť nerastie s dĺžkou riadku. Prvý presun kurzora do vzdialenej časti takého riadku musí napočítať znaky až po ňu, čo chvíľu trvá; počet si program pamätá pre ďalšie presuny. Riadok dlhší ako 1 GiB (zatiaľ provizórna hodnota) sa neupravuje; stavový riadok to povie a dokument sa nezmení.
 ### Čo nejde
-- Blokový výber, viac kurzorov.
+- Blokový výber a Alt+ťahanie.
 - Príkazy nad riadkami, odsadením, veľkosťou písmen, nahradenie.
 - Prejsť na párovú zátvorku, zalamovanie riadkov.
 - Prevod a opätovné čítanie kódovania, zjednotenie koncov riadkov, normalizácia.
@@ -1268,6 +1270,9 @@ Stavový riadok potom ukazuje Veľký súbor, jeho veľkosť a revíziu.
 - Riadok L má N, čo je viac ako M, ktoré sa v stránkovanom režime upravujú. Dokument sa nezmenil. Upravte ho v hexe. Hranica je 1 GiB, zatiaľ provizórna hodnota.
 - Text v schránke (veľkosť znakov) je väčší ako limit vloženia (hranica znakov). Dokument sa nezmenil. Vložte ho po častiach. Hranica je 32 Mi znakov, zatiaľ provizórna hodnota.
 - Kódovanie dokumentu sa zmenilo, kým sa text pripravoval; vložte ho znova. Dokument sa nezmenil.
+- Veľký súbor má najviac 1000 kurzorov, ďalšie sa nepridali: vyberte menej miest; kurzory zostali, ako boli.
+- Výber je príliš dlhý na hľadanie ďalších výskytov: vyberte kratší text (limit je zatiaľ provizórnych 64 KiB).
+- Text pre všetky kurzory by bol nad limitom: vložte menej textu alebo použite menej kurzorov; dokument sa nezmenil.
 - Veľký súbor v kódovaní ... sa zatiaľ nedá otvoriť: súbor sa neotvorí; iné kódovanie vo veľkom súbore program zatiaľ neprečíta.
 - Súbor sa práve ukladá, skúste to po skončení ukladania: skúšali ste niečo počas ukladania, ktoré prepisuje bajty na mieste, alebo ste súbor načítali znova počas akéhokoľvek ukladania.
 - Zatvorenie karty alebo okna počas ukladania počká na koniec ukladania; Esc ukladanie zruší.
