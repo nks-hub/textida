@@ -179,11 +179,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest document, in bytes, that gets change marks in the gutter; a larger one gets none. Must not exceed <see cref="VirtualDocumentMaxBytes"/>, which is what the Git plugin reads. The owner has not decided it.</summary>
     public const long GitGutterMaxBytes = 1L << 20;
 
-    /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The owner has not decided it.</summary>
+    /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The commands <c>nks.compare.action1</c> to <c>action4</c> reach four of them, the digit keys nine. The owner has not decided it.</summary>
     public const int DiffActionsPerTab = 4;
 
     /// <summary>Placeholder, OPEN: longest key, command and title of a comparison tab a plugin opens, in UTF-16 units. The owner has not decided it.</summary>
     public const int DiffActionTextLength = 200;
+
+    /// <summary>Placeholder, OPEN: largest side of a diff a plugin asks for (compute, open, stage), in bytes: a document, a snapshot, text of the plugin or a file; a larger one is refused with a quota error. The owner has not decided it.</summary>
+    public const long DiffMaxSideBytes = 16L << 20;
 
     /// <summary>Placeholder: how long a document rests after an edit before its outline is read again.</summary>
     public const int OutlineRefreshMilliseconds = 400;
@@ -421,6 +424,7 @@ internal static class PluginLimitsPlaceholders
         Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
         DiffActions = new DiffActionOptions(DiffActionsPerTab, DiffActionTextLength),
+        MaxDiffBytes = DiffMaxSideBytes,
         Sources = new FileSourceOptions(TimeSpan.FromMilliseconds(SourceTimeoutMilliseconds), SourceMaxBytes, SourceMaxEntries, SourceSchemesPerPlugin, SourceCacheEntries, SourceCacheBytes, SourceVersionMaxChars, SourceQueryMaxChars),
         LogRules = logRules,
         MaxSymbolsPerDocument = SymbolsPerDocument,

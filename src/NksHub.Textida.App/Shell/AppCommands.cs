@@ -339,6 +339,8 @@ internal static class AppCommands
         On("nks.compare.copyToLeft", w => w.CompareCopy(Core.Compare.DiffSide.A));
         On("nks.compare.action1", w => w.CompareAction(0));
         On("nks.compare.action2", w => w.CompareAction(1));
+        On("nks.compare.action3", w => w.CompareAction(2));
+        On("nks.compare.action4", w => w.CompareAction(3));
         Do("nks.compare.ignoreWhitespace", w => w.ToggleCompareIgnoreWhitespace());
         Do("nks.compare.ignoreCase", w => w.ToggleCompareIgnoreCase());
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());

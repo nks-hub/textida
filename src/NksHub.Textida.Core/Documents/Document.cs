@@ -223,7 +223,8 @@ public sealed class DocumentSnapshot : IByteSnapshot
     private readonly IByteSnapshot _bytes;
     private readonly TextCodec _codec;
 
-    internal DocumentSnapshot(Guid documentId, long revision, IByteSnapshot bytes, TextCodec codec)
+    /// <summary>A snapshot that belongs to no open document (text or a file a plugin hands over): <paramref name="documentId"/> is an id of its own.</summary>
+    public DocumentSnapshot(Guid documentId, long revision, IByteSnapshot bytes, TextCodec codec)
     {
         DocumentId = documentId;
         Revision = revision;

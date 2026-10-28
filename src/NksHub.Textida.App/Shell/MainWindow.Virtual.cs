@@ -75,22 +75,26 @@ internal sealed partial class MainWindow
     private readonly Dictionary<(string Plugin, string Key), DocTab> _keyedDiffs = [];
 
     /// <summary>
-    /// Opens the comparison a plugin asked for. Both sides are the revisions it named, not the documents as they are later. The buttons the plugin added act on the difference the tab is on;
-    /// a tab with the same plugin and key as an open one takes its place.
+    /// Opens the comparison a plugin asked for. Both sides are what it named (a revision, content of its own, a file), not the documents as they are later. The buttons the plugin added act on the
+    /// difference the tab is on; a tab with the same plugin and key as an open one takes its place, on the difference that one was on.
     /// </summary>
     internal DocTab OpenDiffRequest(DiffRequest request)
     {
-        CompareSide Side(DiffInput input) => new() { Title = input.Title ?? RevisionTitle(input.Snapshot), Snapshot = input.Snapshot, SnapshotBom = input.Bom };
+        CompareSide Side(DiffInput input, string detachedTitle) =>
+            new() { Title = input.Title ?? (input.Detached ? detachedTitle : RevisionTitle(input.Snapshot)), Snapshot = input.Snapshot, SnapshotBom = input.Bom };
         (string, string)? keyed = request is { PluginId: { } plugin, Key: { } key } ? (plugin, key) : null;
         TabGroup? group = null;
         int? index = null;
+        int keepHunk = -1;
         if (keyed is { } known && _keyedDiffs.Remove(known, out var old) && old.Group is { } oldGroup && oldGroup.Tabs.Contains(old))
         {
             (group, index) = (oldGroup, oldGroup.Tabs.ToList().IndexOf(old));
+            if (old.Custom is DiffView replaced) keepHunk = replaced.CurrentHunk;
             RemoveTab(old, untrack: true);
         }
-        var tab = OpenCompare(Side(request.Left), Side(request.Right), request.Title, group, index, view =>
+        var tab = OpenCompare(Side(request.Left, Loc.Get(K.CompareSideLeft)), Side(request.Right, Loc.Get(K.CompareSideRight)), request.Title, group, index, view =>
         {
+            view.RestoreHunk(keepHunk);
             if (request.Actions is not { Count: > 0 } actions) return;
             view.SetActions(actions);
             view.ActionRequested += (action, hunk) => _ = RunDiffActionAsync(view, request, action, hunk);

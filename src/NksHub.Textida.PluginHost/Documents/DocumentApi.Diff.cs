@@ -1,20 +1,36 @@
 using System.Text.Json;
 using NksHub.Textida.Core.Compare;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Secrets;
 using NksHub.Textida.PluginHost.Permissions;
+using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.PluginHost.Documents;
 
 public sealed partial class DocumentApi
 {
+    private const int EncodingSampleBytes = 1 << 20;
+
     /// <summary>
-    /// One side of a diff: <c>{"document":id,"revision":n}</c> (the revision must be the current one) or <c>{"snapshot":id}</c>. The plugin must be allowed to read
+    /// One side of a diff, exactly one of: <c>{"document":id,"revision":n}</c> (the revision must be the current one), <c>{"snapshot":id}</c>, <c>{"text":s}</c> or <c>{"bytes":base64}</c> with an optional
+    /// <c>encoding</c> and <c>name</c> (content of the plugin; <paramref name="forOpen"/>, a tab showing it, needs the virtual grant), or <c>{"file":path}</c> below the workspace. The plugin must be allowed to read
     /// the document, and a secrets file whose values are hidden from the plugin is refused: a line diff would tell which values differ, and a staged hunk would copy them.
     /// </summary>
-    private async Task<Target> ResolveSideAsync(string pluginId, JsonElement p, string name)
+    private async Task<Target> ResolveSideAsync(string pluginId, JsonElement p, string name, bool forOpen = false)
     {
         var side = Need(p, name);
-        if (side.ValueKind != JsonValueKind.Object) throw Invalid($"Parameter '{name}' must be an object with a document and revision, or a snapshot.");
+        if (side.ValueKind != JsonValueKind.Object) throw Invalid($"Parameter '{name}' must be an object with a document and revision, a snapshot, text, bytes or a file.");
+        bool file = side.TryGetProperty("file", out _), content = side.TryGetProperty("text", out _) || side.TryGetProperty("bytes", out _);
+        bool revision = side.TryGetProperty("document", out _) || side.TryGetProperty("snapshot", out _);
+        if ((file ? 1 : 0) + (content ? 1 : 0) + (revision ? 1 : 0) > 1) throw Invalid($"Parameter '{name}' is a document, a snapshot, text or bytes, or a file, not several of them.");
+        var target = file ? await FileSideAsync(pluginId, side, name) : content ? ContentSide(pluginId, side, name, forOpen) : await RevisionSideAsync(pluginId, side, name);
+        if (_options.MaxDiffBytes is { } limit && target.Snap.ByteLength > limit) throw DiffTooLarge(target.Snap.ByteLength, limit);
+        return target;
+    }
+
+    private async Task<Target> RevisionSideAsync(string pluginId, JsonElement side, string name)
+    {
         var (scope, document) = ScopeOf(pluginId, side);
         if (document is not null && !_options.Permissions.IsGranted(pluginId, DocumentPermissions.Read, scope))
             throw PluginPermissions.Denied(DocumentPermissions.Read, "NotGranted", $"The plugin does not hold the '{DocumentPermissions.Read}' permission for the document in '{name}'.");
@@ -22,6 +38,51 @@ public sealed partial class DocumentApi
         if (target.Secrets is { Count: > 0 })
             throw PluginPermissions.Denied(DocumentPermissions.SecretsReveal, "Secret", $"The document in '{name}' has values the plugin has not been allowed to see; a diff would show them.");
         return target;
+    }
+
+    private static RpcException DiffTooLarge(long bytes, long limit) =>
+        Fail(DocumentErrorCodes.DiffTooLarge, $"A side of a diff holds at most {limit} bytes; this one has {bytes}.", w =>
+        {
+            w.WriteNumber("limitBytes", limit);
+            w.WriteNumber("bytes", bytes);
+        });
+
+    private static TextCodec CodecOf(JsonElement side, TextCodec fallback) =>
+        side.TryGetProperty("encoding", out var enc) && enc.ValueKind == JsonValueKind.String
+            ? TextCodec.ByName(enc.GetString()!) ?? throw Invalid($"The encoding '{enc.GetString()}' is not known.")
+            : fallback;
+
+    /// <summary>A side that belongs to no open document: its snapshot has an id of its own and revision 0.</summary>
+    private static Target Detached(byte[] bytes, TextCodec codec, string? name, DiffFile? file) =>
+        new(new DocumentSnapshot(Guid.NewGuid(), 0, new ArraySnapshot(bytes), codec), codec.BomLengthIn(bytes), null, name, file, Detached: true);
+
+    private Target ContentSide(string pluginId, JsonElement side, string name, bool forOpen)
+    {
+        if (forOpen && !_options.Permissions.IsGranted(pluginId, DocumentPermissions.Virtual, GrantScope.All))
+            throw Denied(DocumentPermissions.Virtual, "NotGranted", $"The plugin does not hold the '{DocumentPermissions.Virtual}' permission, so the editor does not show content of its own in '{name}'.");
+        var codec = CodecOf(side, TextCodec.Utf8);
+        return Detached(ReadContent(side, codec, long.MaxValue), codec, OptionalString(side, "name"), null);
+    }
+
+    /// <summary>A file below the workspace, read whole (it is at most <see cref="DocumentApiOptions.MaxDiffBytes"/>) so that the side stays as it was asked for.</summary>
+    private async Task<Target> FileSideAsync(string pluginId, JsonElement side, string name)
+    {
+        var ws = _options.Workspace ?? throw new RpcException(RpcErrorCodes.MethodNotFound, "This editor takes no files in a diff.");
+        var roots = await _owner.InvokeAsync(() => ws.Roots().Select(r => Path.GetFullPath(r)).ToList());
+        var path = WorkspacePath(pluginId, side, "file", roots);
+        if (SecretValues.IsSecretFile(path)) throw Denied(DocumentPermissions.SecretsReveal, "Secret", $"'{path}' is a secrets file; a diff would show its values.");
+        try
+        {
+            var info = new FileInfo(path);
+            if (!info.Exists) throw Invalid($"The file in '{name}' does not exist.");
+            if (_options.MaxDiffBytes is { } limit && info.Length > limit) throw DiffTooLarge(info.Length, limit);
+            var written = info.LastWriteTimeUtc;
+            var bytes = await File.ReadAllBytesAsync(path);
+            var sample = bytes.AsSpan(0, Math.Min(bytes.Length, EncodingSampleBytes));
+            var codec = CodecOf(side, EncodingGuesser.Guess(sample, bytes.Length <= EncodingSampleBytes).Codec);
+            return Detached(bytes, codec, Path.GetFileName(path), new DiffFile(path, bytes.LongLength, written));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw Invalid($"The file in '{name}' cannot be read: {e.Message}"); }
     }
 
     private static DiffSource SourceOf(Target t) => new(t.Snap, t.Snap.Codec, t.Bom);
@@ -32,8 +93,12 @@ public sealed partial class DocumentApi
     private static void WriteSide(Utf8JsonWriter w, string name, Target t)
     {
         w.WriteStartObject(name);
-        w.WriteString("document", t.Snap.DocumentId);
-        w.WriteNumber("revision", t.Snap.Revision);
+        if (t.Detached) w.WriteBoolean("detached", true);
+        else
+        {
+            w.WriteString("document", t.Snap.DocumentId);
+            w.WriteNumber("revision", t.Snap.Revision);
+        }
         w.WriteEndObject();
     }
 
@@ -110,14 +175,15 @@ public sealed partial class DocumentApi
         return (key.Length == 0 ? null : key, list.Count == 0 ? null : list);
     }
 
-    /// <summary>Shows the diff of two revisions in a comparison tab. Both revisions stay as they were asked for, whatever the documents do afterwards.</summary>
+    /// <summary>Shows the diff of two sides in a comparison tab. Both sides stay as they were asked for, whatever the documents and files do afterwards.</summary>
     private async Task<byte[]> DiffOpenAsync(string pluginId, JsonElement p, CancellationToken ct)
     {
-        var left = await ResolveSideAsync(pluginId, p, "left");
-        var right = await ResolveSideAsync(pluginId, p, "right");
+        var left = await ResolveSideAsync(pluginId, p, "left", forOpen: true);
+        var right = await ResolveSideAsync(pluginId, p, "right", forOpen: true);
         string? Title(string name) => p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        DiffInput Input(Target t, string? title) => new(t.Snap, t.Bom, title ?? t.Name, t.File, t.Detached, t.Pinned);
         var (key, actions) = DiffActionsOf(p);
-        var request = new DiffRequest(Title("title"), new DiffInput(left.Snap, left.Bom, Title("leftTitle")), new DiffInput(right.Snap, right.Bom, Title("rightTitle")), pluginId, key, actions);
+        var request = new DiffRequest(Title("title"), Input(left, Title("leftTitle")), Input(right, Title("rightTitle")), pluginId, key, actions);
         bool opened = await _owner.InvokeAsync(() => _options.Tools.OpenDiff(request));
         return Obj(w => w.WriteBoolean("opened", opened));
     }

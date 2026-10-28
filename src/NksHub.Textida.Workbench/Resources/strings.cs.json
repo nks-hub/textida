@@ -518,6 +518,8 @@
   "cmd.compare.copyToLeft": "Zkopírovat rozdíl doleva",
   "cmd.compare.action1": "Porovnání: první akce zásuvného modulu",
   "cmd.compare.action2": "Porovnání: druhá akce zásuvného modulu",
+  "cmd.compare.action3": "Porovnání: třetí akce zásuvného modulu",
+  "cmd.compare.action4": "Porovnání: čtvrtá akce zásuvného modulu",
   "cmd.compare.ignoreWhitespace": "Nerozlišovat mezery",
   "cmd.compare.ignoreCase": "Nerozlišovat velikost písmen",
   "cmd.view.syncScroll": "Synchronizovat posouvání",
