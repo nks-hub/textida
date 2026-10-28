@@ -147,6 +147,7 @@ public class LintAppTests : IDisposable
         var tab = _w.OpenFile(_php, null);
 
         await SaveEditedAsync(tab, "\n");
+        await Until(() => File.Exists(_tool + ".runs"), "the linter to start"); // a save that is typed over before the run starts is not linted
         tab.Editor!.Document.Insert(0, "typing while it runs "); // the editor accepts input meanwhile
         await Until(() => _w.StatusMessageText == Loc.Get(K.LintTimedOut, ("name", "PHPStan"), ("seconds", "1")), "the report of the time-out");
 
