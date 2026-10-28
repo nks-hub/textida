@@ -934,6 +934,42 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_text_and_the_map_get_their_colors_once_a_fast_drag_of_the_sampled_minimap_has_ended()
+    {
+        var tab = Open("drag-colors.cs", KeywordFile(400_000), paged: true);
+        var map = tab.Minimap!;
+        Assert.True(map.IsSampled);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 2);
+        var colors = SyntaxColors(["keyword", "comment"]).ToList();
+        var text = InWindow(tab.Paged!, new Rect(60, 0, Math.Max(100, tab.Paged!.Bounds.Width - 120), tab.Paged.Bounds.Height));
+        async Task<bool> TextColored() // awaits, so that the timer that waits for the jumps to stop can tick
+        {
+            var clock = Stopwatch.StartNew();
+            while (clock.Elapsed.TotalSeconds < 10)
+            {
+                Dispatcher.UIThread.RunJobs();
+                if (Matching(Capture(), text, colors) > 20) return true;
+                await Task.Delay(50);
+            }
+            return false;
+        }
+        Assert.True(await TextColored(), "the first screen of the file has no colors before the drag");
+        _w.MouseDown(start, MouseButton.Left);
+        for (int i = 0; i < 120; i++)
+        {
+            _w.MouseMove(new Point(start.X, start.Y + i * 3));
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+        }
+        _w.MouseUp(new Point(start.X, start.Y + 360), MouseButton.Left);
+        Assert.True(tab.Paged!.TopLine > 100_000, $"the drag moved the text to line {tab.Paged.TopLine}");
+
+        Assert.True(await TextColored(), "the lines where the drag ended stayed without colors");
+        Assert.True(WaitForColors(tab, ["keyword"]), "the map lost its colors after the drag");
+    }
+
+    [AvaloniaFact]
     public void The_sampled_minimap_of_a_paged_log_draws_its_lines_in_the_colors_of_their_levels()
     {
         var tab = Open("levels-big.log", string.Concat(Enumerable.Range(0, 60_000).Select(i => $"2026-01-01 ERROR request {i} failed\n")), paged: true);
