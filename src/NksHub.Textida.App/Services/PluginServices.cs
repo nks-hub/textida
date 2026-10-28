@@ -115,6 +115,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var permissions = Permissions;
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
+        // a registry lookup behind a proxy with a login goes through net/request, so the password stays in the editor; the plugin asks nothing before the user allowed the registry
+        permissions.Grant(JsonPluginId, PluginPermissionNames.Network, GrantScope.All);
         Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
         Mcp = new McpService(this, App.Startup.Channel);
         Acp = new AcpService(this, app);
@@ -157,6 +159,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
              "--registry-max-bytes", PluginLimitsPlaceholders.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimitsPlaceholders.RegistryPageSize.ToString(),
              "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(),
              "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
+             "--registry-max-redirects", PluginLimitsPlaceholders.RegistryMaxRedirects.ToString(),
              "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
              "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
              "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString(),

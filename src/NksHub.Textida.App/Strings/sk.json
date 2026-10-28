@@ -1776,7 +1776,7 @@
   "packages.done": "Nájdených novších verzií: {count}",
   "packages.cachedSuffix": "Odpovede z cache; Obnoviť verzie balíkov sa opýta znova.",
   "packages.error": "{registry} nedal použiteľnú odpoveď: {reason}",
-  "packages.noConsent": "Dotazy na {registry} nie sú možné: nie sú povolené, alebo proxy vyžaduje prihlásenie.",
+  "packages.noConsent": "Dotazy na {registry} nie sú možné: nie sú povolené.",
   "packages.tooLarge": "Manifest je príliš veľký na kontrolu",
   "packages.busy": "Dokument práve používa iný príkaz. Skúste to znova.",
   "packages.revoked": "Dotazy na registre balíkov a sťahovanie schém sú zakázané. Odpovede z cache sú zahodené a stiahnuté schémy sa nepoužívajú.",

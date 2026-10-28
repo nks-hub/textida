@@ -419,6 +419,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: seconds a cached registry answer is used; an older one is asked for again (Refresh Package Versions drops the cache at any time). The owner has not decided it.</summary>
     public const int RegistryCacheLifetimeSeconds = 3600;
 
+    /// <summary>Placeholder, OPEN: most redirects the JSON plugin follows for one registry or schema request that goes through the editor (a network proxy with a login); the editor passes a redirect back instead of following it. The owner has not decided it.</summary>
+    public const int RegistryMaxRedirects = 5;
+
     /// <summary>Placeholder, OPEN: milliseconds the proxy of the network policy is not copied again to the consent file the JSON plugin reads while schemas are checked. The owner has not decided it.</summary>
     public const int RegistryProxySyncMilliseconds = 30_000;
 

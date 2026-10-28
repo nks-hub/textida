@@ -1744,7 +1744,7 @@
   "packages.done": "Neuere Versionen gefunden: {count}",
   "packages.cachedSuffix": "Antworten aus dem Cache; Paketversionen aktualisieren fragt erneut.",
   "packages.error": "{registry} hat keine brauchbare Antwort gegeben: {reason}",
-  "packages.noConsent": "Abfragen bei {registry} sind nicht möglich: nicht erlaubt, oder der Proxy braucht eine Anmeldung.",
+  "packages.noConsent": "Abfragen bei {registry} sind nicht möglich: nicht erlaubt.",
   "packages.tooLarge": "Das Manifest ist zu groß für die Prüfung",
   "packages.busy": "Das Dokument wird gerade von einem anderen Befehl verwendet. Versuchen Sie es erneut.",
   "packages.revoked": "Abfragen bei Paketregistern und Schema-Downloads sind verboten. Zwischengespeicherte Antworten wurden verworfen, geladene Schemas werden nicht mehr benutzt.",

@@ -1776,7 +1776,7 @@
   "packages.done": "Nalezených novějších verzí: {count}",
   "packages.cachedSuffix": "Odpovědi z cache; Obnovit verze balíčků se zeptá znovu.",
   "packages.error": "{registry} nedal použitelnou odpověď: {reason}",
-  "packages.noConsent": "Dotazy na {registry} nejsou možné: nejsou povoleny, nebo proxy vyžaduje přihlášení.",
+  "packages.noConsent": "Dotazy na {registry} nejsou možné: nejsou povoleny.",
   "packages.tooLarge": "Manifest je příliš velký ke kontrole",
   "packages.busy": "Dokument právě používá jiný příkaz. Zkuste to znovu.",
   "packages.revoked": "Dotazy na registry balíčků a stahování schémat jsou zakázány. Odpovědi z cache jsou zahozeny a stažená schémata se nepoužívají.",
