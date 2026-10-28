@@ -78,9 +78,9 @@ internal static class JournalRecords
     private static FileFingerprint? GetPrint(BinaryReader r) =>
         r.ReadBoolean() ? new(r.ReadInt64(), new DateTime(r.ReadInt64(), DateTimeKind.Utc), r.ReadString()) : null;
 
-    private static byte[] Build(Action<BinaryWriter> fill)
+    private static byte[] Build(Action<BinaryWriter> fill, int capacity = 0)
     {
-        var ms = new MemoryStream();
+        var ms = new MemoryStream(capacity);
         using (var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true))
         {
             w.Write((byte)PayloadLayout);
@@ -147,6 +147,7 @@ internal static class JournalRecords
         return new SeedRecord(id, offset, r.ReadBytes(r.ReadInt32()));
     });
 
+    // an edit takes about 31 bytes; with the right size at the start the buffer does not grow by doubling through thousands of them
     public static byte[] Encode(EditRecord e) => Build(w =>
     {
         PutGuid(w, e.DocId);
@@ -184,7 +185,7 @@ internal static class JournalRecords
             w.Write(list.DeletedBytes);
             w.Write(list.Crc);
         }
-    });
+    }, 128 + 40 * e.Edits.Count);
 
     public static EditRecord DecodeEdit(byte[] p) => Parse(p, (r, layout) =>
     {

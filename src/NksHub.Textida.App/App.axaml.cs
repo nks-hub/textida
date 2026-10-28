@@ -97,7 +97,11 @@ public sealed partial class App : Application
     private HelpWindow? _helpWindow;
     private DispatcherTimer? _sessionTimer;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        TimerResolution.Request();
+        AvaloniaXamlLoader.Load(this);
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

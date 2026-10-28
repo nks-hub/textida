@@ -155,6 +155,18 @@ internal sealed partial class EditorSurface
         if (others.Count == 0) return Carets.One(primary);
         var all = new List<Sel>(others.Count + 1);
         all.AddRange(others);
+        // the others are in order: the primary one goes in at its place, or is merged with a neighbour it touches
+        int at = 0, hi = others.Count;
+        while (at < hi)
+        {
+            int mid = (at + hi) / 2;
+            if (others[mid].Start < primary.Start) at = mid + 1; else hi = mid;
+        }
+        if ((at == 0 || others[at - 1].End < primary.Start) && (at == others.Count || primary.End < others[at].Start))
+        {
+            all.Insert(at, primary);
+            return new Carets(all, at);
+        }
         all.Add(primary);
         return Carets.Create(all, all.Count - 1);
     }
@@ -178,9 +190,16 @@ internal sealed partial class EditorSurface
         if (c.Count == 1) DropOthers();
         else if (Doc.TextBackend is { } backend)
         {
-            var others = c.Items.Where((_, i) => i != c.Primary).ToList();
             var all = bytes ?? BytesOf(backend, [.. c.Items]);
-            var otherSet = SelectionSet.Create(all.Where((_, i) => i != c.Primary).ToList(), 0);
+            var others = new List<Sel>(c.Count - 1);
+            var otherBytes = new List<TextSelection>(c.Count - 1);
+            for (int i = 0; i < c.Count; i++)
+            {
+                if (i == c.Primary) continue;
+                others.Add(c.Items[i]);
+                otherBytes.Add(all[i]);
+            }
+            var otherSet = SelectionSet.Create(otherBytes, 0);
             var primarySet = SelectionSet.Single(all[c.Primary]);
             // after typing at every caret the anchors have followed the text to where the new carets are
             if (_others is null || _primaryKept is null || !_others.Matches(otherSet) || !_primaryKept.Matches(primarySet))
@@ -323,7 +342,7 @@ internal sealed partial class EditorSurface
     {
         if (Doc.TextBackend is not { } backend || IsReadOnly) return false;
         long t = Core.TypingTrace.Begin();
-        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before));
+        var result = MultiEdit.Apply(Doc.Doc, backend, before, plan, kind is null ? null : RunKey(kind, before), TextArea.TextView);
         Core.TypingTrace.End("carets.multiEditApply", t);
         if (!result.Edit.Applied) return false;
         t = Core.TypingTrace.Begin();

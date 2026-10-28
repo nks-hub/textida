@@ -108,7 +108,7 @@ public sealed class AvaloniaEditBackend : IByteBackend
             return;
         }
         int c0 = _map.ByteToChar(offset - _bom.Length);
-        int c1 = _map.ByteToChar(offset + deleteLength - _bom.Length);
+        int c1 = deleteLength == 0 ? c0 : _map.ByteToChar(offset + deleteLength - _bom.Length);
         var bytes = insert.ToArray();
         string text = _codec.GetString(bytes);
         _applying = true;

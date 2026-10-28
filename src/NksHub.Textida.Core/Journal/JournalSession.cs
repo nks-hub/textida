@@ -424,7 +424,7 @@ public sealed class JournalSession : IDisposable
                 {
                     case ChangeKind.Edit or ChangeKind.Backend:
                         _redoOk.Clear();
-                        owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, c.Kind, undoNow > _undo)));
+                        owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, c.Kind, undoNow > _undo, e)));
                         break;
                     case ChangeKind.View:
                         owner.Append(RecordType.DocCodec, JournalRecords.Encode(new CodecRecord(id, revision, doc.Codec.Name)));
@@ -464,7 +464,7 @@ public sealed class JournalSession : IDisposable
             else owner.Append(RecordType.DocEdit, JournalRecords.Encode(Edit(c, ChangeKind.Edit, true)));
         }
 
-        private EditRecord Edit(ChangeSet c, ChangeKind kind, bool isNew)
+        private EditRecord Edit(ChangeSet c, ChangeKind kind, bool isNew, DocumentChangedEventArgs? args = null)
         {
             if (NeedsList(c))
             {
@@ -492,8 +492,14 @@ public sealed class JournalSession : IDisposable
                     edits[i] = new(s.Start, s.Deleted, [], 0, reference);
                     continue;
                 }
-                var inserted = new byte[checked((int)s.Inserted)];
-                if (inserted.Length > 0) doc.Read(s.Start + shift, inserted);
+                // the step has the inserted bytes already; reading them back from the text costs a lookup for every edit
+                byte[] inserted;
+                if (args is not null && doc.TryGetInserted(args, i, out var kept)) inserted = kept.ToArray();
+                else
+                {
+                    inserted = new byte[checked((int)s.Inserted)];
+                    if (inserted.Length > 0) doc.Read(s.Start + shift, inserted);
+                }
                 _inlineBytes += inserted.Length;
                 shift += s.Inserted - s.Deleted;
                 edits[i] = new(s.Start, s.Deleted, inserted);

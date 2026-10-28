@@ -802,4 +802,102 @@ public class MultiCaretEditorTests : IDisposable
         // every edit used to move all the carets again, so the time grew with the square of their number: about 20 s for this in a debug build, a second now
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(8), $"took {watch.Elapsed}");
     }
+
+    // ---- the batch of changes passes the events of the text on without the weak-event managers ----
+
+    private static Delegate[] Listeners(AvaloniaEdit.Document.TextDocument d, string eventName) =>
+        ((Delegate?)typeof(AvaloniaEdit.Document.TextDocument).GetField(eventName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(d))?.GetInvocationList() ?? [];
+
+    [AvaloniaFact]
+    public void The_bypass_reaches_the_listeners_of_the_views_and_gives_the_event_back()
+    {
+        var tab = Open("abc\nabc");
+        var d = tab.Editor!.Document;
+        tab.Editor.CaretOffset = 6;
+        var changing = Listeners(d, "Changing");
+        var changed = Listeners(d, "Changed");
+        var seen = new List<string>();
+        EventHandler<AvaloniaEdit.Document.DocumentChangeEventArgs> onChanged = (_, e) => seen.Add($"{e.Offset}:{e.InsertedText.Text}");
+
+        using (var bypass = WeakEventBypass.Begin(d))
+        {
+            // if AvaloniaEdit changes the way it keeps its listeners this fails, and the multi-caret typing gate gets slow again
+            Assert.True(bypass.Active);
+            d.Changed += onChanged; // a listener added during the batch must survive it
+            using (d.RunUpdate())
+            {
+                d.Insert(1, "x");
+                d.Insert(0, "yy");
+            }
+        }
+
+        Assert.Equal(["1:x", "0:yy"], seen);
+        Assert.Equal(9, tab.Editor.CaretOffset); // the text area is a listener of the manager: it moved with both insertions
+        Assert.Equal(changing, Listeners(d, "Changing"));
+        Assert.Equal([.. changed, onChanged], Listeners(d, "Changed"));
+
+        d.Insert(0, "z"); // and the managers work again
+        Assert.Equal(10, tab.Editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void The_bypass_tells_a_view_only_about_the_changes_that_touch_its_lines_and_other_views_about_all()
+    {
+        var tab = Open(string.Concat(Enumerable.Range(0, 300).Select(i => $"line {i}\n")));
+        var d = tab.Editor!.Document;
+        tab.Editor.ScrollToLine(150);
+        var view = tab.Editor.TextArea.TextView;
+        void Layout()
+        {
+            _w.UpdateLayout();
+            view.EnsureVisualLines();
+        }
+        Layout();
+        Assert.True(view.IsMeasureValid && view.VisualLinesValid);
+
+        // a second pane over the same text shows its first lines
+        var pane = new TextEditor { Document = d };
+        var paneWindow = new Avalonia.Controls.Window { Width = 600, Height = 300, Content = pane };
+        paneWindow.Show();
+        var paneView = pane.TextArea.TextView;
+        paneWindow.UpdateLayout();
+        paneView.EnsureVisualLines();
+        Assert.True(paneView.VisualLinesValid);
+
+        using (WeakEventBypass.Begin(d, view)) d.Insert(d.TextLength, "x"); // behind its lines: it hears nothing and has nothing to redo
+        Assert.True(view.IsMeasureValid && view.VisualLinesValid);
+
+        using (var bypass = WeakEventBypass.Begin(d, view)) // before its lines: it hears nothing but is asked once for a new measure, its lines stay
+        {
+            Assert.True(bypass.Active);
+            d.Insert(d.GetLineByNumber(5).Offset, "y");
+            d.Insert(d.GetLineByNumber(3).Offset, "y");
+            Assert.True(view.IsMeasureValid);
+            Assert.False(paneView.VisualLinesValid); // the other pane shows those lines and hears of them
+        }
+        Assert.False(view.IsMeasureValid);
+        Assert.True(view.VisualLinesValid);
+        paneWindow.UpdateLayout();
+        paneView.EnsureVisualLines();
+        Assert.Contains("y", d.GetText(paneView.VisualLines[2].FirstDocumentLine));
+
+        Layout();
+        using (WeakEventBypass.Begin(d, view)) d.Insert(view.VisualLines[2].FirstDocumentLine.Offset + 1, "z"); // in a line: the view redraws it
+        Assert.False(view.VisualLinesValid);
+        Layout();
+        Assert.Contains("z", d.GetText(view.VisualLines[2].FirstDocumentLine));
+        paneWindow.Close();
+    }
+
+    [AvaloniaFact]
+    public void Typing_at_many_carets_leaves_the_carets_of_the_area_and_the_text_in_step()
+    {
+        var tab = Open("abc\nabc\nabc");
+        PlaceCarets(tab, 1, 5, 9);
+        TestApp.Type(_w, "x");
+        Assert.Equal("axbc\naxbc\naxbc", Text(tab));
+        Assert.Equal(["2:2", "7:7", "12:12"], Carets(tab));
+        Assert.Equal(12, tab.Editor!.CaretOffset); // the primary one is the one of the text area
+        Assert.Equal(1, Steps(tab));
+    }
 }

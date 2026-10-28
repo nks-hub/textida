@@ -12,7 +12,7 @@ public sealed partial class Document
     {
         public ReadOnlyMemory<byte> Read()
         {
-            if (Memory is not null) return Memory;
+            if (Memory is not null) return new ReadOnlyMemory<byte>(Memory, (int)At, Length);
             var bytes = new byte[Length];
             File!.ReadExactly(At, bytes);
             return bytes;
@@ -42,6 +42,39 @@ public sealed partial class Document
     }
 
     private AppliedEdit Applied(long offset, byte[] removed, byte[] inserted) => new(offset, Keep(removed), Keep(inserted));
+
+    /// <summary>Below this many inserted bytes the many edits of one step keep them in one array (and never on the large object heap).</summary>
+    private const int SharedInsertLimit = 60 * 1024;
+
+    /// <summary>
+    /// The undo record of the edits just made. A step of many small edits (typing at a thousand carets) keeps the inserted bytes of all of them in one
+    /// array instead of one array per edit: a thousand more objects for every keystroke made each collection of the heap slower.
+    /// </summary>
+    private AppliedEdit[] AppliedEdits(List<Pending> work, byte[][] removed)
+    {
+        var applied = new AppliedEdit[work.Count];
+        long total = 0;
+        foreach (var w in work) total += w.Insert.Length;
+        byte[]? shared = work.Count >= 16 && total <= SharedInsertLimit && _undoHeld + total <= _backend.UndoMemoryBudget ? new byte[total] : null;
+        int at = 0;
+        for (int k = 0; k < applied.Length; k++)
+        {
+            var w = work[k];
+            var kept = Keep(removed[k]);
+            UndoBytes inserted;
+            if (shared is not null && !w.Insert.IsEmpty)
+            {
+                var slice = shared.AsMemory(at, w.Insert.Length);
+                w.Insert.CopyTo(slice);
+                inserted = new(shared, null, at, slice.Length, HasLineBreakByte(slice.Span));
+                _undoHeld += slice.Length;
+                at += slice.Length;
+            }
+            else inserted = Keep(w.Insert.IsEmpty ? [] : w.Insert.ToArray());
+            applied[k] = new(w.Start, kept, inserted);
+        }
+        return applied;
+    }
     private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
@@ -138,7 +171,7 @@ public sealed partial class Document
         TypingTrace.End("doc.execute", tExec);
         if (failure != ConflictReason.None) return EditResult.Fail(failure, _revision);
 
-        var step = new Step([.. work.Select((w, k) => Applied(w.Start, removed![k], w.Insert.IsEmpty ? [] : w.Insert.ToArray()))], options.SelectionsBefore, options.SelectionsAfter);
+        var step = new Step(AppliedEdits(work, removed!), options.SelectionsBefore, options.SelectionsAfter);
         Commit(ChangeKind.Edit, options.Source, work, step, options.CoalesceKey);
         return new(true, _revision, ConflictReason.None);
     }
@@ -266,15 +299,16 @@ public sealed partial class Document
 
     private void Commit(ChangeKind kind, string? source, List<Pending> work, Step? step, string? coalesceKey)
     {
-        var spans = work.Select(w => new ChangeSet.Span(w.Start, w.Deleted, w.Insert.Length)).ToArray();
+        var spans = new ChangeSet.Span[work.Count];
+        for (int i = 0; i < spans.Length; i++) spans[i] = new ChangeSet.Span(work[i].Start, work[i].Deleted, work[i].Insert.Length);
         Commit(kind, source, spans, step, coalesceKey);
     }
 
     private void Commit(ChangeKind kind, string? source, ChangeSet.Span[] spans, Step? step, string? coalesceKey)
     {
         if (kind != ChangeKind.Backend) _typingKind = TypingKind.None;
-        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || step.Edits.Any(e => e.Removed.HasLineBreak || e.Inserted.HasLineBreak) };
-        if (spans.Any(s => s.Start < 4)) _bomLength = BomOf(_backend, _codec);
+        var change = new ChangeSet(++_revision, kind, source, spans) { TouchesLineBreaks = step is null || step.Fill is not null || HasLineBreak(step.Edits) };
+        if (StartsInBom(spans)) _bomLength = BomOf(_backend, _codec);
         _log.Add(change);
         if (_log.Count > _logCapacity) _log.RemoveRange(0, _log.Count - _logCapacity);
         long tAnchors = TypingTrace.Begin();
@@ -282,7 +316,7 @@ public sealed partial class Document
         TypingTrace.End("doc.anchors", tAnchors);
         if (step is not null) PushUndo(step, coalesceKey);
         long tChanged = TypingTrace.Begin();
-        var args = new DocumentChangedEventArgs(change);
+        var args = new DocumentChangedEventArgs(change) { Step = step };
         if (TypingTrace.Enabled && Changed is { } changed)
             foreach (var handler in changed.GetInvocationList())
             {
@@ -294,7 +328,30 @@ public sealed partial class Document
         TypingTrace.End("doc.changedEvent", tChanged);
     }
 
-    private static bool HasLineBreakByte(byte[] bytes) => bytes.AsSpan().IndexOfAny((byte)10, (byte)13) >= 0;
+    /// <summary>The bytes the edit <paramref name="index"/> of a change inserted, as the undo step keeps them (never to be changed); null when the step does not hold them in memory.</summary>
+    internal bool TryGetInserted(DocumentChangedEventArgs e, int index, out ReadOnlyMemory<byte> bytes)
+    {
+        bytes = default;
+        if (e.Step is not Step { Fill: null } step || step.Edits.Length != e.Change.Edits.Count || step.Edits[index].Inserted is not { Memory: not null } kept || kept.Length != e.Change.Edits[index].Inserted) return false;
+        bytes = kept.Read();
+        return true;
+    }
+
+    private static bool HasLineBreak(AppliedEdit[] edits)
+    {
+        foreach (var e in edits)
+            if (e.Removed.HasLineBreak || e.Inserted.HasLineBreak) return true;
+        return false;
+    }
+
+    private static bool StartsInBom(ChangeSet.Span[] spans)
+    {
+        foreach (var s in spans)
+            if (s.Start < 4) return true;
+        return false;
+    }
+
+    private static bool HasLineBreakByte(ReadOnlySpan<byte> bytes) => bytes.IndexOfAny((byte)10, (byte)13) >= 0;
 
     private const int TypingRunBytes = 16;
     private enum TypingKind { None, Insert, Remove }

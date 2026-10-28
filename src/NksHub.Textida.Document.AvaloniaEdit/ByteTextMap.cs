@@ -256,7 +256,11 @@ internal sealed class ByteTextMap
         return i + 1;
     }
 
-    private const int MaxJoinedRunBytes = 1024;
+    /// <summary>
+    /// A run that grows by one keystroke is copied with every keystroke; typing at a thousand carets copied up to a thousand bytes and twice as many chars for each of them,
+    /// which made every collection of the heap slower the longer one typed. A run is never longer than this; the next keystroke starts a new one.
+    /// </summary>
+    private const int MaxJoinedRunBytes = 128;
 
     /// <summary>Typed runs join typed runs and byte runs join byte runs; a lone high surrogate at the join could pair with the next char.</summary>
     private static bool CanJoin(Run previous, string? text) =>
@@ -266,9 +270,14 @@ internal sealed class ByteTextMap
     public byte[] Replace(int c0, int c1, byte[] bytes, string? text, int chars)
     {
         int i0 = SplitAt(c0);
-        int i1 = SplitAt(c1);
-        var removed = new List<byte>();
-        for (int i = i0; i < i1; i++) removed.AddRange(BytesOf(_runs[i]).ToArray());
+        int i1 = c1 == c0 ? i0 : SplitAt(c1);
+        byte[] removed = [];
+        if (i1 > i0)
+        {
+            var taken = new List<byte>();
+            for (int i = i0; i < i1; i++) taken.AddRange(BytesOf(_runs[i]).ToArray());
+            removed = [.. taken];
+        }
         _runs.RemoveRange(i0, i1 - i0);
         if (bytes.Length > 0 && i0 > 0 && _runs[i0 - 1] is { Original: false, Bytes: < MaxJoinedRunBytes } previous && CanJoin(previous, text))
         {
@@ -277,9 +286,9 @@ internal sealed class ByteTextMap
             i0--;
         }
         else if (bytes.Length > 0 || chars > 0) InsertRuns(i0, bytes, text, chars);
-        _totalBytes += bytes.Length - removed.Count;
+        _totalBytes += bytes.Length - removed.Length;
         Invalidate(i0);
-        return [.. removed];
+        return removed;
     }
 
     /// <summary>An edited run is cut to about this many chars. It has no checkpoints, so a lookup inside it walks unit by unit from its start.</summary>
