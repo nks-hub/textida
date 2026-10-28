@@ -127,6 +127,8 @@ public class TextMatchingTests
     [InlineData("Kódování souboru", "kodovani souboru")]
     [InlineData("ŘEŽ Ťuk", "rez tuk")]
     [InlineData("Łódź", "lodz")]
+    [InlineData("Schließen", "schliessen")]
+    [InlineData("GROẞ", "gross")]
     [InlineData("", "")]
     public void Fold_removes_case_and_diacritics(string input, string expected) => Assert.Equal(expected, TextMatching.Fold(input));
 

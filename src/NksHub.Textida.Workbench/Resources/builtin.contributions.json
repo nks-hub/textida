@@ -2057,6 +2057,24 @@
       "enablement": "hexMode"
     },
     {
+      "id": "nks.hex.minimap.focus",
+      "title": "cmd.hex.minimap.focus",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.toggleColumn",
+      "title": "cmd.hex.toggleColumn",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
+      "id": "nks.hex.selectTo",
+      "title": "cmd.hex.selectTo",
+      "category": "cat.hex",
+      "enablement": "hexMode"
+    },
+    {
       "id": "nks.hex.statistics",
       "title": "cmd.hex.statistics",
       "category": "cat.hex",
@@ -2148,6 +2166,23 @@
       "id": "nks.agent.stop",
       "title": "cmd.agent.stop",
       "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.hooks",
+      "title": "cmd.agent.hooks",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.agent.transcript",
+      "title": "cmd.agent.transcript",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.agent.tokens",
+      "title": "cmd.agent.tokens",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.review.open",
@@ -3681,6 +3716,13 @@
     },
     {
       "menu": "view",
+      "command": "nks.hex.toggleColumn",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 25
+    },
+    {
+      "menu": "view",
       "command": "nks.hex.inspector",
       "group": "2_display/3_hex",
       "submenu": "hex",
@@ -3699,6 +3741,13 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 50
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.offsetFormat",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 55
     },
     {
       "menu": "edit",
@@ -4516,6 +4565,13 @@
     },
     {
       "menu": "edit",
+      "command": "nks.hex.selectTo",
+      "group": "4_more/7_hex",
+      "submenu": "hex",
+      "order": 65
+    },
+    {
+      "menu": "edit",
       "command": "nks.hex.bookmarks.panel",
       "group": "4_more/7_hex",
       "submenu": "hex",
@@ -4574,6 +4630,13 @@
       "group": "2_display/3_hex",
       "submenu": "hex",
       "order": 130
+    },
+    {
+      "menu": "view",
+      "command": "nks.hex.minimap.focus",
+      "group": "2_display/3_hex",
+      "submenu": "hex",
+      "order": 115
     },
     {
       "menu": "view",
@@ -4672,6 +4735,27 @@
       "group": "3_code/11_9_agent",
       "submenu": "agent",
       "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.hooks",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.transcript",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 70
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.tokens",
+      "group": "3_code/11_9_agent",
+      "submenu": "agent",
+      "order": 80
     },
     {
       "menu": "file",
@@ -5282,6 +5366,16 @@
     {
       "key": "mod+k mod+g",
       "command": "nks.hex.minimap",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+f",
+      "command": "nks.hex.minimap.focus",
+      "when": "hexMode"
+    },
+    {
+      "key": "mod+k mod+a",
+      "command": "nks.hex.selectTo",
       "when": "hexMode"
     },
     {
@@ -6348,6 +6442,23 @@
         "sql",
         "dialect",
         "format"
+      ]
+    },
+    {
+      "key": "schema.mappings",
+      "type": "string",
+      "default": "",
+      "title": "setting.schema.mappings.title",
+      "description": "setting.schema.mappings.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "schema",
+        "json",
+        "yaml",
+        "toml",
+        "mapping",
+        "validate"
       ]
     },
     {

@@ -20,7 +20,7 @@ using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>The offline help covers every registered command in every UI language, so a new command fails here until it is documented.</summary>
+/// <summary>The offline help covers every registered command, the commands of the bundled plugins included, in every UI language, so a new command fails here until it is documented.</summary>
 public class HelpCatalogTests
 {
     private static IReadOnlyList<string> CommandIds() => [.. WorkbenchHost.CreateBuiltin().Commands.Commands.Select(c => c.Id)];
@@ -171,6 +171,131 @@ public class HelpCatalogTests
     {
         foreach (var id in new[] { "errors.file", "errors.files", "errors.search", "errors.remote", "errors.plugins", "errors.agents", "errors.tools", "recovery", "limits", "paged", "help.updates" })
             Assert.All(StringTable.UiLanguages, l => Assert.NotNull(HelpCatalog.Find(l, id)));
+    }
+
+    private static bool AnyLine(string language, string commandId, Func<string, bool> test) =>
+        HelpCatalog.Topics(language).Where(t => t.Commands.Contains(commandId)).SelectMany(t => t.Lines).Any(test);
+
+    /// <summary>P9.2.3: every command has a procedure (numbered steps) and a bullet (a limit, a restriction, or a message and what to do) in a topic of every language.</summary>
+    [Theory]
+    [MemberData(nameof(Languages))]
+    public void Every_command_has_a_procedure_and_a_bullet_of_limits_or_failures(string language)
+    {
+        var ids = CommandIds();
+        var withoutSteps = ids.Where(id => !AnyLine(language, id, l => NumberedStep.IsMatch(l))).ToList();
+        var withoutBullets = ids.Where(id => !AnyLine(language, id, l => l.StartsWith("- ", StringComparison.Ordinal))).ToList();
+        Assert.True(withoutSteps.Count == 0, $"no numbered steps in '{language}' for: {string.Join(", ", withoutSteps)}");
+        Assert.True(withoutBullets.Count == 0, $"no bullet in '{language}' for: {string.Join(", ", withoutBullets)}");
+    }
+
+    /// <summary>The commands a bundled plugin runs are read from the source of the commands, so a command that is added there cannot go without a topic.</summary>
+    private static IReadOnlyList<string> BundledPluginCommands() =>
+        [.. Regex.Matches(File.ReadAllText(Path.Combine(Repo.AppSources, "Shell", "AppCommands.cs")), @"Fire\(""(nks\.[A-Za-z0-9.]+)"",[^\r\n;]*?\bapp\.Plugins\.")
+            .Select(m => m.Groups[1].Value).Distinct()];
+
+    [Fact]
+    public void Commands_of_the_bundled_plugins_are_registered_and_documented_in_every_language()
+    {
+        var found = BundledPluginCommands();
+        Assert.True(found.Count >= 40, $"only {found.Count} commands of the bundled plugins were found in AppCommands.cs");
+        var registered = CommandIds().ToHashSet();
+        Assert.True(found.All(registered.Contains), "commands of plugins that are not registered: " + string.Join(", ", found.Where(id => !registered.Contains(id))));
+
+        // one command of every bundled plugin: a plugin that is added to the editor fails here until it has a command in the registry and in the help
+        var examples = new Dictionary<string, string>
+        {
+            [PluginServices.JsonPluginId] = "nks.edit.formatJson", [PluginServices.TextToolsPluginId] = "nks.tools.statistics", [PluginServices.WebDataPluginId] = "nks.tools.colorToHex",
+            [PluginServices.CodeExplorerPluginId] = "nks.tools.showOutline", [PluginServices.EmmetPluginId] = "nks.tools.emmetWrap", [PluginServices.FormattersPluginId] = "nks.edit.formatSql",
+            [PluginServices.GitPluginId] = "nks.git.status", [PluginServices.LspPluginId] = "nks.lsp.start", [PluginServices.WikiPluginId] = "nks.source.open",
+        };
+        Assert.Equal(PluginServices.BuiltIns.Select(b => b.Id).Order(StringComparer.Ordinal), examples.Keys.Order(StringComparer.Ordinal));
+
+        var problems = new List<string>();
+        foreach (var language in StringTable.UiLanguages)
+            foreach (var id in found.Concat(examples.Values).Distinct())
+            {
+                if (!registered.Contains(id)) problems.Add($"{id} is not registered");
+                else if (HelpCatalog.ForCommand(language, id) is null) problems.Add($"{language}: {id} has no topic");
+                else if (!AnyLine(language, id, l => NumberedStep.IsMatch(l))) problems.Add($"{language}: {id} has no numbered steps");
+            }
+        Assert.True(problems.Count == 0, string.Join("\n", problems));
+    }
+
+    /// <summary>Plugins, remote files, MCP, agents and large files: each topic has steps and a bullet, the large files have what works, what does not and the messages.</summary>
+    [Theory]
+    [MemberData(nameof(Languages))]
+    public void Plugins_remote_files_MCP_agents_and_large_files_have_procedures_limits_and_messages(string language)
+    {
+        string[] procedures =
+        [
+            "plugins.manager", "plugins.lifecycle", "plugins.virtual", "remote.connections", "remote.open", "remote.upload", "remote.cancel", "remote.check", "remote.unsent", "remote.cache",
+            "source.open", "tools.mcp", "tools.ide", "tools.agent", "tools.mcpAgents", "recovery",
+        ];
+        var problems = new List<string>();
+        foreach (var id in procedures)
+        {
+            var topic = HelpCatalog.Find(language, id);
+            if (topic is null) problems.Add($"{id} is missing");
+            else if (!topic.Lines.Any(l => NumberedStep.IsMatch(l)) || !topic.Lines.Any(l => l.StartsWith("- ", StringComparison.Ordinal))) problems.Add($"{id} has no steps or no bullet");
+        }
+        var paged = HelpCatalog.Find(language, "paged");
+        if (paged is null || paged.Lines.Count(l => l.StartsWith("### ", StringComparison.Ordinal)) < 3) problems.Add("paged has less than the three subheadings: what works, what does not, messages");
+        Assert.True(problems.Count == 0, $"{language}: " + string.Join("; ", problems));
+    }
+
+    /// <summary>The failures of the commands of 1.0 (files, remote files and sources, plugins, MCP, agents, large files, packages, schemas), by the key of the text of the program.</summary>
+    private static readonly string[] QuotedMessages =
+    [
+        "agent.version.unknown", "agent.version.unverified", "convert.failed", "favorite.exists", "favorite.nothing", "ide.notOn", "inspect.editorConfigDone",
+        "inspect.editorConfigNone", "inspect.noBytes", "lines.dateFormat.invalid", "lines.insertFile.tooLarge", "lines.pasteHtml.none",
+        "lines.reformat.noMargin", "lock.instance", "lock.instanceOwner", "lock.still", "lock.system", "log.fold.dimmed", "log.fold.nothing",
+        "log.stack.none", "log.stack.notFound", "loss.message.other", "mcp.agents.none", "mcp.agents.problems", "mcp.client.notSaved", "mcp.client.nothing",
+        "mcp.client.resultError", "packages.busy", "packages.error", "packages.notManifest", "packages.script.none", "packages.script.notManifest",
+        "packages.tooLarge", "paged.copyTooLarge", "paged.editTooLarge", "paged.lineTooLong", "paged.pasteEncoding", "paged.pasteTooLarge",
+        "plugins.error.duplicateEntry", "plugins.error.symbolicLink", "plugins.error.tooManyEntries", "plugins.keys.overridden", "plugins.keys.prefix",
+        "plugins.row.problem", "plugins.status.failed", "project.needsFolder", "project.noFolder", "project.none", "project.openedMissing",
+        "project.settingsBroken", "remote.bar.offline", "remote.checkFailed", "remote.conflict.deleted", "remote.conflict.message", "remote.connectionGone",
+        "remote.copyMissing", "remote.noConnections", "remote.noTransfer", "remote.notRemote", "remote.trust.invalid", "remote.unsent.empty", "review.busy",
+        "review.noBase", "review.none", "review.notSaved", "schema.notFile", "schema.nothingToAllow", "schema.unavailable", "schema.unsupported",
+        "session.nothing", "session.openedMissing", "source.conflict.gone", "source.conflict.message", "source.conflict.unreachable", "source.none",
+        "source.search.failed", "source.search.none", "special.launchFailed", "special.noClosed", "special.notFile", "status.convertFailed",
+        "status.nothingToChange", "table.copyAs.failed", "table.copyAs.tooLarge", "virtual.readOnly", "virtual.saveAsRefused"
+    ];
+
+    /// <summary>P9.2.3: a message of the program starts a bullet of the help word for word (a value in it as a word), so the help never describes a message that was reworded or invented.</summary>
+    [Theory]
+    [MemberData(nameof(Languages))]
+    public void Failure_messages_of_the_features_of_1_0_are_quoted_in_the_help(string language)
+    {
+        var catalog = Loc.Catalog(language);
+        var bullets = HelpCatalog.Topics(language).SelectMany(t => t.Lines).Where(l => l.StartsWith("- ", StringComparison.Ordinal)).Select(l => l[2..]).ToList();
+        var unknown = QuotedMessages.Where(k => !catalog.ContainsKey(k)).ToList();
+        Assert.True(unknown.Count == 0, $"{language}: no such text in the program: {string.Join(", ", unknown)}");
+        var notQuoted = QuotedMessages.Where(key =>
+        {
+            var patterns = new[] { catalog[key], FirstSentence(catalog[key]) }.Select(MessagePattern).ToList();
+            return !bullets.Any(b => patterns.Any(p => p.IsMatch(b)));
+        }).ToList();
+        Assert.True(notQuoted.Count == 0, $"{language}: the help does not quote: {string.Join(", ", notQuoted)}");
+    }
+
+    /// <summary>P9.2.3: the help is read without a network. It is part of the program, its text holds no link, image or markup that loads something, and the code that shows it fetches and starts nothing.</summary>
+    [Fact]
+    public void Help_needs_no_network_to_be_read()
+    {
+        var resources = typeof(HelpCatalog).Assembly.GetManifestResourceNames();
+        Assert.All(StringTable.UiLanguages, l => Assert.Contains($"NksHub.Textida.App.Help.help.{l}.md", resources));
+
+        var markup = new Regex(@"!\[|\]\(|<\s*/?\s*(?:a|img|iframe|script|link|video|audio|source|object|embed|style)\b[^>]*>|\bsrc\s*=|\bhref\s*=|\burl\(|(?:https?|ftp|file)://[A-Za-z0-9]|\bwww\.", RegexOptions.IgnoreCase);
+        var remote = StringTable.UiLanguages.SelectMany(l => HelpCatalog.Topics(l).SelectMany(t => t.Lines.Select(line => (Place: $"{l}:{t.Id}", Line: line))))
+            .Where(x => markup.IsMatch(Regex.Replace(x.Line, "`[^`]*`", ""))).Select(x => $"{x.Place}: {x.Line}").ToList();
+        Assert.True(remote.Count == 0, "the help holds links, images or markup that loads something:\n" + string.Join("\n", remote));
+
+        var fetching = new Regex(@"\b(?:HttpClient|WebClient|WebView\w*|Process|Launcher|Bitmap|Image|HyperlinkButton|Socket|Uri)\b|https?://");
+        var code = new[] { Path.Combine("Help", "HelpCatalog.cs"), Path.Combine("Help", "HelpContext.cs"), Path.Combine("Shell", "HelpWindow.cs"), Path.Combine("Shell", "MainWindow.Help.cs") };
+        var network = code.SelectMany(f => File.ReadAllLines(Path.Combine(Repo.AppSources, f)).Select((line, i) => (File: f, Line: i + 1, Text: line)))
+            .Where(x => fetching.IsMatch(x.Text)).Select(x => $"{x.File}:{x.Line}: {x.Text.Trim()}").ToList();
+        Assert.True(network.Count == 0, "the code of the help touches the network, a process or an image:\n" + string.Join("\n", network));
     }
 
     private static string FirstSentence(string template)

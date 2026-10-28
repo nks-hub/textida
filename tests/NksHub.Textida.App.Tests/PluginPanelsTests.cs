@@ -74,7 +74,12 @@ public class PluginPanelsTests : IDisposable
     private Task<JsonElement> Call(string method, string paramsJson) =>
         Host.CallAsync("p", "callEditor", Encoding.UTF8.GetBytes($"{{\"method\":\"{method}\",\"params\":{paramsJson}}}")).ContinueWith(t => t.Result.Clone());
 
-    private async Task<JsonElement> Editor(string method, string paramsJson) => await Pump(Call(method, paramsJson));
+    private async Task<JsonElement> Editor(string method, string paramsJson)
+    {
+        var result = await Pump(Call(method, paramsJson));
+        _w.UpdateLayout(); // the templates of buttons and scroll viewers are applied, so their content is in the logical tree
+        return result;
+    }
 
     private static int ErrorOf(JsonElement r) => r.ValueKind == JsonValueKind.Object && r.TryGetProperty("error", out var e) ? e.GetInt32() : 0;
 
@@ -161,10 +166,11 @@ public class PluginPanelsTests : IDisposable
         var body = _w.PreviewBody!;
         var text = TextOf(body);
         Assert.Contains("<script>alert(1)</script>", text);
-        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "chart")), text);
+        Assert.Contains(Loc.Get(K.PreviewImageRemote, ("host", "remote.example"), ("alt", "chart")), text); // a button that asks; nothing is fetched
         Assert.Contains(Loc.Get(K.PreviewPanelLink, ("text", "notes"), ("url", "file:///C:/private/notes.txt")), text);
         Assert.Contains("snake_case_name", text);
-        Assert.DoesNotContain(Tree(body), c => c is Image or Button);
+        Assert.DoesNotContain(Tree(body), c => c is Image);
+        Assert.Single(Tree(body).OfType<Button>());
 
         // plain text is shown as it is, Markdown marks included
         await Editor(DocumentMethods.PreviewShow, Show(tab, "# not a heading", "text"));
@@ -191,7 +197,7 @@ public class PluginPanelsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task A_preview_draws_a_data_image_and_a_broken_or_remote_image_stays_a_note()
+    public async Task A_preview_draws_a_data_image_and_a_broken_image_stays_a_note_and_a_remote_one_waits_for_the_user()
     {
         await StartPluginAsync();
         var tab = Shared("x");
@@ -205,7 +211,65 @@ public class PluginPanelsTests : IDisposable
         Assert.Equal("dot", Avalonia.Automation.AutomationProperties.GetName(images[0]));
         var text = TextOf(body);
         Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "broken")), text);
-        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "far")), text);
+        var ask = Assert.Single(Tree(body).OfType<Button>());
+        Assert.Equal(Loc.Get(K.PreviewImageRemote, ("host", "remote.example"), ("alt", "far")), Avalonia.Automation.AutomationProperties.GetName(ask));
+    }
+
+    private static string WithImages(DocTab tab, string text, string images, string format = "markdown") =>
+        $"{{\"document\":\"{tab.Doc.Doc.Id}\",\"revision\":{tab.Doc.Doc.Revision},\"format\":\"{format}\",\"text\":{JsonSerializer.Serialize(text)},\"images\":{images}}}";
+
+    [AvaloniaFact]
+    public async Task A_plugin_attaches_pictures_and_refers_to_them_by_name_and_a_bad_attachment_is_refused()
+    {
+        await StartPluginAsync();
+        var tab = Shared("x");
+        Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
+
+        await Editor(DocumentMethods.PreviewShow, WithImages(tab, "![logo](preview:logo) ![gone](preview:gone) <img src=\"preview:logo\" alt=\"again\">", $"{{\"logo\":\"{OnePixelPng}\"}}", "html"));
+        var body = _w.PreviewBody!;
+        Assert.Equal(["again"], Tree(body).OfType<Image>().Select(i => AutomationProperties.GetName(i)).ToList()); // the HTML refers to it; the Markdown marks inside HTML stay text
+        Assert.Contains("![gone](preview:gone)", TextOf(body));
+
+        await Editor(DocumentMethods.PreviewShow, WithImages(tab, "![logo](preview:logo) ![gone](preview:gone)", $"{{\"logo\":\"{OnePixelPng}\"}}"));
+        body = _w.PreviewBody!;
+        Assert.Equal(["logo"], Tree(body).OfType<Image>().Select(i => AutomationProperties.GetName(i)).ToList());
+        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "gone")), TextOf(body));
+
+        var svg = Convert.ToBase64String(Encoding.UTF8.GetBytes("<svg xmlns=\"http://www.w3.org/2000/svg\"><script>1</script></svg>"));
+        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", $"{{\"vector\":\"{svg}\"}}"))));
+        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "{\"logo\":\"not base64!\"}"))));
+        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", $"{{\"a b\":\"{OnePixelPng}\"}}"))));
+        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "[\"logo\"]"))));
+        var many = string.Join(",", Enumerable.Range(0, PluginLimitsPlaceholders.PreviewImagesPerPreview + 1).Select(i => $"\"p{i}\":\"{OnePixelPng}\""));
+        Assert.Equal(RpcErrorCodes.MessageTooLarge, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "{" + many + "}"))));
+        var huge = Convert.ToBase64String([.. Convert.FromBase64String(OnePixelPng), .. new byte[PluginLimitsPlaceholders.PreviewImageMaxBytes]]);
+        Assert.Equal(RpcErrorCodes.MessageTooLarge, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", $"{{\"big\":\"{huge}\"}}"))));
+    }
+
+    [AvaloniaFact]
+    public async Task A_plugin_shows_html_and_a_diagram_and_a_relative_picture_is_not_read_for_it()
+    {
+        await StartPluginAsync();
+        var tab = Shared("x");
+        Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
+        Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
+
+        await Editor(DocumentMethods.PreviewShow, Show(tab, "<h1>Title</h1><p>one <em>two</em> <script>alert(1)</script></p><img src=\"pic.png\" alt=\"local\">", "html"));
+        var body = _w.PreviewBody!;
+        var text = TextOf(body);
+        Assert.Contains("Title", text);
+        Assert.Contains("one two <script>alert(1)</script>", text);
+        Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "local")), text);
+        Assert.DoesNotContain(Tree(body), c => c is Image);
+
+        await Editor(DocumentMethods.PreviewShow, Show(tab, "```mermaid\ngraph LR\nA[Source] -->|data| B(Result)\n```\n\n```mermaid\nsequenceDiagram\nA->>B: hi\n```\n"));
+        body = _w.PreviewBody!;
+        var drawing = Assert.Single(Tree(body).OfType<Canvas>());
+        Assert.Contains("Source", TextOf(drawing));
+        Assert.Contains("Result", TextOf(drawing));
+        Assert.Contains(Loc.Get(K.PreviewMermaidUnsupported), TextOf(body));
+        Assert.Contains("sequenceDiagram", TextOf(body));
     }
 
     [AvaloniaFact]
@@ -239,7 +303,7 @@ public class PluginPanelsTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task HTML_is_not_rendered_and_a_preview_without_its_permission_is_refused()
+    public async Task An_unknown_format_and_a_preview_without_its_permission_are_refused()
     {
         await StartPluginAsync();
         var tab = Shared("x");
@@ -251,7 +315,7 @@ public class PluginPanelsTests : IDisposable
         Assert.False(_w.PreviewPanelOpen);
 
         Permissions.Grant("p", DocumentPermissions.Read, GrantScope.All);
-        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, Show(tab, "<p>hi</p>", "html"))));
+        Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, Show(tab, "<p>hi</p>", "svg"))));
         Assert.False(_w.PreviewPanelOpen);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "hi"));

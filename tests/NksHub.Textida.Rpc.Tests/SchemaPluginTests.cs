@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.PluginHost;
@@ -345,5 +346,49 @@ public class SchemaPluginTests
         Assert.Empty(rig.Diagnostics());
         Assert.Empty(Directory.GetFiles(cache, "*.json")); // the copy of a host that is not allowed any more is deleted
         Assert.Single(stub.Requests);
+    }
+
+    [Fact]
+    public async Task A_reference_to_another_schema_file_is_followed_by_the_check_and_the_completion_when_the_limits_are_given_and_asks_nothing_without_them()
+    {
+        const string schema = """{ "type": "object", "properties": { "size": { "$ref": "defs.json#/definitions/size" }, "opts": { "$ref": "defs.json#/definitions/opts" } } }""";
+        const string defs = """{ "definitions": { "size": { "type": "integer" }, "opts": { "type": "object", "properties": { "verbose": { "type": "boolean" } } } } }""";
+        const string data = "{ \"$schema\": \"../shapes/thing.schema.json\", \"size\": \"big\", \"opts\": { \"ve\": 1 } }";
+        var companions = new Dictionary<string, string> { ["shapes/thing.schema.json"] = schema, ["shapes/defs.json"] = defs };
+
+        await using (var rig = await Rig.CreateAsync("conf/thing.json", data, companions: companions, extraArgs: _ => ["--schema-ref-depth", "3", "--schema-ref-documents", "8"]))
+        {
+            Assert.Equal("ready", (await rig.CheckAsync()).GetProperty("state").GetString());
+            Assert.Equal(["\"big\""], rig.Diagnostics().Select(d => rig.TextOf(d.Range)));
+            Assert.Equal(["verbose"], (await rig.Docs.RequestCompletionAsync(rig.Doc.Id, rig.After("\"opts\": { \"ve"))).Items.Select(i => i.Label));
+        }
+        await using (var rig = await Rig.CreateAsync("conf/thing.json", data, companions: companions))
+        {
+            await rig.CheckAsync();
+            Assert.Empty(rig.Diagnostics()); // no limits: the reference to another file asks nothing
+            Assert.Empty((await rig.Docs.RequestCompletionAsync(rig.Doc.Id, rig.After("\"opts\": { \"ve"))).Items);
+        }
+    }
+
+    [Fact]
+    public async Task A_rule_of_the_user_from_the_mappings_file_picks_the_schema_and_the_dialect_and_a_change_of_the_file_applies_at_the_next_check()
+    {
+        const string integer = """{ "type": "object", "properties": { "n": { "type": "integer" } } }""";
+        const string text = """{ "type": "object", "properties": { "n": { "type": "string" } } }""";
+        await using var rig = await Rig.CreateAsync("conf/app.cfg", "n: x\n", extraArgs: folder => ["--schema-mappings", Path.Combine(folder, "mappings.txt")],
+            companions: new Dictionary<string, string> { ["conf/shapes/n-int.json"] = integer, ["conf/shapes/n-str.json"] = text });
+        string mappings = Path.Combine(rig.Folder, "mappings.txt");
+
+        Assert.Equal(JsonValueKind.Null, (await rig.CheckAsync()).GetProperty("schema").ValueKind); // there is no file of rules yet
+
+        File.WriteAllText(mappings, "*.cfg=shapes/n-int.json as yaml");
+        var first = await rig.CheckAsync();
+        Assert.Equal(("n-int.json", "ready"), (first.GetProperty("name").GetString(), first.GetProperty("state").GetString()));
+        Assert.Equal(["x"], rig.Diagnostics().Select(d => rig.TextOf(d.Range)));
+
+        File.WriteAllText(mappings, "conf/*.cfg = shapes/n-str.json as yaml;\n# a comment\nbroken");
+        var second = await rig.CheckAsync();
+        Assert.Equal("n-str.json", second.GetProperty("name").GetString());
+        Assert.Empty(rig.Diagnostics());
     }
 }

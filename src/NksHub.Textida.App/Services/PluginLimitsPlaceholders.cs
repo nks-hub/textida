@@ -20,11 +20,14 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: milliseconds one line may spend in the highlight expression of a log view before its search is cut off.</summary>
     public const int LogHighlightMatchTimeoutMilliseconds = 50;
 
-    /// <summary>Placeholder, OPEN: how many times an upload is repeated after the connection was lost (each repeat checks the server version again and continues a partial temporary file).</summary>
+    /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 
-    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload; every further repeat waits twice as long.</summary>
+    /// <summary>Placeholder, OPEN: milliseconds before the first repeat of a lost upload or download; every further repeat waits twice as long.</summary>
     public const int RemoteRetryBaseDelayMilliseconds = 2000;
+
+    /// <summary>Placeholder, OPEN: a transfer writes a line to the Remote output each time its progress passes a multiple of this many percent (the status bar shows every whole percent).</summary>
+    public const int RemoteProgressLogStepPercent = 10;
 
     /// <summary>Placeholder, OPEN: most characters of a document that the HTML and RTF export (file or clipboard) takes; a larger one is refused with a message.</summary>
     public const int HighlightExportMaxChars = 8 * 1024 * 1024;
@@ -69,6 +72,14 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: milliseconds in which the largest measured paste (<see cref="PagedPasteMaxChars"/> characters into a file of 100 MiB) must end on a development PC; only the measuring test reads it. The owner has not decided it.</summary>
     public const int PagedPasteMeasureMilliseconds = 5000;
+    /// <summary>Placeholder, OPEN: most carets (selections) a large file in the paged view takes; Add Next Occurrence, Select All Occurrences, Add Caret Above and Below and Alt+click stop there and the status bar says so. The owner has not decided it.</summary>
+    public const int PagedMaxCarets = 1000;
+
+    /// <summary>Placeholder, OPEN: longest selection of a large file in the paged view, in bytes, whose other occurrences Add Next Occurrence and Select All Occurrences look for; a longer one is refused with a message. The owner has not decided it.</summary>
+    public const int PagedOccurrenceMaxBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: most bytes a paste inserts over all carets of a large file in the paged view together (the text times the number of carets); a larger paste is refused with a message and the document stays as it was. The owner has not decided it.</summary>
+    public const long PagedMultiPasteMaxBytes = 64L << 20;
 
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
@@ -132,6 +143,14 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder: carets one snippet or clip places in each selection, and the most places Tab visits in one Emmet expansion.</summary>
     public const int SnippetCarets = 64;
+
+    /// <summary>Placeholder, OPEN: how many placeholders of a snippet may stand inside one another (<c>${1:a ${2:b}}</c> is two); a deeper one stays in the text as it is. The owner has not decided it.</summary>
+    public const int SnippetNestingDepth = 8;
+
+    /// <summary>Placeholder, OPEN: milliseconds one regular expression of a snippet transform may run on one text; a slower one stops the snippet with a message, and a mirror it feeds stays as it was. The owner has not decided it.</summary>
+    public const int SnippetTransformTimeoutMilliseconds = 100;
+
+    public static NksHub.Textida.Core.Snippets.SnippetLimits Snippets() => new(SnippetNestingDepth, SnippetLength, TimeSpan.FromMilliseconds(SnippetTransformTimeoutMilliseconds));
 
     /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
     public const long GrammarMaxBytes = 1 << 20;
@@ -308,6 +327,12 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: time one <c>pattern</c> of a schema may take on one value before it counts as not matching.</summary>
     public const int SchemaRegexTimeoutMilliseconds = 200;
 
+    /// <summary>Placeholder, OPEN: longest chain of schema documents a <c>$ref</c> may lead through, counted from the schema of the file; 0 would follow no reference to another document. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDepth = 4;
+
+    /// <summary>Placeholder, OPEN: most other schema documents (files or downloads) the references of one schema may pull in together. The owner has not decided it.</summary>
+    public const int SchemaRefMaxDocuments = 16;
+
     /// <summary>Placeholder: largest file handed to a language server; a larger one never starts one. Must not exceed <see cref="DocumentApiOptions.MaxReadBytes"/>. OPEN: the owner has not decided it.</summary>
     public const int LspMaxBytes = 1 << 20;
 
@@ -326,8 +351,20 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: last lines of a language server's standard error kept for the report of its end.</summary>
     public const int LspStderrLines = 20;
 
-    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it; a crashed server is not restarted by itself, the next command starts it.</summary>
+    /// <summary>Placeholder: time a language server keeps running after the last document of its language was closed. OPEN: the owner has not decided it.</summary>
     public const int LspIdleStopMilliseconds = 300_000;
+
+    /// <summary>Placeholder, OPEN: how many times in a row a language server that ended unexpectedly is started again by itself before the editor gives up and leaves it to the next command; 0 never starts it by itself. The owner has not decided it.</summary>
+    public const int LspRestartMaxAttempts = 3;
+
+    /// <summary>Placeholder, OPEN: milliseconds before the first automatic start of a language server that ended unexpectedly; every further start waits twice as long, up to <see cref="LspRestartMaxDelayMilliseconds"/>. The owner has not decided it.</summary>
+    public const int LspRestartBaseDelayMilliseconds = 1000;
+
+    /// <summary>Placeholder, OPEN: longest wait between two automatic starts of a language server. The owner has not decided it.</summary>
+    public const int LspRestartMaxDelayMilliseconds = 30_000;
+
+    /// <summary>Placeholder, OPEN: milliseconds a language server must have run before it ended for the next crash to count as a first one again. The owner has not decided it.</summary>
+    public const int LspRestartStableMilliseconds = 60_000;
 
     /// <summary>Placeholder: folders searched upwards for the project root of a document for a language server, the folder of the file being the first. OPEN: the owner has not decided it.</summary>
     public const int LspRootSearchLevels = 16;
@@ -463,8 +500,44 @@ internal static class PluginLimitsPlaceholders
     /// <summary>Placeholder: longest text of one preview a plugin shows, in UTF-16 units. OPEN: the owner has not decided it.</summary>
     public const int PreviewMaxChars = 1 << 20;
 
-    /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI. OPEN: the owner has not decided it.</summary>
+    /// <summary>Placeholder: largest image of a preview, in decoded bytes of its <c>data:</c> URI or of the bytes a plugin attaches. OPEN: the owner has not decided it.</summary>
     public const int PreviewImageMaxBytes = 1 << 20;
+
+    /// <summary>Placeholder: most pictures one preview of a plugin attaches. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImagesPerPreview = 32;
+
+    /// <summary>Placeholder: largest total of the pictures one preview of a plugin attaches, in bytes. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImagesTotalBytes = 8 << 20;
+
+    /// <summary>Placeholder: largest picture the preview reads from a local file or a web address, in bytes. OPEN: the owner has not decided it.</summary>
+    public const int PreviewFileImageMaxBytes = 8 << 20;
+
+    /// <summary>Placeholder: most pixels (width times height) of a picture the preview decodes, whatever its size in bytes. OPEN: the owner has not decided it.</summary>
+    public const long PreviewImageMaxPixels = 40_000_000;
+
+    /// <summary>Placeholder: decoded pictures a window keeps so that drawing the preview again does not read or fetch them again. OPEN: the owner has not decided it.</summary>
+    public const int PreviewImageCacheEntries = 32;
+
+    /// <summary>Placeholder: longest time one remote picture of a preview may take, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const int PreviewRemoteImageTimeoutMs = 10_000;
+
+    /// <summary>Placeholder: how long a web picture that failed is left alone before drawing the preview asks for it again, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const long PreviewRemoteImageRetryMs = 30_000;
+
+    /// <summary>Placeholder: time after the editor or the preview was scrolled by the other during which scrolling it again is not passed back, in milliseconds. OPEN: the owner has not decided it.</summary>
+    public const int PreviewSyncQuietMs = 150;
+
+    /// <summary>Placeholder: most nodes the HTML reader of the preview creates; the rest of the text stays text. OPEN: the owner has not decided it.</summary>
+    public const int PreviewHtmlMaxNodes = 20_000;
+
+    /// <summary>Placeholder: deepest nesting of HTML tags the preview reads; a deeper tag stays text. OPEN: the owner has not decided it.</summary>
+    public const int PreviewHtmlMaxDepth = 64;
+
+    /// <summary>Placeholder: most nodes of a Mermaid flowchart the preview draws; a larger one is shown as source. OPEN: the owner has not decided it.</summary>
+    public const int PreviewMermaidMaxNodes = 60;
+
+    /// <summary>Placeholder: most connections of a Mermaid flowchart the preview draws; a larger one is shown as source. OPEN: the owner has not decided it.</summary>
+    public const int PreviewMermaidMaxEdges = 120;
 
     /// <summary>Placeholder: quiet time after an edit before the live preview of the current file is drawn again, in milliseconds. OPEN: the owner has not decided it.</summary>
     public const int PreviewLiveDebounceMs = 300;
@@ -479,7 +552,7 @@ internal static class PluginLimitsPlaceholders
         IPreviewPanel? preview = null, IAgentPanel? agent = null) => new()
     {
         Workspace = workspace,
-        Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars),
+        Preview = preview is null ? null : new PreviewOptions(preview, PreviewMaxChars, PreviewImagesPerPreview, PreviewImageMaxBytes, PreviewImagesTotalBytes),
         Agent = agent is null ? null : new AgentPanelOptions(agent, AgentUpdateMaxChars),
         DiffActions = new DiffActionOptions(DiffActionsPerTab, DiffActionTextLength),
         MaxDiffBytes = DiffMaxSideBytes,
@@ -489,6 +562,7 @@ internal static class PluginLimitsPlaceholders
         MaxSymbolTextLength = SymbolTextLength,
         MaxSnippetLength = SnippetLength,
         MaxSnippetCarets = SnippetCarets,
+        Snippets = Snippets(),
         TabTimeout = TabTimeout,
         MaxSecretScanBytes = SecretScanMaxBytes,
         MaxClipboardChars = ClipboardMaxChars,
@@ -623,6 +697,66 @@ internal static class PluginLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: largest file of a saved macro that is read, in bytes; a larger one is listed as damaged with the reason and not read. The owner has not decided it.</summary>
     public const int MacroMaxFileBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: largest hooks file, in bytes, that the hooks editor reads; a larger one is refused with a message. The owner has not decided it.</summary>
+    public const int HooksMaxFileBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: deepest JSON nesting the hooks editor reads. The owner has not decided it.</summary>
+    public const int HooksMaxDepth = 32;
+
+    /// <summary>Placeholder, OPEN: milliseconds a matcher pattern of a hook may take on one value in the hooks editor before it counts as invalid. The owner has not decided it.</summary>
+    public const int HooksRegexTimeoutMilliseconds = 100;
+
+    public static NksHub.Textida.Core.Agents.Hooks.HookLimits Hooks() => new(HooksMaxDepth, TimeSpan.FromMilliseconds(HooksRegexTimeoutMilliseconds));
+
+    /// <summary>Placeholder, OPEN: bytes of a selection in paged mode that are decoded to count its tokens for the status bar; a larger selection is counted by its bytes. The owner has not decided it.</summary>
+    public const long TokenEstimateMaxSelectionBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: largest line of an agent transcript, in bytes, that is read and parsed whole while the index is built; a longer one is classified from its start and read only when it is shown. The owner has not decided it.</summary>
+    public const int TranscriptWholeLineBytes = 1 << 20;
+
+    /// <summary>Placeholder, OPEN: bytes from the start of a longer transcript line that decide what kind of record it is. The owner has not decided it.</summary>
+    public const int TranscriptPeekBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN (input decision of P8b.3.5): memory, in bytes, that the index of one agent transcript may use; past it the index stops and the list says so. The owner has not decided it.</summary>
+    public const long TranscriptIndexMaxBytes = 64L << 20;
+
+    /// <summary>Placeholder, OPEN: lines of a transcript after which a turn goes on in the next one, so no turn needs more than this to be shown. The owner has not decided it.</summary>
+    public const int TranscriptMaxLinesPerTurn = 200;
+
+    /// <summary>Placeholder, OPEN: characters of one row of a transcript turn (a message, a tool result, a diff) that are shown; the rest is cut. The owner has not decided it.</summary>
+    public const int TranscriptMaxRowChars = 20_000;
+
+    /// <summary>Placeholder, OPEN: bytes of one transcript line that the raw view opens; a longer line is cut. The owner has not decided it.</summary>
+    public const int TranscriptMaxRawBytes = 8 << 20;
+
+    /// <summary>Placeholder, OPEN: hits after which a search of a transcript stops. The owner has not decided it.</summary>
+    public const int TranscriptMaxSearchHits = 1000;
+
+    /// <summary>Placeholder, OPEN: characters of a prompt that are the title of its turn. The owner has not decided it.</summary>
+    public const int TranscriptPreviewChars = 120;
+
+    /// <summary>Placeholder, OPEN: deepest JSON nesting read in a transcript line. The owner has not decided it.</summary>
+    public const int TranscriptMaxDepth = 64;
+
+    /// <summary>Placeholder, OPEN: shortest value of a secrets file that is hidden wherever it appears in a transcript; a shorter one would hide ordinary text. The owner has not decided it.</summary>
+    public const int TranscriptMinSecretLength = 6;
+
+    /// <summary>Placeholder, OPEN: tool calls of a transcript that are remembered while they wait for their result. The owner has not decided it.</summary>
+    public const int TranscriptMaxPendingTools = 1000;
+
+    /// <summary>Placeholder, OPEN: secrets files of the opened folder whose values are hidden in a transcript from the start. The owner has not decided it.</summary>
+    public const int TranscriptSeedMaxFiles = 20;
+
+    /// <summary>Placeholder, OPEN: largest secrets file, in bytes, read to learn its values for a transcript. The owner has not decided it.</summary>
+    public const int TranscriptSeedMaxFileBytes = 64 * 1024;
+
+    /// <summary>Placeholder, OPEN: milliseconds between two looks of the transcript window at the growing index. The owner has not decided it.</summary>
+    public const int TranscriptRefreshMilliseconds = 250;
+
+    public static NksHub.Textida.Core.Agents.Transcripts.TranscriptLimits Transcript() => new(
+        TranscriptWholeLineBytes, TranscriptPeekBytes, TranscriptIndexMaxBytes, TranscriptMaxLinesPerTurn, TranscriptMaxRowChars, TranscriptMaxRawBytes, TranscriptMaxSearchHits,
+        TranscriptPreviewChars, TranscriptMaxDepth, TranscriptMinSecretLength, TranscriptMaxPendingTools);
 
     public static UiApiOptions Ui() => new()
     {

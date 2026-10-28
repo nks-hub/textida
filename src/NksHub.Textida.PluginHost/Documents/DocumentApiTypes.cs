@@ -2,6 +2,7 @@ using System.Text.Json;
 using NksHub.Textida.Core.Changes;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Core.Snippets;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Permissions;
 
@@ -109,7 +110,10 @@ public static class DocumentMethods
     /// Optional <c>adapterVersion</c> and <c>serviceVersion</c> (texts of at most <see cref="FileSourceOptions.MaxVersionChars"/> characters) say which adapter and which service the user is talking to.
     /// </summary>
     public const string SourceRegister = "source/register";
-    /// <summary>Shows a controlled preview (text or Markdown the plugin supplies) of one revision of a document in the editor's preview panel. HTML is not rendered yet.</summary>
+    /// <summary>
+    /// Shows a controlled preview (text, Markdown or the safe HTML subset the plugin supplies) of one revision of a document in the editor's preview panel. The optional <c>images</c> object maps a name to the
+    /// base64 bytes of a PNG, JPEG, GIF, BMP or WebP picture; the text refers to one as <c>preview:name</c>.
+    /// </summary>
     public const string PreviewShow = "preview/show";
     /// <summary>Takes the preview of a document back.</summary>
     public const string PreviewClose = "preview/close";
@@ -274,6 +278,8 @@ public sealed record DocumentApiOptions
     public required int MaxSnippetLength { get; init; }
     /// <summary>Carets one snippet places in each selection.</summary>
     public required int MaxSnippetCarets { get; init; }
+    /// <summary>Nesting depth, text size and transform time of the snippets a plugin sends; null keeps <see cref="SnippetLimits.Fallback"/>.</summary>
+    public SnippetLimits? Snippets { get; init; }
     /// <summary>How long a plugin has to answer the Tab key before the editor indents as without it.</summary>
     public required TimeSpan TabTimeout { get; init; }
     /// <summary>Largest secrets file whose values are looked for; a larger one is hidden whole, because looking would mean holding it in memory.</summary>
@@ -317,15 +323,19 @@ public sealed record DocumentApiOptions
 /// <summary>Limits of the actions a plugin offers in a comparison tab: how many, and the longest key, command and title, in UTF-16 code units.</summary>
 public sealed record DiffActionOptions(int MaxActions, int MaxTextLength);
 
-/// <summary>Formats of <see cref="DocumentMethods.PreviewShow"/>. HTML is left out until the renderer and its policy (P6.2.7) are chosen.</summary>
+/// <summary>Formats of <see cref="DocumentMethods.PreviewShow"/>. HTML is the subset the editor's own renderer draws (P6.2.7): headings, paragraphs, lists, tables, code, links, images and emphasis; every other tag stays text.</summary>
 public static class PreviewFormats
 {
     public const string Text = "text";
     public const string Markdown = "markdown";
+    public const string Html = "html";
 }
 
-/// <summary>What a preview shows: the <paramref name="Text"/> a plugin supplied for <paramref name="Revision"/> of a document, as plain <see cref="PreviewFormats.Text"/> or Markdown.</summary>
-public sealed record PreviewContent(string PluginId, Guid Document, long Revision, string Format, string? Title, string Text);
+/// <summary>
+/// What a preview shows: the <paramref name="Text"/> a plugin supplied for <paramref name="Revision"/> of a document, as plain <see cref="PreviewFormats.Text"/>, Markdown or HTML.
+/// <paramref name="Images"/> are the pictures the plugin attached, by the name the text refers to as <c>preview:name</c>; null when there are none.
+/// </summary>
+public sealed record PreviewContent(string PluginId, Guid Document, long Revision, string Format, string? Title, string Text, IReadOnlyDictionary<string, byte[]>? Images = null);
 
 /// <summary>
 /// The preview panel of the editor. It owns the panel and renders the content itself; the plugin only supplies data. Calls come on the thread that owns the documents,
@@ -342,7 +352,10 @@ public interface IPreviewPanel
 }
 
 /// <param name="MaxChars">Longest preview text, in UTF-16 code units.</param>
-public sealed record PreviewOptions(IPreviewPanel Panel, int MaxChars);
+/// <param name="MaxImages">Most pictures one preview may attach.</param>
+/// <param name="MaxImageBytes">Largest attached picture, in bytes.</param>
+/// <param name="MaxImagesBytes">Largest total of the pictures of one preview, in bytes.</param>
+public sealed record PreviewOptions(IPreviewPanel Panel, int MaxChars, int MaxImages, int MaxImageBytes, int MaxImagesBytes);
 
 public enum AgentUpdateKind { Message, Tool, ToolUpdate, Note, Problem, TurnEnd }
 

@@ -73,6 +73,21 @@ public class ContrastThemeTests : IDisposable
         Assert.True(ContrastColors.Ratio(palette["BgHover"], palette["Bg0"]) > 1.2, $"{theme}: the hover can be told from the window");
     }
 
+    [AvaloniaTheory, MemberData(nameof(Themes))]
+    public void The_changed_bytes_and_the_marks_of_the_hex_grid_read_in_every_high_contrast_theme(string theme)
+    {
+        var palette = Colors(theme).Brushes;
+        double Ratio(string text, string fill) => ContrastColors.Ratio(palette[text], palette[fill]);
+        // the text of a byte reads on the tint of a changed byte, a selection and the row of the caret
+        foreach (var tint in new[] { Editing.HexView.ChangedTintKey(true), "SelectionBg", "CurrentLine" })
+            Assert.True(Ratio("Fg", tint) >= 4.5, $"{theme}: bytes on {tint} are {Ratio("Fg", tint):0.0} : 1");
+        // the underline of a change, a difference and a bookmark bar are marks that carry meaning, so they need 3 : 1 against the window
+        foreach (var mark in new[] { "Accent", "Danger", "Fg" })
+            Assert.True(Ratio(mark, "BgEditor") >= 3, $"{theme}: {mark} on the window is {Ratio(mark, "BgEditor"):0.0} : 1");
+        // the tint of the normal themes is the selection colour of the system here, and the text would not read on it (not so in every theme)
+        if (theme != "YellowOnBlack") Assert.True(Ratio("Fg", Editing.HexView.ChangedTintKey(false)) < 4.5, $"{theme}: the accent tint reads, so the highlight need not replace it");
+    }
+
     [AvaloniaFact]
     public void The_two_themes_of_windows_are_what_the_system_sets()
     {

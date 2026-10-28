@@ -114,6 +114,15 @@ internal sealed class AppWorkbench
         return [];
     }
 
+    /// <summary>Takes back what a plugin put into the app: its commands, menu items, keys and settings, so none of them is shown or works any more. Done for a plugin that was removed, switched off or replaced by another version.</summary>
+    public void RemovePlugin(string id)
+    {
+        _pluginSettings.Remove(id, out var keys);
+        Host.RemovePlugin(id, keys ?? []);
+        SearchIndex = new SettingsSearchIndex(Host.Settings, Strings);
+        RebuildKeymap();
+    }
+
     /// <summary>The current values of the settings a plugin declared, by full key; null when it declared none.</summary>
     public JsonObject? PluginSettingValues(string pluginId)
     {

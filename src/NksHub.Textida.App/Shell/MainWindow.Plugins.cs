@@ -160,8 +160,33 @@ internal sealed partial class MainWindow
             string plugin = names.GetValueOrDefault(p.PluginId, p.PluginId);
             return new QuickRow(p.Model.Title, plugin, null, null, true, null, p.Model.Title + ", " + plugin, () => ShowPluginPanel(p.PluginId, p.Model.Id));
         }).ToList();
+        // a plugin that lists onPanel:id is not running, so it has sent no panel yet: opening the row starts it and the panel opens as soon as the plugin shows it
+        rows.AddRange(plugins.UnshownPanels().Select(d =>
+            new QuickRow(d.PanelId, d.Name, Loc.Get(K.PluginPanelsStarts), null, true, null, d.PanelId + ", " + d.Name, () => _ = OpenDeclaredPluginPanelAsync(d.PluginId, d.PanelId, d.Name))));
         ShowChoice(Loc.Get(K.PluginPanelsWatermark), Loc.Get(K.A11yPluginPanels), rows, emptyText: Loc.Get(K.PluginPanelsEmpty));
         return CommandOutcome.Handled;
+    }
+
+    private (string Plugin, string Panel)? _pendingPluginPanel;
+
+    private async Task OpenDeclaredPluginPanelAsync(string plugin, string panel, string name)
+    {
+        _pendingPluginPanel = (plugin, panel);
+        if (await _app.Plugins.ActivatePanelAsync(panel) is { } why)
+        {
+            _pendingPluginPanel = null;
+            await Dispatcher.UIThread.InvokeAsync(() => SetStatusMessage(Loc.Get(K.PluginUnavailable, ("name", name), ("reason", why))));
+            return;
+        }
+        await Dispatcher.UIThread.InvokeAsync(() => ShowPendingPluginPanel(_app.Plugins.Ui));
+    }
+
+    /// <summary>Opens the panel the user asked for through <c>onPanel</c> once the plugin has sent it.</summary>
+    private void ShowPendingPluginPanel(PluginUiHost ui)
+    {
+        if (_pendingPluginPanel is not { } pending || !ui.Panels.Any(p => p.PluginId == pending.Plugin && p.Model.Id == pending.Panel)) return;
+        _pendingPluginPanel = null;
+        ShowPluginPanel(pending.Plugin, pending.Panel);
     }
 
     /// <summary>Gives the keyboard to the panel: the selected item, else the first one, so the arrows and Enter work at once and a screen reader names an item.</summary>
@@ -175,6 +200,7 @@ internal sealed partial class MainWindow
     private void RefreshPluginUi()
     {
         var ui = _app.Plugins.Ui;
+        ShowPendingPluginPanel(ui);
         RefreshPluginPanel(ui);
         OnGitStatusChanged(ui);
         _pluginPanelClose.SetValue(ToolTip.TipProperty, Loc.Get(K.PluginPanelClose));
@@ -207,6 +233,7 @@ internal sealed partial class MainWindow
             {
                 _pluginPanelKey = null;
                 _pluginPanelDrawn = null;
+                _pluginCurrentNode = null;
                 _pluginTree.Items.Clear();
                 if (PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, false);
             }
@@ -220,13 +247,42 @@ internal sealed partial class MainWindow
 
         // new items of the same panel keep the selected item (by id) and the keyboard where they were
         bool samePanel = _pluginPanelDrawn is { } drawn && drawn.PluginId == shown.PluginId && drawn.Model.Id == shown.Model.Id;
+        bool onlyMark = samePanel && ReferenceEquals(_pluginPanelDrawn!.Model.Items, shown.Model.Items); // the plugin moved the current item and sent no items
         string? selected = samePanel ? (_pluginTree.SelectedItem as TreeViewItem)?.Tag as string : null;
         bool focused = samePanel && _pluginTree.IsKeyboardFocusWithin;
         _pluginPanelDrawn = shown;
-        _pluginTree.Items.Clear();
-        foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
-        if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
-        if (focused) FocusPluginTree();
+        if (!onlyMark)
+        {
+            _pluginCurrentNode = null;
+            _pluginTree.Items.Clear();
+            foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
+            if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
+            if (focused) FocusPluginTree();
+        }
+        MarkCurrentPluginItem(shown.Model.Current);
+    }
+
+    private TreeViewItem? _pluginCurrentNode;
+
+    /// <summary>
+    /// Marks the current item of the panel: its label in bold, and its accessible name says so. It is no selection and takes no focus, so a user who walks through the panel with the keyboard is not moved.
+    /// The item is scrolled into view; an id the panel does not have takes the mark away.
+    /// </summary>
+    private void MarkCurrentPluginItem(string? id)
+    {
+        if (_pluginCurrentNode is { } old) SetPluginNodeMark(old, false);
+        _pluginCurrentNode = id is null ? null : FindPluginNode(_pluginTree.Items, id);
+        if (_pluginCurrentNode is not { } node) return;
+        SetPluginNodeMark(node, true);
+        node.BringIntoView();
+    }
+
+    private static void SetPluginNodeMark(TreeViewItem node, bool current)
+    {
+        if (node.Header is not StackPanel { Children: [TextBlock label, ..] } header) return;
+        label.FontWeight = current ? FontWeight.Bold : FontWeight.Normal;
+        string name = header.Children.Count > 1 && header.Children[1] is TextBlock { Text: { } detail } ? label.Text + ", " + detail : label.Text ?? "";
+        AutomationProperties.SetName(node, current ? Loc.Get(K.A11yPluginCurrentItem, ("name", name)) : name);
     }
 
     private static TreeViewItem? FindPluginNode(ItemCollection items, string id)

@@ -282,6 +282,29 @@ public partial class DocumentApiTests
     }
 
     [Fact]
+    public async Task TemplateItemsMayNestStopsAndMirrorThemThroughATransformAndAnExpansionOverTheSizeLimitIsRefused()
+    {
+        await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());
+        var rev = rig.Revision;
+
+        var big = "${1:$2$2$2$2$2$2$2$2$2$2}${2:" + new string('x', 30) + "}";
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"items\":[{{\"start\":0,\"end\":3,\"text\":{Quoted(big)}}}]"), RpcErrorCodes.InvalidParams);
+        await rig.ErrorAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"text\":{Quoted(big)}"), RpcErrorCodes.InvalidParams);
+        Assert.Equal("é1\né2\n", Text(rig));
+        Assert.Empty(rig.Tools.Sessions);
+
+        var items = $"[{{\"start\":0,\"end\":3,\"text\":{Quoted("${1:a ${2:b}} ${1/(\\w+)/<$1>/} $2")}}}]";
+        await rig.CallAsync(DocumentMethods.SnippetInsert, rig.D($"\"revision\":{rev},\"format\":\"template\",\"items\":{items}"));
+
+        Assert.Equal("a b <a> b b\né2\n", Text(rig));
+        var snippet = Assert.Single(Assert.Single(rig.Tools.Sessions)).Snippet;
+        Assert.Equal([1, 2], snippet.Stops.Select(stop => stop.Number));
+        Assert.Equal([(0, 3), (4, 5)], snippet.Stops[0].Spans.Select(x => (x.Start, x.Length)));
+        Assert.Equal("<x> y", snippet.Stops[0].Spans[1].Transform!.Apply("x y"));
+        Assert.Equal([(2, 1), (10, 1)], snippet.Stops[1].Spans.Select(x => (x.Start, x.Length)));
+    }
+
+    [Fact]
     public async Task ATemplateItemWithoutStopsBeginsNoSessionAndAnUnknownVariableIsRefused()
     {
         await using var rig = await Rig.CreateAsync(Utf8("é1\né2\n"), codec: TextCodec.Utf8, selections: TwoSelections());

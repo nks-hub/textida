@@ -60,6 +60,34 @@ public class ManifestTests
         }
     }
 
+    [Fact]
+    public void A_removed_plugin_takes_its_commands_aliases_handlers_menu_items_keys_and_settings_with_it_and_can_come_back()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        int commands = host.Commands.Commands.Count, settings = host.Settings.Definitions.Count, menus = host.Commands.MenuContributions.Count;
+
+        Assert.Empty(host.AddManifest(PluginManifest, ManifestTrust.Plugin));
+        host.Commands.SetHandler("acme.formatter.format", (_, _) => ValueTask.FromResult(CommandOutcome.Handled));
+        Assert.True(host.Commands.TryGet("FormatDoc", out _));
+        Assert.Equal(commands + 1, host.Commands.Commands.Count);
+        Assert.Contains(host.ContributedLayers, l => l.Kind == KeymapLayerKind.Plugin && l.Source == "acme.formatter");
+        Assert.True(host.Settings.TryGet("acme.formatter.width", out _));
+
+        host.RemovePlugin("acme.formatter", ["acme.formatter.width"]);
+
+        Assert.False(host.Commands.TryGet("acme.formatter.format", out _));
+        Assert.False(host.Commands.TryGet("FormatDoc", out _));
+        Assert.False(host.Commands.HasHandler("acme.formatter.format"));
+        Assert.Equal((commands, settings, menus), (host.Commands.Commands.Count, host.Settings.Definitions.Count, host.Commands.MenuContributions.Count));
+        Assert.DoesNotContain(host.ContributedLayers, l => l.Source == "acme.formatter");
+        Assert.Single(host.ContributedLayers); // the built-in keys stay
+        Assert.False(host.Settings.TryGet("acme.formatter.width", out _));
+        Assert.Equal(0, host.Commands.RemoveSource("acme.formatter"));
+
+        Assert.Empty(host.AddManifest(PluginManifest, ManifestTrust.Plugin)); // the same ids and the same alias are free again
+        Assert.True(host.Commands.TryGet("FormatDoc", out _));
+    }
+
     private static StringTable BuiltinTable(string language) => StringTable.LoadBuiltin(language);
 
     private static Dictionary<string, string> RawTable(string language)

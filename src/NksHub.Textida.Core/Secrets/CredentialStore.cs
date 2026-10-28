@@ -15,15 +15,29 @@ public sealed class CredentialStoreUnavailableException(string message) : Except
 
 public static class CredentialStores
 {
-    /// <summary>The store of the current platform. Windows Credential Manager is implemented; macOS Keychain and the Linux secret service are not, and the returned store throws <see cref="CredentialStoreUnavailableException"/>.</summary>
+    /// <summary>
+    /// The store of the current platform: Windows Credential Manager, the macOS Keychain, the Linux Secret Service (libsecret). Where the system library is missing, or on another
+    /// platform, the returned store throws <see cref="CredentialStoreUnavailableException"/> and says why; a secret is never kept somewhere weaker.
+    /// </summary>
     public static ICredentialStore ForCurrentPlatform() =>
-        OperatingSystem.IsWindows() ? new WindowsCredentialStore() : new UnavailableCredentialStore();
+        OperatingSystem.IsWindows() ? new WindowsCredentialStore()
+        : OperatingSystem.IsMacOS() ? MacKeychainCredentialStore.CreateOrUnavailable()
+        : OperatingSystem.IsLinux() ? LinuxSecretCredentialStore.CreateOrUnavailable()
+        : new UnavailableCredentialStore();
+
+    /// <summary>True when the native library loads on this machine; the handle is released again.</summary>
+    internal static bool CanLoad(string library)
+    {
+        if (!NativeLibrary.TryLoad(library, out var handle)) return false;
+        NativeLibrary.Free(handle);
+        return true;
+    }
 }
 
-internal sealed class UnavailableCredentialStore : ICredentialStore
+internal sealed class UnavailableCredentialStore(string? reason = null) : ICredentialStore
 {
-    private static CredentialStoreUnavailableException Fail() =>
-        new("This platform has no supported credential store yet, so passwords cannot be saved. Enter the password for each connection.");
+    private CredentialStoreUnavailableException Fail() =>
+        new(reason ?? "This platform has no supported credential store yet, so passwords cannot be saved. Enter the password for each connection.");
 
     public string? Get(string key) => throw Fail();
     public void Set(string key, string value) => throw Fail();

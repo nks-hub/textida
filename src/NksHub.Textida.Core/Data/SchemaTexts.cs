@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace NksHub.Textida.Plugins.Json.Schema;
+namespace NksHub.Textida.Core.Data;
 
 /// <summary>
 /// The texts of the schema features in the languages of the editor (cs, en, sk, de; the editor passes the language with the command). A finding of the validator carries its English text and the

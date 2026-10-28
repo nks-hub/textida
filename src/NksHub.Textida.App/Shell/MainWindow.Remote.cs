@@ -45,10 +45,20 @@ internal sealed partial class MainWindow
         TransferStep.RemovingLeftover => Loc.Get(K.RemoteLogLeftover, ("path", e.Path)),
         TransferStep.Uploading => Loc.Get(K.RemoteLogUploading, ("bytes", e.Bytes), ("path", e.Path)),
         TransferStep.Resuming => Loc.Get(K.RemoteLogResuming, ("bytes", e.Bytes), ("path", e.Path)),
+        TransferStep.Downloading => Loc.Get(K.RemoteLogDownloading, ("bytes", e.Bytes), ("path", e.Path)),
+        TransferStep.ResumingDownload => Loc.Get(K.RemoteLogResumingDownload, ("bytes", e.Bytes), ("total", e.Total), ("path", e.Path)),
+        TransferStep.RemovingPartialDownload => Loc.Get(K.RemoteLogPartialRemoved, ("path", e.Path)),
         _ => Loc.Get(K.RemoteLogReplacing, ("path", e.Path)),
     };
 
     private static string ReasonOf(Exception e) => e is RemoteException r ? r.Message : e.Message;
+
+    /// <summary>The way out of a refused login or a missing common key algorithm of an SFTP connection that does not allow the weak SHA-1 signature ssh-rsa, where an old server may need it.</summary>
+    private static string SshRsaHintFor(RemoteConnection connection, Exception e) =>
+        e is RemoteException r && connection.Protocol == RemoteProtocol.Sftp && !connection.AllowSshRsaSha1
+            && (r.Error == RemoteError.NoCommonAlgorithm || (r.Error == RemoteError.AuthenticationFailed && connection.Auth == SftpAuth.PrivateKey))
+            ? " " + Loc.Get(K.RemoteSshRsaHint)
+            : "";
 
     // ---- a small list helper: the palette list as an awaitable question ----
 
@@ -76,13 +86,15 @@ internal sealed partial class MainWindow
             if (client.ConfirmedIdentity is { } identity && identity != connection.TrustedIdentity)
                 _app.Remote.Connections.Add(connection with { TrustedIdentity = identity }, null, _app.Remote.Secrets);
             RemoteLog(connection, Loc.Get(K.RemoteLogConnected));
+            if (connection.AllowSshRsaSha1) RemoteLog(connection, Loc.Get(K.RemoteLogSshRsa));
             return client;
         }
         catch (Exception e) when (e is RemoteException or CredentialStoreUnavailableException or IOException)
         {
             if (client is not null) await client.DisposeAsync();
-            RemoteLog(connection, Loc.Get(K.RemoteConnectFailed, ("name", connection.Name), ("reason", ReasonOf(e))));
-            SetStatusMessage(Loc.Get(K.RemoteConnectFailed, ("name", connection.Name), ("reason", ReasonOf(e))));
+            string reason = ReasonOf(e) + SshRsaHintFor(connection, e);
+            RemoteLog(connection, Loc.Get(K.RemoteConnectFailed, ("name", connection.Name), ("reason", reason)));
+            SetStatusMessage(Loc.Get(K.RemoteConnectFailed, ("name", connection.Name), ("reason", reason)));
             return null;
         }
     }
@@ -95,7 +107,8 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    private static string DescribeConnection(RemoteConnection c) => $"{c.Protocol.ToString().ToUpperInvariant()} · {c.UserName}@{c.Host}:{c.EffectivePort}";
+    private static string DescribeConnection(RemoteConnection c) =>
+        $"{c.Protocol.ToString().ToUpperInvariant()} · {c.UserName}@{c.Host}:{c.EffectivePort}" + (c.AllowSshRsaSha1 ? " · ssh-rsa (SHA-1)" : "");
 
     private async Task ConnectionsAsync()
     {
@@ -172,11 +185,22 @@ internal sealed partial class MainWindow
 
     private async Task ConnectionActionsAsync(RemoteConnection connection)
     {
-        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(connection.Name, DescribeConnection(connection),
-            [new DialogButton(Loc.Get(K.RemoteActionOpen), IsDefault: true), new DialogButton(Loc.Get(K.RemoteActionPassword)), new DialogButton(Loc.Get(K.RemoteActionDelete)),
-             new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)]));
-        if (answer == 0) await OpenRemoteFileAsync(connection);
-        else if (answer == 1)
+        // the answers are in the order of the buttons; the ssh-rsa setting exists for SFTP only
+        var kinds = new List<string> { "open", "password" };
+        var buttons = new List<DialogButton> { new(Loc.Get(K.RemoteActionOpen), IsDefault: true), new(Loc.Get(K.RemoteActionPassword)) };
+        if (connection.Protocol == RemoteProtocol.Sftp)
+        {
+            buttons.Add(new DialogButton(Loc.Get(K.RemoteActionSshRsa)));
+            kinds.Add("sshRsa");
+        }
+        buttons.Add(new DialogButton(Loc.Get(K.RemoteActionDelete)));
+        kinds.Add("delete");
+        buttons.Add(new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true));
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(connection.Name, DescribeConnection(connection), buttons));
+        string kind = answer >= 0 && answer < kinds.Count ? kinds[answer] : "";
+        if (kind == "open") await OpenRemoteFileAsync(connection);
+        else if (kind == "sshRsa") await ChooseSshRsaAsync(connection);
+        else if (kind == "password")
         {
             string? secret = await _app.Dialogs.PromptSecretAsync(this, connection.Name, Loc.Get(connection.Auth == SftpAuth.PrivateKey ? K.RemoteNewPassphrase : K.RemoteNewPassword));
             if (secret is null) return;
@@ -184,7 +208,7 @@ internal sealed partial class MainWindow
             catch (Exception e) when (e is CredentialStoreUnavailableException or IOException) { SetStatusMessage(Loc.Get(K.RemoteSaveFailed, ("reason", e.Message))); return; }
             SetStatusMessage(Loc.Get(K.RemotePasswordSaved, ("name", connection.Name)));
         }
-        else if (answer == 2)
+        else if (kind == "delete")
         {
             int sure = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.RemoteDeleteTitle), Loc.Get(K.RemoteDeleteMessage, ("name", connection.Name)),
                 [new DialogButton(Loc.Get(K.RemoteActionDelete)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]));
@@ -193,6 +217,25 @@ internal sealed partial class MainWindow
             catch (Exception e) when (e is CredentialStoreUnavailableException or IOException) { SetStatusMessage(Loc.Get(K.RemoteSaveFailed, ("reason", e.Message))); return; }
             SetStatusMessage(Loc.Get(K.RemoteDeleted, ("name", connection.Name)));
         }
+    }
+
+    /// <summary>
+    /// Shows the warning and switches the weak SHA-1 signature ssh-rsa on or off for one connection. Off is the state of every new connection and the answer to Cancel; only
+    /// the connection the user chose here ever offers it.
+    /// </summary>
+    private async Task ChooseSshRsaAsync(RemoteConnection connection)
+    {
+        bool allowed = connection.AllowSshRsaSha1;
+        var request = new ChoiceRequest(Loc.Get(K.RemoteSshRsaTitle), Loc.Get(allowed ? K.RemoteSshRsaAllowedNow : K.RemoteSshRsaWarning, ("name", connection.Name)),
+            [new DialogButton(Loc.Get(allowed ? K.RemoteSshRsaForbid : K.RemoteSshRsaAllow)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
+        try { _app.Remote.Connections.Add(connection with { AllowSshRsaSha1 = !allowed }, null, _app.Remote.Secrets); }
+        catch (Exception e) when (e is RemoteException or CredentialStoreUnavailableException or IOException)
+        {
+            SetStatusMessage(Loc.Get(K.RemoteSaveFailed, ("reason", ReasonOf(e))));
+            return;
+        }
+        SetStatusMessage(Loc.Get(allowed ? K.RemoteSshRsaRemoved : K.RemoteSshRsaSaved, ("name", connection.Name)));
     }
 
     // ---- backup of the connections ----
@@ -334,25 +377,30 @@ internal sealed partial class MainWindow
         string? path = await _app.Dialogs.PromptAsync(this, Loc.Get(K.RemoteOpenTitle), Loc.Get(K.RemoteOpenPrompt), "/");
         if (string.IsNullOrWhiteSpace(path)) return;
         path = path.Trim();
-        await using var client = await ConnectAsync(connection);
-        if (client is null) return;
+        var link = new Link(await ConnectAsync(connection));
+        if (link.Client is null) return;
         try
         {
-            var stat = await client.StatAsync(path, CancellationToken.None);
+            var stat = await link.Client.StatAsync(path, CancellationToken.None);
             if (stat is null) { SetStatusMessage(Loc.Get(K.RemoteNotFound, ("path", path))); return; }
-            string? file = stat.Value.IsDirectory ? await BrowseAsync(client, path) : path;
+            string? file = stat.Value.IsDirectory ? await BrowseAsync(link.Client, path) : path;
             if (file is null) return;
             RemoteLog(connection, Loc.Get(K.RemoteLogOpening, ("path", file)));
-            var copy = await _app.Remote.Copies.OpenAsync(client, file, CancellationToken.None);
+            var copy = await TransferDownloadAsync(connection, link, file, (client, options, cancel) => _app.Remote.Copies.OpenAsync(client, file, cancel, options));
+            if (copy is null) return;
             var tab = OpenFile(copy.LocalPath, null);
             tab.Doc.RemoteCopy = copy;
             RemoteLog(connection, Loc.Get(K.RemoteLogOpened, ("path", file), ("local", copy.LocalPath)));
             SetStatusMessage(Loc.Get(K.RemoteOpened, ("path", file), ("name", connection.Name)));
-            await ShowRemoteBarAsync(tab, client);
+            await ShowRemoteBarAsync(tab, link.Client!);
         }
         catch (Exception e) when (e is RemoteException or IOException or UnauthorizedAccessException)
         {
             SetStatusMessage(Loc.Get(K.RemoteOpenFailed, ("path", path), ("reason", ReasonOf(e))));
+        }
+        finally
+        {
+            if (link.Client is not null) await link.Client.DisposeAsync();
         }
     }
 
@@ -437,6 +485,90 @@ internal sealed partial class MainWindow
 
     private CancellationTokenSource? _remoteTransfer;
 
+    /// <summary>The status text a running transfer put into the status bar, so the end of the transfer removes exactly that text and no newer message.</summary>
+    private string _transferMessage = "";
+
+    /// <summary>The connection of a running transfer; a repeat after a lost connection replaces the client.</summary>
+    private sealed class Link(IRemoteClient? client)
+    {
+        public IRemoteClient? Client { get; set; } = client;
+    }
+
+    /// <summary>The log lines and the progress of one transfer: the status bar shows every whole percent, the Remote output a line at each step of the placeholder <see cref="PluginLimitsPlaceholders.RemoteProgressLogStepPercent"/>.</summary>
+    private TransferOptions TransferOptionsFor(RemoteConnection connection, string title, CancellationTokenSource transfer)
+    {
+        int logged = -1;
+        // made here, on the interface thread, so the reports from the transfer thread arrive on it
+        IProgress<TransferProgress> status = new Progress<TransferProgress>(p =>
+        {
+            if (!ReferenceEquals(_remoteTransfer, transfer)) return; // a report that arrives after the transfer ended must not bring the message back
+            _message = _transferMessage = Loc.Get(p.Upload ? K.RemoteProgressUploading : K.RemoteProgressDownloading, ("title", title), ("percent", p.Percent));
+            UpdateStatus();
+        });
+        return new TransferOptions
+        {
+            Log = e => RemoteLog(connection, DescribeStep(e)),
+            Progress = p =>
+            {
+                status.Report(p);
+                int step = p.Percent / PluginLimitsPlaceholders.RemoteProgressLogStepPercent;
+                if (Interlocked.Exchange(ref logged, step) != step)
+                    RemoteLog(connection, Loc.Get(K.RemoteLogProgress, ("path", p.Path), ("percent", p.Percent), ("done", p.Done), ("total", p.Total)));
+            },
+        };
+    }
+
+    private void EndTransfer(CancellationTokenSource transfer)
+    {
+        if (!ReferenceEquals(_remoteTransfer, transfer)) return;
+        _remoteTransfer = null;
+        if (_message.Length > 0 && _message == _transferMessage)
+        {
+            _message = "";
+            UpdateStatus();
+        }
+        _transferMessage = "";
+    }
+
+    /// <summary>
+    /// Runs one transfer and repeats it after a lost connection, with growing pauses (the placeholders <see cref="PluginLimitsPlaceholders.RemoteRetryCount"/> and
+    /// <see cref="PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds"/>). A repeat is a new call, so the server version is checked again and a partial file is continued.
+    /// Null when the connection could not be made again; <see cref="ConnectAsync"/> has said so.
+    /// </summary>
+    private async Task<T?> RepeatAfterLostConnectionAsync<T>(RemoteConnection connection, Link link, Func<IRemoteClient, Task<T>> run, CancellationToken cancellation) where T : class =>
+        await RemoteRetry.RunAsync(() => run(link.Client!), PluginLimitsPlaceholders.RemoteRetryCount, PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds, async info =>
+        {
+            RemoteLog(connection, Loc.Get(K.RemoteLogRetrying, ("attempt", info.Attempt), ("max", info.Max), ("seconds", info.Delay.TotalSeconds), ("reason", info.Error.Message)));
+            await link.Client!.DisposeAsync();
+            link.Client = null;
+            await Task.Delay(info.Delay, cancellation);
+            link.Client = await ConnectAsync(connection);
+            return link.Client is not null;
+        });
+
+    /// <summary>
+    /// One download with its progress in the status bar and the Remote output, stopped by Cancel Transfer, repeated after a lost connection. What arrived stays in a partial
+    /// file, and the next download of the same server version continues there. Null when it was cancelled or the connection could not be made again.
+    /// </summary>
+    private async Task<WorkingCopy?> TransferDownloadAsync(RemoteConnection connection, Link link, string remotePath, Func<IRemoteClient, TransferOptions, CancellationToken, Task<WorkingCopy>> run)
+    {
+        using var cancel = new CancellationTokenSource();
+        _remoteTransfer = cancel;
+        var options = TransferOptionsFor(connection, Path.GetFileName(remotePath), cancel);
+        try
+        {
+            return await RepeatAfterLostConnectionAsync(connection, link, client => run(client, options, cancel.Token), cancel.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            string text = Loc.Get(K.RemoteDownloadCancelled, ("path", remotePath));
+            RemoteLog(connection, text);
+            SetStatusMessage(text);
+            return null;
+        }
+        finally { EndTransfer(cancel); }
+    }
+
     internal CommandOutcome CancelRemoteTransfer()
     {
         if (_remoteTransfer is { } running) running.Cancel(); else SetStatusMessage(Loc.Get(K.RemoteNoTransfer));
@@ -458,34 +590,20 @@ internal sealed partial class MainWindow
         if (od.RemoteCopy is not { } copy) return false;
         if (saveFirst && od.Doc.IsModified && !await SaveAsync(tab)) return false; // the copy on disk is what gets sent
         if (ConnectionOf(copy) is not { } connection) { SetStatusMessage(Loc.Get(K.RemoteConnectionGone)); return false; }
-        var client = await ConnectAsync(connection);
-        if (client is null) { ShowRemoteBarOffline(tab); return false; }
+        var link = new Link(await ConnectAsync(connection));
+        if (link.Client is null) { ShowRemoteBarOffline(tab); return false; }
         using var cancel = new CancellationTokenSource();
         _remoteTransfer = cancel;
 
         var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
         _acceptedServerVersion.TryGetValue(od, out var accepted);
+        var options = TransferOptionsFor(connection, od.Title, cancel);
         try
         {
-            UploadOutcome outcome;
-            for (int attempt = 1; ; attempt++)
-            {
-                try
-                {
-                    outcome = await RemoteSync.UploadAsync(client, _app.Remote.Copies, copy, mode, accepted, new TransferOptions { Log = e => RemoteLog(connection, DescribeStep(e)) }, cancel.Token);
-                    break;
-                }
-                catch (RemoteException e) when (e.Error == RemoteError.ConnectionLost && attempt <= PluginLimitsPlaceholders.RemoteRetryCount)
-                {
-                    // A new call, so the server version is checked again before anything is written; a partial temporary file is continued.
-                    int delay = PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds << (attempt - 1);
-                    RemoteLog(connection, Loc.Get(K.RemoteLogRetrying, ("attempt", attempt), ("max", PluginLimitsPlaceholders.RemoteRetryCount), ("seconds", delay / 1000.0), ("reason", e.Message)));
-                    await client.DisposeAsync();
-                    await Task.Delay(delay, cancel.Token);
-                    client = await ConnectAsync(connection);
-                    if (client is null) { ShowRemoteBarOffline(tab); return false; }
-                }
-            }
+            var outcome = await RepeatAfterLostConnectionAsync(connection, link, c => RemoteSync.UploadAsync(c, _app.Remote.Copies, copy, mode, accepted, options, cancel.Token), cancel.Token);
+            EndTransfer(cancel); // a late report of the progress must not replace the message that follows
+            if (outcome is null) { ShowRemoteBarOffline(tab); return false; }
+            var client = link.Client!;
             switch (outcome.Status)
             {
                 case UploadStatus.Uploaded:
@@ -524,8 +642,8 @@ internal sealed partial class MainWindow
         }
         finally
         {
-            if (ReferenceEquals(_remoteTransfer, cancel)) _remoteTransfer = null;
-            if (client is not null) await client.DisposeAsync();
+            EndTransfer(cancel);
+            if (link.Client is not null) await link.Client.DisposeAsync();
         }
     }
 
@@ -588,15 +706,21 @@ internal sealed partial class MainWindow
     {
         if (tab.Doc.RemoteCopy is not { } copy || _app.Remote.Copies.LocalStateOf(copy) != LocalState.InSync || tab.Doc.Doc.IsModified) return; // never discards local work
         if (ConnectionOf(copy) is not { } connection) { SetStatusMessage(Loc.Get(K.RemoteConnectionGone)); return; }
-        await using var client = await ConnectAsync(connection);
-        if (client is null) return;
+        var link = new Link(await ConnectAsync(connection));
+        if (link.Client is null) return;
         try
         {
-            tab.Doc.RemoteCopy = await _app.Remote.Copies.DownloadAsync(client, copy.RemotePath, CancellationToken.None);
+            var fresh = await TransferDownloadAsync(connection, link, copy.RemotePath, (client, options, cancel) => _app.Remote.Copies.DownloadAsync(client, copy.RemotePath, cancel, options));
+            if (fresh is null) return;
+            tab.Doc.RemoteCopy = fresh;
             await ReloadAsync(tab);
-            await ShowRemoteBarAsync(tab, client);
+            await ShowRemoteBarAsync(tab, link.Client!);
         }
         catch (RemoteException e) { SetStatusMessage(Loc.Get(K.RemoteCheckFailed, ("reason", e.Message))); }
+        finally
+        {
+            if (link.Client is not null) await link.Client.DisposeAsync();
+        }
     }
 
     // ---- unsent changes ----

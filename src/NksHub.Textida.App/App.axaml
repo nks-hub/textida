@@ -425,6 +425,27 @@
             <Setter Property="Padding" Value="4,2" />
             <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
+        <Style Selector="Border.mermaidshape">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Polygon.mermaidshape, Ellipse.mermaidshape">
+            <Setter Property="Fill" Value="{DynamicResource BgEditor}" />
+            <Setter Property="Stroke" Value="{DynamicResource Accent}" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Polyline.mermaidedge">
+            <Setter Property="Stroke" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="Polygon.mermaidarrow">
+            <Setter Property="Fill" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.mermaidlabel">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
         <Style Selector="SelectableTextBlock.previewhead1"><Setter Property="FontSize" Value="22" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
         <Style Selector="SelectableTextBlock.previewhead2"><Setter Property="FontSize" Value="18" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
         <Style Selector="SelectableTextBlock.previewhead3"><Setter Property="FontSize" Value="16" /><Setter Property="FontWeight" Value="SemiBold" /></Style>

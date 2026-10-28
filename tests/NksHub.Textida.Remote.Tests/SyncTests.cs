@@ -7,6 +7,8 @@ namespace NksHub.Textida.Remote.Tests;
 internal sealed class FaultyClient(IRemoteClient inner) : IRemoteClient
 {
     public long? TruncateUploadAt { get; set; }
+    /// <summary>The download hands this many bytes to the caller and then fails with a lost connection, as a cut connection would.</summary>
+    public long? TruncateDownloadAt { get; set; }
     public bool FailAllDeletes { get; set; }
     public bool NoAtomicReplace { get; set; }
     public Func<string, string, bool>? FailRename { get; set; }
@@ -15,7 +17,16 @@ internal sealed class FaultyClient(IRemoteClient inner) : IRemoteClient
     public string? ConfirmedIdentity => inner.ConfirmedIdentity;
     public Task ConnectAsync(CancellationToken c) => inner.ConnectAsync(c);
     public Task<RemoteStat?> StatAsync(string path, CancellationToken c) => inner.StatAsync(path, c);
-    public Task DownloadAsync(string path, Stream d, CancellationToken c) => inner.DownloadAsync(path, d, c);
+    public async Task DownloadAsync(string path, Stream d, CancellationToken c)
+    {
+        if (TruncateDownloadAt is not { } cut) { await inner.DownloadAsync(path, d, c); return; }
+        using var all = new MemoryStream();
+        await inner.DownloadAsync(path, all, c);
+        await d.WriteAsync(all.ToArray().AsMemory(0, (int)Math.Min(cut, all.Length)), c);
+        throw new RemoteException(RemoteError.ConnectionLost, "cut");
+    }
+
+    public Task ResumeDownloadAsync(string path, Stream d, long offset, CancellationToken c) => inner.ResumeDownloadAsync(path, d, offset, c);
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string dir, CancellationToken c) => inner.ListAsync(dir, c);
 
     public async Task UploadAsync(string path, Stream source, CancellationToken c)
@@ -45,7 +56,7 @@ public class SyncTests
 {
     public static IEnumerable<object[]> ServersData => Servers.Both;
 
-    private sealed class Rig : IAsyncDisposable
+    internal sealed class Rig : IAsyncDisposable
     {
         public required TempDir Dir;
         public required TempDir Local;

@@ -6,7 +6,7 @@ namespace NksHub.Textida.Workbench.Matching;
 /// <summary>Diacritics-insensitive, case-insensitive text folding and fuzzy scoring.</summary>
 public static class TextMatching
 {
-    /// <summary>Lower-cases and removes combining marks, so "Kódování" becomes "kodovani".</summary>
+    /// <summary>Lower-cases and removes combining marks, so "Kódování" becomes "kodovani"; the German sharp s becomes "ss", so "Schließen" is found by typing "schliessen".</summary>
     public static string Fold(string? text)
     {
         if (string.IsNullOrEmpty(text))
@@ -29,6 +29,12 @@ public static class TextMatching
         {
             if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
             {
+                continue;
+            }
+
+            if (ch is 'ß' or 'ẞ')
+            {
+                sb.Append("ss");
                 continue;
             }
 

@@ -52,6 +52,15 @@ internal sealed class PluginUiHost(App app) : IPluginUi
         if (_panels.RemoveAll(p => p.PluginId == pluginId && p.Model.Id == panelId) > 0) Changed?.Invoke();
     });
 
+    public void SetCurrentItem(string pluginId, string panelId, string? itemId) => OnUi(() =>
+    {
+        int at = _panels.FindIndex(p => p.PluginId == pluginId && p.Model.Id == panelId);
+        if (at < 0 || _panels[at].Model.Current == itemId) return;
+        // the items stay the very same list, which tells a window that only the mark moved
+        _panels[at] = _panels[at] with { Model = _panels[at].Model with { Current = itemId } };
+        Changed?.Invoke();
+    });
+
     public void SetStatus(string pluginId, StatusModel? status) => OnUi(() =>
     {
         // the same text again redraws nothing: a status that follows the caret must not rebuild an open panel

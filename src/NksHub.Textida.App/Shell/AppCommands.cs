@@ -108,12 +108,21 @@ internal static class AppCommands
             return CommandOutcome.Handled;
         });
         On("nks.edit.selectLine", w => w.SelectLine());
-        Surface("nks.edit.addNextOccurrence", s => s.AddNextOccurrence());
-        Surface("nks.edit.skipOccurrence", s => s.SkipOccurrence());
-        Surface("nks.edit.selectAllOccurrences", s => s.SelectAllOccurrences());
-        Surface("nks.edit.addCaretAbove", s => s.AddCaretVertical(-1));
-        Surface("nks.edit.addCaretBelow", s => s.AddCaretVertical(1));
-        Surface("nks.edit.clearCarets", s => s.ClearCarets());
+        // the caret commands work in the text editor and in the paged view of a large file, under the same names
+        void CaretCommand(string id, Action<EditorSurface> surface, Func<PagedTextView, Task> paged) =>
+            On(id, w =>
+            {
+                if (w.ActiveEditor is { } s) { surface(s); return CommandOutcome.Handled; }
+                if (w.Active is not { TableShown: false, Paged: { } p }) return CommandOutcome.NotHandled;
+                _ = paged(p);
+                return CommandOutcome.Handled;
+            });
+        CaretCommand("nks.edit.addNextOccurrence", s => s.AddNextOccurrence(), p => p.AddNextOccurrenceAsync());
+        CaretCommand("nks.edit.skipOccurrence", s => s.SkipOccurrence(), p => p.SkipOccurrenceAsync());
+        CaretCommand("nks.edit.selectAllOccurrences", s => s.SelectAllOccurrences(), p => p.SelectAllOccurrencesAsync());
+        CaretCommand("nks.edit.addCaretAbove", s => s.AddCaretVertical(-1), p => { p.AddCaretVertical(-1); return Task.CompletedTask; });
+        CaretCommand("nks.edit.addCaretBelow", s => s.AddCaretVertical(1), p => { p.AddCaretVertical(1); return Task.CompletedTask; });
+        CaretCommand("nks.edit.clearCarets", s => s.ClearCarets(), p => { p.ClearCarets(); return Task.CompletedTask; });
         Surface("nks.edit.selectToMark", s => s.MarkOrSelectToMark());
         On("nks.edit.toggleBlockSelect", w => w.ToggleBlockSelect());
         On("nks.edit.clipboardHistory", w => w.ShowClipboardHistory());
@@ -158,6 +167,9 @@ internal static class AppCommands
         On("nks.agent.shareTab", w => w.ShareTabWithAgent());
         On("nks.agent.cancel", w => w.CancelAgentTurn());
         On("nks.agent.stop", w => w.StopAgent());
+        On("nks.agent.hooks", w => w.ShowHooksEditor());
+        On("nks.agent.transcript", w => w.ShowTranscript());
+        On("nks.agent.tokens", w => w.ShowTokenEstimate());
         On("nks.tools.shellMenuAdd", w => w.AddShellMenu());
         On("nks.tools.shellAssociate", w => w.ShowShellAssociations());
         On("nks.tools.shellRemove", w => w.RemoveShellIntegration());
@@ -361,6 +373,8 @@ internal static class AppCommands
         On("nks.table.clearFilter", w => w.TableCommand(t => t.ApplyFilter("", t.Column)));
         On("nks.table.copyAs", w => { w.ShowTableCopyAsMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.toggleInsert", w => w.HexCommand(h => h.ToggleInsert()));
+        On("nks.hex.toggleColumn", w => w.HexCommand(h => h.ToggleColumn()));
+        On("nks.hex.selectTo", w => { if (w.ActiveHex is not { } hex) return CommandOutcome.NotHandled; _ = w.GoToOffsetAsync(hex, select: true); return CommandOutcome.Handled; });
         On("nks.hex.inspector", w => w.ToggleInspector());
         On("nks.hex.charset", w => { w.ShowHexCharsetMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.hex.layout", w => { w.ShowHexLayoutMenu(); return w.ActiveHex is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
@@ -375,6 +389,7 @@ internal static class AppCommands
         On("nks.hex.checksum", w => w.HexChecksumMenu());
         On("nks.hex.minimap", w => w.ToggleHexMinimap());
         On("nks.hex.minimap.mode", w => w.CycleHexMapMode());
+        On("nks.hex.minimap.focus", w => w.FocusHexMinimap());
         On("nks.hex.statistics", w => w.ToggleHexStatistics());
         On("nks.hex.template", w => w.ToggleHexTemplate());
         On("nks.hex.template.open", w => w.OpenHexTemplateFile());
