@@ -300,7 +300,10 @@ internal sealed class OpenDocument : IDisposable
     public static OpenDocument Open(string path, long largeFileBytes)
     {
         var (doc, guess) = OpenDocumentOnly(path, largeFileBytes);
-        return new OpenDocument(doc, 0, guess, LanguageModes.ForPath(doc.FilePath));
+        long t = Core.TypingTrace.Begin();
+        var opened = new OpenDocument(doc, 0, guess, LanguageModes.ForPath(doc.FilePath));
+        Core.TypingTrace.End("open.document.wrap", t);
+        return opened;
     }
 
     /// <summary>The <see cref="Document"/> of a file and how its encoding was guessed; used to open and to reload.</summary>
@@ -309,16 +312,22 @@ internal sealed class OpenDocument : IDisposable
         path = System.IO.Path.GetFullPath(path);
         try
         {
+            long t = Core.TypingTrace.Begin();
             FileSwap.RecoverAbandoned(path);
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException(null, path);
+            Core.TypingTrace.End("open.document.recover", t);
             IBackendFactory factory = info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
+            t = Core.TypingTrace.Begin();
             var guess = GuessFile(path, info.Length);
-            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec }), guess); }
+            Core.TypingTrace.End("open.document.guess", t);
+            t = Core.TypingTrace.Begin();
+            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes }), guess); }
             catch (NotSupportedException) when (factory is PagedBackendFactory)
             {
                 throw new IOException(Loc.Get(K.ErrorOpenLargeEncoding, ("path", path), ("encoding", guess.Codec.Name)));
             }
+            finally { Core.TypingTrace.End("open.document.core", t); }
         }
         catch (Exception e) when (e is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {

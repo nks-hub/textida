@@ -113,6 +113,14 @@ public sealed class DocumentOptions
     public int ChangeLogCapacity { get; init; } = 4096;
     /// <summary>Forces the encoding instead of detecting it.</summary>
     public TextCodec? Format { get; init; }
+    /// <summary>
+    /// A file longer than this is not hashed while it opens: the fingerprint has size and time only (<see cref="FileFingerprint.HasHash"/> is false) and a
+    /// pass over the file on the thread pool fills in the hash and the block digests; <see cref="Document.FingerprintHashed"/> tells when. Until then a
+    /// save writes the whole file instead of patching it. The default hashes every file before <see cref="Document.Open"/> returns.
+    /// </summary>
+    public long HashInBackgroundAboveBytes { get; init; } = long.MaxValue;
+    /// <summary>Test seam: the pass of <see cref="HashInBackgroundAboveBytes"/> waits for this task before it reads the file.</summary>
+    internal Task? HashPassGate { get; init; }
 }
 
 public enum AnchorGravity

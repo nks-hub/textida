@@ -35,6 +35,12 @@ public static class PagedSpillPlaceholders
 
     /// <summary>Placeholder, OPEN (P3.1.9): bytes of decoded lines the paged text view keeps; past it the lines off screen are dropped.</summary>
     public const long LineCacheBytes = 8L << 20;
+
+    /// <summary>Placeholder, OPEN (P3.1.8): a file of at least this many bytes starts its background line index <see cref="IndexStartDelayMs"/> after it was opened.</summary>
+    public const long IndexDelayAboveBytes = 1L << 30;
+
+    /// <summary>Placeholder, OPEN (P3.1.8): milliseconds a file of <see cref="IndexDelayAboveBytes"/> or more is shown before its line index starts; the workers read the same mapped pages as the first picture (the map of the hex view, the first screen), and made a 50 GiB file wait for it a second and more.</summary>
+    public const int IndexStartDelayMs = 700;
 }
 
 /// <summary>

@@ -94,11 +94,16 @@ internal sealed partial class MainWindow
 
     private void UpdateStatusCore()
     {
+        long part = Core.TypingTrace.Begin();
         CheckJournalHealth();
+        Core.TypingTrace.End("win.status.journalHealth", part);
+        part = Core.TypingTrace.Begin();
         _app.Plugins.TrackKeyPath(this, Active);
         _app.Plugins.TrackSymbol(Active);
         _app.Plugins.TrackSchema(this, Active);
         _app.Plugins.TrackActivation(this, Active);
+        Core.TypingTrace.End("win.status.pluginTrackers", part);
+        part = Core.TypingTrace.Begin();
         if (Active is not { Custom: null, Hex: null }) _statusRight.Children.Clear(); // a text tab keeps its items and swaps them only when they differ
         if (Active is not { } tab)
         {
@@ -117,6 +122,8 @@ internal sealed partial class MainWindow
             return;
         }
 
+        Core.TypingTrace.End("win.status.head", part);
+        part = Core.TypingTrace.Begin();
         var od = tab.Doc;
         var opts = Options;
         string position;
@@ -139,6 +146,8 @@ internal sealed partial class MainWindow
         if (tab.TableShown) position = tab.Table!.StatusText();
         string message = _message.Length > 0 ? _message : tab.Syntax is { LineTooLong: true } ? Loc.Get(K.StatusSyntaxLongLine) : tab.Syntax is { Pending: true } ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
         _statusLeft.Text = position + " · " + message;
+        Core.TypingTrace.End("win.status.position", part);
+        part = Core.TypingTrace.Begin();
 
         _indentItem.Content = Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize));
         var codec = od.Doc.Codec;
@@ -149,6 +158,8 @@ internal sealed partial class MainWindow
         _configItem.Content = ConfigLabel(configs);
         _configItem.IsVisible = configs.Count > 0;
         UpdateTokensItem(tab);
+        Core.TypingTrace.End("win.status.items", part);
+        part = Core.TypingTrace.Begin();
 
         ToolTip.SetTip(_encodingItem, od.EncodingUncertain ? Loc.Get(K.StatusEncodingGuess, ("percent", (int)Math.Round(od.Guess!.Confidence * 100))) : Loc.Get(K.StatusEncodingTip));
         ToolTip.SetTip(_indentItem, IndentSourceFile() is { } indentFile ? Loc.Get(K.StatusIndentFromConfig, ("file", indentFile)) : Loc.Get(K.StatusIndentTip));
@@ -160,6 +171,7 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_indentItem, Loc.Get(K.StatusIndentA11y, ("value", (string)_indentItem.Content)));
         AutomationProperties.SetName(_languageItem, Loc.Get(K.StatusLanguageA11y, ("value", (string)_languageItem.Content)));
 
+        Core.TypingTrace.End("win.status.tips", part);
         var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem };
         if (_configItem.IsVisible) items.Add(_configItem);
         if (_tokensItem.IsVisible) items.Add(_tokensItem);

@@ -38,6 +38,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most bytes that the unsaved edits of one large file may insert for a named session to keep them in its file; a larger change is left out and the session says so. The owner has not decided it.</summary>
     public const int SessionLargeEditsMaxBytes = 16 * 1024 * 1024;
 
+    /// <summary>Placeholder, OPEN: a file longer than this many bytes opens at once and gets its SHA-256 and block digests from a pass on the thread pool; until the pass ends only size and write time vouch for the file and a save writes the whole file. A shorter file is hashed before it opens.</summary>
+    public const long OpenHashInBackgroundBytes = 64L << 20;
+
     /// <summary>Placeholder, OPEN: how many times an upload or a download is repeated after the connection was lost (each repeat checks the server version again and continues a partial file).</summary>
     public const int RemoteRetryCount = 3;
 
@@ -113,6 +116,12 @@ internal static partial class PluginLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: bytes (columns for a column) of a long line in the paged view that the UI thread counts to put the caret in it; a place farther than this from the nearest known point of the line is reached by a count on the thread pool, and the caret moves when it ends. The owner has not decided it.</summary>
     public const long PagedFarMoveBytes = 16L << 20;
+
+    /// <summary>Placeholder, OPEN: bytes the paged view looks at, forward from the start of a line or back from an offset, to find the end or the start of one line of a place beyond the line index (a detour); a line longer than this is cut at that length into view lines, and the line numbers there are estimates anyway. The first draw after a jump reads this much for each line on screen. A multiple of 4.</summary>
+    public const long PagedDetourLineScanBytes = 256L << 10;
+
+    /// <summary>Placeholder, OPEN: milliseconds within which a second jump of the paged view to lines far from the ones it showed is not colored at once but after the jumps stop (the first jump after a quiet time is colored at once); dragging the minimap makes dozens of jumps a second and each would run a slice of the grammar on the UI thread. The owner has not decided it.</summary>
+    public const int SyntaxJumpSettleMilliseconds = 60;
 
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;

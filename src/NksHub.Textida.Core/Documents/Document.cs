@@ -63,9 +63,12 @@ public sealed partial class Document : IDisposable
         var backend = factory.OpenFile(path, format);
         try
         {
-            var blocks = new OriginalBlockHashes();
-            var print = new FileFingerprint(backend.ByteLength, time, HashBackend(backend, blocks));
-            return new Document(backend, options, path, print, unsaved: false) { _baseline = blocks, _fileId = FileIdentity.TryGet(path) };
+            bool later = backend.ByteLength > (options?.HashInBackgroundAboveBytes ?? long.MaxValue);
+            var blocks = later ? null : new OriginalBlockHashes();
+            var print = new FileFingerprint(backend.ByteLength, time, later ? "" : HashBackend(backend, blocks!));
+            var doc = new Document(backend, options, path, print, unsaved: false) { _baseline = blocks, _fileId = FileIdentity.TryGet(path) };
+            if (later) doc.HashOpenedFileInBackground(path, print, options!.HashPassGate);
+            return doc;
         }
         catch
         {
@@ -216,7 +219,7 @@ public sealed partial class Document : IDisposable
         _disposed = true;
         _saveCancel?.Cancel(); // a running save stops before it commits; the file stays as it was
         StopWatching();
-        _hashCancel?.Cancel();
+        CancelHashing();
         _backend.EditedByBackend -= OnBackendEdit;
         _backend.Dispose();
         _undoSpill?.Dispose();

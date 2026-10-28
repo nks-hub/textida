@@ -103,8 +103,16 @@ internal sealed partial class PagedTextView : Grid
         Syntax = new SyntaxFeeder(doc, ApplyTokens, ClearTokens,
             line => GetLine(line) is { Truncated: false } view ? view.Map.Text : null, () => Indexed ? LineCount : -1, FeedSyntax);
         Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
+        Syntax.DefersJumps = true;
         _glide = new Glide(() => _bar.Value, value => _bar.Value = value);
-        _bar.ValueChanged += (_, _) => { FeedSyntax(); _canvas.InvalidateVisual(); RaiseViewChanged(); };
+        _bar.ValueChanged += (_, _) =>
+        {
+            long t = TypingTrace.Begin();
+            FeedSyntax();
+            TypingTrace.End("paged.scroll.feedSyntax", t);
+            _canvas.InvalidateVisual();
+            RaiseViewChanged();
+        };
         _indexTimer.Tick += (_, _) =>
         {
             LeaveDetourWhenIndexed();
@@ -125,9 +133,15 @@ internal sealed partial class PagedTextView : Grid
     public event Action? ViewChanged;
     private void RaiseViewChanged()
     {
+        long t = TypingTrace.Begin();
         _inputClient.CaretChanged();
+        TypingTrace.End("paged.raise.inputClient", t);
+        t = TypingTrace.Begin();
         ViewChanged?.Invoke();
+        TypingTrace.End("paged.raise.viewChanged", t);
+        t = TypingTrace.Begin();
         _mapChanged?.Invoke();
+        TypingTrace.End("paged.raise.mapChanged", t);
     }
 
     /// <summary>Raised with a localised sentence when an edit was refused.</summary>
@@ -478,14 +492,38 @@ internal sealed partial class PagedTextView : Grid
         public double BytesPerLine { get; } = bytesPerLine;
         public List<long> Starts { get; } = [baseStart];
         public bool AtEnd { get; set; }
+        /// <summary>Starts of view lines that begin where a line longer than <see cref="DetourLineScanBytes"/> was cut, not after a line break.</summary>
+        public HashSet<long> Cuts { get; } = [];
+    }
+
+    /// <summary>Bytes a detour looks at to find the end or the start of one line; a longer line is cut there. Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedDetourLineScanBytes"/>. A test lowers it.</summary>
+    internal long DetourLineScanBytes { get; set; } = PluginLimitsPlaceholders.PagedDetourLineScanBytes;
+
+    /// <summary>The offset at or before <paramref name="offset"/> that is the start of a character.</summary>
+    private long AlignToCharBoundary(long offset)
+    {
+        int w = Doc.Codec.Alignment;
+        offset -= (offset - Doc.BomLength) % w;
+        while (offset > Doc.BomLength && !Doc.IsCharBoundary(offset)) offset -= w;
+        return Math.Max(offset, Doc.BomLength);
     }
 
     private long EstimatedLines(Detour d) => d.BaseLine + (long)((Doc.ByteLength - d.BaseStart) / d.BytesPerLine);
 
-    /// <summary>Start of the next line, or -1 when the line is the last one.</summary>
-    private long NextLineStart(long start)
+    /// <summary>
+    /// Start of the next line, or -1 when the line is the last one. A line that goes on for <see cref="DetourLineScanBytes"/> bytes without a break is cut there, on a
+    /// character boundary: the next view line begins at the cut and the cut is noted in <paramref name="d"/>, so one step never reads more than that.
+    /// </summary>
+    private long NextLineStart(Detour d, long start)
     {
-        long end = Paged.Source.FindLineEnd(start);
+        long end = Paged.Source.FindLineEnd(start, DetourLineScanBytes);
+        if (end < 0)
+        {
+            long cut = AlignToCharBoundary(start + DetourLineScanBytes);
+            if (cut <= start || cut >= Doc.ByteLength) return -1;
+            d.Cuts.Add(cut);
+            return cut;
+        }
         if (end >= Doc.ByteLength) return -1;
         int w = Doc.Codec.Alignment;
         Span<byte> two = stackalloc byte[8];
@@ -499,7 +537,7 @@ internal sealed partial class PagedTextView : Grid
         if (index < 0) return -1;
         while (d.Starts.Count <= index && !d.AtEnd)
         {
-            long next = NextLineStart(d.Starts[^1]);
+            long next = NextLineStart(d, d.Starts[^1]);
             if (next < 0) d.AtEnd = true; else d.Starts.Add(next);
         }
         return index < d.Starts.Count ? d.Starts[(int)index] : -1;
@@ -522,7 +560,9 @@ internal sealed partial class PagedTextView : Grid
     private void EnterDetour(long offset, bool keepSelection = false)
     {
         if (!keepSelection) DropOthers();
-        long start = Math.Max(Doc.BomLength, Paged.Source.AlignToLineStart(offset));
+        long lineStart = Paged.Source.AlignToLineStart(offset, DetourLineScanBytes);
+        // the line that holds the offset is longer than the scan looks back: the view begins half a scan before the offset, where nobody knows a line to start
+        long start = Math.Max(Doc.BomLength, lineStart >= 0 ? lineStart : AlignToCharBoundary(offset - DetourLineScanBytes / 2));
         int w = Doc.Codec.Alignment;
         var sample = new byte[(int)(Math.Min(Doc.ByteLength, 64 * 1024) / w * w)];
         long from = Math.Clamp(start - sample.Length / 2, 0, Doc.ByteLength - sample.Length) / w * w;
@@ -534,6 +574,7 @@ internal sealed partial class PagedTextView : Grid
         double gapPerLine = prefixLines > 1 && indexed > 0 ? (perLine + (double)indexed / (prefixLines - 1)) / 2 : perLine;
         long baseLine = Math.Max(0, prefixLines - 1) + (long)Math.Max(0, (start - indexed) / gapPerLine);
         _detour = new Detour(start, baseLine, perLine);
+        if (lineStart < 0) _detour.Cuts.Add(start); // the line holding the offset has no known start: the view begins inside it
         _lines.Clear();
         _lineMemo = (-1, -1, 0);
         _wanted = -1;
@@ -682,6 +723,11 @@ internal sealed partial class PagedTextView : Grid
             end = next = Doc.ByteLength;
             return true;
         }
+        if (_detour is { } cutAt && cutAt.Cuts.Contains(next))
+        {
+            end = next; // a view line cut out of a longer one has no line break to take off
+            return true;
+        }
         int w = Doc.Codec.Alignment;
         Span<byte> tail = stackalloc byte[8];
         int n = (int)Math.Min(2 * w, next - start);
@@ -774,7 +820,8 @@ internal sealed partial class PagedTextView : Grid
         if (first < 0) return;
         long origin = LineStart(first);
         if (origin < 0 || !Indexed && _detour is null && first >= ShownLines) return;
-        int window = (int)Math.Min(Doc.ByteLength - origin, 128 * 1024);
+        // in a detour a line never runs past the scan that cuts it, so this window finds no break a cut has not already put before it
+        int window = (int)Math.Min(Doc.ByteLength - origin, _detour is null ? 128 * 1024 : Math.Min(128 * 1024, DetourLineScanBytes));
         bool toEnd = origin + window >= Doc.ByteLength;
         var buffer = ArrayPool<byte>.Shared.Rent(window); // a fresh 128 KiB array per edit lands on the large object heap
         try { FillLines(first, origin, buffer, window, toEnd); }
@@ -888,7 +935,7 @@ internal sealed partial class PagedTextView : Grid
 
     private long _columnsRevision = -1;
     private readonly Dictionary<long, long> _columnMemo = [];
-    private readonly Dictionary<long, long> _offsetMemo = [];
+    private readonly Dictionary<(long LineStart, long Column), long> _offsetMemo = []; // per line: two long lines in a row have the same columns
 
     private void ForgetColumns()
     {
@@ -903,18 +950,39 @@ internal sealed partial class PagedTextView : Grid
     {
         ForgetColumns();
         if (_columnMemo.TryGetValue(offset, out long known)) return known;
+        if (offset > line.Start && !_farResume && OffsetIsFar(line, offset)) return ColumnOnThePool(line, offset);
         long trace = TypingTrace.Begin();
         long column = offset <= line.Start ? 0 : Paged.ColumnOf(line.Start, offset);
         TypingTrace.End("paged.columnOf", trace);
         return _columnMemo[offset] = column;
     }
 
+    /// <summary>
+    /// The column of an offset that lies far from every known point of its long line, asked for by the draw or the status line: the caret an undo, a redo or a change from
+    /// another source left behind has no points near it any more, because the edit dropped those after it. The count would hold the UI thread for the whole line (a 100 MiB
+    /// line is a hundred milliseconds and more), so it runs on the pool, like the count of a far move, and the view redraws when it ends. Until then the code units before
+    /// the offset stand for its columns (exact for single-byte text, never fewer than the true columns). A far move that waits already is not replaced.
+    /// </summary>
+    private long ColumnOnThePool(LineView line, long offset)
+    {
+        bool reveal = _revealing;
+        if (_farMove is null)
+            StartFarWalk(line.Start, offset, null, () =>
+            {
+                ColumnOfOffset(line, offset); // the points the walk kept are near now: this finds the column and remembers it
+                if (reveal && offset == _caret) Reveal(); // the place it scrolled to was worked out from the estimate
+                _canvas.InvalidateVisual();
+                RaiseViewChanged();
+            });
+        return (offset - line.Start) / Doc.Codec.Alignment;
+    }
+
     /// <summary>Byte offset of a UTF-16 column of the truncated line <paramref name="line"/>; the end of the line when it is shorter.</summary>
     private long OffsetOfColumn(LineView line, long column)
     {
         ForgetColumns();
-        if (_offsetMemo.TryGetValue(column, out long known)) return known;
-        return _offsetMemo[column] = Paged.OffsetOfColumn(line.Start, column);
+        if (_offsetMemo.TryGetValue((line.Start, column), out long known)) return known;
+        return _offsetMemo[(line.Start, column)] = Paged.OffsetOfColumn(line.Start, column);
     }
 
     /// <summary>Remembers the column of an offset that an edit has just put the caret on, so that the next move does not count it again.</summary>
@@ -1002,13 +1070,19 @@ internal sealed partial class PagedTextView : Grid
         int visible = Math.Max(1, _canvas.VisibleLines - 1);
         if (c.Line < TopLine) _bar.Value = c.Line;
         else if (c.Line >= TopLine + visible) _bar.Value = Math.Min(_bar.Maximum, c.Line - visible + 1);
-        double x = _canvas.XOfColumn(c.View, CaretColumn(c.View)), width = _canvas.TextWidth;
+        _revealing = true;
+        double x, width = _canvas.TextWidth;
+        try { x = _canvas.XOfColumn(c.View, CaretColumn(c.View)); }
+        finally { _revealing = false; }
         if (x < _hScroll) _hScroll = Math.Max(0, x - 24);
         else if (x > _hScroll + width - 8) _hScroll = x - width + 32;
         if (_hBar.IsVisible) _hBar.Value = Math.Clamp(_hScroll / _canvas.CharWidth, 0, _hBar.Maximum);
         FeedSyntax();
         _canvas.InvalidateVisual();
     }
+
+    /// <summary>True while <see cref="Reveal"/> asks for the column of the caret: a column counted on the pool then scrolls to the caret again when it is known.</summary>
+    private bool _revealing;
 
     // ---- far moves ----
 
@@ -1052,7 +1126,7 @@ internal sealed partial class PagedTextView : Grid
     private bool ColumnIsFar(LineView view, long column)
     {
         ForgetColumns();
-        return !_offsetMemo.ContainsKey(column) && !Paged.IsColumnNear(view.Start, column, FarMoveBytes);
+        return !_offsetMemo.ContainsKey((view.Start, column)) && !Paged.IsColumnNear(view.Start, column, FarMoveBytes);
     }
 
     private void CancelFarMove()
@@ -1224,7 +1298,8 @@ internal sealed partial class PagedTextView : Grid
     /// </summary>
     private void BuildColumnIndexInBackground(long lineStart)
     {
-        if (Paged.IsModified || !_indexing.Add(lineStart)) return;
+        // a view line cut out of a longer one would scan the rest of the real line from its own start, and every cut of the line would do it
+        if (Paged.IsModified || _detour is { } d && d.Cuts.Contains(lineStart) || !_indexing.Add(lineStart)) return;
         var source = Paged.Source;
         var token = (_indexCts ??= new()).Token;
         _ = Task.Run(() =>

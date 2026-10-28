@@ -601,8 +601,10 @@ public sealed class PluginHost : IAsyncDisposable
         try { startedAt = process.StartTime.ToUniversalTime(); }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { startedAt = DateTime.UtcNow; } // it ended already
         lock (_gate) _live[process.Id] = startedAt;
-        run.StderrTask = Task.Run(() => StderrPump.RunAsync(process.StandardError, p.Stderr, _options.StderrTailLines, maxLineChars: 2000));
-        run.Rpc = new JsonRpcDispatcher(process.StandardOutput.BaseStream, process.StandardInput.BaseStream, RpcProtocols.Plugin, _options.Limits, new HostHandler(this, p, run));
+        // the pipes are read on threads of their own: a pending read of a redirected pipe would hold a pool thread for as long as the plugin lives
+        var stderr = ChildPipe.Error(process, new UTF8Encoding(false));
+        run.StderrTask = Task.Run(() => StderrPump.RunAsync(stderr, p.Stderr, _options.StderrTailLines, maxLineChars: 2000));
+        run.Rpc = new JsonRpcDispatcher(ChildPipe.Output(process), process.StandardInput.BaseStream, RpcProtocols.Plugin, _options.Limits, new HostHandler(this, p, run));
         p.Current = run; // seen by a stop only once the connection exists
         _ = Task.Run(() => MonitorAsync(p, run));
 

@@ -170,6 +170,9 @@ public sealed class PagedDocument : IPagedTextSource
 
     private void OnSourceProgress(object? sender, EventArgs e) => IndexProgress?.Invoke(this, e);
 
+    /// <summary>Column points noted for the current text, for tests: a count on one thread adds some.</summary>
+    internal int ColumnPointCount => (IsModified ? _editedColumns : _source.Columns).PointCount;
+
     public bool TryGetLineStart(long line, out long byteOffset)
     {
         byteOffset = 0;
@@ -181,12 +184,24 @@ public sealed class PagedDocument : IPagedTextSource
 
     /// <summary>
     /// Zero-based line that holds <paramref name="offset"/> without searching for it through the starts of lines (which reads a block per step): for a document that is not
-    /// edited the block table and one block tell it. False for an edited document, and while the index does not reach the offset; <see cref="TryGetLineStart"/> then finds it by search.
+    /// edited the block table and one block tell it, for an edited one the terminator counts of the piece tree and the piece that holds the offset, whatever the number of edits.
+    /// An offset between the CR and the LF of one terminator is on the line of the CR, as in the base index. False while the index does not reach the offset (for an edited
+    /// document: while the base index is not complete); <see cref="TryGetLineStart"/> then finds it by search.
     /// </summary>
     public bool TryGetLineOfOffset(long offset, out long line)
     {
         line = 0;
-        return !IsModified && _source.TryGetLineOfOffset(offset, out line);
+        if (!IsModified) return _source.TryGetLineOfOffset(offset, out line);
+        if (offset < 0 || offset > ByteLength || !EnsureLineTracking()) return false;
+        var before = _tree.StatsBefore(offset);
+        line = before?.Terminators ?? 0;
+        if (before is { LastCr: true } && offset < ByteLength)
+        {
+            int w = Codec.Alignment;
+            Span<byte> next = stackalloc byte[4];
+            if (Read(offset, next[..w]) == w && LineScanner.Unit(next, 0, Codec) == 10) line--;
+        }
+        return true;
     }
 
     private bool EnsureLineTracking()

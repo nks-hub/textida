@@ -133,6 +133,35 @@ internal sealed class PieceTree
         throw new InvalidOperationException("line counts out of sync");
     }
 
+    /// <summary>
+    /// Line statistics of the first <paramref name="offset"/> bytes, joined from the aggregates met on the way down, so the cost is the height of the tree plus one
+    /// <c>measure</c> of the piece that holds the offset, cut at it; null when there is nothing before the offset. Valid only while <see cref="TracksLines"/>.
+    /// </summary>
+    public LineStats? StatsBefore(long offset)
+    {
+        LineStats? acc = null;
+        static LineStats Add(LineStats? a, LineStats b) => a is { } known ? LineStats.Join(known, b) : b;
+        var n = _root;
+        long at = 0;
+        while (n is not null)
+        {
+            long leftEnd = at + Sum(n.Left);
+            if (offset < leftEnd) { n = n.Left; continue; }
+            if (n.Left is { } left) acc = Add(acc, left.Agg);
+            at = leftEnd;
+            if (offset == at) return acc;
+            if (offset >= at + n.Piece.Length)
+            {
+                acc = Add(acc, n.Own);
+                at += n.Piece.Length;
+                n = n.Right;
+                continue;
+            }
+            return Add(acc, _measure!(n.Piece.Slice(0, offset - at)));
+        }
+        return acc;
+    }
+
     private uint NextPriority()
     {
         _rng ^= _rng << 13;
