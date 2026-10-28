@@ -571,6 +571,31 @@ public class PagedEditTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_multi_line_paste_into_the_middle_of_a_long_line_splits_it_and_counts_lines_and_columns_exactly()
+    {
+        string line = new('a', 3_000_000);
+        var tab = OpenPaged(Encoding.UTF8.GetBytes(line + "\nnext\n"));
+        var view = tab.Paged!;
+        var doc = tab.Doc.Doc;
+        string before = Sha(doc);
+        view.GoToOffset(1_500_000);
+        Assert.Equal((1L, 1_500_001L), tab.CaretPosition());
+
+        string pasted = "one\r\ntwo\rthree\n" + new string('b', 1_100_000); // over the size that is prepared on the UI thread
+        Assert.True(await view.PasteTextAsync(pasted));
+
+        string newLine = tab.Doc.NewLine(null);
+        string expected = line[..1_500_000] + "one" + newLine + "two" + newLine + "three" + newLine + new string('b', 1_100_000) + line[1_500_000..] + "\nnext\n";
+        Assert.Equal(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(expected))), Sha(doc));
+        Assert.Equal((4L, 1_100_001L), tab.CaretPosition());
+        Assert.Equal(6L, view.Index.Lines); // three line breaks pasted: the three lines of the file are six
+        Press(Key.Down);
+        Assert.Equal((5L, 5L), tab.CaretPosition()); // "next" is shorter than the column the caret came from, so it ends it
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(before, Sha(doc));
+    }
+
+    [AvaloniaFact]
     public async Task A_paste_prepared_while_the_encoding_changes_is_refused_and_the_document_stays_the_same()
     {
         var tab = OpenPaged(Rows(150_000));
