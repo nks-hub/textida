@@ -402,6 +402,11 @@ internal sealed partial class MainWindow
                 [new DialogButton(Loc.Get(K.DialogReloadDiscard)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
             if (await _app.Dialogs.ChooseAsync(this, ask) != 0) return false;
         }
+        return ReloadNow(od, path);
+    }
+
+    private bool ReloadNow(OpenDocument od, string path)
+    {
         try
         {
             var (fresh, guess) = OpenDocument.OpenDocumentOnly(path, LargeFileBytes);
@@ -418,10 +423,49 @@ internal sealed partial class MainWindow
         }
     }
 
+    /// <summary>
+    /// The agent wrote a file it asked permission for: when the file now holds exactly <paramref name="sha256"/> and the tab has no unsaved edits, the tab shows the file as it is, at once, and no review of changes
+    /// from outside is started for it. False when the file holds something else, the tab has edits, or the file cannot be read.
+    /// </summary>
+    internal bool TakeAgentWrite(DocTab tab, string sha256)
+    {
+        var od = tab.Doc;
+        if (!_docs.Contains(od) || od.Path is not { } path || od.IsLarge || od.Doc.IsModified || od.Doc.IsSaving) return false;
+        if (FileFingerprint.TryRead(path) is not { } disk || !string.Equals(disk.Sha256, sha256, StringComparison.OrdinalIgnoreCase)) return false;
+        DismissBars(od);
+        return string.Equals(od.Doc.Fingerprint?.Sha256, disk.Sha256, StringComparison.OrdinalIgnoreCase) || ReloadNow(od, path);
+    }
+
     /// <summary>A file changed on disk behind an open document: a non-modal bar offers reload, keeping the tab, or compare. Nothing is overwritten silently.</summary>
     private void OnExternalChange(OpenDocument od, ExternalChange change)
     {
         if (!_docs.Contains(od) || !string.Equals(change.Path, od.Path, PathComparison)) return;
+        _ = ResolveExternalChangeAsync(od, change);
+    }
+
+    /// <summary>
+    /// A file that now holds exactly what the tab holds (an agent wrote the change the user had accepted in the review) is the saved state: the tab turns clean and keeps its undo history,
+    /// and no bar appears. A task that is complete at once (the size differs, the common case) shows the bar without a pause.
+    /// </summary>
+    private async Task ResolveExternalChangeAsync(OpenDocument od, ExternalChange change)
+    {
+        if (change.Kind == ExternalChangeKind.Modified)
+        {
+            if (change.DocumentId != od.Doc.Id) return; // raised by a document that a reload has replaced since
+            if (change.Actual is { } actual && _app.Plugins.Acp.TakeWrite(od.Doc.Id, actual.Sha256)) return; // the file an agent was allowed to write: the review closed, the tab took it over
+            if (await od.Doc.TryAdoptFileAsync(change))
+            {
+                if (_docs.Contains(od)) DismissBars(od);
+                return;
+            }
+            // a save, or the adoption for a newer check, may have made the document hold that file while it was compared
+            if (!_docs.Contains(od) || (od.Doc.Fingerprint is { HasHash: true } now && change.Actual is { HasHash: true } there && now.Sha256 == there.Sha256)) return;
+        }
+        ShowExternalChange(od, change);
+    }
+
+    private void ShowExternalChange(OpenDocument od, ExternalChange change)
+    {
         bool reviewable = change.Kind == ExternalChangeKind.Modified && od.Views.FirstOrDefault() is { } first && ReviewTarget(first);
         if (reviewable && _app.Workbench.Settings.GetBool("review.autoKeep"))
         {

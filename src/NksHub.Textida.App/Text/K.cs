@@ -1585,6 +1585,8 @@ public static class K
     public const string AgentLineToolOutside = "agent.line.toolOutside";
     public const string AgentPermissionOutside = "agent.permission.outside";
     public const string AgentPermissionAlways = "agent.permission.always";
+    public const string AgentPermissionReview = "agent.permission.review";
+    public const string AgentWriteTaken = "agent.write.taken";
     public const string PreviewPanelTitle = "preview.panel.title";
     public const string PreviewPanelStatus = "preview.panel.status";
     public const string PreviewPanelOutdated = "preview.panel.outdated";

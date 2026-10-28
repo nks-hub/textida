@@ -41,8 +41,10 @@ public sealed record AcpAdapter(string Id, string Name, string Command, IReadOnl
 /// Real runs (Windows, <c>AcpRealAgentsTests</c> in the category <c>RealAgents</c>; the editor sets no mode):
 /// <c>claude-agent-acp</c> 0.98.0 and 0.99.0 start, answer, ask before their Read and Write tools (the answer of the user decides; "No" and a closed dialog write nothing), end a running command on cancel,
 /// are reported when killed and leave no process behind. <c>codex-acp</c> 2.3.0 does all of that except asking: in its workspace sandbox it asked nothing for its reads and writes.
-/// Neither adapter calls <c>fs/read_text_file</c> or <c>fs/write_text_file</c>: they read and write the disk with their own tools, so an unsaved tab is not what they read and a write is not a proposal in the
-/// change review. That is why <see cref="AcpAdapter.VerifiedVersion"/> stays empty for both.
+/// Neither adapter calls <c>fs/read_text_file</c> or <c>fs/write_text_file</c>: they read and write the disk with their own tools, so an unsaved tab is not what they read and their write is not a proposal
+/// the user decides in the change review. What the editor does with it: the <c>session/request_permission</c> of an Edit or Write carries the change as a <c>diff</c> in the content of the tool call
+/// (<see cref="AcpDiff"/>), which is shown in the review while the dialog waits, and the file the agent writes after an "allow" is taken over when it holds exactly that change.
+/// That is why <see cref="AcpAdapter.VerifiedVersion"/> stays empty for both.
 /// </summary>
 public static class AcpAdapters
 {

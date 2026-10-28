@@ -77,6 +77,14 @@ public sealed partial class Document
         return change;
     }
 
+    /// <summary>The save found an outside change: when the file holds exactly the bytes about to be written, it is the saved state already (<see cref="TryAdoptFileAsync"/>) and nothing is written.</summary>
+    private SaveResult AdoptOrConflict(ExternalChange change)
+    {
+        if (HashIfFileMatches(change, GetSnapshot(), CancellationToken.None) is not { } match) return new(false, change);
+        CompleteSave(change.Path, match.Hash, match.Blocks);
+        return new(true, null);
+    }
+
     /// <summary>Watches the file and runs <see cref="CheckExternalChange"/> shortly after it changes.</summary>
     public void StartWatching(TimeSpan? debounce = null)
     {
@@ -128,9 +136,9 @@ public sealed partial class Document
             try { return SaveInPlace(target, plan, guard); }
             catch (SnapshotInvalidatedException) { } // the file was touched (same content, new write time): the whole file is written below instead
         }
-        if (guard && CheckExternalChange() is { } early) return new(false, early);
+        if (guard && CheckExternalChange() is { } early) return AdoptOrConflict(early);
 
-        string temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        string temp =target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
         {
             string hash;
@@ -151,7 +159,7 @@ public sealed partial class Document
             }
 
             BeforeSaveCommit?.Invoke();
-            if (guard && CheckExternalChange() is { } late) return new(false, late);
+            if (guard && CheckExternalChange() is { } late) return AdoptOrConflict(late);
 
             Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
             if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);

@@ -125,6 +125,31 @@ public class AcpClientTests
     }
 
     [Fact]
+    public async Task A_permission_request_hands_over_the_diffs_of_the_tool_call_and_a_call_without_content_has_none()
+    {
+        AcpToolCallInfo? seen = null;
+        var host = new TestHost { Permission = (tool, _, _) => { seen = tool; return Task.FromResult(new AcpPermissionChoice("reject-once")); } };
+        var (client, session, _) = await OpenAsync(host);
+        await using var _ = client;
+        var path = Path.Combine(Path.GetTempPath(), "textida-acp-diff-" + Guid.NewGuid().ToString("N") + ".txt");
+        File.WriteAllText(path, "old text");
+        try
+        {
+            await client.PromptAsync(session, $"permedit {path}\nold\nnew");
+            Assert.Equal("edit", seen!.Kind);
+            Assert.Equal(new AcpDiff(path, "old", "new"), Assert.Single(seen.Diffs!)); // a piece of the file and its replacement, as the agent sent them
+
+            await client.PromptAsync(session, $"permdiff {path}\nwhole\ntext");
+            Assert.Equal(new AcpDiff(path, null, "whole\ntext"), Assert.Single(seen.Diffs!)); // no old text: a new file or the whole content
+            Assert.Equal("old text", File.ReadAllText(path)); // rejected: the agent wrote nothing
+        }
+        finally { File.Delete(path); }
+
+        await client.PromptAsync(session, "perm");
+        Assert.Null(seen!.Diffs);
+    }
+
+    [Fact]
     public async Task The_agent_reads_a_file_through_the_host_and_a_refused_read_reaches_it_as_an_error()
     {
         var host = new TestHost();

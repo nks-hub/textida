@@ -38,8 +38,16 @@ internal sealed partial class MainWindow
         if (_app.Workbench.Settings.GetBool("updates.checkOnStart")) UpdateTask = CheckUpdatesAsync(interactive: false);
     }
 
-    /// <summary>The client of the update check: it goes through the proxy of the network policy; a policy that cannot be read throws <see cref="RemoteException"/>.</summary>
-    internal HttpClient CreateUpdateHttpClient() => new(_app.Remote.Policy().CreateHttpHandler());
+    /// <summary>
+    /// The client of the update check: it goes through the proxy of the network policy and follows a redirect only to another page of the host it asked; a policy that cannot be read throws
+    /// <see cref="RemoteException"/>.
+    /// </summary>
+    internal HttpClient CreateUpdateHttpClient()
+    {
+        var handler = _app.Remote.Policy().CreateHttpHandler();
+        handler.AllowAutoRedirect = false;
+        return new HttpClient(new SameHostRedirectHandler(handler));
+    }
 
     private AppUpdater? OpenUpdater(bool interactive)
     {
