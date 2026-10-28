@@ -1010,6 +1010,39 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_sampled_minimap_of_a_view_beyond_the_unfinished_index_does_not_scan_the_file_for_the_starts_of_its_rows()
+    {
+        Set("files.largeFileThreshold", JsonValue.Create(1));
+        string path = _temp.File("beyond-index.cs", KeywordFile(450_000));
+        using var gate = new ManualResetEventSlim();
+        NksHub.Textida.Core.MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= 2) gate.Wait(); };
+        try
+        {
+            var tab = _w.OpenFile(path, null);
+            Assert.True(tab.Doc.IsLarge);
+            var paged = tab.Paged!;
+            _w.UpdateLayout();
+            Settle();
+            Assert.False(paged.Index.Complete);
+            Assert.True(tab.Minimap!.IsSampled);
+
+            // a jump beyond the index starts a view that finds its line starts by scanning forward from the target; the rows of the picture lie all over the file
+            long file = tab.Doc.Doc.ByteLength;
+            paged.GoToOffset(file * 9 / 10);
+            Assert.False(paged.LinesExact);
+            Settle(100);
+
+            Assert.InRange(paged.DetourLinesScanned, 1, 2000);
+            Assert.True(tab.Minimap.BuildsStarted > 0);
+        }
+        finally
+        {
+            gate.Set();
+            NksHub.Textida.Core.MappedFileSource.IndexBlockHook = null;
+        }
+    }
+
+    [AvaloniaFact]
     public void The_heatmap_of_a_log_is_drawn_in_the_strip_and_goes_when_it_is_removed()
     {
         var tab = Open("heat.cs", KeywordFile(3000));
