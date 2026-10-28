@@ -21,6 +21,16 @@ internal sealed class TempFile : IDisposable
     }
 }
 
+internal static class Wait
+{
+    /// <summary>Polls until <paramref name="condition"/> holds. The wait is for a background job (an index, a build) whose time grows with the load of the machine, so the limit only guards against a hang.</summary>
+    public static void Until(Func<bool> condition, string what, int seconds = 60)
+    {
+        for (var clock = System.Diagnostics.Stopwatch.StartNew(); !condition(); Thread.Sleep(10))
+            Assert.True(clock.Elapsed.TotalSeconds < seconds, "Not reached: " + what);
+    }
+}
+
 internal static class TestDir
 {
     /// <summary>
