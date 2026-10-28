@@ -52,8 +52,13 @@ internal sealed partial class EditorSurface
     /// <summary>Characters selected over all carets.</summary>
     public int SelectedLength => IsMulti ? OtherSels().Sum(s => s.Length) + PrimarySel().Length : TextArea.Selection.Length;
 
+    // AvaloniaEdit boxes a drag with Control on macOS, where Control+click opens the context menu; Option+drag is what Mac editors do and what Alt+drag in the settings describes
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = "set_BoxSelectionModifiers")]
+    private static extern void SetBoxSelectionModifiers([System.Runtime.CompilerServices.UnsafeAccessorType("AvaloniaEdit.Editing.HotkeyConfiguration, AvaloniaEdit")] object? hotkeys, KeyModifiers modifiers);
+
     private void InitCarets()
     {
+        if (OperatingSystem.IsMacOS()) SetBoxSelectionModifiers(null, KeyModifiers.Alt);
         TextArea.TextView.BackgroundRenderers.Add(new SelectionLayer(this));
         TextArea.TextView.BackgroundRenderers.Add(new CaretLayer(this));
         TextArea.AddHandler(PointerPressedEvent, OnPointerPressedTunnel, RoutingStrategies.Tunnel);
