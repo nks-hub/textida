@@ -122,7 +122,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
-        var secrets = new PluginSecrets(new CredentialSecretBackend(CredentialStores.ForCurrentPlatform()), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
+        var secrets = new PluginSecrets(new CredentialSecretBackend(app.Credentials), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
         Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimitsPlaceholders.Network(), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
         _host = new Host(PluginLimitsPlaceholders.Host() with
             {
