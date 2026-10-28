@@ -23,6 +23,9 @@ public static class K
     public const string StatusLine = "status.line";
     public const string StatusSelected = "status.selected";
     public const string StatusCarets = "status.carets";
+    public const string StatusOccurrences = "status.occurrences";
+    public const string StatusOccurrencesView = "status.occurrencesView";
+    public const string StatusOccurrencesLimit = "status.occurrencesLimit";
     public const string StatusReady = "status.ready";
     public const string StatusSyntaxPending = "status.syntaxPending";
     public const string StatusSyntaxLongLine = "status.syntaxLongLine";

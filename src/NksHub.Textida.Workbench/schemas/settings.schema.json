@@ -638,6 +638,38 @@
           "default": true,
           "description": "Highlight matching brackets. Colors the bracket next to the caret and its partner. Brackets in strings and comments do not count.",
           "x-scope": "application"
+        },
+        "editor.occurrences.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight other occurrences of the selection. Select text on one line and every other place with the same text is given a background, marked beside the scrollbar and in the minimap, and counted in the status bar. In a large file only the part on screen is looked at.",
+          "x-scope": "application"
+        },
+        "editor.occurrences.wholeWord": {
+          "type": "boolean",
+          "default": false,
+          "description": "Occurrences: whole words only. Highlights the selected text only where it is a whole word, so a selected word does not mark the longer words that contain it.",
+          "x-scope": "application"
+        },
+        "editor.occurrences.matchCase": {
+          "type": "boolean",
+          "default": true,
+          "description": "Occurrences: match case. Highlights only text with the same upper and lower case letters as the selection.",
+          "x-scope": "application"
+        },
+        "editor.occurrences.atCaret": {
+          "type": "boolean",
+          "default": false,
+          "description": "Occurrences: word under the caret. With nothing selected, highlights the other occurrences of the word the caret stands in. Only whole words are marked.",
+          "x-scope": "application"
+        },
+        "editor.occurrences.minLength": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Occurrences: shortest selection. The fewest characters a selection must have before its other occurrences are highlighted.",
+          "x-scope": "application"
         }
       },
       "additionalProperties": true

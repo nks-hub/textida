@@ -84,6 +84,7 @@ internal sealed partial class EditorSurface : TextEditor
         InitSecrets();
         InitColors();
         InitLogFull();
+        InitOccurrences();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -152,6 +153,7 @@ internal sealed partial class EditorSurface : TextEditor
         _colorizer.BindDocument(Document);
         CaretOffset = 0;
         RebindCarets();
+        _occ?.Touch();
     }
 
     private string? LineText(long line)
@@ -256,6 +258,7 @@ internal sealed partial class EditorSurface : TextEditor
         if (!o.SmoothScrolling) _glide?.Stop();
         Syntax?.SetLimits(o.HighlightMaxLines, o.HighlightMaxColumns); // the feeder is made after the first call, which comes from the constructor
         ApplyViewOptions(o);
+        _occ?.Touch(); // the switches of the occurrences may have changed
     }
 
     private void ApplyTheme()
@@ -270,6 +273,7 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
         BracketBrush = Find("BracketMatch");
+        ApplyOccurrenceBrushes(Find);
         _caretBrush = Find("Fg");
         UpdateNativeCaret();
         _colorizer.Palette = _levels.Palette = _highlight.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;

@@ -7066,6 +7066,90 @@
         "match",
         "highlight"
       ]
+    },
+    {
+      "key": "editor.occurrences.enabled",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.occurrences.enabled.title",
+      "description": "setting.editor.occurrences.enabled.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "occurrence",
+        "selection",
+        "highlight",
+        "same",
+        "word",
+        "mark"
+      ]
+    },
+    {
+      "key": "editor.occurrences.wholeWord",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.occurrences.wholeWord.title",
+      "description": "setting.editor.occurrences.wholeWord.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "occurrence",
+        "selection",
+        "highlight",
+        "whole",
+        "word"
+      ]
+    },
+    {
+      "key": "editor.occurrences.matchCase",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.editor.occurrences.matchCase.title",
+      "description": "setting.editor.occurrences.matchCase.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "occurrence",
+        "selection",
+        "highlight",
+        "case",
+        "sensitive"
+      ]
+    },
+    {
+      "key": "editor.occurrences.atCaret",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.occurrences.atCaret.title",
+      "description": "setting.editor.occurrences.atCaret.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "tags": [
+        "occurrence",
+        "caret",
+        "highlight",
+        "word",
+        "cursor"
+      ]
+    },
+    {
+      "key": "editor.occurrences.minLength",
+      "type": "integer",
+      "default": 2,
+      "title": "setting.editor.occurrences.minLength.title",
+      "description": "setting.editor.occurrences.minLength.description",
+      "category": "cat.editor",
+      "scope": "application",
+      "minimum": 1,
+      "maximum": 100,
+      "tags": [
+        "occurrence",
+        "selection",
+        "highlight",
+        "length",
+        "characters",
+        "minimum"
+      ]
     }
   ]
 }

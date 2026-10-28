@@ -129,6 +129,27 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: lines the matching bracket highlight looks through from the caret line for the partner; a partner farther away is not colored (Go to Matching Bracket still finds it).</summary>
     public const int BracketHighlightMaxLines = 5000;
 
+    /// <summary>Placeholder, OPEN: fewest characters a selection has for its other occurrences to be highlighted; the setting <c>editor.occurrences.minLength</c> starts at this value.</summary>
+    public const int OccurrenceMinLength = 2;
+
+    /// <summary>Placeholder, OPEN: most characters of a selection whose other occurrences are highlighted; a longer selection is not looked for.</summary>
+    public const int OccurrenceMaxChars = 200;
+
+    /// <summary>Placeholder, OPEN: longest line, in characters, that is searched for occurrences of the selection; a longer line is left plain.</summary>
+    public const int OccurrenceLineMaxChars = 10_000;
+
+    /// <summary>Placeholder, OPEN: most occurrences drawn in one draw of the visible lines; beyond it the rest of the screen stays plain.</summary>
+    public const int OccurrenceMaxDrawn = 500;
+
+    /// <summary>Placeholder, OPEN: most other occurrences counted and marked in the whole document; the scan stops there and the status bar says "over".</summary>
+    public const int OccurrenceMaxMarks = 20_000;
+
+    /// <summary>Placeholder, OPEN: milliseconds a selection, a text or the view stands still before the occurrences are looked for again.</summary>
+    public const int OccurrenceDebounceMs = 200;
+
+    /// <summary>Placeholder, OPEN: milliseconds between two announcements of the number of occurrences to a screen reader.</summary>
+    public const int OccurrenceAnnounceMs = 1500;
+
     /// <summary>Placeholder, OPEN: lines before a line of a log that are read to find the ANSI style the lines above left open; a style that stays open longer than this shows in the default style past it. The owner has not decided it.</summary>
     public const int AnsiCarryLookbackLines = 200;
 

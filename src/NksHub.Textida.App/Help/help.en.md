@@ -333,6 +333,7 @@ commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
 2. Ctrl+L selects the line including its line ending. Pressing Ctrl+L again adds the next line.
 3. Shift+Alt+Right arrow expands the selection: first the word, then the content of the brackets around it, then the brackets too, the next pair out, the whole lines and finally all text.
 - With several carets each caret takes its own line.
+- Select text on one line and the other places with the same text are highlighted on the screen, marked beside the scrollbar and in the minimap, and counted in the status bar. The settings Highlight other occurrences of the selection, Occurrences: whole words only, Occurrences: match case, Occurrences: word under the caret and Occurrences: shortest selection change it. A selection of spaces only, over several lines or with several carets is not looked for; in a large file in paged mode only the part on the screen is.
 
 ## [edit.lines] Working with lines
 commands: nks.edit.deleteLine, nks.edit.duplicateLine, nks.edit.moveLineUp, nks.edit.moveLineDown, nks.edit.joinLines, nks.edit.toggleComment

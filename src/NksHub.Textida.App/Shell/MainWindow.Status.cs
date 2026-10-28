@@ -139,6 +139,7 @@ internal sealed partial class MainWindow
             int selected = surface.SelectedLength;
             if (surface.IsMulti) position += " " + Loc.Plural(K.StatusCarets, surface.CaretCount);
             if (selected > 0) position += " " + Loc.Get(K.StatusSelected, ("count", selected));
+            if (surface.Occurrences.Result.Describe() is { } others) position += " " + others;
         }
         else
         {
@@ -147,6 +148,7 @@ internal sealed partial class MainWindow
                 ? Loc.Get(K.StatusPosition, ("line", line), ("column", column))
                 : Loc.Get(K.StatusLine, ("line", "≈" + line));
             if (tab.Paged.IsMulti) position += " " + Loc.Plural(K.StatusCarets, tab.Paged.CaretCount);
+            if (tab.Paged.Occurrences.Result.Describe() is { } others) position += " " + others;
         }
         if (tab.TableShown) position = tab.Table!.StatusText();
         string message = _message.Length > 0 ? _message : tab.Syntax is { LineTooLong: true } ? Loc.Get(K.StatusSyntaxLongLine) : tab.Syntax is { Pending: true } ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
