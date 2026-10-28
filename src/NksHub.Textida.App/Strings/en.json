@@ -804,6 +804,7 @@
   "hex.goto.previewA11y": "Jump target",
   "plugin.panel.close": "Close panel",
   "a11y.plugin.panel": "Plugin panel: {title}",
+  "a11y.plugin.currentItem": "{name}, current item",
   "plugin.task.cancel": "Cancel",
   "a11y.plugin.task.cancel": "Cancel task: {title}",
   "a11y.plugin.task": "{title}, {percent} %",

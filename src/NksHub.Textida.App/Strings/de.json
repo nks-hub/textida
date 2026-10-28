@@ -804,6 +804,7 @@
   "hex.goto.previewA11y": "Sprungziel",
   "plugin.panel.close": "Panel schließen",
   "a11y.plugin.panel": "Plugin-Bereich: {title}",
+  "a11y.plugin.currentItem": "{name}, aktuelles Element",
   "plugin.task.cancel": "Abbrechen",
   "a11y.plugin.task.cancel": "Aufgabe abbrechen: {title}",
   "a11y.plugin.task": "{title}, {percent} %",

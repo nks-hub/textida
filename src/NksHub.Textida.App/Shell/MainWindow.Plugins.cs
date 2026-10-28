@@ -207,6 +207,7 @@ internal sealed partial class MainWindow
             {
                 _pluginPanelKey = null;
                 _pluginPanelDrawn = null;
+                _pluginCurrentNode = null;
                 _pluginTree.Items.Clear();
                 if (PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, false);
             }
@@ -220,13 +221,42 @@ internal sealed partial class MainWindow
 
         // new items of the same panel keep the selected item (by id) and the keyboard where they were
         bool samePanel = _pluginPanelDrawn is { } drawn && drawn.PluginId == shown.PluginId && drawn.Model.Id == shown.Model.Id;
+        bool onlyMark = samePanel && ReferenceEquals(_pluginPanelDrawn!.Model.Items, shown.Model.Items); // the plugin moved the current item and sent no items
         string? selected = samePanel ? (_pluginTree.SelectedItem as TreeViewItem)?.Tag as string : null;
         bool focused = samePanel && _pluginTree.IsKeyboardFocusWithin;
         _pluginPanelDrawn = shown;
-        _pluginTree.Items.Clear();
-        foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
-        if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
-        if (focused) FocusPluginTree();
+        if (!onlyMark)
+        {
+            _pluginCurrentNode = null;
+            _pluginTree.Items.Clear();
+            foreach (var item in shown.Model.Items) _pluginTree.Items.Add(BuildPluginNode(item));
+            if (selected is not null && FindPluginNode(_pluginTree.Items, selected) is { } again) _pluginTree.SelectedItem = again;
+            if (focused) FocusPluginTree();
+        }
+        MarkCurrentPluginItem(shown.Model.Current);
+    }
+
+    private TreeViewItem? _pluginCurrentNode;
+
+    /// <summary>
+    /// Marks the current item of the panel: its label in bold, and its accessible name says so. It is no selection and takes no focus, so a user who walks through the panel with the keyboard is not moved.
+    /// The item is scrolled into view; an id the panel does not have takes the mark away.
+    /// </summary>
+    private void MarkCurrentPluginItem(string? id)
+    {
+        if (_pluginCurrentNode is { } old) SetPluginNodeMark(old, false);
+        _pluginCurrentNode = id is null ? null : FindPluginNode(_pluginTree.Items, id);
+        if (_pluginCurrentNode is not { } node) return;
+        SetPluginNodeMark(node, true);
+        node.BringIntoView();
+    }
+
+    private static void SetPluginNodeMark(TreeViewItem node, bool current)
+    {
+        if (node.Header is not StackPanel { Children: [TextBlock label, ..] } header) return;
+        label.FontWeight = current ? FontWeight.Bold : FontWeight.Normal;
+        string name = header.Children.Count > 1 && header.Children[1] is TextBlock { Text: { } detail } ? label.Text + ", " + detail : label.Text ?? "";
+        AutomationProperties.SetName(node, current ? Loc.Get(K.A11yPluginCurrentItem, ("name", name)) : name);
     }
 
     private static TreeViewItem? FindPluginNode(ItemCollection items, string id)

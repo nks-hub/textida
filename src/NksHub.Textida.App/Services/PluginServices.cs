@@ -742,7 +742,10 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private DocTab? _symbolWanted;
     private bool _symbolShown;
 
-    /// <summary>Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents), while the tab has an outline.</summary>
+    /// <summary>
+    /// Follow-caret of the code outline: once the caret has rested, the status bar names the symbol it is in (the path of its parents) and the outline marks it as its current item,
+    /// while the tab has an outline.
+    /// </summary>
     public void TrackSymbol(DocTab? tab)
     {
         if (tab is null || !_outlineWanted.Contains(tab.Doc.Doc.Id) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId)
@@ -758,7 +761,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             _symbolTimer.Tick += (_, _) =>
             {
                 _symbolTimer.Stop();
-                if (_symbolWanted is { } wanted) ShowSymbol(SymbolPathAtCaret(wanted));
+                if (_symbolWanted is { } wanted) FollowSymbol(wanted);
             };
         }
         _symbolTimer.Stop();
@@ -778,16 +781,34 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         Ui.SetStatus(CodeExplorerPluginId, new StatusModel(path, Loc.Get(K.SymbolPathTip)));
     }
 
-    /// <summary>The symbol the caret is in or after, with its parents, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
-    private string? SymbolPathAtCaret(DocTab tab)
+    private static long? CaretOf(DocTab tab) => tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
+
+    /// <summary>The symbol the caret is in or after (the last one that starts at or before it); null when there is none.</summary>
+    private static SymbolInfo? SymbolAt(IReadOnlyList<SymbolInfo> symbols, long caret)
     {
-        long? caret = tab.Paged is { } paged ? paged.CaretOffset : tab.Surface is { } surface ? CaretOf(surface) : null;
-        var symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
-        if (caret is not { } at || !current) return null;
         SymbolInfo? found = null;
         foreach (var s in symbols)
-            if (s.Range.Start <= at && (found is null || s.Range.Start >= found.Range.Start)) found = s;
-        if (found is null) return null;
+            if (s.Range.Start <= caret && (found is null || s.Range.Start >= found.Range.Start)) found = s;
+        return found;
+    }
+
+    /// <summary>The symbol the caret is in or after, from the outline of the revision the tab has now; null when that outline is not there yet or the caret is before the first symbol.</summary>
+    private SymbolInfo? SymbolAtCaret(DocTab tab, out IReadOnlyList<SymbolInfo> symbols)
+    {
+        symbols = Documents.SymbolsOf(CodeExplorerPluginId, tab.Doc.Doc.Id, out bool current);
+        return CaretOf(tab) is { } at && current ? SymbolAt(symbols, at) : null;
+    }
+
+    /// <summary>The status bar names the symbol the caret is in, with its parents, and the outline of the document marks it as its current item.</summary>
+    private void FollowSymbol(DocTab tab)
+    {
+        var found = SymbolAtCaret(tab, out var symbols);
+        ShowSymbol(found is null ? null : SymbolPath(found, symbols));
+        Ui.SetCurrentItem(CodeExplorerPluginId, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), found?.Id);
+    }
+
+    private static string SymbolPath(SymbolInfo found, IReadOnlyList<SymbolInfo> symbols)
+    {
         var byId = symbols.ToDictionary(s => s.Id);
         var parts = new List<string> { found.Name };
         for (var parent = found.ParentId; parent is not null && byId.TryGetValue(parent, out var p) && parts.Count < 8; parent = p.ParentId)
@@ -1005,7 +1026,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             ? [.. list.Select(s => new PanelItem(s.Id, s.Name, s.Kind.Length == 0 ? null : s.Kind, Level(s.Id)))]
             : [];
         var title = Loc.Get(current ? K.PluginSymbolsTitle : K.PluginSymbolsOutdated);
-        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline)));
+        // a new set of the code outline, also the outdated one carried over an edit, keeps the mark of the item the caret is in
+        string? caretItem = set.PluginId == CodeExplorerPluginId && TabOf(set.Document) is { } found && CaretOf(found.Tab) is { } at ? SymbolAt(set.Symbols, at)?.Id : null;
+        Ui.SetPanel(set.PluginId, new PanelModel(SymbolsPanelPrefix + set.Document.ToString("N"), title, PanelKind.Tree, Level(""), Reveal: (current && _revealAlways) || (first && _revealOutline), Current: caretItem));
     });
 
     public void SymbolsCleared(string pluginId, Guid document) => OnUi(() =>
