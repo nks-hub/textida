@@ -16,7 +16,7 @@ namespace NksHub.Textida.App.Shell;
 /// Searchable settings: every setting with its effective value and where the value comes from, and every shortcut with its conflicts.
 /// Search runs over <see cref="SettingsSearchIndex"/>; a change is written to the user settings file and takes effect at once.
 /// </summary>
-internal sealed class SettingsWindow : Window
+internal sealed partial class SettingsWindow : Window
 {
     private readonly App _app;
     private readonly TextBox _search = new();
@@ -101,7 +101,8 @@ internal sealed class SettingsWindow : Window
         _results.Children.Clear();
         foreach (var hit in hits)
             _results.Children.Add(hit.Kind == SearchHitKind.Setting ? SettingRow(hit) : KeyRow(hit));
-        _count.Text = Loc.Plural(K.SettingsResultCount, hits.Count);
+        if (OperatingSystem.IsWindows() && MatchesSystemSection(_search.Text ?? "")) _results.Children.Add(SystemSection());
+        _count.Text = Loc.Plural(K.SettingsResultCount, _results.Children.Count);
         BuildBanners();
     }
 
