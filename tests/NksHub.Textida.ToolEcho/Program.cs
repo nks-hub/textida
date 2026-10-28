@@ -1,7 +1,7 @@
 // Stand-in for an external tool in tests: prints the arguments it received, one per line in brackets.
 // --format FILE: stand-in for a formatter, rewrites the file in upper case. --format-fail FILE: leaves the file alone, writes "syntax error" to standard error and exits with 2.
 // A file named like the program plus ".sample" next to it (a renamed copy standing in for a linter) is printed as it is, whatever the arguments; a first line "#exit N" sets the exit code, "#sleep" waits a minute instead,
-// "#format" rewrites the last argument that is a file in upper case (a renamed copy standing in for a formatter), "#delay N" waits N milliseconds and then prints the rest as usual (it may come before "#exit"). Such a copy writes the arguments it got to ".args" next to it, one per line, and CARGO_NET_OFFLINE and GOPROXY as it saw them to ".env"; every start adds a line to ".runs".
+// "#format" rewrites the last argument that is a file in upper case (a renamed copy standing in for a formatter), "#delay N" waits N milliseconds and then prints the rest as usual (it may come before "#exit"). Such a copy writes the arguments it got to ".args" next to it, one per line, and CARGO_NET_OFFLINE and GOPROXY as it saw them to ".env"; every start adds a line to ".runs". The one argument --version prints the file ".version" (nothing when there is none) and records nothing.
 // --sleep: prints "started" and then waits a minute. --both: writes one line to each output stream. A trailing "--exit N" sets the exit code.
 // --mcp modern|legacy|old: a small MCP server on standard input and output. modern answers server/discover, legacy only initialize (2025-11-25), old answers initialize with an
 // older version. Tools: echo, slow (never answers; a cancel is reported on stderr), crash (exits with 7), env (value of a variable), secret (writes the variable named TEST_SECRET to stderr), page2 (second page of the list),
@@ -12,6 +12,11 @@ using System.Text.Json;
 Console.OutputEncoding = new UTF8Encoding(false);
 if (Environment.ProcessPath is { } self && File.Exists(self + ".sample"))
 {
+    if (args is ["--version"]) // a version request of a linter: answers with the file ".version" when there is one, else stays silent; ".args" and ".runs" keep the record of the real runs
+    {
+        if (File.Exists(self + ".version")) Console.Write(File.ReadAllText(self + ".version"));
+        return 0;
+    }
     File.WriteAllLines(self + ".args", args);
     File.AppendAllText(self + ".runs", "run\n");
     File.WriteAllLines(self + ".env", new[] { "CARGO_NET_OFFLINE", "GOPROXY" }.Select(n => n + "=" + Environment.GetEnvironmentVariable(n)));

@@ -3,10 +3,13 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using NksHub.Textida.App.Help;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex.Ksy;
+using System.Runtime.ExceptionServices;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -26,6 +29,8 @@ internal sealed class HexTemplateHost
 /// The structure of the file beside the hex grid (P8.10.1): the fields a <c>.ksy</c> template finds, as a tree that is read as it is opened. Choosing a field selects its bytes in the
 /// grid, and moving the caret in the grid selects the field that holds it. The template is the one the user picked for the file type (kept in the setting), else the shipped one whose magic number or extension fits
 /// the file; the list offers the shipped templates and those the user opened from files.
+/// The children of a node are read on a worker, one read at a time (a reader is not shared between threads): a read that ends within the grace time shows its result at once, a longer one leaves a "Reading" row and
+/// the window stays usable until the reader finds the end or hits one of its limits (P8.10.3).
 /// </summary>
 internal sealed class HexTemplatePanel : Border
 {
@@ -40,6 +45,9 @@ internal sealed class HexTemplatePanel : Border
     private TreeViewItem? _rootItem;
     private bool _refreshing, _following;
     private long _followed = -1;
+    private int _generation, _busy;
+    private Task _tail = Task.CompletedTask;
+    private static readonly object ReadingTag = new();
 
     public HexTemplatePanel(HexView owner)
     {
@@ -89,6 +97,12 @@ internal sealed class HexTemplatePanel : Border
     internal string? NoteShown => _note.IsVisible ? _note.Text : null;
 
     internal string? InfoShown => _info.IsVisible ? _info.Text : null;
+
+    /// <summary>A read of nodes has not ended yet; for tests, which wait until the panel has settled.</summary>
+    internal bool Busy => _busy > 0;
+
+    /// <summary>Runs on the worker before each read; a test holds a read here to look at the tree while it lasts.</summary>
+    internal Action? ReadGate { get; set; }
 
     private IReadOnlyList<KsyPinned> Entries => [.. KsyCatalog.All, .. _owner.TemplateHost.Loaded];
 
@@ -186,6 +200,8 @@ internal sealed class HexTemplatePanel : Border
 
     private void Rebuild()
     {
+        Interlocked.Increment(ref _generation); // reads of the tree being replaced are dropped when they end
+        _tail = Task.CompletedTask;
         if (!IsVisible) return;
         _tree.Items.Clear();
         _rootNode = null;
@@ -265,7 +281,7 @@ internal sealed class HexTemplatePanel : Border
         AutomationProperties.SetName(item, $"{text}, {place}");
         if (node.HasChildren)
         {
-            item.Items.Add(new TreeViewItem());
+            item.Items.Add(new TreeViewItem()); // the row that stands for the children until the node is opened
             item.PropertyChanged += (_, e) =>
             {
                 if (e.Property == TreeViewItem.IsExpandedProperty && item.IsExpanded) Populate(item);
@@ -284,11 +300,67 @@ internal sealed class HexTemplatePanel : Border
     private void Populate(TreeViewItem item)
     {
         if (item.Tag is not KsyNode node || item.Items is not [TreeViewItem { Tag: null }]) return;
-        IReadOnlyList<KsyNode> children;
-        try { children = node.Children; }
-        catch (IOException) { _owner.FileChangedBehind(); return; }
+        if (node.ChildrenRead)
+        {
+            Fill(item, node.Children);
+            return;
+        }
+        Read(() => node.Children, children => Fill(item, children), () =>
+        {
+            item.Items.Clear();
+            item.Items.Add(ReadingItem());
+        });
+    }
+
+    private void Fill(TreeViewItem item, IReadOnlyList<KsyNode> children)
+    {
         item.Items.Clear();
         foreach (var child in children) item.Items.Add(Item(child));
+    }
+
+    private static TreeViewItem ReadingItem()
+    {
+        string text = Loc.Get(K.KsyReading);
+        var row = new TreeViewItem { Header = new TextBlock { Text = text, Opacity = 0.65 }, Tag = ReadingTag, Focusable = false };
+        AutomationProperties.SetName(row, text);
+        return row;
+    }
+
+    /// <summary>
+    /// Runs <paramref name="work"/> on a worker after the reads before it and hands its result to <paramref name="apply"/> on this thread. A result that is ready within the grace time is applied before this returns;
+    /// otherwise <paramref name="whenSlow"/> runs and the result is applied when it is ready. The result of a tree that was rebuilt meanwhile is dropped, and its work is not started.
+    /// </summary>
+    private void Read<T>(Func<T> work, Action<T> apply, Action? whenSlow = null)
+    {
+        int generation = Volatile.Read(ref _generation);
+        _busy++;
+        var task = _tail.ContinueWith(_ =>
+        {
+            if (generation != Volatile.Read(ref _generation)) return (default(T), (Exception?)null);
+            try
+            {
+                ReadGate?.Invoke();
+                return (work(), (Exception?)null);
+            }
+            catch (Exception e) { return (default, e); }
+        }, TaskScheduler.Default);
+        _tail = task;
+        if (task.Wait(PluginLimitsPlaceholders.StructureReadGraceMilliseconds))
+        {
+            Done(task.Result);
+            return;
+        }
+        whenSlow?.Invoke();
+        task.ContinueWith(t => Dispatcher.UIThread.Post(() => Done(t.Result)), TaskScheduler.Default);
+
+        void Done((T? Value, Exception? Error) result)
+        {
+            _busy--;
+            if (generation != _generation) return;
+            if (result.Error is IOException) _owner.FileChangedBehind();
+            else if (result.Error is { } error) ExceptionDispatchInfo.Capture(error).Throw();
+            else apply(result.Value!);
+        }
     }
 
     private void SelectField()
@@ -314,16 +386,18 @@ internal sealed class HexTemplatePanel : Border
     /// <summary>Opens the tree down to the field that holds the byte at <paramref name="offset"/> and selects it; the bytes selected in the grid stay as they are. False when no field holds it.</summary>
     internal bool SelectOffset(long offset)
     {
-        if (_rootNode is null || _rootItem is null) return false;
-        IReadOnlyList<KsyNode> path;
-        try { path = _rootNode.PathTo(offset); }
-        catch (IOException)
-        {
-            _owner.FileChangedBehind();
-            return false;
-        }
-        if (path.Count == 0) return false;
-        var item = _rootItem;
+        if (_rootNode is not { } root || _rootItem is null) return false;
+        var read = root.PathToRead(offset, out bool complete);
+        if (complete) return Select(read);
+        bool selected = false;
+        // the nodes on the way are read on the worker and opened here when it is ready, unless the user has gone into the tree meanwhile
+        Read(() => root.PathTo(offset), path => selected = !_tree.IsKeyboardFocusWithin && Select(path));
+        return selected;
+    }
+
+    private bool Select(IReadOnlyList<KsyNode> path)
+    {
+        if (path.Count == 0 || _rootItem is not { } item) return false;
         for (int i = 1; i < path.Count; i++)
         {
             item.IsExpanded = true;

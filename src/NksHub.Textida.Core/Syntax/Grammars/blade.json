@@ -83,6 +83,15 @@
       ]
     },
     {
+      "name": "blade-php-block",
+      "begin": "(?<![\\w@])@php(?![\\w]|[ \\t]*\\()",
+      "end": "@endphp(?![\\w])",
+      "multiline": true,
+      "beginToken": "keyword",
+      "endToken": "keyword",
+      "embed": "php-code"
+    },
+    {
       "name": "blade-directive-args",
       "begin": "(?<![\\w@])@[A-Za-z_]\\w*[ \\t]*\\(",
       "end": "\\)",

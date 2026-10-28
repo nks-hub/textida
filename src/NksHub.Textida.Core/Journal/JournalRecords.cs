@@ -51,8 +51,8 @@ public sealed record SessionModel(IReadOnlyList<SessionGroup> Groups, int Active
 
 internal static class JournalRecords
 {
-    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab, 6 lets an edit refer to its inserted bytes in a payload file, 7 lets a record refer to the list of its edits in a payload file.</summary>
-    private const int PayloadLayout = 7;
+    /// <summary>Payload layout: 1 stored the encoding as kind, BOM length and code page; 2 stores the codec name, 3 adds the bookmarks of a session tab, 4 adds the repeat length of an edit, 5 adds the hex bookmarks of a session tab, 6 lets an edit refer to its inserted bytes in a payload file, 7 lets a record refer to the list of its edits in a payload file, 8 adds a checksum of every byte to a reference to a block.</summary>
+    private const int PayloadLayout = 8;
 
     // ---- primitives ----
 
@@ -171,6 +171,8 @@ internal static class JournalRecords
                 w.Write(p.Length);
                 w.Write(p.HeadCrc);
                 w.Write(p.TailCrc);
+                w.Write(p.FullCrc is not null);
+                if (p.FullCrc is { } full) w.Write(full);
             }
         }
         PutString(w, e.Codec);
@@ -187,6 +189,14 @@ internal static class JournalRecords
         }
     }, 128 + 40 * e.Edits.Count);
 
+    private static PayloadRef ReadReference(BinaryReader r, int layout)
+    {
+        string file = r.ReadString();
+        long offset = r.ReadInt64(), length = r.ReadInt64();
+        uint head = r.ReadUInt32(), tail = r.ReadUInt32();
+        return new PayloadRef(file, offset, length, head, tail, layout >= 8 && r.ReadBoolean() ? r.ReadUInt32() : null);
+    }
+
     public static EditRecord DecodeEdit(byte[] p) => Parse(p, (r, layout) =>
     {
         var id = GetGuid(r);
@@ -200,7 +210,7 @@ internal static class JournalRecords
             long start = r.ReadInt64(), deleted = r.ReadInt64();
             var inserted = r.ReadBytes(r.ReadInt32());
             long repeat = layout >= 4 ? r.ReadInt64() : 0;
-            PayloadRef? external = layout >= 6 && r.ReadBoolean() ? new(r.ReadString(), r.ReadInt64(), r.ReadInt64(), r.ReadUInt32(), r.ReadUInt32()) : null;
+            PayloadRef? external = layout >= 6 && r.ReadBoolean() ? ReadReference(r, layout) : null;
             edits[i] = new(start, deleted, inserted, repeat, external);
         }
         string? codec = layout >= 2 ? GetString(r) : null;

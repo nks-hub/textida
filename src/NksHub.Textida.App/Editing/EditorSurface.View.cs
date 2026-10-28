@@ -66,17 +66,21 @@ internal sealed partial class EditorSurface : IMinimapHost
         TextArea.Caret.PositionChanged += (_, _) => InvalidateBrackets();
         TextArea.SelectionChanged += (_, _) => InvalidateBrackets();
         CaretsChanged += InvalidateBrackets;
-        _glide = new Glide(() => VerticalOffset, ScrollToY);
+        _glide = new Glide(() => VerticalOffset, ScrollToVerticalOffset);
         AddHandler(PointerWheelChangedEvent, OnWheelTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
     }
 
     private Glide? _glide;
 
-    /// <summary>Scrolls the text to a vertical offset in pixels. <c>TextEditor.ScrollToVerticalOffset</c> of AvaloniaEdit 12.0.0 does not move the text, so the offset is set on the scroll viewer.</summary>
-    internal void ScrollToY(double y)
+    /// <summary>AvaloniaEdit's own method of this name leaves the text where it is; this one moves the scroll viewer, which is what smooth scrolling needs.</summary>
+    public new void ScrollToVerticalOffset(double offset)
     {
-        if (Avalonia.VisualTree.VisualExtensions.FindAncestorOfType<ScrollViewer>(TextArea) is { } viewer) viewer.Offset = new Vector(viewer.Offset.X, y);
+        ApplyTemplate();
+        _scroller ??= Avalonia.VisualTree.VisualExtensions.FindDescendantOfType<ScrollViewer>(this);
+        if (_scroller is { } viewer) viewer.Offset = new Vector(viewer.Offset.X, offset);
     }
+
+    private ScrollViewer? _scroller;
 
     /// <summary>True while smooth scrolling is moving the text towards where the wheel sent it.</summary>
     internal bool Gliding => _glide?.Active == true;

@@ -51,6 +51,7 @@ public sealed partial class DocumentApi
             if (!taken.Add(key)) throw Invalid($"Change {index} touches '{key}', which an earlier change of the batch already touches.");
         }
         int index = 0;
+        long bytes = 0;
         foreach (var item in changes.EnumerateArray())
         {
             var change = NeedString(item, "kind") switch
@@ -65,11 +66,18 @@ public sealed partial class DocumentApi
             if (change.Path is { } path && change.Key != path) Take(path, index);
             if (change.Operation?.NewPath is { } target) Take(target, index);
             if (change.Operation is not null && ChangeApplier.CheckOperation(change) is { } blocked) throw WorkspaceConflict(index, blocked.Message);
+            bytes += NewTextBytes(change);
+            if (bytes > ws.MaxTotalBytes)
+                throw Fail(DocumentErrorCodes.WorkspaceQuotaExceeded, $"A workspace edit may hold {ws.MaxTotalBytes} bytes of new text and new files together.", w => w.WriteNumber("limitBytes", ws.MaxTotalBytes));
             files.Add(change);
             index++;
         }
         return ChangeBuilder.Proposal(title, "plugin:" + pluginId, [.. files]) with { Atomic = true };
     }
+
+    /// <summary>Bytes of text a change brings: the replacements of an edit, the content of a new file.</summary>
+    private static long NewTextBytes(FileChange change) =>
+        (change.Operation?.Content?.Length ?? 0) + change.Hunks.Sum(h => (long)Encoding.UTF8.GetByteCount(h.NewText));
 
     private static RpcException WorkspaceConflict(int index, string message) =>
         Fail(DocumentErrorCodes.RevisionConflict, $"Change {index}: {message}", w =>
@@ -90,7 +98,10 @@ public sealed partial class DocumentApi
         var full = Path.GetFullPath(raw);
         if (!roots.Any(root => PathMove.IsInside(full, root)))
             throw Denied(DocumentPermissions.WorkspaceFiles, "OutsideWorkspace", $"The path '{full}' is outside the workspace.");
-        // shortcut: a link in a folder above the file is not looked at; a link as the file itself is refused because the write would go through it
+        // a link on the way (a folder above the file, or the file) may not lead out of the workspace; the links of the workspace folder itself are followed too
+        if (!PathMove.TryRealPath(full, out var real) || !roots.Any(root => PathMove.TryRealPath(root, out var realRoot) && PathMove.IsInside(real, realRoot)))
+            throw Denied(DocumentPermissions.WorkspaceFiles, "Link", $"'{full}' reaches a place outside the workspace through a link, or its links cannot be followed.");
+        // shortcut: a link as the file itself is refused even when it stays inside, because the write would go through it; the link may also change between this check and the write
         if (File.Exists(full) && new FileInfo(full).LinkTarget is not null) throw Denied(DocumentPermissions.WorkspaceFiles, "Link", $"'{full}' is a link; name the file it points to.");
         return full;
     }

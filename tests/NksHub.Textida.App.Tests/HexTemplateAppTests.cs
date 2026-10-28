@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -59,9 +60,21 @@ public class HexTemplateAppTests : IDisposable
         return hex;
     }
 
-    private static TreeViewItem Open(TreeViewItem item, int index)
+    /// <summary>The panel reads the children of a node on a worker; a test goes on when every read has ended and its result is in the tree.</summary>
+    private static void Settle(HexTemplatePanel panel)
+    {
+        for (var sw = Stopwatch.StartNew(); panel.Busy; Thread.Sleep(5))
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(sw.ElapsedMilliseconds < 20_000, "the structure panel did not finish reading");
+        }
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    private static TreeViewItem Open(HexTemplatePanel panel, TreeViewItem item, int index)
     {
         item.IsExpanded = true;
+        Settle(panel);
         return (TreeViewItem)item.Items[index]!;
     }
 
@@ -75,12 +88,13 @@ public class HexTemplateAppTests : IDisposable
         Assert.Equal(CommandOutcome.Handled, _w.ToggleHexTemplate());
         Assert.True(panel.IsVisible);
         Assert.Equal("png_chunks", panel.Current!.Id);
+        Settle(panel);
 
         var root = (TreeViewItem)panel.Tree.Items[0]!;
         Assert.True(root.IsExpanded);
         var chunks = (TreeViewItem)root.Items[1]!;
-        var first = Open(chunks, 0);
-        var type = Open(first, 1);
+        var first = Open(panel, chunks, 0);
+        var type = Open(panel, first, 1);
 
         panel.Tree.SelectedItem = type;
         Assert.Equal((12, 16), (hex.Editor.Selection.Start, hex.Editor.Selection.End));
@@ -98,6 +112,7 @@ public class HexTemplateAppTests : IDisposable
         var file = Png(Chunk("IDAT", [1, 2, 3, 4, 5]))[..^7];
         var hex = OpenHex("cut.png", file);
         _w.ToggleHexTemplate();
+        Settle(hex.Structure);
         var root = (TreeViewItem)hex.Structure.Tree.Items[0]!;
         var chunks = (TreeViewItem)root.Items[1]!;
         var node = (Core.Hex.Ksy.KsyNode)chunks.Tag!;
@@ -117,13 +132,16 @@ public class HexTemplateAppTests : IDisposable
         _w.ToggleHexTemplate();
         hex.Focus();
         Dispatcher.UIThread.RunJobs();
+        Settle(panel);
 
         hex.Select(13, 13);
+        Settle(panel);
         var node = (KsyNode)((TreeViewItem)panel.Tree.SelectedItem!).Tag!;
         Assert.Equal(("type", 12L, 4L), (node.Name, node.Start, node.Length));
         Assert.Equal((13, 13), (hex.Editor.Anchor, hex.Editor.Caret));
 
         hex.Select(40, 40);
+        Settle(panel);
         node = (KsyNode)((TreeViewItem)panel.Tree.SelectedItem!).Tag!;
         Assert.Equal(("type", 37L), (node.Name, node.Start));
         Assert.Equal((40, 40), (hex.Editor.Anchor, hex.Editor.Caret));
@@ -173,6 +191,7 @@ public class HexTemplateAppTests : IDisposable
         Assert.Null(panel.NoteShown);
         Assert.Contains("four.ksy", panel.InfoShown);
         Assert.Contains(panel.Picker.Items.OfType<KsyPinned>(), p => p.Id == "four");
+        Settle(panel);
         var root = (TreeViewItem)panel.Tree.Items[0]!;
         Assert.Equal(["first", "rest"], root.Items.OfType<TreeViewItem>().Select(i => ((KsyNode)i.Tag!).Name));
     }
@@ -215,12 +234,63 @@ public class HexTemplateAppTests : IDisposable
         Assert.Equal(KsyCatalog.All.Select(p => p.Id), panel.Picker.Items.OfType<KsyPinned>().Select(p => p.Id));
         Assert.Equal(Loc.Get(K.KsyPickerA11y), Avalonia.Automation.AutomationProperties.GetName(panel.Picker));
         Assert.Equal(Loc.Get(K.KsyTitle), Avalonia.Automation.AutomationProperties.GetName(panel.Tree));
+        Settle(panel);
 
         var root = (TreeViewItem)panel.Tree.Items[0]!;
         var chunks = (TreeViewItem)root.Items[1]!;
-        var first = Open(chunks, 0);
-        var length = Open(first, 0);
+        var first = Open(panel, chunks, 0);
+        var length = Open(panel, first, 0);
         Assert.Equal("length: 13 (0x0000000D), 0x8 +4", Avalonia.Automation.AutomationProperties.GetName(length));
+    }
+
+    [AvaloniaFact]
+    public void A_slow_read_leaves_a_reading_row_while_the_window_goes_on_and_the_children_arrive_when_it_ends()
+    {
+        var hex = OpenHex("pic.png", Png(Chunk("IHDR", new byte[13]), Chunk("IEND", [])));
+        _w.ToggleHexTemplate();
+        var panel = hex.Structure;
+        Settle(panel);
+        var chunks = (TreeViewItem)((TreeViewItem)panel.Tree.Items[0]!).Items[1]!;
+
+        using var release = new ManualResetEventSlim();
+        panel.ReadGate = () => release.Wait(20_000);
+        chunks.IsExpanded = true; // returns although the read is held: the window is not
+        var row = Assert.IsType<TreeViewItem>(Assert.Single(chunks.Items));
+        Assert.Equal(Loc.Get(K.KsyReading), ((TextBlock)row.Header!).Text);
+        Assert.Equal(Loc.Get(K.KsyReading), Avalonia.Automation.AutomationProperties.GetName(row));
+        Assert.True(panel.Busy);
+
+        release.Set();
+        Settle(panel);
+        Assert.False(panel.Busy);
+        Assert.Equal(["chunks[0]", "chunks[1]"], chunks.Items.OfType<TreeViewItem>().Select(i => ((KsyNode)i.Tag!).Name));
+    }
+
+    [AvaloniaFact]
+    public void The_result_of_a_read_that_ends_after_the_tree_was_replaced_is_dropped()
+    {
+        var hex = OpenHex("pic.png", Png(Chunk("IHDR", new byte[13]), Chunk("IEND", [])));
+        _w.ToggleHexTemplate();
+        var panel = hex.Structure;
+        Settle(panel);
+        var oldRoot = (TreeViewItem)panel.Tree.Items[0]!;
+        var chunks = (TreeViewItem)oldRoot.Items[1]!;
+
+        using var release = new ManualResetEventSlim();
+        panel.ReadGate = () => release.Wait(20_000);
+        chunks.IsExpanded = true;
+        Assert.True(panel.Busy);
+        panel.ReadGate = null;
+        panel.Picker.SelectedItem = KsyCatalog.ById("elf_file"); // another template: the tree is built again
+        release.Set();
+        Settle(panel);
+
+        var root = Assert.IsType<TreeViewItem>(panel.Tree.Items[0]);
+        Assert.NotSame(oldRoot, root);
+        Assert.Equal("elf_file", panel.Current!.Id);
+        Assert.Empty(chunks.Items.OfType<TreeViewItem>().Where(i => i.Tag is KsyNode)); // nothing arrived in the old tree
+        Assert.DoesNotContain(root.Items.OfType<TreeViewItem>(), i => i.Tag is KsyNode { Name: "chunks" });
+        Assert.False(panel.Busy);
     }
 
     [AvaloniaFact]

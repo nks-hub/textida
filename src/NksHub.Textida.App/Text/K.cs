@@ -686,6 +686,7 @@ public static class K
     public const string KsyErrLimitWork = "ksy.err.limitWork";
     public const string KsyErrExpression = "ksy.err.expression";
     public const string KsyErrLimitTime = "ksy.err.limitTime";
+    public const string KsyReading = "ksy.reading";
     public const string KsyOpen = "ksy.open";
     public const string KsyOpenFailed = "ksy.open.failed";
     public const string KsyRefused = "ksy.refused";
@@ -1085,6 +1086,8 @@ public static class K
     public const string ExportNothing = "export.nothing";
     public const string ExportTooLarge = "export.tooLarge";
     public const string ExportCopied = "export.copied";
+    public const string ExportIndexPending = "export.indexPending";
+    public const string ExportChanged = "export.changed";
     public const string LogFoldTitle = "log.fold.title";
     public const string LogFoldLevelLabel = "log.fold.level";
     public const string LogFoldPlaceholder = "log.fold.placeholder";
@@ -1865,6 +1868,9 @@ public static class K
     public const string LintFound = "lint.found";
     public const string LintDropped = "lint.dropped";
     public const string LintStale = "lint.stale";
+    public const string LintVersionOld = "lint.version.old";
+    public const string LintVersionNew = "lint.version.new";
+    public const string LintVersionUnreadable = "lint.version.unreadable";
     public const string FragmentTab = "fragment.tab";
     public const string FragmentTabDetached = "fragment.tabDetached";
     public const string FragmentLanguage = "fragment.language";

@@ -151,8 +151,9 @@ public sealed record AgentPanelOptions(IAgentPanel Panel, int MaxUpdateChars);
 /// <summary>
 /// What a workspace edit needs from the editor: the review that shows and applies it, the workspace folders (paths outside them are refused), whether a file is open in a tab
 /// (a text edit by path of such a file is refused; a rename or delete is not, the tab follows it), and the limits. <paramref name="Roots"/> and <paramref name="IsOpen"/> run on the thread that owns the documents.
+/// <paramref name="MaxTotalBytes"/> bounds the new text of all changes together (replacement texts and the content of new files), so a batch of many changes cannot hold the memory the editor has.
 /// </summary>
-public sealed record WorkspaceEditOptions(IWorkspaceEdits Service, Func<IReadOnlyList<string>> Roots, Func<string, bool> IsOpen, int MaxChanges, long MaxFileBytes);
+public sealed record WorkspaceEditOptions(IWorkspaceEdits Service, Func<IReadOnlyList<string>> Roots, Func<string, bool> IsOpen, int MaxChanges, long MaxFileBytes, long MaxTotalBytes = long.MaxValue);
 
 /// <summary>A workspace edit made into one proposal of the change service: every part is checked against its revision or hash, and it is <see cref="ChangeProposal.Atomic"/>.</summary>
 public sealed record WorkspaceEditRequest(string PluginId, ChangeProposal Proposal);

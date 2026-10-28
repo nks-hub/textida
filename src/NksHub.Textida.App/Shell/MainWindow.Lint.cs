@@ -58,6 +58,10 @@ internal sealed partial class MainWindow
             _app.ToolApprovals.Approve(tool);
         }
 
+        // asked after the approval: the version request starts the program the user said yes to; the answer is kept per program file
+        var version = await LinterVersions.CheckAsync(linter, tool, TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintVersionTimeoutSeconds));
+        if (!Tabs.Contains(tab)) return;
+
         var document = tab.Doc.Doc;
         var key = (document.Id, linter.Id);
         if (!manual)
@@ -92,16 +96,28 @@ internal sealed partial class MainWindow
                 if (outcome.Dropped > 0) _app.Output.Append(OutputChannel.Tasks, source, Loc.Get(K.LintDropped, ("number", outcome.Dropped)));
                 int stale = outcome.Findings.Count - shown;
                 if (stale > 0) _app.Output.Append(OutputChannel.Tasks, source, Loc.Get(K.LintStale, ("number", stale)));
-                ReportLint(linter, outcome.Findings.Count == 0 ? Loc.Get(K.LintClean, ("name", name)) : shown == 0 ? Loc.Get(K.LintStale, ("number", stale)) : Loc.Get(K.LintFound, ("name", name), ("number", shown)), manual);
+                string result = outcome.Findings.Count == 0 ? Loc.Get(K.LintClean, ("name", name)) : shown == 0 ? Loc.Get(K.LintStale, ("number", stale)) : Loc.Get(K.LintFound, ("name", name), ("number", shown));
+                ReportLint(linter, VersionNote(linter, version, failed: false) is { } note ? result + " " + note : result, manual);
                 break;
             case LintState.TimedOut:
                 ReportLint(linter, Loc.Get(K.LintTimedOut, ("name", name), ("seconds", timeout.TotalSeconds.ToString("0.##", CultureInfo.CurrentCulture))), manual);
                 break;
             default:
-                ReportLint(linter, Loc.Get(K.LintFailed, ("name", name), ("reason", outcome.Reason)), manual);
+                ReportLint(linter, Loc.Get(K.LintFailed, ("name", name), ("reason", VersionNote(linter, version, failed: true) is { } why ? outcome.Reason + " " + why : outcome.Reason)), manual);
                 break;
         }
     }
+
+    /// <summary>
+    /// Says that the program is a version the check was not written for. A run that failed also says when the version could not be read, as that may be why; a run that worked does not, as the version request of some programs is simply silent.
+    /// </summary>
+    private static string? VersionNote(CatalogLinter linter, LinterVersionCheck check, bool failed) => check.State switch
+    {
+        LinterVersionState.TooOld => Loc.Get(K.LintVersionOld, ("name", linter.Title), ("found", check.Found!), ("min", check.Range!.Min)),
+        LinterVersionState.TooNew => Loc.Get(K.LintVersionNew, ("name", linter.Title), ("found", check.Found!), ("min", check.Range!.Min), ("below", check.Range.Below ?? "")),
+        LinterVersionState.Unreadable when failed => Loc.Get(K.LintVersionUnreadable, ("name", linter.Title), ("reason", check.Reason), ("min", check.Range!.Min), ("below", check.Range.Below ?? "")),
+        _ => null,
+    };
 
     /// <summary>Waits for a further save of the same file before a run that a save started; the newer wait replaces this one. False: this run was replaced.</summary>
     private async Task<bool> LintDebounceAsync((Guid Document, string Linter) key)

@@ -202,7 +202,7 @@ public class AdvancedOptionsTests : IDisposable
         _w.UpdateLayout();
         Assert.False(surface.Gliding);
         Assert.True(surface.VerticalOffset > 0, "the scroll viewer must have taken the wheel");
-        surface.ScrollToY(0);
+        surface.ScrollToVerticalOffset(0);
         _w.UpdateLayout();
         Assert.Equal(0, surface.VerticalOffset);
 
@@ -227,7 +227,7 @@ public class AdvancedOptionsTests : IDisposable
         // a notch back, and a key or the scroll bar moving the text ends a glide that is under way
         _w.MouseWheel(inside, new Vector(0, 1), RawInputModifiers.None);
         Assert.True(surface.Gliding);
-        surface.ScrollToY(10 * notch);
+        surface.ScrollToVerticalOffset(10 * notch);
         for (int i = 0; i < 20; i++)
         {
             await Task.Delay(10);

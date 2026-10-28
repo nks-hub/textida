@@ -34,9 +34,10 @@ public static class JournalPlaceholders
 
 /// <summary>
 /// Where the bytes of a large edit live: <paramref name="Length"/> bytes at <paramref name="Offset"/> in the file <paramref name="File"/> of the
-/// payload directory. The checksums cover the first and the last 4 KiB; they and the length catch a missing, short or swapped file, not a bit flip in the middle.
+/// payload directory. The checksums of the first and the last 4 KiB and the length catch a missing, short or swapped file; <paramref name="FullCrc"/>, the checksum of every byte, catches a bit flip in the middle.
+/// A reference of a journal before layout 8, or one written before the checksum of the whole block was ready, has no <paramref name="FullCrc"/> and is checked at its ends only.
 /// </summary>
-public sealed record PayloadRef(string File, long Offset, long Length, uint HeadCrc, uint TailCrc);
+public sealed record PayloadRef(string File, long Offset, long Length, uint HeadCrc, uint TailCrc, uint? FullCrc = null);
 
 /// <summary>
 /// The edits of one change set that has too many of them for a record (Replace All): <paramref name="Count"/> entries one after the other in
@@ -86,8 +87,26 @@ internal static class JournalPayloads
             int sample = (int)Math.Min(SampleBytes, bytes.Length);
             if (SampleCrc(bytes.AsSpan(0, sample)) != r.HeadCrc || SampleCrc(bytes.AsSpan(bytes.Length - sample)) != r.TailCrc)
                 throw new InvalidDataException($"The data of a large change differs from what the journal recorded ({r.File}).");
+            if (r.FullCrc is { } full && Crc32.Finish(Crc32.Update(Crc32.Initial, bytes)) != full)
+                throw new InvalidDataException($"The data of a large change differs from what the journal recorded, inside the block ({r.File}).");
             return bytes;
         }
+    }
+
+    /// <summary>The checksum of <paramref name="length"/> bytes at <paramref name="offset"/> of a payload file, read through a handle of its own in steps of 1 MiB.</summary>
+    public static uint BlockCrc(string payloadDirectory, string file, long offset, long length)
+    {
+        using var handle = File.OpenHandle(Path.Combine(payloadDirectory, file), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan);
+        var buffer = new byte[(int)Math.Min(1 << 20, Math.Max(1, length))];
+        uint crc = Crc32.Initial;
+        for (long done = 0; done < length;)
+        {
+            int n = (int)Math.Min(buffer.Length, length - done);
+            ReadAt(handle, buffer.AsSpan(0, n), offset + done, file);
+            crc = Crc32.Update(crc, buffer.AsSpan(0, n));
+            done += n;
+        }
+        return Crc32.Finish(crc);
     }
 
     /// <summary>Bytes of the header of one entry of an edit list: start, removed length, inserted length.</summary>
