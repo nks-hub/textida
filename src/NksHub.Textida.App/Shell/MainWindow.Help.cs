@@ -21,9 +21,9 @@ internal sealed partial class MainWindow
         }
         if (_find.IsVisible && _find.IsKeyboardFocusWithin) return _find.FilesMode ? "search.inFiles" : _find.ReplaceShown ? "search.replace" : "search.find";
         if (HelpContext.Focused(this) is { } named) return named;
-        if (FilePanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.files";
-        if (DocumentsPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.documents";
-        if (PluginPanelOpen && _body.Children[0].IsKeyboardFocusWithin) return "view.pluginPanels";
+        if (FilePanelOpen && _hosts[_layout.DockOf(SidePanel.Files)].IsKeyboardFocusWithin) return "view.files";
+        if (DocumentsPanelOpen && _hosts[_layout.DockOf(SidePanel.Documents)].IsKeyboardFocusWithin) return "view.documents";
+        if (PluginPanelOpen && _hosts[_layout.DockOf(SidePanel.Plugin)].IsKeyboardFocusWithin) return "view.pluginPanels";
         if (Active?.Custom is Editing.DiffView) return "compare.text";
         if (Active?.Custom is not null) return "search.inFiles";
         if (Active?.Paged is not null) return "paged";

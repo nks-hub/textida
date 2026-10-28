@@ -27,6 +27,13 @@ internal static class NavigationCommands
         Fire("nks.file.openFolder", w => w.OpenFolderWithDialogAsync());
         Do("nks.view.toggleFilePanel", w => w.ToggleFiles());
         Do("nks.files.toggleHidden", w => w.ToggleHiddenFiles());
+        Do("nks.panel.dockLeft", w => w.DockCurrentPanel(PanelDock.Left));
+        Do("nks.panel.dockRight", w => w.DockCurrentPanel(PanelDock.Right));
+        Do("nks.panel.dockBottom", w => w.DockCurrentPanel(PanelDock.Bottom));
+        Do("nks.panel.grow", w => w.ResizeCurrentPanel(1));
+        Do("nks.panel.shrink", w => w.ResizeCurrentPanel(-1));
+        Do("nks.panel.hide", w => w.HideCurrentPanel());
+        Do("nks.panel.resetLayout", w => w.ResetPanelLayout());
         Do("nks.open.special", w => w.ShowSpecialOpen());
         Fire("nks.open.hex", w => w.OpenTargetAsHexAsync());
         Fire("nks.open.withEncoding", w => w.OpenTargetWithEncodingAsync());

@@ -48,9 +48,11 @@ public static class ContextKeys
     public const string InMarkdownTable = "inMarkdownTable";
     /// <summary>A snippet session runs in the active editor: Tab and Shift+Tab walk through its stops.</summary>
     public const string InSnippet = "inSnippet";
+    /// <summary>A side panel (open documents, files, a plug-in panel) is open: the commands that dock, resize and hide it work on it.</summary>
+    public const string PanelOpen = "panelOpen";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen];
 }
 
 /// <summary>

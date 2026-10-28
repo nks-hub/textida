@@ -23,8 +23,6 @@ namespace NksHub.Textida.App.Shell;
 /// </summary>
 internal sealed partial class MainWindow : Window
 {
-    private const double PanelWidth = 220;
-
     private readonly App _app;
     private readonly ShellLook _look;
     private readonly List<TabGroup> _groups = [];
@@ -36,7 +34,7 @@ internal sealed partial class MainWindow : Window
     private readonly Grid _groupsGrid = new();
     private readonly Border _titleTabRow = new() { Height = 38 };
     private readonly StackPanel _notices = new();
-    private readonly Grid _body = new() { ColumnDefinitions = new ColumnDefinitions("0,*") };
+    private readonly Grid _body = new() { ColumnDefinitions = new ColumnDefinitions("0,0,*,0,0"), RowDefinitions = new RowDefinitions("*,0,0") };
     private readonly ListBox _docList = new() { Background = Brushes.Transparent };
     private readonly TextBlock _docListTitle = new() { FontWeight = FontWeight.SemiBold, Margin = new Thickness(12, 10, 12, 6) };
     private readonly TextBlock _docListEmpty = new() { Margin = new Thickness(12, 4), Opacity = 0.7 };
@@ -97,6 +95,7 @@ internal sealed partial class MainWindow : Window
         _normalPosition = Position;
         _normalSize = new Size(placement.Width, placement.Height);
 
+        _layout = PanelLayout.FromSaved(saved?.Panels);
         BuildLayout();
         AddGroup();
         ApplyTexts();
@@ -124,6 +123,7 @@ internal sealed partial class MainWindow : Window
     {
         X = _normalPosition.X, Y = _normalPosition.Y, Width = _normalSize.Width, Height = _normalSize.Height,
         Maximized = WindowState == WindowState.Maximized || (IsFullScreen && _beforeFullScreen == WindowState.Maximized),
+        Panels = _layout.ToSaved(),
     };
 
     // ---- layout ----
@@ -156,12 +156,9 @@ internal sealed partial class MainWindow : Window
             root.Children.Add(title);
         }
 
-        var panel = BuildLeftColumn();
-
-        var editorArea = new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } };
-        Grid.SetColumn(editorArea, 1);
-        _body.Children.Add(panel);
-        _body.Children.Add(editorArea);
+        BuildSidePanels();
+        BuildPanelHosts(new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } });
+        ApplyPanelState(rebuildMenu: false);
 
         var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
@@ -258,7 +255,7 @@ internal sealed partial class MainWindow : Window
         var tab = Active;
         ScheduleGitGutter(tab);
         _app.Plugins.Mcp.ActiveTabChanged(this, tab);
-        Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !_body.Children[0].IsKeyboardFocusWithin && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
+        Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !InSidePanels && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);
     }
 
     /// <summary>Gives the keyboard to the text area of the tab, so typing works at once without a click.</summary>
@@ -348,6 +345,7 @@ internal sealed partial class MainWindow : Window
         _docListTitle.Text = Loc.Get(K.PanelDocumentsTitle);
         AutomationProperties.SetName(_docList, Loc.Get(K.A11yDocumentList));
         ApplyFileTexts();
+        ApplyPanelLayoutTexts();
         ApplyHexTexts();
         ApplyTableTexts();
         ApplyCompareTexts();

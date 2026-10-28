@@ -638,5 +638,13 @@
   "setting.files.gitStatus.title": "Git status in the Files panel",
   "setting.files.gitStatus.description": "For a folder in a Git repository, colours the names of the files by their state (modified, new, deleted, ignored, in conflict) and adds a letter after the name; a folder shows the heaviest state below it. The Git plugin supplies the state, and it is asked only for a folder that lies in a repository.",
   "submenu.zoom": "Zoom",
-  "submenu.panels": "Panel Layout"
+  "submenu.panels": "Panel Layout",
+  "cmd.panel.dockLeft": "Dock Panel on the Left",
+  "cmd.panel.dockRight": "Dock Panel on the Right",
+  "cmd.panel.dockBottom": "Dock Panel at the Bottom",
+  "cmd.panel.grow": "Make Panel Larger",
+  "cmd.panel.shrink": "Make Panel Smaller",
+  "cmd.panel.hide": "Hide Panel",
+  "cmd.panel.resetLayout": "Reset Panel Layout",
+  "reason.panelOpen.false": "No panel is open"
 }

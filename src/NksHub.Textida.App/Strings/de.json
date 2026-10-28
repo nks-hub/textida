@@ -2181,5 +2181,17 @@
   "a11y.files.git.below.modified": "Git: enthält geänderte Dateien",
   "a11y.files.git.below.new": "Git: enthält neue Dateien",
   "a11y.files.git.below.deleted": "Git: enthält gelöschte Dateien",
-  "a11y.files.git.below.conflict": "Git: enthält einen Konflikt"
+  "a11y.files.git.below.conflict": "Git: enthält einen Konflikt",
+  "panel.plugin.name": "Plugin-Panel",
+  "a11y.panel.docked.left": "{panel}: links angedockt.",
+  "a11y.panel.docked.right": "{panel}: rechts angedockt.",
+  "a11y.panel.docked.bottom": "{panel}: unten angedockt.",
+  "a11y.panel.width": "{panel}: Breite {size} px.",
+  "a11y.panel.height": "{panel}: Höhe {size} px.",
+  "a11y.panel.limit": "Weiter geht es nicht.",
+  "a11y.panel.hidden": "{panel}: ausgeblendet.",
+  "a11y.panel.reset": "Das Panel-Layout ist wieder die Vorgabe.",
+  "a11y.panel.splitter.left": "Breite des Panels links",
+  "a11y.panel.splitter.right": "Breite des Panels rechts",
+  "a11y.panel.splitter.bottom": "Höhe des Panels unten"
 }

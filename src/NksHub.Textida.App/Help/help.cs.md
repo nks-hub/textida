@@ -714,6 +714,18 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 - U složky v repozitáři Git má název barvu podle stavu, který Git souboru dává, a za ním písmeno: M změněno, N nové, D smazáno, I ignorováno, ! konflikt. Složka ukáže nejvážnější stav pod sebou. Nastavení Stav Gitu v panelu souborů to vypne; mimo repozitář se Git nespouští.
 - Znak, který žádné písmo nekreslí, například znak ze soukromé oblasti, který do názvu vložil jiný nástroj, se ukáže jako své číslo, například ‹U+F03A›. Čtečka obrazovky přečte typ položky, skrytí a stav Gitu.
 
+## [view.panelLayout] Přesun a velikost panelů
+commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.panel.grow, nks.panel.shrink, nks.panel.hide, nks.panel.resetLayout
+Panely Otevřené dokumenty, Soubory a panely pluginů mohou stát vlevo, vpravo nebo dole v okně. Jedna strana ukazuje vždy jeden panel.
+1. Velikost změníte tažením tenkého úchytu mezi panelem a textem, nebo na úchyt přejděte klávesnicí (Tab) a stiskněte šipky; Shift udělá pět kroků, Home a End nejmenší a největší velikost. Ctrl+K, Ctrl+= a Ctrl+K, Ctrl+- panel zvětší a zmenší.
+2. Panel přesunete tažením jeho nadpisu k levému, pravému nebo dolnímu okraji okna; značka ukáže, kam dopadne. Z klávesnice slouží Ctrl+K, Ctrl+Šipka doleva, Ctrl+K, Ctrl+Šipka doprava a Ctrl+K, Ctrl+Šipka dolů, nebo Zobrazit, Rozložení panelů. Totéž nabízí pravé tlačítko na nadpisu.
+3. Panel skryjete jeho přepínačem, klávesou Esc nebo příkazem Zobrazit, Rozložení panelů, Skrýt panel.
+4. Zobrazit, Rozložení panelů, Vrátit výchozí rozložení panelů dá všechny panely zpět doleva ve výchozí velikosti.
+- Rozložení se pamatuje s oknem a po restartu se vrátí; které panely jsou otevřené, se nepamatuje.
+- Panel je široký nejméně 140 pixelů (dole vysoký 80) a nejvýše polovinu okna; na mezi to program oznámí.
+- Čtečka obrazovky se po každé změně dozví stranu a velikost.
+- Příkazy působí na panel, který má klávesnici, jinak na naposledy otevřený; bez otevřeného panelu jsou vypnuté.
+
 ## [files.create] Nový soubor a nová složka
 commands: nks.files.newFile, nks.files.newFolder
 1. Otevřete složku a vyberte v panelu Soubory složku, do které se má vytvořit.

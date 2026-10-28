@@ -199,6 +199,29 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
             <Setter Property="BorderThickness" Value="0,0,1,0" />
         </Style>
+        <Style Selector="Border.sidepanel.dockright">
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+        </Style>
+        <Style Selector="Border.sidepanel.dockbottom">
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+        </Style>
+        <!-- the handle between a side panel and the text; it shows itself when the pointer is over it or the keyboard is on it -->
+        <Style Selector="Border.panelsplitter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.panelsplitter:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+        </Style>
+        <Style Selector="Border.panelsplitter:focus">
+            <Setter Property="Background" Value="{DynamicResource Accent}" />
+        </Style>
+        <!-- where a dragged panel would be docked -->
+        <Style Selector="Border.paneldrop">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Opacity" Value="0.7" />
+        </Style>
         <Style Selector="Border.statusbar TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />

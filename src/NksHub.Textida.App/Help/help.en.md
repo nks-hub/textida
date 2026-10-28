@@ -714,6 +714,18 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 - In a folder that lies in a Git repository the name takes the colour of the state Git gives the file, and a letter follows it: M changed, N new, D deleted, I ignored, ! conflict. A folder shows the heaviest state below it. The setting Git status in the Files panel turns this off; outside a repository Git is not started.
 - A character that no font draws, such as a private-use character that another tool put in a name, is shown as its number, for example ‹U+F03A›. A screen reader reads the type, hidden and the Git state of an entry.
 
+## [view.panelLayout] Move and resize panels
+commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.panel.grow, nks.panel.shrink, nks.panel.hide, nks.panel.resetLayout
+The Open Documents, Files and plugin panels can stand on the left, on the right or at the bottom of the window. A side shows one panel at a time.
+1. To change the size, drag the thin handle between the panel and the text, or put the keyboard on the handle (Tab) and press the arrow keys; Shift takes five steps, Home and End the smallest and the largest size. Ctrl+K, Ctrl+= and Ctrl+K, Ctrl+- make the panel larger and smaller.
+2. To move a panel, drag its title to the left, the right or the lower part of the window; a mark shows where it lands. From the keyboard use Ctrl+K, Ctrl+Left, Ctrl+K, Ctrl+Right and Ctrl+K, Ctrl+Down, or View, Panel Layout. The right button on the title offers the same.
+3. To hide the panel use its toggle, Esc, or View, Panel Layout, Hide Panel.
+4. View, Panel Layout, Reset Panel Layout puts every panel back on the left at the default size.
+- The layout is kept with the window and comes back after a restart; which panels are open is not kept.
+- A panel is at least 140 pixels wide (80 high at the bottom) and at most half of the window; at a limit the program says so.
+- A screen reader is told the side and the size after every change.
+- The commands work on the panel that has the keyboard, or else on the one opened last; without an open panel they are off.
+
 ## [files.create] New file and new folder
 commands: nks.files.newFile, nks.files.newFolder
 1. Open a folder and select in the Files panel the folder to create in.

@@ -2156,4 +2156,16 @@ public static class K
     public const string A11yFilesGitBelowNew = "a11y.files.git.below.new";
     public const string A11yFilesGitBelowDeleted = "a11y.files.git.below.deleted";
     public const string A11yFilesGitBelowConflict = "a11y.files.git.below.conflict";
+    public const string PanelPluginName = "panel.plugin.name";
+    public const string A11yPanelDockedLeft = "a11y.panel.docked.left";
+    public const string A11yPanelDockedRight = "a11y.panel.docked.right";
+    public const string A11yPanelDockedBottom = "a11y.panel.docked.bottom";
+    public const string A11yPanelWidth = "a11y.panel.width";
+    public const string A11yPanelHeight = "a11y.panel.height";
+    public const string A11yPanelLimit = "a11y.panel.limit";
+    public const string A11yPanelHidden = "a11y.panel.hidden";
+    public const string A11yPanelReset = "a11y.panel.reset";
+    public const string A11yPanelSplitterLeft = "a11y.panel.splitter.left";
+    public const string A11yPanelSplitterRight = "a11y.panel.splitter.right";
+    public const string A11yPanelSplitterBottom = "a11y.panel.splitter.bottom";
 }

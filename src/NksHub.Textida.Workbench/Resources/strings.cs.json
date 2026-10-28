@@ -638,5 +638,13 @@
   "setting.files.gitStatus.title": "Stav Gitu v panelu souborů",
   "setting.files.gitStatus.description": "U složky v repozitáři Git obarví názvy souborů podle stavu (změněno, nové, smazáno, ignorováno, konflikt) a přidá za název písmeno; složka ukáže nejvážnější stav pod sebou. Stav dodá plugin Git a ptá se jen na složku, která leží v repozitáři.",
   "submenu.zoom": "Lupa",
-  "submenu.panels": "Rozložení panelů"
+  "submenu.panels": "Rozložení panelů",
+  "cmd.panel.dockLeft": "Ukotvit panel vlevo",
+  "cmd.panel.dockRight": "Ukotvit panel vpravo",
+  "cmd.panel.dockBottom": "Ukotvit panel dole",
+  "cmd.panel.grow": "Zvětšit panel",
+  "cmd.panel.shrink": "Zmenšit panel",
+  "cmd.panel.hide": "Skrýt panel",
+  "cmd.panel.resetLayout": "Vrátit výchozí rozložení panelů",
+  "reason.panelOpen.false": "Není otevřený žádný panel"
 }

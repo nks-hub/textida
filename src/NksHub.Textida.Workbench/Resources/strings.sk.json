@@ -638,5 +638,13 @@
   "setting.files.gitStatus.title": "Stav Gitu v paneli súborov",
   "setting.files.gitStatus.description": "Pri priečinku v repozitári Git zafarbí názvy súborov podľa stavu (zmenené, nové, zmazané, ignorované, konflikt) a pridá za názov písmeno; priečinok ukáže najzávažnejší stav pod sebou. Stav dodá plugin Git a pýta sa len na priečinok, ktorý leží v repozitári.",
   "submenu.zoom": "Lupa",
-  "submenu.panels": "Rozloženie panelov"
+  "submenu.panels": "Rozloženie panelov",
+  "cmd.panel.dockLeft": "Ukotviť panel vľavo",
+  "cmd.panel.dockRight": "Ukotviť panel vpravo",
+  "cmd.panel.dockBottom": "Ukotviť panel dole",
+  "cmd.panel.grow": "Zväčšiť panel",
+  "cmd.panel.shrink": "Zmenšiť panel",
+  "cmd.panel.hide": "Skryť panel",
+  "cmd.panel.resetLayout": "Vrátiť predvolené rozloženie panelov",
+  "reason.panelOpen.false": "Nie je otvorený žiadny panel"
 }

@@ -34,6 +34,19 @@ public sealed class SavedWindow
     public double Width { get; set; }
     public double Height { get; set; }
     public bool Maximized { get; set; }
+    /// <summary>Where the side panels are docked and how large each side is; null in a profile from before the panels could be moved.</summary>
+    public SavedPanels? Panels { get; set; }
+}
+
+/// <summary>The sides ("left", "right", "bottom") of the three side panels, and the width of the left and right side and the height of the bottom one, in device-independent units.</summary>
+public sealed class SavedPanels
+{
+    public string Documents { get; set; } = "left";
+    public string Files { get; set; } = "left";
+    public string Plugin { get; set; } = "left";
+    public double LeftWidth { get; set; } = 220;
+    public double RightWidth { get; set; } = 220;
+    public double BottomHeight { get; set; } = 200;
 }
 
 /// <summary>User settings. Values are language-neutral tags, never translated text.</summary>

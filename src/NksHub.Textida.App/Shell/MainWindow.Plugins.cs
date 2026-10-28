@@ -36,7 +36,7 @@ internal sealed partial class MainWindow
     private (string Plugin, string Panel)? _pluginPanelKey;
     private PluginPanel? _pluginPanelDrawn;
 
-    public bool PluginPanelOpen => _body.ColumnDefinitions[0].Width.Value > 0 && _pluginPanel.IsVisible;
+    public bool PluginPanelOpen => IsOpen(SidePanel.Plugin);
     internal TreeView PluginTree => _pluginTree;
     internal Control PluginStatusHost => _pluginStatus;
     internal string? PluginPanelTitle => _pluginPanelKey is null ? null : _pluginPanelTitle.Text;
@@ -44,10 +44,11 @@ internal sealed partial class MainWindow
     private Control BuildPluginPanel()
     {
         _pluginPanelClose.Classes.Add("tabclose");
+        _pluginPanelClose.Cursor = new Cursor(StandardCursorType.Arrow); // the rest of the header is where the panel is dragged by
         _pluginPanelClose.Content = new Avalonia.Controls.Shapes.Path { Data = Geometry.Parse("M0,0 L8,8 M8,0 L0,8"), StrokeThickness = 1.2, Width = 8, Height = 8, Stretch = Stretch.None };
-        _pluginPanelClose.Click += (_, _) => ToggleLeft(LeftPanel.Plugin, false);
-        var header = new DockPanel { Children = { Dock(_pluginPanelClose, Avalonia.Controls.Dock.Right), _pluginPanelTitle } };
-        _pluginPanel.Children.Add(Dock(header, Avalonia.Controls.Dock.Top));
+        _pluginPanelClose.Click += (_, _) => TogglePanel(SidePanel.Plugin, false);
+        var header = new DockPanel { Background = Brushes.Transparent, Children = { Dock(_pluginPanelClose, Avalonia.Controls.Dock.Right), _pluginPanelTitle } };
+        _pluginPanel.Children.Add(Dock(MakeDraggable(header, SidePanel.Plugin), Avalonia.Controls.Dock.Top));
         _pluginPanel.Children.Add(_pluginTree);
         _pluginTree.DoubleTapped += (_, _) => ActivatePluginItem();
         _pluginTree.AddHandler(KeyDownEvent, (_, e) =>
@@ -196,7 +197,7 @@ internal sealed partial class MainWindow
     {
         _pluginPanelKey = (plugin, panel);
         RefreshPluginPanel(_app.Plugins.Ui);
-        if (focus && _pluginPanelKey is not null) ToggleLeft(LeftPanel.Plugin, true);
+        if (focus && _pluginPanelKey is not null) TogglePanel(SidePanel.Plugin, true);
     }
 
     /// <summary>The panels the plugins show now, in the quick list; the chosen one opens on the left.</summary>
@@ -286,7 +287,7 @@ internal sealed partial class MainWindow
                 _pluginPanelDrawn = null;
                 _pluginCurrentNode = null;
                 _pluginTree.Items.Clear();
-                if (PluginPanelOpen) ToggleLeft(LeftPanel.Plugin, false);
+                if (PluginPanelOpen) TogglePanel(SidePanel.Plugin, false);
             }
             return;
         }

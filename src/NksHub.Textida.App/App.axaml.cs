@@ -273,14 +273,18 @@ public sealed partial class App : Application
 
     internal void WindowClosed(MainWindow window)
     {
-        if (!Startup.Args.Smoke)
-        {
-            try { Startup.Profile.SaveWindow(window.CaptureGeometry()); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* losing the window position must not block closing */ }
-        }
+        SaveWindowState(window);
         _windows.Remove(window);
         if (_active == window) _active = _windows.LastOrDefault();
         if (_windows.Count > 0) SaveSession();
+    }
+
+    /// <summary>Writes the geometry of the window and the layout of its panels into the profile: when the window closes, and when the layout changes, so a crash does not lose it.</summary>
+    internal void SaveWindowState(MainWindow window)
+    {
+        if (Startup.Args.Smoke) return;
+        try { Startup.Profile.SaveWindow(window.CaptureGeometry()); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* losing the window position must not block closing */ }
     }
 
     internal void Exit() => _desktop?.Shutdown();

@@ -714,6 +714,18 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 - Pri priečinku v repozitári Git má názov farbu podľa stavu, ktorý Git súboru dáva, a za ním písmeno: M zmenené, N nové, D zmazané, I ignorované, ! konflikt. Priečinok ukáže najzávažnejší stav pod sebou. Nastavenie Stav Gitu v paneli súborov to vypne; mimo repozitára sa Git nespúšťa.
 - Znak, ktorý žiadne písmo nekreslí, napríklad znak zo súkromnej oblasti, ktorý do názvu vložil iný nástroj, sa ukáže ako svoje číslo, napríklad ‹U+F03A›. Čítačka obrazovky prečíta typ položky, skrytie a stav Gitu.
 
+## [view.panelLayout] Presun a veľkosť panelov
+commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.panel.grow, nks.panel.shrink, nks.panel.hide, nks.panel.resetLayout
+Panely Otvorené dokumenty, Súbory a panely pluginov môžu stáť vľavo, vpravo alebo dole v okne. Jedna strana ukazuje vždy jeden panel.
+1. Veľkosť zmeníte ťahaním tenkého úchytu medzi panelom a textom, alebo na úchyt prejdite klávesnicou (Tab) a stlačte šípky; Shift urobí päť krokov, Home a End najmenšiu a najväčšiu veľkosť. Ctrl+K, Ctrl+= a Ctrl+K, Ctrl+- panel zväčšia a zmenšia.
+2. Panel presuniete ťahaním jeho nadpisu k ľavému, pravému alebo dolnému okraju okna; značka ukáže, kam dopadne. Z klávesnice slúži Ctrl+K, Ctrl+Šípka doľava, Ctrl+K, Ctrl+Šípka doprava a Ctrl+K, Ctrl+Šípka nadol, alebo Zobraziť, Rozloženie panelov. To isté ponúka pravé tlačidlo na nadpise.
+3. Panel skryjete jeho prepínačom, klávesom Esc alebo príkazom Zobraziť, Rozloženie panelov, Skryť panel.
+4. Zobraziť, Rozloženie panelov, Vrátiť predvolené rozloženie panelov dá všetky panely späť doľava v predvolenej veľkosti.
+- Rozloženie sa pamätá s oknom a po reštarte sa vráti; ktoré panely sú otvorené, sa nepamätá.
+- Panel je široký najmenej 140 pixelov (dole vysoký 80) a najviac polovicu okna; na medzi to program oznámi.
+- Čítačka obrazovky sa po každej zmene dozvie stranu a veľkosť.
+- Príkazy pôsobia na panel, ktorý má klávesnicu, inak na naposledy otvorený; bez otvoreného panela sú vypnuté.
+
 ## [files.create] Nový súbor a nový priečinok
 commands: nks.files.newFile, nks.files.newFolder
 1. Otvorte priečinok a vyberte v paneli Súbory priečinok, do ktorého sa má vytvoriť.

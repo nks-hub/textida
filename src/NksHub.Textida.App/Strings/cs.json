@@ -2217,5 +2217,17 @@
   "a11y.files.git.below.modified": "Git: obsahuje změněné soubory",
   "a11y.files.git.below.new": "Git: obsahuje nové soubory",
   "a11y.files.git.below.deleted": "Git: obsahuje smazané soubory",
-  "a11y.files.git.below.conflict": "Git: obsahuje konflikt"
+  "a11y.files.git.below.conflict": "Git: obsahuje konflikt",
+  "panel.plugin.name": "Panel pluginu",
+  "a11y.panel.docked.left": "{panel}: ukotveno vlevo.",
+  "a11y.panel.docked.right": "{panel}: ukotveno vpravo.",
+  "a11y.panel.docked.bottom": "{panel}: ukotveno dole.",
+  "a11y.panel.width": "{panel}: šířka {size} px.",
+  "a11y.panel.height": "{panel}: výška {size} px.",
+  "a11y.panel.limit": "Další změna už nejde.",
+  "a11y.panel.hidden": "{panel}: skryto.",
+  "a11y.panel.reset": "Rozložení panelů je výchozí.",
+  "a11y.panel.splitter.left": "Šířka panelu vlevo",
+  "a11y.panel.splitter.right": "Šířka panelu vpravo",
+  "a11y.panel.splitter.bottom": "Výška panelu dole"
 }
