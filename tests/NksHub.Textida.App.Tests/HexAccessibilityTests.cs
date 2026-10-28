@@ -250,7 +250,7 @@ public class HexAccessibilityTests : IDisposable
         PumpUntil(() => _w.AnnouncedText == Loc.Get(K.HexFindCount, ("index", 1), ("total", 2)));
         Assert.Equal((100L, 102L), (hex.Editor.Selection.Start, hex.Editor.Selection.End));
 
-        Press(Key.F3);
+        TestApp.FindNext(_w);
         PumpUntil(() => _w.AnnouncedText == Loc.Get(K.HexFindCount, ("index", 2), ("total", 2)));
 
         _dialogs.Prompts.Enqueue("DE AD BE EF");

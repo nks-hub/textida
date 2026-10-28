@@ -50,7 +50,7 @@ public class HexSearchAppTests : IDisposable
         Assert.True(_w.FindBar.HexMode);
         _w.FindBar.FindBox.Text = query;
         Dispatcher.UIThread.RunJobs();
-        TestApp.Press(_w, Key.F3);
+        TestApp.FindNext(_w);
     }
 
     private void PumpUntil(Func<bool> condition)
@@ -217,7 +217,7 @@ public class HexSearchAppTests : IDisposable
 
         TestApp.Press(_w, Key.Escape);
         Assert.False(bar.IsVisible);
-        TestApp.Press(_w, Key.F3); // the query is kept: F3 searches it without the bar
+        TestApp.FindNext(_w); // the query is kept: F3 searches it without the bar
         PumpUntil(() => hex.Editor.Selection.Start == 30);
         Assert.False(bar.IsVisible);
     }

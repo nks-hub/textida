@@ -347,7 +347,7 @@ public class HexTests : IDisposable
         Press(Key.G, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(0x1F40, hex.Caret);
-        Press(Key.Left, RawInputModifiers.Alt);
+        TestApp.Jump(_w);
         Assert.Equal(10_000 - 512, hex.Caret);
         _dialogs.Prompts.Enqueue("50%");
         Press(Key.G, RawInputModifiers.Control);
@@ -444,7 +444,7 @@ public class HexTests : IDisposable
         Assert.True(_w.FindBar.IsVisible && _w.FindBar.HexMode);
         _w.FindBar.FindBox.Text = "50 4B ?? 04";
         Dispatcher.UIThread.RunJobs();
-        Press(Key.F3);
+        TestApp.FindNext(_w);
         // the count comes after the selection; a bare digit would already match the caret status ("výběr 4 B")
         PumpUntil(() => hex.Editor.HasSelection && _w.StatusLeftText.Contains($"1 z {expected.Count}"));
         Assert.Equal(expected[0], hex.Editor.Selection.Start);

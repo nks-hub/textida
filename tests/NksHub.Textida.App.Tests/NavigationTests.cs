@@ -344,15 +344,15 @@ public class NavigationTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         Assert.Equal(80, tab.CaretPosition().Line);
 
-        TestApp.Press(_w, Key.Left, RawInputModifiers.Alt);
+        TestApp.Jump(_w);
         Assert.Equal(40, tab.CaretPosition().Line);
-        TestApp.Press(_w, Key.Left, RawInputModifiers.Alt);
+        TestApp.Jump(_w);
         Assert.Equal(1, tab.CaretPosition().Line);
-        TestApp.Press(_w, Key.Left, RawInputModifiers.Alt);
+        TestApp.Jump(_w);
         Assert.Equal("Není kam skočit zpět", ReadStatus());
-        TestApp.Press(_w, Key.Right, RawInputModifiers.Alt);
+        TestApp.Jump(_w, back: false);
         Assert.Equal(40, tab.CaretPosition().Line);
-        TestApp.Press(_w, Key.Right, RawInputModifiers.Alt);
+        TestApp.Jump(_w, back: false);
         Assert.Equal(80, tab.CaretPosition().Line);
     }
 

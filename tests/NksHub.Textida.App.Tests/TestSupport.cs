@@ -242,6 +242,9 @@ internal static class TestApp
     /// <summary>The modifier of the word keys: Ctrl, Option on macOS.</summary>
     public static RawInputModifiers Word => Mac ? RawInputModifiers.Alt : RawInputModifiers.Control;
 
+    /// <summary>Alt+Left or Alt+Right, Command+Control+Left or Right on macOS, where Option+arrow moves by word.</summary>
+    public static void Jump(Window w, bool back = true) => Press(w, back ? Key.Left : Key.Right, Mac ? Cmd | RawInputModifiers.Control : RawInputModifiers.Alt);
+
     /// <summary>Ctrl+Y, Command+Shift+Z on macOS.</summary>
     public static void Redo(Window w) => Press(w, Mac ? Key.Z : Key.Y, Mac ? Cmd | RawInputModifiers.Shift : RawInputModifiers.Control);
 
