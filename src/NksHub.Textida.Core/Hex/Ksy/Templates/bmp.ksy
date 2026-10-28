@@ -30,6 +30,9 @@ types:
       - id: compression
         type: u4
         enum: compression
+    instances:
+      row_size:
+        value: (bits_per_pixel * width + 31) / 32 * 4
 enums:
   compression:
     0: none

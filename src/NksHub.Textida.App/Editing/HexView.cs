@@ -89,6 +89,12 @@ internal sealed partial class HexView : Grid
     public HexInspectorPanel Inspector { get; }
     /// <summary>The tree of fields a structure template finds in the file.</summary>
     internal HexTemplatePanel Structure { get; }
+
+    /// <summary>What the structure panels of the app share: the templates opened from files and the template per file type. The window sets the app's one; a view made alone has its own.</summary>
+    internal HexTemplateHost TemplateHost { get; set; } = new();
+
+    /// <summary>Asks the user for a template file and returns its path, or null when cancelled; set by the window.</summary>
+    internal Func<Task<string?>>? PickTemplateFile { get; set; }
     /// <summary>The map of the whole file beside the scroll bar.</summary>
     internal HexMinimap Minimap { get; }
 

@@ -24,11 +24,12 @@ internal interface IKsyExprHost
 }
 
 /// <summary>
-/// The Kaitai Struct expression subset (P8.10.4), parsed once and computed on demand without running any code. Values are integers (64-bit, checked), booleans and strings.
+/// The Kaitai Struct expression subset (P8.10.4), parsed once and computed on demand without running any code. Values are integers (64-bit, checked), floats (double, never NaN or infinite),
+/// booleans and strings. An operation on an integer and a float is done in floats; <c>%</c>, the bit operators and the shifts take integers only; a float is never a <c>size</c> or a count, so <c>.to_i</c> is needed.
 /// Operators by falling precedence: unary <c>-</c> <c>not</c> <c>~</c>; <c>* / %</c>; <c>+ -</c> (also string concatenation); <c>&lt;&lt; &gt;&gt;</c>; <c>&lt; &lt;= &gt; &gt;=</c>; <c>== !=</c>;
-/// <c>&amp;</c>; <c>^</c>; <c>|</c>; <c>and</c>; <c>or</c>; <c>?:</c>. Operands: decimal, <c>0x</c> and <c>0b</c> integers, quoted strings, <c>true</c>, <c>false</c>, field and instance names,
-/// <c>_parent</c>, <c>_root</c>, <c>_index</c>, <c>_</c>, <c>_io.pos</c>, <c>_io.size</c>, <c>_io.eof</c>, <c>enum::member</c>, <c>a.b</c>, <c>list[i]</c>, <c>.as&lt;type&gt;</c> (no conversion),
-/// <c>.to_i</c> and <c>.length</c> of a string, <c>.size</c>, <c>.first</c> and <c>.last</c> of a list. Floats, array literals, other methods and calls are refused by name.
+/// <c>&amp;</c>; <c>^</c>; <c>|</c>; <c>and</c>; <c>or</c>; <c>?:</c>. Operands: decimal, <c>0x</c> and <c>0b</c> integers, decimal floats (<c>1.5</c>, <c>2.5e-3</c>), quoted strings, <c>true</c>, <c>false</c>, field and instance names,
+/// <c>_parent</c>, <c>_root</c>, <c>_index</c>, <c>_</c>, <c>_io.pos</c>, <c>_io.size</c>, <c>_io.eof</c>, <c>enum::member</c> and <c>type::enum::member</c>, <c>a.b</c>, <c>list[i]</c>, <c>.as&lt;type&gt;</c> (no conversion),
+/// <c>.to_i</c> of a string, a float or a boolean, <c>.length</c> of a string, <c>.size</c>, <c>.first</c> and <c>.last</c> of a list. Array literals, other methods and calls are refused by name.
 /// </summary>
 public sealed class KsyExpr
 {
@@ -37,7 +38,7 @@ public sealed class KsyExpr
 
     private readonly Node _root;
 
-    private KsyExpr(string source, Node root, List<string> names, List<(string, string)> enums, List<string> casts, bool usesContext)
+    private KsyExpr(string source, Node root, List<string> names, List<(string, string)> enums, List<string> casts, bool usesContext, bool usesFloat)
     {
         Source = source;
         _root = root;
@@ -45,15 +46,19 @@ public sealed class KsyExpr
         EnumRefs = enums;
         Casts = casts;
         UsesContext = usesContext;
+        UsesFloat = usesFloat;
     }
 
     public string Source { get; }
     /// <summary>The first name of each reference to a field or an instance; the parser checks them against the type.</summary>
     public IReadOnlyList<string> Names { get; }
+    /// <summary>The enum of each <c>enum::member</c> or <c>type::enum::member</c> as written (<c>type::enum</c> for the long form), and its member.</summary>
     public IReadOnlyList<(string Enum, string Member)> EnumRefs { get; }
     public IReadOnlyList<string> Casts { get; }
     /// <summary>True when the value depends on the data (any name, <c>_parent</c>, <c>_io</c>, ...); false for a constant.</summary>
     public bool UsesContext { get; }
+    /// <summary>True when the text has a float literal.</summary>
+    public bool UsesFloat { get; }
 
     public static bool TryParse(string text, out KsyExpr? expr, out KsyExprError? error)
     {
@@ -64,7 +69,7 @@ public sealed class KsyExpr
         {
             var parser = new Parser(Lex(text), limits.MaxExprDepth);
             var root = parser.Parse();
-            expr = new KsyExpr(text, root, parser.Names, parser.Enums, parser.Casts, parser.UsesContext);
+            expr = new KsyExpr(text, root, parser.Names, parser.Enums, parser.Casts, parser.UsesContext, parser.UsesFloat);
             error = null;
             return true;
         }
@@ -73,6 +78,31 @@ public sealed class KsyExpr
             error = new KsyExprError(f.Unsupported, f.Reason);
             return false;
         }
+    }
+
+    /// <summary>The integer this expression is when it does not depend on the data (<c>4</c>, <c>2 * 8</c>); false for anything else. The template tells the size of a field from it.</summary>
+    public bool TryConstant(out long value)
+    {
+        value = 0;
+        if (UsesContext) return false;
+        try
+        {
+            if (Eval(new ConstantHost()) is not long n) return false;
+            value = n;
+            return true;
+        }
+        catch (Exception e) when (e is KsyExprException or ArithmeticException)
+        {
+            return false;
+        }
+    }
+
+    private sealed class ConstantHost : IKsyExprHost
+    {
+        public void Tick() { }
+        public object? Name(string name) => throw Bad();
+        public long EnumValue(string enumName, string member) => throw Bad();
+        public object? Member(object? target, string name) => throw Bad();
     }
 
     internal object? Eval(IKsyExprHost host)
@@ -90,8 +120,8 @@ public sealed class KsyExpr
         public string Reason { get; } = reason;
     }
 
-    /// <summary>Kind: n number, s string, i identifier or word, o operator, e end.</summary>
-    private readonly record struct Tok(char Kind, string Text, long Number = 0);
+    /// <summary>Kind: n integer, f float, s string, i identifier or word, o operator, e end.</summary>
+    private readonly record struct Tok(char Kind, string Text, long Number = 0, double Real = 0);
 
     private static List<Tok> Lex(string s)
     {
@@ -117,7 +147,24 @@ public sealed class KsyExpr
                 else
                 {
                     while (j < s.Length && char.IsAsciiDigit(s[j])) j++;
-                    if (j < s.Length && s[j] == '.' && j + 1 < s.Length && char.IsAsciiDigit(s[j + 1])) throw new ParseFail(true, "float literal");
+                    if (j < s.Length && s[j] == '.' && j + 1 < s.Length && char.IsAsciiDigit(s[j + 1]))
+                    {
+                        j++;
+                        while (j < s.Length && char.IsAsciiDigit(s[j])) j++;
+                        if (j < s.Length && s[j] is 'e' or 'E')
+                        {
+                            int k = j + 1;
+                            if (k < s.Length && s[k] is '+' or '-') k++;
+                            if (k >= s.Length || !char.IsAsciiDigit(s[k])) throw new ParseFail(false, "bad number");
+                            while (k < s.Length && char.IsAsciiDigit(s[k])) k++;
+                            j = k;
+                        }
+                        if (j < s.Length && (char.IsAsciiLetter(s[j]) || s[j] == '_')) throw new ParseFail(false, "bad number");
+                        if (!double.TryParse(s.AsSpan(i, j - i), NumberStyles.Float, CultureInfo.InvariantCulture, out double real) || !double.IsFinite(real)) throw new ParseFail(false, "number too large");
+                        toks.Add(new Tok('f', s[i..j], Real: real));
+                        i = j;
+                        continue;
+                    }
                     if (!long.TryParse(s.AsSpan(i, j - i), NumberStyles.None, CultureInfo.InvariantCulture, out value)) throw new ParseFail(false, "number too large");
                 }
                 if (j < s.Length && (char.IsAsciiLetter(s[j]) || s[j] == '_')) throw new ParseFail(false, "bad number");
@@ -181,6 +228,7 @@ public sealed class KsyExpr
         public List<(string, string)> Enums { get; } = [];
         public List<string> Casts { get; } = [];
         public bool UsesContext { get; private set; }
+        public bool UsesFloat { get; private set; }
 
         private Tok Cur => toks[_p];
 
@@ -290,6 +338,7 @@ public sealed class KsyExpr
             switch (t.Kind)
             {
                 case 'n': _p++; return new Lit(t.Number);
+                case 'f': _p++; UsesFloat = true; return new Lit(t.Real);
                 case 's': _p++; return new Lit(t.Text);
                 case 'i':
                     if (t.Text is "and" or "or" or "not") throw new ParseFail(false, $"unexpected '{t.Text}'");
@@ -299,8 +348,15 @@ public sealed class KsyExpr
                     {
                         _p++;
                         string member = Ident();
-                        Enums.Add((t.Text, member));
-                        return new EnumRef(t.Text, member);
+                        string enumName = t.Text;
+                        if (Is("::"))
+                        {
+                            _p++;
+                            enumName += "::" + member;
+                            member = Ident();
+                        }
+                        Enums.Add((enumName, member));
+                        return new EnumRef(enumName, member);
                     }
                     UsesContext = true;
                     if (!Specials.Contains(t.Text)) Names.Add(t.Text);
@@ -325,6 +381,12 @@ public sealed class KsyExpr
 
     private static long Int(object? v) => v is long n ? n : throw Bad();
 
+    private static double Real(object? v) => v switch { long n => n, double d => d, _ => throw Bad() };
+
+    private static double Finite(double d) => double.IsFinite(d) ? d : throw Bad();
+
+    private static bool Numeric(object? v) => v is long or double;
+
     private static bool Bool(object? v) => v is bool b ? b : throw Bad();
 
     private static bool Same(object? a, object? b) => (a, b) switch
@@ -332,6 +394,7 @@ public sealed class KsyExpr
         (long x, long y) => x == y,
         (bool x, bool y) => x == y,
         (string x, string y) => x == y,
+        _ when Numeric(a) && Numeric(b) => Real(a) == Real(b),
         _ => throw Bad(),
     };
 
@@ -339,6 +402,7 @@ public sealed class KsyExpr
     {
         (long x, long y) => x.CompareTo(y),
         (string x, string y) => string.CompareOrdinal(x, y),
+        _ when Numeric(a) && Numeric(b) => Real(a).CompareTo(Real(b)),
         _ => throw Bad(),
     };
 
@@ -371,10 +435,11 @@ public sealed class KsyExpr
                 case (string s, "length"): return (long)s.Length;
                 case (string s, "to_i"): return long.TryParse(s, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long v) ? v : throw Bad();
                 case (long n, "to_i"): return n;
+                case (double d, "to_i"): return d is > -9.2233720368547758E18 and < 9.2233720368547758E18 ? (long)d : throw Bad();
                 case (bool b, "to_i"): return b ? 1L : 0L;
-                case (List<object?> l, "size" or "length"): return (long)l.Count;
-                case (List<object?> l, "first"): return l.Count > 0 ? l[0] : throw Bad();
-                case (List<object?> l, "last"): return l.Count > 0 ? l[^1] : throw Bad();
+                case (IReadOnlyList<object?> l, "size" or "length"): return (long)l.Count;
+                case (IReadOnlyList<object?> l, "first"): return l.Count > 0 ? l[0] : throw Bad();
+                case (IReadOnlyList<object?> l, "last"): return l.Count > 0 ? l[^1] : throw Bad();
                 default: return host.Member(t, name);
             }
         }
@@ -384,7 +449,7 @@ public sealed class KsyExpr
     {
         protected override object? Do(IKsyExprHost host)
         {
-            if (target.Eval(host) is not List<object?> list) throw Bad();
+            if (target.Eval(host) is not IReadOnlyList<object?> list) throw Bad();
             long i = Int(index.Eval(host));
             return i >= 0 && i < list.Count ? list[(int)i] : throw Bad();
         }
@@ -395,7 +460,7 @@ public sealed class KsyExpr
         protected override object? Do(IKsyExprHost host)
         {
             var v = x.Eval(host);
-            return op switch { "-" => checked(-Int(v)), "~" => (object)~Int(v), _ => !Bool(v) };
+            return op switch { "-" => v is double d ? (object)-d : checked(-Int(v)), "~" => (object)~Int(v), _ => !Bool(v) };
         }
     }
 
@@ -420,7 +485,13 @@ public sealed class KsyExpr
                 case "<=": return Compare(a, b) <= 0;
                 case ">": return Compare(a, b) > 0;
                 case ">=": return Compare(a, b) >= 0;
-                case "+": return a is string sa && b is string sb ? sa + sb : checked(Int(a) + Int(b));
+                case "+" when a is string sa && b is string sb: return sa + sb;
+                case "+" or "-" or "*" or "/" when a is double || b is double:
+                {
+                    double x = Real(a), y = Real(b);
+                    return Finite(op switch { "+" => x + y, "-" => x - y, "*" => x * y, _ => y == 0 ? throw Bad() : x / y });
+                }
+                case "+": return checked(Int(a) + Int(b));
                 case "-": return checked(Int(a) - Int(b));
                 case "*": return checked(Int(a) * Int(b));
                 case "/": return checked(Int(a) / Int(b));
