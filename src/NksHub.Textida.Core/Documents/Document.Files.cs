@@ -51,10 +51,13 @@ public sealed partial class Document
     /// Compares the file with the recorded fingerprint, content included, so a change with the same size and time is found.
     /// A conflict raises <see cref="ExternalChangeDetected"/> once per distinct state of the file.
     /// </summary>
-    public ExternalChange? CheckExternalChange()
+    public ExternalChange? CheckExternalChange() => CheckExternalChangeCore(CancellationToken.None);
+
+    /// <summary>The check of <see cref="CheckExternalChange"/>; the pass over a large file stops with <see cref="OperationCanceledException"/> when <paramref name="ct"/> is cancelled.</summary>
+    private ExternalChange? CheckExternalChangeCore(CancellationToken ct)
     {
         if (FilePath is not { } path || Fingerprint is not { } expected) return null;
-        var actual = expected.HasHash ? FileFingerprint.TryRead(path) : FileFingerprint.TryReadQuick(path);
+        var actual = !expected.HasHash ? FileFingerprint.TryReadQuick(path) : ct.CanBeCanceled ? FileFingerprint.TryReadCancellable(path, ct) : FileFingerprint.TryRead(path);
         ExternalChange? change = null;
         if (actual is null) change = new(Id, _revision, path, expected, null, ExternalChangeKind.Missing);
         else if (!actual.SameContent(expected) || (!expected.HasHash && actual.LastWriteUtc != expected.LastWriteUtc)) change = new(Id, _revision, path, expected, actual, ExternalChangeKind.Modified);

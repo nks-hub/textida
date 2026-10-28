@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
@@ -369,5 +370,212 @@ public sealed class PagedStreamingSaveTests : IDisposable
         Assert.NotNull(doc.Undo());
         Assert.False(doc.IsModified);
         Assert.Equal(snapshot.Sha256(), HashOf(doc));
+    }
+
+    private sealed class Sink(Action<SaveProgress> report) : IProgress<SaveProgress>
+    {
+        public void Report(SaveProgress value) => report(value);
+    }
+
+    [Fact]
+    public async Task A_streaming_save_reports_its_progress_in_order_up_to_the_size_of_the_saved_revision()
+    {
+        const long size = 4 << 20;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 1000, 10, 11, 1 << 20);
+        long saved = model.Length;
+        var reports = new List<SaveProgress>();
+        doc.ProgressIntervalMs = 0; // a report after every MiB
+        var task = doc.SaveAsync(progress: new Sink(p => { lock (reports) reports.Add(p); }));
+        Edit(doc, model, 0, 0, 12, 3 << 20); // the document grows meanwhile; the report still counts the revision that is saved
+        Assert.True((await task).Saved);
+
+        Assert.True(reports.Count >= 4, $"{reports.Count} reports for {saved} bytes");
+        Assert.All(reports, r => Assert.Equal(saved, r.Total));
+        Assert.Equal(reports.Select(r => r.Written).Order(), reports.Select(r => r.Written));
+        Assert.True(reports[0].Written > 0);
+        Assert.Equal(saved, reports[^1].Written);
+    }
+
+    [Fact]
+    public async Task Cancelling_from_a_progress_report_stops_the_write_and_leaves_the_original_and_the_edits()
+    {
+        const long size = 4 << 20;
+        string path = NewFile(size);
+        string original = HashFile(path);
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 1000, 10, 11, 1 << 20);
+        using var cancel = new CancellationTokenSource();
+        doc.ProgressIntervalMs = 0;
+        var task = doc.SaveAsync(cancellationToken: cancel.Token, progress: new Sink(p => { if (p.Written > 0) cancel.Cancel(); }));
+        Edit(doc, model, 5000, 0, 13, 100);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+
+        Assert.Equal(original, HashFile(path));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+        Assert.Equal(model.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+        Assert.False(doc.IsSaving);
+
+        Assert.True((await doc.SaveAsync()).Saved); // the next save is not affected
+        Assert.Equal(model.Sha256(), HashFile(path));
+    }
+
+    [Fact]
+    public async Task Disposing_the_document_during_a_streaming_save_stops_the_save_and_leaves_the_file_whole()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        string original = HashFile(path);
+        var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 100, 0, 21, 1 << 20);
+
+        using var writing = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step != "temp-writing") return; // on the worker, before the first byte
+            writing.Set();
+            release.Wait(20_000);
+        };
+        var task = doc.SaveAsync();
+        Assert.True(writing.Wait(20_000));
+        doc.Dispose();
+        release.Set();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        Assert.Equal(original, HashFile(path));
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+    }
+
+    [Fact]
+    public async Task A_streaming_save_to_another_path_writes_the_snapshot_there_and_leaves_the_old_file_and_the_edits()
+    {
+        const long size = 3 << 20;
+        string path = NewFile(size);
+        string original = HashFile(path);
+        string copy = Path.Combine(_dir, "copy.txt");
+        using var doc = Doc.Open(path, Factory());
+        var model = new LargeModel(size);
+        Edit(doc, model, 100, 0, 31, 1 << 20);
+        var snapshot = model.Clone();
+
+        var gate = new ManualResetEventSlim();
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "temp-written") gate.Wait();
+        };
+        var task = doc.SaveAsync(copy);
+        Edit(doc, model, 9000, 4, 32, 64);
+        gate.Set();
+
+        Assert.True((await task).Saved);
+        Assert.Equal(snapshot.Sha256(), HashFile(copy));
+        Assert.Equal(original, HashFile(path));
+        Assert.Equal(Path.GetFullPath(copy), doc.FilePath);
+        Assert.Equal(model.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+        Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+    }
+
+    [Fact]
+    [Trait("Category", "Large")]
+    public Task Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => SaveWhileEditingAsync(3L << 30);
+
+    /// <summary>The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file.</summary>
+    [Fact]
+    [Trait("Category", "Large")]
+    public Task A_50_GiB_file_is_edited_and_saved_while_editing_continues_and_the_file_equals_the_independent_snapshot() => SaveWhileEditingAsync(50L << 30);
+
+    private async Task SaveWhileEditingAsync(long size)
+    {
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
+        var model = new LargeModel(size);
+        Edit(doc, model, size / 3, 0, 41, 80 << 20); // spilled to the scratch file, not held
+        Edit(doc, model, size / 2, 1 << 20, 42, 10);
+        var snapshot = model.Clone();
+
+        GC.Collect();
+        long before = Process.GetCurrentProcess().PrivateMemorySize64, peak = before;
+        using var stop = new CancellationTokenSource();
+        var watcher = Task.Run(() =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                peak = Math.Max(peak, Process.GetCurrentProcess().PrivateMemorySize64);
+                Thread.Sleep(50);
+            }
+        });
+        var task = doc.SaveAsync();
+        for (int i = 0; !task.IsCompleted; i++)
+        {
+            if (i < 300) Edit(doc, model, 4096L * i, 0, 100 + i, 64); // typing and pasting while the file streams; few enough that the model stays small
+            await Task.Delay(20);
+        }
+        Assert.True((await task).Saved);
+        stop.Cancel();
+        await watcher;
+
+        long grown = peak - before;
+        Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
+        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        Assert.Equal(model.Sha256(), HashOf(doc));
+        Assert.True(doc.IsModified);
+    }
+
+    [Fact]
+    [Trait("Category", "Large")]
+    [Trait("Category", "Perf")]
+    public async Task Edits_and_the_end_of_a_multi_GiB_streaming_save_do_not_hold_the_caller_longer_than_the_limits()
+    {
+        const long size = 3L << 30;
+        string path = NewFile(size);
+        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
+        var model = new LargeModel(size);
+        Edit(doc, model, size / 2, 0, 41, 1 << 20);
+        var snapshot = model.Clone();
+
+        long swapAt = 0, doneAt = 0;
+        doc.StreamSaveStep = (step, _) =>
+        {
+            if (step == "before-swap") swapAt = Stopwatch.GetTimestamp();
+            if (step == "saved") doneAt = Stopwatch.GetTimestamp();
+        };
+        long started = Stopwatch.GetTimestamp();
+        var task = doc.SaveAsync();
+        double callMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds; // what the caller's thread does before the first wait
+        var times = new List<double>();
+        var bytes = new byte[1];
+        for (int i = 0; !task.IsCompleted; i++)
+        {
+            if (i < 1500)
+            {
+                long at = 64L * (i * 7919L % (size / 64));
+                LargeText.Fill(100 + i, 0, bytes);
+                long t0 = Stopwatch.GetTimestamp();
+                Assert.True(doc.Replace(new ByteRange(at, at), bytes).Applied);
+                times.Add(Stopwatch.GetElapsedTime(t0).TotalMilliseconds);
+                model.Replace(at, 0, 100 + i, 1);
+            }
+            await Task.Delay(5);
+        }
+        Assert.True((await task).Saved);
+
+        times.Sort();
+        double p99 = times[(int)(times.Count * 0.99)];
+        double stall = Stopwatch.GetElapsedTime(swapAt, doneAt).TotalMilliseconds;
+        Assert.True(times.Count >= 100, $"only {times.Count} edits fitted in the save");
+        Assert.True(callMs <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"starting the save held the caller for {callMs:0.0} ms");
+        Assert.True(p99 <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"edit p99 {p99:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
+        Assert.True(stall <= PagedSpillPlaceholders.SaveCommitStallMs, $"the end of the save held the caller for {stall:0} ms");
+        Assert.Equal(snapshot.Sha256(), HashFile(path));
+        Assert.Equal(model.Sha256(), HashOf(doc));
     }
 }

@@ -204,6 +204,7 @@ public sealed partial class Document : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _saveCancel?.Cancel(); // a running save stops before it commits; the file stays as it was
         StopWatching();
         _hashCancel?.Cancel();
         _backend.EditedByBackend -= OnBackendEdit;
