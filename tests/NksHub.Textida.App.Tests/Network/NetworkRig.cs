@@ -22,13 +22,14 @@ internal sealed class NetworkRig : IDisposable
     public MemoryCredentials Secrets { get; } = new();
 
     /// <summary>The harness is built first: the environment of the plugin processes is fixed when the first one starts.</summary>
-    public NetworkRig()
+    /// <param name="proxy">False leaves the policy without a proxy, as it is until the user sets one.</param>
+    public NetworkRig(bool proxy = true)
     {
         Net = new NetworkHarness();
         App = TestApp.Prepare(Temp, Dialogs);
         App.Credentials = Secrets;
         App.Remote = new RemoteServices(App.ProfileDirectory, Secrets);
-        NetworkPolicy.Save(App.Remote.NetworkPolicyPath, Net.Sinkhole.Settings, null, Secrets);
+        if (proxy) NetworkPolicy.Save(App.Remote.NetworkPolicyPath, Net.Sinkhole.Settings, null, Secrets);
         Window = App.CreateWindow(null);
     }
 
