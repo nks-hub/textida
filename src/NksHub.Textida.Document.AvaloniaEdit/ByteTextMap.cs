@@ -256,7 +256,11 @@ internal sealed class ByteTextMap
         return i + 1;
     }
 
-    private const int MaxJoinedRunBytes = 1024;
+    /// <summary>
+    /// A run that grows by one keystroke is copied with every keystroke; typing at a thousand carets copied up to a thousand bytes and twice as many chars for each of them,
+    /// which made every collection of the heap slower the longer one typed. A run is never longer than this; the next keystroke starts a new one.
+    /// </summary>
+    private const int MaxJoinedRunBytes = 128;
 
     /// <summary>Typed runs join typed runs and byte runs join byte runs; a lone high surrogate at the join could pair with the next char.</summary>
     private static bool CanJoin(Run previous, string? text) =>
