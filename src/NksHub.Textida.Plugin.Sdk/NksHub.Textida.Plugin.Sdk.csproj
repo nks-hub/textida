@@ -34,6 +34,8 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="build\NksHub.Textida.Plugin.Sdk.props" Pack="true" PackagePath="build\" />
+    <!-- made by the schema option of textida-plugin-validate from the types the editor reads the manifest into; a test keeps the file and the types equal -->
+    <None Include="schemas\nkspad-plugin.schema.json" Pack="true" PackagePath="schemas\" />
   </ItemGroup>
 
   <Target Name="BundleConnectionLayer">

@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugin.Sdk\NksHub.Textida.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.Plugin.TestHost\NksHub.Textida.Plugin.TestHost.csproj" />
     <ProjectReference Include="..\..\src\NksHub.Textida.PluginHost\NksHub.Textida.PluginHost.csproj" />
+    <ProjectReference Include="..\..\tools\NksHub.Textida.Plugin.Validate\NksHub.Textida.Plugin.Validate.csproj" />
     <ProjectReference Include="..\..\samples\csharp-hello\NksHub.Textida.Samples.CsHello.csproj" />
   </ItemGroup>
 

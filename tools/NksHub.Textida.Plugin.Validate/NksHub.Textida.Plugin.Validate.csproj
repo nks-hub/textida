@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NksHub.Textida.Plugin.Validate</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>textida-plugin-validate</ToolCommandName>
+    <PackageId>NksHub.Textida.Plugin.Validate</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>NKS Hub</Authors>
+    <Description>Checks a plugin folder of the Textida editor: the manifest, the range of the plugin API, the permissions declared and used, the size of the folder, whether the plugin is a NativeAOT program free of reflection, and the handshake of the running plugin.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>textida;plugin;validator</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\NksHub.Textida.Plugin.TestHost\NksHub.Textida.Plugin.TestHost.csproj" />
+    <ProjectReference Include="..\..\src\NksHub.Textida.PluginSdk.Analyzers\NksHub.Textida.PluginSdk.Analyzers.csproj" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- the limits of a plugin folder are read from the one file that holds them for the editor -->
+    <Compile Include="..\..\src\NksHub.Textida.App\Services\PluginLimitsPlaceholders.Plugins.cs" Link="PluginLimitsPlaceholders.Plugins.cs" />
+  </ItemGroup>
+
+</Project>

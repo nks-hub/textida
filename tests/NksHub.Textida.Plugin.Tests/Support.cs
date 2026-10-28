@@ -24,6 +24,19 @@ internal static class T
         }
     }
 
+    /// <summary>The full path of the dotnet host: a manifest names a program by its path, never by a bare name.</summary>
+    public static string DotnetFullPath
+    {
+        get
+        {
+            var host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+            if (host is not null && File.Exists(host)) return host;
+            var name = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+            return (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(directory => Path.Combine(directory, name)).FirstOrDefault(File.Exists) ?? throw new FileNotFoundException("The dotnet host was not found.");
+        }
+    }
+
     public static string RepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)

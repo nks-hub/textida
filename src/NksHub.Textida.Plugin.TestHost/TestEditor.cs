@@ -167,10 +167,11 @@ public sealed class TestEditor : IAsyncDisposable
     /// <param name="executable">Full path of the program (a bare name is not accepted, as in a manifest).</param>
     /// <param name="arguments">Arguments of the program.</param>
     /// <param name="options">Grants and options; <see cref="TestEditorOptions.PluginId"/> names the plugin.</param>
-    public static async Task<TestEditor> StartProcessAsync(string executable, IEnumerable<string>? arguments = null, TestEditorOptions? options = null)
+    /// <param name="workingDirectory">The folder the program starts in; the folder of the program when absent.</param>
+    public static async Task<TestEditor> StartProcessAsync(string executable, IEnumerable<string>? arguments = null, TestEditorOptions? options = null, string? workingDirectory = null)
     {
         var editor = new TestEditor(options ?? new TestEditorOptions());
-        var spec = new PluginSpec(editor.PluginId, editor.PluginId, executable, [.. arguments ?? []], ["onStartup"], Path.IsPathRooted(executable) ? Path.GetDirectoryName(executable) : null);
+        var spec = new PluginSpec(editor.PluginId, editor.PluginId, executable, [.. arguments ?? []], ["onStartup"], workingDirectory ?? (Path.IsPathRooted(executable) ? Path.GetDirectoryName(executable) : null));
         var hostOptions = new PluginHostOptions
         {
             Limits = ConnectionLimits,
