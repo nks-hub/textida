@@ -49,6 +49,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
   - **Hotovo, když:** publikovaná aplikace na všech třech RID otevře soubor, změní ho, uloží, znovu otevře a bajty se shodují s očekávanými, a to na stroji **bez nainstalovaného .NET**; záznam uvádí verze z kroků, výsledek kontroly `minos` a importů a hash artefaktu. Nedostupný běh na kterémkoli RID blokuje distribuční bránu P3.7.5 a P10.1.4, nepočítá se jako splněný.
   - **Závisí na:** PR.1.1, P1.1.2, P1.1.8
   - **Odhad:** bez odhadu; účtuje se v P1 (P1.1.2) a v P3 (P3.7)
+  - **Stav 29. 10. 2026:** částečně. Na tag `v*` (a ručně) sestaví `.github/workflows/release.yml` publikaci NativeAOT pro win-x64, osx-arm64, osx-x64 a linux-x64, spustí AOT kontrolu (start všech pluginů, u macOS i `minos` a podpis) a kouřový test `--smoke` v publikovaném programu na každé platformě, osx-x64 pod Rosettou. Zkušební běhy prošly na všech čtyřech. Kouřový test našel, že se osnova Markdownu ve výchozím čtení nenačte (P9.3.4). Testovací sady v CI neběží (rozhodnutí majitele); nejstarší systémy R10 a nativní Intel chybí.
 - [ ] **PR.1.3** Kompatibilitní matice R10 po buildech vydání
   - **Co a proč:** R10 slibuje plnou podporu a testy na Windows 10 22H2, Windows 11 22H2 a novějších a macOS 14 a novějších. Je to závazek projektu, ne záruka Microsoftu ani Avalonie. Přibalený runtime nemění systémové knihovny OS, proto se dokládá každý systém zvlášť. Tři RID nejsou tři testovací systémy.
   - **Funkce:** žádná (infrastruktura)
@@ -1456,6 +1457,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Stav 27. 10. 2026:** částečně (Windows): jeden ZIP z AOT publikace je přenosný i instalátor pro jednoho uživatele bez práv správce (`Install.cmd` → `Setup.ps1`: `%LOCALAPPDATA%\Programs\Textida`, zástupce, položka v Aplikace a funkce; texty cs/en/sk/de; `-Uninstall` nechá nastavení), sestavení `dotnet run tools/BuildWindowsPackage.cs -- --version V`, `AotCheck --package` ověří obsah. Příkazy v Nástrojích: „Otevřít v Textidě“ v Průzkumníku, volitelné asociace (nic zapnuto předem), odebrat vše; jen `HKCU\Software\Classes`; odinstalátor volá `--unregister-shell`. Testy: registr v testovacím klíči (uvozovky kolem `%1`, odebrání přesně zapsaného), instalátor nad falešným balíkem (instalace, jazyk, aktualizace, chyba, odinstalace). Neověřeno: čistý Windows 10/11, otevření v běžící instanci, skutečný zápis do registru, Windows 11 menu; macOS chybí; konečné jméno (P3.7.6) otevřené, identifikátory v `ShellIntegration.ProductName`; podpis balíku (PR.3.1).
   - **Závisí na:** PR.1.2, PR.3.1, P1.1.4, P1.1.7, P3.7.6
   - **Odhad:** bez odhadu
+  - **Stav 29. 10. 2026:** vydání `v0.1.0` (předběžné) na GitHubu: TextidaSetup.exe a ZIP pro Windows, DMG a ZIP pro macOS (arm64 a x64, podpis jen ad-hoc, bez notarizace), `.deb` a `.tar.gz` pro Linux, `SHA256SUMS.txt`. `.deb` je i v apt repozitáři NKS Hub (`https://repo.nks-hub.cz/textida/`, suite `stable`), který skript `75-textida.sh` na serveru repozitáře plní z releasů dvakrát za hodinu. Instalace z apt repozitáře podle README, kouřový test a odinstalace ověřené v čistém Debianu 12 a 13 a Ubuntu 22.04 a 24.04. Neověřeno: instalace na čistém Windows 10/11 a macOS 14 a 15 z releasu.
 - [ ] **P3.7.2** Aktualizace a návrat verze
   - **Co a proč:** Kontrola aktualizací a bezpečný návrat na předchozí verzi. Původní telemetrie PSPadu se nepřebírá a editor žádnou telemetrii nemá (PR.6.4). Aktualizace chrání program i neuložená data i při chybě. P9.6.1 tentýž aktualizátor rozšíří o pluginy; nový nevznikne.
   - **Funkce:** F001
@@ -1492,6 +1494,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Hotovo, když:** majitel potvrdil Textidu jako konečné jméno (R2) po rešerši známek a rozhodl o vlastní přihlášce a v repozitáři je zapsané: jméno, bundle ID pro macOS, identifikátory instalátoru a aktualizací pro Windows, jméno balíku SDK a prefix ID příkazů, pokud se mění; dokud rozhodnutí chybí, platí pracovní název a žádný veřejný balík nevznikne.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu (rozhodnutí majitele)
+  - **Stav 29. 10. 2026:** majitel rozhodl vydat předběžnou verzi 0.1.0 pod pracovním názvem Textida; bundle ID `cz.nks-hub.textida` a název balíku `textida` zůstávají pracovní.
 - [ ] **P3.7.7** Instalátor s volbami (TextidaSetup.exe)
   - **Co a proč:** Dnes je instalátor jen skript PowerShellu bez voleb. Jeden soubor TextidaSetup.exe (NativeAOT, vzhled D5, 4 jazyky, pro jednoho uživatele bez práv správce) s licencí, volbami (složka, zástupci v nabídce Start a na ploše, kontextová nabídka Průzkumníka, přidružení přípon, spuštění po instalaci), průběhem a dokončením; aktualizace s návratem, odinstalace ze seznamu aplikací Windows (nastavení uživatele zůstane, pokud je nezaškrtne ke smazání) a tichý režim pro skripty. ZIP zůstává jako přenosná verze.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -3123,6 +3126,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 097b429a): `.md` se otevře ve Čtení, Úpravy (editor se stránkou vedle, společný posun) a Zdroj lištou, příkazy i Ctrl+K Ctrl+V, režim pro soubor v okně, nastavení `markdown.defaultMode`, velký soubor jako Zdroj s hláškou; opravena posunutá synchronizace posunu náhledu; testy prošly. Zbývá pohled v běžící aplikaci.
+  - **Chyba nalezená 29. 10. 2026:** v režimu čtení (výchozí pro `.md`) nefunguje osnova ani skok na nadpis přes `@`. Karta čtení nemá textovou plochu a `PluginServices.IndexOutlineAsync` pro ni vrátí false. Na to narazil kouřový test balíku v CI, ten teď čte osnovu ve zdrojovém režimu. Oprava: osnova má číst text dokumentu i bez plochy a skok má posunout stránku náhledu.
 
 ### P9.4 Logy
 
@@ -3462,6 +3466,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** každý bod dostane F-ID nebo rozhodnutí majitele, že se nedělá.
   - **Závisí na:** verze 1.0
   - **Odhad:** LSP text 1 ČT, JSON → typ 1–2 ČT; jinak bez odhadu
+  - **Stav 29. 10. 2026:** Linux: na žádost majitele vzniklo předběžné sestavení (`tools/BuildLinuxPackage.cs`, `.deb` a `.tar.gz` s `install.sh`) a apt repozitář; kouřový test prošel v CI (Ubuntu 22.04 s Xvfb) i v kontejnerech Debian 12, Ubuntu 22.04 a 24.04. Plná podpora Linuxu (desktopová prostředí, přístupnost, IME, integrace se systémem) zůstává mimo R10.
 
 ## Souhrn
 
