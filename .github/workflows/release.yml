@@ -1,0 +1,158 @@
+name: Release
+
+# Builds the packages for Windows, macOS and Linux on a v* tag and publishes them as a GitHub release.
+# A manual run builds the same packages as workflow artifacts without a release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-ci.${GITHUB_SHA::8}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - name: Build
+        shell: pwsh
+        run: |
+          # link.exe of NativeAOT finds the C++ tools through vswhere.exe
+          $env:PATH += ';C:\Program Files (x86)\Microsoft Visual Studio\Installer'
+          dotnet run tools/BuildWindowsPackage.cs -- --version $env:VERSION --rid win-x64 --output artifacts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          Expand-Archive "artifacts/Textida-$env:VERSION-win-x64.zip" smoke
+          $env:TEXTIDA_PROFILE = Join-Path $env:RUNNER_TEMP 'textida-profile'
+          $p = Start-Process smoke/Textida.exe -ArgumentList '--smoke' -Wait -PassThru -NoNewWindow -RedirectStandardOutput smoke.out -RedirectStandardError smoke.err
+          Get-Content smoke.out, smoke.err
+          if ($p.ExitCode -ne 0) { throw "smoke test failed with $($p.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            artifacts/*.zip
+            artifacts/*.exe
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-ci.${GITHUB_SHA::8}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - name: Rosetta
+        if: matrix.rid == 'osx-x64'
+        # the AOT check and the smoke test start the Intel programs on an Apple silicon runner
+        run: /usr/sbin/softwareupdate --install-rosetta --agree-to-license || true
+      - name: Build
+        run: dotnet run tools/BuildMacPackage.cs -- --version "$VERSION" --rid ${{ matrix.rid }} --output artifacts
+      - name: Smoke test
+        run: |
+          ditto -x -k "artifacts/Textida-$VERSION-${{ matrix.rid }}.zip" smoke
+          TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" smoke/Textida.app/Contents/MacOS/Textida --smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.rid }}
+          path: |
+            artifacts/*.zip
+            artifacts/*.dmg
+          if-no-files-found: error
+
+  linux:
+    # the oldest supported runner, so the program needs no newer glibc than Ubuntu 22.04 has
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="0.0.0-ci.${GITHUB_SHA::8}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev xvfb xauth libice6 libsm6 libfontconfig1
+      - name: Build
+        run: dotnet run tools/BuildLinuxPackage.cs -- --version "$VERSION" --output artifacts
+      - name: Smoke test
+        run: |
+          mkdir smoke
+          tar -xzf "artifacts/Textida-$VERSION-linux-x64.tar.gz" -C smoke
+          TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-linux-x64/Textida" --smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            artifacts/*.tar.gz
+            artifacts/*.deb
+          if-no-files-found: error
+
+  release:
+    # Linux is a preview: its packages are published when they built and passed the smoke test, and a failure there does not hold back Windows and macOS
+    needs: [windows, macos, linux]
+    if: always() && github.ref_type == 'tag' && needs.windows.result == 'success' && needs.macos.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          {
+            echo "Textida $v. The files are not signed with a publisher certificate yet."
+            echo
+            echo "**Windows 10 22H2 / 11 (x64)**"
+            echo "- \`TextidaSetup-$v-win-x64.exe\` installs for the current user, no administrator rights needed. SmartScreen may warn about an unknown publisher: More info, then Run anyway."
+            echo "- \`Textida-$v-win-x64.zip\` is the portable version: unpack and start \`Textida.exe\`."
+            echo
+            echo "**macOS 14 or newer**"
+            echo "- \`Textida-$v-osx-arm64.dmg\` for Apple silicon, \`Textida-$v-osx-x64.dmg\` for Intel. Drag Textida to Applications."
+            echo "- The app is not notarized yet. On the first start, right-click it and choose Open, or allow it in System Settings, Privacy & Security."
+            if ls *.deb >/dev/null 2>&1; then
+              echo
+              echo "**Linux x64 (preview, not tested on real desktops yet)**"
+              echo "- \`textida_*_amd64.deb\` for Debian and Ubuntu: \`sudo apt install ./textida_*_amd64.deb\`."
+              echo "- \`Textida-$v-linux-x64.tar.gz\` for other distributions: unpack and run \`./install.sh\` (installs into ~/.local)."
+            fi
+            echo
+            echo "Checksums: \`SHA256SUMS.txt\`."
+          } > "$RUNNER_TEMP/notes.md"
+          pre=""
+          case "$v" in 0.*|*-*) pre="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Textida $v" --notes-file "$RUNNER_TEMP/notes.md" $pre *
