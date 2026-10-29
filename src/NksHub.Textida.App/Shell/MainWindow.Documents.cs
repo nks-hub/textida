@@ -193,7 +193,7 @@ internal sealed partial class MainWindow
         long t = Core.TypingTrace.Begin();
         RefreshHeaders();
         Core.TypingTrace.End("win.refreshHeaders", t);
-        if (Active?.Doc == od) { UpdateStatus(); t = Core.TypingTrace.Begin(); RefreshTitle(); Core.TypingTrace.End("win.refreshTitle", t); }
+        if (Active?.Doc == od) { UpdateStatus(); t = Core.TypingTrace.Begin(); RefreshTitle(); Core.TypingTrace.End("win.refreshTitle", t); CheckMenuPath(od); }
         t = Core.TypingTrace.Begin();
         od.EnsureWatching();
         if (od.Autosave is null) ConfigureAutosave(od);

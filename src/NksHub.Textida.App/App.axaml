@@ -438,8 +438,59 @@
             <Setter Property="Background" Value="{DynamicResource FgMuted}" />
             <Setter Property="Opacity" Value="0.7" />
         </Style>
+        <!-- the user toolbar: a row of flat buttons under the menu; the pointer and the keyboard focus show on a button the way they do in the tab strip -->
+        <Style Selector="Border.toolbar">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="8,3" />
+        </Style>
+        <Style Selector="Border.toolsep">
+            <Setter Property="Background" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="Button.toolbutton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="MinWidth" Value="30" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="Button.toolbutton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.toolbutton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
         <Style Selector="Border.settingrow">
             <Setter Property="Background" Value="{DynamicResource Bg1}" />
+        </Style>
+        <!-- the setting a link or the palette led to: the accent frames it, so it does not rely on the fill alone -->
+        <Style Selector="Border.settingrow.found">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Border.settingtree">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="TextBlock.settinggroup">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="TextBlock.settingsection">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.settingchanged">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
         </Style>
         <Style Selector="GridSplitter.groupsplitter">
             <Setter Property="Background" Value="{DynamicResource Border}" />

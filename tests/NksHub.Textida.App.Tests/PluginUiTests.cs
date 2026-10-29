@@ -1206,7 +1206,8 @@ public class PluginUiTests : IDisposable
     [AvaloniaFact]
     public async Task A_document_of_a_language_without_a_server_gets_the_notice_of_the_plugin_process()
     {
-        var tab = _w.OpenFile(_temp.File("plain.txt", "some text\n"), null);
+        // a settings file is no plain text (the language server commands are not offered for that), and no language server is set for it
+        var tab = _w.OpenFile(_temp.File("plain.ini", "key = value\n"), null);
         Dispatcher.UIThread.RunJobs();
         tab.Editor!.TextArea.Focus();
 

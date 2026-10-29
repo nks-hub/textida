@@ -97,7 +97,7 @@ public sealed class PluginManager
     private LoadedPlugin LoadVersion(string id, string version)
     {
         var folder = VersionFolder(id, version);
-        var result = PluginManifestLoader.Load(folder, _apiVersion, _maxGrammarBytes);
+        var result = PluginManifestLoader.Load(folder, _apiVersion, _maxGrammarBytes, _limits.MaxIconBytes);
         if (result.Plugin is not { } plugin) throw new PluginInstallException(PluginInstallError.InvalidManifest, $"Plugin '{id}' {version} cannot be loaded.", result.Errors);
         if (plugin.Manifest.Id != id || plugin.Manifest.Version != version)
             throw new PluginInstallException(PluginInstallError.InvalidManifest, $"The folder of '{id}' {version} holds another plugin or version.");
@@ -148,7 +148,7 @@ public sealed class PluginManager
             PluginZip.Extract(zipPath, staging, _limits);
             if (!File.Exists(Path.Combine(staging, PluginManifest.FileName)))
                 throw new PluginInstallException(PluginInstallError.NoManifest, $"The ZIP has no {PluginManifest.FileName} in its root folder.");
-            var result = PluginManifestLoader.Load(staging, _apiVersion, _maxGrammarBytes);
+            var result = PluginManifestLoader.Load(staging, _apiVersion, _maxGrammarBytes, _limits.MaxIconBytes);
             if (result.Plugin is not { } plugin) throw new PluginInstallException(PluginInstallError.InvalidManifest, "The manifest is refused.", result.Errors);
 
             var id = plugin.Manifest.Id;

@@ -13,8 +13,8 @@ using NksHub.Textida.Workbench.Matching;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The System integration section of the settings (Windows only): the Explorer menu entry, the file associations and the two shortcuts.
-/// It is found by the search like a setting. Nothing is stored in the settings file: every switch shows what the registry and the disk say, and a change is written at once.
+/// The System integration section of the settings. On Windows: the Explorer menu entry, the file associations and the two shortcuts. On macOS: the terminal command, the Finder quick action and the file types
+/// (<see cref="MacIntegrationSection"/>). It is found by the search like a setting. Nothing is stored in the settings file: every switch shows what the registry and the disk say, and a change is written at once.
 /// </summary>
 internal sealed partial class SettingsWindow
 {
@@ -23,15 +23,28 @@ internal sealed partial class SettingsWindow
 
     private static bool MatchesSystemSection(string query)
     {
-        if (!OperatingSystem.IsWindows()) return false;
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) return false;
         var words = TextMatching.Fold(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return true;
-        var text = TextMatching.Fold(string.Join(' ', Loc.Get(K.SettingsSystemTitle), Loc.Get(K.SettingsSystemKeywords), string.Join(' ', ShellIntegration.Extensions)));
+        var text = TextMatching.Fold(string.Join(' ', Loc.Get(K.SettingsSystemTitle), Loc.Get(OperatingSystem.IsMacOS() ? K.MacKeywords : K.SettingsSystemKeywords), string.Join(' ', IntegrationExtensions.All)));
         return words.All(w => text.Contains(w, StringComparison.Ordinal));
     }
 
+    private Border SystemSection() => OperatingSystem.IsMacOS() ? MacSystemSection() : OperatingSystem.IsWindows() ? WindowsSystemSection() : throw new PlatformNotSupportedException();
+
+    /// <summary>The section on a Mac: the same control as the window of Settings, System Integration, macOS Integration.</summary>
+    private static Border MacSystemSection()
+    {
+        var stack = new StackPanel { Spacing = 6 };
+        stack.Children.Add(new TextBlock { Text = Loc.Get(K.SettingsSystemTitle), FontWeight = FontWeight.SemiBold });
+        stack.Children.Add(MacHost.Open() is { } integration ? new MacIntegrationSection(integration) : new TextBlock { Text = Loc.Get(K.MacUnavailable), TextWrapping = TextWrapping.Wrap, Opacity = 0.8 });
+        var row = new Border { Child = stack, Padding = new Thickness(12, 8), Tag = SystemSectionId, CornerRadius = new CornerRadius(6) };
+        row.Classes.Add("settingrow");
+        return row;
+    }
+
     [SupportedOSPlatform("windows")]
-    private Border SystemSection()
+    private Border WindowsSystemSection()
     {
         var integration = ShellHost.Open();
         var problem = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };

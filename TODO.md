@@ -1322,6 +1322,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (7ef9ead0). Lišta je ve výchozím stavu vypnutá a zapíná se v menu Zobrazit; editor tlačítek (přidat, odebrat, posunout, oddělovač, výchozí); `toolbar.json` v profilu i v záloze nastavení; tlačítko bez registrovaného příkazu se nekreslí; limit 40 tlačítek je placeholder `ToolbarMaxButtons`. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Riziko: každé tlačítko je samostatná zastávka klávesy Tab, před editorem jich může být až 40. Neověřeno: vzhled a návrat zaměření do dokumentu po kliknutí.
 - [ ] **P3.6.14** Sada SVG ikon pro příkazy
   - **Co a proč:** Lišta (P3.6.13) unese libovolný příkaz, proto potřebuje jednotnou sadu ikon. Stejné ikony použije i menu a paleta příkazů. Dnes je v aplikaci jen ikona programu (`tools/MakeIcon.cs`, `Assets/textida.ico`) a glyfy stromu souborů jako data cest (`FileGlyphs`). Sada pokryje:
     - Soubor: nový, otevřít, uložit, uložit vše, zavřít, nedávné.
@@ -1348,6 +1349,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (89df5b31). 113 vlastních SVG ikon, při buildu převedených na geometrii; barvy z tématu i vysokého kontrastu; ikona pluginu se ověřuje (jen tvary, barvy `none` nebo `currentColor`, limit `IconMaxBytes` je placeholder); ikony v menu, paletě i liště; licence v `THIRD-PARTY-NOTICES.md`. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno: vzhled v běžící aplikaci, publikace NativeAOT, instalace pluginu s ikonou ze ZIP; nativní menu macOS ikony nemá.
 - [ ] **P3.6.15** Přepracované okno nastavení
   - **Co a proč:** Majitel 28. 10. 2026: nastavení kompletně přepracovat. Možnosti logicky rozdělit do kategorií se stromovou navigací, vyhledávání se zvýrazněním zachovat a volbu jazyka přesunout z menu do nastavení.
   - **Dnešní stav:**
@@ -1388,6 +1390,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (6314660b). Strom kategorií, hledání se zvýrazněním a zúžením stromu, jazyk pod Vzhled, návrat na výchozí u nastavení i celé kategorie, otevření na zadaném klíči. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
 - [ ] **P3.6.16** Menu podle typu souboru
   - **Co a proč:** Majitel 28. 10. 2026: volby v menu mají být aktivní podle zjištěného typu souboru, podobně jako to má hex.
   - **Dnešní stav:**
@@ -1413,6 +1416,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Workbench/Commands`, `builtin.contributions.json`)
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (b1f82990). Nové kontextové klíče: druh souboru, skupina jazyků, režim logu, repozitář Git, vzdálený soubor, náhled Markdownu. Pravidla `when`/`enablement` a test tabulky proti skutečnému menu. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
 - [ ] **P3.6.17** Review a přeorganizování celé nabídky
   - **Co a proč:** Majitel 28. 10. 2026: projít celou nabídku a logicky ji roztřídit.
   - **Dnešní stav:** 422 příkazů a 371 položek menu v deseti nabídkách:
@@ -1439,6 +1443,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`builtin.contributions.json`, nápověda)
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (e7c90ac7). Celé menu přeorganizované s klávesami pro přístup a zanořenými podnabídkami, jazyk rozhraní přesunut z menu do nastavení. Mapa staré → nové je v `docs/menu-map.md`. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
 
 ### P3.7 První distribuce
 

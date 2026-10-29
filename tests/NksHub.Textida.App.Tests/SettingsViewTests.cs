@@ -7,6 +7,7 @@ using Avalonia.VisualTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -55,8 +56,10 @@ public class SettingsViewTests : IDisposable
     {
         var view = Open("kodovani");
         Assert.Contains("files.encoding", view.ShownIds);
-        view.SetQuery("");
-        Assert.True(view.ShownIds.Count >= 15);
+        // without a search the page of one category is shown (P3.6.15); the files page is one of the long ones
+        view.SelectCategory(SettingCategories.Files);
+        Assert.True(view.ShownIds.Count >= 10);
+        Assert.Equal(Loc.Plural(K.SettingsResultCount, view.ShownIds.Count), view.CountText);
         Assert.Equal(Loc.Plural(K.SettingsResultCount, view.ShownIds.Count), view.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text?.Contains("výsled") == true).Text);
     }
 
@@ -101,11 +104,13 @@ public class SettingsViewTests : IDisposable
     public void Boolean_and_choice_settings_have_their_own_editors()
     {
         var view = Open("");
+        view.SelectCategory(SettingCategories.EditorFormat);
         var check = view.RowOf("editor.insertSpaces")!.GetVisualDescendants().OfType<CheckBox>().Single();
         check.IsChecked = false;
         Assert.False(_app.Workbench.Settings.GetBool("editor.insertSpaces"));
 
         view = _app.SettingsView!;
+        view.SelectCategory(SettingCategories.Appearance);
         var combo = view.RowOf("workbench.theme")!.GetVisualDescendants().OfType<ComboBox>().Single();
         combo.SelectedItem = "dark";
         Assert.Equal("dark", _app.Settings.Theme);

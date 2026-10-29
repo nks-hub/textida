@@ -11,6 +11,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest grammar file of a data plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
     public const long GrammarMaxBytes = 1 << 20;
 
+    /// <summary>Placeholder, OPEN: largest icon file (SVG) of a plugin in bytes. The manifest loader refuses a plugin with a larger one, whoever installs it.</summary>
+    public const long IconMaxBytes = 16 << 10;
+
     /// <summary>Placeholder: largest size a plugin ZIP may unpack to, in bytes; the validator holds a plugin folder to the same bound. OPEN: the owner has not decided it.</summary>
     public const long PluginZipMaxUnpackedBytes = 256L << 20;
 
@@ -21,5 +24,5 @@ internal static partial class PluginLimitsPlaceholders
     public const int ValidatorPluginSeconds = 30;
 
     /// <summary>The bounds an installed plugin ZIP must keep.</summary>
-    public static PluginInstallLimits PluginZip() => new(PluginZipMaxUnpackedBytes, PluginZipMaxEntries);
+    public static PluginInstallLimits PluginZip() => new(PluginZipMaxUnpackedBytes, PluginZipMaxEntries, IconMaxBytes);
 }

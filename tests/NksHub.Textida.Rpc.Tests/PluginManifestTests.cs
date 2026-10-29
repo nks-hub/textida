@@ -126,6 +126,57 @@ public class PluginManifestTests
         Assert.Contains(tooBig.Errors, e => e.Contains("larger than 10"));
     }
 
+    const string OwnIcon = "<svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\"><path d=\"M2 2H14V14H2Z\"/></svg>";
+
+    static string IconManifest(string icon) =>
+        "{" + Header + ",\"contributes\":{\"commands\":[{\"id\":\"acme.demo.hello\",\"title\":\"Hello\",\"icon\":" + JsonSerializer.Serialize(icon) + "}]," +
+        "\"clips\":[{\"id\":\"hello\",\"title\":\"Hello\",\"text\":\"hello\",\"command\":\"acme.demo.hello\"}]}}";
+
+    [Fact]
+    public void AnIconFileOfAPluginIsReadCheckedAndGivenToItsCommand()
+    {
+        var result = PluginManifestLoader.Load(Plugin(IconManifest("icons/hello.svg"), ("icons/hello.svg", OwnIcon)), 1, MaxGrammarBytes, 4096);
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        Assert.Equal(["acme.demo.hello"], result.Plugin!.Icons.Keys);
+
+        var commands = new CommandRegistry();
+        Assert.Empty(result.Plugin.Install(commands, new GrammarRegistry()));
+        var icon = commands.IconOf("acme.demo.hello");
+        Assert.Equal(16, icon!.Size);
+        Assert.Equal("M2 2H14V14H2Z", Assert.Single(icon.Paths).Data);
+        commands.RemoveSource("acme.demo");
+        Assert.Null(commands.IconOf("acme.demo.hello"));
+    }
+
+    [Fact]
+    public void ABuiltInIconNameNeedsNoFileAndNoLimit()
+    {
+        var result = Load(Plugin(IconManifest("save")));
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors));
+        Assert.Empty(result.Plugin!.Icons);
+        var commands = new CommandRegistry();
+        Assert.Empty(result.Plugin.Install(commands, new GrammarRegistry()));
+        Assert.Same(NksHub.Textida.Workbench.Icons.BuiltinIcons.All["save"], commands.IconOf("acme.demo.hello"));
+    }
+
+    [Theory]
+    [InlineData("icons/missing.svg", null, 4096, "does not exist")]
+    [InlineData("icons/hello.svg", "<svg viewBox=\"0 0 16 16\"><script/></svg>", 4096, "script")]
+    [InlineData("icons/hello.svg", "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0L1 1\" fill=\"red\"/></svg>", 4096, "currentColor")]
+    [InlineData("icons/hello.svg", "<svg viewBox=\"0 0 16 16\"><path d=\"M0 0 L1\"/></svg>", 4096, "path data")]
+    [InlineData("icons/hello.svg", "not a picture", 4096, "SVG")]
+    [InlineData("icons/hello.svg", OwnIcon, 20, "larger than 20")]
+    [InlineData("icons/hello.svg", OwnIcon, 0, "no icon files")]
+    [InlineData("../outside.svg", OwnIcon, 4096, "icon")]
+    [InlineData("nope", null, 4096, "icon 'nope'")]
+    public void AnIconFileThatIsMissingTooBigOrMoreThanShapesRefusesThePlugin(string icon, string? file, long limit, string expected)
+    {
+        var files = file is null ? [] : new[] { ("icons/hello.svg", file) };
+        var result = PluginManifestLoader.Load(Plugin(IconManifest(icon), files), 1, MaxGrammarBytes, limit);
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, e => e.Contains(expected, StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public async Task AProcessPluginStartsOnTheFirstRunOfItsCommand()
     {

@@ -8,7 +8,7 @@ using NksHub.Textida.Install;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>The window of the macOS integration: the section with its switches (<see cref="MacIntegrationSection"/>) and a Close button. Tools, System Integration, macOS Integration opens it.</summary>
+/// <summary>The window of the macOS integration: the section with its switches (<see cref="MacIntegrationSection"/>) and a Close button. Settings, System Integration, macOS Integration opens it.</summary>
 internal sealed class MacIntegrationWindow : Window
 {
     private readonly Button _close = new() { IsCancel = true, MinWidth = 84, HorizontalAlignment = HorizontalAlignment.Right };

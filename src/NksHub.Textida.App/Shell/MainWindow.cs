@@ -130,7 +130,7 @@ internal sealed partial class MainWindow : Window
 
     private void BuildLayout()
     {
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
+        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
 
         if (_look.TabsInTitleBar)
         {
@@ -156,19 +156,23 @@ internal sealed partial class MainWindow : Window
             root.Children.Add(title);
         }
 
+        var toolbar = BuildToolbar();
+        Grid.SetRow(toolbar, 1);
+        root.Children.Add(toolbar);
+
         BuildSidePanels();
         BuildPanelHosts(new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } });
         ApplyPanelState(rebuildMenu: false);
 
         var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
-        Grid.SetRow(content, 1);
+        Grid.SetRow(content, 2);
         root.Children.Add(content);
 
         _statusBar.Child = BuildStatusBar();
         _statusBar.Classes.Add("statusbar");
         HelpContext.Set(_statusBar, "statusbar");
-        Grid.SetRow(_statusBar, 2);
+        Grid.SetRow(_statusBar, 3);
         root.Children.Add(_statusBar);
 
         Content = root;
@@ -418,6 +422,7 @@ internal sealed partial class MainWindow : Window
     {
         Loc.Changed -= OnLanguageChanged;
         _app.Workbench.SettingChanged -= OnSettingChanged;
+        ReleaseToolbar();
         ReleaseNavigation();
         ReleaseOutput();
         ReleaseLogFollow();

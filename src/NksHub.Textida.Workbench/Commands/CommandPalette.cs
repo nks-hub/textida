@@ -83,8 +83,13 @@ public static class CommandPalette
             }
         }
 
-        return null;
+        // a command for one kind of file or one language cannot be explained by turning a switch: it is for another kind
+        return enablement.Keys.Overlaps(TypeKeys) && strings.Contains(FileTypeReason) ? strings.Get(FileTypeReason) : null;
     }
+
+    private static readonly string[] TypeKeys = [ContextKeys.FileKind, ContextKeys.Language, ContextKeys.LanguageGroup];
+
+    private const string FileTypeReason = "reason.fileType";
 
     private sealed class Flipped(IWhenContext inner, string key) : IWhenContext
     {
