@@ -817,15 +817,15 @@ public class PluginUiTests : IDisposable
         _w.NewDocument();
         _dialogs.Prompts.Enqueue("2*(3+4)");
         await RunAsync("nks.tools.evaluateExpression");
-        Assert.True(HasNotice("2*(3+4) = 14"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        await Until(() => HasNotice("2*(3+4) = 14"), "the result of the expression");
 
         _dialogs.Prompts.Enqueue("System(\"calc\")");
         await RunAsync("nks.tools.evaluateExpression");
-        Assert.True(HasNotice("Neznámý název 'System'"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        await Until(() => HasNotice("Neznámý název 'System'"), "the refusal of the system call");
 
         _dialogs.Prompts.Enqueue("0xFF");
         await RunAsync("nks.tools.convertBase");
-        Assert.True(HasNotice("Desítkově: 255, šestnáctkově: 0xFF"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
+        await Until(() => HasNotice("Desítkově: 255, šestnáctkově: 0xFF"), "the number bases");
     }
 
     [AvaloniaFact]
