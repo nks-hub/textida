@@ -35,7 +35,7 @@ Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases
 
 - **Windows:** `TextidaSetup-<version>-win-x64.exe` installs for the current user without administrator rights; the ZIP is the portable version.
 - **macOS:** `Textida-<version>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg` (Intel). Drag Textida to Applications, then right-click it and choose Open the first time.
-- **Linux (preview):** `textida_<version>_amd64.deb` (`sudo apt install ./textida_<version>_amd64.deb`), or the `.tar.gz` with `./install.sh`, which installs into `~/.local`.
+- **Linux (preview):** `textida_<version>_amd64.deb` (`sudo apt install ./textida_<version>_amd64.deb`), or the `.tar.gz` with `./install.sh`, which installs into `~/.local` and needs OpenSSL 3 and ICU from the distribution.
 
 ### Debian and Ubuntu (apt)
 
