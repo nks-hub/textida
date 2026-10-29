@@ -1939,6 +1939,31 @@ Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers
 - Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
 - Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
 
+## [tools.macIntegration] macOS: Terminal-Befehl, Finder-Aktion und Dateitypen
+commands: nks.tools.macIntegration, nks.tools.macRemove
+Nur für macOS, in der installierten Textida (Textida.app). Textida fügt Ihrem Mac nichts hinzu, bis Sie einen Eintrag einschalten, und schreibt nur in Ihre eigenen Ordner; keine Änderung verlangt ein Administratorkennwort.
+1. Wählen Sie Extras, Systemintegration, macOS-Integration. Ein Fenster listet die drei Einträge auf; ein Schalter wirkt sofort und zeigt, was der Mac sagt.
+2. Der Befehl textida ist ein Link namens textida auf das Programm, in /usr/local/bin, wenn Sie dort schreiben dürfen, sonst in ~/bin. Im Terminal öffnet `textida datei.txt` die Datei in der laufenden Textida, `textida --wait datei.txt` wartet, bis ihr Tab geschlossen ist, `textida --diff a b` vergleicht zwei Dateien. Findet das Terminal den Befehl nicht, zeigt das Fenster die Zeile, die in ~/.zprofile gehört.
+3. Die Schnellaktion In Textida öffnen ist eine Datei in ~/Library/Services. Klicken Sie im Finder mit der rechten Maustaste auf eine Datei oder einen Ordner, dann auf Schnellaktionen und In Textida öffnen. Fehlt sie dort, schalten Sie sie in den Systemeinstellungen unter Datenschutz & Sicherheit, Erweiterungen, Finder ein.
+4. Dateitypen: Textida wird die Anwendung, die die angehakten Endungen öffnet. Davor merkt sich der Mac die Anwendung, die jede Endung hatte; schalten Sie eine Endung aus, bekommt sie diese zurück. Dateien werden in der bereits laufenden Textida geöffnet.
+5. Wählen Sie Extras, Systemintegration, Textida aus macOS entfernen (oder Alles entfernen im Fenster), um den Link, die Schnellaktion und jede Zuordnung zu löschen, die Textida hinzugefügt hat.
+- Ein Link oder eine Aktion wird nur entfernt, wenn sie wirklich von Textida stammt: Ein Befehl textida, der zu einem anderen Programm führt, und eine Aktion, die Textida nicht geschrieben hat, bleiben unberührt.
+- Ein Typ, den keine andere Anwendung öffnet, bleibt nach dem Ausschalten bei Textida, weil der Mac niemanden hat, dem er ihn zurückgeben könnte.
+- Die Schnellaktion und die Dateitypen setzen voraus, dass Textida aus Textida.app läuft; ein aus einem Build-Ordner gestartetes Programm bietet nur den Befehl an.
+- Das Löschen von Textida.app entfernt nur das Programm. Wählen Sie zuerst Entfernen, damit auch Link, Aktion und Dateitypen verschwinden; Ihre Einstellungen bleiben, bis Sie den Ordner Textida in ~/Library/Application Support löschen.
+
+## [install.mac] Textida unter macOS installieren
+Textida für macOS gibt es als Disk-Image (.dmg) und als ZIP mit derselben Anwendung: Textida-<Version>-osx-arm64 für Macs mit Apple-Chip und Textida-<Version>-osx-x64 für Intel-Macs. Es läuft ab macOS 14. Die Pakete sind von Apple noch nicht notarisiert und tragen nur eine Ad-hoc-Signatur, deshalb braucht der erste Start einen zusätzlichen Schritt.
+1. Öffnen Sie das Disk-Image und ziehen Sie Textida in den Ordner Programme. Werfen Sie das Image aus.
+2. Öffnen Sie Textida aus Programme. macOS meldet, dass es die Anwendung nicht auf Schadsoftware prüfen kann (macOS 14: Sie kann nicht geöffnet werden, weil der Entwickler nicht überprüft werden kann). Legen Sie sie nicht in den Papierkorb.
+3. Halten Sie unter macOS 14 die Control-Taste gedrückt, klicken Sie in Programme auf Textida, wählen Sie Öffnen und bestätigen Sie mit Öffnen. Schließen Sie unter macOS 15 die Meldung mit Fertig, öffnen Sie Systemeinstellungen, Datenschutz & Sicherheit, scrollen Sie zu Sicherheit, wählen Sie bei Textida Trotzdem öffnen und bestätigen Sie mit Ihrem Kennwort oder Touch ID.
+4. Ab dann startet Textida wie jede andere Anwendung. Entpacken Sie stattdessen das ZIP, verschieben Sie Textida.app zuerst in Programme. Eine aus dem Internet geladene Datei trägt eine Quarantäne-Markierung; im Terminal entfernt sie `xattr -dr com.apple.quarantine /Applications/Textida.app`.
+5. Um Textida zu entfernen, wählen Sie zuerst Extras, Systemintegration, Textida aus macOS entfernen, falls Sie den Terminal-Befehl, die Schnellaktion oder Dateitypen hinzugefügt haben, und ziehen Sie dann Textida.app in den Papierkorb. Ihre Einstellungen liegen in ~/Library/Application Support/Textida und bleiben, bis Sie diesen Ordner löschen.
+- Das Disk-Image enthält Textida.app und einen Link auf Programme; das ZIP enthält nur Textida.app. Beide erzeugt tools/BuildMacPackage.cs, das auf einem Mac läuft.
+- Das Paket für Apple-Chips und das für Intel sind getrennte Downloads; ein universelles Paket gibt es nicht. Ein Intel-Mac braucht das x64-Paket.
+- Die Signatur mit Developer ID und die Notarisierung sind noch nicht erledigt. Danach entfällt der zusätzliche Schritt beim ersten Start.
+- Die eingebauten Plugins und das Programm textida-mcp starten aus der Anwendung heraus. Änderungen an Dateien in Textida.app brechen die Signatur, und macOS kann den Start dann verweigern.
+
 ## [help.updates] Updates und Rückkehr zur vorherigen Version
 commands: nks.help.updateCheck, nks.help.updateReturn
 Nur Windows, in der installierten Textida (der mit TextidaSetup.exe oder Setup.ps1 angelegte Ordner). Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.

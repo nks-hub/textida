@@ -133,6 +133,8 @@ public sealed partial class App : Application
         {
             _server = new IpcServer(ctx.Channel, request => Dispatcher.UIThread.InvokeAsync(() => OpenRequestAsync(request)));
             desktop.Exit += (_, _) => StopServer();
+            // a file opened from Finder, the Dock or a quick action reaches the running program as an event of the system, not as a command line
+            if (OperatingSystem.IsMacOS() && TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable) activatable.Activated += (_, e) => OpenFromSystem(e);
             first.Opened += (_, _) =>
             {
                 first.RestoreFrom(Journal);
@@ -244,6 +246,16 @@ public sealed partial class App : Application
     {
         var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList(), Diff = args.Diff?.ToList() };
         _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } e) _active?.SetStatusMessage(e.InnerException?.Message ?? e.Message); }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    /// <summary>The system asked the running program to open files (macOS: <c>open</c>, a double click, a drop on the icon). They open in the window that was used last.</summary>
+    private void OpenFromSystem(ActivatedEventArgs e)
+    {
+        if (e is not FileActivatedEventArgs activated) return;
+        var files = activated.Files.Select(f => Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(f)).OfType<string>().Select(p => new IpcFile { Path = p }).ToList();
+        if (files.Count == 0) return;
+        var request = new IpcRequest { Files = files };
+        Dispatcher.UIThread.Post(() => _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } failure) _active?.SetStatusMessage(failure.InnerException?.Message ?? failure.Message); }, TaskScheduler.FromCurrentSynchronizationContext()));
     }
 
     private void StopServer()

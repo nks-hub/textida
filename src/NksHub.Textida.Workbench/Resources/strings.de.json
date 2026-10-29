@@ -617,6 +617,8 @@
   "cmd.tools.shellMenuAdd": "Textida zum Explorer-Menü hinzufügen",
   "cmd.tools.shellAssociate": "Dateizuordnungen...",
   "cmd.tools.shellRemove": "Textida aus dem Explorer entfernen",
+  "cmd.tools.macIntegration": "macOS-Integration...",
+  "cmd.tools.macRemove": "Textida aus macOS entfernen",
   "cmd.review.open": "Änderungen von außen prüfen",
   "cmd.review.folder": "Änderungen von außen im Ordner prüfen",
   "cmd.review.next": "Nächste Änderung von außen",

@@ -11,4 +11,7 @@ public static class InstallLimitsPlaceholders
 
     /// <summary>Placeholder, OPEN: pings, about a second each and the first at once, that the command removing the uninstaller waits for the uninstaller to end before it deletes the file. The owner has not decided it.</summary>
     public const int SelfRemovalPings = 4;
+
+    /// <summary>Placeholder, OPEN: milliseconds the macOS integration waits for <c>pbs -update</c>, which makes Finder read the quick actions again, before it goes on without it. The owner has not decided it.</summary>
+    public const int RefreshServicesMilliseconds = 5_000;
 }

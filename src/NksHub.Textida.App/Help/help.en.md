@@ -1939,6 +1939,31 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
 
+## [tools.macIntegration] macOS: terminal command, Finder action and file types
+commands: nks.tools.macIntegration, nks.tools.macRemove
+macOS only, in the installed Textida (Textida.app). Textida adds nothing to your Mac until you switch an item on, and it writes only in your own folders; no change asks for an administrator password.
+1. Choose Tools, System Integration, macOS Integration. A window lists the three items; a switch takes effect at once and shows what the Mac says.
+2. The textida command is a link named textida to the program, in /usr/local/bin when you may write there, otherwise in ~/bin. In the terminal, `textida file.txt` opens the file in the running Textida, `textida --wait file.txt` waits until its tab is closed, `textida --diff a b` compares two files. If the terminal does not find the command, the window shows the line that belongs in ~/.zprofile.
+3. The quick action Open in Textida is a file in ~/Library/Services. In Finder, right-click a file or folder, then Quick Actions, then Open in Textida. If it is not listed, switch it on in System Settings, Privacy & Security, Extensions, Finder.
+4. File types: Textida becomes the application that opens the extensions you tick. Before it does, the Mac remembers the application each extension had; switching an extension off gives it back. Files are opened in the Textida that is already running.
+5. Choose Tools, System Integration, Remove Textida from macOS (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
+- A link or an action is removed only when it is Textida's own: a textida command that leads to another program, and an action that Textida did not write, are left alone.
+- A type that no other application opens stays with Textida after it is switched off, because the Mac has nobody to give it back to.
+- The quick action and the file types need Textida to run from Textida.app; a program started from a build folder offers only the command.
+- Deleting Textida.app removes the program only. Choose Remove first, so the link, the quick action and the file types go too; your settings stay until you delete the folder Textida in ~/Library/Application Support.
+
+## [install.mac] Install Textida on macOS
+Textida for macOS comes as a disk image (a .dmg) and as a ZIP with the same application: Textida-<version>-osx-arm64 for Macs with Apple silicon and Textida-<version>-osx-x64 for Intel Macs. It runs on macOS 14 and later. The packages are not notarized by Apple yet and carry only an ad-hoc signature, so the first start takes one extra step.
+1. Open the disk image and drag Textida to the Applications folder. Eject the image.
+2. Open Textida from Applications. macOS says it cannot check the application for malicious software (macOS 14: it cannot be opened because the developer cannot be verified). Do not move it to the Bin.
+3. On macOS 14, hold Control, click Textida in Applications, choose Open and confirm with Open. On macOS 15, close the message with Done, open System Settings, Privacy & Security, scroll to Security, choose Open Anyway next to Textida and confirm with your password or Touch ID.
+4. From then on Textida starts like any other application. If you unpack the ZIP instead, move Textida.app to Applications first. A file that came from the internet carries a quarantine mark; in the terminal `xattr -dr com.apple.quarantine /Applications/Textida.app` removes it.
+5. To remove Textida, first choose Tools, System Integration, Remove Textida from macOS if you added the terminal command, the quick action or file types, then drag Textida.app to the Bin. Your settings are in ~/Library/Application Support/Textida and stay until you delete that folder.
+- The disk image holds Textida.app and a link to Applications; the ZIP holds only Textida.app. Both are made by tools/BuildMacPackage.cs, which runs on a Mac.
+- The package for Apple silicon and the one for Intel are separate downloads; there is no universal package. An Intel Mac needs the x64 one.
+- Developer ID signing and notarization are not done yet. When they are, the extra step of the first start is not needed any more.
+- The built-in plugins and the program textida-mcp start from inside the application. Changing files inside Textida.app breaks its signature, and macOS may then refuse to start it.
+
 ## [help.updates] Updates and return to the previous version
 commands: nks.help.updateCheck, nks.help.updateReturn
 Windows only, in the installed Textida (the folder made by TextidaSetup.exe or Setup.ps1). Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.

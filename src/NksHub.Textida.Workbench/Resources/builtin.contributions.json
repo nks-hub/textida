@@ -2505,6 +2505,18 @@
       "enablement": "platform == 'windows'"
     },
     {
+      "id": "nks.tools.macIntegration",
+      "title": "cmd.tools.macIntegration",
+      "category": "cat.tools",
+      "enablement": "platform == 'macos'"
+    },
+    {
+      "id": "nks.tools.macRemove",
+      "title": "cmd.tools.macRemove",
+      "category": "cat.tools",
+      "enablement": "platform == 'macos'"
+    },
+    {
       "id": "nks.log.fold",
       "title": "cmd.log.fold",
       "category": "cat.log"
@@ -5340,6 +5352,20 @@
       "group": "4_other/13_9_shell",
       "submenu": "shell",
       "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.macIntegration",
+      "group": "4_other/13_9_shell",
+      "submenu": "shell",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.macRemove",
+      "group": "4_other/13_9_shell",
+      "submenu": "shell",
+      "order": 50
     },
     {
       "menu": "tools",

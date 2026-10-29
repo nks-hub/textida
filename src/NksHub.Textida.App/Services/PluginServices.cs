@@ -150,7 +150,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Crashed += info => Dispatcher.UIThread.Post(() => ReportCrash(info));
         _host.Log += line => _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.PluginLogSource), line);
 
-        var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
+        var folder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
             ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
@@ -173,7 +173,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.EditDirect, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.ClipboardWrite, GrantScope.All);
-        var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
+        var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString(),
@@ -184,7 +184,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // colours and key paths read the text; the colour conversion writes the converted values back
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
             permissions.Grant(WebDataPluginId, permission, GrantScope.All);
-        var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "webdata");
+        var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "webdata");
         var webProgram = Path.Combine(webFolder, "NksHub.Textida.Plugins.WebData" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WebDataPluginId, "Web data", webProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.WebDataMaxBytes.ToString(),
@@ -193,7 +193,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
         // the code explorer only reads: it finds the symbols of a text from simple rules of its language
         permissions.Grant(CodeExplorerPluginId, DocumentPermissions.Read, GrantScope.All);
-        var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "codeexplorer");
+        var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "codeexplorer");
         var explorerProgram = Path.Combine(explorerFolder, "NksHub.Textida.Plugins.CodeExplorer" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(CodeExplorerPluginId, "Code Explorer", explorerProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
@@ -204,7 +204,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // Emmet reads the text in front of the carets and writes the expansion back as one snippet; it answers the Tab key
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
             permissions.Grant(EmmetPluginId, permission, GrantScope.All);
-        var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "emmet");
+        var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "emmet");
         var emmetProgram = Path.Combine(emmetFolder, "NksHub.Textida.Plugins.Emmet" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(EmmetPluginId, "Emmet", emmetProgram,
             ["--context-bytes", PluginLimitsPlaceholders.EmmetContextBytes.ToString(), "--max-chars", PluginLimitsPlaceholders.SnippetLength.ToString(),
@@ -213,7 +213,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // the formatters read the selection and write it back (or propose it)
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(FormattersPluginId, permission, GrantScope.All);
-        var formattersFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "formatters");
+        var formattersFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "formatters");
         var formattersProgram = Path.Combine(formattersFolder, "NksHub.Textida.Plugins.Formatters" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         var formattersArguments = new List<string>
         {
@@ -227,7 +227,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // and edits the document only when the user takes a side of a merge conflict
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual, DocumentPermissions.EditDirect })
             permissions.Grant(GitPluginId, permission, GrantScope.All);
-        var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
+        var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "git");
         var gitProgram = _gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
@@ -241,7 +241,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
         permissions.Grant(WikiPluginId, DocumentPermissions.Source, GrantScope.All);
         permissions.Grant(WikiPluginId, PluginPermissionNames.Network, GrantScope.All);
-        var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "wiki");
+        var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "wiki");
         var wikiProgram = Path.Combine(wikiFolder, "NksHub.Textida.Plugins.Wiki" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WikiPluginId, "NKS IS wiki", wikiProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.SourceTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.SourceMaxBytes.ToString(),
@@ -252,7 +252,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // The shipped client holds workspace.files from the start; any other plugin gets it only from the user, on the consent screen of the plugin manager.
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.WorkspaceFiles })
             permissions.Grant(LspPluginId, permission, GrantScope.All);
-        var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "lsp");
+        var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "lsp");
         var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),

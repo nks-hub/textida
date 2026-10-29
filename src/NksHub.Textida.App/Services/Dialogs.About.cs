@@ -20,7 +20,7 @@ namespace NksHub.Textida.App.Services;
 internal sealed partial class AvaloniaDialogs
 {
     /// <summary>The folder with <c>version.txt</c>, <c>LICENSE</c> and <c>THIRD-PARTY-NOTICES.md</c>. Tests point it at a folder of their own.</summary>
-    internal string ProgramDirectory { get; set; } = AppContext.BaseDirectory;
+    internal string ProgramDirectory { get; set; } = ProgramFolders.Files;
 
     /// <summary>The icon of the program, the same picture the windows and the executable carry (<c>Assets/textida-256.png</c>, an Avalonia resource).</summary>
     internal const string IconUri = "avares://Textida/Assets/textida-256.png";

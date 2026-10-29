@@ -1939,6 +1939,31 @@ Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho 
 - Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
 - Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.
 
+## [tools.macIntegration] macOS: príkaz v termináli, akcia vo Finderi a typy súborov
+commands: nks.tools.macIntegration, nks.tools.macRemove
+Len pre macOS, v nainštalovanej Textide (Textida.app). Textida nepridá do Macu nič, kým položku nezapnete, a zapisuje len do vašich vlastných priečinkov; žiadna zmena nežiada o heslo správcu.
+1. Zvoľte Nástroje, Integrácia do systému, Integrácia s macOS. Okno ukáže tri položky; prepínač sa prejaví hneď a ukáže, čo hovorí Mac.
+2. Príkaz textida je odkaz menom textida na program, v /usr/local/bin, keď tam smiete zapisovať, inak v ~/bin. V termináli `textida subor.txt` otvorí súbor v bežiacej Textide, `textida --wait subor.txt` počká, kým sa jeho karta zatvorí, `textida --diff a b` porovná dva súbory. Keď terminál príkaz nenájde, okno ukáže riadok, ktorý patrí do ~/.zprofile.
+3. Rýchla akcia Otvoriť v Textide je súbor v ~/Library/Services. Vo Finderi kliknite pravým tlačidlom na súbor alebo priečinok, potom Rýchle akcie a Otvoriť v Textide. Ak tam akcia nie je, zapnite ju v Nastaveniach systému, Súkromie a zabezpečenie, Rozšírenia, Finder.
+4. Typy súborov: Textida sa stane aplikáciou, ktorá otvára prípony, ktoré zaškrtnete. Skôr než sa ňou stane, Mac si zapamätá aplikáciu, ktorú prípona mala; vypnutie prípony ju vráti. Súbory sa otvárajú v už bežiacej Textide.
+5. Zvoľte Nástroje, Integrácia do systému, Odobrať Textidu z macOS (alebo Odobrať všetko v okne) a zmažete odkaz, rýchlu akciu aj všetky priradenia, ktoré Textida pridala.
+- Odkaz alebo akcia sa odoberie len vtedy, keď je naozaj od Textidy: príkaz textida, ktorý vedie k inému programu, a akcia, ktorú Textida nenapísala, zostanú.
+- Typ, ktorý žiadna iná aplikácia neotvára, zostane po vypnutí Textide, pretože Mac nemá komu ho vrátiť.
+- Rýchla akcia a typy súborov vyžadujú, aby Textida bežala z Textida.app; program spustený z priečinka zostavenia ponúkne len príkaz.
+- Zmazanie Textida.app odstráni len program. Najprv zvoľte Odobrať, aby zmizol aj odkaz, akcia a typy súborov; nastavenia zostanú, kým nezmažete priečinok Textida v ~/Library/Application Support.
+
+## [install.mac] Inštalácia Textidy na macOS
+Textida pre macOS sa dodáva ako obraz disku (.dmg) a ako ZIP s rovnakou aplikáciou: Textida-<verzia>-osx-arm64 pre Macy s čipom Apple a Textida-<verzia>-osx-x64 pre Macy s Intelom. Beží na macOS 14 a novšom. Balíky zatiaľ neprešli notarizáciou u Applu a majú len ad-hoc podpis, takže prvé spustenie chce jeden krok navyše.
+1. Otvorte obraz disku a presuňte Textidu do priečinka Aplikácie. Obraz vysuňte.
+2. Otvorte Textidu z priečinka Aplikácie. macOS povie, že nemôže overiť, či aplikácia neobsahuje škodlivý softvér (macOS 14: nedá sa otvoriť, lebo vývojára nemožno overiť). Nepresúvajte ju do koša.
+3. Na macOS 14 podržte Control, kliknite na Textidu v priečinku Aplikácie, zvoľte Otvoriť a potvrďte tlačidlom Otvoriť. Na macOS 15 zavrite správu tlačidlom Hotovo, otvorte Nastavenia systému, Súkromie a zabezpečenie, zísťte k časti Zabezpečenie, pri Textide zvoľte Napriek tomu otvoriť a potvrďte heslom alebo Touch ID.
+4. Od tej chvíle sa Textida spúšťa ako každá iná aplikácia. Ak rozbalíte ZIP, presuňte Textida.app najprv do priečinka Aplikácie. Súbor stiahnutý z internetu nesie značku karantény; v termináli ju odstráni `xattr -dr com.apple.quarantine /Applications/Textida.app`.
+5. Ak chcete Textidu odstrániť, najprv zvoľte Nástroje, Integrácia do systému, Odobrať Textidu z macOS, ak ste pridali príkaz v termináli, rýchlu akciu alebo typy súborov, a potom presuňte Textida.app do koša. Vaše nastavenia sú v ~/Library/Application Support/Textida a zostanú, kým tento priečinok nezmažete.
+- Obraz disku obsahuje Textida.app a odkaz na priečinok Aplikácie; ZIP obsahuje len Textida.app. Oba vyrába tools/BuildMacPackage.cs, ktorý beží na Macu.
+- Balík pre čip Apple a balík pre Intel sa sťahujú osobitne; univerzálny balík neexistuje. Mac s Intelom potrebuje verziu x64.
+- Podpis Developer ID a notarizácia zatiaľ nie sú hotové. Keď budú, krok navyše pri prvom spustení odpadne.
+- Pribalené pluginy a program textida-mcp sa spúšťajú zvnútra aplikácie. Zmena súborov vnútri Textida.app poruší podpis a macOS ju potom môže odmietnuť spustiť.
+
 ## [help.updates] Aktualizácie a návrat na predchádzajúcu verziu
 commands: nks.help.updateCheck, nks.help.updateReturn
 Len Windows, v nainštalovanej Textide (priečinok vytvorený cez TextidaSetup.exe alebo Setup.ps1). Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.

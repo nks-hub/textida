@@ -176,6 +176,8 @@ internal static class AppCommands
         On("nks.tools.shellMenuAdd", w => w.AddShellMenu());
         On("nks.tools.shellAssociate", w => w.ShowShellAssociations());
         On("nks.tools.shellRemove", w => w.RemoveShellIntegration());
+        On("nks.tools.macIntegration", w => w.ShowMacIntegration());
+        On("nks.tools.macRemove", w => w.RemoveMacIntegration());
         On("nks.macro.record", w => w.RecordMacro());
         On("nks.macro.stop", w => w.StopMacro());
         On("nks.macro.playLast", w => w.PlayLastMacro());

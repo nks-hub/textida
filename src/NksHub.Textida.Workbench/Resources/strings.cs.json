@@ -617,6 +617,8 @@
   "cmd.tools.shellMenuAdd": "Přidat Textidu do nabídky Průzkumníka",
   "cmd.tools.shellAssociate": "Asociace souborů...",
   "cmd.tools.shellRemove": "Odebrat Textidu z Průzkumníka",
+  "cmd.tools.macIntegration": "Integrace s macOS...",
+  "cmd.tools.macRemove": "Odebrat Textidu z macOS",
   "cmd.review.open": "Zkontrolovat změny zvenku",
   "cmd.review.folder": "Zkontrolovat změny zvenku ve složce",
   "cmd.review.next": "Další změna zvenku",
