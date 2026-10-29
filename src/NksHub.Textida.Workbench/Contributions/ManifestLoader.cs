@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Icons;
 using NksHub.Textida.Workbench.Keys;
 using NksHub.Textida.Workbench.Settings;
 
@@ -46,6 +47,21 @@ public static class ManifestLoader
         }
 
         return segments.All(s => s.Length > 0 && char.IsAsciiLetterLower(s[0]) && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'));
+    }
+
+    /// <summary>Deepest nesting of submenus: <c>outer/middle/inner</c>.</summary>
+    public const int MaxSubmenuDepth = 3;
+
+    /// <summary>A submenu is one id or a path of ids separated by <c>/</c>, each segment non-empty, the whole at most 64 characters.</summary>
+    public static bool IsValidSubmenu(string? submenu)
+    {
+        if (string.IsNullOrWhiteSpace(submenu) || submenu.Length > 64)
+        {
+            return false;
+        }
+
+        var segments = submenu.Split('/');
+        return segments.Length <= MaxSubmenuDepth && segments.All(s => !string.IsNullOrWhiteSpace(s));
     }
 
     public static ManifestLoadResult Load(string json, ManifestTrust trust)
@@ -118,6 +134,7 @@ public static class ManifestLoader
 
             CheckText(errors, $"Command '{c.Id}' title", c.Title, required: true);
             CheckText(errors, $"Command '{c.Id}' category", c.Category, required: false);
+            CheckIcon(errors, c, builtin);
             CheckWhen(errors, $"Command '{c.Id}' when", c.When);
             CheckWhen(errors, $"Command '{c.Id}' enablement", c.Enablement);
             if (c.Undo is not ("none" or "transaction"))
@@ -146,7 +163,7 @@ public static class ManifestLoader
                 errors.Add($"Invalid menu item '{menu.Menu}' / '{menu.Command}'.");
             }
 
-            if (menu.Submenu is { } sub && (string.IsNullOrWhiteSpace(sub) || sub.Length > 64))
+            if (menu.Submenu is { } sub && !IsValidSubmenu(sub))
             {
                 errors.Add($"Invalid submenu '{sub}' of menu item '{menu.Command}'.");
             }
@@ -227,6 +244,25 @@ public static class ManifestLoader
         {
             errors.Add($"Setting '{s.Key}' default is invalid: {why}");
         }
+    }
+
+    /// <summary>The path of an icon file in a plugin: relative, forward slashes, no <c>..</c>, ending in <c>.svg</c>.</summary>
+    public static bool IsIconFile(string? icon) =>
+        icon is { Length: > 4 and <= 128 } && icon.EndsWith(".svg", StringComparison.Ordinal) && !icon.StartsWith('/') && !icon.Contains("..", StringComparison.Ordinal) && !icon.Contains('\\') && !icon.Contains(':') && icon.All(c => !char.IsControl(c));
+
+    private static void CheckIcon(List<string> errors, CommandContribution c, bool builtin)
+    {
+        if (c.Icon is not { } icon)
+        {
+            return;
+        }
+
+        if (icon == BuiltinIcons.TextOnly || BuiltinIcons.All.ContainsKey(icon) || (!builtin && IsIconFile(icon)))
+        {
+            return;
+        }
+
+        errors.Add($"Command '{c.Id}' icon '{icon}' is neither the name of a built-in icon nor '{BuiltinIcons.TextOnly}'" + (builtin ? "." : " nor the path of an .svg file inside the plugin."));
     }
 
     private static void CheckText(List<string> errors, string what, string? text, bool required)

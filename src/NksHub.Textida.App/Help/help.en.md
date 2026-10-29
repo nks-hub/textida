@@ -21,6 +21,7 @@ The palette is a searchable list of all commands of the program.
 - If you start with /, the palette searches the settings and Enter opens the settings at the item found.
 - If you start with =, the palette calculates: =1+2*3 shows 7 and Enter copies the result. An invalid expression, a division by zero or a number that is too large is reported next to the expression.
 - F1 on the selected command opens its help topic.
+- A command has its icon before the name, the same as in the menus. Lines have the text colour and the marked parts the accent colour of the theme, and in high contrast the colours of the system. A command without a picture has an empty space where the icon would be.
 
 ## [help.contents] Help
 commands: nks.help.contents
@@ -276,9 +277,11 @@ commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.rere
 ## [app.settings] Settings
 commands: nks.app.openSettings
 1. Press Ctrl+comma, or choose Settings and then Settings.
-2. Type what you look for in the box at the top, for example tab or shortcut. Both settings and keyboard shortcuts are searched.
-3. Every item shows its effective value and where it comes from (default, user, workspace, EditorConfig, document).
-4. Change the value right in the row; it takes effect at once and is written to the settings file. Reset to Default restores the original value.
+2. On the left choose a category: Appearance (theme, interface language, font, toolbar), Editor, Files, Search, Hex, Git, Local History, Tools and Languages, Keyboard Shortcuts, System or Advanced; each plugin has its own node under Plugins. On the right is the page of the category with its settings in sections. The tree works with the arrow keys.
+3. Type what you look for in the box at the top, for example tab or shortcut. Settings and keyboard shortcuts are searched by name, description, key and value. The tree narrows to the categories with a match and shows the count in each; the match is bold in the text, and the page lists the matches of every category.
+4. Every item shows its effective value and where it comes from (default, user, workspace, EditorConfig, document). What you changed is marked changed.
+5. Change the value right in the row; it takes effect at once and is written to the settings file. Reset to Default restores the original value of one setting; Reset Category to Default (above the page) restores everything you changed in the category, after a question.
+- The interface language is under Appearance: the choice takes effect at once and changes menus, messages and this help.
 - A nonsensical value is refused and the row says what is wrong. If the settings file cannot be written, the reason is above the list.
 - Shortcut conflicts are shown on the rows concerned.
 - The group Advanced holds the options that few people need: scrolling past the end, cutting a whole line without a selection, hiding the mouse pointer while typing, links with Ctrl+click, the indent of wrapped lines, how many recent files and undo steps are kept, the autosave interval, the blink time of the text cursor (0: it does not blink), smooth scrolling with the mouse wheel, and how many lines and columns around the screen get syntax colors at once. The text cursor of the usual blink time is the one of the editor; any other time draws the cursor in the program, and block selection mode uses the editor's again.
@@ -291,7 +294,7 @@ The program can be used with the keyboard alone and with a screen reader. It is 
 2. In the part you reached, press Tab and Shift+Tab to move between the controls and the arrow keys between the rows of a list.
 3. Press Esc to close a dialog, the palette or a panel; the keyboard returns to the document.
 ### Keyboard
-- Every command is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu. The menu bar is reached with the Alt key on Windows; on macOS it is the menu bar of the system (Ctrl+F2).
+- Every command is in the command palette (Ctrl+Shift+P) and, if it has one, in a menu. An item that belongs only to another kind of file or mode (hex, for example) is hidden in the menu and the palette; an item that cannot work now is grey and a screen reader reports it as unavailable. The palette says why next to a grey command. The menu bar is reached with the Alt key on Windows; on macOS it is the menu bar of the system (Ctrl+F2).
 - The editor keeps the Tab key for itself. F6 moves the keyboard to the next part of the window: the list on the left, the document, the preview, agent and output panels, the find bar, the status bar. Shift+F6 goes back. A part that is closed is skipped.
 - In the other parts Tab and Shift+Tab move between the controls from top to bottom and from left to right; in a list the arrow keys move between the rows. Esc closes a dialog, the palette and the panels and returns the keyboard to the document.
 - When a dialog closes, the keyboard returns to the control that had it before.
@@ -372,19 +375,19 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 
 ## [edit.clipboardHistory] Clipboard history
 commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
-1. Press Ctrl+Shift+V (Edit menu, Clipboard History). The list shows the texts you copied or cut last, newest first, with a preview of the highlighted one.
+1. Press Ctrl+Shift+V (Edit menu, Clipboard, Clipboard History). The list shows the texts you copied or cut last, newest first, with a preview of the highlighted one.
 2. Type to filter the list, pick a text with the arrow keys and press Enter.
 - The text is pasted like Ctrl+V: with several carets it goes into every caret (one line per caret when the number of lines equals the number of carets), as one Undo step. It also works in paged mode.
 - The history holds as many texts as the setting Clipboard history size says. It is kept in memory only and forgotten when the program closes. A text longer than 1,048,576 characters is not kept.
-- Paste Without Moving the Caret (Edit menu) pastes the clipboard text and leaves the caret where it was, in front of the new text. In a block selection the caret returns to the top left corner.
+- Paste Without Moving the Caret (Edit menu, Clipboard) pastes the clipboard text and leaves the caret where it was, in front of the new text. In a block selection the caret returns to the top left corner.
 - Pasting does not work in a read-only document; Paste Without Moving the Caret does not work in paged mode either (topic Large files).
 
 ## [edit.specialPaste] Paste as HTML and insert from a file
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
 1. Put the caret where the text should go. For Paste as HTML first copy formatted text in a browser or a word processor.
-2. Choose Edit, Insert and then Paste as HTML or Insert from File. Insert from File asks you to choose the file.
+2. Choose Edit, Clipboard, Paste as HTML, or Edit, Insert, Insert from File. Insert from File asks you to choose the file.
 3. The text goes in at every caret as one Undo step; Ctrl+Z takes it back.
-- Paste as HTML (Edit, Insert) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
+- Paste as HTML (Edit, Clipboard) pastes the HTML source that a browser or a word processor put on the clipboard when it copied formatted text. It goes in as text, the way Ctrl+V pastes, as one Undo step. When the clipboard holds no HTML, the status bar says so.
 - Insert from File (Edit, Insert) puts the text of the file you choose at every caret as one Undo step. The encoding of the file is detected as when it is opened, and its line endings become those of the document. A file larger than 16 MiB is not inserted.
 - Neither works in a read-only document or in paged mode (topic Large files).
 - The clipboard holds no HTML. Copy the text from a browser or a word processor that puts HTML on the clipboard. Nothing was pasted.
@@ -393,7 +396,7 @@ commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
 ## [edit.insertLines] Insert into lines
 commands: nks.edit.insertIntoLines
 The command writes text, numbers or bullets into the lines of the selection, or into all lines when there is only a caret.
-1. Choose Edit, Insert, Insert into Lines. The preview shows the first lines as they will look.
+1. Choose Edit, Lines, Insert into Lines. The preview shows the first lines as they will look.
 2. Choose Text, Numbers or Bullets, and where to write: start of each line, end of each line, before a column, or at each caret.
 3. Press OK. The result is one Undo step.
 - Numbers: First number, Digits (the number is padded with zeros to that width) and Separator, which goes between the number and the text of the line (after the number at the start of a line, before it at the end). At each caret only the number is written, so three carets get 1, 2 and 3.
@@ -403,7 +406,7 @@ The command writes text, numbers or bullets into the lines of the selection, or 
 
 ## [edit.sort] Sorting lines
 commands: nks.edit.sortLines
-1. Select the lines (or put the caret anywhere to sort all lines) and choose Edit, Conversions and Recipes, Sort Lines.
+1. Select the lines (or put the caret anywhere to sort all lines) and choose Edit, Lines, Sort Lines.
 2. Choose ascending or descending, whether letter case matters, whether to remove duplicate lines, and what to compare by. The preview shows the first lines of the result.
 3. Press OK. The result is one Undo step and the sorted lines stay selected.
 - Character code orders by the code of the characters. Locale uses the rules of a language, given as a tag such as cs-CZ or a hexadecimal id such as 0405 (empty means language-neutral). Number at the start reads the number a line starts with; lines without a number come first.
@@ -413,7 +416,7 @@ commands: nks.edit.sortLines
 
 ## [search.selectLines] Select lines by range
 commands: nks.search.selectLinesByRange
-1. Choose Search, Select Lines by Range.
+1. Choose Edit, Selection, Select Lines by Range.
 2. Type line numbers and ranges, for example 10-20, 40-50, separated by commas, semicolons or spaces. The line under the box tells how many selections it makes.
 3. Press OK. Each range becomes its own selection with its own caret, and Copy then copies the lines of all ranges.
 - Ranges that overlap or touch are joined. Line numbers start at 1; lines after the end of the document are ignored.
@@ -438,7 +441,7 @@ These commands are in the Format menu. They act on the selected lines, or on all
 ## [edit.insertSmall] Date, GUID and repeat
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 1. Put the caret where the text should go; several carets are allowed.
-2. Choose Edit, Insert and then Insert Date and Time or Insert GUID. Repeat Last Command is in Edit, Conversions and Recipes.
+2. Choose Edit, Insert and then Insert Date and Time or Insert GUID. Repeat Last Command is in the Edit menu.
 3. The text goes in at every caret as one Undo step; Ctrl+Z takes it back.
 - Insert Date and Time writes the current date and time at every caret, in the format of the setting Date and time format (a .NET custom format such as yyyy-MM-dd HH:mm; month and day names follow the interface language). A selection is replaced. In the PSPad profile it is Alt+D.
 - Insert GUID writes a new GUID at every caret, each caret its own: lower case, with hyphens, without braces.
@@ -465,7 +468,7 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 ## [edit.json] Format JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
 1. Select JSON text, or select nothing to work on the whole document.
-2. Edit menu, Formatting, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings and the encoding.
+2. Format menu, Format Code and Data, Format JSON, formats the selected ranges (every selection) or the whole document. All ranges are one Undo step; text outside them stays byte for byte as it was, including the line endings and the encoding.
 3. Preview JSON Formatting shows the change as a proposal first. Apply it from the bar above the editor, or discard it.
 4. Minify JSON writes the value on one line without white space and removes comments. Sort JSON Keys orders the members of every object by name (a comment moves with its member) and lays the text out like Format JSON. Remove JSON Trailing Commas removes only the commas in front of a closing bracket and changes nothing else.
 - Comments and trailing commas are part of JSONC files (.jsonc, tsconfig.json and the like). Format JSON and Sort JSON Keys keep both there. In a plain JSON file they are reported as errors; Remove JSON Trailing Commas repairs the commas.
@@ -502,10 +505,10 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 
 ## [tools.markdown] Markdown preview, tables and contents
 commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
-1. Tools, Markdown, Preview Markdown or HTML opens the preview panel under the editor with the current file. The panel follows what you type: it is drawn again a moment after the last key. The editor and the panel scroll together: when you scroll one, the other follows.
+1. View, Preview Markdown or HTML opens the preview panel under the editor with the current file. The panel follows what you type: it is drawn again a moment after the last key. The editor and the panel scroll together: when you scroll one, the other follows.
 2. Markdown is shown as a page: headings, lists, quotes, code, emphasis and tables with their cells (the colons in the row of dashes set the alignment of a column). A code block marked `mermaid` is drawn as a flowchart.
 3. An HTML file is shown as a page too, but only a small part of HTML is understood: headings, paragraphs, lists, tables, preformatted text, code, links, images and emphasis. Every other tag, every comment and everything inside `script` and `style` is shown as the text it is. Nothing in the file runs.
-4. Tools, Markdown, Show Markdown Outline lists the headings of the file in the same panel, indented by level. A click, or Enter on a heading, puts the caret on its line in the editor.
+4. View, Show Markdown Outline lists the headings of the file in the same panel, indented by level. A click, or Enter on a heading, puts the caret on its line in the editor.
 5. Tools, Markdown, Align Markdown Table rewrites the table under the caret so that every column is as wide as its widest cell. The marks `:--`, `:-:` and `--:` are kept and a short row is filled with empty cells. One undo step undoes it.
 6. Tools, Markdown, Update Markdown Table of Contents writes links to the headings between the lines `<!-- TOC -->` and `<!-- /TOC -->`. Only the text between the two lines changes. Without them the two lines are added at the caret. The anchors are lower case, spaces become hyphens, and a repeated title gets `-1`, `-2`.
 7. In a table, Tab selects the next cell and Shift+Tab the previous one; the columns are aligned on the way. Tab in the last cell adds a row. Outside a table both keys work as always. One undo step undoes each move.
@@ -521,7 +524,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
 A Markdown file (.md, .markdown) has three modes. Reading draws the page over the whole tab, editing shows the editor with the page beside it, source shows only the text. A bar above the file switches them.
 1. A Markdown file opens in reading. The setting Default Markdown mode (Settings, Files) chooses reading, editing or source for files opened from now on.
-2. Press a button of the bar, use Tools, Markdown, Markdown: Reading, Editing or Source, or press Ctrl+K and then Ctrl+V (View, Hex, Cycle View Mode), which goes to the next mode: reading, editing, source and reading again. The status bar and a screen reader say which mode is on.
+2. Press a button of the bar, use View, View Mode, Markdown: Reading, Editing or Source, or press Ctrl+K and then Ctrl+V (View, View Mode, Cycle View Mode), which goes to the next mode: reading, editing, source and reading again. The status bar and a screen reader say which mode is on.
 3. In editing the page is drawn again a moment after the last key and scrolls together with the editor; unsaved changes are drawn too. Reading and editing draw with the same safe renderer as the preview: no script runs and nothing is fetched from the web without your consent.
 4. Changing the mode keeps the place: the page and the editor scroll to the same line, and the caret and the selection come back when you return to the editor. The window remembers the mode of a file until it is closed.
 - A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
@@ -532,8 +535,8 @@ A Markdown file (.md, .markdown) has three modes. Reading draws the page over th
 ## [view.image] Pictures
 commands: nks.view.modeImage, nks.view.modeText
 A PNG, JPEG, GIF, BMP, WebP or ICO file, recognised by its first bytes and not by its name, opens as a picture. SVG is text and opens as text. A picture is view only; nothing in it can be edited.
-1. The picture is fitted to the tab. The key 0 fits it again, 1 shows it at its real size, plus and minus zoom, and the arrow keys, Page Up, Page Down, Home and End move it. Ctrl+wheel zooms around the pointer, dragging with the mouse moves the picture, and View, Zoom In, Zoom Out and Reset Zoom do the same; Reset Zoom fits the picture to the tab.
-2. The bar above the picture offers Show as picture, Show as text and Show as hex. The command palette has Show as Picture and Show Picture as Text, Ctrl+K then Ctrl+V (View, Hex, Cycle View Mode) goes to the next mode, and Ctrl+K then Ctrl+H toggles hex. The file is not read again, so you can come back to the picture at any time.
+1. The picture is fitted to the tab. The key 0 fits it again, 1 shows it at its real size, plus and minus zoom, and the arrow keys, Page Up, Page Down, Home and End move it. Ctrl+wheel zooms around the pointer, dragging with the mouse moves the picture, and View, Zoom, Zoom In, Zoom Out and Reset Zoom do the same; Reset Zoom fits the picture to the tab.
+2. The bar above the picture offers Show as picture, Show as text and Show as hex. The command palette has Show as Picture and Show Picture as Text, Ctrl+K then Ctrl+V (View, View Mode, Cycle View Mode) goes to the next mode, and Ctrl+K then Ctrl+H toggles hex. The file is not read again, so you can come back to the picture at any time.
 3. The status bar shows the format, the size in pixels, the size of the file and the zoom. A screen reader reads the same when the picture opens and when the zoom changes, and the bar names the mode that is on.
 4. The setting Picture files (Settings, Files) decides whether a picture file opens as a picture, as text or in hex. The bar is there in each case.
 - Where the picture is transparent a checkerboard shows through. An animated GIF shows its first frame only.
@@ -544,16 +547,16 @@ A PNG, JPEG, GIF, BMP, WebP or ICO file, recognised by its first bytes and not b
 ## [tools.keys] Key paths in YAML and JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. In a YAML or JSON file the status bar shows the path of the key under the caret, for example `cs.app.title`. Items of a list are written `items[0]`, and a key that contains a dot or a bracket is written `["a.b"]`. The path is read for the revision and the caret it was asked for: if you type or move meanwhile, the answer is dropped.
-2. Tools, Structure and Language, Copy Key Path puts the path on the clipboard.
-3. Tools, Structure and Language, Go to Key (or `@` in Go to Anything) lists the keys of the file by their path; Enter selects the key as it is written. Show Key Outline lists the same keys in the plugin panel, and a click there selects the same bytes.
-4. Tools, Structure and Language, Compare Keys with Another File asks for another open YAML or JSON file and writes to the output window the keys with a value that each file lacks.
+2. Tools, Data and Schemas, Copy Key Path puts the path on the clipboard.
+3. Tools, Data and Schemas, Go to Key (or `@` in Go to Anything) lists the keys of the file by their path; Enter selects the key as it is written. Show Key Outline lists the same keys in the plugin panel, and a click there selects the same bytes.
+4. Tools, Data and Schemas, Compare Keys with Another File asks for another open YAML or JSON file and writes to the output window the keys with a value that each file lacks.
 - Block style YAML is understood: nested keys, lists, quoted keys and block scalars. A value in braces or brackets counts as one value. JSON may have comments and trailing commas.
 - A syntax error stops the reading at that place; the keys before it are kept and the message gives the line.
 
 ## [tools.outline] Code outline and symbols
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML, PHP, CSS, C# and Markdown files, Tools, Structure and Language, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
-2. Tools, Structure and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
+1. In HTML, PHP, CSS, C# and Markdown files, Tools, Code and Language, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
+2. Tools, Code and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
 3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
 4. If the plugin process stops, the outline is read again once it is back.
 5. While a file has an outline, the status bar names the symbol the caret is in, with its parents (for example `Class › method`); it follows the caret and is hidden while the outline is outdated. The outline shows the same item in bold, and a screen reader names it "current item". The mark is no selection and does not take the keyboard from you; it moves with the caret and stays on its item while the outline is refreshed.
@@ -680,7 +683,7 @@ commands: nks.search.relatedFile
 commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
 1. Ctrl+F2 sets or removes a bookmark on the line of the caret; a dot appears in the margin left of the line numbers.
 2. F2 jumps to the next bookmark, Shift+F2 to the previous one; after the last one it continues from the first.
-- Search, Clear Bookmarks removes all bookmarks of the document.
+- Search, Bookmarks, Clear Bookmarks removes all bookmarks of the document.
 - A bookmark moves with the text when lines are added or removed above it, and it is kept in the session: it is back after a restart.
 
 ## [view.wordwrap] Word wrap
@@ -712,7 +715,7 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Hidden values in .env files
 commands: nks.view.toggleSecrets
-1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. View, Show Hidden Values shows them in the current tab, and using it again hides them.
+1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. View, Editor Display, Show Hidden Values shows them in the current tab, and using it again hides them.
 - In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
 - Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
@@ -720,6 +723,19 @@ commands: nks.view.toggleSecrets
 - In paged mode a screen reader reads a bullet for each character of a hidden value. A line longer than 16 KiB hides everything beyond its first part when it holds a value.
 - A plugin reads the character `*` in place of every hidden value. Before a built-in command runs on such a file, the program asks whether it may read the values.
 - The setting Secret files holds the name masks of the files whose values are hidden, separated by semicolons (`*` stands for any text). Its default list is provisional.
+
+## [view.toolbar] Toolbar
+commands: nks.view.toggleToolbar, nks.view.editToolbar
+The toolbar is a row of buttons under the menu bar for the commands you use most. It is off until you switch it on.
+1. Choose View, then Toolbar. The row appears under the menu bar; choose it again to hide the row.
+2. Click a button to run its command. A button is dimmed while its command cannot run for the open document, for example Save without a document. Hold the pointer over a button to see its name and shortcut.
+3. To change the buttons choose View, then Customize Toolbar. Choose a command on the left (type in the box to narrow the list) and press Add or Enter; it goes after the button chosen on the right.
+4. Choose a button on the right and press Remove (or Delete) to take it off, Move Up or Move Down (or Alt+Up and Alt+Down) to move it, or Add Separator for a thin line between two groups.
+5. Press OK to save the toolbar; it changes in every window at once. Cancel leaves it as it was; Restore Defaults puts back the first set.
+- The first set is New, Open, Save, Save All, Undo, Redo, Find and Replace, and the Git commit, pull and push buttons when the Git commands are there. A button whose command does not exist, for example one of a plugin that was removed, is not drawn; it stays in the list and comes back with the command.
+- The toolbar holds at most 40 entries (buttons and separators); the limit is provisional and the editor says when the toolbar is full. A command can be on the toolbar once.
+- The buttons are kept in toolbar.json in the profile folder and in the configuration backup. A file that cannot be read is skipped: the first set is shown and the reason appears in the status bar and in the editor. Saving drops comments from the file.
+- A button shows the icon of its command and, when the command has none, its name. Icons follow the theme and the high contrast colours of the system.
 
 ## [view.tabs] Switching tabs
 commands: nks.view.nextTab, nks.view.previousTab
@@ -739,7 +755,7 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Ctrl+Shift+E opens or closes the Files panel. Without an open folder it offers Open Folder.
 2. The arrows walk through the tree, Right and Left arrow expand and collapse a folder, Enter or a double click opens a file.
 3. The right button offers file operations (topic File operations). F2 renames, Delete moves to the recycle bin or trash, F5 refreshes.
-4. View, Show Hidden Items in the Files Panel hides or shows the entries whose name starts with a dot or that have the hidden attribute.
+4. View, Panel Layout, Show Hidden Items in the Files Panel hides or shows the entries whose name starts with a dot or that have the hidden attribute.
 - The tree follows changes on disk by itself.
 - Every entry has an icon and a colour by its type: folder, text, source code, markup, data, style sheet, image, archive or binary file. Hidden entries are shown dimmed.
 - In a folder that lies in a Git repository the name takes the colour of the state Git gives the file, and a letter follows it: M changed, N new, D deleted, I ignored, ! conflict. A folder shows the heaviest state below it. The setting Git status in the Files panel turns this off; outside a repository Git is not started.
@@ -831,7 +847,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 ## [format.encoding] Encoding
 commands: nks.format.reread, nks.format.convert
 The status bar shows the encoding; clicking it opens the same choice. If the encoding is a guess, the percentage of certainty is shown with it.
-1. Choose Format and then Convert to Encoding. To read the file again in another encoding choose Reopen with Encoding in File, Open Special.
+1. Choose Format and then Convert to Encoding. To read the file again in another encoding choose Reopen with Encoding in the Format menu.
 2. Choose the encoding in the list. An encoding that would lose characters is marked lossy, with the number of characters.
 3. Check the window Byte Changes and confirm it (topic Byte inspector). The status bar says Converted to encoding.
 - Reopen with Encoding: the file is read again from disk in another encoding. Use it when wrong letters appear after opening.
@@ -910,19 +926,19 @@ commands: nks.window.splitView, nks.window.moveToOtherGroup
 
 ## [settings.theme] Theme
 commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.theme.dark
-1. Choose Settings and one of the themes: Theme: Follow System, Theme: Light, Theme: Dark.
+1. Choose Settings, Theme and one of the themes: Theme: Follow System, Theme: Light, Theme: Dark.
 2. The change takes effect at once and is remembered.
 - Follow System means the program follows the system setting.
 
 ## [settings.language] Interface language
 commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
-1. Choose Settings and then Čeština, English, Slovenčina or Deutsch.
+1. Open Settings (Ctrl+comma), the category Appearance, and in Interface language choose Follow System, Čeština, English, Slovenčina or Deutsch.
 2. Menus, messages and this help switch at once.
 - The default is to follow the system (setting Interface language).
 
 ## [settings.profile] Behaviour profile
 commands: nks.settings.profile.default, nks.settings.profile.pspad
-1. Choose Settings and then Behaviour Profile: Default or Behaviour Profile: PSPad.
+1. Choose Settings, Behaviour Profile and then Behaviour Profile: Default or Behaviour Profile: PSPad.
 - The PSPad profile changes: Home and End jump between the first character and the edge of the line, Backspace in indentation deletes back to the tab stop, Alt+drag makes a block selection, paired characters are completed the PSPad way, and a few shortcuts (Delete Line Ctrl+Y, Undo Alt+Backspace, Word wrap Ctrl+W, F8 mark, Ctrl+Shift+C block selection, indentation Ctrl+Shift+I and U).
 - Your own shortcuts in the settings take precedence over the profile.
 
@@ -966,7 +982,7 @@ commands: nks.view.fullScreen
 ## [hex.open] Hex: opening and moving
 commands: nks.view.hex, nks.file.openAsHex
 Hex shows a file byte by byte: offset, bytes in hexadecimal and characters. It reads only the rows on the screen, so the file size does not matter.
-1. Ctrl+K then Ctrl+H switches the active document between text and hex (View menu, Toggle Hex and Text). It is the same document with the same Undo history; the selection is converted through bytes.
+1. Ctrl+K then Ctrl+H switches the active document between text and hex (View menu, View Mode, Toggle Hex and Text). It is the same document with the same Undo history; the selection is converted through bytes.
 2. File and then Open in Hex opens the chosen file straight in hex. From the command line the switch --hex does it, optionally with --offset.
 3. A file that looks binary (a NUL byte in the first 8,000 bytes) gets a bar above the document: Open in hex, or Keep as text.
 - Arrows, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End (whole file). Shift extends the selection. Tab switches between the byte column and the character column.
@@ -1150,7 +1166,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 
 ## [packages.registry] Package manifests: names, versions and newer-version marks
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml, Gemfile, pubspec.yaml, pom.xml, build.gradle and build.gradle.kts the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems, pub.dev, Maven Central) for names and versions. In a pom.xml only versions are completed (group and artifact are two elements); in a Gradle file the whole group:artifact is completed too. Only a version written out in full is checked for a newer one, not a range, a variable like ${project.version} or a missing version. Nothing is sent until you agree: Tools, Packages, Check Package Versions shows the servers and asks once for each registry.
+1. In package.json, composer.json, requirements.txt, a .csproj file, go.mod, Cargo.toml, Gemfile, pubspec.yaml, pom.xml, build.gradle and build.gradle.kts the editor can ask the package registry (npm, Packagist, PyPI, NuGet, Go proxy, crates.io, RubyGems, pub.dev, Maven Central) for names and versions. In a pom.xml only versions are completed (group and artifact are two elements); in a Gradle file the whole group:artifact is completed too. Only a version written out in full is checked for a newer one, not a range, a variable like ${project.version} or a missing version. Nothing is sent until you agree: Tools, Data and Schemas, Check Package Versions shows the servers and asks once for each registry.
 2. After you agree, Ctrl+J in the name of an entry offers names from the registry, and in a version it offers the versions of that package, newest first. PyPI and the Go proxy have no search: a name is offered only when the typed text is the whole name.
 3. An entry that pins an exact version (1.2.3, ==1.2.3, v1.2.3) and has a newer release gets an information mark on the version. Ranges (^, ~, >=) are not marked. A pre-release is not taken as the newer version while a release exists. The check runs when you stop typing.
 4. Answers are kept in a cache in memory, up to a size limit (the oldest go first) and for a limited time, and no longer than the editor runs. An offer or a mark that came from the cache says so ("cache"). Refresh Package Versions drops the cache of that registry and asks again.
@@ -1162,7 +1178,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 commands: nks.schemas.allow
 1. A JSON, JSONC, TOML or YAML file is checked against the schema that fits it. The file can name its schema itself ("$schema" at the top of a JSON file, the comment "# yaml-language-server: $schema=ADDRESS" in YAML, "#:schema ADDRESS" in TOML); otherwise the file name decides (package.json, Cargo.toml, GitHub workflows, the files of Claude Code, MCP and Codex, and a short list of common configuration files). The status bar shows the name of the schema or "no schema". A finding is underlined and its tip names the place, with line and column for a syntax error.
 2. Ctrl+J offers the keys the schema allows in the object around the caret and, where a value is written, the allowed values (enum values, true and false). Resting the pointer on a key or a value shows what the schema says about it: description, type, allowed values and default.
-3. The schemas of package.json, Cargo.toml, GitHub workflows and the agent files come with the editor. The schema of any other known file, and a schema a file names by an address, is downloaded only after you agree. Until then the status bar says "download not allowed", and Tools, Packages, Allow Schema Download shows the server and asks once for each server. Forbid Registry Lookups and Schema Downloads takes every consent back. A schema a file names by a path is read from disk and needs no consent.
+3. The schemas of package.json, Cargo.toml, GitHub workflows and the agent files come with the editor. The schema of any other known file, and a schema a file names by an address, is downloaded only after you agree. Until then the status bar says "download not allowed", and Tools, Data and Schemas, Allow Schema Download shows the server and asks once for each server. Forbid Registry Lookups and Schema Downloads takes every consent back. A schema a file names by a path is read from disk and needs no consent.
 4. A downloaded schema is kept on this computer up to a size limit (the oldest are deleted first) and used again without a request while it is recent. When the server does not answer, the saved copy is used and the status bar says so. The network proxy of the Network Proxy command is used, also one with a user name (the requests go through the editor).
 5. A syntax error in a JSON, JSONC, TOML or YAML file is underlined even when no schema applies. YAML with anchors, tags or complex keys cannot be read: such a file is not checked, and the status bar says so.
 6. Your own rules: the setting Schema mappings (Settings, search "schema") maps files to schemas. Write MASK=SCHEMA, separated by semicolons or line breaks, for example `*.cfg=package.json; config/**=https://example.test/a.json as yaml`. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address or a file path; the ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas the editor knows; only a $schema written in the file wins over a rule. A rule written differently is skipped and named in the status bar. A change applies to the open files at once.
@@ -1170,7 +1186,7 @@ commands: nks.schemas.allow
 
 ## [packages.scripts] Package scripts: npm and Composer
 commands: nks.packages.script
-1. With a package.json or composer.json open, Tools, Packages, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
+1. With a package.json or composer.json open, Tools, Data and Schemas, Run Package Script lists its scripts. Choose one to run npm run name or composer run-script name in the folder of the file.
 2. It goes through the tool runner like a tool from a project folder: the command, the directory and the file it comes from are shown and have to be confirmed. The confirmation is tied to the text of the script, so a changed script asks again. The output goes to the Tasks tab; Stop ends it.
 - npm or Composer has to be installed. On Windows both are batch files; the editor starts Node with npm-cli.js, or PHP with composer.phar, from the folder of the batch file, so a script name with a line break or ! still works. Without that standard layout the batch file is started through cmd.exe.
 
@@ -1185,6 +1201,7 @@ commands: nks.plugins.manage
 - Permissions are a record of what you allowed, not a sandbox: a plugin is a program that runs with your user rights. Install only plugins you trust. Signatures are not checked yet. The size and file count limits for a ZIP are provisional. The commands, menu items, keys and settings of a plugin appear when you install or switch it on and go when you switch it off or remove it; an update replaces them, no restart needed. A plugin with a process may also bring clips, converters and external tools; they run without starting the process.
 - A workspace edit of a plugin (edits, new files, renames and deletes in several files) is checked as a whole before you see it, and refused as a whole when one part is not allowed. It names a path outside the workspace folders (also when a link in the path leads out of them), a file whose content or revision is not what the plugin saw, the same file twice, or a secrets file; or the batch holds more than 200 changes or more than 67108864 bytes of new text and new files together. Both limits are provisional values.
 - A plugin can bring keys and settings. Its keys (contributes.keybindings, with an optional "when") work like the keys of the editor, but a key of the editor, of the profile or your own keymap.json always wins over a plugin key; the clash is listed under the plugin in the Plugin Manager. Its settings (contributes.settings, keys that start with the plugin id) appear in Settings under the name of the plugin, with the default from the manifest, and a running plugin gets the values at its start and again as the event settings.changed. A command that names a tool in the manifest (contributes.externalTools) runs it without any plugin code, after you confirmed its command and directory.
+- A command of a plugin can have an icon: the "icon" of a command in contributes.commands is the name of a built-in icon (for example "save"), the word "text" for a command without a picture, or the path of an .svg file inside the plugin folder (no .. and no leading slash). The file may hold shapes only (path, circle, ellipse, rect, line, polyline, polygon, g), a square viewBox starting at 0 0 and at most 64 shapes; fill and stroke may only be none or currentColor, the colours come from the theme, and class="accent" marks a part in the accent colour. A script, a link to another file, a style or any other colour makes the plugin refused, with the file name in the message. The largest file size is provisional (16384 bytes).
 - Every plugin runs as its own process. If it ends or stops answering, the editor ends it, a bar names the plugin and says when it starts again; after repeated crashes it stays turned off. Show output in the bar opens the Output window with the last error lines of the plugin. A plugin that waits for your answer (a change review, a question) is not ended for not answering. A command that was running is not repeated after the restart, so nothing is written or uploaded twice. The number of crashes, the waits and the time limits are provisional.
 
 ## [plugins.lifecycle] Plugin processes: when they start, how to see them and how they end
@@ -1197,7 +1214,7 @@ commands: nks.plugins.manage
 
 ## [tools.lint] Linters: underline what PHPStan, Psalm, golangci-lint, Clippy, clang-tidy, RuboCop, ESLint, Ruff, ShellCheck, SQLFluff and dart analyze find
 commands: nks.tools.lint
-1. Tools, Running Tools, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby, ESLint for JavaScript and TypeScript, Ruff for Python, ShellCheck for shell scripts, SQLFluff for SQL, dart analyze for Dart. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
+1. Tools, Code and Language, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby, ESLint for JavaScript and TypeScript, Ruff for Python, ShellCheck for shell scripts, SQLFluff for SQL, dart analyze for Dart. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
 2. The linter checks the file on disk, so save first: a document with unsaved changes is not checked. The findings are underlined in the text (the message shows when the pointer rests on it) and listed in the Tasks tab, one per line; a click or Enter opens the place. The next run of the same linter replaces them, so a problem you fixed is gone after it. If you edit the file while a check runs, the findings move with the text and those whose text you changed are dropped.
 3. To check after every save, switch on "Check with PHPStan" (or the other linter) in File, Save Actions, or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff and dart-analyze. A check that a save starts waits half a second for a further save of the same file; the newer save replaces it.
 - The program is looked for in the path you gave, then in vendor/bin, node_modules/.bin and .venv (from the folder of the file upwards) and in PATH; nothing is downloaded. You give a path in the saveActions.json of the profile: "toolPaths": {"phpstan": "C:\\tools\\phpstan.phar"} (a file, or the folder that holds the program). It works for formatters too, and a project file cannot set it. A path that does not exist is reported and not replaced by a search. The first run asks you to confirm the command.
@@ -1223,7 +1240,7 @@ commands: nks.file.saveActions
 - Save Actions also offers "Check with ..." for the linters that handle the file; it is off until you switch it on. The check runs after the save and does not hold it; its time limit is lintTimeoutSeconds (provisionally 60 seconds while it is missing).
 ## [file.configFiles] Configuration files of the file
 commands: nks.file.configFiles
-1. The status bar names the configuration files that apply to the open file: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml and the configuration files of the language (for example ruff.toml, stylua.toml, .shellcheckrc). Each one is the nearest in the folder of the file or above it. Click the item, or use File, Configuration Files of This File.
+1. The status bar names the configuration files that apply to the open file: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml and the configuration files of the language (for example ruff.toml, stylua.toml, .shellcheckrc). Each one is the nearest in the folder of the file or above it. Click the item, or use Settings, Configuration Files of This File.
 2. The list opens a file you choose. A configuration that is missing can be created from a minimal template; it is written to the nearest parent folder that holds .git, otherwise to the folder of the file, and an existing file is never replaced.
 - Only folders are looked at: no tool is started, so the list shows what is on disk, not what a tool would use. The list is read again when the file is opened, saved or renamed, so a file created outside the editor shows after the next save.
 ## [log.mode] Log mode: levels and the next error
@@ -1248,8 +1265,8 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 
 ## [export.highlight] Export and copy with highlighting
 commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
-1. Edit, Copy As, Export as HTML and Export as RTF write the selection, or the whole document when nothing is selected, to a file you choose. The colors are those of the editor in the current light or dark theme: the same tokens of the grammar of the document, and in a log the colors of the levels. The page and text colors of the editor are included.
-2. Edit, Copy As, Copy with Formatting puts the text, HTML and RTF on the clipboard together, so pasting into a word processor or a mail keeps the colors, while pasting into an editor gives plain text. Copy as HTML Source puts the HTML itself on the clipboard as text.
+1. File, Export, Export as HTML and Export as RTF write the selection, or the whole document when nothing is selected, to a file you choose. The colors are those of the editor in the current light or dark theme: the same tokens of the grammar of the document, and in a log the colors of the levels. The page and text colors of the editor are included.
+2. Edit, Clipboard, Copy with Formatting puts the text, HTML and RTF on the clipboard together, so pasting into a word processor or a mail keeps the colors, while pasting into an editor gives plain text. Copy as HTML Source puts the HTML itself on the clipboard as text.
 - The whole document is colored, then the selection is cut out of it, so a selection that starts inside a comment is colored as in the editor. With several carets or a block selection only the selected text is taken, and it is colored from its own start. In a large file (paged mode) the selection is colored as in the whole document: the text before it on its first line is read, and the colors at the start of that line are worked out by reading the file up to it, which for a selection deep in a very large file takes a while (the window stays usable, the status bar shows how far the reading is, and Esc cancels it: the export then does not happen and nothing is written). The line numbering must have reached the selection, otherwise a message asks you to try again. A part of a line longer than 32 MiB in front of the selection is not read, and the selection is colored from its own start. If the colors at the start of the line cannot be worked out (a line too long to be colored lies in front of it, topic Large files (paged mode)), the grammar is taken to start fresh at that line.
 - A text over 8388608 characters is refused with a message; select a part of it. The limit is a placeholder, not a decided value. The work runs in the background, so the window stays usable.
 - HTML is UTF-8. RTF is ASCII: backslash, braces and every character outside ASCII (for example Czech letters) are written as escapes.
@@ -1459,7 +1476,7 @@ A plugin that cannot be installed or does not run is reported in a dialog, in a 
 ## [errors.agents] Error messages: MCP, /ide and agents
 The messages of the MCP server, the /ide bridge and the agents appear in the status bar, in dialogs and in the agent panel. Each line quotes the message and says what to do. Nothing is applied to your tabs without your confirmation, so a failed step leaves them as they were.
 - The MCP server could not start: reason. Fix the reason and choose MCP Server again. Nothing is shared meanwhile.
-- Switch on the MCP server first (Tools, MCP Server). Switch the server on, then share the tab again (topic The editor as an MCP server).
+- Switch on the MCP server first (Tools, Agents and AI, MCP, MCP Server). Switch the server on, then share the tab again (topic The editor as an MCP server).
 - This tab cannot be shared. Only text tabs can be shared. A comparison or a list of search results cannot.
 - The selection is larger than N bytes. Select less, or share the whole tab. Select less, or share the whole tab.
 - The /ide bridge could not start: reason. Fix the reason and choose IDE Bridge /ide again.
@@ -1487,7 +1504,7 @@ The messages of the MCP server, the /ide bridge and the agents appear in the sta
 - name offers no tools and no resources. The server answered but offers nothing to call. Check its setup in the file of its agent.
 - tool reports an error; its text is in a new tab. The call reached the server, and the server reports the error. Read the text in the new tab and call the tool again with other arguments.
 - The value of name could not be saved (reason); it is used for this connection only. The next connection asks for the value again. Fix the cause named in the reason.
-- The /ide bridge of this window is off. Switch it on with Tools, IDE Bridge /ide. Then repeat the command (topic The /ide bridge for Claude Code).
+- The /ide bridge of this window is off. Switch it on with Tools, Agents and AI, MCP, IDE Bridge /ide. Then repeat the command (topic The /ide bridge for Claude Code).
 - agent version N (the table lists M). This is a note in the agent panel, not an error: the agent still starts, but this version has not been verified (topic Agent over ACP).
 - agent: the version could not be read (reason). Not verified. This is a note in the agent panel too: the agent still starts, but its version is not verified.
 
@@ -1501,8 +1518,8 @@ These messages come from programs the editor starts for you. They appear in the 
 - Saved without formatting: reason. The file was saved as it was. Fix the reason and save again, or switch the formatting off (topic Save actions: format, run a tool, upload).
 - This tool has not been confirmed yet; run it once from Run Tool. Run the tool once with Run Tool and confirm its command and directory; then it can run on save.
 - Uploading the files of folder to name has not been allowed; save a file of the project by hand and allow it. Save a file of the project by hand: the program asks, and you can allow the upload for that project.
-- Lookups at registry are not possible: they are not allowed. Choose Tools, Packages, Check Package Versions and agree for the registry. If the network proxy is the reason, the check says what to do: the proxy asks for a login, refused the saved login, the user name has no saved password, or the network settings cannot be read (topic Network proxy).
-- schema name: download not allowed. Choose Tools, Packages, Allow Schema Download and agree for the server (topic Schemas for JSON, YAML and TOML: check, completion and descriptions).
+- Lookups at registry are not possible: they are not allowed. Choose Tools, Data and Schemas, Check Package Versions and agree for the registry. If the network proxy is the reason, the check says what to do: the proxy asks for a login, refused the saved login, the user name has no saved password, or the network settings cannot be read (topic Network proxy).
+- schema name: download not allowed. Choose Tools, Data and Schemas, Allow Schema Download and agree for the server (topic Schemas for JSON, YAML and TOML: check, completion and descriptions).
 - No Makefile next to the open file or in a folder above it. Open a file in a folder that has a Makefile, or the Makefile itself (topic Makefile: run a target).
 - A language server works with text documents only, not with large files shown in pages. A file in paged mode never goes to a language server (topic Large files (paged mode)).
 - No language server for language was found: program. Install the server so that its program is found on the PATH or in a folder of the project, or set its path as "lsp:" and the language in toolPaths of saveActions.json (topic Language server: definition, references, rename, completion and diagnostics).
@@ -1614,7 +1631,7 @@ A saved recipe runs again over another set of files. You see every change first;
 ## [edit.aiContext] Copy as AI context
 commands: nks.edit.copyAiContext
 Puts the selection, the file, the open tabs or the opened folder on the clipboard as one block of Markdown or XML, to paste into an AI assistant. Nothing is sent anywhere.
-1. Choose Edit, Copy as AI Context and pick what to copy: the Selection (every selection), This file, the Open tabs or the Opened folder.
+1. Choose Edit, Clipboard, Copy as AI Context and pick what to copy: the Selection (every selection), This file, the Open tabs or the Opened folder.
 2. The preview shows how many files go in, the size as Markdown and as XML, and what was left out with the reason. Choose Copy as Markdown or Copy as XML.
 - Each file has its path, the lines, the language, the encoding and the revision. A file with changes that are not saved is marked, and the text is the text in the editor now.
 - Left out and named: .env files (their values are never copied, also when they are shown in the editor), files and folders the ignore files exclude, hidden ones, binary files, files over the size limit of the folder walk and files that cannot be read.
@@ -1635,8 +1652,8 @@ A string in a PHP or JavaScript file opens in a tab of its own, in the language 
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. In an HTML or CSS file, type an abbreviation and press Tab. `ul>li*3` becomes a list of three items with the caret in the first one; each further Tab jumps to the next item.
 2. Tab indents as usual when no abbreviation stands in front of the caret, when text is selected, when the caret is inside an open tag, or when the abbreviation is not valid.
-3. Tools, Structure and Language, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the places Tab visits) and expands it when you agree.
-4. Tools, Structure and Language, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
+3. Tools, Code and Language, Preview Emmet Abbreviation shows what the abbreviation in front of the caret would become (`|` marks the places Tab visits) and expands it when you agree.
+4. Tools, Code and Language, Wrap with Emmet Abbreviation (HTML only) asks for an abbreviation and wraps every selection in it. The text goes into the innermost last element; a bare `*` on that element (`ul>li*`) makes one element per line.
 5. Every expansion goes into all carets at once and is one Undo step.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` child, `+` sibling, `^` one level up, `( )` group; in names, classes and text `$` is the number of the repeat (`$$` pads with zeros, `$@-` counts down, `$@3` starts at 3). A lone word expands only when it is an HTML tag name or a short name of the plugin (`bq`, `btn`, `a:link`, `input:checkbox`, `!` for a page skeleton). Inside an element the missing name is `li`, `tr`, `td`, `option`, `span` or `div`, as the parent needs.
 - CSS: `m10-20` is `margin: 10px 20px;`, `w100p` is `width: 100%;`, `c#f00`, `pos:a`, `dn`, a trailing `!` adds `!important`, `+` joins several declarations. A whole number gets `px`, a fraction `em`; the letters `p`, `e`, `x`, `r` after a number mean `%`, `em`, `ex`, `rem`. It works only inside a `{ }` block.
@@ -1666,7 +1683,7 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
-1. Open a text document and choose Tools, Language Server, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
+1. Open a text document and choose Tools, Code and Language, Language Server, Language Server: Start for This Document. The server for the language of the document starts and gets the text. From then on every edit goes to it, and what it finds wrong is underlined.
 2. Language Server: Go to Definition jumps to the definition of the word at the caret, also in another file. Language Server: Find References lists every place in the panel on the left; Enter or a double click on an item opens it.
 3. Language Server: Rename Symbol asks for the new name of the word at the caret. The server's changes in all files, with the creating, renaming and deleting of files it asks for, are shown together in the change review; what you accept is applied as one step. A new file is shown with its first lines as added text. The tab of an open file moves with the file when it is renamed; the tab of a deleted file is closed, and when it has unsaved changes the editor asks whether to close it or keep it open. A file that is open in another tab is changed through that tab, as one more step in its Undo history, when the tab has no unsaved changes; with unsaved changes the rename is refused as a whole with a notice, and nothing changes.
 4. Ctrl+J (Edit, Insert, Complete Word or Clip) also lists what the running server offers at the caret. Choosing such an entry also makes the additional changes the server asks for, such as adding an import, in the same Undo step. An answer that arrives after you changed the text is not shown.
@@ -1702,9 +1719,9 @@ commands: nks.edit.complete
 
 ## [edit.sql] SQL: dialect and formatting
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
-1. Edit, Formatting, Format SQL lays out the selections, or the whole file when nothing is selected: a clause per line, one select item per line, sub-queries indented, keywords in one letter case. It is one undo step and nothing outside the selection changes.
-2. Edit, Formatting, Preview SQL Formatting shows the same result in the change preview first.
-3. The dialect decides the colors and which words count as keywords. The first of these that is set wins: Tools, Structure and Language, SQL Dialect (this file only); `sql_dialect = mysql` in an `.editorconfig` (every SQL file in that folder and below); the setting Default SQL dialect. With none of them the dialect is Generic, and nothing is reported as an error.
+1. Format, Format Code and Data, Format SQL lays out the selections, or the whole file when nothing is selected: a clause per line, one select item per line, sub-queries indented, keywords in one letter case. It is one undo step and nothing outside the selection changes.
+2. Format, Format Code and Data, Preview SQL Formatting shows the same result in the change preview first.
+3. The dialect decides the colors and which words count as keywords. The first of these that is set wins: Tools, Code and Language, SQL Dialect (this file only); `sql_dialect = mysql` in an `.editorconfig` (every SQL file in that folder and below); the setting Default SQL dialect. With none of them the dialect is Generic, and nothing is reported as an error.
 - Dialects: generic, mysql, postgres, sqlite, tsql. The editor never connects to a database.
 - Strings, quoted names and comments are copied as written. Formatting a result again changes nothing.
 - A selection larger than the limit of the plugin is refused with a message.
@@ -1712,15 +1729,15 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 
 ## [edit.html] HTML: entities and HTML Tidy
 commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags, nks.edit.htmlInsertImage, nks.edit.htmlInsertLink
-1. Edit, Formatting, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
-2. Edit, Formatting, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
+1. Edit, Conversions and Recipes, Convert to HTML Entities replaces & < > " ' in the selections (the whole file when nothing is selected) with entities. Convert from HTML Entities reads named, decimal and hexadecimal entities back. Converting an encoded text back gives the text you started from. Each is one undo step.
+2. Format, Format Code and Data, Format with HTML Tidy sends the HTML to the HTML Tidy program and shows the result in the change preview. The messages of Tidy go to the output window.
 3. Tidy is a separate program. The editor looks for it at the path in the setting HTML Tidy program, in the folder `tidy` next to the formatters plugin, in `tools/tidy` of the application folder and in the folders of PATH. If it is not found, the message lists the places.
 - Tidy is not part of this build: install it and set the path, or put it in one of those places.
 - Line numbers in the messages count from the start of the text that was sent to Tidy.
 - Convert to HTML Entities Including Non-ASCII also writes every character outside ASCII as a numeric entity (`&#233;`); converting back gives the text again.
-4. Tag tools (HTML, XML and PHP files): Edit, Formatting, Close Open Tag writes the end tag of the nearest tag that is still open at the caret. Go to Matching Tag moves the caret to the partner of the tag at the caret. Select Element selects the element around the selection; repeat it to select the next one out. Remove Tag deletes the start and end tag of the element at the caret and keeps its content. Wrap in Tag asks for a name and wraps each selection in it. Strip Tags removes all tags and comments from the selections (the whole file when nothing is selected).
+4. Tag tools (HTML, XML and PHP files; the HTML menu appears only for them): HTML, Close Open Tag writes the end tag of the nearest tag that is still open at the caret. Go to Matching Tag moves the caret to the partner of the tag at the caret. Select Element selects the element around the selection; repeat it to select the next one out. Remove Tag deletes the start and end tag of the element at the caret and keeps its content. Wrap in Tag asks for a name and wraps each selection in it. Strip Tags removes all tags and comments from the selections (the whole file when nothing is selected).
 - Tags are paired by nesting. Comments and the content of `script` and `style` hold no tags. The optional end tags of HTML (`li`, `p`) are not inferred, so such a tag counts as open.
-5. Edit, Formatting, Insert Image asks for an image file and writes `<img src="…" width="…" height="…" alt="">` in place of every selection. The address is relative to the document (a file on another drive, or an unsaved document, gets a `file:///` address). The width and height are read from the header of PNG, GIF, JPEG, BMP and WebP files; for any other file, such as SVG, the tag has no size. Selected text on one line becomes the alt text; with nothing selected the caret stands in the empty alt.
+5. HTML, Insert Image asks for an image file and writes `<img src="…" width="…" height="…" alt="">` in place of every selection. The address is relative to the document (a file on another drive, or an unsaved document, gets a `file:///` address). The width and height are read from the header of PNG, GIF, JPEG, BMP and WebP files; for any other file, such as SVG, the tag has no size. Selected text on one line becomes the alt text; with nothing selected the caret stands in the empty alt.
 6. Insert Link asks for an address and writes `<a href="…">` around every selection. When nothing is selected the link shows the address, or, for an image file, the picture with its width and height. An address that is the path of an existing file is written relative to the document.
 
 ## [help.language] Help for a language
@@ -1735,7 +1752,7 @@ commands: nks.help.languageHelp
 ## [table.view] Table view for CSV and TSV
 commands: nks.view.table, nks.table.dialect
 A CSV or TSV file can be shown as a table: one row of the file per row, one field per cell. It is the same document as in the text view with the same Undo history; nothing is converted, and editing a cell changes only the bytes of that cell.
-1. Ctrl+K then Ctrl+T (View menu, Table, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
+1. Ctrl+K then Ctrl+T (View menu, View Mode, Toggle Table View) switches between table and text. A .tsv or .tab file is split on tabs, any other file on commas.
 2. View, Table, Table Delimiter and Header chooses comma, semicolon, tab or vertical bar as the delimiter, whether a double quote encloses values, and whether the first row is the header. Until you choose, the delimiter is detected from the first rows of the file (the extension decides when they are unclear). A cell in double quotes that holds line breaks counts as part of its row, and a row cut off by the end of the examined part of a long file is left out.
 - A large file opens at once: rows are counted in the background and the scroll range grows while the file is read. Until the end is reached the status bar shows the row count with a plus, like 12+.
 - Arrows, Tab, PageUp and PageDown, Home and End (within the row), Ctrl+Home and Ctrl+End move the current cell; Shift extends the selection. Click a column header to select the column and a row number to select the row.
@@ -1779,7 +1796,7 @@ Select a part of a text, for example a block of comma-separated lines in a note 
 ## [compare.text] Comparing texts
 commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2, nks.compare.action3, nks.compare.action4
 Two texts are compared line by line in a tab of their own. Equal lines stand level, a changed block is tinted on both sides and marked in the middle strip, and the bar above says how many differences there are.
-1. Compare with Clipboard (Tools menu, or the context menu of the editor) compares the tab with the text on the clipboard. With text selected in the editor, only the selection is compared.
+1. Compare with Clipboard (Tools menu, Compare, or the context menu of the editor) compares the tab with the text on the clipboard. With text selected in the editor, only the selection is compared.
 2. Compare with File asks for a file and compares the tab with it. Compare with Disk is in the File menu and compares the tab with its own file.
 3. Compare Two Texts opens two empty sides. Paste left text and Paste right text put the clipboard into a side.
 - From the command line, textida --diff left right opens the comparison of two files: the left file opens in a tab and can take blocks of the right one, which is read-only.
@@ -1791,7 +1808,7 @@ Two texts are compared line by line in a tab of their own. Equal lines stand lev
 
 ## [compare.navigate] Moving between differences and copying them
 commands: nks.compare.next, nks.compare.previous, nks.compare.copyToRight, nks.compare.copyToLeft
-1. F7 goes to the next difference and Shift+F7 to the previous one (also in the Tools menu). The current difference has a frame.
+1. F7 goes to the next difference and Shift+F7 to the previous one (also in the Tools menu, Compare). The current difference has a frame.
 2. In the middle strip, the first row of each difference has two arrows. The left one copies the block of the right side to the left, the right one copies the block of the left side to the right. The buttons above the sides and the commands Copy Difference to the Right and to the Left do the same for the current difference.
 3. A copy is one edit of the document, so Undo takes it back in one step.
 - Only a side that is an open document can receive a block. A file on disk, the clipboard and a selection have no arrow.
@@ -1810,11 +1827,11 @@ Two tabs scroll together, so equal text of two files stays side by side.
 ## [tools.mcp] The editor as an MCP server
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
-1. Choose Tools, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
+1. Choose Tools, Agents and AI, MCP, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
-3. Open a tab and choose Tools, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
-4. To give the assistant only a part of a tab, select the text and choose Tools, MCP, Share Selection with MCP. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
-5. Choose Tools, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+3. Open a tab and choose Tools, Agents and AI, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
+4. To give the assistant only a part of a tab, select the text and choose Tools, Agents and AI, MCP, Share Selection with MCP. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
+5. Choose Tools, Agents and AI, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
 - The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks where your cursor and selection are, reads the errors and warnings of plugins and the linter, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
 - A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
@@ -1825,21 +1842,21 @@ An AI assistant that you start on this computer (for example a coding agent) can
 ## [tools.ide] The /ide bridge for Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code that runs in a terminal on this computer can connect to a window of Textida with its /ide command. The agent then learns where your selection is and which file is open, and the changes it wants to make to a shared tab appear in the change review. It sees only the tabs you share, and Textida applies only what you accept.
-1. First switch on the MCP server (Tools, MCP Server) and share a tab (Tools, MCP, Share This Tab with MCP). The bridge uses the same shared tabs.
-2. Choose Tools, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token and the folders of the window to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
+1. First switch on the MCP server (Tools, Agents and AI, MCP, MCP Server) and share a tab (Tools, Agents and AI, MCP, Share This Tab with MCP). The bridge uses the same shared tabs.
+2. Choose Tools, Agents and AI, MCP, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token and the folders of the window to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
 3. In the terminal, in a folder of this window, run /ide in Claude Code. A program without the token from the lock file is refused.
-4. The status bar shows the connected agent. Click it, or choose Tools, IDE Bridge /ide: Disconnect Agent, to cut the agent off. The port stays open, so the agent can connect again with /ide; to stop that, switch the bridge off.
+4. The status bar shows the connected agent. Click it, or choose Tools, Agents and AI, MCP, IDE Bridge /ide: Disconnect Agent, to cut the agent off. The port stays open, so the agent can connect again with /ide; to stop that, switch the bridge off.
 - Every window has its own bridge with its own port and token, and so has every instance of Textida. An agent connected to a window sees only the tabs shared in that window. A lock file that a crashed instance left behind is deleted when the next bridge starts.
 - The agent is told about the selection and path of a shared tab each time the selection changes or you move to the tab. A tab that is not shared, or has no file yet, is not announced. Values in .env files are hidden as in every other read. Taking the tab back stops this at once.
 - A change that Claude Code proposes for a shared tab opens in the change review (the Search Results tab). Applying all of it answers FILE_SAVED and rejecting it answers DIFF_REJECTED; applying only some hunks answers with an error, so the agent reads the file again. Textida applies what you accept to the tab and does not save the file. A file that is not open in the window, not shared, or an .env file is refused.
 - getDiagnostics gives the errors and warnings of the shared tabs. getOpenEditors lists the shared tabs with their name, language and whether they have unsaved changes; checkDocumentDirty answers the same for one file; getWorkspaceFolders gives the folders of the window, the ones in the lock file.
 - openFile opens a file for you in a tab and can select text in it. It works only for a file in one of the folders of the window or in a shared tab, never for a network path or a relative one. A file it opens is not shared with the agent: the agent is told "Opened file" and nothing about its content. Only a shared tab is described to the agent (language, number of lines), and a text it names is not looked for in an .env file.
-- Choose Tools, MCP, IDE Bridge /ide: Send Selection to Agent as Context to hand the agent the file of the active shared tab and the lines of the selection (an @-mention). Without a selection only the file goes. The agent gets the path and the line numbers, not the text.
+- Choose Tools, Agents and AI, MCP, IDE Bridge /ide: Send Selection to Agent as Context to hand the agent the file of the active shared tab and the lines of the selection (an @-mention). Without a selection only the file goes. The agent gets the path and the line numbers, not the text.
 - Not verified: Claude Code does not publish a specification of this protocol. The bridge follows the official page on the built-in IDE server and a community description (coder/claudecode.nvim), and no Claude Code version has been confirmed to work with it yet. Not implemented: saving through the bridge (the bridge never writes a file) and running notebook cells.
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Tools, Agent, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it. The list tells for each agent whether its program is found in PATH; for a missing one a message says where to install it from and nothing starts. The dialog shows the full path of the program that will run. After you confirm, Textida runs the program with --version and notes the version in the panel next to the version of the table; a program that prints none is only noted.
+1. Tools, Agents and AI, Agent, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it. The list tells for each agent whether its program is found in PATH; for a missing one a message says where to install it from and nothing starts. The dialog shows the full path of the program that will run. After you confirm, Textida runs the program with --version and notes the version in the panel next to the version of the table; a program that prints none is only noted.
 2. The Agent Panel under the editor shows the conversation. Type a message and press Enter. Cancel Agent Turn (or the Cancel turn button) sends the cancel to the agent and answers its open permission questions with "cancelled"; Stop Agent ends the process.
 3. The agent reads only the tabs you share: Share This Tab with Agent. It then gets the text as it is in the editor, unsaved changes included; values of .env files stay hidden. Stopping the agent takes every shared tab back.
 4. When the agent writes a shared file, the change is shown as hunks in the change review (the Search Results tab) and is written only when you apply it. If you reject it, the agent gets an error. A file that is not shared, or not open, is not written through the editor.
@@ -1853,7 +1870,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.hooks] Agent hooks editor
 commands: nks.agent.hooks
 Edits the hooks of Claude Code (settings.json, settings.local.json, the hooks.json of a plugin) and of Codex (hooks.json) in a form. It never runs a hook: a hook is a command, and nothing here starts one.
-1. Open the settings file in a tab and choose Tools, Agent, Edit Agent Hooks... The tree lists the events, the matcher groups and the handlers of the file. Choose a handler to change it, or a group to add a handler to it.
+1. Open the settings file in a tab and choose Tools, Agents and AI, Agent, Edit Agent Hooks... The tree lists the events, the matcher groups and the handlers of the file. Choose a handler to change it, or a group to add a handler to it.
 2. Fill in the form: the event, the matcher, the type of the handler and its command (or URL, prompt, MCP server and tool), and if you want the timeout, the status message, the condition (if) and what happens when the hook fails. Apply to list changes the list in this window only.
 3. Dry run shows what the hook would receive on standard input (a sample made from the public documentation of the product), whether the matcher fires for the value you type, and what each exit code does on that event. For Claude Code an exit code 1 is a non-blocking error and 2 blocks where the event can be blocked. For Codex only what its documentation says is shown.
 4. Propose changes sends the new text to the change review (the Search Results tab). You see the changes as hunks and apply them as one undo step; then save the file as usual. The editor refuses the proposal while the list has errors, and when the tab changed after this window was opened.
@@ -1864,7 +1881,7 @@ Edits the hooks of Claude Code (settings.json, settings.local.json, the hooks.js
 ## [tools.transcript] Agent transcripts
 commands: nks.agent.transcript
 Opens the transcript of an agent session (a .jsonl file, for Claude Code under ~/.claude/projects, for Codex under ~/.codex/sessions) as a list of turns. It is read only: the file is never written, and nothing is sent anywhere.
-1. Choose Tools, Agent, Open Agent Transcript... and pick the file, or open the .jsonl file in a tab first and run the command. The window lists the turns while the file is indexed; a file of many gigabytes opens at once and the list grows as the index is built.
+1. Choose Tools, Agents and AI, Agent, Open Agent Transcript... and pick the file, or open the .jsonl file in a tab first and run the command. The window lists the turns while the file is indexed; a file of many gigabytes opens at once and the list grows as the index is built.
 2. Choose a turn to see the prompt, the answers, the tool calls with the lines they changed (red and green) and the results. The header shows the lines of the turn and an estimate of its tokens.
 3. Search looks through the whole transcript, also while it is still being indexed, and lists the lines it finds. Choose a hit to jump to its turn and row. A line too long to be read whole is not searched; the status says how many were skipped.
 4. Files in this turn lists the files the agent read, wrote or edited; Open file opens one in the editor. Open raw line opens the line behind the chosen row as a document that cannot be saved.
@@ -1876,7 +1893,7 @@ Opens the transcript of an agent session (a .jsonl file, for Claude Code under ~
 commands: nks.agent.tokens
 Shows how large a text is in tokens, for a selection, the document or a copy for an AI assistant. The number is always an estimate (marked with ≈) counted on this computer; no text is sent anywhere.
 1. While something is selected, the status bar shows its estimate, for example "≈ 1,240 tokens". Click it to choose the rule: a generic 4 characters per token, or the published rule of OpenAI, Gemini or Claude (before and after Opus 4.7).
-2. Tools, Agent, Estimate Tokens... shows the selection and the document with the rule and where it comes from. In paged mode only a selection is counted.
+2. Tools, Agents and AI, Agent, Estimate Tokens... shows the selection and the document with the rule and where it comes from. In paged mode only a selection is counted.
 3. Copy as AI Context shows the estimate for the Markdown and the XML text in its preview.
 - The rules are rules of thumb for English text that the vendors publish, not the tokenizers of the models. Other languages and code can differ a lot. An exact count needs the tokenizer of the model or the service of the vendor; this editor asks for neither.
 - The rule lasts until the window closes.
@@ -1884,7 +1901,7 @@ Shows how large a text is in tokens, for a selection, the document or a copy for
 ## [tools.mcpAgents] MCP servers of agents
 commands: nks.tools.mcpServers
 One list of the MCP servers your coding agents are set up with. Textida reads Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) and OpenCode (opencode.json, opencode.jsonc). Project files are looked for in the folder of the active file and its parent folders. Textida only reads these files; it never writes to them.
-1. Choose Tools, MCP, MCP Servers of Agents. Each row shows the server, the agent and file it comes from, and its command or address with secrets hidden.
+1. Choose Tools, Agents and AI, MCP, MCP Servers of Agents. Each row shows the server, the agent and file it comes from, and its command or address with secrets hidden.
 2. Choose a server, then Try. A dialog shows the exact command, the folder and the variables with their values hidden (***). For a server reached by an address it shows the address and the names of the headers instead. Nothing starts and nothing is sent until you press Start (Connect for an address).
 3. After that Textida starts the program or connects to the address, asks for the tools (MCP versions 2026-07-28 and 2025-11-25 for a program, 2025-11-25 for an address) and ends the connection. The result says how many tools it offers, or gives the error and the last lines the program wrote to its standard error. The same lines are in the Tasks output.
 4. Choose Connect to use the server. A list shows its tools and its resources. A resource opens in a new read-only tab. A tool asks for its arguments as a JSON object (while you type, the schema of the tool is shown), and then a question of its own shows the server, the tool, the arguments and whether the server says the tool only reads. Nothing is sent before you press Call; Cancel is the default button. The answer opens in a new read-only tab, and the Tasks output records that the tool was called and how many characters the arguments had, not the arguments themselves.
@@ -1897,10 +1914,10 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 ## [tools.shell] Explorer menu and file associations
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Windows only. Textida can add itself to the Explorer context menu of your user and to the Open with list. Nothing needs administrator rights, and only keys of Textida under HKEY_CURRENT_USER\Software\Classes are written. Keys of other programs, PSPad included, are not read or changed. Both commands work in the installed Textida.exe.
-1. Choose Tools, System Integration, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
-2. Choose Tools, System Integration, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
+1. Choose Settings, System Integration, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
+2. Choose Settings, System Integration, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
-4. Choose Tools, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
+4. Choose Settings, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
 5. The same switches are in Settings, under System integration (search for "integration" or "shortcut"): the menu entry, the file types, a shortcut in the Start menu and on the desktop, and a button that opens the default apps page of Windows. A switch writes the registry at once and shows what the registry says.
 - The setup program TextidaSetup.exe offers the same choices when it installs and takes them back when it uninstalls.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
@@ -1928,12 +1945,12 @@ When another program (a script, an assistant, a build tool) changes the file of 
 1. Choose Review changes. The tab takes the new content, the earlier content is kept in the local history and cannot be deleted while the review waits, and the Search Results tab lists the changes line by line.
 2. Tick the changes you want to keep. Unticked ones, or the whole file when its box is unticked, go back to the earlier content when you choose Apply.
 3. Apply writes the reverted text into the tab as one undo step and saves the file; bytes outside the reverted changes stay as they are.
-- The tab shows a badge with the number of waiting changes. Choose File, History and then Review Changes from Outside to open the list again; it also comes back after a restart.
+- The tab shows a badge with the number of waiting changes. Choose File, Local History and then Review Changes from Outside to open the list again; it also comes back after a restart.
 - Alt+F7 and Alt+Shift+F7 jump to the next and previous change from outside.
 - If you type in the tab during the review, the changes are shown again from the new text.
 - Files that hold secret values (.env) and files with unsaved edits keep the older bar: Reload, Keep Mine, Compare.
 - With Keep changes from outside without review in the settings, such a tab takes the new content at once. It is off by default.
-- Files of the opened folder that no tab shows are watched too. When another program changes such a file and the local history holds the content from before (the file was opened or saved here once), that content is kept as the base and the file waits for review. File, History, Review Changes from Outside in Folder lists the waiting files; the chosen one opens with its badge and its changes by hunks, as above. The waiting files survive a restart.
+- Files of the opened folder that no tab shows are watched too. When another program changes such a file and the local history holds the content from before (the file was opened or saved here once), that content is kept as the base and the file waits for review. File, Local History, Review Changes from Outside in Folder lists the waiting files; the chosen one opens with its badge and its changes by hunks, as above. The waiting files survive a restart.
 - A file that another program creates in the folder waits for review as an addition of the whole content: the base is empty, so every line is a change, and unticking everything leaves the file empty. A changed file that the history has no content of (never opened or saved here) takes its content at first sight as the base, and the status bar says so; the next change is measured against that content. Keeping all changes of a review makes the kept content the base of the next one.
 - The watch leaves out .git, .codegraph, what the .gitignore and .ignore files of the folder ignore (an ignored folder takes its content with it) and the transcripts of agents (a projects folder below .claude* and a sessions folder below .codex*). It also leaves out files that hold secret values (.env), files too large for a tab, binary files, files whose new content the history already knows, and the files the editor wrote itself, for a few seconds after Replace in Files, a batch of encodings or a file operation of the file panel.
 - At most 200 files wait at once and one look takes in at most 500 files; the status bar says when a limit is reached. These limits, the half second before a changed file is looked at and the few seconds after the editor's own writes are not decided values.

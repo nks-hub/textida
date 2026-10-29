@@ -60,7 +60,10 @@ public class SystemIntegrationSettingsTests : IDisposable
     {
         _app.OpenSettings(query);
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-        return _view = _app.SettingsView!;
+        _view = _app.SettingsView!;
+        // without a search the page of a category is shown: the section is on the page of the System category
+        if (string.IsNullOrEmpty(query)) _view.SelectCategory(NksHub.Textida.Workbench.Settings.SettingCategories.System);
+        return _view;
     }
 
     private SystemIntegration Integration => new(_locations, _exe);

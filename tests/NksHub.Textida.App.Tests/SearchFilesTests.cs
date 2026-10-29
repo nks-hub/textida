@@ -239,7 +239,7 @@ public class SearchFilesTests : IDisposable
         var settings = new SettingsWindow(_app);
         settings.SetQuery("editor.indentSize");
         var row = settings.RowOf("editor.indentSize")!;
-        Assert.Contains(row.GetLogicalDescendants().OfType<Avalonia.Controls.TextBlock>(), t => t.Text!.Contains("EditorConfig", StringComparison.OrdinalIgnoreCase) && t.Text.Contains(".editorconfig", StringComparison.Ordinal));
+        Assert.Contains(row.GetLogicalDescendants().OfType<Avalonia.Controls.TextBlock>().Select(SearchHighlight.TextOf), t => t.Contains("EditorConfig", StringComparison.OrdinalIgnoreCase) && t.Contains(".editorconfig", StringComparison.Ordinal));
         settings.Close();
     }
 

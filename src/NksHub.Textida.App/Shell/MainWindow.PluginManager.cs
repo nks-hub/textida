@@ -124,6 +124,7 @@ internal sealed partial class MainWindow
     {
         _app.Plugins.SyncInstalled(id);
         _app.ReloadClips();
+        foreach (var window in _app.Windows) window.RefreshToolbar();
     }
 
     /// <summary>

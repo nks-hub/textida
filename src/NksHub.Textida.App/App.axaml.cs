@@ -68,6 +68,9 @@ public sealed partial class App : Application
     /// <summary>The macros the user saved, in the <c>macros</c> folder of the profile.</summary>
     internal MacroStore Macros { get; private set; } = null!;
 
+    /// <summary>The buttons of the user toolbar, in <c>toolbar.json</c> of the profile.</summary>
+    internal ToolbarStore Toolbar { get; private set; } = null!;
+
     /// <summary>The views of logs the user saved, in <c>logviews.json</c> of the profile.</summary>
     internal NksHub.Textida.Core.Tools.LogViewStore LogViews { get; private set; } = null!;
 
@@ -192,6 +195,7 @@ public sealed partial class App : Application
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
+        Toolbar = new ToolbarStore(ProfileDirectory);
         LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.ContributingFolders, Plugins.DeclarePlugin, Plugins.UndeclarePlugin);
@@ -366,16 +370,19 @@ public sealed partial class App : Application
 
     // ---- settings ----
 
-    internal void OpenSettings(string? query = null)
+    /// <summary>Opens the settings (one window). With a <paramref name="query"/> the search is filled in; with a <paramref name="key"/> (a setting, or the command of a shortcut) the page of its category opens with that row framed and in view.</summary>
+    internal void OpenSettings(string? query = null, string? key = null)
     {
         if (_settingsWindow is null)
         {
-            _settingsWindow = new SettingsWindow(this);
+            _settingsWindow = new SettingsWindow(this, query, key);
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
             _settingsWindow.Show();
+            return;
         }
-        else _settingsWindow.Activate();
+        _settingsWindow.Activate();
         if (query is not null) _settingsWindow.SetQuery(query);
+        if (key is not null) _settingsWindow.ShowKey(key, keepSearch: query is not null);
     }
 
     internal SettingsWindow? SettingsView => _settingsWindow;

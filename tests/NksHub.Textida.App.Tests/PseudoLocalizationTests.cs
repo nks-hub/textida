@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -119,7 +120,9 @@ public class PseudoLocalizationTests : IDisposable
         Layout(root);
         foreach (var block in root.GetVisualDescendants().OfType<TextBlock>())
         {
-            if (!block.IsEffectivelyVisible || !IsDrawn(block) || block.Text is not { Length: > 0 } text || !text.Contains(Open)) continue;
+            if (!block.IsEffectivelyVisible || !IsDrawn(block) || block.Text is not { Length: > 0 } raw || !raw.Contains(Open)) continue;
+            // the underscore of an access key is not drawn
+            string text = block is AccessText ? MenuAccessKeys.Unmark(raw) : raw;
             if (Problem(block, text, root) is { } problem) _clipped.Add($"{surface}: \"{Shorten(text)}\" {problem}");
         }
     }
@@ -180,6 +183,9 @@ public class PseudoLocalizationTests : IDisposable
         // the main window: menu, tabs, status bar and the panels and bars around the text
         _w.NewDocument();
         Look("main window", _w);
+        Run("nks.view.toggleToolbar");
+        Look("toolbar", _w);
+        Run("nks.view.toggleToolbar");
         _w.ToggleDocuments(true);
         Look("documents panel", _w);
         _w.ToggleDocuments(false);
@@ -227,6 +233,7 @@ public class PseudoLocalizationTests : IDisposable
         await InWindow("help", _app.HelpView!);
         await InWindow("regular expression tester", new RegexTesterWindow(new SearchPattern(@"(\w+) (\w+)", true)));
         await InWindow("tool editor", new ToolEditorWindow(_app.Tools, _w.PreviewTool));
+        await InWindow("toolbar editor", new ToolbarEditorWindow(_app.Workbench, _app.Toolbar));
         await InWindow("LOG pattern", new LogPatternWindow("%F(%L,%C)", LogPatternSyntax.Mask, "build\nProgram.cs(12,5): error CS1002: ; expected\n"));
 
         // dialogs

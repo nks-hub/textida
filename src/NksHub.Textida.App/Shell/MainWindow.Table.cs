@@ -45,6 +45,7 @@ internal sealed partial class MainWindow
         FocusView(tab);
         Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Active == tab) FocusView(tab); }, Avalonia.Threading.DispatcherPriority.Background);
         UpdateStatus();
+        RefreshMenuIfContextChanged();
     }
 
     private void WireTable(DocTab tab, CsvView table)

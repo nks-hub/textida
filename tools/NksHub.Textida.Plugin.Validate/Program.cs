@@ -64,6 +64,7 @@ namespace NksHub.Textida.Plugin.Validate
             {
                 HostApiVersion = hostApi,
                 MaxGrammarBytes = PluginLimitsPlaceholders.GrammarMaxBytes,
+                MaxIconBytes = PluginLimitsPlaceholders.IconMaxBytes,
                 MaxFolderBytes = PluginLimitsPlaceholders.PluginZipMaxUnpackedBytes,
                 MaxEntries = PluginLimitsPlaceholders.PluginZipMaxEntries,
                 PluginTimeout = TimeSpan.FromSeconds(PluginLimitsPlaceholders.ValidatorPluginSeconds),

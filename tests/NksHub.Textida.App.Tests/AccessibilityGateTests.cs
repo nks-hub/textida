@@ -23,6 +23,7 @@ using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Toolbar;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -102,6 +103,13 @@ public class AccessibilityGateTests : IDisposable
         _w.FindBar.Close();
         _w.ToggleAgentPanel(false);
         _w.ToggleOutput(false);
+
+        // the toolbar under the menu, with a button that has no icon and shows its name
+        Assert.True(_app.Toolbar.Save([.. ToolbarLayout.Default, "nks.edit.tab"], out _));
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
+        Assert.NotEmpty(_w.ToolbarButtons);
+        Walk(run, "main:toolbar", () => _w);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
 
         // the files of a folder in the panel on the left
         Assert.True(await _w.ShowFolderAsync(_temp.Path));
@@ -236,11 +244,13 @@ public class AccessibilityGateTests : IDisposable
         _w.ShowRegexTester();
         _w.ShowToolEditor();
         _w.ShowLogPatternTester();
+        _w.ShowToolbarEditor();
         Tick();
         var windows = _w.OwnedWindows.ToList();
         Assert.Contains(windows, w => w is RegexTesterWindow);
         Assert.Contains(windows, w => w is ToolEditorWindow);
         Assert.Contains(windows, w => w is LogPatternWindow);
+        Assert.Contains(windows, w => w is ToolbarEditorWindow);
         foreach (var window in windows)
         {
             string scenario = "window:" + window.GetType().Name;

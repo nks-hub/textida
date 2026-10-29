@@ -9,6 +9,7 @@ using NksHub.Textida.Workbench.Clips;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Contributions;
+using NksHub.Textida.Workbench.Icons;
 
 namespace NksHub.Textida.PluginHost.Manifest;
 
@@ -19,13 +20,15 @@ public sealed record DataAction(string Kind, string Id);
 /// <param name="Contributions">Commands, menus, keybindings and settings in the shape the editor registries take.</param>
 /// <param name="GrammarJson">Grammar files, already checked to parse.</param>
 /// <param name="CommandData">Commands that run a data item; every other command belongs to the process.</param>
+/// <param name="Icons">The icons the plugin brings as SVG files, by command id; already read and checked.</param>
 public sealed record LoadedPlugin(
     string Directory,
     PluginManifest Manifest,
     ContributionManifest Contributions,
     PluginSpec? Spec,
     IReadOnlyList<string> GrammarJson,
-    IReadOnlyDictionary<string, DataAction> CommandData);
+    IReadOnlyDictionary<string, DataAction> CommandData,
+    IReadOnlyDictionary<string, IconShape> Icons);
 
 public sealed record PluginLoadResult(LoadedPlugin? Plugin, IReadOnlyList<string> Errors)
 {
@@ -44,7 +47,8 @@ public static class PluginManifestLoader
     /// <param name="directory">The plugin folder with <c>nkspad-plugin.json</c>.</param>
     /// <param name="hostApiVersion">Plugin API version the editor provides.</param>
     /// <param name="maxGrammarBytes">Largest accepted grammar file. No default: the value is an owner decision.</param>
-    public static PluginLoadResult Load(string directory, int hostApiVersion, long maxGrammarBytes)
+    /// <param name="maxIconBytes">Largest accepted icon file. No default: the value is an owner decision; while it is 0 a plugin may name built-in icons only and an icon file is refused.</param>
+    public static PluginLoadResult Load(string directory, int hostApiVersion, long maxGrammarBytes, long maxIconBytes = 0)
     {
         var root = Path.GetFullPath(directory);
         var file = Path.Combine(root, PluginManifest.FileName);
@@ -76,6 +80,7 @@ public static class PluginManifestLoader
         errors.AddRange(ManifestLoader.Validate(contributions, ManifestTrust.Plugin));
 
         var grammars = LoadGrammars(root, c.Grammars, maxGrammarBytes, errors);
+        var icons = LoadIcons(root, c.Commands, maxIconBytes, errors);
         var data = CheckDataItems(root, m, c, errors);
         var spec = CheckMain(root, m, errors);
         CheckLanguageServers(root, m, errors);
@@ -86,7 +91,7 @@ public static class PluginManifestLoader
                 if (!data.ContainsKey(cmd.Id)) errors.Add($"Command '{cmd.Id}' runs nothing: the plugin has no main and no clip, converter or tool names it.");
         }
 
-        return errors.Count > 0 ? new PluginLoadResult(null, errors) : new PluginLoadResult(new LoadedPlugin(root, m, contributions, spec, grammars, data), []);
+        return errors.Count > 0 ? new PluginLoadResult(null, errors) : new PluginLoadResult(new LoadedPlugin(root, m, contributions, spec, grammars, data, icons), []);
     }
 
     /// <summary>Registers commands, menu items and grammars. Nothing is registered if any command id or alias conflicts.</summary>
@@ -94,8 +99,15 @@ public static class PluginManifestLoader
     {
         var conflicts = commands.AddManifest(plugin.Contributions);
         if (conflicts.Count > 0) return conflicts;
+        plugin.ApplyIcons(commands);
         foreach (var json in plugin.GrammarJson) grammars.Add(json);
         return [];
+    }
+
+    /// <summary>Gives the commands the icons the plugin brought as SVG files. Call it after the commands were added to <paramref name="commands"/>.</summary>
+    public static void ApplyIcons(this LoadedPlugin plugin, CommandRegistry commands)
+    {
+        foreach (var (command, icon) in plugin.Icons) commands.SetIcon(command, icon);
     }
 
     /// <summary>
@@ -157,6 +169,39 @@ public static class PluginManifestLoader
             catch (GrammarException e) { errors.Add($"Grammar '{path}': {e.Message}"); }
         }
         return result;
+    }
+
+    private static Dictionary<string, IconShape> LoadIcons(string root, List<CommandContribution> commands, long maxBytes, List<string> errors)
+    {
+        var icons = new Dictionary<string, IconShape>(StringComparer.Ordinal);
+        var files = new Dictionary<string, IconShape?>(StringComparer.Ordinal);
+        foreach (var command in commands)
+        {
+            // the names of built-in icons were checked with the rest of the manifest
+            if (command.Icon is not { } path || !ManifestLoader.IsIconFile(path)) continue;
+            if (!files.TryGetValue(path, out var shape)) files[path] = shape = ReadIcon(root, path, maxBytes, errors);
+            if (shape is not null) icons[command.Id] = shape;
+        }
+        return icons;
+    }
+
+    private static IconShape? ReadIcon(string root, string path, long maxBytes, List<string> errors)
+    {
+        if (!TryResolveInside(root, path, out var full, out var why)) { errors.Add($"Icon '{path}': {why}"); return null; }
+        if (maxBytes <= 0) { errors.Add($"Icon '{path}': this program accepts no icon files from a plugin; name a built-in icon instead."); return null; }
+        if (!File.Exists(full)) { errors.Add($"Icon '{path}' does not exist."); return null; }
+        string svg;
+        try
+        {
+            using var stream = File.OpenRead(full);
+            if (stream.Length > maxBytes) { errors.Add($"Icon '{path}' is larger than {maxBytes} bytes."); return null; }
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            svg = reader.ReadToEnd();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { errors.Add($"Icon '{path}': {e.Message}"); return null; }
+        if (SvgIcon.TryParse(svg, out var shape, out var error)) return shape;
+        errors.Add($"Icon '{path}': {error}");
+        return null;
     }
 
     private static Dictionary<string, DataAction> CheckDataItems(string root, PluginManifest m, PluginContributions c, List<string> errors)

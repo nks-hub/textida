@@ -229,8 +229,13 @@ public class PackagesAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_commands_are_in_the_tools_menu()
+    public void The_commands_are_in_the_tools_menu_while_a_package_manifest_is_open_and_the_ones_of_a_manifest_are_not_otherwise()
     {
+        var other = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
+        Assert.DoesNotContain("nks.packages.lookup", other);
+        Assert.DoesNotContain("nks.packages.script", other);
+        Assert.Contains("nks.packages.revoke", other);
+        _w.OpenFile(_temp.File("package.json", "{ }\n"), null);
         var ids = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.packages.lookup", ids);
         Assert.Contains("nks.packages.refresh", ids);

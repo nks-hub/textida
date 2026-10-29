@@ -1,4 +1,5 @@
 using NksHub.Textida.Workbench.Contributions;
+using NksHub.Textida.Workbench.Icons;
 
 namespace NksHub.Textida.Workbench.Commands;
 
@@ -12,6 +13,7 @@ public sealed class CommandDescriptor
         Id = c.Id;
         TitleKey = c.Title;
         CategoryKey = c.Category;
+        Icon = c.Icon;
         When = c.When is null ? null : WhenExpression.Parse(c.When);
         Enablement = c.Enablement is null ? null : WhenExpression.Parse(c.Enablement);
         FallbackId = c.Fallback;
@@ -29,6 +31,9 @@ public sealed class CommandDescriptor
     public string TitleKey { get; }
 
     public string? CategoryKey { get; }
+
+    /// <summary>The <c>icon</c> of the manifest entry: a built-in icon name, <see cref="BuiltinIcons.TextOnly"/> or the path of the SVG file of a plugin; null when the entry says nothing.</summary>
+    public string? Icon { get; }
 
     public WhenExpression? When { get; }
 
@@ -96,6 +101,7 @@ public sealed class CommandRegistry
     private readonly Dictionary<string, string> _aliases = new(StringComparer.Ordinal);
     private readonly Dictionary<string, CommandHandler> _handlers = new(StringComparer.Ordinal);
     private readonly List<(MenuContribution Item, string Source)> _menus = [];
+    private readonly Dictionary<string, IconShape> _icons = new(StringComparer.Ordinal);
 
     public IReadOnlyCollection<CommandDescriptor> Commands => _commands.Values;
 
@@ -184,6 +190,7 @@ public sealed class CommandRegistry
         {
             _commands.Remove(id);
             _handlers.Remove(id);
+            _icons.Remove(id);
         }
 
         foreach (var alias in _aliases.Where(a => ids.Contains(a.Value)).Select(a => a.Key).ToList())
@@ -193,6 +200,28 @@ public sealed class CommandRegistry
 
         _menus.RemoveAll(m => m.Source == source);
         return ids.Count;
+    }
+
+    /// <summary>Gives a command of a plugin its own icon, read from the SVG file of the plugin. It is dropped with the command (<see cref="RemoveSource"/>).</summary>
+    public void SetIcon(string commandId, IconShape icon)
+    {
+        if (!_commands.ContainsKey(commandId))
+        {
+            throw new ArgumentException($"Unknown command '{commandId}'.", nameof(commandId));
+        }
+
+        _icons[commandId] = icon;
+    }
+
+    /// <summary>The picture of a command: the icon its plugin brought, else the built-in icon its manifest entry names. Null for a command with none, one that says <c>text</c> and an unknown command.</summary>
+    public IconShape? IconOf(string idOrAlias)
+    {
+        if (!TryGet(idOrAlias, out var command))
+        {
+            return null;
+        }
+
+        return _icons.TryGetValue(command.Id, out var own) ? own : BuiltinIcons.TryGet(command.Icon, out var builtin) ? builtin : null;
     }
 
     /// <summary>Attaches the handler of a command. A command has at most one handler.</summary>

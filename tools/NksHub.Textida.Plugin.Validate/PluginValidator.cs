@@ -32,7 +32,7 @@ public static class PluginValidator
             return new ValidationReport(root, findings);
         }
 
-        var load = PluginManifestLoader.Load(root, options.HostApiVersion, options.MaxGrammarBytes);
+        var load = PluginManifestLoader.Load(root, options.HostApiVersion, options.MaxGrammarBytes, options.MaxIconBytes);
         foreach (var error in load.Errors) findings.Add(new(FindingSeverity.Error, CheckOf(error), error));
         if (load.Plugin is { } loaded)
         {

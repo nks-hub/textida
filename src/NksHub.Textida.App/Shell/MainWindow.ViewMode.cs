@@ -116,6 +116,7 @@ internal sealed partial class MainWindow
     {
         if (od.Mode is ViewMode.Read or ViewMode.Edit && !OffersMarkdownModes(od)) SetViewMode(od, ViewMode.Text);
         else RefreshModeBars(od);
+        RefreshMenuIfContextChanged();
     }
 
     /// <summary>The texts of the bars, the pictures and the pages follow the interface language.</summary>

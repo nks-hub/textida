@@ -71,6 +71,10 @@ public class TranslationGateTests
         ["update.title"] = "de",
         ["viewmode.text"] = "cs sk de",
         ["viewmode.hex"] = "cs sk de",
+        ["settings.value.language.cs"] = "cs sk de", // each language is named in itself
+        ["settings.value.language.en"] = "cs sk de",
+        ["settings.value.language.sk"] = "cs sk de",
+        ["settings.value.language.de"] = "cs sk de",
     };
 
     private static readonly Dictionary<string, string> WorkbenchSameAsEnglish = new()
@@ -79,11 +83,12 @@ public class TranslationGateTests
         ["setting.editor.minimap.title"] = "de",
         ["cat.format"] = "de",
         ["menu.format"] = "de",
+        ["menu.html"] = "cs sk de",
         ["cat.log"] = "cs sk de",
         ["submenu.markdown"] = "cs sk de",
         ["submenu.log"] = "cs sk de",
-        ["submenu.mcp"] = "cs sk de",
-        ["submenu.agent"] = "cs sk de",
+        ["submenu.ai.mcp"] = "cs sk de",
+        ["submenu.ai.agent"] = "cs sk de",
         ["submenu.git"] = "cs sk de",
         ["submenu.hex"] = "cs sk de",
         ["cmd.settings.language.cs"] = "cs sk de", // each language is named in itself
@@ -91,6 +96,9 @@ public class TranslationGateTests
         ["cmd.settings.language.sk"] = "cs sk de",
         ["cmd.settings.language.de"] = "cs sk de",
         ["cat.hex"] = "cs sk de",
+        ["cat.git"] = "cs sk de",
+        ["cat.plugins"] = "de",
+        ["cat.system"] = "de",
     };
 
     private static readonly Dictionary<string, string> PluginSameAsEnglish = new()
@@ -234,7 +242,7 @@ public class TranslationGateTests
             var plain = Placeholder.Replace(text, "");
             if (lang == "sk" && NotSlovak.IsMatch(plain)) problems.Add($"{catalogue}:{key} (sk) has Czech letters: {text}");
             if (lang == "cs" && NotCzech.IsMatch(plain)) problems.Add($"{catalogue}:{key} (cs) has Slovak letters: {text}");
-            if (lang is "de" or "en" && Slavic.IsMatch(plain) && !key.StartsWith("cmd.settings.language.", StringComparison.Ordinal))
+            if (lang is "de" or "en" && Slavic.IsMatch(plain) && !key.StartsWith("cmd.settings.language.", StringComparison.Ordinal) && !key.StartsWith("settings.value.language.", StringComparison.Ordinal))
                 problems.Add($"{catalogue}:{key} ({lang}) has Czech or Slovak letters: {text}");
         }
         Assert.True(problems.Count == 0, string.Join("\n", problems));

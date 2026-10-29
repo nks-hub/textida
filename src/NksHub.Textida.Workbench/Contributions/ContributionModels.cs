@@ -35,6 +35,12 @@ public sealed class CommandContribution
     /// <summary>Resource key of the category shown in the palette.</summary>
     public string? Category { get; set; }
 
+    /// <summary>
+    /// The picture of the command in menus, the palette and the toolbar: the name of a built-in icon, <c>text</c> for a command that has no picture on purpose, or (in a plugin) the path of an SVG file
+    /// inside the plugin folder. The colours always come from the theme.
+    /// </summary>
+    public string? Icon { get; set; }
+
     /// <summary>The command is available (shown, bound) only while this expression is true.</summary>
     public string? When { get; set; }
 
@@ -73,7 +79,10 @@ public sealed class MenuContribution
 
     public int Order { get; set; }
 
-    /// <summary>Id of a nested menu; entries of one menu with the same id share one submenu, placed at the group and order of the first. Its title is the string <c>submenu.&lt;id&gt;</c>.</summary>
+    /// <summary>
+    /// Id of a nested menu; entries of one menu with the same id share one submenu, placed at the group and order of the first. Its title is the string <c>submenu.&lt;id&gt;</c>.
+    /// A path <c>outer/inner</c> puts the entry into the submenu <c>inner</c> of the submenu <c>outer</c> (at most three levels); the title of <c>inner</c> is <c>submenu.outer.inner</c>.
+    /// </summary>
     public string? Submenu { get; set; }
 
     public string? When { get; set; }
@@ -134,6 +143,14 @@ public sealed class KeymapFile
     public List<KeybindingContribution> Bindings { get; set; } = [];
 }
 
+/// <summary>The buttons of the user toolbar as <c>toolbar.json</c> keeps them: command ids in the order they are shown, and <c>-</c> for a separator.</summary>
+public sealed class ToolbarFile
+{
+    public int SchemaVersion { get; set; } = 1;
+
+    public List<string> Buttons { get; set; } = [];
+}
+
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -143,6 +160,7 @@ public sealed class KeymapFile
     WriteIndented = true)]
 [JsonSerializable(typeof(ContributionManifest))]
 [JsonSerializable(typeof(KeymapFile))]
+[JsonSerializable(typeof(ToolbarFile))]
 [JsonSerializable(typeof(ProfileFile))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 public sealed partial class ContributionJson : JsonSerializerContext

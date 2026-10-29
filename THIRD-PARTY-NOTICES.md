@@ -22,3 +22,7 @@ All MIT licences require the copyright notice and the permission notice to trave
 ## Structure templates
 
 The `.ksy` files in `src/NksHub.Textida.Core/Hex/Ksy/Templates` (BMP, PNG, ZIP, PE, ELF, binary STL) were written for Textida from the public descriptions of the formats: the BMP file and info headers, the PNG specification, the PKWARE APPNOTE, Microsoft's PE format description, the System V gABI ELF chapter and the binary STL layout. They are MIT, like the rest of this repository, and `pinned.yaml` in that folder lists each file with its version, licence, source and the constructs it uses. The file syntax comes from the [Kaitai Struct](https://kaitai.io/) project; Textida has its own reader for a subset of it and ships neither the Kaitai compiler or runtime (GPL-3 and MIT) nor any template of the Kaitai format gallery.
+
+## Command icons
+
+The icons of the commands (menus, command palette, toolbar) are the SVG files in `src/NksHub.Textida.Workbench/Icons/svg`. They are Textida's own drawings, made for this program on a 16-unit grid as outlines with one marked colour; no shape was copied or traced from an icon library, font or other program, so no third-party licence applies to them. They are MIT, like the rest of this repository. The program converts the files to path data when it is built (`src/NksHub.Textida.IconGenerator`) and takes the colours from the theme, so a file never carries a colour of its own. An icon a plugin brings is the plugin author's work and licence.

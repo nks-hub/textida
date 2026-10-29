@@ -52,9 +52,35 @@ public static class ContextKeys
     public const string PanelOpen = "panelOpen";
     /// <summary>The file of the active tab starts like a picture the viewer draws, so the tab can be shown as picture, text or hex.</summary>
     public const string ImageFile = "imageFile";
+    /// <summary>
+    /// The kind of file of the active document, from its name (or from its language when the name says nothing): <c>text</c>, <c>code</c>, <c>markup</c>, <c>data</c>, <c>style</c>, <c>image</c>,
+    /// <c>archive</c>, <c>binary</c> or <c>file</c>; empty without a document. The kinds of <c>FileKinds</c>, written in lower case.
+    /// </summary>
+    public const string FileKind = "fileKind";
+    /// <summary>The id of the group of <c>LanguageCatalog</c> the language of the active document belongs to (<c>js-ts</c>, <c>web</c>, <c>php</c>, ...); empty for a language outside the groups.</summary>
+    public const string LanguageGroup = "languageGroup";
+    /// <summary>The active document is in the log language: the lines are colored by level and the log commands apply.</summary>
+    public const string LogMode = "logMode";
+    /// <summary>The file of the active document lies in a Git working tree.</summary>
+    public const string InGitRepo = "inGitRepo";
+    /// <summary>The active document is the local copy of a file on a server.</summary>
+    public const string RemoteFile = "remoteFile";
+    /// <summary>The active document is shown with a rendered Markdown page: reading, editing with the page beside it, or the live preview.</summary>
+    public const string MarkdownPreview = "markdownPreview";
+    /// <summary>The active tab shows text in an editor (not hex, not a picture, not a table, not a comparison).</summary>
+    public const string TextView = "textView";
+    /// <summary>The active document has a file name (it was opened from, or saved to, a file).</summary>
+    public const string HasPath = "hasPath";
+    /// <summary>The active document is a package manifest the registry clients know (<c>package.json</c>, <c>composer.json</c>, <c>go.mod</c>, ...).</summary>
+    public const string PackageManifest = "packageManifest";
 
     public static IReadOnlyList<string> All { get; } =
-        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile];
+        [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile,
+            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest];
+
+    /// <summary>The keys that decide which menu items are shown (<c>when</c>): when one of them changes for the active tab, the menu is built again. The others only grey an item and are asked as the menu opens.</summary>
+    public static IReadOnlyList<string> MenuKeys { get; } =
+        [HasDocument, Language, LanguageGroup, FileKind, HexMode, TableMode, CompareMode, ImageFile, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, PackageManifest, LargeFileMode];
 }
 
 /// <summary>

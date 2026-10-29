@@ -830,9 +830,9 @@ public class ViewModeTests : IDisposable
         Assert.Equal(2, _w.Tabs.Count());
 
         var strings = _app.Workbench.Strings;
-        var markdown = _w.MenuModel.Single(g => g.Label == strings.Get("menu.tools")).Items.OfType<MenuGroup>().Single(g => g.Label == strings.Get("submenu.markdown"));
-        Assert.Equal(["nks.view.modeRead", "nks.view.modeEdit", "nks.view.modeSource"], markdown.Items.OfType<MenuCommand>().Select(c => c.CommandId).Take(3));
-        var hex = _w.MenuModel.Single(g => g.Label == strings.Get("menu.view")).Items.OfType<MenuGroup>().Single(g => g.Label == strings.Get("submenu.hex"));
-        Assert.Contains(hex.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.view.cycleMode");
+        var modes = _w.MenuModel.Single(g => g.Label == strings.Get("menu.view")).Items.OfType<MenuGroup>().Single(g => g.Label == strings.Get("submenu.mode"));
+        var ids = modes.Items.OfType<MenuCommand>().Select(c => c.CommandId).ToList();
+        Assert.Equal(["nks.view.modeRead", "nks.view.modeEdit", "nks.view.modeSource"], ids.TakeLast(3));
+        Assert.Contains("nks.view.cycleMode", ids);
     }
 }

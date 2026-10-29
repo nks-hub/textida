@@ -23,7 +23,7 @@ internal sealed record ConfigRestoreResult(int Files, string? SavedBefore, strin
 
 /// <summary>
 /// The configuration of a profile as one ZIP (F111): settings, keys, user variables, tools, save actions, log views, macros, recipes, data plugins,
-/// workspaces, remote connections and the proxy. Journal, history, backups, the cache of remote files, sessions, logs and installed plugins stay out.
+/// workspaces, remote connections, the proxy and the toolbar. Journal, history, backups, the cache of remote files, sessions, logs and installed plugins stay out.
 /// Passwords and tokens live in the credential store, which is never copied; a value that still holds one is left out (see <see cref="Export"/>).
 /// A restore is only staged; <see cref="ApplyPending"/> puts the files back at the next start, before any service has read them, so no service writes
 /// its old state over the restored files.
@@ -45,7 +45,7 @@ internal static partial class ConfigBackup
     private static readonly string[] Files =
     [
         AppWorkbench.UserSettingsFile, AppWorkbench.UserKeymapFile, NksHub.Textida.Workbench.Clips.UserVariables.FileName, ToolCatalog.FileName,
-        NksHub.Textida.Core.Tools.SaveActionConfig.FileName, "logviews.json", "workspace.json", "remote/connections.json", "remote/network.json",
+        NksHub.Textida.Core.Tools.SaveActionConfig.FileName, "logviews.json", "workspace.json", "remote/connections.json", "remote/network.json", NksHub.Textida.Workbench.Toolbar.ToolbarLayout.FileName,
     ];
 
     private static readonly string[] Folders = ["macros", "recipes", "plugins", "projects"];

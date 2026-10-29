@@ -168,6 +168,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: Reformat Paragraph (Ends at a Short Line) counts a line shorter than this percent of the right margin column as the last of its paragraph.</summary>
     public const int ReformatShortLinePercent = 50;
 
+    /// <summary>Placeholder, OPEN: most entries (buttons and separators) the user toolbar holds; the editor refuses to add more and a <c>toolbar.json</c> with more is not read. The owner has not decided it.</summary>
+    public const int ToolbarMaxButtons = 40;
+
     /// <summary>Placeholder, OPEN: size limit of one Copy as AI Context, in UTF-8 bytes of the copied text; files past it are left out and named. The owner has not decided it.</summary>
     public const long AiContextMaxBytes = 8L << 20;
 

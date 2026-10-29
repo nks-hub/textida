@@ -132,6 +132,7 @@ internal sealed partial class MainWindow
         ConfigureAutosave(od);
         ApplyLanguageOptions();
         UpdateStatus();
+        RefreshMenuIfContextChanged();
     }
 
     /// <summary>The command <c>nks.view.hex</c>: the document of the active tab switches between the text view and hex.</summary>

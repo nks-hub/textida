@@ -18,7 +18,7 @@ public sealed class PluginInstallException(PluginInstallError error, string mess
 }
 
 /// <summary>Quotas for unpacking a plugin ZIP. No defaults: both numbers are an owner decision.</summary>
-public sealed record PluginInstallLimits(long MaxUnpackedBytes, int MaxEntries);
+public sealed record PluginInstallLimits(long MaxUnpackedBytes, int MaxEntries, long MaxIconBytes = 0);
 
 /// <summary>Unpacks a plugin ZIP into an empty folder, refusing anything that could write outside it.</summary>
 internal static class PluginZip
