@@ -10,7 +10,8 @@ public class GitGutterTests : IDisposable
 {
     public void Dispose() => Loc.SetLanguage(Loc.DefaultLanguage);
 
-    private static GitMark Mark(int line, int lines, bool staged = false, GitMarkKind kind = GitMarkKind.Modified) => new(line, lines, kind, staged);
+    private static GitMark Mark(int line, int lines, bool staged = false, GitMarkKind kind = GitMarkKind.Modified, int oldLines = 0, GitBase baseOf = GitBase.Index) =>
+        new(line, lines, kind, staged, 0, oldLines, baseOf);
 
     [Fact]
     public void A_line_belongs_to_the_mark_that_covers_it_and_a_change_that_is_not_staged_wins_over_one_that_is()
@@ -42,15 +43,71 @@ public class GitGutterTests : IDisposable
     }
 
     [Fact]
-    public void The_tip_says_what_the_lines_are_and_what_a_click_does()
+    public void The_tip_says_what_the_change_is_how_big_it_is_and_what_a_click_does()
     {
         Loc.SetLanguage("en");
 
-        Assert.Equal("Changed lines. Click to stage this change.", GitMargin.TipOf(Mark(1, 1)));
-        Assert.Equal("Added lines, already staged. Click to take this change back from the index.", GitMargin.TipOf(Mark(1, 1, staged: true, kind: GitMarkKind.Added)));
-        Assert.Equal("Removed lines. Click to stage this change.", GitMargin.TipOf(Mark(1, 0, kind: GitMarkKind.Removed)));
+        Assert.Equal("1 changed line (before: 1), not staged, against the index\nClick to show the change.", GitMargin.TipOf(Mark(1, 1, oldLines: 1)));
+        Assert.Equal("3 changed lines (before: 2), not staged, against the index\nClick to show the change.", GitMargin.TipOf(Mark(1, 3, oldLines: 2)));
+        Assert.Equal("2 added lines, staged, against HEAD\nClick to show the change.", GitMargin.TipOf(Mark(1, 2, staged: true, kind: GitMarkKind.Added, baseOf: GitBase.Head)));
+        Assert.Equal("1 removed line, not staged, against the index\nClick to show the change.", GitMargin.TipOf(Mark(1, 0, kind: GitMarkKind.Removed, oldLines: 1)));
         Loc.SetLanguage("cs");
-        Assert.StartsWith("Změněné řádky.", GitMargin.TipOf(Mark(1, 1)));
+        Assert.StartsWith("1 změněný řádek (dříve 1), mimo index", GitMargin.TipOf(Mark(1, 1, oldLines: 1)));
+        Assert.StartsWith("2 přidané řádky, v indexu", GitMargin.TipOf(Mark(1, 2, staged: true, kind: GitMarkKind.Added)));
+        Assert.StartsWith("5 odstraněných řádků", GitMargin.TipOf(Mark(1, 0, kind: GitMarkKind.Removed, oldLines: 5)));
+    }
+
+    [Fact]
+    public void Stepping_goes_to_the_next_change_after_the_one_the_caret_is_in_and_round_the_ends_of_the_file()
+    {
+        GitMark[] marks = [Mark(2, 3), Mark(10, 0, kind: GitMarkKind.Removed), Mark(20, 1, kind: GitMarkKind.Added)];
+
+        Assert.Same(marks[0], GitMargin.StepFrom(marks, 0, forward: true)); // the caret is in none: the first one after it
+        Assert.Same(marks[1], GitMargin.StepFrom(marks, 3, forward: true)); // in the middle of the first one: the one after it, not its own start
+        Assert.Same(marks[2], GitMargin.StepFrom(marks, 10, forward: true));
+        Assert.Same(marks[0], GitMargin.StepFrom(marks, 20, forward: true)); // after the last comes the first
+        Assert.Same(marks[0], GitMargin.StepFrom(marks, 25, forward: true));
+        Assert.Same(marks[2], GitMargin.StepFrom(marks, 0, forward: false)); // before the first comes the last
+        Assert.Same(marks[0], GitMargin.StepFrom(marks, 10, forward: false));
+        Assert.Same(marks[1], GitMargin.StepFrom(marks, 20, forward: false));
+        Assert.Same(marks[1], GitMargin.StepFrom(marks, 15, forward: false));
+        Assert.Same(marks[2], GitMargin.StepFrom(marks, marks[0], forward: false));
+        Assert.Null(GitMargin.StepFrom([], 3, forward: true));
+    }
+
+    [Fact]
+    public void Stepping_visits_every_change_once_and_comes_back_to_where_it_began()
+    {
+        GitMark[] marks = [Mark(1, 1), Mark(4, 2, staged: true), Mark(4, 2), Mark(9, 1), Mark(30, 0, kind: GitMarkKind.Removed)];
+        var seen = new List<GitMark>();
+        var mark = marks[0];
+        for (int i = 0; i < 4; i++)
+        {
+            mark = GitMargin.StepFrom(marks, mark, forward: true)!;
+            seen.Add(mark);
+        }
+        Assert.Equal([marks[2], marks[3], marks[4], marks[0]], seen); // where a staged and an unstaged change start together, the unstaged one
+        for (int i = 0; i < 4; i++) mark = GitMargin.StepFrom(marks, mark, forward: false)!;
+        Assert.Same(marks[0], mark);
+    }
+
+    [Fact]
+    public void The_rows_of_the_peek_are_the_old_lines_then_the_new_ones_with_the_changed_words_of_lines_in_the_same_place_marked()
+    {
+        var mark = Mark(4, 2, oldLines: 2);
+        var rows = GitPeekView.BuildRows(new GitPeek(1, mark, ["let total = 10;", "run(a, b);"], true, false), ["let total = 25;", "run(a, b, c);", "extra"]);
+
+        Assert.Equal([true, true, false, false, false], rows.Select(r => r.Old));
+        Assert.Equal(["let total = 10;", "run(a, b);", "let total = 25;", "run(a, b, c);", "extra"], rows.Select(r => r.Text));
+        Assert.Equal("10", rows[0].Text.Substring(rows[0].Changed[0].Start, rows[0].Changed[0].Length));
+        Assert.Equal("25", rows[2].Text.Substring(rows[2].Changed[0].Start, rows[2].Changed[0].Length));
+        Assert.Empty(rows[1].Changed); // only a word was added to this line
+        Assert.NotEmpty(rows[3].Changed);
+        Assert.Empty(rows[4].Changed); // a line with no partner is changed as a whole, and not word by word
+
+        var added = GitPeekView.BuildRows(new GitPeek(1, Mark(4, 1, kind: GitMarkKind.Added), [], true, false), ["x"]);
+        Assert.Equal([false], added.Select(r => r.Old));
+        Assert.Empty(added[0].Changed);
     }
 
     [Fact]

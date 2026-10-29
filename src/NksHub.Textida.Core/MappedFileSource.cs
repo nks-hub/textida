@@ -200,6 +200,28 @@ public sealed class MappedFileSource : IPagedTextSource
         return true;
     }
 
+    /// <summary>
+    /// Where a line starts, estimated from the block table of the index alone: exact at the start of an index block, and inside a block as if its lines were equally long. Nothing of the file is read,
+    /// so it is cheap enough for thousands of lines. False while the index does not reach the line.
+    /// </summary>
+    public bool TryGetApproxLineStart(long line, out long byteOffset)
+    {
+        byteOffset = 0;
+        if (line < 0) return false;
+        if (line == 0) return true;
+        int pub = Volatile.Read(ref _published);
+        if (line > _cum[pub]) return false;
+        int lo = 0, hi = pub - 1;
+        while (lo < hi)
+        {
+            int mid = (lo + hi + 1) >>> 1;
+            if (_cum[mid] < line) lo = mid; else hi = mid - 1;
+        }
+        long start = (long)lo * _blockSize, length = Math.Min(_blockSize, _file.Length - start), inBlock = _cum[lo + 1] - _cum[lo];
+        byteOffset = start + (inBlock > 0 ? length * (line - _cum[lo]) / inBlock : 0);
+        return true;
+    }
+
     /// <summary>Number of line terminators at offsets below <paramref name="offset"/>; scans at most one index block.</summary>
     /// <exception cref="InvalidOperationException">The index does not reach <paramref name="offset"/> yet.</exception>
     public long CountTerminatorsBefore(long offset)

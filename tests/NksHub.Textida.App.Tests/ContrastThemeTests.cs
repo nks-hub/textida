@@ -59,13 +59,16 @@ public class ContrastThemeTests : IDisposable
     {
         var palette = Colors(theme).Brushes;
         double Ratio(string text, string fill) => ContrastColors.Ratio(palette[text], palette[fill]);
-        string[] fills = ["Bg0", "Bg1", "BgEditor", "ChromeBg", "TabRowBg", "TabBg", "InfoBg", "WarnBg", "BgHover", "TabHoverBg", "CurrentLine", "Highlight", "BracketMatch", "OccurrenceBg", "SelectionBg", "DiffAdded", "DiffRemoved"];
+        string[] fills = ["Bg0", "Bg1", "BgEditor", "ChromeBg", "TabRowBg", "TabBg", "InfoBg", "WarnBg", "BgHover", "TabHoverBg", "CurrentLine", "Highlight", "BracketMatch", "OccurrenceBg", "SelectionBg", "DiffAdded", "DiffRemoved", "DiffAddedWord", "DiffRemovedWord"];
         foreach (var text in new[] { "Fg", "EditorFg", "FgMuted", "LineNumbers" })
             foreach (var fill in fills)
                 Assert.True(Ratio(text, fill) >= 4.5, $"{theme}: {text} on {fill} is {Ratio(text, fill):0.0} : 1");
         foreach (var text in new[] { "Accent", "Danger", "Good" })
             foreach (var fill in new[] { "Bg0", "Bg1", "BgEditor", "InfoBg", "WarnBg" })
                 Assert.True(Ratio(text, fill) >= 4.5, $"{theme}: {text} on {fill} is {Ratio(text, fill):0.0} : 1");
+        // the marks of the changes of Git beside the text carry meaning, so they need 3 : 1 against the editor
+        foreach (var mark in new[] { "GitGutterAdded", "GitGutterModified", "GitGutterRemoved" })
+            Assert.True(Ratio(mark, "BgEditor") >= 3, $"{theme}: {mark} on the editor is {Ratio(mark, "BgEditor"):0.0} : 1");
         Assert.True(Ratio("SelectedFg", "AccentSoft") >= 4.5, $"{theme}: a chosen row");
         Assert.True(Ratio("AccentFg", "Accent") >= 4.5, $"{theme}: text on the accent");
         // lines and marks that carry meaning need 3 : 1 against what is behind them

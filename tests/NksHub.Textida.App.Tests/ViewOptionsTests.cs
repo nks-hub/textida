@@ -23,106 +23,186 @@ namespace NksHub.Textida.App.Tests;
 /// <summary>The geometry of the minimap: which lines it draws and where the viewport rectangle sits.</summary>
 public class MinimapGeometryTests
 {
+    private const int Height = 800, RowPx = 2, Count = 40; // a picture of 400 rows
+
     [Fact]
     public void A_file_that_fits_is_drawn_whole_with_the_rectangle_at_its_lines()
     {
-        var layout = MinimapGeometry.Compute(lines: 100, first: 10, count: 30, height: 800, rowPx: 2);
-        Assert.Equal((0, 100, false), (layout.Top, layout.Rows, layout.Surroundings));
+        var layout = MinimapGeometry.Compute(lines: 100, first: 10, count: 30, height: Height, rowPx: RowPx);
+        Assert.Equal((0, 100), (layout.Top, layout.Rows));
         Assert.Equal(20, layout.ThumbTop);
         Assert.Equal(60, layout.ThumbHeight);
     }
 
-    [Fact]
-    public void A_file_a_few_screens_long_slides_its_window_with_the_scroll_position()
+    [Theory]
+    [InlineData(900L)]
+    [InlineData(100_000L)]
+    [InlineData(100_000_000L)]
+    public void A_longer_file_slides_its_window_proportionally_and_the_rectangle_travels_the_whole_map(long lines)
     {
-        long lines = 900; // capacity 400, so up to 1600 lines slide
-        var start = MinimapGeometry.Compute(lines, 0, 40, 800, 2);
-        var end = MinimapGeometry.Compute(lines, lines - 40, 40, 800, 2);
-        Assert.Equal(0, start.Top);
+        var start = MinimapGeometry.Compute(lines, 0, Count, Height, RowPx);
+        var end = MinimapGeometry.Compute(lines, lines - Count, Count, Height, RowPx);
+        Assert.Equal((0L, 400, 0.0), (start.Top, start.Rows, start.ThumbTop));
         Assert.Equal(lines - 400, end.Top);
-        Assert.Equal(400, start.Rows);
-        Assert.Equal(0, start.ThumbTop);
-        Assert.Equal(800 - 80, end.ThumbTop);
-        Assert.False(start.Surroundings);
+        Assert.Equal(Height - 80, end.ThumbTop);
+        long previous = -1;
+        for (int i = 0; i <= 200; i++)
+        {
+            long first = (lines - Count) * i / 200;
+            var layout = MinimapGeometry.Compute(lines, first, Count, Height, RowPx);
+            Assert.InRange(layout.Top, 0, lines - 400);
+            Assert.InRange(layout.ThumbTop, 0, Height - layout.ThumbHeight);
+            Assert.True(layout.Top >= previous, $"the window went back at line {first}");
+            Assert.InRange(first, layout.Top, layout.Top + 400 - Count); // the rectangle lies on the lines it stands for
+            previous = layout.Top;
+        }
+    }
+
+    [Theory]
+    [InlineData(100L)]
+    [InlineData(900L)]
+    [InlineData(100_000L)]
+    [InlineData(100_000_000L)]
+    public void Dragging_the_rectangle_over_its_whole_travel_scrolls_from_the_first_line_to_the_last(long lines)
+    {
+        var top = MinimapGeometry.Compute(lines, 0, Count, Height, RowPx);
+        long end = MinimapGeometry.FirstAfterDrag(top, lines, Count, RowPx, 5000);
+        Assert.Equal(lines - Count, end);
+        var bottom = MinimapGeometry.Compute(lines, end, Count, Height, RowPx);
+        Assert.Equal(0, MinimapGeometry.FirstAfterDrag(bottom, lines, Count, RowPx, -5000));
+        Assert.Equal(0, MinimapGeometry.FirstAfterDrag(top, lines, Count, RowPx, 0));
+    }
+
+    /// <summary>Moves the cursor in small steps from the press and checks after every step that the rectangle of the new first line is where the cursor holds it, to a row of the picture.</summary>
+    private static void AssertRectangleFollowsCursor(MinimapLayout pressed, long lines, MinimapAnchor? anchor)
+    {
+        double travel = pressed.Rows * (double)RowPx - pressed.ThumbHeight;
+        for (double dy = -travel; dy <= travel; dy += 7)
+        {
+            long first = MinimapGeometry.FirstAfterDrag(pressed, lines, Count, RowPx, dy, anchor);
+            var layout = MinimapGeometry.Compute(lines, first, Count, Height, RowPx, anchor);
+            double wanted = Math.Clamp(pressed.ThumbTop + dy, 0, travel);
+            Assert.True(Math.Abs(layout.ThumbTop - wanted) <= RowPx, $"dy {dy}: the rectangle is at {layout.ThumbTop}, the cursor holds it at {wanted}");
+        }
     }
 
     [Theory]
     [InlineData(0L)]
-    [InlineData(5_000L)]
-    [InlineData(99_999_960L)]
-    [InlineData(100_000_000L)]
-    public void A_huge_file_shows_only_the_surroundings_of_the_viewport(long first)
+    [InlineData(1L)]
+    [InlineData(30_000L)]
+    [InlineData(77_777L)]
+    [InlineData(99_960L)]
+    public void The_rectangle_stays_under_the_cursor_through_a_whole_drag_in_a_file_of_100000_lines(long pressFirst)
     {
-        long lines = 100_000_000;
-        var layout = MinimapGeometry.Compute(lines, first, 40, 800, 2);
-        Assert.True(layout.Surroundings);
-        Assert.Equal(400, layout.Rows);
-        Assert.InRange(layout.Top, 0, lines - 400);
-        Assert.InRange(layout.ThumbTop, 0, 800 - layout.ThumbHeight);
-        Assert.InRange(MinimapGeometry.LineAt(layout, lines, 2, 0), 0, lines - 1);
+        const long lines = 100_000;
+        AssertRectangleFollowsCursor(MinimapGeometry.Compute(lines, pressFirst, Count, Height, RowPx), lines, null);
     }
 
-    [Fact]
-    public void Dragging_the_rectangle_over_its_whole_travel_scrolls_from_the_first_line_to_the_last()
+    [Theory]
+    [InlineData(100.0)]
+    [InlineData(300.0)]
+    [InlineData(400.0)]
+    [InlineData(600.0)]
+    public void A_click_puts_the_clicked_line_in_the_middle_of_the_screen_and_the_picture_does_not_jump(double y)
     {
-        foreach (long lines in new[] { 100L, 900L, 100_000_000L })
+        const long lines = 100_000;
+        var before = MinimapGeometry.Compute(lines, 40_000, Count, Height, RowPx);
+        var (first, anchor) = MinimapGeometry.ClickAt(before, lines, Count, RowPx, y);
+        var after = MinimapGeometry.Compute(lines, first, Count, Height, RowPx, anchor);
+        long clicked = MinimapGeometry.LineAt(before, lines, RowPx, y);
+        Assert.Equal(clicked, first + Count / 2);
+        Assert.Equal(before.Top, after.Top); // the text under the cursor has not moved
+        Assert.InRange(y, after.ThumbTop, after.ThumbTop + after.ThumbHeight); // the rectangle is under the cursor
+        Assert.Equal(clicked, MinimapGeometry.LineAt(after, lines, RowPx, y));
+    }
+
+    [Theory]
+    [InlineData(2.0)]
+    [InlineData(790.0)]
+    public void Near_the_edge_of_the_picture_a_click_moves_the_picture_only_as_far_as_the_rectangle_needs(double y)
+    {
+        const long lines = 100_000;
+        var before = MinimapGeometry.Compute(lines, 40_000, Count, Height, RowPx);
+        var (first, anchor) = MinimapGeometry.ClickAt(before, lines, Count, RowPx, y);
+        var after = MinimapGeometry.Compute(lines, first, Count, Height, RowPx, anchor);
+        Assert.InRange(Math.Abs(after.Top - before.Top), 0, Count / 2 + 1);
+        Assert.InRange(first, after.Top, after.Top + 400 - Count);
+    }
+
+    [Theory]
+    [InlineData(100.0)]
+    [InlineData(500.0)]
+    public void After_a_click_the_picture_still_slides_to_both_ends_and_the_rectangle_still_follows_the_cursor(double y)
+    {
+        const long lines = 100_000;
+        var (first, anchor) = MinimapGeometry.ClickAt(MinimapGeometry.Compute(lines, 40_000, Count, Height, RowPx), lines, Count, RowPx, y);
+        Assert.NotNull(anchor);
+        Assert.Equal(0, MinimapGeometry.Compute(lines, 0, Count, Height, RowPx, anchor).Top);
+        Assert.Equal(lines - 400, MinimapGeometry.Compute(lines, lines - Count, Count, Height, RowPx, anchor).Top);
+        long previous = -1;
+        for (int i = 0; i <= 400; i++)
         {
-            var layout = MinimapGeometry.Compute(lines, 0, 40, 800, 2);
-            long end = MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, layout.Rows * 2.0 - layout.ThumbHeight);
-            long back = MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, end, -(layout.Rows * 2.0));
-            Assert.Equal(0, back);
-            if (!layout.Surroundings) Assert.InRange(end, lines - 40 - 2, lines - 40);
-            else Assert.InRange(end, 1, 400);
+            var layout = MinimapGeometry.Compute(lines, (lines - Count) * i / 400, Count, Height, RowPx, anchor);
+            Assert.True(layout.Top >= previous);
+            previous = layout.Top;
         }
+        var pressed = MinimapGeometry.Compute(lines, first, Count, Height, RowPx, anchor);
+        Assert.Equal(lines - Count, MinimapGeometry.FirstAfterDrag(pressed, lines, Count, RowPx, 5000, anchor));
+        Assert.Equal(0, MinimapGeometry.FirstAfterDrag(pressed, lines, Count, RowPx, -5000, anchor));
+        AssertRectangleFollowsCursor(pressed, lines, anchor);
     }
 
     [Fact]
-    public void A_sampled_huge_file_spreads_strips_over_the_whole_file_under_a_thin_pointer()
+    public void The_layout_is_a_function_of_its_arguments_so_nothing_moves_without_input()
     {
-        long lines = 100_000_000;
-        var layout = MinimapGeometry.Compute(lines, 50_000_000, 40, 800, 2, sampled: true);
+        var anchor = new MinimapAnchor(40_000, 39_900);
+        Assert.Equal(MinimapGeometry.Compute(100_000, 40_000, Count, Height, RowPx, anchor), MinimapGeometry.Compute(100_000, 40_000, Count, Height, RowPx, anchor));
+        Assert.Equal(MinimapGeometry.Compute(100_000, 40_000, Count, Height, RowPx), MinimapGeometry.Compute(100_000, 40_000, Count, Height, RowPx));
+        // an anchor left over from a longer text is brought into the text that is there now
+        var shorter = MinimapGeometry.Compute(1_000, 900, Count, Height, RowPx, anchor);
+        Assert.InRange(shorter.Top, 0, 600);
+        Assert.InRange(shorter.ThumbTop, 0, Height - shorter.ThumbHeight);
+    }
+
+    [Fact]
+    public void A_sampled_picture_places_the_pointer_by_byte_and_the_strips_by_equal_parts_of_the_file()
+    {
+        const long bytes = 10L << 30;
+        var layout = MinimapGeometry.ComputeSampled(bytes, bytes / 2, bytes / 2 + 1000, Height, RowPx);
         Assert.True(layout.Sampled);
-        Assert.False(layout.Surroundings);
         Assert.Equal((0L, 400), (layout.Top, layout.Rows));
         Assert.Equal(2, layout.ThumbHeight);
         Assert.Equal(400, layout.ThumbTop, 3);
         // 400 rows in strips of 8: 50 strips, each from the start of its fiftieth of the file
-        Assert.Equal(0, MinimapGeometry.LineOfRow(layout, lines, 0, 8));
-        Assert.Equal(7, MinimapGeometry.LineOfRow(layout, lines, 7, 8));
-        Assert.Equal(2_000_000, MinimapGeometry.LineOfRow(layout, lines, 8, 8));
-        Assert.Equal(98_000_007, MinimapGeometry.LineOfRow(layout, lines, 399, 8));
-        Assert.Equal(25_000_000, MinimapGeometry.LineAt(layout, lines, 2, 200));
+        Assert.Equal(0, MinimapGeometry.StripOffset(layout, bytes, 0, 8));
+        Assert.Equal(bytes / 50, MinimapGeometry.StripOffset(layout, bytes, 1, 8));
+        Assert.Equal(bytes * 49 / 50, MinimapGeometry.StripOffset(layout, bytes, 49, 8));
+        Assert.Equal(bytes / 4, MinimapGeometry.OffsetAt(layout, bytes, RowPx, 200));
+        Assert.Equal(bytes / 2, MinimapGeometry.OffsetAfterDrag(layout, bytes, RowPx, 0, 400));
+        Assert.Equal(bytes, MinimapGeometry.OffsetAfterDrag(layout, bytes, RowPx, 0, 5000));
+        Assert.Equal(0, MinimapGeometry.OffsetAfterDrag(layout, bytes, RowPx, bytes / 2, -5000));
     }
 
     [Fact]
-    public void Sampling_starts_beyond_a_few_screens_and_dragging_a_sampled_map_crosses_the_whole_file()
+    public void The_pointer_of_a_sampled_picture_knows_nothing_of_the_line_count_so_a_growing_index_cannot_move_it()
     {
-        Assert.False(MinimapGeometry.Compute(1600, 0, 40, 800, 2, sampled: true).Sampled);
-        Assert.False(MinimapGeometry.Compute(100_000_000, 0, 40, 800, 2).Sampled);
-        long lines = 100_000_000;
-        var layout = MinimapGeometry.Compute(lines, 0, 40, 800, 2, sampled: true);
-        Assert.Equal(lines / 2, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, 400));
-        Assert.Equal(lines - 40, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, 0, 1000));
-        Assert.Equal(0, MinimapGeometry.FirstAfterDrag(layout, lines, 40, 2, 800, lines / 2, -500));
+        const long bytes = 2L << 30;
+        long start = bytes / 3;
+        var first = MinimapGeometry.ComputeSampled(bytes, start, start + 700, Height, RowPx);
+        Assert.Equal(first, MinimapGeometry.ComputeSampled(bytes, start, start + 700, Height, RowPx));
+        // the pointer is as high as the bytes on screen are a share of the file, but never thinner than two pixels
+        Assert.Equal(2, first.ThumbHeight);
+        Assert.Equal(40, MinimapGeometry.ComputeSampled(bytes, 0, bytes / 20, Height, RowPx).ThumbHeight, 3);
     }
 
     [Fact]
-    public void A_line_count_that_grows_with_the_index_changes_the_picture_only_a_few_dozen_times_and_a_finished_one_is_exact()
+    public void A_picture_is_sampled_while_the_index_is_unfinished_or_when_the_file_has_many_screens_of_lines()
     {
-        // the index of a 50 GiB file of 64-byte lines adds about a thousand lines per notice; a new picture at each notice read a strip from dozens of places of the file every time
-        var counts = new HashSet<long>();
-        long previous = 0;
-        for (long lines = 1; lines <= 800_000_000; lines += Math.Max(1, lines / 2000))
-        {
-            long mapped = MinimapGeometry.MapLines(lines, indexComplete: false);
-            Assert.InRange(mapped, lines - lines / 4, lines); // the picture never reaches past what is indexed and falls short of it by a quarter at most
-            Assert.True(mapped >= previous, $"{mapped} after {previous}");
-            previous = mapped;
-            if (lines >= 4096) counts.Add(mapped);
-        }
-        Assert.InRange(counts.Count, 2, 100);
-        Assert.Equal(12_345_678, MinimapGeometry.MapLines(12_345_678, indexComplete: true));
-        Assert.Equal(4095, MinimapGeometry.MapLines(4095, indexComplete: false)); // a small file is drawn exactly all the way
+        Assert.False(MinimapGeometry.UsesSampling(hostSampled: false, 1 << 30, indexComplete: false, 5_000_000, 400));
+        Assert.False(MinimapGeometry.UsesSampling(hostSampled: true, mapBytes: 0, indexComplete: false, 5_000_000, 400));
+        Assert.True(MinimapGeometry.UsesSampling(hostSampled: true, 1 << 30, indexComplete: false, 12, 400)); // nothing is known of the lines yet
+        Assert.False(MinimapGeometry.UsesSampling(hostSampled: true, 1 << 30, indexComplete: true, 1600, 400));
+        Assert.True(MinimapGeometry.UsesSampling(hostSampled: true, 1 << 30, indexComplete: true, 1601, 400));
     }
 }
 
@@ -933,23 +1013,166 @@ public class ViewOptionsTests : IDisposable
         var tab = Open("sd.cs", KeywordFile(120_000), paged: true);
         var map = tab.Minimap!;
         Assert.True(map.IsSampled);
-        long lines = ((IMinimapHost)tab.Paged!).LineCount;
+        var host = (IMinimapHost)tab.Paged!;
         var origin = map.TranslatePoint(default, _w)!.Value;
         var start = new Point(origin.X + 40, origin.Y + 1); // on the pointer at the top, so the press itself scrolls nothing
         _w.MouseDown(start, MouseButton.Left);
-        Assert.Equal(0, tab.Paged.TopLine);
+        Assert.Equal(0, tab.Paged!.TopLine);
 
+        // the pointer is placed by byte position: the bytes above the first line on screen are the share of the file that the pointer is down the map
         int height = (int)map.Bounds.Height, rowPx = Math.Max(2, (int)Math.Ceiling(height / 500.0));
         double mapped = height / rowPx * rowPx;
         _w.MouseMove(new Point(start.X, start.Y + 200));
         _w.UpdateLayout();
-        long expected = (long)Math.Round(200 * lines / mapped);
-        Assert.InRange(tab.Paged.TopLine, expected * 0.95, expected * 1.05);
+        long expected = (long)Math.Round(200 / mapped * host.MapBytes);
+        Assert.InRange(host.VisibleBytes.Start, expected * 0.98, expected * 1.02);
 
         _w.MouseMove(new Point(start.X, start.Y + 100));
         _w.UpdateLayout();
-        Assert.InRange(tab.Paged.TopLine, expected / 2 * 0.95, expected / 2 * 1.05);
+        Assert.InRange(host.VisibleBytes.Start, expected / 2 * 0.98, expected / 2 * 1.02);
         _w.MouseUp(new Point(start.X, start.Y + 100), MouseButton.Left);
+    }
+
+    private static int MapRowPx(Minimap map) => Math.Max(2, (int)Math.Ceiling(map.Bounds.Height / 500.0));
+
+    private static (long First, long Count) EditorLines(DocTab tab)
+    {
+        var view = tab.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        long first = view.VisualLines[0].FirstDocumentLine.LineNumber - 1;
+        return (first, view.VisualLines[^1].LastDocumentLine.LineNumber - first);
+    }
+
+    [AvaloniaFact]
+    public void Dragging_the_rectangle_of_a_file_of_100000_lines_keeps_it_under_the_cursor_and_reaches_the_first_and_the_last_line()
+    {
+        var tab = Open("long.cs", string.Concat(Enumerable.Repeat("x = 1;\n", 100_000)));
+        var map = tab.Minimap!;
+        long lines = tab.Editor!.Document.LineCount;
+        int rowPx = MapRowPx(map);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var pressed = map.Layout!.Value;
+        Assert.False(pressed.Sampled);
+        double hold = pressed.ThumbTop + pressed.ThumbHeight / 2; // the cursor takes the rectangle by its middle
+        var start = new Point(origin.X + 40, origin.Y + hold);
+        _w.MouseDown(start, MouseButton.Left);
+        double travel = pressed.Rows * (double)rowPx - pressed.ThumbHeight;
+        for (double dy = 0; dy <= travel; dy += 40)
+        {
+            _w.MouseMove(new Point(start.X, start.Y + dy));
+            _w.UpdateLayout();
+            EditorLines(tab);
+            var layout = map.Layout!.Value;
+            double middle = layout.ThumbTop + layout.ThumbHeight / 2;
+            Assert.True(Math.Abs(middle - (hold + dy)) <= rowPx + 1, $"after {dy} px the rectangle is at {middle}, the cursor at {hold + dy}");
+        }
+        _w.MouseMove(new Point(start.X, start.Y + 5000));
+        _w.UpdateLayout();
+        var (first, count) = EditorLines(tab);
+        Assert.Equal(lines, first + count); // the last line is on screen
+        _w.MouseMove(new Point(start.X, start.Y - 5000));
+        _w.UpdateLayout();
+        Assert.Equal(0, EditorLines(tab).First);
+        _w.MouseUp(new Point(start.X, start.Y - 5000), MouseButton.Left);
+    }
+
+    [AvaloniaFact]
+    public void Clicking_the_minimap_of_a_long_file_puts_the_clicked_line_in_the_middle_of_the_screen_and_the_picture_does_not_jump()
+    {
+        var tab = Open("click.cs", string.Concat(Enumerable.Repeat("x = 1;\n", 100_000)));
+        var map = tab.Minimap!;
+        int rowPx = MapRowPx(map);
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var before = map.Layout!.Value;
+        const double y = 300;
+        long clicked = before.Top + (long)(y / rowPx);
+        _w.MouseDown(new Point(origin.X + 40, origin.Y + y), MouseButton.Left);
+        _w.MouseUp(new Point(origin.X + 40, origin.Y + y), MouseButton.Left);
+        _w.UpdateLayout();
+        var (first, count) = EditorLines(tab);
+        var after = map.Layout!.Value;
+        Assert.InRange(first + count / 2, clicked - 2, clicked + 2);
+        Assert.Equal(before.Top, after.Top);
+        Assert.InRange(y, after.ThumbTop, after.ThumbTop + after.ThumbHeight);
+        // nothing moves without input: the same picture, the same rectangle and the same lines after the dispatcher has run
+        Settle();
+        Assert.Equal(after, map.Layout!.Value);
+        Assert.Equal(first, EditorLines(tab).First);
+    }
+
+    private (DocTab Tab, ManualResetEventSlim Gate) OpenWithUnfinishedIndex(string name, int heldFromBlock)
+    {
+        Set("files.largeFileThreshold", JsonValue.Create(1));
+        string path = _temp.File(name, KeywordFile(450_000));
+        var gate = new ManualResetEventSlim();
+        NksHub.Textida.Core.MappedFileSource.IndexBlockHook = (source, block) => { if (source.Path == path && block >= heldFromBlock) gate.Wait(); };
+        var tab = _w.OpenFile(path, null);
+        Assert.True(tab.Doc.IsLarge);
+        _w.UpdateLayout();
+        Settle();
+        Assert.False(tab.Paged!.Index.Complete);
+        Assert.True(tab.Minimap!.IsSampled);
+        return (tab, gate);
+    }
+
+    [AvaloniaFact]
+    public void The_pointer_and_the_picture_of_the_sampled_minimap_do_not_move_while_the_index_of_the_file_is_built()
+    {
+        var (tab, gate) = OpenWithUnfinishedIndex("indexing.cs", heldFromBlock: 3);
+        try
+        {
+            var paged = tab.Paged!;
+            var map = tab.Minimap!;
+            ((IMinimapHost)paged).ScrollToLine(20_000);
+            _w.UpdateLayout();
+            Settle();
+            double pointer = map.Layout!.Value.ThumbTop;
+            long top = paged.TopLine, bytes = ((IMinimapHost)paged).VisibleBytes.Start;
+            int builds = map.BuildsStarted;
+            Assert.True(pointer > 5, $"the pointer is at {pointer}");
+
+            gate.Set(); // the index goes on to the end without any input
+            WaitForIndex(tab);
+            _w.UpdateLayout();
+            Settle();
+            Assert.Equal(top, paged.TopLine);
+            Assert.Equal(bytes, ((IMinimapHost)paged).VisibleBytes.Start);
+            Assert.Equal(pointer, map.Layout!.Value.ThumbTop, 3);
+            Assert.Equal(builds, map.BuildsStarted);
+        }
+        finally
+        {
+            gate.Set();
+            NksHub.Textida.Core.MappedFileSource.IndexBlockHook = null;
+        }
+    }
+
+    [AvaloniaFact]
+    public void Dragging_the_pointer_of_the_sampled_minimap_beyond_the_unfinished_index_goes_to_that_share_of_the_file()
+    {
+        var (tab, gate) = OpenWithUnfinishedIndex("beyond-drag.cs", heldFromBlock: 2);
+        try
+        {
+            var paged = tab.Paged!;
+            var map = tab.Minimap!;
+            var host = (IMinimapHost)paged;
+            var origin = map.TranslatePoint(default, _w)!.Value;
+            var start = new Point(origin.X + 40, origin.Y + 1);
+            _w.MouseDown(start, MouseButton.Left);
+            double mapped = map.Layout!.Value.Rows * (double)MapRowPx(map);
+            _w.MouseMove(new Point(start.X, start.Y + mapped * 0.8));
+            _w.UpdateLayout();
+            Assert.False(paged.LinesExact);
+            long expected = (long)(0.8 * host.MapBytes);
+            Assert.InRange(host.VisibleBytes.Start, expected * 0.98, expected * 1.02);
+            Assert.Equal(0, paged.CaretOffset); // the caret stayed where it was
+            _w.MouseUp(new Point(start.X, start.Y + mapped * 0.8), MouseButton.Left);
+        }
+        finally
+        {
+            gate.Set();
+            NksHub.Textida.Core.MappedFileSource.IndexBlockHook = null;
+        }
     }
 
     [AvaloniaFact]
@@ -1115,6 +1338,31 @@ public class ViewOptionsTests : IDisposable
         Assert.True(Matching(Capture(), strip, [blue], 4) > 0, "the match is not marked");
         _w.HideFind();
         Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
+    }
+
+    [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public void Dragging_the_minimap_of_a_file_of_100000_lines_moves_the_editor_within_the_budget()
+    {
+        var tab = Open("p100k.cs", KeywordFile(100_000));
+        var map = tab.Minimap!;
+        var origin = map.TranslatePoint(default, _w)!.Value;
+        var start = new Point(origin.X + 40, origin.Y + 20);
+        _w.MouseDown(start, MouseButton.Left);
+        var times = new List<double>();
+        for (int i = 0; i < 200; i++)
+        {
+            var clock = Stopwatch.StartNew();
+            _w.MouseMove(new Point(start.X, start.Y + i * 3.5));
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            times.Add(clock.Elapsed.TotalMilliseconds);
+        }
+        _w.MouseUp(new Point(start.X, start.Y + 700), MouseButton.Left);
+        times.Sort();
+        double p95 = times[(int)(times.Count * 0.95)];
+        _output.WriteLine($"minimap drag over 100000 lines: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, max {times[^1]:0.0} ms");
+        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
     }
 
     [AvaloniaFact]

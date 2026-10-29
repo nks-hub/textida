@@ -71,6 +71,11 @@ public class TranslationGateTests
         ["update.title"] = "de",
         ["viewmode.text"] = "cs sk de",
         ["viewmode.hex"] = "cs sk de",
+        ["commit.title"] = "cs sk de", // Commit is the word of Git in each of them
+        ["commit.commit"] = "cs sk de",
+        ["commit.branch"] = "de",
+        ["commit.side.head"] = "cs sk de",
+        ["commit.side.index"] = "cs sk de",
         ["settings.value.language.cs"] = "cs sk de", // each language is named in itself
         ["settings.value.language.en"] = "cs sk de",
         ["settings.value.language.sk"] = "cs sk de",
@@ -96,6 +101,10 @@ public class TranslationGateTests
         ["cmd.settings.language.sk"] = "cs sk de",
         ["cmd.settings.language.de"] = "cs sk de",
         ["cat.hex"] = "cs sk de",
+        ["cmd.git.commit"] = "de", // the names of the Git actions that German keeps
+        ["cmd.git.fetch"] = "de",
+        ["cmd.git.pull"] = "de",
+        ["cmd.git.push"] = "de",
         ["cat.git"] = "cs sk de",
         ["cat.plugins"] = "de",
         ["cat.system"] = "de",
@@ -105,6 +114,7 @@ public class TranslationGateTests
     {
         ["Git:indexTitle"] = "cs sk",
         ["Git:headTitle"] = "cs sk de",
+        ["Git:pullModeRebase"] = "de", // a name of Git that German keeps
         ["TextTools:hash.task"] = "cs sk de",
         ["TextTools:hash.pickTitle"] = "cs sk de",
     };

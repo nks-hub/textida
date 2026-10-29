@@ -18,8 +18,7 @@ public sealed partial class ShellIntegration(RegistryKey classes, string exePath
     public const string ProgId = ProductName + ".File";
 
     /// <summary>Extensions the user can pick from; none is associated until chosen.</summary>
-    public static readonly IReadOnlyList<string> Extensions =
-        [".txt", ".log", ".md", ".json", ".xml", ".html", ".css", ".js", ".ts", ".yml", ".yaml", ".ini", ".cfg", ".csv", ".sql", ".php", ".py", ".cs", ".sh", ".bat"];
+    public static readonly IReadOnlyList<string> Extensions = IntegrationExtensions.All;
 
     private const string MenuPath = @"*\shell\" + ProductName;
 

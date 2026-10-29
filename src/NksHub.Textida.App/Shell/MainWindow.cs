@@ -353,6 +353,8 @@ internal sealed partial class MainWindow : Window
         ApplyHexTexts();
         ApplyTableTexts();
         ApplyCompareTexts();
+        ApplyHistoryTexts();
+        ApplyCommitTexts();
         ApplyOutputTexts();
         ApplyAgentTexts();
         ApplyPreviewTexts();
@@ -371,7 +373,12 @@ internal sealed partial class MainWindow : Window
         AutomationProperties.SetName(_statusBar, Loc.Get(K.A11yStatusBar));
         AutomationProperties.SetName(_groupsGrid, Loc.Get(K.A11yWorkspace));
         foreach (var splitter in _groupsGrid.Children.OfType<GridSplitter>()) AutomationProperties.SetName(splitter, Loc.Get(K.A11yGroupsSplitter));
-        foreach (var tab in Tabs) tab.Minimap?.UpdateName();
+        foreach (var tab in Tabs)
+        {
+            tab.Minimap?.UpdateName();
+            tab.Surface?.UpdateGitTexts();
+        }
+        ResetGitBlame(); // its texts are in the language of the moment
         RetranslatePalette();
         ApplyFindTexts();
         _menuModel = BuildMenuModel();
@@ -391,7 +398,8 @@ internal sealed partial class MainWindow : Window
     private void OnSettingChanged(string key)
     {
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
-        if (key == "git.gutter") foreach (var tab in Tabs) ScheduleGitGutter(tab);
+        if (key is "git.gutter" or "git.gutterBase") foreach (var tab in Tabs) ScheduleGitGutter(tab);
+        if (key == "git.blame") ResetGitBlame();
         if (key is "files.showHidden" or "files.gitStatus") ApplyFileLookSettings(key);
         if (key == "advanced.undoLimit") foreach (var od in _docs) od.Doc.UndoLimit = UndoLimit;
         if (key == "schema.mappings") foreach (var tab in Tabs.Where(PluginServices.IsSchemaFile).ToList()) _ = _app.Plugins.CheckSchemaAsync(this, tab);

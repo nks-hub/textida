@@ -1,7 +1,7 @@
 using System.Diagnostics;
 
 /// <summary>
-/// Checks a publish output of the app (<c>--publish DIR</c>) or a Windows package built from it (<c>--package ZIP</c>, unpacked first):every built-in plugin and <c>textida-mcp</c> sits where <c>PluginServices</c> and <c>McpService</c> look for it,
+/// Checks a publish output of the app (<c>--publish DIR</c>) or a package built from it (<c>--package ZIP</c>, unpacked first; a ZIP with <c>Textida.app</c> or a <c>.dmg</c> is a macOS package, see <see cref="MacPackageChecks"/>): every built-in plugin and <c>textida-mcp</c> sits where <c>PluginServices</c> and <c>McpService</c> look for it,
 /// starts, and reaches its own <c>Main</c> (each exits with 2 when started without its options); <c>LICENSE</c> and <c>THIRD-PARTY-NOTICES.md</c> sit next to the program; no runtimeconfig.json, and no .pdb or .xml unless <c>--symbols</c> is given.
 /// </summary>
 internal static class PublishChecks
@@ -28,13 +28,22 @@ internal static class PublishChecks
         int package = Array.IndexOf(args, "--package");
         if (package >= 0)
         {
+            if (args[package + 1].EndsWith(".dmg", StringComparison.OrdinalIgnoreCase))
+            {
+                MacPackageChecks.RunDiskImage(args[package + 1], args, check);
+                return;
+            }
             var temp = Path.Combine(Path.GetTempPath(), "textida-package-" + Guid.NewGuid().ToString("N"));
             try
             {
                 System.IO.Compression.ZipFile.ExtractToDirectory(args[package + 1], temp);
-                foreach (var file in PackageFiles) check(File.Exists(Path.Combine(temp, file)), "package: missing " + file);
-                // the package holds the layout of a publish, so the same checks run on the unpacked files
-                Run(["--publish", temp, .. args.Where(a => a == "--symbols")], check);
+                if (Directory.Exists(Path.Combine(temp, MacPackageChecks.AppFolder))) MacPackageChecks.Run(temp, args, check); // a macOS package is an application bundle
+                else
+                {
+                    foreach (var file in PackageFiles) check(File.Exists(Path.Combine(temp, file)), "package: missing " + file);
+                    // the package holds the layout of a publish, so the same checks run on the unpacked files
+                    Run(["--publish", temp, .. args.Where(a => a == "--symbols")], check);
+                }
             }
             finally { Directory.Delete(temp, recursive: true); }
             return;
@@ -42,15 +51,24 @@ internal static class PublishChecks
 
         int at = Array.IndexOf(args, "--publish");
         if (at < 0) return;
-        var root = args[at + 1];
+        Tree(args[at + 1], args[at + 1], args.Contains("--symbols"), startPrograms: true, check);
+    }
+
+    /// <summary>
+    /// The files of a publish: the program in <paramref name="root"/>, and in <paramref name="files"/> the notices and the plugins. They are one folder, except in a macOS application bundle, where the program is in
+    /// <c>Contents/MacOS</c> and the rest in <c>Contents/Resources</c>. With <paramref name="startPrograms"/> every plugin is started and must reach its own <c>Main</c>.
+    /// </summary>
+    public static void Tree(string root, string files, bool symbols, bool startPrograms, Action<bool, string> check)
+    {
         var suffix = OperatingSystem.IsWindows() ? ".exe" : "";
         check(File.Exists(Path.Combine(root, "Textida" + suffix)), "publish: Textida" + suffix);
         // the About window shows both; the MIT notice and the notices of the libraries travel with every copy
-        foreach (var notice in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md" }) check(File.Exists(Path.Combine(root, notice)), "publish: missing " + notice);
+        foreach (var notice in new[] { "LICENSE", "THIRD-PARTY-NOTICES.md" }) check(File.Exists(Path.Combine(files, notice)), "publish: missing " + notice);
         foreach (var (folder, program) in Programs)
         {
-            var path = Path.Combine(root, folder, program + suffix);
+            var path = Path.Combine(files, folder, program + suffix);
             if (!File.Exists(path)) { check(false, "publish: missing " + folder + "/" + program + suffix); continue; }
+            if (!startPrograms) continue;
             // textida-mcp answers a stray argument with its usage and 2; the plugins answer missing options with 2
             using var process = Process.Start(new ProcessStartInfo(path, program == "textida-mcp" ? "--check" : "")
             {
@@ -62,13 +80,13 @@ internal static class PublishChecks
             if (!exited) process.Kill(true);
             check(exited && process.ExitCode == 2, $"publish: {folder}/{program}{suffix} starts (exit {(exited ? process.ExitCode : -1)}) {errors.Result.Trim()}");
         }
-        bool symbols = args.Contains("--symbols");
-        foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
-        {
-            var name = Path.GetFileName(file);
-            bool stray = name.EndsWith(".runtimeconfig.json", StringComparison.OrdinalIgnoreCase)
-                || (!symbols && (name.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)));
-            check(!stray, "publish: unexpected file " + Path.GetRelativePath(root, file));
-        }
+        foreach (var folder in new[] { root, files }.Distinct())
+            foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            {
+                var name = Path.GetFileName(file);
+                bool stray = name.EndsWith(".runtimeconfig.json", StringComparison.OrdinalIgnoreCase)
+                    || (!symbols && (name.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)));
+                check(!stray, "publish: unexpected file " + Path.GetRelativePath(folder, file));
+            }
     }
 }

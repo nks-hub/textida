@@ -101,7 +101,7 @@ internal sealed partial class MainWindow
     {
         var wb = _app.Workbench;
         var menu = new ContextMenu();
-        foreach (var id in new[] { "nks.files.newFile", "nks.files.newFolder", "nks.files.duplicate", "nks.files.rename", "nks.files.move", "nks.files.delete", "nks.files.refresh", "nks.favorite.add", "nks.favorite.open" })
+        foreach (var id in new[] { "nks.files.newFile", "nks.files.newFolder", "nks.files.duplicate", "nks.files.rename", "nks.files.move", "nks.files.delete", "nks.files.history", "nks.files.refresh", "nks.favorite.add", "nks.favorite.open" })
         {
             if (!wb.Commands.TryGet(id, out var command)) continue;
             var item = new MenuItem { Header = wb.Strings.Get(command.TitleKey) };

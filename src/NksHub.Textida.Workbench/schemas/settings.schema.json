@@ -351,6 +351,33 @@
           "description": "Show Git changes in the gutter. Marks the lines of a file in a Git repository that differ from the index (filled bar) or are staged already (outlined bar). A click on a mark stages the change or takes it back from the index. A file above the size limit gets no marks.",
           "x-scope": "application"
         },
+        "git.gutterBase": {
+          "type": "string",
+          "default": "index",
+          "enum": [
+            "index",
+            "head"
+          ],
+          "description": "Compare the Git changes in the gutter with. index: the marks show what differs from the Git index (changes that are in the index already have an outline). head: the marks show what differs from the last commit, in the index or not. The peek at a change shows the lines of that version.",
+          "x-scope": "application"
+        },
+        "git.blame": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show who changed the line at the caret. Shows the author, the date and the subject of the commit that last changed the line at the caret in the status bar; the tooltip has the rest. Git is asked once the caret has rested on the line for a moment. A file outside a Git repository, or one Git does not track, shows nothing.",
+          "x-scope": "application"
+        },
+        "git.pullMode": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "merge",
+            "rebase"
+          ],
+          "description": "Git Pull combines the changes by. ask: Git: Pull asks each time. merge: the new commits are merged into your branch. rebase: your commits are replayed on top of the new ones; changes in the working tree are set aside for a moment.",
+          "x-scope": "application"
+        },
         "tools.makeProgram": {
           "type": "string",
           "default": "",

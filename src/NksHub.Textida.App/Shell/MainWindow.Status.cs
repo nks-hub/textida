@@ -141,6 +141,7 @@ internal sealed partial class MainWindow
             if (surface.IsMulti) position += " " + Loc.Plural(K.StatusCarets, surface.CaretCount);
             if (selected > 0) position += " " + Loc.Get(K.StatusSelected, ("count", selected));
             if (surface.Occurrences.Result.Describe() is { } others) position += " " + others;
+            if (GitBlameStatusText(tab, (int)line - 1) is { } blame) position += " · " + blame;
         }
         else
         {

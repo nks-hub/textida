@@ -34,25 +34,14 @@ internal sealed partial class MainWindow
         return true;
     }
 
-    private static string HistoryWhen(HistoryRevision r) => r.TimeUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+    private static string HistoryWhen(HistoryRevision r) => HistoryView.When(r);
 
-    private static string HistorySourceText(HistorySource s) => Loc.Get(s switch
-    {
-        HistorySource.Save => K.HistorySourceSave,
-        HistorySource.External => K.HistorySourceExternal,
-        HistorySource.Manual => K.HistorySourceManual,
-        HistorySource.Initial => K.HistorySourceInitial,
-        _ => K.HistorySourceBeforeRestore,
-    });
+    private static string HistorySourceText(HistorySource s) => HistoryView.SourceText(s);
 
     private QuickRow HistoryRow(DocTab tab, string path, HistoryRevision r, string? detail, Action run)
     {
         var when = HistoryWhen(r);
-        detail ??= string.Join(" · ", new[]
-        {
-            HistorySourceText(r.Source), OpenDocument.FormatSize(r.Size), r.IsPatch ? Loc.Get(K.HistoryPatchTag, ("size", OpenDocument.FormatSize(r.PatchBytes))) : null,
-            r.Label, r.Pinned ? Loc.Get(K.HistoryPinnedTag) : null,
-        }.Where(s => !string.IsNullOrEmpty(s)));
+        detail ??= HistoryView.DetailOf(r);
         return new QuickRow(r.Label is { Length: > 0 } ? $"{when}  {r.Label}" : when, null, detail, null, true, null, $"{when}, {detail}", run, () => HistoryPreview(tab, path, r));
     }
 

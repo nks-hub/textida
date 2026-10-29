@@ -293,6 +293,30 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest document, in bytes, that gets change marks in the gutter; a larger one gets none. Must not exceed <see cref="VirtualDocumentMaxBytes"/>, which is what the Git plugin reads. The owner has not decided it.</summary>
     public const long GitGutterMaxBytes = 1L << 20;
 
+    /// <summary>Placeholder, OPEN: most old lines of one change the peek at it holds; a change with more lines cannot be reverted from the peek. Must stay below the message limit of the plugin (about 100 bytes a line is assumed). The owner has not decided it.</summary>
+    public const int GitPeekMaxLines = 2000;
+
+    /// <summary>Placeholder, OPEN: rows of the peek at a change that are shown at once; more are reached by scrolling inside the peek. The owner has not decided it.</summary>
+    public const int GitPeekVisibleRows = 14;
+
+    /// <summary>Placeholder, OPEN: time, in milliseconds, after which fetch, pull and push that have not finished are ended; 0 gives them no limit, and the user cancels them in the task row. The owner has not decided it.</summary>
+    public const int GitNetworkTimeoutMilliseconds = 0;
+
+    /// <summary>Placeholder, OPEN: commits the Git history panel lists for a file or a repository; the panel holds at most <see cref="Ui"/> items. The owner has not decided it.</summary>
+    public const int GitLogEntries = 500;
+
+    /// <summary>Placeholder, OPEN: messages of the last commits the commit panel offers again in its list of earlier messages. The owner has not decided it.</summary>
+    public const int GitMessageHistory = 20;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after a change of the repository before the commit panel reads the list of changed files again. The owner has not decided it.</summary>
+    public const int GitCommitReloadMilliseconds = 400;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, with the caret on one line before the author, time and subject of that line are asked for. The owner has not decided it.</summary>
+    public const int GitBlameDebounceMilliseconds = 500;
+
+    /// <summary>Placeholder, OPEN: longest subject of a commit, in characters, that the status bar shows for the line at the caret; the tooltip shows all of it. The owner has not decided it.</summary>
+    public const int GitBlameSubjectChars = 60;
+
     /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The commands <c>nks.compare.action1</c> to <c>action4</c> reach four of them, the digit keys nine. The owner has not decided it.</summary>
     public const int DiffActionsPerTab = 4;
 

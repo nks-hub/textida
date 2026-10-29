@@ -244,6 +244,18 @@ The program keeps a revision of a file at every save and at every change another
 - For a large file Compare needs the External diff tool from the settings, Restore File and Restore Selection are not offered, and Mark Revision wants the file saved first. Save as a Copy writes any revision beside the file, as name (date time).ext, and opens it; it works for every file.
 - Revisions that are kept as patches are not found by Search in History.
 
+## [file.historyPanel] Local history panel
+commands: nks.file.historyPanel, nks.files.history
+1. Choose File, then History, then Local History Panel, or Local History in the menu of a file in the Files panel, or File history in the menu of a tab. The panel opens as a tab; each file has one.
+2. The list on the left shows every revision of the file, the newest first: when it was taken, why, how big it is and, at the right, how many lines it added to the revision before it and removed from it. The counts are made in the background, one revision after another, and appear as they are ready; the oldest revision has nothing to compare with.
+3. Choose a revision to see its comparison on the right. The box above the list chooses what it is compared with: the current text of the file, or the revision before it. Choose two revisions with Ctrl or Shift to compare them with each other, the older on the left. The comparison is the one of Compare with disk, so its arrows, Previous and Next work.
+4. Restore File puts the whole revision into the tab of the file. To restore only a part, use the arrow of a block in the comparison with the current text. Both are one Undo step in the tab, and the text that was there is kept as a revision first.
+5. Label, Pin and Save as a Copy do what they do in the list of Local History. The filters narrow the list by the reason of the revision and by a word of its label.
+- Under the list stand the number of revisions of the file, the disk they take, the oldest one and the limits in force. Without limits the newest revision is still kept.
+- The list and the counts follow a save, a change made by another program, a label and a pin without reopening the panel.
+- A revision above the size limit of a text tab is not compared here, and neither is a large file: use Save as a Copy or the External diff tool. Restore File is not offered for a large file.
+- The keyboard works: Tab goes through the filters, the list, the buttons and the comparison, the arrows choose a revision, and a screen reader reads each row with its counts.
+
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
 1. Choose File and then History and then Mark Revision and type a label, for example Before refactoring.
@@ -705,7 +717,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Choose View and then Show Hidden Characters (Ctrl+K, Ctrl+W): spaces, tabs and the line endings CR, LF and CRLF are drawn. The document is not changed.
 2. Show Line Numbers (Ctrl+K, Ctrl+N), Highlight Current Line, Show Right Margin (a vertical line at column 80, set with the setting Right margin column) and Clickable Links switch the rest on and off.
-3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting, a log in the colors of its levels. Click or drag it to scroll. A long file in the editor shows only the lines around the screen.
+3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting, a log in the colors of its levels. Click or drag it to scroll. In a long file the picture slides with the scroll position and the rectangle travels the whole height of the map from the first line to the last, like a scroll bar. A click puts the clicked line in the middle of the screen and the picture stays where it is. A large file in paged mode is shown as samples spread over all of it and placed by byte position, so the pointer does not move while the line index is built.
 - In a large file (paged mode) the picture is sampled: short runs of lines from the starts of equal parts of the whole file, so the file is never read whole. A thin line shows the position instead of a rectangle. While the lines are being indexed, the picture covers the lines counted so far, as the scroll bar does. The number of lines in a run is a placeholder, not a decided value.
 - Matches of the find bar are marked in the narrow strip at the right edge of the minimap. The lines that the filter of a live log view keeps are marked there too: error lines red, warnings yellow, the others blue.
 - Links open with Ctrl+click and are not available in paged mode.
@@ -1663,7 +1675,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - The Emmet process starts with the first Tab in an HTML or CSS file.
 
 ## [tools.git] Git: status, compare and stage a hunk
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete, nks.git.nextChange, nks.git.previousChange, nks.git.showChange, nks.git.revertHunk
 1. Open a file from a Git repository and choose Tools, Git, Git: File Status. The panel shows what `git status` reports for the whole repository: what is staged and what is changed in the working tree. The panel and the status bar refresh by themselves shortly after the last change made from outside. Every repository that has an open file is watched, also when files of several repositories are open; the watch of a repository ends when its last open file is closed. The status bar shows the repository of the last Git command or of the last change from outside; the panel stays with the repository of the last file status.
 2. Git: Compare with Index and Git: Compare with HEAD open a comparison tab of the open text against its version in the index or in HEAD. The hunks are the same as in `git diff`.
 3. Git: Stage Hunk at Caret puts only the change the caret is in into the index. The other changes of the file stay in the working tree only. The file on disk is not changed.
@@ -1673,13 +1685,34 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 5. Git: Unstage Hunk at Caret takes back to HEAD only the staged change the caret is in (or points to in the file). The other staged changes stay.
 6. For a merge conflict put the caret in the block between `<<<<<<<` and `>>>>>>>` and choose Git: Conflict, Take Ours / Take Theirs / Take Both. The block is replaced by the chosen side. When no block is left and the file is saved, choose Git: Mark File Resolved; the file is added to the index.
 7. A double click or Enter on a file in the status panel opens it. The status bar shows the branch and counts: `+` staged, `~` changed, `?` untracked, `!` conflicts; it updates after every Git command.
-8. In a file inside a Git repository the left margin marks the lines that differ from the index with a filled bar (blue changed, green added, a short red bar where lines were removed) and the lines that are staged already with an outlined bar. A click on a mark stages the change; a click on an outlined mark takes it back from the index. The setting Show Git changes in the gutter turns the marks off. A file above the size limit and a file with hidden values (.env) get none.
+8. In a file inside a Git repository the left margin marks the lines that differ from the index: a bar for added lines, a bar with a gap for changed lines, a triangle where lines were removed (green, blue and red in the light and dark themes, one color in high contrast). A change that is in the index already has an outlined mark. The same changes are marked at the left edge of the minimap, beside the lines they stand for, and beside the scroll bar. The setting Compare the Git changes in the gutter with chooses the index (the default) or the last commit (HEAD). The setting Show Git changes in the gutter turns the marks off. A file above the size limit and a file with hidden values (.env) get none.
 9. The tabs Git: Compare with Index and Git: Compare with HEAD have buttons Stage hunk and Unstage hunk for the difference the tab is on (from the keyboard the commands Compare: First Plugin Action and Second Plugin Action in the Tools menu do the same). After a button the comparison opens again in the place of the tab.
 10. A conflict in which one side deleted the file (the panel says "conflict: deleted by us" or "deleted by them"), or both sides added a file that cannot be merged, has no markers. Git: Conflict, Take Ours / Take Theirs / Take Both then says so. Keep the file with Git: Mark File Resolved, or delete it with Git: Conflict, Delete File. A file both sides deleted ("conflict: deleted by both", for example after a rename that each side did differently) has no file to open: a double click or Enter on it in the status panel asks whether to remove it from the index, and Yes resolves the conflict with `git rm`. A deleted file that is no conflict is only said to be missing.
 11. Conflict blocks are found in files saved as UTF-16 and UTF-32 as well.
 12. With `core.autocrlf` (or an `eol` attribute) a hunk of a file with CRLF line endings is stored with LF, as `git add` stores it.
-- Not there yet: commit and branches.
+13. A click on a mark opens the change right under it: the old lines in red, the new lines in green, the words that changed inside a line marked. The buttons are Revert (the old lines go back in place of the new ones, one Undo step), Stage or Unstage (what a click on the mark did before), Previous and Next (they go through the changes of the file and wrap around) and Close. Esc closes the peek, and so does an edit. The caret does not move.
+14. Git: Next Change (Alt+F3) and Git: Previous Change (Alt+Shift+F3) move the caret to the next or previous change of the file and open its peek. Git: Show Change at Caret (Ctrl+K, Ctrl+C) opens the peek of the change the caret is in and puts the keyboard focus in it, so the buttons are reached with Tab. Git: Revert Change at Caret does what the button Revert does, without the peek.
+15. The status bar shows who last changed the line at the caret: the author, the date and the subject of the commit; the tooltip has the commit and the whole subject. A line that is not committed says so. Git is asked once the caret has rested on the line for a moment. The setting Show who changed the line at the caret turns it off.
+- Revert is not offered for a change that is in the index, for a document that is read-only and for a change with more lines than the peek holds; the peek says so.
+- The marks, the peek and the line of blame are for text tabs. A large file shown in pages has none of them.
+- Commit, fetch, pull, push, branches, stashes and the history are in the topic Git: commit, pull, push, branches and history.
 - The Git process starts with the first command, or when a file is opened while the marks in the margin are on. The `git` program must be on the PATH.
+
+## [tools.gitCommit] Git: commit, pull, push, branches and history
+commands: nks.git.commit, nks.git.fetch, nks.git.pull, nks.git.push, nks.git.switchBranch, nks.git.createBranch, nks.git.deleteBranch, nks.git.stashSave, nks.git.stashApply, nks.git.stashDrop, nks.git.logFile, nks.git.logRepo
+1. Choose Tools, Git, Git: Commit (or the Commit button of the toolbar). The commit panel opens as a tab, one for each repository. The list on the left has every changed file with a box: a ticked file is in the Git index and goes into the commit, a box with a dash means that only a part of the file is in the index. Tick or untick a box to stage or unstage the whole file; the box at the top does it for all files. A file in conflict has no box: resolve it first.
+2. Choose a file to see its changes on the right: the part that is staged (HEAD against the index) above, and the part that is not (the index against the file) below. The button of each comparison stages or unstages the change the comparison is on, so a commit can hold only a part of a file.
+3. Write the message in the box and choose Commit, or press Ctrl+Enter in the box. Commit and Push commits first and then asks for the push. Amend the last commit replaces the last commit with the index and the message (an empty box is filled with the old message). The list of earlier messages fills the box again.
+4. Git: Fetch, Git: Pull and Git: Push talk to the remote, and only when you choose them. A task with a progress bar and a Cancel button shows in the status bar, and Cancel stops git. Git: Pull asks how to bring in the new commits (merge or rebase); the setting Git Pull combines the changes by decides it once for all. An update that stops at conflicts shows them in the status panel. Git: Push shows the commits that go out and asks before it sends; a branch without an upstream is sent with `--set-upstream`.
+5. The branch in the status bar opens the list of branches. Git: Switch Branch, Git: New Branch and Git: Delete Branch work on the branches; switching with changes in the working tree asks first, and a branch that is not merged is deleted only after a second question. A branch of the remote becomes a local branch that tracks it.
+6. Git: Stash Changes sets the changes (untracked files too) aside, Git: Apply Stash brings them back and keeps them in the list, Git: Drop Stash deletes one after a question.
+7. Git: History of the File and Git: History of the Repository list the commits in the panel on the left. Opening a commit shows its change in a comparison; for the history of the repository you choose the file of the commit first.
+- Passwords are never typed into the editor or kept by it. Git asks its credential helper (`git config credential.helper`); when that cannot sign in either, the message says so. Addresses in messages are shown without a user name and password.
+- Git runs without a terminal: a question that would need one (a password, a host key) ends with a message and nothing is changed.
+- A push that the remote rejects because it has commits you do not have says so; update the branch first. Only the current branch is pushed; the question names other branches with unpushed commits.
+- The panel compares files up to the size of one answer of the plugin; a larger file, a binary file and a file in conflict are only named. Staging a part of a file needs a file that is not in conflict.
+- A commit needs user.name and user.email in the Git settings; the message says so when they are missing.
+- Only one of these commands runs at a time; the status line says when another one is still running.
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1922,6 +1955,31 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 - The setup program TextidaSetup.exe offers the same choices when it installs and takes them back when it uninstalls.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
+
+## [tools.macIntegration] macOS: terminal command, Finder action and file types
+commands: nks.tools.macIntegration, nks.tools.macRemove
+macOS only, in the installed Textida (Textida.app). Textida adds nothing to your Mac until you switch an item on, and it writes only in your own folders; no change asks for an administrator password.
+1. Choose Settings, System Integration, macOS Integration. A window lists the three items; a switch takes effect at once and shows what the Mac says. The same switches are on the page System of the settings window.
+2. The textida command is a link named textida to the program, in /usr/local/bin when you may write there, otherwise in ~/bin. In the terminal, `textida file.txt` opens the file in the running Textida, `textida --wait file.txt` waits until its tab is closed, `textida --diff a b` compares two files. If the terminal does not find the command, the window shows the line that belongs in ~/.zprofile.
+3. The quick action Open in Textida is a file in ~/Library/Services. In Finder, right-click a file or folder, then Quick Actions, then Open in Textida. If it is not listed, switch it on in System Settings, Privacy & Security, Extensions, Finder.
+4. File types: Textida becomes the application that opens the extensions you tick. Before it does, the Mac remembers the application each extension had; switching an extension off gives it back. Files are opened in the Textida that is already running.
+5. Choose Settings, System Integration, Remove Textida from macOS (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
+- A link or an action is removed only when it is Textida's own: a textida command that leads to another program, and an action that Textida did not write, are left alone.
+- A type that no other application opens stays with Textida after it is switched off, because the Mac has nobody to give it back to.
+- The quick action and the file types need Textida to run from Textida.app; a program started from a build folder offers only the command.
+- Deleting Textida.app removes the program only. Choose Remove first, so the link, the quick action and the file types go too; your settings stay until you delete the folder Textida in ~/Library/Application Support.
+
+## [install.mac] Install Textida on macOS
+Textida for macOS comes as a disk image (a .dmg) and as a ZIP with the same application: Textida-<version>-osx-arm64 for Macs with Apple silicon and Textida-<version>-osx-x64 for Intel Macs. It runs on macOS 14 and later. The packages are not notarized by Apple yet and carry only an ad-hoc signature, so the first start takes one extra step.
+1. Open the disk image and drag Textida to the Applications folder. Eject the image.
+2. Open Textida from Applications. macOS says it cannot check the application for malicious software (macOS 14: it cannot be opened because the developer cannot be verified). Do not move it to the Bin.
+3. On macOS 14, hold Control, click Textida in Applications, choose Open and confirm with Open. On macOS 15, close the message with Done, open System Settings, Privacy & Security, scroll to Security, choose Open Anyway next to Textida and confirm with your password or Touch ID.
+4. From then on Textida starts like any other application. If you unpack the ZIP instead, move Textida.app to Applications first. A file that came from the internet carries a quarantine mark; in the terminal `xattr -dr com.apple.quarantine /Applications/Textida.app` removes it.
+5. To remove Textida, first choose Settings, System Integration, Remove Textida from macOS if you added the terminal command, the quick action or file types, then drag Textida.app to the Bin. Your settings are in ~/Library/Application Support/Textida and stay until you delete that folder.
+- The disk image holds Textida.app and a link to Applications; the ZIP holds only Textida.app. Both are made by tools/BuildMacPackage.cs, which runs on a Mac.
+- The package for Apple silicon and the one for Intel are separate downloads; there is no universal package. An Intel Mac needs the x64 one.
+- Developer ID signing and notarization are not done yet. When they are, the extra step of the first start is not needed any more.
+- The built-in plugins and the program textida-mcp start from inside the application. Changing files inside Textida.app breaks its signature, and macOS may then refuse to start it.
 
 ## [help.updates] Updates and return to the previous version
 commands: nks.help.updateCheck, nks.help.updateReturn

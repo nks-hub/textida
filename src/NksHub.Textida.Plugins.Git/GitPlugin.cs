@@ -17,7 +17,14 @@ namespace NksHub.Textida.Plugins.Git;
 /// <param name="ChunkBytes">Bytes read from a document per request; must not exceed what the document API returns in one read.</param>
 /// <param name="WatchDebounceMs">Quiet time after a change in the repository before the status is read again; 0 does not watch the repository.</param>
 /// <param name="MaxTreeEntries">Entries <see cref="GitPlugin.TreeStatusCommand"/> answers with; 0 takes <paramref name="MaxEntries"/>.</param>
-public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0, int MaxTreeEntries = 0);
+/// <param name="PeekMaxLines">Old lines <see cref="GitPlugin.PeekCommand"/> answers with; 0 answers without any, only with how many there are.</param>
+/// <param name="NetworkTimeoutMs">Time after which a command that talks to a remote (fetch, pull, push) is ended; 0 gives it no limit, the user can cancel it.</param>
+/// <param name="LogEntries">Commits the log panel lists; 0 takes <paramref name="MaxEntries"/>.</param>
+/// <param name="MessageHistory">Messages of the last commits the commit panel offers again; 0 offers none.</param>
+/// <param name="MaxPickItems">Choices the plugin puts in one question to the user (the limit of the editor); 0 takes <paramref name="MaxEntries"/>.</param>
+/// <param name="MaxTextLength">Characters of one text the plugin sends to the editor (the limit of the editor); 0 does not cut.</param>
+public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0, int MaxTreeEntries = 0, int PeekMaxLines = 0,
+    int NetworkTimeoutMs = 0, int LogEntries = 0, int MessageHistory = 0, int MaxPickItems = 0, int MaxTextLength = 0);
 
 /// <summary>
 /// The built-in Git: the status of the working tree in a panel (read again when files change outside the editor, in every repository that has an open file), the file against the index or against <c>HEAD</c> in a comparison tab,
@@ -25,7 +32,7 @@ public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, i
 /// The index and <c>HEAD</c> versions of a file are virtual documents the plugin provides; staging goes through <c>diff/stage</c> into the index document and is then written to the
 /// repository, but only when the index is still what the plugin last read. Otherwise nothing is written, the index document is read again and the answer is <c>conflict</c>.
 /// </summary>
-public sealed class GitPlugin : PluginBase
+public sealed partial class GitPlugin : PluginBase
 {
     public const string StatusCommand = "git.status";
     public const string DiffIndexCommand = "git.diffIndex";
@@ -38,6 +45,10 @@ public sealed class GitPlugin : PluginBase
     public const string MarkResolvedCommand = "git.markResolved";
     public const string ConflictDeleteCommand = "git.conflictDelete";
     public const string HunksCommand = "git.hunks";
+    /// <summary>The lines a change in the gutter replaced, for the peek at the change in the editor.</summary>
+    public const string PeekCommand = "git.peek";
+    /// <summary>Who last changed a line, when and why, for the status bar.</summary>
+    public const string BlameCommand = "git.blame";
     /// <summary>The editor sends it when the last tab of a document closed; nothing else is asked or done.</summary>
     public const string ClosedCommand = "git.closed";
     public const string StatusPanel = "git:status";
@@ -81,17 +92,24 @@ public sealed class GitPlugin : PluginBase
     private static byte[] Status(string status) => Encoding.UTF8.GetBytes($"{{\"status\":\"{status}\"}}");
 
     /// <param name="Offset">A byte offset of the document the command acts at instead of the caret; the editor sends it for a click in the gutter or in a comparison tab.</param>
-    private sealed record Request(string Command, string Document, long Revision, string Ui, string? Path, long? Offset);
+    /// <param name="Line">A zero-based line of the document (the peek and blame commands).</param>
+    /// <param name="Base">What the gutter compares the working tree with: <c>index</c> (the default) or <c>head</c>.</param>
+    /// <param name="Staged">Whether the change the peek is asked for is shown as staged.</param>
+    private sealed record Request(string Command, string Document, long Revision, string Ui, string? Path, long? Offset, int? Line = null, string? Base = null, bool Staged = false);
 
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
         if (p.TryGetProperty("command", out var first) && first.GetString() == TreeStatusCommand) return await TreeStatusAsync(p, ct);
+        if (first.ValueKind == JsonValueKind.String && RepoCommands.Contains(first.GetString()!)) return await RepoCommandAsync(p, ct);
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en",
             p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null,
-            p.TryGetProperty("offset", out var offset) && offset.ValueKind == JsonValueKind.Number ? offset.GetInt64() : null);
+            p.TryGetProperty("offset", out var offset) && offset.ValueKind == JsonValueKind.Number ? offset.GetInt64() : null,
+            p.TryGetProperty("line", out var line) && line.ValueKind == JsonValueKind.Number ? line.GetInt32() : null,
+            p.TryGetProperty("base", out var baseName) && baseName.ValueKind == JsonValueKind.String ? baseName.GetString() : null,
+            p.TryGetProperty("staged", out var staged) && staged.ValueKind == JsonValueKind.True);
         if (r.Command is not (StatusCommand or DiffIndexCommand or DiffHeadCommand or StageHunkCommand or UnstageHunkCommand or ConflictOursCommand or ConflictTheirsCommand or ConflictBothCommand
-            or MarkResolvedCommand or ConflictDeleteCommand or HunksCommand or ClosedCommand))
+            or MarkResolvedCommand or ConflictDeleteCommand or HunksCommand or PeekCommand or BlameCommand or ClosedCommand))
             throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         if (r.Command == ClosedCommand)
         {
@@ -100,6 +118,8 @@ public sealed class GitPlugin : PluginBase
         }
         _language = r.Ui;
         if (r.Command == HunksCommand) return await MarksAsync(r, ct);
+        if (r.Command == PeekCommand) return await PeekAsync(r, ct);
+        if (r.Command == BlameCommand) return await BlameAsync(r, ct);
         try
         {
             if (string.IsNullOrEmpty(r.Path)) return await TellAsync(r, "noFile", NoticeLevel.Warning, ct);
@@ -512,10 +532,15 @@ public sealed class GitPlugin : PluginBase
     protected override async ValueTask OnEventAsync(JsonElement eventPayload)
     {
         if (!eventPayload.TryGetProperty("name", out var name) || name.GetString() != UiEvents.PanelActivated || !eventPayload.TryGetProperty("payload", out var payload)
-            || payload.GetProperty("panel").GetString() != StatusPanel || payload.GetProperty("item").GetString() is not { } item) return;
+            || payload.GetProperty("panel").GetString() is not (StatusPanel or LogPanel) || payload.GetProperty("item").GetString() is not { } item) return;
         var ui = _language;
         try
         {
+            if (payload.GetProperty("panel").GetString() == LogPanel)
+            {
+                await OpenCommitAsync(item, default);
+                return;
+            }
             if (_panelRoot is not { } root || await GitRepository.OpenAsync(root, _settings.TimeoutMs, _settings.MaxBytes, default) is not { } repo) return;
             var rel = Path.GetRelativePath(repo.Root, item).Replace('\\', '/');
             if (rel.StartsWith("../", StringComparison.Ordinal) || rel == "..") return;
@@ -560,14 +585,67 @@ public sealed class GitPlugin : PluginBase
             var headSha = await repo.HeadBlobAsync(rel, ct);
             if (entry is { Stage: not 0 } || (entry is null && headSha is null)) return NoMarks(r);
             var bytes = await ReadWholeAsync(r.Document, r.Revision, ct);
-            var marks = GutterMarks.Compute(bytes, await ReadBlobAsync(repo, entry?.Sha, ct), await ReadBlobAsync(repo, headSha, ct), CodecOf(tree), ct);
+            var marks = GutterMarks.Compute(bytes, await ReadBlobAsync(repo, entry?.Sha, ct), await ReadBlobAsync(repo, headSha, ct), CodecOf(tree), ct, r.Base == GutterMarks.HeadBase);
             Watch(r.Document, repo);
-            var items = string.Join(',', marks.Select(m => $"{{\"line\":{m.Line},\"lines\":{m.Lines},\"kind\":\"{m.Kind}\",\"staged\":{(m.Staged ? "true" : "false")}}}"));
+            var items = string.Join(',', marks.Select(m =>
+                $"{{\"line\":{m.Line},\"lines\":{m.Lines},\"kind\":\"{m.Kind}\",\"staged\":{(m.Staged ? "true" : "false")},\"base\":\"{m.Base}\",\"oldStart\":{m.OldStart},\"oldLines\":{m.OldLines}}}"));
             return Encoding.UTF8.GetBytes($"{{\"status\":\"hunks\",\"revision\":{r.Revision},\"hunks\":[{items}]}}");
         }
         catch (Exception e) when (e is RpcException or GitException or IOException) { return NoMarks(r); }
     }
 
+    // ---- the lines a change replaced, and who wrote a line ----
+
+    private static byte[] NoPeek(Request r) => Encoding.UTF8.GetBytes($"{{\"status\":\"none\",\"revision\":{r.Revision}}}");
+
+    private static string Bool(bool value) => value ? "true" : "false";
+
+    /// <summary>
+    /// The old lines of the change that starts at the line <c>line</c> (and is staged or not, as <c>staged</c> says): what the lines were in the index, or in <c>HEAD</c> for a staged change and with
+    /// <c>base</c> <c>head</c>. The editor asks when the user opens the change; nothing is shown to the user by the plugin, and any failure or a document that changed is the answer <c>none</c>.
+    /// </summary>
+    private async Task<byte[]> PeekAsync(Request r, CancellationToken ct)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(r.Path) || r.Line is not { } line || await GitRepository.OpenAsync(r.Path, _settings.TimeoutMs, _settings.MaxBytes, ct) is not { } repo) return NoPeek(r);
+            var rel = repo.RelativePath(Path.GetFileName(r.Path));
+            var tree = await TreeAsync(r, ct);
+            var entry = await repo.IndexEntryAsync(rel, ct);
+            var headSha = await repo.HeadBlobAsync(rel, ct);
+            if (entry is { Stage: not 0 } || (entry is null && headSha is null)) return NoPeek(r);
+            var bytes = await ReadWholeAsync(r.Document, r.Revision, ct);
+            var index = await ReadBlobAsync(repo, entry?.Sha, ct);
+            var head = await ReadBlobAsync(repo, headSha, ct);
+            var codec = CodecOf(tree);
+            var marks = GutterMarks.Compute(bytes, index, head, codec, ct, r.Base == GutterMarks.HeadBase);
+            var mark = marks.FirstOrDefault(m => m.Line == line && m.Staged == r.Staged) ?? marks.FirstOrDefault(m => m.Line == line);
+            if (mark is null) return NoPeek(r);
+            var old = GutterMarks.OldLinesOf(mark, mark.Base == GutterMarks.HeadBase ? head : index, codec, _settings.PeekMaxLines, ct);
+            var text = string.Join(',', old.Lines.Select(l => $"\"{Quote(l)}\""));
+            return Encoding.UTF8.GetBytes($"{{\"status\":\"peek\",\"revision\":{r.Revision},\"line\":{mark.Line},\"lines\":{mark.Lines},\"kind\":\"{mark.Kind}\",\"staged\":{Bool(mark.Staged)},\"base\":\"{mark.Base}\"," +
+                $"\"oldStart\":{mark.OldStart},\"oldCount\":{mark.OldLines},\"old\":[{text}],\"endsWithNewline\":{Bool(old.EndsWithNewline)},\"truncated\":{Bool(old.Truncated)}}}");
+        }
+        catch (Exception e) when (e is RpcException or GitException or IOException) { return NoPeek(r); }
+    }
+
+    /// <summary>
+    /// Who last changed the line <c>line</c> of the document as it is now (unsaved edits included, as <c>git blame --contents</c> takes them): the answer <c>blame</c> with the commit, author, time and
+    /// subject, or <c>uncommitted</c> for a line no commit has. A file outside a repository, an untracked file and any failure are the answer <c>none</c>.
+    /// </summary>
+    private async Task<byte[]> BlameAsync(Request r, CancellationToken ct)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(r.Path) || r.Line is not { } line || await GitRepository.OpenAsync(r.Path, _settings.TimeoutMs, _settings.MaxBytes, ct) is not { } repo) return NoPeek(r);
+            await TreeAsync(r, ct);
+            var rel = repo.RelativePath(Path.GetFileName(r.Path));
+            if (await repo.BlameLineAsync(rel, line + 1, await ReadWholeAsync(r.Document, r.Revision, ct), ct) is not { } blame) return NoPeek(r);
+            return Encoding.UTF8.GetBytes($"{{\"status\":\"{(blame.Uncommitted ? "uncommitted" : "blame")}\",\"revision\":{r.Revision},\"line\":{line},\"sha\":\"{Quote(blame.Sha)}\"," +
+                $"\"author\":\"{Quote(blame.Author)}\",\"time\":{blame.Time},\"summary\":\"{Quote(blame.Summary)}\"}}");
+        }
+        catch (Exception e) when (e is RpcException or GitException or IOException) { return NoPeek(r); }
+    }
 
     /// <summary>Reads the index of the file again into its document; nothing was written.</summary>
     private async Task<byte[]> ConflictAsync(Request r, GitRepository repo, string rel, string file, Tree tree, CancellationToken ct, bool tell = true)

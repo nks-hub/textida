@@ -347,6 +347,7 @@ internal sealed partial class MainWindow
         actions.Add((Loc.Get(K.TabMenuSplit), () => { SelectTab(tab); SplitView(); }));
         if (_groups.Count > 1 || tab.Group.Tabs.Count > 1) actions.Add((Loc.Get(K.TabMenuMove), () => { SelectTab(tab); MoveToOtherGroup(); }));
         if (tab.Path is { } path) actions.Add((Loc.Get(K.TabMenuCopyPath), () => _ = Clipboard?.SetTextAsync(path)));
+        if (tab.Custom is null && tab.Path is { } historyPath) actions.Add((Loc.Get(K.TabMenuHistory), () => OpenHistoryPanel(tab, historyPath)));
         return actions;
     }
 

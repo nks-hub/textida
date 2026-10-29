@@ -36,11 +36,14 @@ public sealed record StatusCounts(int Staged, int Changed, int Untracked, int Co
 /// <summary>An entry of the index:the file mode, the blob and the merge stage (0 unless the path is in conflict).</summary>
 public sealed record IndexEntry(string Mode, string Sha, int Stage);
 
+/// <summary>The commit that last changed a line: <paramref name="Time"/> is a Unix time in seconds; a line no commit has is <paramref name="Uncommitted"/>.</summary>
+public sealed record BlameLine(string Sha, string Author, long Time, string Summary, bool Uncommitted);
+
 /// <summary>
 /// A repository seen through the git program, started with an argument list and no shell. Reads never take the optional locks (a plain <c>git status</c> would refresh the
 /// index file); the only writes are <see cref="WriteIndexBlobAsync"/>, which the user asks for by staging.
 /// </summary>
-public sealed class GitRepository
+public sealed partial class GitRepository
 {
     /// <summary>The mode of a file that is not in the index yet.</summary>
     public const string NewFileMode = "100644";
@@ -82,10 +85,11 @@ public sealed class GitRepository
     /// <summary>The path of a file of the folder this repository was opened from, as git names it.</summary>
     public string RelativePath(string fileName) => Prefix + fileName;
 
-    private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct)
+    private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct, bool literalPathspecs = true)
     {
         ProcessStartInfo info;
-        try { info = ProcessLaunch.CreateStartInfo(_git, ["--literal-pathspecs", .. args]); } // a file named like a glob is that file
+        // a file named like a glob is that file; a command that finds its files itself (git stash -u lists the untracked ones with a pathspec of its own) must not have it
+        try { info = ProcessLaunch.CreateStartInfo(_git, literalPathspecs ? ["--literal-pathspecs", .. args] : [.. args]); }
         catch (ToolException e) { throw new GitException(e.Message); }
         info.WorkingDirectory = directory;
         info.UseShellExecute = false;
@@ -250,6 +254,32 @@ public sealed class GitRepository
         var text = Encoding.UTF8.GetString(output);
         var tab = text.IndexOf('\t');
         return tab < 0 ? null : text[..tab].Split(' ')[2];
+    }
+
+    /// <summary>
+    /// Who last changed the one-based <paramref name="line"/> of <paramref name="contents"/>, the text of the file as the editor holds it, which <c>git blame</c> takes in place of the file on disk.
+    /// Null when git cannot say (the file is not tracked, the line is past the end).
+    /// </summary>
+    public async Task<BlameLine?> BlameLineAsync(string path, int line, byte[] contents, CancellationToken ct)
+    {
+        var (code, output, _) = await RunAsync(Root, ["blame", "--porcelain", "--contents", "-", "-L", $"{line},{line}", "--", path], contents, readOnly: true, ct).ConfigureAwait(false);
+        if (code != 0) return null;
+        string? sha = null, author = null, summary = null;
+        long time = 0;
+        foreach (var raw in Encoding.UTF8.GetString(output).Split('\n'))
+        {
+            if (sha is null)
+            {
+                if (raw.Length < 40) return null;
+                sha = raw[..40];
+                continue;
+            }
+            if (raw.StartsWith('\t')) break; // the line itself comes after its header
+            if (raw.StartsWith("author ", StringComparison.Ordinal)) author = raw[7..];
+            else if (raw.StartsWith("author-time ", StringComparison.Ordinal)) long.TryParse(raw[12..], out time);
+            else if (raw.StartsWith("summary ", StringComparison.Ordinal)) summary = raw[8..];
+        }
+        return sha is null ? null : new BlameLine(sha, author ?? "", time, summary ?? "", sha.All(c => c == '0'));
     }
 
     /// <summary>The bytes of a blob, as stored (no line ending or other conversion).</summary>

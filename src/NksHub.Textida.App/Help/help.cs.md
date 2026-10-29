@@ -244,6 +244,18 @@ Program uchovává revizi souboru při každém uložení a při každé změně
 - U velkého souboru Porovnat potřebuje Externí porovnávač z nastavení, Obnovit soubor a Obnovit výběr se nenabízejí a Označit revizi chce soubor nejdřív uložit. Uložit jako kopii zapíše jakoukoli revizi vedle souboru jako název (datum čas).přípona a otevře ji; funguje pro každý soubor.
 - Revize uchované jako záplata Hledat v historii nenajde.
 
+## [file.historyPanel] Panel místní historie
+commands: nks.file.historyPanel, nks.files.history
+1. Zvolte Soubor, pak Historie, pak Panel místní historie, nebo Místní historie v nabídce souboru v panelu Soubory, nebo Historie souboru v nabídce karty. Panel se otevře jako karta; každý soubor má jen jednu.
+2. Seznam vlevo ukazuje všechny revize souboru, nejnovější první: kdy vznikla, proč, jak je velká a vpravo kolik řádků přidala k revizi před ní a kolik z ní odebrala. Počty se počítají na pozadí, revizi po revizi, a objevují se, jak jsou hotové; nejstarší revize nemá s čím se porovnat.
+3. Vyberte revizi a vpravo uvidíte její porovnání. Pole nad seznamem volí, s čím se porovnává: s aktuálním textem souboru, nebo s revizí před ní. Dvě revize vyberete klávesou Ctrl nebo Shift a porovnají se mezi sebou, starší vlevo. Porovnání je stejné jako u Porovnat s diskem, takže fungují jeho šipky, Předchozí a Další.
+4. Obnovit soubor vloží celou revizi do karty souboru. Chcete-li obnovit jen část, použijte šipku bloku v porovnání s aktuálním textem. Obojí je jeden krok Zpět v kartě a text, který tam byl, se předtím uchová jako revize.
+5. Štítek, Připnout a Uložit jako kopii dělají totéž co v seznamu Místní historie. Filtry zúží seznam podle důvodu revize a podle slova z jejího štítku.
+- Pod seznamem je počet revizí souboru, místo, které zabírají na disku, nejstarší revize a platné limity. Bez limitů se nejnovější revize přesto ponechá.
+- Seznam i počty sledují uložení, změnu jiným programem, štítek a připnutí, aniž byste panel otevírali znovu.
+- Revize nad limitem velikosti textové karty se tu neporovnává, stejně jako velký soubor: použijte Uložit jako kopii nebo Externí porovnávač. U velkého souboru se Obnovit soubor nenabízí.
+- Ovládání klávesnicí funguje: Tab prochází filtry, seznam, tlačítka a porovnání, šipky vybírají revizi a čtečka obrazovky čte každý řádek s jeho počty.
+
 ## [file.historyMark] Označit revizi
 commands: nks.file.historyMark
 1. Zvolte Soubor a pak Historie a pak Označit revizi a napište štítek, například Před refaktorem.
@@ -705,7 +717,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
 1. Zvolte Zobrazit a Zobrazit skryté znaky (Ctrl+K, Ctrl+W): vykreslí se mezery, tabulátory a konce řádků CR, LF a CRLF. Dokument se nemění.
 2. Zobrazit čísla řádků (Ctrl+K, Ctrl+N), Zvýraznit aktuální řádek, Zobrazit pravý okraj (svislá čára ve sloupci 80, nastavuje se v nastavení Sloupec pravého okraje) a Klikací odkazy zapínají a vypínají zbytek.
-3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění, log v barvách úrovní. Kliknutím nebo tažením se posouvá. Dlouhý soubor v editoru ukazuje jen řádky kolem obrazovky.
+3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění, log v barvách úrovní. Kliknutím nebo tažením se posouvá. U dlouhého souboru se obraz posouvá s polohou posuvu a obdélník projde celou výšku mapy od prvního řádku k poslednímu jako posuvník. Klik dá kliknutý řádek doprostřed obrazovky a obraz zůstane na místě. Velký soubor ve stránkovaném režimu se ukáže jako vzorky z celého souboru podle bajtové pozice, takže ukazatel se nehýbe, ani když se staví index řádků.
 - U velkého souboru (stránkovaný režim) je obraz vzorkovaný: krátké úseky řádků ze začátků stejně velkých částí celého souboru, takže se nikdy nečte celý. Místo obdélníku ukazuje pozici tenká čára. Při indexování řádků pokrývá obraz zatím spočítané řádky, stejně jako posuvník. Počet řádků v úseku je placeholder, není rozhodnutá hodnota.
 - Shody z lišty hledání jsou označené v úzkém pruhu na pravém okraji minimapy. Řádky, které ponechá filtr živého pohledu na log, jsou v pruhu také: chybové červeně, varování žlutě, ostatní modře.
 - Odkazy se otevřou kliknutím s Ctrl a ve stránkovaném režimu nejsou k dispozici.
@@ -1663,7 +1675,7 @@ commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 - Proces Emmet se spustí prvním Tabem v souboru HTML nebo CSS.
 
 ## [tools.git] Git: stav, porovnání a příprava úseku
-commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete
+commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk, nks.git.unstageHunk, nks.git.conflictOurs, nks.git.conflictTheirs, nks.git.conflictBoth, nks.git.markResolved, nks.git.conflictDelete, nks.git.nextChange, nks.git.previousChange, nks.git.showChange, nks.git.revertHunk
 1. Otevřete soubor z repozitáře Git a v nabídce Nástroje zvolte Git: stav souborů. Panel ukáže, co `git status` hlásí pro celý repozitář: co je v indexu a co je změněné ve stromu. Panel i stavový řádek se po změně zvenku obnoví samy krátce po poslední změně. Sleduje se každý repozitář, který má otevřený soubor, i když jsou otevřené soubory z více repozitářů; sledování repozitáře skončí, když se zavře jeho poslední otevřený soubor. Stavový řádek ukazuje repozitář posledního příkazu Git nebo poslední změny zvenku; panel zůstává u repozitáře posledního stavu souborů.
 2. Git: porovnat s indexem a Git: porovnat s HEAD otevřou kartu porovnání otevřeného textu s verzí v indexu nebo v HEAD. Úseky jsou stejné jako v `git diff`.
 3. Git: připravit úsek pod kurzorem přidá do indexu jen změnu, ve které stojí kurzor. Ostatní změny souboru zůstanou jen ve stromu. Soubor na disku se nemění.
@@ -1673,13 +1685,34 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 5. Git: vrátit úsek pod kurzorem z indexu vezme zpět do HEAD jen přípravenou změnu, ve které kurzor stojí (nebo na ni v souboru ukazuje). Ostatní připravené změny zůstanou.
 6. Při konfliktu slučování umístěte kurzor do bloku mezi `<<<<<<<` a `>>>>>>>` a zvolte Git: konflikt, vzít naše změny / jejich změny / obě strany. Blok se nahradí zvolenou stranou. Až žádný blok nezbyde a soubor je uložený, zvolte Git: označit soubor jako vyřešený; soubor se přidá do indexu.
 7. Panel stavu otevře soubor dvojklikem nebo Enterem. Ve stavovém řádku je větev a počty: `+` v indexu, `~` změněno, `?` nesledováno, `!` konflikty; aktualizuje se po každém příkazu Git.
-8. V souboru z repozitáře Git značí levý okraj řádky, které se liší od indexu, plným proužkem (modrý změněné, zelený přidané, krátký červený proužek tam, kde řádky ubyly) a řádky už připravené obrysem. Kliknutí na značku změnu připraví, kliknutí na obrysovou značku ji vrátí z indexu. Nastavení Značky změn Gitu v levém okraji značky vypne. Soubor nad limitem velikosti a soubor se skrytými hodnotami (.env) značky nemá.
+8. V souboru z repozitáře Git značí levý okraj řádky, které se liší od indexu: proužek u přidaných řádků, proužek s mezerou u změněných řádků, trojúhelník tam, kde řádky ubyly (ve světlém a tmavém tématu zeleně, modře a červeně, ve vysokém kontrastu jednou barvou). Změna, která už je v indexu, má značku jen s obrysem. Stejné změny jsou označené u levého okraje minimapy vedle řádků, kterým patří, a u posuvníku. Nastavení Značky změn Gitu porovnávat s volí index (výchozí) nebo poslední commit (HEAD). Nastavení Značky změn Gitu v levém okraji značky vypne. Soubor nad limitem velikosti a soubor se skrytými hodnotami (.env) značky nemá.
 9. Karty Git: porovnat s indexem a Git: porovnat s HEAD mají tlačítka Připravit úsek a Vrátit úsek z indexu pro rozdíl, na kterém karta stojí (z klávesnice stejně fungují příkazy Porovnání: první a druhá akce zásuvného modulu v nabídce Nástroje). Po tlačítku se porovnání otevře znovu na místě karty.
 10. Konflikt, ve kterém jedna strana soubor smazala (panel píše „konflikt: smazáno námi“ nebo „smazáno jimi“) nebo ho obě přidaly a nejde sloučit, nemá žádné značky. Git: konflikt, vzít naše změny / jejich změny / obě strany to pak řekne. Soubor ponecháte příkazem Git: označit soubor jako vyřešený, smažete ho příkazem Git: konflikt, smazat soubor. Soubor smazaný oběma stranami („konflikt: smazáno oběma“, například po přejmenování, které každá strana udělala jinak) nemá soubor, který by se otevřel: dvojklik nebo Enter na něm v panelu stavu se zeptá, zda ho odebrat z indexu, a Ano vyřeší konflikt příkazem `git rm`. Smazaný soubor, který není konflikt, se jen označí za chybějící.
 11. Bloky konfliktu se najdou i v souborech uložených jako UTF-16 a UTF-32.
 12. S `core.autocrlf` (nebo atributem `eol`) se úsek souboru s konci řádků CRLF uloží s LF, jak ho ukládá `git add`.
-- Chybí zatím: commit a větve.
+13. Kliknutí na značku otevře změnu hned pod ní: staré řádky červeně, nové zeleně, změněná slova uvnitř řádku jsou označená. Tlačítka jsou Vrátit zpět (staré řádky se vrátí na místo nových, jeden krok zpět), Připravit nebo Vrátit z indexu (to, co dřív dělalo kliknutí na značku), Předchozí a Další (procházejí změny souboru dokola) a Zavřít. Náhled zavře Esc i úprava textu. Kurzor se nehýbe.
+14. Git: další změna (Alt+F3) a Git: předchozí změna (Alt+Shift+F3) přesunou kurzor na další nebo předchozí změnu souboru a otevřou její náhled. Git: ukázat změnu pod kurzorem (Ctrl+K, Ctrl+C) otevře náhled změny, ve které kurzor stojí, a dá do něj klávesnicový fokus, takže tlačítka se dosáhnou klávesou Tab. Git: vrátit změnu pod kurzorem udělá totéž co tlačítko Vrátit zpět, bez náhledu.
+15. Stavový řádek ukazuje, kdo naposledy změnil řádek pod kurzorem: autora, datum a předmět commitu; bublina má commit a celý předmět. Řádek, který není v žádném commitu, to řekne. Git se ptá, až když kurzor chvíli stojí na řádku. Nastavení Ukázat, kdo změnil řádek pod kurzorem to vypne.
+- Vrátit zpět se nenabízí u změny, která je v indexu, u dokumentu jen pro čtení a u změny s víc řádky, než náhled pojme; náhled to řekne.
+- Značky, náhled a řádek s autorem jsou jen pro textové karty. Velký soubor ve stránkovaném režimu je nemá.
+- Commit, stažení změn, aktualizace, odeslání, větve, odložené změny a historie jsou v tématu Git: commit, aktualizace, odeslání, větve a historie.
 - Proces Git se spustí prvním příkazem, nebo když se otevře soubor a značky v levém okraji jsou zapnuté. Program `git` musí být v PATH.
+
+## [tools.gitCommit] Git: commit, aktualizace, odeslání, větve a historie
+commands: nks.git.commit, nks.git.fetch, nks.git.pull, nks.git.push, nks.git.switchBranch, nks.git.createBranch, nks.git.deleteBranch, nks.git.stashSave, nks.git.stashApply, nks.git.stashDrop, nks.git.logFile, nks.git.logRepo
+1. Zvolte Nástroje, Git, Git: commit (nebo tlačítko Commit na panelu nástrojů). Panel commitu se otevře jako karta, jedna pro každý repozitář. Seznam vlevo obsahuje všechny změněné soubory s polem: zaškrtnutý soubor je v indexu Gitu a půjde do commitu, pole s pomlčkou znamená, že v indexu je jen část souboru. Zaškrtnutím nebo odškrtnutím pole přidáte celý soubor do indexu nebo ho z indexu vrátíte; pole nahoře to udělá pro všechny soubory. Soubor v konfliktu pole nemá: nejdřív ho vyřešte.
+2. Vyberte soubor a vpravo uvidíte jeho změny: nahoře část, která je v indexu (HEAD proti indexu), dole část, která v indexu není (index proti souboru). Tlačítko každého porovnání přidá do indexu (nebo z něj vrátí) změnu, na které porovnání stojí, takže commit může obsahovat jen část souboru.
+3. Napište zprávu do pole a zvolte Commit, nebo v poli stiskněte Ctrl+Enter. Commit a odeslat nejdřív udělá commit a pak se zeptá na odeslání. Upravit poslední commit (amend) nahradí poslední commit obsahem indexu a zprávou (prázdné pole se vyplní starou zprávou). Seznam dřívějších zpráv pole vyplní znovu.
+4. Git: stáhnout změny, Git: aktualizovat a Git: odeslat komunikují se vzdáleným repozitářem, a to jen když je zvolíte. Ve stavovém řádku se ukáže úloha s ukazatelem průběhu a tlačítkem Zrušit, které git zastaví. Git: aktualizovat se zeptá, jak nové commity zapracovat (sloučit, nebo přeskládat); nastavení Git: aktualizace větve spojuje změny pomocí to určí jednou provždy. Aktualizace, která se zastaví na konfliktech, je ukáže v panelu stavu. Git: odeslat ukáže commity, které odejdou, a před odesláním se zeptá; větev bez sledované vzdálené větve se pošle s `--set-upstream`.
+5. Větev ve stavovém řádku otevře seznam větví. Git: přepnout větev, Git: nová větev a Git: smazat větev pracují s větvemi; přepnutí se změnami v pracovním stromu se nejdřív zeptá a nesloučená větev se smaže až po druhé otázce. Větev vzdáleného repozitáře se stane místní větví, která ji sleduje.
+6. Git: odložit změny odloží změny (i nesledované soubory), Git: použít odložené změny je vrátí a ponechá v seznamu, Git: zahodit odložené změny jedny smaže po otázce.
+7. Git: historie souboru a Git: historie repozitáře vypíšou commity do panelu vlevo. Otevřením commitu se jeho změna ukáže v porovnání; u historie repozitáře nejdřív vyberete soubor z commitu.
+- Hesla se v editoru nikdy nezadávají ani neukládají. Git se ptá svého pomocníka pro přihlašovací údaje (`git config credential.helper`); když se ani tak nepřihlásí, zpráva to řekne. Adresy ve zprávách se ukazují bez uživatelského jména a hesla.
+- Git běží bez terminálu: otázka, která by ho potřebovala (heslo, klíč serveru), skončí zprávou a nic se nezmění.
+- Odeslání, které vzdálený repozitář odmítne, protože má commity, které nemáte, to řekne; nejdřív větev aktualizujte. Odesílá se jen aktuální větev; otázka jmenuje další větve s neodeslanými commity.
+- Panel porovnává soubory do velikosti jedné odpovědi pluginu; větší soubor, binární soubor a soubor v konfliktu se jen pojmenují. Přidání části souboru do indexu vyžaduje soubor, který není v konfliktu.
+- Commit vyžaduje user.name a user.email v nastavení Gitu; když chybí, zpráva to řekne.
+- Takový příkaz běží vždy jen jeden; stavový řádek řekne, že jiný ještě běží.
 
 ## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
@@ -1922,6 +1955,31 @@ Jen Windows. Textida se umí přidat do místní nabídky Průzkumníka vašeho 
 - Instalátor TextidaSetup.exe nabízí stejné volby při instalaci a při odinstalaci je vrátí.
 - Text položky nabídky je v jazyce Textidy v okamžiku přidání. Po změně jazyka ji přidejte znovu.
 - Přesunutí Textida.exe do jiné složky nechá v položkách starou cestu. Přidejte položku znovu, nebo ji nejdřív odeberte.
+
+## [tools.macIntegration] macOS: příkaz v terminálu, akce ve Finderu a typy souborů
+commands: nks.tools.macIntegration, nks.tools.macRemove
+Jen pro macOS, v nainstalované Textidě (Textida.app). Textida nepřidá do Macu nic, dokud položku nezapnete, a zapisuje jen do vašich vlastních složek; žádná změna nežádá o heslo správce.
+1. Zvolte Nastavení, Integrace do systému, Integrace s macOS. Okno ukáže tři položky; přepínač se projeví hned a ukáže, co říká Mac. Stejné přepínače jsou na stránce Systém v okně nastavení.
+2. Příkaz textida je odkaz jménem textida na program, v /usr/local/bin, když tam smíte zapisovat, jinak v ~/bin. V terminálu `textida soubor.txt` otevře soubor v běžící Textidě, `textida --wait soubor.txt` počká, až se jeho karta zavře, `textida --diff a b` porovná dva soubory. Když terminál příkaz nenajde, okno ukáže řádek, který patří do ~/.zprofile.
+3. Rychlá akce Otevřít v Textidě je soubor v ~/Library/Services. Ve Finderu klikněte pravým tlačítkem na soubor nebo složku, pak Rychlé akce a Otevřít v Textidě. Pokud tam akce není, zapněte ji v Nastavení systému, Soukromí a zabezpečení, Rozšíření, Finder.
+4. Typy souborů: Textida se stane aplikací, která otevírá přípony, které zaškrtnete. Než se jí stane, Mac si zapamatuje aplikaci, kterou přípona měla; vypnutí přípony ji vrátí. Soubory se otevírají v už běžící Textidě.
+5. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z macOS (nebo Odebrat vše v okně) a smažete odkaz, rychlou akci i všechna přidružení, která Textida přidala.
+- Odkaz nebo akce se odebere jen tehdy, když je opravdu od Textidy: příkaz textida, který vede k jinému programu, a akce, kterou Textida nenapsala, zůstanou.
+- Typ, který žádná jiná aplikace neotevírá, zůstane po vypnutí Textidě, protože Mac nemá komu ho vrátit.
+- Rychlá akce a typy souborů vyžadují, aby Textida běžela z Textida.app; program spuštěný ze složky sestavení nabídne jen příkaz.
+- Smazání Textida.app odstraní jen program. Nejdřív zvolte Odebrat, aby zmizel i odkaz, akce a typy souborů; nastavení zůstane, dokud nesmažete složku Textida v ~/Library/Application Support.
+
+## [install.mac] Instalace Textidy na macOS
+Textida pro macOS se dodává jako obraz disku (.dmg) a jako ZIP se stejnou aplikací: Textida-<verze>-osx-arm64 pro Macy s čipem Apple a Textida-<verze>-osx-x64 pro Macy s Intelem. Běží na macOS 14 a novějším. Balíky zatím neprošly notarizací u Applu a mají jen ad-hoc podpis, takže první spuštění chce jeden krok navíc.
+1. Otevřete obraz disku a přetáhněte Textidu do složky Aplikace. Obraz vysuňte.
+2. Otevřete Textidu ze složky Aplikace. macOS řekne, že nemůže ověřit, zda aplikace neobsahuje škodlivý software (macOS 14: nejde otevřít, protože vývojáře nelze ověřit). Nepřesouvejte ji do koše.
+3. Na macOS 14 podržte Control, klikněte na Textidu ve složce Aplikace, zvolte Otevřít a potvrďte tlačítkem Otevřít. Na macOS 15 zavřete zprávu tlačítkem Hotovo, otevřete Nastavení systému, Soukromí a zabezpečení, sjeďte k části Zabezpečení, u Textidy zvolte Přesto otevřít a potvrďte heslem nebo Touch ID.
+4. Od té chvíle se Textida spouští jako každá jiná aplikace. Pokud rozbalíte ZIP, přesuňte Textida.app nejdřív do složky Aplikace. Soubor stažený z internetu nese značku karantény; v terminálu ji odstraní `xattr -dr com.apple.quarantine /Applications/Textida.app`.
+5. Chcete-li Textidu odstranit, nejdřív zvolte Nastavení, Integrace do systému, Odebrat Textidu z macOS, pokud jste přidali příkaz v terminálu, rychlou akci nebo typy souborů, a pak přetáhněte Textida.app do koše. Vaše nastavení je v ~/Library/Application Support/Textida a zůstane, dokud tu složku nesmažete.
+- Obraz disku obsahuje Textida.app a odkaz na složku Aplikace; ZIP obsahuje jen Textida.app. Oba vyrábí tools/BuildMacPackage.cs, který běží na Macu.
+- Balík pro čip Apple a balík pro Intel se stahují zvlášť; univerzální balík neexistuje. Mac s Intelem potřebuje verzi x64.
+- Podpis Developer ID a notarizace zatím nejsou hotové. Až budou, krok navíc při prvním spuštění odpadne.
+- Přibalené pluginy a program textida-mcp se spouštějí zevnitř aplikace. Změna souborů uvnitř Textida.app poruší podpis a macOS ji pak může odmítnout spustit.
 
 ## [help.updates] Aktualizace a návrat na předchozí verzi
 commands: nks.help.updateCheck, nks.help.updateReturn

@@ -427,6 +427,20 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.file.historyPanel",
+      "title": "cmd.file.historyPanel",
+      "category": "cat.file",
+      "icon": "history",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
+      "id": "nks.files.history",
+      "title": "cmd.files.history",
+      "category": "cat.file",
+      "icon": "history",
+      "enablement": "fileSelected"
+    },
+    {
       "id": "nks.remote.open",
       "title": "cmd.remote.open",
       "category": "cat.file",
@@ -2084,6 +2098,111 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.nextChange",
+      "title": "cmd.git.nextChange",
+      "category": "cat.tools",
+      "icon": "arrow-down",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.previousChange",
+      "title": "cmd.git.previousChange",
+      "category": "cat.tools",
+      "icon": "arrow-up",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.showChange",
+      "title": "cmd.git.showChange",
+      "category": "cat.tools",
+      "icon": "git-diff",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.revertHunk",
+      "title": "cmd.git.revertHunk",
+      "category": "cat.tools",
+      "icon": "git-revert",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
+      "id": "nks.git.commit",
+      "title": "cmd.git.commit",
+      "category": "cat.tools",
+      "icon": "git-commit"
+    },
+    {
+      "id": "nks.git.fetch",
+      "title": "cmd.git.fetch",
+      "category": "cat.tools",
+      "icon": "git-fetch"
+    },
+    {
+      "id": "nks.git.pull",
+      "title": "cmd.git.pull",
+      "category": "cat.tools",
+      "icon": "git-pull"
+    },
+    {
+      "id": "nks.git.push",
+      "title": "cmd.git.push",
+      "category": "cat.tools",
+      "icon": "git-push"
+    },
+    {
+      "id": "nks.git.switchBranch",
+      "title": "cmd.git.switchBranch",
+      "category": "cat.tools",
+      "icon": "git-branch"
+    },
+    {
+      "id": "nks.git.createBranch",
+      "title": "cmd.git.createBranch",
+      "category": "cat.tools",
+      "icon": "git-branch"
+    },
+    {
+      "id": "nks.git.deleteBranch",
+      "title": "cmd.git.deleteBranch",
+      "category": "cat.tools",
+      "icon": "trash"
+    },
+    {
+      "id": "nks.git.stashSave",
+      "title": "cmd.git.stashSave",
+      "category": "cat.tools",
+      "icon": "git-unstage"
+    },
+    {
+      "id": "nks.git.stashApply",
+      "title": "cmd.git.stashApply",
+      "category": "cat.tools",
+      "icon": "git-merge"
+    },
+    {
+      "id": "nks.git.stashDrop",
+      "title": "cmd.git.stashDrop",
+      "category": "cat.tools",
+      "icon": "trash"
+    },
+    {
+      "id": "nks.git.logFile",
+      "title": "cmd.git.logFile",
+      "category": "cat.tools",
+      "icon": "git-history",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.git.logRepo",
+      "title": "cmd.git.logRepo",
+      "category": "cat.tools",
+      "icon": "git-history"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -2831,6 +2950,20 @@
       "category": "cat.tools",
       "icon": "text",
       "enablement": "platform == 'windows'"
+    },
+    {
+      "id": "nks.tools.macIntegration",
+      "title": "cmd.tools.macIntegration",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "platform == 'macos'"
+    },
+    {
+      "id": "nks.tools.macRemove",
+      "title": "cmd.tools.macRemove",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "platform == 'macos'"
     },
     {
       "id": "nks.log.fold",
@@ -3582,6 +3715,13 @@
       "group": "3_disk/03.01",
       "submenu": "history",
       "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historyPanel",
+      "group": "3_disk/03.01",
+      "submenu": "history",
+      "order": 15
     },
     {
       "menu": "file",
@@ -4844,6 +4984,118 @@
     },
     {
       "menu": "tools",
+      "command": "nks.git.nextChange",
+      "group": "2_run/05",
+      "submenu": "git/changes",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.previousChange",
+      "group": "2_run/05",
+      "submenu": "git/changes",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.showChange",
+      "group": "2_run/05",
+      "submenu": "git/changes",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.revertHunk",
+      "group": "2_run/05",
+      "submenu": "git/changes",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.commit",
+      "group": "2_run/01",
+      "submenu": "git",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.fetch",
+      "group": "2_run/01",
+      "submenu": "git",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.pull",
+      "group": "2_run/01",
+      "submenu": "git",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.push",
+      "group": "2_run/01",
+      "submenu": "git",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.switchBranch",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.createBranch",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.deleteBranch",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashSave",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashApply",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashDrop",
+      "group": "2_run/02",
+      "submenu": "git/branches",
+      "order": 60
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logFile",
+      "group": "2_run/03",
+      "submenu": "git",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logRepo",
+      "group": "2_run/03",
+      "submenu": "git",
+      "order": 20
+    },
+    {
+      "menu": "tools",
       "command": "nks.lsp.start",
       "group": "1_text/04",
       "submenu": "code/lsp",
@@ -5550,6 +5802,20 @@
       "order": 30
     },
     {
+      "menu": "settings",
+      "command": "nks.tools.macIntegration",
+      "group": "3_files/02",
+      "submenu": "shell",
+      "order": 40
+    },
+    {
+      "menu": "settings",
+      "command": "nks.tools.macRemove",
+      "group": "3_files/02",
+      "submenu": "shell",
+      "order": 50
+    },
+    {
       "menu": "tools",
       "command": "nks.log.fold",
       "group": "2_run/02.04",
@@ -6157,6 +6423,21 @@
     {
       "key": "alt+shift+f7",
       "command": "nks.review.previous",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+f3",
+      "command": "nks.git.nextChange",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+shift+f3",
+      "command": "nks.git.previousChange",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+k mod+c",
+      "command": "nks.git.showChange",
       "when": "editorFocus"
     },
     {
@@ -6932,6 +7213,61 @@
         "git",
         "gutter",
         "diff"
+      ]
+    },
+    {
+      "key": "git.gutterBase",
+      "type": "string",
+      "default": "index",
+      "title": "setting.git.gutterBase.title",
+      "description": "setting.git.gutterBase.description",
+      "category": "cat.git",
+      "scope": "application",
+      "enum": [
+        "index",
+        "head"
+      ],
+      "tags": [
+        "git",
+        "gutter",
+        "index",
+        "head",
+        "diff"
+      ]
+    },
+    {
+      "key": "git.blame",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.git.blame.title",
+      "description": "setting.git.blame.description",
+      "category": "cat.git",
+      "scope": "application",
+      "tags": [
+        "git",
+        "blame",
+        "author",
+        "status bar"
+      ]
+    },
+    {
+      "key": "git.pullMode",
+      "type": "string",
+      "default": "ask",
+      "title": "setting.git.pullMode.title",
+      "description": "setting.git.pullMode.description",
+      "category": "cat.git",
+      "scope": "application",
+      "enum": [
+        "ask",
+        "merge",
+        "rebase"
+      ],
+      "tags": [
+        "git",
+        "pull",
+        "merge",
+        "rebase"
       ]
     },
     {

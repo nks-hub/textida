@@ -4,7 +4,7 @@
 //
 //   dotnet run tools/MakeIcon.cs -- <output folder>
 //
-// Writes textida.ico (16-256 px, PNG entries), textida-256.png and textida-1024.png.
+// Writes textida.ico (16-256 px, PNG entries), textida-256.png, textida-1024.png and textida.icns (16-1024 px with the @2x sizes, PNG entries; the macOS package takes it as Textida.icns).
 using SkiaSharp;
 
 string output = args.Length > 0 ? args[0] : Path.Combine("src", "NksHub.Textida.App", "Assets");
@@ -15,6 +15,7 @@ var entries = icoSizes.Select(s => (Size: s, Png: Render(s))).ToList();
 File.WriteAllBytes(Path.Combine(output, "textida.ico"), Ico(entries));
 File.WriteAllBytes(Path.Combine(output, "textida-256.png"), Render(256));
 File.WriteAllBytes(Path.Combine(output, "textida-1024.png"), Render(1024));
+File.WriteAllBytes(Path.Combine(output, "textida.icns"), Icns(Render));
 Console.WriteLine($"icon written to {Path.GetFullPath(output)}");
 
 static byte[] Render(int size)
@@ -83,5 +84,24 @@ static byte[] Ico(List<(int Size, byte[] Png)> entries)
         offset += png.Length;
     }
     foreach (var (_, png) in entries) w.Write(png);
+    return ms.ToArray();
+}
+
+// ICNS container with PNG entries: "icns" and the total length, then for each size a four-letter type, the length of the entry and the PNG. All numbers are big-endian.
+// The types are those of iconutil: icp4 16, icp5 32, icp6 64, ic07 128, ic08 256, ic09 512, ic10 1024 and, for the @2x sizes, ic11 32 (16@2x), ic12 64 (32@2x), ic13 256 (128@2x), ic14 512 (256@2x).
+static byte[] Icns(Func<int, byte[]> render)
+{
+    (string Type, int Size)[] kinds = [("icp4", 16), ("icp5", 32), ("icp6", 64), ("ic07", 128), ("ic08", 256), ("ic09", 512), ("ic10", 1024), ("ic11", 32), ("ic12", 64), ("ic13", 256), ("ic14", 512)];
+    var pngs = kinds.Select(k => k.Size).Distinct().ToDictionary(size => size, render);
+    using var ms = new MemoryStream();
+    void Int(int value) => ms.Write([(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value]);
+    ms.Write("icns"u8);
+    Int(8 + kinds.Sum(k => 8 + pngs[k.Size].Length));
+    foreach (var (type, size) in kinds)
+    {
+        ms.Write(System.Text.Encoding.ASCII.GetBytes(type));
+        Int(8 + pngs[size].Length);
+        ms.Write(pngs[size]);
+    }
     return ms.ToArray();
 }

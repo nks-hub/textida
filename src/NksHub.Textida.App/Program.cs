@@ -37,9 +37,15 @@ public static partial class Program
             if (instanceLock is null) return ForwardToRunningInstance(parsed);
         }
 
+        // the textida command starts the editor from a terminal, and closing that terminal sends SIGHUP: the editor stays, so nothing in it is lost
+        PosixSignalRegistration? hangup = OperatingSystem.IsWindows() ? null : PosixSignalRegistration.Create(PosixSignal.SIGHUP, context => context.Cancel = true);
         App.Startup = new StartupContext(parsed, new ProfileStore(Environment.GetEnvironmentVariable("TEXTIDA_PROFILE") is { Length: > 0 } p ? p : ProfileLocation.ResolveForThisMachine()), parsed.Smoke ? "smoke" : MainChannel, instanceLock);
         try { return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
-        finally { instanceLock?.Dispose(); }
+        finally
+        {
+            hangup?.Dispose();
+            instanceLock?.Dispose();
+        }
     }
 
     /// <summary>Called by the uninstaller: removes the Explorer menu entry and the associations of this user, whether or not the user ever added them.</summary>

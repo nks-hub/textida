@@ -46,7 +46,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     public bool Enabled => _endpoint is not null;
 
     /// <summary>The program an MCP client is told to start; next to the editor.</summary>
-    public static string BridgeProgram => Path.Combine(AppContext.BaseDirectory, "mcp", "textida-mcp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+    public static string BridgeProgram => Path.Combine(ProgramFolders.Files, "mcp", "textida-mcp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
 
     // ---- on and off ----
 

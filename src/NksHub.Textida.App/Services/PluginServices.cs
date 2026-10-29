@@ -150,7 +150,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Crashed += info => Dispatcher.UIThread.Post(() => ReportCrash(info));
         _host.Log += line => _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.PluginLogSource), line);
 
-        var folder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "json");
+        var folder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
             ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
@@ -173,7 +173,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         permissions.Grant(TextToolsPluginId, DocumentPermissions.Read, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.EditDirect, GrantScope.All);
         permissions.Grant(TextToolsPluginId, DocumentPermissions.ClipboardWrite, GrantScope.All);
-        var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "texttools");
+        var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString(),
@@ -184,7 +184,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // colours and key paths read the text; the colour conversion writes the converted values back
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
             permissions.Grant(WebDataPluginId, permission, GrantScope.All);
-        var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "webdata");
+        var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "webdata");
         var webProgram = Path.Combine(webFolder, "NksHub.Textida.Plugins.WebData" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WebDataPluginId, "Web data", webProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.WebDataMaxBytes.ToString(),
@@ -193,7 +193,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
         // the code explorer only reads: it finds the symbols of a text from simple rules of its language
         permissions.Grant(CodeExplorerPluginId, DocumentPermissions.Read, GrantScope.All);
-        var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "codeexplorer");
+        var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "codeexplorer");
         var explorerProgram = Path.Combine(explorerFolder, "NksHub.Textida.Plugins.CodeExplorer" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(CodeExplorerPluginId, "Code Explorer", explorerProgram,
             ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
@@ -204,7 +204,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // Emmet reads the text in front of the carets and writes the expansion back as one snippet; it answers the Tab key
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditDirect })
             permissions.Grant(EmmetPluginId, permission, GrantScope.All);
-        var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "emmet");
+        var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "emmet");
         var emmetProgram = Path.Combine(emmetFolder, "NksHub.Textida.Plugins.Emmet" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(EmmetPluginId, "Emmet", emmetProgram,
             ["--context-bytes", PluginLimitsPlaceholders.EmmetContextBytes.ToString(), "--max-chars", PluginLimitsPlaceholders.SnippetLength.ToString(),
@@ -213,7 +213,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // the formatters read the selection and write it back (or propose it)
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
             permissions.Grant(FormattersPluginId, permission, GrantScope.All);
-        var formattersFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "formatters");
+        var formattersFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "formatters");
         var formattersProgram = Path.Combine(formattersFolder, "NksHub.Textida.Plugins.Formatters" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         var formattersArguments = new List<string>
         {
@@ -227,18 +227,21 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // and edits the document only when the user takes a side of a merge conflict
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.Virtual, DocumentPermissions.EditDirect })
             permissions.Grant(GitPluginId, permission, GrantScope.All);
-        var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "git");
+        var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "git");
         var gitProgram = _gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
-             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString()],
+             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString(),
+             "--peek-max-lines", PluginLimitsPlaceholders.GitPeekMaxLines.ToString(), "--network-timeout-ms", PluginLimitsPlaceholders.GitNetworkTimeoutMilliseconds.ToString(),
+             "--log-entries", PluginLimitsPlaceholders.GitLogEntries.ToString(), "--message-history", PluginLimitsPlaceholders.GitMessageHistory.ToString(),
+             "--max-pick-items", PluginLimitsPlaceholders.Ui().MaxPickItems.ToString(), "--max-text-length", PluginLimitsPlaceholders.Ui().MaxTextLength.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
         permissions.Grant(WikiPluginId, DocumentPermissions.Source, GrantScope.All);
         permissions.Grant(WikiPluginId, PluginPermissionNames.Network, GrantScope.All);
-        var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "wiki");
+        var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "wiki");
         var wikiProgram = Path.Combine(wikiFolder, "NksHub.Textida.Plugins.Wiki" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WikiPluginId, "NKS IS wiki", wikiProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.SourceTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.SourceMaxBytes.ToString(),
@@ -249,7 +252,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // The shipped client holds workspace.files from the start; any other plugin gets it only from the user, on the consent screen of the plugin manager.
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.WorkspaceFiles })
             permissions.Grant(LspPluginId, permission, GrantScope.All);
-        var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(AppContext.BaseDirectory, "plugins"), "lsp");
+        var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "lsp");
         var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
@@ -424,24 +427,80 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     }
 
     /// <summary>
+    /// Runs a Git command on the repository that holds <paramref name="path"/> (a file or a folder), with no document: the commit, fetch, pull and push, the branches, the stashes and the log, and the
+    /// reads and writes of the commit panel. <paramref name="extra"/> is more members of the request already written as JSON, each starting with a comma. The answer is what the plugin answered, or null
+    /// when the plugin could not be reached (the user is told, unless <paramref name="notify"/> is false). The plugin asks its questions and shows its notices itself.
+    /// </summary>
+    public async Task<JsonElement?> RunGitRepoAsync(MainWindow window, string command, string path, string extra = "", bool notify = true)
+    {
+        if (!File.Exists(_gitProgram)) return null;
+        try
+        {
+            await _host.ActivateAsync(GitActivation);
+            var request = $"{{\"command\":\"{JsonEncodedText.Encode(command)}\",\"language\":\"{Loc.Language}\",\"path\":\"{JsonEncodedText.Encode(path)}\"{extra}}}";
+            var answer = (await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes(request))).Clone();
+            return answer.ValueKind == JsonValueKind.Object ? answer : null;
+        }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
+        {
+            if (notify && e is not PluginCrashedException) window.ShowNotice("plugin:" + GitPluginId, Loc.Get(K.PluginUnavailable, ("name", PluginName(GitPluginId)), ("reason", e.Message)), [], warning: true);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// The changes of the file of the tab against the index and <c>HEAD</c>, for the gutter, as of <see cref="GitMarks.Revision"/> of the document. Empty for a document the gutter does not look at (no file,
     /// a secrets file, a file above <see cref="PluginLimitsPlaceholders.GitGutterMaxBytes"/>) and for a file Git has nothing to say about; null when Git could not be asked now (the document is busy with a command, the plugin does not run).
     /// </summary>
-    public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab)
+    public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab, GitBase gitBase = GitBase.Index)
     {
         var document = tab.Doc.Doc;
         if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file))
             return new GitMarks(document.Revision, []);
-        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\"", notify: false, background: true);
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"base\":\"{BaseName(gitBase)}\"", notify: false, background: true);
         if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } answer || !answer.TryGetProperty("hunks", out var hunks) || hunks.ValueKind != JsonValueKind.Array
             || !answer.TryGetProperty("revision", out var revision)) return null;
         var marks = new List<GitMark>(hunks.GetArrayLength());
         foreach (var h in hunks.EnumerateArray())
         {
             var kind = h.GetProperty("kind").GetString() switch { "added" => GitMarkKind.Added, "removed" => GitMarkKind.Removed, _ => GitMarkKind.Modified };
-            marks.Add(new GitMark(h.GetProperty("line").GetInt32(), h.GetProperty("lines").GetInt32(), kind, h.GetProperty("staged").GetBoolean()));
+            marks.Add(new GitMark(h.GetProperty("line").GetInt32(), h.GetProperty("lines").GetInt32(), kind, h.GetProperty("staged").GetBoolean(),
+                h.GetProperty("oldStart").GetInt32(), h.GetProperty("oldLines").GetInt32(), h.GetProperty("base").GetString() == "head" ? GitBase.Head : GitBase.Index));
         }
         return new GitMarks(revision.GetInt64(), marks);
+    }
+
+    internal static string BaseName(GitBase gitBase) => gitBase == GitBase.Head ? "head" : "index";
+
+    /// <summary>
+    /// The lines a change in the gutter replaced, as of the current revision of the document, for the peek at the change. Null when Git could not say now (the document changed since the marks were drawn, the
+    /// plugin does not run, a command of the user is running on the document).
+    /// </summary>
+    public async Task<GitPeek?> GitPeekAsync(MainWindow window, DocTab tab, GitMark mark, GitBase gitBase)
+    {
+        var document = tab.Doc.Doc;
+        if (document.FilePath is not { } file || !File.Exists(_gitProgram) || !InRepository(file)) return null;
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.peek",
+            $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"base\":\"{BaseName(gitBase)}\",\"line\":{mark.Line},\"staged\":{(mark.Staged ? "true" : "false")}", notify: false, background: true);
+        if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } a || a.GetProperty("status").GetString() != "peek") return null;
+        var kind = a.GetProperty("kind").GetString() switch { "added" => GitMarkKind.Added, "removed" => GitMarkKind.Removed, _ => GitMarkKind.Modified };
+        return new GitPeek(a.GetProperty("revision").GetInt64(), new GitMark(a.GetProperty("line").GetInt32(), a.GetProperty("lines").GetInt32(), kind, a.GetProperty("staged").GetBoolean(),
+                a.GetProperty("oldStart").GetInt32(), a.GetProperty("oldCount").GetInt32(), a.GetProperty("base").GetString() == "head" ? GitBase.Head : GitBase.Index),
+            [.. a.GetProperty("old").EnumerateArray().Select(l => l.GetString() ?? "")], a.GetProperty("endsWithNewline").GetBoolean(), a.GetProperty("truncated").GetBoolean());
+    }
+
+    /// <summary>
+    /// Who last changed the zero-based <paramref name="line"/> of the document as it is now (unsaved edits included). Null when Git cannot say: the file is in no repository or is not tracked, the plugin does not run,
+    /// a command of the user is running, the document changed meanwhile.
+    /// </summary>
+    public async Task<GitBlame?> GitBlameAsync(MainWindow window, DocTab tab, int line)
+    {
+        var document = tab.Doc.Doc;
+        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file)) return null;
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.blame", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"line\":{line}", notify: false, background: true);
+        if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } a || a.GetProperty("status").GetString() is not ("blame" or "uncommitted")) return null;
+        return new GitBlame(a.GetProperty("revision").GetInt64(), line, a.GetProperty("sha").GetString() ?? "", a.GetProperty("author").GetString() ?? "",
+            DateTimeOffset.FromUnixTimeSeconds(a.GetProperty("time").GetInt64()), a.GetProperty("summary").GetString() ?? "", a.GetProperty("status").GetString() == "uncommitted");
     }
 
     /// <summary>Whether a <c>.git</c> folder or file stands in the folder of the file or above it. The plugin is not started for a file that cannot be in a repository.</summary>
