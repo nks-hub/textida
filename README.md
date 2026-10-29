@@ -1,10 +1,12 @@
 # Textida
 
+[![Release build](https://github.com/nks-hub/textida/actions/workflows/release.yml/badge.svg)](https://github.com/nks-hub/textida/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/nks-hub/textida?include_prereleases)](https://github.com/nks-hub/textida/releases)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2B%20%7C%20macOS%2014%2B-lightgrey)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> Text editor for Windows and macOS with a paged document core that opens and edits files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Early development, no release yet.
+> Text editor for Windows and macOS with a paged document core that opens and edits files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Early development; preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
 
 Textida is a working name. The editor is a new program inspired by PSPad; it does not use PSPad code, data or resources.
 
@@ -29,7 +31,35 @@ The application itself (window, tabs, menus) is being built in stage P1.
 
 ## Installation
 
-There is no binary release yet. Build from source:
+Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page. They are not signed with a publisher certificate yet, so Windows SmartScreen and macOS Gatekeeper warn on the first start.
+
+- **Windows:** `TextidaSetup-<version>-win-x64.exe` installs for the current user without administrator rights; the ZIP is the portable version.
+- **macOS:** `Textida-<version>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg` (Intel). Drag Textida to Applications, then right-click it and choose Open the first time.
+- **Linux (preview):** `textida_<version>_amd64.deb` (`sudo apt install ./textida_<version>_amd64.deb`), or the `.tar.gz` with `./install.sh`, which installs into `~/.local`.
+
+### Debian and Ubuntu (apt)
+
+The `.deb` of every release is also in the NKS Hub apt repository, so `apt upgrade` brings new versions. It runs on Debian 12 or newer and Ubuntu 22.04 or newer, x64:
+
+```bash
+curl -fsSL https://repo.nks-hub.cz/public-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nks-dev.gpg
+
+sudo tee /etc/apt/sources.list.d/textida.sources > /dev/null <<'EOF'
+Types: deb
+URIs: https://repo.nks-hub.cz/textida/
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/nks-dev.gpg
+EOF
+
+sudo apt update
+sudo apt install textida
+```
+
+The packages are signed by `NKS Dev <dev@nks-hub.cz>`. `sudo apt remove textida` uninstalls it; the settings under `~/.config` stay.
+
+Build from source:
 
 ```bash
 git clone https://github.com/nks-hub/textida.git
@@ -86,7 +116,16 @@ The exit code is 0 when it worked, 1 when it failed (the reason is printed) and 
 dotnet run tools/BuildWindowsPackage.cs -- --version <version> --output ./artifacts
 ```
 
-The same switches are in the settings under System integration (searchable): the Explorer menu entry, the file types, the Start menu and desktop shortcuts, and a button that opens the default apps page of Windows, where the default program of a file type is chosen. They read the registry and write it at once; the Tools menu has the same commands for the menu entry and the associations. All of it is written by the program itself under `HKCU\Software\Classes`. There is no macOS package yet.
+The same switches are in the settings under System integration (searchable): the Explorer menu entry, the file types, the Start menu and desktop shortcuts, and a button that opens the default apps page of Windows, where the default program of a file type is chosen. They read the registry and write it at once; the Tools menu has the same commands for the menu entry and the associations. All of it is written by the program itself under `HKCU\Software\Classes`.
+
+The macOS package (`Textida.app` as a ZIP and a DMG, one per architecture, signed ad hoc and not notarized) is built on a Mac, and the Linux packages (a `.deb` and a `.tar.gz` with `install.sh` and `uninstall.sh`) on Linux:
+
+```bash
+dotnet run tools/BuildMacPackage.cs -- --version <version> --rid osx-arm64 --output ./artifacts
+dotnet run tools/BuildLinuxPackage.cs -- --version <version> --output ./artifacts
+```
+
+Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and publishes them with `SHA256SUMS.txt` as a GitHub release. Linux is a preview: its packages are added when they built and passed the smoke test.
 
 Updates are checked only when you choose Help, Check for Updates, or at start if the setting `updates.checkOnStart` is on (off by default). The check is one GET of a static feed signed with ECDSA P-256; the package must match the SHA-256 and size inside the signed part. The new version is unpacked next to the old one (`Textida.new`), and `TextidaSetup.exe --apply-update` (`Setup.ps1 -ApplyUpdate` for an install made by the script) switches the folders after Textida has closed; the old version stays as `Textida.previous` and Help, Return to the Previous Version swaps back. The feed address and the public key are still empty constants in `AppUpdater`, so a build checks nothing until they are set.
 
