@@ -110,7 +110,7 @@ static string Control(string version, string arch, long installedKiB) => $"""
     Architecture: {arch}
     Maintainer: NKS Hub <dev@nks-hub.cz>
     Installed-Size: {installedKiB}
-    Depends: libc6, libfontconfig1, libfreetype6, libx11-6, libice6, libsm6
+    Depends: libc6, libssl3t64 | libssl3, libicu76 | libicu75 | libicu74 | libicu73 | libicu72 | libicu71 | libicu70, libfontconfig1, libfreetype6, libx11-6, libice6, libsm6
     Section: editors
     Priority: optional
     Homepage: https://github.com/nks-hub/textida
