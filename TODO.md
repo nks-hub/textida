@@ -1090,6 +1090,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (noc):** zadáno k ladění.
   - **Stav 28. 10. 2026 (noc, sloučeno af7d25a1):** opraveno. Editor hlásil viditelné sloupce z `VisualLinesChanged`, který přijde při měření dřív, než se okno poprvé umístí. `Bounds.Width` bylo 0, takže se barvy vyžádaly jen pro sloupce 0–1. Platilo to pro všechny jazyky, ne jen PHP. Šířka se teď čte z `Viewport.Width` (`EditorSurface.OnVisualLinesChangedCore`). Test `Every_character_on_screen_has_the_color_of_its_token` porovná barvu každého vykresleného znaku s tokeny gramatiky (PHP ve světlém i tmavém, C#, JS, JSON, Markdown). S původním kódem padá 6 ze 6. AOT publish prošel. V běžící aplikaci neověřeno.
+  - **Ověření 29. 10. 2026 (noc):** rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb). Zbývá pohled v běžící aplikaci.
 
 ### P3.3 Minimapa
 
@@ -1124,6 +1125,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Závisí na:** P3.3.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Editing/Minimap.cs`)
+  - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
 
 ### P3.4 Inspektor bajtů
 
@@ -1266,6 +1268,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 29. 10. 2026 (noc):** Windows hotovo; `.icns` pro macOS je součástí P3.7.8.
 - [ ] **P3.6.9** Panely: změna velikosti, dokování a přesun
   - **Co a proč:** Boční panel (soubory a další) nejde roztáhnout, přesunout ani ukotvit jinam. Panely se mají dát roztáhnout tažením okraje, ukotvit vlevo, vpravo nebo dole, přesunout mezi skupinami a skrýt; rozložení se pamatuje v relaci a dá se vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1283,6 +1286,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P2.3.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Ověření 29. 10. 2026 (noc):** oprava šipky je v main; rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb). Zbývá Perf se 100 000 položkami a pohled v běžící aplikaci.
 - [ ] **P3.6.11** Prohlížení obrázků
   - **Co a proč:** Obrázek (PNG, JPEG, GIF, BMP, WebP, ICO, rozpoznané podle začátku souboru) se dnes otevře jako binární text. Má se otevřít jako obrázek: přizpůsobit oknu, 100 %, lupa a posun, šachovnice pod průhledností, rozměry, formát a velikost souboru ve stavovém řádku; lišta nabídne „Zobrazit jako text“ a „Zobrazit jako hex“ a volba se dá změnit i v nastavení. Jen prohlížení, žádné úpravy; SVG je text a otevře se jako text. Dekódování s limity bajtů a pixelů (stávající kód obrázků náhledu), aby obří nebo poškozený soubor nezahltil paměť.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1308,6 +1312,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
     - Výběr jen z mezer, skrytá hodnota, víc kurzorů a víceřádkový výběr se nezvýrazní. Řádek nad 10 000 znaků se jen počítá a značí.
     - Testy: 32 headless testů (`OccurrenceHighlightTests`), 12 mutací kódu odhaleno.
     - Neověřeno: Perf (testy napsané), čtečka, IME, macOS. Soubory jen s CR mají značky na špatných řádcích, stejně jako značky Hledání (`SearchWorker`).
+  - **Ověření 29. 10. 2026 (noc):** rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb), včetně 32 nových testů. Zbývá Perf a pohled v běžící aplikaci.
 - [ ] **P3.6.13** Nástrojová lišta podle uživatele
   - **Co a proč:** Majitel chce nástrojovou lištu, kterou si uživatel přizpůsobí: přidat, odebrat a přeřadit tlačítka z registru příkazů (včetně příkazů pluginů), oddělovače, ikony s popiskem nebo bez, velikost. Vzhled D5 počítá s oknem bez pruhu tlačítek, proto je lišta volitelná: zapíná se v menu Zobrazit, ve výchozím stavu je vypnutá a vzhled D5 bez ní zůstává beze změny. Nastavení lišty se ukládá do profilu a jde vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1316,6 +1321,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P1.6.1, P3.6.8, P3.6.14
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
 - [ ] **P3.6.14** Sada SVG ikon pro příkazy
   - **Co a proč:** Lišta (P3.6.13) unese libovolný příkaz, proto potřebuje jednotnou sadu ikon. Stejné ikony použije i menu a paleta příkazů. Dnes je v aplikaci jen ikona programu (`tools/MakeIcon.cs`, `Assets/textida.ico`) a glyfy stromu souborů jako data cest (`FileGlyphs`). Sada pokryje:
     - Soubor: nový, otevřít, uložit, uložit vše, zavřít, nedávné.
@@ -1341,6 +1347,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.8
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
 - [ ] **P3.6.15** Přepracované okno nastavení
   - **Co a proč:** Majitel 28. 10. 2026: nastavení kompletně přepracovat. Možnosti logicky rozdělit do kategorií se stromovou navigací, vyhledávání se zvýrazněním zachovat a volbu jazyka přesunout z menu do nastavení.
   - **Dnešní stav:**
@@ -1380,6 +1387,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.6
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
 - [ ] **P3.6.16** Menu podle typu souboru
   - **Co a proč:** Majitel 28. 10. 2026: volby v menu mají být aktivní podle zjištěného typu souboru, podobně jako to má hex.
   - **Dnešní stav:**
@@ -1404,6 +1412,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.17
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Workbench/Commands`, `builtin.contributions.json`)
+  - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
 - [ ] **P3.6.17** Review a přeorganizování celé nabídky
   - **Co a proč:** Majitel 28. 10. 2026: projít celou nabídku a logicky ji roztřídit.
   - **Dnešní stav:** 422 příkazů a 371 položek menu v deseti nabídkách:
@@ -1429,6 +1438,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.15
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`builtin.contributions.json`, nápověda)
+  - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
 
 ### P3.7 První distribuce
 
@@ -1517,6 +1527,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.7.1, P3.7.6, P3.6.8, P3.6.15 (podpis pro vydání PR.3.1)
   - **Odhad:** bez odhadu
   - **Umístění:** mimo jádro (distribuce)
+  - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
 
 ## P3b – základ pluginů
 
@@ -2142,6 +2153,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Závisí na:** P5.3.1, P5.3.2, P5.2.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
 
 ### P5.4 Vzdálené soubory
 
@@ -2753,6 +2765,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.6.1, P8.6.2, P3.3.1
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin `textida.git` (data), jádro (okraj, náhled, minimapa)
+  - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
 - [ ] **P8.6.4** Git: commit, pull, push a větve jako v PhpStormu
   - **Co a proč:** Majitel 28. 10. 2026 chce na liště tlačítka commit, pull a push a práci s Gitem podobnou PhpStormu. Plugin `textida.git` dnes umí stav souborů, diff s indexem a s `HEAD`, připravení a vrácení úseku a konflikty (naše, jejich, obě, smazat, označit vyřešené). Chybí vše kolem commitu:
     - commit a amend;
@@ -2782,6 +2795,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.6.1, P8.6.2
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin `textida.git`, panel v jádru
+  - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
 
 ### P8.7 Schémata a manifesty
 
