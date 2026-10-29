@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Layout;
@@ -119,7 +120,9 @@ public class PseudoLocalizationTests : IDisposable
         Layout(root);
         foreach (var block in root.GetVisualDescendants().OfType<TextBlock>())
         {
-            if (!block.IsEffectivelyVisible || !IsDrawn(block) || block.Text is not { Length: > 0 } text || !text.Contains(Open)) continue;
+            if (!block.IsEffectivelyVisible || !IsDrawn(block) || block.Text is not { Length: > 0 } raw || !raw.Contains(Open)) continue;
+            // the underscore of an access key is not drawn
+            string text = block is AccessText ? MenuAccessKeys.Unmark(raw) : raw;
             if (Problem(block, text, root) is { } problem) _clipped.Add($"{surface}: \"{Shorten(text)}\" {problem}");
         }
     }

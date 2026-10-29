@@ -41,6 +41,7 @@ internal sealed partial class SettingsWindow : Window
     private List<string> _pendingReset = [];
     private string _selected = SettingCategories.Appearance;
     private string? _focusKey;
+    private string? _framed, _framedQuery;
     private bool _building;
     private bool _editing;
 
@@ -162,6 +163,7 @@ internal sealed partial class SettingsWindow : Window
     /// <summary>Shows the page of a category.</summary>
     internal void SelectCategory(string id)
     {
+        _framed = null;
         _selected = id;
         _search.Text = "";
         Refresh();
@@ -172,7 +174,7 @@ internal sealed partial class SettingsWindow : Window
     {
         _focusKey = key;
         if (!keepSearch && (_search.Text ?? "").Length > 0) _search.Text = "";
-        else Refresh();
+        Refresh(); // the box reports its change later; the page is right now
     }
 
     // ---- the nodes of the tree ----
@@ -263,7 +265,14 @@ internal sealed partial class SettingsWindow : Window
         if (_focusKey is { } key)
         {
             _focusKey = null;
-            FocusRow(key);
+            (_framed, _framedQuery) = (key, query);
+            FrameRow(key, focus: true);
+        }
+        else if (_framed is { } framed)
+        {
+            // the frame stays while the page is the same search; the box that reports a change later and a changed setting build the page again
+            if (query == _framedQuery) FrameRow(framed, focus: false);
+            else _framed = null;
         }
     }
 
@@ -415,16 +424,17 @@ internal sealed partial class SettingsWindow : Window
     private static TextBlock Banner(string text, bool strong = true) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = strong ? ThemeColors.Danger : null, Opacity = strong ? 1 : 0.7 };
 
     /// <summary>Frames the row of a setting a link led to, brings it into view and moves the keyboard to its editor.</summary>
-    private void FocusRow(string key)
+    private void FrameRow(string key, bool focus)
     {
         if (RowOf(key) is not { } row) return;
         row.Classes.Add("found");
         string name = AutomationProperties.GetName(row);
-        Dispatcher.UIThread.Post(() =>
-        {
-            row.BringIntoView();
-            FindEditor(row)?.Focus();
-        }, DispatcherPriority.Loaded);
+        if (focus)
+            Dispatcher.UIThread.Post(() =>
+            {
+                row.BringIntoView();
+                FindEditor(row)?.Focus();
+            }, DispatcherPriority.Loaded);
         _count.Text = Loc.Get(K.SettingsFound, ("title", name.Length > 0 ? name : key), ("category", PathText(Nodes(), _selected)));
     }
 

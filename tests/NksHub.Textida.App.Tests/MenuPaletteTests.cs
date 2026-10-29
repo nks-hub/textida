@@ -102,11 +102,11 @@ public class MenuPaletteTests : IDisposable
         Assert.Equal("Nový", Plain(file.Items.OfType<MenuItem>().First().Header));
     }
 
-    [Fact]
+    [AvaloniaFact] // the constructor of the class needs the application
     public void Access_key_assignment_prefers_the_first_letter_then_other_words_then_any_letter_and_never_repeats()
     {
         // the second and the third word that start with N take a later letter; the marked letter of an accented first letter is not a key, so Ú gives way to P
-        Assert.Equal([0, 0, 0, 2], MenuAccessKeys.Assign(["Soubor", "Hledat", "Nastavení", "Nástroje"]));
+        Assert.Equal([0, 0, 0, 3], MenuAccessKeys.Assign(["Soubor", "Hledat", "Nastavení", "Nástroje"])); // N is taken, á is no key and s belongs to Soubor, so Nástroje gets t
         Assert.Equal([1], MenuAccessKeys.Assign(["Úpravy"]));
         Assert.Equal([0, 5, 0], MenuAccessKeys.Assign(["Open Folder", "Open File", "Save"])); // the first letter of the second word beats any other letter
         Assert.Equal([-1], MenuAccessKeys.Assign(["..."]));
@@ -119,15 +119,15 @@ public class MenuPaletteTests : IDisposable
     [AvaloniaFact]
     public void Submenus_are_built_from_the_submenu_field_with_separators_between_their_groups()
     {
+        // the tools of a language show for a file of that language
+        _w.OpenFile(_temp.File("a.sql", "select 1;\n"), null);
         var tools = Menu("Nástroje");
         var macros = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Makra");
         Assert.Contains(Commands(macros.Items), c => c.CommandId == "nks.macro.record");
         Assert.DoesNotContain(tools.Items.OfType<MenuCommand>(), c => c.CommandId!.StartsWith("nks.macro.", StringComparison.Ordinal));
         Assert.Contains(tools.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.plugins.manage");
 
-        // one submenu gathers entries of several groups: they stay in their order, split by a separator
         var code = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Kód a jazyk");
-        Assert.Contains(code.Items, n => n is MenuSeparator);
         Assert.Contains(Commands(code.Items), c => c.CommandId == "nks.tools.sqlDialect");
 
         // a submenu may hold another: the language server is a submenu of the code tools
@@ -141,6 +141,12 @@ public class MenuPaletteTests : IDisposable
         Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatJson");
         Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatSql");
         Assert.Contains(Menu("Úpravy").Items.OfType<MenuCommand>(), c => c.CommandId == "nks.edit.undo");
+
+        // one submenu gathers entries of several groups: they stay in their order, split by a separator
+        _w.OpenFile(_temp.File("a.md", "# t\n"), null);
+        var mode = Assert.Single(Menu("Zobrazit").Items.OfType<MenuGroup>(), g => g.Label == "Režim zobrazení");
+        Assert.Contains(mode.Items, n => n is MenuSeparator);
+        Assert.Contains(Commands(mode.Items), c => c.CommandId == "nks.view.modeRead");
     }
 
     [AvaloniaFact]

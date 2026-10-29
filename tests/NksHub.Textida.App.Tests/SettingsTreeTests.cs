@@ -86,7 +86,7 @@ public class SettingsTreeTests : IDisposable
         Assert.Equal(SettingCategories.EditorDisplay, view.SelectedCategory);
         Assert.Contains("editor.lineNumbers", view.ShownIds);
         Assert.DoesNotContain("editor.tabSize", view.ShownIds);
-        Assert.Contains("Editor › Zobrazení", view.GetVisualDescendants().OfType<ScrollViewer>().Select(AutomationProperties.GetName).First(n => n.Contains("Zobrazení", StringComparison.Ordinal)));
+        Assert.Contains("Editor › Zobrazení", view.GetVisualDescendants().OfType<ScrollViewer>().Select(AutomationProperties.GetName).OfType<string>().First(n => n.Contains("Zobrazení", StringComparison.Ordinal)));
 
         // a category that has others under it lists all of them, each with its heading
         view.SelectCategory(SettingCategories.Editor);
@@ -280,7 +280,7 @@ public class SettingsTreeTests : IDisposable
         Assert.True(view.ResetCategoryButton.IsVisible);
         view.ResetCategoryButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
         await Until(() => _app.Workbench.Settings.GetBool("editor.lineNumbers"));
-        Assert.Equal(2, _dialogs.Asked.Count);
+        Assert.Equal(3, _dialogs.Asked.Count); // the cancelled one, the confirmed one and this
     }
 
     private static async Task Until(Func<bool> condition)

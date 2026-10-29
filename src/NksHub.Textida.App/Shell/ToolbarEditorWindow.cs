@@ -64,7 +64,7 @@ internal sealed class ToolbarEditorWindow : Window
         var right = new Grid { RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 4 };
         Place(right, _currentLabel, 0);
         Place(right, new Border { Child = _current, BorderThickness = new Thickness(1), BorderBrush = Brushes.Gray, CornerRadius = new CornerRadius(4) }, 1);
-        Place(right, new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _up, _down, _remove } }, 2);
+        Place(right, new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 8, LineSpacing = 8, Children = { _up, _down, _remove } }, 2);
 
         var body = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,*"), ColumnSpacing = 16, Margin = new Thickness(18, 14) };
         Grid.SetColumn(middle, 1);
@@ -165,7 +165,7 @@ internal sealed class ToolbarEditorWindow : Window
 
     private Control RowOf(ToolbarChoice choice, bool withCategory)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("24,*,Auto") };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("24,*") };
         if (choice.Icon is { } icon)
         {
             var picture = CommandIcons.Create(icon);
@@ -173,15 +173,12 @@ internal sealed class ToolbarEditorWindow : Window
             picture.HorizontalAlignment = HorizontalAlignment.Left;
             grid.Children.Add(picture);
         }
-        var title = new TextBlock { Text = choice.Title, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Opacity = choice.Available ? 1 : 0.6 };
-        Grid.SetColumn(title, 1);
-        grid.Children.Add(title);
-        if (withCategory && choice.Category is not null)
-        {
-            var category = new TextBlock { Text = choice.Category, Opacity = 0.6, FontSize = 12, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(category, 2);
-            grid.Children.Add(category);
-        }
+        // a long name wraps instead of being cut off, and the category stands under it
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock { Text = choice.Title, TextWrapping = TextWrapping.Wrap, Opacity = choice.Available ? 1 : 0.6 });
+        if (withCategory && choice.Category is not null) text.Children.Add(new TextBlock { Text = choice.Category, TextWrapping = TextWrapping.Wrap, Opacity = 0.6, FontSize = 12 });
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
         AutomationProperties.SetName(grid, withCategory ? NameOf(choice) : choice.Title);
         return grid;
     }
