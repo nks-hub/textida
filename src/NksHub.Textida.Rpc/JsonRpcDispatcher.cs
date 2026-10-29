@@ -433,6 +433,8 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         }
         var closed = new RpcConnectionClosedException(fault);
         foreach (var p in pending) p.TrySetException(closed);
+        // before the handlers are cancelled: a handler can finish inside Cancel() and must not put a "cancelled" reply on the wire, the peer has to see the connection close
+        _writes.Writer.TryComplete();
         foreach (var c in incoming)
         {
             try { c.Cancel(); }
@@ -440,7 +442,6 @@ public sealed class JsonRpcDispatcher : IAsyncDisposable
         }
         _outBudget.Close(closed);
         _notifications.Writer.TryComplete();
-        _writes.Writer.TryComplete();
         _completion.TrySetResult();
     }
 
