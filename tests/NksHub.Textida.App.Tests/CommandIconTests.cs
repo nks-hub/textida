@@ -6,6 +6,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -66,12 +67,20 @@ public class CommandIconTests : IDisposable
     private static Color Pixel(Window window, int x, int y)
     {
         window.UpdateLayout();
-        for (int i = 0; i < 5; i++) Dispatcher.UIThread.RunJobs();
-        using var buffer = window.CaptureRenderedFrame()!.Lock();
+        // the frame is drawn on the render thread: give it the few milliseconds it needs
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame(); // every capture draws what changed since the one before
+            Thread.Sleep(5);
+        }
+        var frame = window.CaptureRenderedFrame()!;
+        using var buffer = frame.Lock();
         var data = new byte[buffer.RowBytes * buffer.Size.Height];
         System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
         int at = y * buffer.RowBytes + x * 4;
-        return Color.FromArgb(data[at + 3], data[at + 2], data[at + 1], data[at]); // the frame is B, G, R, A
+        // the order of the bytes of a pixel is the one the platform draws in
+        return frame.Format == PixelFormat.Bgra8888 ? Color.FromArgb(data[at + 3], data[at + 2], data[at + 1], data[at]) : Color.FromArgb(data[at + 3], data[at], data[at + 1], data[at + 2]);
     }
 
     private static int Distance(Color a, Color b) => Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B);
@@ -257,12 +266,16 @@ public class CommandIconTests : IDisposable
     [AvaloniaFact]
     public void A_palette_row_of_a_command_that_says_text_has_no_icon_and_keeps_the_column_free()
     {
+        var wb = _app.Workbench;
+        var command = wb.Commands.Commands.First(c => !c.Hidden && c.Icon == BuiltinIcons.TextOnly && wb.Commands.HasHandler(c.Id) && c.Id == "nks.edit.selectLine");
+        string title = wb.Strings.Get(command.TitleKey);
         _w.ShowPalette();
-        _w.SetPaletteQuery(_app.Workbench.Strings.Get("cmd.edit.tab"));
+        _w.SetPaletteQuery(title);
         Dispatcher.UIThread.RunJobs();
         var rows = _w.QuickResults.ToList();
-        var index = rows.FindIndex(r => r.Icon is null);
-        Assert.True(index >= 0);
+        var index = rows.FindIndex(r => r.Title == title);
+        Assert.True(index >= 0, title);
+        Assert.Null(rows[index].Icon);
         var list = _w.PaletteHost.GetLogicalDescendants().OfType<ListBox>().Single(l => l.Classes.Contains("paletteList"));
         var grid = Assert.IsType<Grid>(Assert.IsType<ListBoxItem>(list.Items[index]).Content);
         Assert.Empty(grid.Children.OfType<IconView>());

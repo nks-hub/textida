@@ -137,7 +137,7 @@ public class IconTests
     [Fact]
     public void The_built_in_set_is_the_set_of_svg_files_in_the_repository_and_every_file_reads_the_same_way()
     {
-        var files = Directory.GetFiles(SvgFolder(), "*.svg").OrderBy(f => f, StringComparer.Ordinal).ToList();
+        var files = Directory.GetFiles(SvgFolder(), "*.svg").OrderBy(f => Path.GetFileNameWithoutExtension(f), StringComparer.Ordinal).ToList();
         Assert.True(files.Count >= 100, $"{files.Count} icons");
         Assert.Equal(files.Select(f => Path.GetFileNameWithoutExtension(f)), BuiltinIcons.All.Keys.Order(StringComparer.Ordinal));
         foreach (var file in files)

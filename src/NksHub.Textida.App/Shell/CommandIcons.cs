@@ -100,8 +100,9 @@ internal sealed class IconView : Control
     {
         if (s_geometries.TryGetValue(data, out var known)) return known;
         Geometry? geometry;
+        // the parser of Avalonia reports bad data with more than one kind of exception; whatever it throws, an icon that cannot be read is an icon left out, never a menu that cannot open
         try { geometry = Geometry.Parse(data); }
-        catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException) { geometry = null; }
+        catch (Exception e) when (e is FormatException or ArgumentException or InvalidOperationException or InvalidDataException or IndexOutOfRangeException) { geometry = null; }
         return s_geometries[data] = geometry;
     }
 }

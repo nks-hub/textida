@@ -93,7 +93,8 @@ internal sealed class ToolbarEditorWindow : Window
         _current.SelectionChanged += (_, _) => { if (!_loading) RefreshButtons(); };
         _available.DoubleTapped += (_, _) => AddSelected();
         _available.KeyDown += (_, e) => { if (e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.None) { AddSelected(); e.Handled = true; } };
-        _current.KeyDown += OnCurrentKey;
+        // in the tunnel, so the list does not take Alt+Up and Alt+Down for its own movement of the selection first
+        _current.AddHandler(KeyDownEvent, OnCurrentKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         _add.Click += (_, _) => AddSelected();
         _addSeparator.Click += (_, _) => AddSeparator();
         _remove.Click += (_, _) => RemoveSelected();
@@ -131,7 +132,11 @@ internal sealed class ToolbarEditorWindow : Window
     internal Button OkButton => _ok;
     internal Button CancelButton => _cancel;
 
-    internal void SetSearch(string text) => _search.Text = text;
+    internal void SetSearch(string text)
+    {
+        _search.Text = text;
+        RefreshAvailable(); // the box reports its change later, on the dispatcher
+    }
 
     internal void SelectAvailable(string id) => _available.SelectedIndex = _listed.FindIndex(c => c.Id == id);
 
