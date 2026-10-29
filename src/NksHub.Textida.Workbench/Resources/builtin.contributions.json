@@ -345,13 +345,13 @@
       "id": "nks.file.reload",
       "title": "cmd.file.reload",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && hasPath"
     },
     {
       "id": "nks.file.compareWithDisk",
       "title": "cmd.file.compareWithDisk",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && hasPath"
     },
     {
       "id": "nks.file.history",
@@ -390,7 +390,7 @@
       "id": "nks.remote.upload",
       "title": "cmd.remote.upload",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "when": "remoteFile"
     },
     {
       "id": "nks.remote.cancel",
@@ -401,7 +401,7 @@
       "id": "nks.remote.check",
       "title": "cmd.remote.check",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "when": "remoteFile"
     },
     {
       "id": "nks.remote.unsent",
@@ -484,39 +484,39 @@
       "id": "nks.edit.formatJson",
       "title": "cmd.edit.formatJson",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'json' || hasSelection)",
       "undo": "transaction"
     },
     {
       "id": "nks.edit.previewFormatJson",
       "title": "cmd.edit.previewFormatJson",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode"
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'json' || hasSelection)"
     },
     {
       "id": "nks.edit.minifyJson",
       "title": "cmd.edit.minifyJson",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'json' || hasSelection)",
       "undo": "transaction"
     },
     {
       "id": "nks.edit.sortJsonKeys",
       "title": "cmd.edit.sortJsonKeys",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'json' || hasSelection)",
       "undo": "transaction"
     },
     {
       "id": "nks.edit.fixJsonCommas",
       "title": "cmd.edit.fixJsonCommas",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'json' || hasSelection)",
       "undo": "transaction"
     },
     {
@@ -595,31 +595,36 @@
       "id": "nks.tools.markdownPreview",
       "title": "cmd.tools.markdownPreview",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'markdown' || language == 'html')"
+      "when": "language == 'markdown' || language == 'html'",
+      "enablement": "hasDocument && !largeFileMode && textView"
     },
     {
       "id": "nks.tools.markdownOutline",
       "title": "cmd.tools.markdownOutline",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode && textView"
     },
     {
       "id": "nks.tools.markdownFormatTable",
       "title": "cmd.tools.markdownFormatTable",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode && textView"
     },
     {
       "id": "nks.tools.markdownUpdateToc",
       "title": "cmd.tools.markdownUpdateToc",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode && textView"
     },
     {
       "id": "nks.tools.markdownRepairTable",
       "title": "cmd.tools.markdownRepairTable",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode && textView"
     },
     {
       "id": "nks.markdown.nextCell",
@@ -646,37 +651,43 @@
       "id": "nks.tools.copyKeyPath",
       "title": "cmd.tools.copyKeyPath",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+      "when": "language == 'yaml' || language == 'json'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.showKeys",
       "title": "cmd.tools.showKeys",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+      "when": "language == 'yaml' || language == 'json'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.showOutline",
       "title": "cmd.tools.showOutline",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown')"
+      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.goToSymbol",
       "title": "cmd.tools.goToSymbol",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown')"
+      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.goToKey",
       "title": "cmd.tools.goToKey",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+      "when": "language == 'yaml' || language == 'json'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.compareKeys",
       "title": "cmd.tools.compareKeys",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && (language == 'yaml' || language == 'json')"
+      "when": "language == 'yaml' || language == 'json'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.edit.newline",
@@ -1077,7 +1088,8 @@
       "id": "nks.edit.clearCarets",
       "title": "cmd.edit.clearCarets",
       "category": "cat.edit",
-      "when": "editorFocus && multipleCarets",
+      "when": "editorFocus",
+      "enablement": "multipleCarets",
       "macro": true
     },
     {
@@ -1107,37 +1119,43 @@
       "id": "nks.view.cycleMode",
       "title": "cmd.view.cycleMode",
       "category": "cat.view",
-      "enablement": "hasDocument && (imageFile || language == 'markdown')"
+      "when": "imageFile || language == 'markdown'",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.modeRead",
       "title": "cmd.view.modeRead",
       "category": "cat.view",
-      "enablement": "hasDocument && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.modeEdit",
       "title": "cmd.view.modeEdit",
       "category": "cat.view",
-      "enablement": "hasDocument && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.modeSource",
       "title": "cmd.view.modeSource",
       "category": "cat.view",
-      "enablement": "hasDocument && language == 'markdown'"
+      "when": "language == 'markdown'",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.modeImage",
       "title": "cmd.view.modeImage",
       "category": "cat.view",
-      "enablement": "hasDocument && imageFile"
+      "when": "imageFile",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.view.modeText",
       "title": "cmd.view.modeText",
       "category": "cat.view",
-      "enablement": "hasDocument && imageFile"
+      "when": "imageFile",
+      "enablement": "hasDocument"
     },
     {
       "id": "nks.file.openAsHex",
@@ -1188,109 +1206,109 @@
       "id": "nks.hex.toggleInsert",
       "title": "cmd.hex.toggleInsert",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.inspector",
       "title": "cmd.hex.inspector",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.charset",
       "title": "cmd.hex.charset",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.layout",
       "title": "cmd.hex.layout",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow8",
       "title": "cmd.hex.bytesPerRow.8",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow16",
       "title": "cmd.hex.bytesPerRow.16",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow24",
       "title": "cmd.hex.bytesPerRow.24",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow32",
       "title": "cmd.hex.bytesPerRow.32",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow48",
       "title": "cmd.hex.bytesPerRow.48",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bytesPerRow64",
       "title": "cmd.hex.bytesPerRow.64",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.offsetFormat",
       "title": "cmd.hex.offsetFormat",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.inspectChanges",
       "title": "cmd.hex.inspectChanges",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.copyAs",
       "title": "cmd.hex.copyAs",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.pasteAs",
       "title": "cmd.hex.pasteAs",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.exportSelection",
       "title": "cmd.hex.exportSelection",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.fill",
       "title": "cmd.hex.fill",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.operate",
       "title": "cmd.hex.operate",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.checksum",
       "title": "cmd.hex.checksum",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.edit.clipboardHistory",
@@ -1591,42 +1609,52 @@
     {
       "id": "nks.log.nextError",
       "title": "cmd.log.nextError",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.previousError",
       "title": "cmd.log.previousError",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.levels",
       "title": "cmd.log.levels",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.follow",
       "title": "cmd.log.follow",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView && hasPath"
     },
     {
       "id": "nks.log.saveView",
       "title": "cmd.log.saveView",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.views",
       "title": "cmd.log.views",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.nextMatch",
       "title": "cmd.log.nextMatch",
-      "category": "cat.log"
+      "category": "cat.log",
+      "when": "logMode",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.previousMatch",
       "title": "cmd.log.previousMatch",
-      "category": "cat.log"
+      "category": "cat.log",
+      "when": "logMode",
+      "enablement": "textView"
     },
     {
       "id": "nks.edit.fragmentJson",
@@ -1685,126 +1713,126 @@
       "id": "nks.tools.emmetPreview",
       "title": "cmd.tools.emmetPreview",
       "category": "cat.tools",
-      "when": "editorFocus",
-      "enablement": "hasDocument && !largeFileMode && !readOnly && (language == 'html' || language == 'css')"
+      "when": "editorFocus && (language == 'html' || language == 'css')",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
       "id": "nks.tools.emmetWrap",
       "title": "cmd.tools.emmetWrap",
       "category": "cat.tools",
-      "when": "editorFocus",
-      "enablement": "hasDocument && !largeFileMode && !readOnly && language == 'html'"
+      "when": "editorFocus && language == 'html'",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
       "id": "nks.git.status",
       "title": "cmd.git.status",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.diffIndex",
       "title": "cmd.git.diffIndex",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.diffHead",
       "title": "cmd.git.diffHead",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.stageHunk",
       "title": "cmd.git.stageHunk",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.unstageHunk",
       "title": "cmd.git.unstageHunk",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.conflictOurs",
       "title": "cmd.git.conflictOurs",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.conflictTheirs",
       "title": "cmd.git.conflictTheirs",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.conflictBoth",
       "title": "cmd.git.conflictBoth",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.markResolved",
       "title": "cmd.git.markResolved",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.git.conflictDelete",
       "title": "cmd.git.conflictDelete",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && inGitRepo",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.lsp.goToDefinition",
       "title": "cmd.lsp.goToDefinition",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.lsp.findReferences",
       "title": "cmd.lsp.findReferences",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.lsp.rename",
       "title": "cmd.lsp.rename",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.lsp.stop",
       "title": "cmd.lsp.stop",
       "category": "cat.tools",
-      "when": "editorFocus",
+      "when": "editorFocus && textView && fileKind != 'text'",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
@@ -1819,16 +1847,16 @@
       "id": "nks.edit.formatSql",
       "title": "cmd.edit.formatSql",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode && language == 'sql'",
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'sql' || hasSelection)",
       "undo": "transaction"
     },
     {
       "id": "nks.edit.previewFormatSql",
       "title": "cmd.edit.previewFormatSql",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode && language == 'sql'"
+      "when": "editorFocus && textView",
+      "enablement": "!readOnly && !largeFileMode && (language == 'sql' || hasSelection)"
     },
     {
       "id": "nks.edit.htmlEncode",
@@ -1850,8 +1878,8 @@
       "id": "nks.edit.htmlTidy",
       "title": "cmd.edit.htmlTidy",
       "category": "cat.edit",
-      "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode && language == 'html'"
+      "when": "editorFocus && language == 'html'",
+      "enablement": "!readOnly && !largeFileMode"
     },
     {
       "id": "nks.edit.htmlEncodeAll",
@@ -1923,7 +1951,8 @@
       "id": "nks.tools.sqlDialect",
       "title": "cmd.tools.sqlDialect",
       "category": "cat.tools",
-      "enablement": "hasDocument && !largeFileMode && language == 'sql'"
+      "when": "language == 'sql'",
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.help.updateCheck",
@@ -1960,49 +1989,49 @@
       "id": "nks.table.dialect",
       "title": "cmd.table.dialect",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.insertRow",
       "title": "cmd.table.insertRow",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.deleteRow",
       "title": "cmd.table.deleteRow",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.insertColumn",
       "title": "cmd.table.insertColumn",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.deleteColumn",
       "title": "cmd.table.deleteColumn",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.filter",
       "title": "cmd.table.filter",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.clearFilter",
       "title": "cmd.table.clearFilter",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.table.copyAs",
       "title": "cmd.table.copyAs",
       "category": "cat.view",
-      "enablement": "tableMode"
+      "when": "tableMode"
     },
     {
       "id": "nks.compare.clipboard",
@@ -2025,49 +2054,49 @@
       "id": "nks.compare.next",
       "title": "cmd.compare.next",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.previous",
       "title": "cmd.compare.previous",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.copyToRight",
       "title": "cmd.compare.copyToRight",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.copyToLeft",
       "title": "cmd.compare.copyToLeft",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.action1",
       "title": "cmd.compare.action1",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.action2",
       "title": "cmd.compare.action2",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.action3",
       "title": "cmd.compare.action3",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.action4",
       "title": "cmd.compare.action4",
       "category": "cat.tools",
-      "enablement": "compareMode"
+      "when": "compareMode"
     },
     {
       "id": "nks.compare.ignoreWhitespace",
@@ -2106,85 +2135,85 @@
       "id": "nks.hex.bookmarks.panel",
       "title": "cmd.hex.bookmarks.panel",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bookmarks.edit",
       "title": "cmd.hex.bookmarks.edit",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bookmarks.export",
       "title": "cmd.hex.bookmarks.export",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.bookmarks.import",
       "title": "cmd.hex.bookmarks.import",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.minimap",
       "title": "cmd.hex.minimap",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.minimap.mode",
       "title": "cmd.hex.minimap.mode",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.minimap.focus",
       "title": "cmd.hex.minimap.focus",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.toggleColumn",
       "title": "cmd.hex.toggleColumn",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.selectTo",
       "title": "cmd.hex.selectTo",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.statistics",
       "title": "cmd.hex.statistics",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.template",
       "title": "cmd.hex.template",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.template.open",
       "title": "cmd.hex.template.open",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.compare.file",
       "title": "cmd.hex.compare.file",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.hex.compare.saved",
       "title": "cmd.hex.compare.saved",
       "category": "cat.hex",
-      "enablement": "hexMode"
+      "when": "hexMode"
     },
     {
       "id": "nks.tools.mcpServer",
@@ -2338,18 +2367,20 @@
       "id": "nks.file.configFiles",
       "title": "cmd.file.configFiles",
       "category": "cat.file",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && hasPath"
     },
     {
       "id": "nks.packages.lookup",
       "title": "cmd.packages.lookup",
       "category": "cat.tools",
+      "when": "packageManifest",
       "enablement": "hasDocument"
     },
     {
       "id": "nks.packages.refresh",
       "title": "cmd.packages.refresh",
       "category": "cat.tools",
+      "when": "packageManifest",
       "enablement": "hasDocument"
     },
     {
@@ -2361,18 +2392,21 @@
       "id": "nks.schemas.allow",
       "title": "cmd.schemas.allow",
       "category": "cat.tools",
+      "when": "fileKind == 'data'",
       "enablement": "hasDocument"
     },
     {
       "id": "nks.packages.script",
       "title": "cmd.packages.script",
       "category": "cat.tools",
+      "when": "packageManifest",
       "enablement": "hasDocument"
     },
     {
       "id": "nks.tools.lint",
       "title": "cmd.tools.lint",
       "category": "cat.tools",
+      "when": "languageGroup != ''",
       "enablement": "hasDocument"
     },
     {
@@ -2406,22 +2440,29 @@
     {
       "id": "nks.log.fold",
       "title": "cmd.log.fold",
-      "category": "cat.log"
+      "category": "cat.log",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.unfold",
       "title": "cmd.log.unfold",
-      "category": "cat.log"
+      "category": "cat.log",
+      "when": "logMode",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.openFrame",
       "title": "cmd.log.openFrame",
-      "category": "cat.log"
+      "category": "cat.log",
+      "when": "logMode",
+      "enablement": "textView"
     },
     {
       "id": "nks.log.showRaw",
       "title": "cmd.log.showRaw",
-      "category": "cat.log"
+      "category": "cat.log",
+      "when": "logMode",
+      "enablement": "textView"
     },
     {
       "id": "nks.snippet.next",
@@ -4729,19 +4770,19 @@
     {
       "menu": "editor.context",
       "command": "nks.compare.clipboard",
-      "group": "2_compare",
+      "group": "4_compare",
       "order": 10
     },
     {
       "menu": "editor.context",
       "command": "nks.file.compareWithDisk",
-      "group": "2_compare",
+      "group": "4_compare",
       "order": 20
     },
     {
       "menu": "editor.context",
       "command": "nks.compare.file",
-      "group": "2_compare",
+      "group": "4_compare",
       "order": 30
     },
     {
@@ -5157,6 +5198,96 @@
       "command": "nks.edit.reformatShortLines",
       "group": "5_block/02",
       "order": 10
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.toggleComment",
+      "group": "2_edit",
+      "order": 10
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.formatJson",
+      "group": "3_type",
+      "order": 10,
+      "when": "language == 'json'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.formatSql",
+      "group": "3_type",
+      "order": 20,
+      "when": "language == 'sql'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.edit.htmlTidy",
+      "group": "3_type",
+      "order": 30,
+      "when": "language == 'html'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.tools.markdownPreview",
+      "group": "3_type",
+      "order": 40,
+      "when": "language == 'markdown' || language == 'html'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.tools.markdownFormatTable",
+      "group": "3_type",
+      "order": 50,
+      "when": "language == 'markdown'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.tools.copyKeyPath",
+      "group": "3_type",
+      "order": 60,
+      "when": "language == 'yaml' || language == 'json'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.tools.goToSymbol",
+      "group": "3_type",
+      "order": 70,
+      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.lsp.goToDefinition",
+      "group": "3_type",
+      "order": 80,
+      "when": "languageGroup != ''"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.lsp.findReferences",
+      "group": "3_type",
+      "order": 90,
+      "when": "languageGroup != ''"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.git.diffHead",
+      "group": "3_type",
+      "order": 100,
+      "when": "inGitRepo"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.git.stageHunk",
+      "group": "3_type",
+      "order": 110,
+      "when": "inGitRepo"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.log.nextError",
+      "group": "3_type",
+      "order": 120,
+      "when": "logMode"
     }
   ],
   "keybindings": [

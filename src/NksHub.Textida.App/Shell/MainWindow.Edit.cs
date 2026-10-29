@@ -46,6 +46,8 @@ internal sealed partial class MainWindow
     {
         var wb = _app.Workbench;
         var groups = MenuBuilder.Build(wb, new ShellContext(this, forMenu: true), CheckState, id => _ = wb.Commands.ExecuteAsync(id, new ShellContext(this, forMenu: true)));
+        _menuSignature = MenuSignature();
+        _menuPathSeen = Active?.Doc.Path;
         if (_look.NativeMenu)
         {
             if (_nativeMenu is null) NativeMenu.SetMenu(this, _nativeMenu = new NativeMenu());

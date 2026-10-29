@@ -34,6 +34,15 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.FileSelected => Bool(window.HasFileSelection),
             ContextKeys.PanelOpen => Bool(window.AnySidePanelOpen),
             ContextKeys.MultipleCarets => Bool(tab?.Surface?.IsMulti == true || tab?.Paged?.IsMulti == true),
+            ContextKeys.FileKind => tab is null ? "" : DocumentKinds.KindOf(tab.Doc),
+            ContextKeys.LanguageGroup => tab is null ? "" : DocumentKinds.GroupOf(tab.Doc.Language.Id),
+            ContextKeys.LogMode => Bool(tab?.Doc.IsLog == true),
+            ContextKeys.InGitRepo => Bool(tab?.Doc.Path is { } gitPath && RepositoryProbe.IsInside(gitPath)),
+            ContextKeys.RemoteFile => Bool(tab?.Doc.RemoteCopy is not null),
+            ContextKeys.MarkdownPreview => Bool(window.MarkdownPreviewShown(tab)),
+            ContextKeys.TextView => Bool(MainWindow.TextViewShown(tab)),
+            ContextKeys.HasPath => Bool(tab?.Doc.Path is not null),
+            ContextKeys.PackageManifest => Bool(tab?.Doc.Path is { } manifestPath && DocumentKinds.IsPackageManifest(manifestPath)),
             _ => null,
         };
     }

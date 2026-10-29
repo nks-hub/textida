@@ -675,5 +675,9 @@
   "cmd.panel.shrink": "Panel verkleinern",
   "cmd.panel.hide": "Panel ausblenden",
   "cmd.panel.resetLayout": "Panel-Layout zurücksetzen",
-  "reason.panelOpen.false": "Kein Panel geöffnet"
+  "reason.panelOpen.false": "Kein Panel geöffnet",
+  "reason.textView.false": "Das Dokument wird gerade nicht als Text angezeigt",
+  "reason.hasPath.false": "Das Dokument hat keine Datei auf dem Datenträger",
+  "reason.multipleCarets.false": "Es gibt nur einen Cursor",
+  "reason.fileType": "Der Befehl ist für eine andere Dateiart"
 }

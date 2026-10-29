@@ -675,5 +675,9 @@
   "cmd.panel.shrink": "Zmenšiť panel",
   "cmd.panel.hide": "Skryť panel",
   "cmd.panel.resetLayout": "Vrátiť predvolené rozloženie panelov",
-  "reason.panelOpen.false": "Nie je otvorený žiadny panel"
+  "reason.panelOpen.false": "Nie je otvorený žiadny panel",
+  "reason.textView.false": "Dokument sa teraz nezobrazuje ako text",
+  "reason.hasPath.false": "Dokument nemá súbor na disku",
+  "reason.multipleCarets.false": "Je len jeden kurzor",
+  "reason.fileType": "Príkaz je pre iný druh súboru"
 }

@@ -675,5 +675,9 @@
   "cmd.panel.shrink": "Make Panel Smaller",
   "cmd.panel.hide": "Hide Panel",
   "cmd.panel.resetLayout": "Reset Panel Layout",
-  "reason.panelOpen.false": "No panel is open"
+  "reason.panelOpen.false": "No panel is open",
+  "reason.textView.false": "The document is not shown as text",
+  "reason.hasPath.false": "The document has no file on disk",
+  "reason.multipleCarets.false": "There is only one caret",
+  "reason.fileType": "The command is for another kind of file"
 }
