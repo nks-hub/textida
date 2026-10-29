@@ -182,6 +182,13 @@ public sealed class PagedDocument : IPagedTextSource
         return true;
     }
 
+    /// <summary>Where a line starts, estimated from the block table of the index without reading the file (see <see cref="MappedFileSource.TryGetApproxLineStart"/>); false for an edited document and for a line the index does not reach.</summary>
+    public bool TryGetApproxLineStart(long line, out long byteOffset)
+    {
+        byteOffset = 0;
+        return !IsModified && _source.TryGetApproxLineStart(line, out byteOffset);
+    }
+
     /// <summary>
     /// Zero-based line that holds <paramref name="offset"/> without searching for it through the starts of lines (which reads a block per step): for a document that is not
     /// edited the block table and one block tell it, for an edited one the terminator counts of the piece tree and the piece that holds the offset, whatever the number of edits.

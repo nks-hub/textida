@@ -42,9 +42,72 @@ internal sealed partial class PagedTextView : IMinimapHost
 
     bool IMinimapHost.IndexComplete => Indexed;
 
+    long IMinimapHost.MapBytes => Doc.ByteLength;
+
     (long First, long Count) IMinimapHost.Visible => (TopLine, Math.Max(1, _canvas.VisibleLines));
 
     void IMinimapHost.ScrollToLine(long line) => _bar.Value = Math.Clamp(line, 0, _bar.Maximum);
+
+    private ((long Revision, long Top, int Visible, object? Detour) Key, (long Start, long End) Bytes) _visibleBytes = ((-1, -1, 0, null), (-1, -1));
+
+    /// <summary>
+    /// The bytes of the lines on screen. The start of the first line is a search in the block table and one block, so it is noted per position: the minimap asks for it with every frame.
+    /// While a start is not known (the first line lies past the indexed part) the last answer stands.
+    /// </summary>
+    (long Start, long End) IMinimapHost.VisibleBytes
+    {
+        get
+        {
+            int visible = Math.Max(1, _canvas.VisibleLines);
+            var key = (Doc.Revision, TopLine, visible, (object?)_detour);
+            if (_visibleBytes.Key != key)
+            {
+                long start = LineStart(TopLine);
+                if (start >= 0)
+                {
+                    long end = LineStart(TopLine + visible);
+                    _visibleBytes = (key, (start, end >= start ? end : start));
+                }
+            }
+            return _visibleBytes.Bytes;
+        }
+    }
+
+    /// <summary>
+    /// The start of the line that holds <paramref name="offset"/>, found without the view's own line numbers (a view beyond the index counts its lines by scanning, a minimap that sampled the
+    /// file through it would scan the file). Inside the indexed part the index tells it; beyond it the line start is looked for backwards, at most <see cref="DetourLineScanBytes"/>; -1 when unknown.
+    /// </summary>
+    private long MapOriginAt(long offset)
+    {
+        offset = Math.Clamp(offset, Doc.BomLength, Math.Max(Doc.BomLength, Doc.ByteLength));
+        if (offset <= Doc.BomLength) return Doc.BomLength;
+        if (Paged.TryGetLineOfOffset(offset, out long line)) return line == 0 ? Doc.BomLength : Paged.TryGetLineStart(line, out long start) ? start : -1;
+        return Paged.IsModified ? -1 : Paged.Source.AlignToLineStart(offset, DetourLineScanBytes);
+    }
+
+    string?[] IMinimapHost.SampleStrip(long offset, int rows)
+    {
+        long origin = MapOriginAt(offset);
+        return origin < 0 ? [] : ReadMapLinesFrom(origin, -1, rows);
+    }
+
+    void IMinimapHost.ScrollToOffset(long offset)
+    {
+        offset = Math.Clamp(offset, Doc.BomLength, Math.Max(Doc.BomLength, Doc.ByteLength));
+        if (!Indexed && offset >= Paged.IndexedBytes)
+        {
+            // the line numbers up to the offset are not known yet: the view continues from the line at the offset and numbers its lines by estimate until the index catches up
+            if (_detour is { } d && offset >= d.BaseStart && offset <= d.Starts[^1]) _bar.Value = Math.Clamp(DetourLineOf(d, offset), _bar.Minimum, _bar.Maximum);
+            else EnterDetour(offset, keepSelection: true, reveal: false);
+            return;
+        }
+        if (!Paged.TryGetLineOfOffset(offset, out long line)) return;
+        if (_detour is not null) LeaveDetour(line);
+        else _bar.Value = Math.Clamp(line, 0, _bar.Maximum);
+    }
+
+    double IMinimapHost.ShareOfLine(long line) =>
+        Doc.ByteLength > 0 && Paged.TryGetApproxLineStart(line, out long offset) ? offset / (double)Doc.ByteLength : double.NaN;
 
     string? IMinimapHost.LineText(long line)
     {
@@ -61,7 +124,12 @@ internal sealed partial class PagedTextView : IMinimapHost
     private string[] ReadMapLines(long first)
     {
         long origin = LineStart(first);
-        if (origin < 0) return [];
+        return origin < 0 ? [] : ReadMapLinesFrom(origin, first, MapBlockLines);
+    }
+
+    /// <summary>The same from the line that starts at the byte <paramref name="origin"/>, at most <paramref name="maxLines"/> of them; <paramref name="first"/> is the number of that line, or -1 when it is not known (the line count then does not limit the answer).</summary>
+    private string[] ReadMapLinesFrom(long origin, long first, int maxLines)
+    {
         int window = (int)Math.Min(Doc.ByteLength - origin, MapBlockBytes);
         var buffer = new byte[window];
         Doc.Read(origin, buffer);
@@ -71,7 +139,7 @@ internal sealed partial class PagedTextView : IMinimapHost
         int w = Doc.Codec.Alignment;
         var lines = new List<string>();
         var hidden = _secrets.Hidden ? _secrets.Ranges() : null;
-        for (int pos = 0; pos < window && first + lines.Count < LineCount && lines.Count < MapBlockLines;)
+        for (int pos = 0; pos < window && (first < 0 || first + lines.Count < LineCount) && lines.Count < maxLines;)
         {
             int end = LineScanner.FindTerminator(buffer, pos, Doc.Codec);
             int next;

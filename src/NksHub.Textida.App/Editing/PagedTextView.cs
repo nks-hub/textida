@@ -563,7 +563,7 @@ internal sealed partial class PagedTextView : Grid
         return Math.Max(1.0, breaks > 0 ? (double)sample.Length / breaks : sample.Length);
     }
 
-    private void EnterDetour(long offset, bool keepSelection = false)
+    private void EnterDetour(long offset, bool keepSelection = false, bool reveal = true)
     {
         if (!keepSelection) DropOthers();
         long lineStart = Paged.Source.AlignToLineStart(offset, DetourLineScanBytes);
@@ -592,7 +592,7 @@ internal sealed partial class PagedTextView : Grid
         }
         UpdateScrollRange();
         _bar.Value = DetourLineOf(_detour, offset);
-        Reveal();
+        if (reveal) Reveal();
         RaiseViewChanged();
     }
 

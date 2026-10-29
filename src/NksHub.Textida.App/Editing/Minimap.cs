@@ -38,11 +38,28 @@ internal interface IMinimapHost
     /// <summary>Raised when <see cref="LineText"/> answers differently without an edit (hidden values were shown or hidden).</summary>
     event Action? ContentChanged;
 
-    /// <summary>The document is a large file: when it is many screens long, the map shows samples spread over the whole file instead of the surroundings of the viewport.</summary>
+    /// <summary>The document is a large file: when it is many screens long, or its line index is still being built, the map shows samples spread over the whole file placed by byte position (<see cref="MapBytes"/>).</summary>
     bool Sampled => false;
 
     /// <summary>False while <see cref="LineCount"/> still grows because the line index of a paged document is being built.</summary>
     bool IndexComplete => true;
+
+    /// <summary>Length in bytes of a document whose map is placed by byte position, so that the picture and the pointer do not move while the line index grows; 0 for a document placed by lines.</summary>
+    long MapBytes => 0;
+
+    /// <summary>The bytes the lines on screen occupy, from the start of the first to the end of the last; (-1, -1) while that is not known.</summary>
+    (long Start, long End) VisibleBytes => (-1, -1);
+
+    /// <summary>Up to <paramref name="rows"/> lines (see <see cref="LineText"/>) from the line that holds the byte <paramref name="offset"/>; empty when that line cannot be found.</summary>
+    string?[] SampleStrip(long offset, int rows) => [];
+
+    /// <summary>Scrolls so that the line holding the byte <paramref name="offset"/> is the first on screen. The caret does not move.</summary>
+    void ScrollToOffset(long offset)
+    {
+    }
+
+    /// <summary>The place of a line in the file as a share of its length (0 to 1) when it is known without reading the file; NaN when it is not and the line number has to tell.</summary>
+    double ShareOfLine(long line) => double.NaN;
 
     /// <summary>Zero-based lines that hold another occurrence of the selected text, ascending; empty when none are marked.</summary>
     IReadOnlyList<long> OccurrenceLines => [];
@@ -68,93 +85,139 @@ internal enum MinimapMarkKind : byte
 internal readonly record struct MinimapMark(long Line, MinimapMarkKind Kind);
 
 /// <summary>Where the picture of the lines and the viewport rectangle sit, in pixels of the minimap. A <paramref name="Sampled"/> picture covers the whole file and the rectangle is a thin pointer.</summary>
-internal readonly record struct MinimapLayout(long Top, int Rows, int Capacity, double ThumbTop, double ThumbHeight, bool Surroundings, bool Sampled = false);
+internal readonly record struct MinimapLayout(long Top, int Rows, int Capacity, double ThumbTop, double ThumbHeight, bool Sampled = false);
 
 /// <summary>
-/// The arithmetic of the minimap. A file that fits shows every line; a file up to <see cref="Proportional"/> times what fits is shown
-/// in a window that slides with the scroll position (as in Sublime Text); a longer one shows the surroundings of the viewport, so
-/// nothing but the lines of that window is ever read. A longer large file is sampled instead: strips of consecutive lines from the starts
-/// of equal parts of the file, so the picture covers all of it and still reads only the lines of the strips.
+/// A point the sliding picture is pinned to: with <paramref name="First"/> as the first line on screen the picture starts at line <paramref name="Top"/>. A click puts the rectangle under the
+/// cursor and pins the picture there, so the text under the cursor does not move; the picture then slides proportionally from that point to both ends of the file.
+/// </summary>
+internal readonly record struct MinimapAnchor(long First, long Top);
+
+/// <summary>
+/// The arithmetic of the minimap. A file that fits shows every line. A longer one shows a window of the lines that slides proportionally with the scroll position, as in VS Code:
+/// the rectangle travels the whole height of the map from the first line to the last, like a scroll bar, and only the lines of that window are ever read. A large file read in pages
+/// is sampled instead: strips of consecutive lines from the starts of equal parts of the file, so the picture covers all of it, and everything is placed by byte position, so that nothing
+/// moves while the line index is still being built.
 /// </summary>
 internal static class MinimapGeometry
 {
     public const int Proportional = 4;
 
-    /// <summary>
-    /// The line count a picture is spread over. While the line index of a big file grows, the count changes with every notice of the index, and a sampled picture is built again for each
-    /// new count: it reads a strip from dozens of places of the file, which on a 50 GiB file competes for the disk with the index itself and held the window for seconds at a time.
-    /// An unfinished count is rounded down to its three leading bits, so the picture is built again when the count has grown by an eighth to a quarter (about 70 times for 800 million lines);
-    /// a finished count is exact.
-    /// </summary>
-    public static long MapLines(long lines, bool indexComplete)
-    {
-        if (indexComplete || lines < 4096) return lines;
-        int shift = System.Numerics.BitOperations.Log2((ulong)lines) - 2;
-        return lines >> shift << shift;
-    }
+    public static int CapacityOf(int height, int rowPx) => Math.Max(1, height / Math.Max(1, rowPx));
 
-    public static MinimapLayout Compute(long lines, long first, long count, int height, int rowPx, bool sampled = false)
+    /// <summary>Whether a host is drawn as a sampled picture: it asks for sampling, and its line index is not complete yet or it has many screens of lines.</summary>
+    public static bool UsesSampling(bool hostSampled, long mapBytes, bool indexComplete, long lines, int capacity) =>
+        hostSampled && mapBytes > 0 && (!indexComplete || lines > (long)capacity * Proportional);
+
+    public static MinimapLayout Compute(long lines, long first, long count, int height, int rowPx, MinimapAnchor? anchor = null)
     {
         rowPx = Math.Max(1, rowPx);
-        int capacity = Math.Max(1, height / rowPx);
+        int capacity = CapacityOf(height, rowPx);
         lines = Math.Max(0, lines);
         count = Math.Max(1, count);
         first = Math.Clamp(first, 0, Math.Max(0, lines - 1));
-        if (sampled && lines > (long)capacity * Proportional)
-        {
-            double full = capacity * (double)rowPx;
-            double pointer = Math.Clamp(count * full / lines, 2, full);
-            return new MinimapLayout(0, capacity, capacity, Math.Clamp(first * full / lines, 0, full - pointer), pointer, false, true);
-        }
-        long top;
-        bool surroundings = false;
-        if (lines <= capacity) top = 0;
-        else if (lines <= (long)capacity * Proportional)
-        {
-            double fraction = lines <= count ? 0 : Math.Clamp(first / (double)(lines - count), 0, 1);
-            top = (long)Math.Round(fraction * (lines - capacity));
-        }
-        else
-        {
-            surroundings = true;
-            top = Math.Clamp(first + count / 2 - capacity / 2, 0, lines - capacity);
-        }
+        long top = lines > capacity ? TopOf(lines, first, count, capacity, anchor) : 0;
         int rows = (int)Math.Min(lines, capacity);
         double shown = rows * (double)rowPx;
         double thumbHeight = Math.Clamp(count * (double)rowPx, Math.Min(8, shown), Math.Max(1, shown));
         double thumbTop = Math.Clamp((first - top) * (double)rowPx, 0, Math.Max(0, shown - thumbHeight));
-        return new MinimapLayout(top, rows, capacity, thumbTop, thumbHeight, surroundings);
+        return new MinimapLayout(top, rows, capacity, thumbTop, thumbHeight);
     }
 
-    /// <summary>The zero-based line drawn at <paramref name="y"/>; in a sampled picture the line at that share of the file.</summary>
-    public static long LineAt(MinimapLayout layout, long lines, int rowPx, double y) => layout.Sampled
-        ? Math.Clamp((long)(y / Math.Max(1, layout.Rows * (double)Math.Max(1, rowPx)) * lines), 0, Math.Max(0, lines - 1))
-        : Math.Clamp(layout.Top + (long)Math.Floor(y / Math.Max(1, rowPx)), 0, Math.Max(0, lines - 1));
-
-    /// <summary>The zero-based line painted in <paramref name="row"/>. A sampled picture cuts the file into one equal part per strip of <paramref name="stripRows"/> rows and shows the first lines of each part.</summary>
-    public static long LineOfRow(MinimapLayout layout, long lines, int row, int stripRows)
+    /// <summary>The first line of the picture of a file longer than the picture: proportional to the scroll position, kept so that the rectangle stays on the picture.</summary>
+    private static long TopOf(long lines, long first, long count, int capacity, MinimapAnchor? anchor)
     {
-        if (!layout.Sampled) return layout.Top + row;
-        stripRows = Math.Max(1, stripRows);
-        long strips = (layout.Rows + stripRows - 1) / stripRows;
-        return Math.Clamp(row / stripRows * lines / strips + row % stripRows, 0, Math.Max(0, lines - 1));
+        long maxTop = lines - capacity, maxFirst = lines - count;
+        if (maxFirst <= 0) return 0;
+        first = Math.Min(first, maxFirst);
+        double top = first * (double)maxTop / maxFirst;
+        if (Effective(anchor, maxFirst, maxTop, capacity, count) is { } a)
+            top = first <= a.First ? a.Top * (double)first / a.First : a.Top + (first - a.First) * (double)(maxTop - a.Top) / (maxFirst - a.First);
+        long slack = Math.Max(0, capacity - count);
+        return Math.Clamp(Math.Clamp((long)Math.Round(top), first - slack, first), 0, maxTop);
     }
 
-    /// <summary>The first line on screen after the viewport rectangle moved <paramref name="dy"/> pixels away from where it was with <paramref name="pressFirst"/> on top.</summary>
-    public static long FirstAfterDrag(MinimapLayout layout, long lines, long count, int rowPx, int height, long pressFirst, double dy)
+    /// <summary>
+    /// The anchor as the picture can honour it: the row of the rectangle in the picture is kept one row off both edges, so that dragging from here can still reach the first and the last
+    /// line. Null when there is no anchor or it lies at an end of the file, where the proportional picture passes anyway.
+    /// </summary>
+    private static MinimapAnchor? Effective(MinimapAnchor? anchor, long maxFirst, long maxTop, int capacity, long count)
+    {
+        if (anchor is not { } a || a.First <= 0 || a.First >= maxFirst) return null;
+        long slack = Math.Max(0, capacity - count);
+        long low = Math.Max(Math.Min(1, a.First), a.First - maxTop), high = Math.Min(a.First, Math.Max(0, slack - 1));
+        if (low > high) return null;
+        return new MinimapAnchor(a.First, a.First - Math.Clamp(a.First - a.Top, low, high));
+    }
+
+    /// <summary>The zero-based line drawn at <paramref name="y"/>.</summary>
+    public static long LineAt(MinimapLayout layout, long lines, int rowPx, double y) =>
+        Math.Clamp(layout.Top + (long)Math.Floor(y / Math.Max(1, rowPx)), 0, Math.Max(0, lines - 1));
+
+    /// <summary>
+    /// A click at <paramref name="y"/> outside the rectangle: the clicked line goes to the middle of the screen, and the picture stays where it is, so the cursor is over the rectangle and the
+    /// text under it has not moved. Returns the first line to scroll to and the anchor that pins the picture (null for a file that fits whole).
+    /// </summary>
+    public static (long First, MinimapAnchor? Anchor) ClickAt(MinimapLayout layout, long lines, long count, int rowPx, double y)
+    {
+        count = Math.Max(1, count);
+        long first = Math.Clamp(LineAt(layout, lines, rowPx, y) - count / 2, 0, Math.Max(0, lines - count));
+        return (first, lines > layout.Capacity ? new MinimapAnchor(first, layout.Top) : null);
+    }
+
+    /// <summary>
+    /// The first line on screen after the rectangle moved <paramref name="dy"/> pixels away from where it was at the press: the rectangle follows the cursor over its whole travel, from the first
+    /// line to the last. <paramref name="layout"/>, <paramref name="lines"/>, <paramref name="count"/> and <paramref name="anchor"/> are those of the press and stay fixed for the whole drag, so the scale cannot change under the cursor.
+    /// </summary>
+    public static long FirstAfterDrag(MinimapLayout layout, long lines, long count, int rowPx, double dy, MinimapAnchor? anchor = null)
     {
         rowPx = Math.Max(1, rowPx);
         count = Math.Max(1, count);
-        double perPixel;
-        if (layout.Sampled) perPixel = lines / Math.Max(1, layout.Rows * (double)rowPx);
-        else if (lines <= layout.Capacity || layout.Surroundings) perPixel = 1.0 / rowPx;
-        else
+        long maxFirst = Math.Max(0, lines - count);
+        double shown = layout.Rows * (double)rowPx, travel = shown - layout.ThumbHeight;
+        if (lines <= layout.Capacity || travel <= 0 || maxFirst == 0)
+            return Math.Clamp((long)Math.Round(layout.ThumbTop / rowPx + dy / rowPx), 0, maxFirst);
+        double p = Math.Clamp(layout.ThumbTop + dy, 0, travel);
+        double first;
+        if (Effective(anchor, maxFirst, lines - layout.Capacity, layout.Capacity, count) is { } a)
         {
-            double travel = (layout.Capacity - count) * (double)rowPx;
-            perPixel = travel > 0 ? (lines - count) / travel : (lines - count) / (double)Math.Max(1, height);
+            double at = Math.Clamp((a.First - a.Top) * (double)rowPx, 0, travel);
+            first = at <= 0 ? 0 : p <= at ? a.First * p / at : a.First + (maxFirst - a.First) * (p - at) / Math.Max(1, travel - at);
         }
-        return Math.Clamp((long)Math.Round(pressFirst + dy * perPixel), 0, Math.Max(0, lines - count));
+        else first = maxFirst * p / travel;
+        return Math.Clamp((long)Math.Round(first), 0, maxFirst);
     }
+
+    // ---- a sampled picture: the whole file, placed by byte position ----
+
+    public static MinimapLayout ComputeSampled(long bytes, long start, long end, int height, int rowPx)
+    {
+        rowPx = Math.Max(1, rowPx);
+        int capacity = CapacityOf(height, rowPx);
+        double full = capacity * (double)rowPx;
+        bytes = Math.Max(1, bytes);
+        start = Math.Clamp(start, 0, bytes);
+        end = Math.Clamp(end, start, bytes);
+        double pointer = Math.Clamp((end - start) * full / bytes, 2, full);
+        return new MinimapLayout(0, capacity, capacity, Math.Clamp(start * full / bytes, 0, full - pointer), pointer, true);
+    }
+
+    /// <summary>The byte at <paramref name="y"/> of a sampled picture: the same share of the file.</summary>
+    public static long OffsetAt(MinimapLayout layout, long bytes, int rowPx, double y) =>
+        Math.Clamp((long)(y / Math.Max(1, layout.Rows * (double)Math.Max(1, rowPx)) * bytes), 0, Math.Max(0, bytes));
+
+    /// <summary>
+    /// The byte a strip of a sampled picture starts at. The picture is cut into one equal part of the file per strip of <paramref name="stripRows"/> rows and shows the first lines of each part.
+    /// </summary>
+    public static long StripOffset(MinimapLayout layout, long bytes, int strip, int stripRows)
+    {
+        long strips = (layout.Rows + Math.Max(1, stripRows) - 1) / Math.Max(1, stripRows);
+        return Math.Clamp(strip * Math.Max(0, bytes) / Math.Max(1, strips), 0, Math.Max(0, bytes));
+    }
+
+    /// <summary>The first byte on screen after the pointer moved <paramref name="dy"/> pixels away from where it was with <paramref name="pressOffset"/> on top.</summary>
+    public static long OffsetAfterDrag(MinimapLayout layout, long bytes, int rowPx, long pressOffset, double dy) =>
+        Math.Clamp((long)Math.Round(pressOffset + dy / Math.Max(1, layout.Rows * (double)Math.Max(1, rowPx)) * bytes), 0, Math.Max(0, bytes));
 }
 
 /// <summary>
@@ -173,8 +236,11 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(8);
     private static readonly TimeSpan TextSettle = TimeSpan.FromMilliseconds(120);
 
-    /// <param name="Lines">The line count a sampled picture was spread over; 0 for a picture of consecutive lines.</param>
-    private readonly record struct BuildKey(long Top, int Rows, int Width, int Height, int RowPx, bool Dark, long Version, long Lines);
+    /// <param name="Bytes">The length of the file a sampled picture was spread over; 0 for a picture of consecutive lines.</param>
+    private readonly record struct BuildKey(long Top, int Rows, int Width, int Height, int RowPx, bool Dark, long Version, long Bytes);
+
+    /// <summary>What a press of the mouse fixed for the whole drag, so that nothing the document does meanwhile can change the scale under the cursor.</summary>
+    private sealed record DragState(MinimapLayout Layout, long Lines, long Count, int RowPx, long Bytes, long PressOffset, double PressY, MinimapAnchor? Anchor);
 
     private readonly OpenDocument _doc;
     private readonly IMinimapHost _host;
@@ -198,15 +264,16 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private LineState? _sampleState;
     private readonly List<Token> _sampleTokens = [];
     private byte[] _lane = [];
-    private (int Height, long Lines, int Stamp) _laneKey;
+    private (int Height, long Lines, int Stamp, bool Sampled) _laneKey;
     private int _marksStamp;
     private LogHeatmap? _heat;
     private (int Height, LogHeatmap? Heat) _heatKey;
     private byte[] _heatErrors = [];
     private byte[] _heatWarnings = [];
-    private bool _dragging;
-    private long _pressFirst;
-    private double _pressY;
+    private DragState? _drag;
+    private MinimapAnchor? _anchor;
+    private int _stripIndex = -1;
+    private string?[] _strip = [];
 
     public Minimap(OpenDocument doc, IMinimapHost host)
     {
@@ -272,7 +339,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.ContentChanged += Invalidate;
         _host.OccurrencesChanged += OnOccurrencesChanged;
         _doc.Doc.Changed += OnDocumentChanged;
-        _doc.Replaced += Invalidate;
+        _doc.Replaced += OnReplaced;
         _doc.LanguageChanged += Invalidate;
         _doc.LogLevelsChanged += Invalidate;
         ActualThemeVariantChanged += OnThemeChanged;
@@ -294,7 +361,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.ContentChanged -= Invalidate;
         _host.OccurrencesChanged -= OnOccurrencesChanged;
         _doc.Doc.Changed -= OnDocumentChanged;
-        _doc.Replaced -= Invalidate;
+        _doc.Replaced -= OnReplaced;
         _doc.LanguageChanged -= Invalidate;
         _doc.LogLevelsChanged -= Invalidate;
         ActualThemeVariantChanged -= OnThemeChanged;
@@ -318,6 +385,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
     {
         _marksStamp++;
         InvalidateVisual();
+    }
+
+    /// <summary>The text was replaced as a whole (a reload): what a click pinned the picture to is gone with it.</summary>
+    private void OnReplaced()
+    {
+        _anchor = null;
+        Invalidate();
     }
 
     private void OnMapChanged()
@@ -397,10 +471,14 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     // ---- building the picture ----
 
-    private long MapLines() => MinimapGeometry.MapLines(_host.LineCount, _host.IndexComplete);
-
     /// <summary>How many times the picture was started from its first row, for tests: a growing index must not start it at every notice.</summary>
     internal int BuildsStarted { get; private set; }
+
+    /// <summary>The layout the minimap shows now, for tests; null while it is not visible.</summary>
+    internal MinimapLayout? Layout => Wanted()?.Layout;
+
+    /// <summary>The line the picture starts at and the first line on screen, as the layout has them now; for tests.</summary>
+    internal MinimapAnchor? Anchor => _anchor;
 
     private (BuildKey Key, MinimapLayout Layout, int RowPx)? Wanted()
     {
@@ -408,9 +486,15 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (width < 8 || height < 8 || !IsVisible) return null;
         int rowPx = Math.Max(2, (int)Math.Ceiling(height / (double)MaxRows));
         var (first, count) = _host.Visible;
-        long lines = MapLines();
-        var layout = MinimapGeometry.Compute(lines, first, count, height, rowPx, _host.Sampled);
-        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, layout.Sampled ? lines : 0), layout, rowPx);
+        long lines = _host.LineCount, bytes = _host.MapBytes;
+        MinimapLayout layout;
+        if (MinimapGeometry.UsesSampling(_host.Sampled, bytes, _host.IndexComplete, lines, MinimapGeometry.CapacityOf(height, rowPx)))
+        {
+            var (start, end) = _host.VisibleBytes;
+            layout = MinimapGeometry.ComputeSampled(bytes, Math.Max(0, start), Math.Max(0, end), height, rowPx);
+        }
+        else layout = MinimapGeometry.Compute(lines, first, count, height, rowPx, _anchor);
+        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, layout.Sampled ? bytes : 0), layout, rowPx);
     }
 
     private void Pump()
@@ -448,15 +532,34 @@ internal sealed unsafe class Minimap : Control, IDisposable
             uint* pixels = (uint*)buffer.Address.ToPointer();
             int stride = buffer.RowBytes / 4;
             if (_nextRow == 0)
+            {
                 for (int y = 0; y < key.Height; y++) new Span<uint>(pixels + (long)y * stride, key.Width).Clear();
+                _stripIndex = -1;
+            }
             int columns = key.Width - LaneWidth(key.Width);
             int stripRows = PluginLimitsPlaceholders.MinimapSampleStripRows;
             var sampler = wanted.Layout.Sampled ? Sampler() : null;
             while (_nextRow < key.Rows)
             {
-                long line = MinimapGeometry.LineOfRow(wanted.Layout, key.Lines, _nextRow, stripRows);
-                string? text = _host.LineText(line);
-                var tokens = wanted.Layout.Sampled ? SampleTokens(sampler, text, _nextRow % stripRows == 0) : _tokens.GetValueOrDefault(line);
+                string? text;
+                Token[]? tokens;
+                if (wanted.Layout.Sampled)
+                {
+                    int strip = _nextRow / stripRows, at = _nextRow % stripRows;
+                    if (strip != _stripIndex)
+                    {
+                        _stripIndex = strip;
+                        _strip = _host.SampleStrip(MinimapGeometry.StripOffset(wanted.Layout, key.Bytes, strip, stripRows), stripRows);
+                    }
+                    text = at < _strip.Length ? _strip[at] : null;
+                    tokens = SampleTokens(sampler, text, at == 0);
+                }
+                else
+                {
+                    long line = key.Top + _nextRow;
+                    text = _host.LineText(line);
+                    tokens = _tokens.GetValueOrDefault(line);
+                }
                 PaintRow(pixels, stride, key, columns, _nextRow, text, tokens ?? LevelTokens(text), plain);
                 _nextRow++;
                 if (Stopwatch.GetElapsedTime(started) > Slice && _nextRow < key.Rows)
@@ -571,30 +674,25 @@ internal sealed unsafe class Minimap : Control, IDisposable
         DrawLane(context, layout, width, height, plain);
     }
 
-    /// <summary>The strip at the right edge covers the whole file: the marks and, when the picture shows only the surroundings, where they are in the file.</summary>
+    /// <summary>The strip at the right edge covers the whole file: the marks and the heatmap. In a sampled picture a mark stands where its line is in the file by bytes, like the pointer.</summary>
     private void DrawLane(DrawingContext context, MinimapLayout layout, int width, int height, Color plain)
     {
-        long lines = MapLines();
+        long lines = _host.LineCount;
         if (lines <= 0) return;
         int laneWidth = LaneWidth(width);
         double x = width - laneWidth;
-        if (layout.Surroundings)
-        {
-            var (first, count) = _host.Visible;
-            double y = first * (double)height / lines;
-            context.FillRectangle(new ImmutableSolidColorBrush(plain, 0.45), new Rect(x, y, laneWidth, Math.Max(3, count * (double)height / lines)));
-        }
         DrawHeat(context, x, laneWidth, height);
         var occurrences = _host.OccurrenceLines;
         if (_marks.Length == 0 && _filterMarks.Length == 0 && occurrences.Count == 0) return;
-        if (_laneKey != (height, lines, _marksStamp))
+        if (_laneKey != (height, lines, _marksStamp, layout.Sampled))
         {
-            _laneKey = (height, lines, _marksStamp);
+            _laneKey = (height, lines, _marksStamp, layout.Sampled);
             _lane = new byte[height];
             void Put(long line, MinimapMarkKind kind)
             {
                 if (line < 0 || line >= lines) return;
-                int row = (int)Math.Min(height - 1, line * height / lines);
+                double share = layout.Sampled ? _host.ShareOfLine(line) : double.NaN;
+                int row = (int)Math.Min(height - 1, double.IsNaN(share) ? line * height / lines : (long)(share * height));
                 if ((byte)kind > _lane[row]) _lane[row] = (byte)kind;
             }
             foreach (long line in occurrences) Put(line, MinimapMarkKind.Occurrence);
@@ -664,16 +762,33 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed || Wanted() is not { } wanted) return;
         double y = e.GetPosition(this).Y * Scale;
         var (first, count) = _host.Visible;
-        long lines = MapLines();
+        long lines = _host.LineCount;
         var layout = wanted.Layout;
-        if (y < layout.ThumbTop || y > layout.ThumbTop + layout.ThumbHeight)
+        bool outside = y < layout.ThumbTop || y > layout.ThumbTop + layout.ThumbHeight;
+        if (layout.Sampled)
         {
-            first = Math.Clamp(MinimapGeometry.LineAt(layout, lines, wanted.RowPx, y) - count / 2, 0, Math.Max(0, lines - count));
-            _host.ScrollToLine(first);
+            long bytes = wanted.Key.Bytes;
+            var (start, end) = _host.VisibleBytes;
+            long from = Math.Max(0, start), span = Math.Max(0, end - from);
+            if (outside)
+            {
+                // the clicked place goes to the middle of the screen; the sampled picture itself never moves
+                from = Math.Clamp(MinimapGeometry.OffsetAt(layout, bytes, wanted.RowPx, y) - span / 2, 0, bytes);
+                _host.ScrollToOffset(from);
+                layout = MinimapGeometry.ComputeSampled(bytes, from, from + span, wanted.Key.Height, wanted.RowPx);
+            }
+            _drag = new DragState(layout, lines, count, wanted.RowPx, bytes, from, y, null);
         }
-        _pressFirst = first;
-        _pressY = y;
-        _dragging = true;
+        else
+        {
+            if (outside)
+            {
+                (first, _anchor) = MinimapGeometry.ClickAt(layout, lines, count, wanted.RowPx, y);
+                _host.ScrollToLine(first);
+                layout = MinimapGeometry.Compute(lines, first, count, wanted.Key.Height, wanted.RowPx, _anchor);
+            }
+            _drag = new DragState(layout, lines, count, wanted.RowPx, 0, first, y, _anchor);
+        }
         e.Pointer.Capture(this);
         e.Handled = true;
     }
@@ -681,17 +796,18 @@ internal sealed unsafe class Minimap : Control, IDisposable
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (!_dragging || Wanted() is not { } wanted) return;
-        var (_, count) = _host.Visible;
-        _host.ScrollToLine(MinimapGeometry.FirstAfterDrag(wanted.Layout, MapLines(), count, wanted.RowPx, wanted.Key.Height, _pressFirst, e.GetPosition(this).Y * Scale - _pressY));
+        if (_drag is not { } drag) return;
+        double dy = e.GetPosition(this).Y * Scale - drag.PressY;
+        if (drag.Layout.Sampled) _host.ScrollToOffset(MinimapGeometry.OffsetAfterDrag(drag.Layout, drag.Bytes, drag.RowPx, drag.PressOffset, dy));
+        else _host.ScrollToLine(MinimapGeometry.FirstAfterDrag(drag.Layout, drag.Lines, drag.Count, drag.RowPx, dy, drag.Anchor));
         e.Handled = true;
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        if (!_dragging) return;
-        _dragging = false;
+        if (_drag is null) return;
+        _drag = null;
         e.Pointer.Capture(null);
         e.Handled = true;
     }
@@ -699,7 +815,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
         base.OnPointerCaptureLost(e);
-        _dragging = false;
+        _drag = null;
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
