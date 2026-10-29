@@ -1766,6 +1766,34 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.git.nextChange",
+      "title": "cmd.git.nextChange",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.previousChange",
+      "title": "cmd.git.previousChange",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.showChange",
+      "title": "cmd.git.showChange",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.git.revertHunk",
+      "title": "cmd.git.revertHunk",
+      "category": "cat.tools",
+      "when": "editorFocus",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -4408,6 +4436,34 @@
     },
     {
       "menu": "tools",
+      "command": "nks.git.nextChange",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 110
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.previousChange",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 120
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.showChange",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 130
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.revertHunk",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 140
+    },
+    {
+      "menu": "tools",
       "command": "nks.lsp.start",
       "group": "3_code/09_9_lsp",
       "submenu": "lsp",
@@ -5642,6 +5698,21 @@
       "when": "editorFocus"
     },
     {
+      "key": "alt+f3",
+      "command": "nks.git.nextChange",
+      "when": "editorFocus"
+    },
+    {
+      "key": "alt+shift+f3",
+      "command": "nks.git.previousChange",
+      "when": "editorFocus"
+    },
+    {
+      "key": "mod+k mod+c",
+      "command": "nks.git.showChange",
+      "when": "editorFocus"
+    },
+    {
       "key": "shift+tab",
       "command": "nks.edit.outdent",
       "when": "editorFocus && !readOnly && !inMarkdownTable && !inSnippet"
@@ -6399,6 +6470,41 @@
         "git",
         "gutter",
         "diff"
+      ]
+    },
+    {
+      "key": "git.gutterBase",
+      "type": "string",
+      "default": "index",
+      "title": "setting.git.gutterBase.title",
+      "description": "setting.git.gutterBase.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "enum": [
+        "index",
+        "head"
+      ],
+      "tags": [
+        "git",
+        "gutter",
+        "index",
+        "head",
+        "diff"
+      ]
+    },
+    {
+      "key": "git.blame",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.git.blame.title",
+      "description": "setting.git.blame.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "git",
+        "blame",
+        "author",
+        "status bar"
       ]
     },
     {

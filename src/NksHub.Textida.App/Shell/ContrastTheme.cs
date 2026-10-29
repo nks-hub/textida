@@ -83,6 +83,8 @@ internal sealed record ContrastColors(Color Window, Color WindowText, Color Gray
         ["FileFolder"] = WindowText, ["FileText"] = WindowText, ["FileCode"] = WindowText, ["FileMarkup"] = WindowText, ["FileData"] = WindowText,
         ["FileStyle"] = WindowText, ["FileImage"] = WindowText, ["FileArchive"] = WindowText, ["FileBinary"] = WindowText,
         ["GitModified"] = HotLight, ["GitNew"] = HotLight, ["GitDeleted"] = HotLight, ["GitConflict"] = HotLight, ["GitIgnored"] = GrayText,
+        // the changes beside the text: one colour, the kind is told by the shape of the mark in the gutter (a bar, a bar with a gap, a triangle) and by the signs in the peek
+        ["GitGutterAdded"] = HotLight, ["GitGutterModified"] = HotLight, ["GitGutterRemoved"] = HotLight, ["DiffAddedWord"] = Soft(0.4), ["DiffRemovedWord"] = Soft(0.4),
     };
 }
 

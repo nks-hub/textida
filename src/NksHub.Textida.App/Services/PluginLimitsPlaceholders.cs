@@ -290,6 +290,18 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: largest document, in bytes, that gets change marks in the gutter; a larger one gets none. Must not exceed <see cref="VirtualDocumentMaxBytes"/>, which is what the Git plugin reads. The owner has not decided it.</summary>
     public const long GitGutterMaxBytes = 1L << 20;
 
+    /// <summary>Placeholder, OPEN: most old lines of one change the peek at it holds; a change with more lines cannot be reverted from the peek. Must stay below the message limit of the plugin (about 100 bytes a line is assumed). The owner has not decided it.</summary>
+    public const int GitPeekMaxLines = 2000;
+
+    /// <summary>Placeholder, OPEN: rows of the peek at a change that are shown at once; more are reached by scrolling inside the peek. The owner has not decided it.</summary>
+    public const int GitPeekVisibleRows = 14;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, with the caret on one line before the author, time and subject of that line are asked for. The owner has not decided it.</summary>
+    public const int GitBlameDebounceMilliseconds = 500;
+
+    /// <summary>Placeholder, OPEN: longest subject of a commit, in characters, that the status bar shows for the line at the caret; the tooltip shows all of it. The owner has not decided it.</summary>
+    public const int GitBlameSubjectChars = 60;
+
     /// <summary>Placeholder, OPEN: most buttons a plugin may add to a comparison tab it opens. The commands <c>nks.compare.action1</c> to <c>action4</c> reach four of them, the digit keys nine. The owner has not decided it.</summary>
     public const int DiffActionsPerTab = 4;
 

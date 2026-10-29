@@ -85,6 +85,7 @@ internal sealed partial class EditorSurface : TextEditor
         InitColors();
         InitLogFull();
         InitOccurrences();
+        InitGitPeek();
     }
 
     protected override Type StyleKeyOverride => typeof(TextEditor);
@@ -104,7 +105,11 @@ internal sealed partial class EditorSurface : TextEditor
     public event Action<GitMark>? GitMarkClicked;
 
     /// <summary>The changes Git reports for this file, shown in the gutter; null or none clears it.</summary>
-    public void SetGitMarks(IReadOnlyList<GitMark>? marks) => _gitMargin.SetMarks(marks);
+    public void SetGitMarks(IReadOnlyList<GitMark>? marks)
+    {
+        _gitMargin.SetMarks(marks);
+        OnGitMarksSet();
+    }
 
     /// <summary>Spaces the line numbers and draws the gutter edge as the same solid line as the edge of the minimap (AvaloniaEdit draws it dotted); again after the line numbers are switched back on, which rebuilds the margins.</summary>
     private void TuneGutter()
@@ -140,6 +145,7 @@ internal sealed partial class EditorSurface : TextEditor
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         EndComposition();
+        CloseGitPeek();
         if (Application.Current is App app) app.Contrast.Changed -= ApplyTheme;
         base.OnDetachedFromVisualTree(e);
     }
@@ -384,6 +390,12 @@ internal sealed partial class EditorSurface : TextEditor
     {
         if (HiddenCopyKey(e))
         {
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape && e.KeyModifiers == KeyModifiers.None && _peek is not null)
+        {
+            CloseGitPeek();
             e.Handled = true;
             return;
         }

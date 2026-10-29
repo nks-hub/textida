@@ -113,7 +113,7 @@ public class GitPluginTests
             host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
             var dll = System.IO.Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Git.dll");
             Assert.True(File.Exists(dll), dll);
-            string[] args = [dll, "--timeout-ms", "20000", "--max-bytes", "1000000", "--max-entries", "50", "--chunk-bytes", "60000"];
+            string[] args = [dll, "--timeout-ms", "20000", "--max-bytes", "1000000", "--max-entries", "50", "--chunk-bytes", "60000", "--peek-max-lines", "500"];
             if (watchMs > 0) args = [.. args, "--watch-debounce-ms", watchMs.ToString()];
             if (treeEntries > 0) args = [.. args, "--max-tree-entries", treeEntries.ToString()];
             host.Register(new PluginSpec("git", "Git", T.DotnetHost, args, ["onCommand:git"]));
@@ -135,6 +135,13 @@ public class GitPluginTests
         }
 
         readonly List<Document> _opened = [];
+
+        /// <summary>A command with more members of the request (already written as JSON, each starting with a comma), at the revision of the document or at <paramref name="revision"/>.</summary>
+        public async Task<JsonElement> RunWithAsync(string command, string extra, long? revision = null)
+        {
+            var json = $"{{\"command\":\"{command}\",\"document\":\"{Doc.Id}\",\"revision\":{revision ?? Doc.Revision},\"language\":\"en\",\"path\":{JsonSerializer.Serialize(Path)}{extra}}}";
+            return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
+        }
 
         /// <summary>Another open file, shown to plugins like the first one (of another repository, say).</summary>
         public Document Open(string path)
@@ -990,6 +997,148 @@ public class GitPluginTests
         // a different line ending is no change
         Assert.Equal("", Show(GutterMarks.Compute(B(Crlf(head)), B(head), B(head), TextCodec.Utf8)));
         Assert.Equal("2+1 modified", Show(GutterMarks.Compute(B(Crlf(staged)), B(head), B(head), TextCodec.Utf8)));
+    }
+
+    /// <summary>The hunks of <c>git diff -U0</c> of the file as (old start, old count, new start, new count), starts as git prints them (one based, a hunk without lines is the line before it).</summary>
+    static List<(int OldStart, int OldCount, int NewStart, int NewCount)> DiffHunks(Repo repo, params string[] arguments)
+    {
+        var hunks = new List<(int, int, int, int)>();
+        foreach (var line in repo.Run(["diff", "-U0", "--no-color", .. arguments]).Split('\n'))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(line, @"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@");
+            if (m.Success) hunks.Add((int.Parse(m.Groups[1].Value), m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 1, int.Parse(m.Groups[3].Value), m.Groups[4].Success ? int.Parse(m.Groups[4].Value) : 1));
+        }
+        return hunks;
+    }
+
+    [Fact]
+    public async Task The_marks_and_the_old_lines_of_an_added_a_changed_and_a_removed_block_are_those_of_git_diff_and_of_the_index()
+    {
+        using var repo = new Repo(("f.txt", Original));
+        // line 2 is changed, lines 5 and 6 are removed, two lines are added after line 9
+        var tree = "l1\nL2\nl3\nl4\nl7\nl8\nl9\nnew a\nnew b\nl10\nl11\nl12\n";
+        repo.Write("f.txt", tree);
+        await using var rig = await Rig.CreateAsync(repo.PathOf("f.txt"));
+
+        var answer = await rig.RunJsonAsync(GitPlugin.HunksCommand);
+        var marks = answer.GetProperty("hunks").EnumerateArray().ToList();
+        var expected = DiffHunks(repo, "f.txt");
+        Assert.Equal(expected.Count, marks.Count);
+        var indexLines = repo.Run("show", ":f.txt").Split('\n');
+        for (int i = 0; i < marks.Count; i++)
+        {
+            var (oldStart, oldCount, newStart, newCount) = expected[i];
+            var mark = marks[i];
+            // git names a hunk without lines by the line before it, the gutter by the line it stands in front of
+            Assert.Equal(newCount == 0 ? newStart : newStart - 1, mark.GetProperty("line").GetInt64());
+            Assert.Equal(newCount, mark.GetProperty("lines").GetInt64());
+            Assert.Equal(oldCount, mark.GetProperty("oldLines").GetInt64());
+            Assert.Equal(oldCount == 0 ? oldStart : oldStart - 1, mark.GetProperty("oldStart").GetInt64());
+            Assert.Equal("index", mark.GetProperty("base").GetString());
+
+            var peek = await rig.RunWithAsync(GitPlugin.PeekCommand, $",\"line\":{mark.GetProperty("line").GetInt64()},\"base\":\"index\",\"staged\":false");
+            Assert.Equal("peek", peek.GetProperty("status").GetString());
+            var old = peek.GetProperty("old").EnumerateArray().Select(l => l.GetString()).ToArray();
+            Assert.Equal(indexLines.Skip((int)mark.GetProperty("oldStart").GetInt64()).Take(oldCount), old); // exactly the lines of the index
+            Assert.Equal(mark.GetProperty("kind").GetString(), peek.GetProperty("kind").GetString());
+            Assert.True(peek.GetProperty("endsWithNewline").GetBoolean());
+            Assert.False(peek.GetProperty("truncated").GetBoolean());
+        }
+        Assert.Equal(["modified", "removed", "added"], marks.Select(m => m.GetProperty("kind").GetString()));
+        Assert.Empty(rig.Ui.Notices);
+    }
+
+    [Fact]
+    public async Task The_peek_of_a_staged_change_shows_head_and_the_head_base_compares_the_tree_with_the_last_commit()
+    {
+        using var repo = new Repo(("f.txt", Original));
+        var tree = Numbered(12, i => i is 3 or 8 ? "L" + i : null);
+        repo.Write("f.txt", tree);
+        await using var rig = await Rig.CreateAsync(repo.PathOf("f.txt"), Offset(tree, "L3"));
+        Assert.Equal("staged", await rig.RunAsync(GitPlugin.StageHunkCommand)); // line 3 is in the index, line 8 only in the tree
+
+        Assert.Equal("2+1 modified staged 7+1 modified", Marks(await rig.RunJsonAsync(GitPlugin.HunksCommand)));
+        var stagedPeek = await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":2,\"base\":\"index\",\"staged\":true");
+        Assert.Equal(["l3"], stagedPeek.GetProperty("old").EnumerateArray().Select(l => l.GetString()));
+        Assert.Equal("head", stagedPeek.GetProperty("base").GetString());
+        var plainPeek = await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":7,\"base\":\"index\",\"staged\":false");
+        Assert.Equal(["l8"], plainPeek.GetProperty("old").EnumerateArray().Select(l => l.GetString()));
+
+        // against HEAD every difference is one mark, drawn as staged where the index has no difference from the tree
+        var head = await rig.RunWithAsync(GitPlugin.HunksCommand, ",\"base\":\"head\"");
+        Assert.Equal("2+1 modified staged 7+1 modified", Marks(head));
+        Assert.All(head.GetProperty("hunks").EnumerateArray(), h => Assert.Equal("head", h.GetProperty("base").GetString()));
+        var headPeek = await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":7,\"base\":\"head\",\"staged\":false");
+        Assert.Equal(["l8"], headPeek.GetProperty("old").EnumerateArray().Select(l => l.GetString()));
+    }
+
+    [Fact]
+    public async Task The_peek_has_no_answer_for_a_document_that_changed_for_a_line_without_a_change_and_for_a_file_outside_a_repository()
+    {
+        using var repo = new Repo(("f.txt", Original));
+        repo.Write("f.txt", ThreeChanges());
+        await using var rig = await Rig.CreateAsync(repo.PathOf("f.txt"));
+
+        Assert.Equal("none", (await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":1,\"base\":\"index\"", rig.Doc.Revision + 5)).GetProperty("status").GetString());
+        Assert.Equal("none", (await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":3,\"base\":\"index\"")).GetProperty("status").GetString());
+        Assert.Equal("none", (await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"base\":\"index\"")).GetProperty("status").GetString());
+        Assert.Empty(rig.Ui.Notices);
+        Assert.Equal("peek", (await rig.RunWithAsync(GitPlugin.PeekCommand, ",\"line\":5,\"base\":\"index\"")).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void The_old_lines_of_a_mark_say_whether_the_last_one_ends_with_a_line_break_and_are_cut_at_the_limit()
+    {
+        static byte[] B(string s) => Encoding.UTF8.GetBytes(s);
+        var noBreak = GutterMarks.Compute(B("a\nb\nX"), B("a\nb\nc"), B("a\nb\nc"), TextCodec.Utf8);
+        var mark = Assert.Single(noBreak);
+        var old = GutterMarks.OldLinesOf(mark, B("a\nb\nc"), TextCodec.Utf8, 100);
+        Assert.Equal(["c"], old.Lines);
+        Assert.False(old.EndsWithNewline);
+        Assert.False(old.Truncated);
+
+        var withBreak = Assert.Single(GutterMarks.Compute(B("a\nX\nc\n"), B("a\nb\nc\n"), B("a\nb\nc\n"), TextCodec.Utf8));
+        old = GutterMarks.OldLinesOf(withBreak, B("a\nb\nc\n"), TextCodec.Utf8, 100);
+        Assert.Equal(["b"], old.Lines);
+        Assert.True(old.EndsWithNewline);
+        Assert.False(old.Truncated);
+
+        var many = Assert.Single(GutterMarks.Compute(B("a\nX\nc\n"), B("a\nb1\nb2\nb3\nc\n"), B("a\nb1\nb2\nb3\nc\n"), TextCodec.Utf8));
+        old = GutterMarks.OldLinesOf(many, B("a\nb1\nb2\nb3\nc\n"), TextCodec.Utf8, 2);
+        Assert.Equal(["b1", "b2"], old.Lines);
+        Assert.True(old.EndsWithNewline);
+        Assert.True(old.Truncated);
+        Assert.Empty(GutterMarks.OldLinesOf(many, B("a\nb1\nb2\nb3\nc\n"), TextCodec.Utf8, 0).Lines);
+    }
+
+    [Fact]
+    public async Task Blame_names_the_commit_git_blame_names_and_a_line_nobody_committed_is_said_so()
+    {
+        using var repo = new Repo(("f.txt", Original));
+        repo.Write("f.txt", Numbered(12, i => i == 3 ? "second" : null));
+        repo.Run("-c", "user.name=Second Author", "-c", "user.email=second@example.invalid", "commit", "-q", "-a", "-m", "second subject");
+        var tree = Numbered(12, i => i == 3 ? "second" : i == 9 ? "unsaved" : null);
+        repo.Write("f.txt", tree);
+        await using var rig = await Rig.CreateAsync(repo.PathOf("f.txt"));
+
+        string Porcelain(int line, string key) => repo.Run("blame", "--porcelain", "-L", $"{line},{line}", "--", "f.txt").Split('\n').First(l => l.StartsWith(key + " ", StringComparison.Ordinal))[(key.Length + 1)..];
+
+        var changed = await rig.RunWithAsync(GitPlugin.BlameCommand, ",\"line\":2");
+        Assert.Equal("blame", changed.GetProperty("status").GetString());
+        Assert.Equal("Second Author", changed.GetProperty("author").GetString());
+        Assert.Equal(Porcelain(3, "author"), changed.GetProperty("author").GetString());
+        Assert.Equal("second subject", changed.GetProperty("summary").GetString());
+        Assert.Equal(long.Parse(Porcelain(3, "author-time")), changed.GetProperty("time").GetInt64());
+        Assert.Equal(repo.Run("rev-parse", "HEAD").Trim(), changed.GetProperty("sha").GetString());
+
+        var first = await rig.RunWithAsync(GitPlugin.BlameCommand, ",\"line\":0");
+        Assert.Equal(("Test", "first"), (first.GetProperty("author").GetString(), first.GetProperty("summary").GetString()));
+
+        // the text the editor holds is blamed, saved or not
+        var unsaved = await rig.RunWithAsync(GitPlugin.BlameCommand, ",\"line\":8");
+        Assert.Equal("uncommitted", unsaved.GetProperty("status").GetString());
+        Assert.Equal("none", (await rig.RunWithAsync(GitPlugin.BlameCommand, ",\"line\":500")).GetProperty("status").GetString());
+        Assert.Empty(rig.Ui.Notices);
     }
 
     [Fact]

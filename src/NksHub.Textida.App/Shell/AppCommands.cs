@@ -274,6 +274,10 @@ internal static class AppCommands
         Fire("nks.git.conflictBoth", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictBoth"));
         Fire("nks.git.markResolved", (w, t) => app.Plugins.RunGitAsync(w, t, "git.markResolved"));
         Fire("nks.git.conflictDelete", (w, t) => app.Plugins.RunGitAsync(w, t, "git.conflictDelete"));
+        On("nks.git.nextChange", w => w.GoToGitChange(forward: true));
+        On("nks.git.previousChange", w => w.GoToGitChange(forward: false));
+        On("nks.git.showChange", w => w.ShowGitChangeAtCaret());
+        On("nks.git.revertHunk", w => w.RevertGitChangeAtCaret());
         Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));

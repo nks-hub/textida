@@ -233,6 +233,9 @@ internal sealed unsafe class Minimap : Control, IDisposable
     public const int MaxChars = 300;
     private const int MaxRows = 500;
     private const int TabColumns = 4;
+
+    /// <summary>Pixels left free at the left edge of the picture for the bars of the changes.</summary>
+    private const int TextPad = 5;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(8);
     private static readonly TimeSpan TextSettle = TimeSpan.FromMilliseconds(120);
 
@@ -260,6 +263,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private bool _disposed;
     private MinimapMark[] _marks = [];
     private MinimapMark[] _filterMarks = [];
+    private GitMark[] _changes = [];
     private (string Grammar, Tokenizer Tokenizer)? _sampler;
     private LineState? _sampleState;
     private readonly List<Token> _sampleTokens = [];
@@ -307,6 +311,24 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _filterMarks = [.. marks];
         _marksStamp++;
         InvalidateVisual();
+    }
+
+    /// <summary>Replaces the changes Git reports: a narrow bar at the left edge beside the rows of the lines they stand for (a change in the part of the file the picture does not show is not drawn here; the strip beside the scroll bar of the editor shows all of them).</summary>
+    public void SetChangeMarks(IReadOnlyList<GitMark> marks)
+    {
+        _changes = [.. marks];
+        InvalidateVisual();
+    }
+
+    /// <summary>The changes drawn at the left edge, for tests.</summary>
+    internal IReadOnlyList<GitMark> ChangeMarks => _changes;
+
+    /// <summary>The bars of the changes in the layout now: for each change that has rows in the picture, its first row and the number of rows; for tests.</summary>
+    internal IReadOnlyList<(GitMark Mark, int Row, int Rows)> ChangeBars()
+    {
+        if (Wanted() is not { Layout.Sampled: false } wanted) return [];
+        return [.. _changes.Select(m => (m, Row: (int)Math.Clamp(m.Line - wanted.Layout.Top, int.MinValue, int.MaxValue), Rows: Math.Max(1, m.Lines)))
+            .Where(c => c.Row + c.Rows > 0 && c.Row < wanted.Layout.Rows)];
     }
 
     /// <summary>The marks of the live log view filter, for tests.</summary>
@@ -536,7 +558,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
                 for (int y = 0; y < key.Height; y++) new Span<uint>(pixels + (long)y * stride, key.Width).Clear();
                 _stripIndex = -1;
             }
-            int columns = key.Width - LaneWidth(key.Width);
+            int columns = key.Width - LaneWidth(key.Width) - TextPad;
             int stripRows = PluginLimitsPlaceholders.MinimapSampleStripRows;
             var sampler = wanted.Layout.Sampled ? Sampler() : null;
             while (_nextRow < key.Rows)
@@ -631,7 +653,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
                 int y = y0 + dy;
                 if (y >= key.Height) break;
                 uint value = key.RowPx == 2 ? (dy == 0 ? full : soft) : (dy == key.RowPx - 1 ? 0 : full);
-                if (value != 0) pixels[(long)y * stride + column] = value;
+                if (value != 0) pixels[(long)y * stride + TextPad + column] = value;
             }
             column++;
         }
@@ -671,7 +693,25 @@ internal sealed unsafe class Minimap : Control, IDisposable
         }
         if (layout.Sampled) // the viewport of a large file is too small for a rectangle: a thin pointer shows where it is
             context.FillRectangle(new ImmutableSolidColorBrush(Resource("Accent", Color.Parse("#3B82F6"))), new Rect(0, thumb.Y, width, Math.Max(2, Math.Round(2 * scale))));
+        DrawChanges(context, wanted, width, height);
         DrawLane(context, layout, width, height, plain);
+    }
+
+    private const int ChangeBarWidth = 3;
+
+    /// <summary>The changes of Git as bars at the left edge, on the rows of their lines; a change that is staged is fainter. A removal is a bar of one pixel row on the edge between two rows.</summary>
+    private void DrawChanges(DrawingContext context, (BuildKey Key, MinimapLayout Layout, int RowPx) wanted, int width, int height)
+    {
+        if (_changes.Length == 0 || wanted.Layout.Sampled) return;
+        foreach (var mark in _changes)
+        {
+            long first = mark.Line - wanted.Layout.Top, last = first + Math.Max(1, mark.Lines);
+            if (last <= 0 || first >= wanted.Layout.Rows) continue;
+            double y = Math.Max(0, first) * wanted.RowPx, bottom = Math.Min(wanted.Layout.Rows, last) * wanted.RowPx;
+            if (mark.Lines == 0) (y, bottom) = (Math.Max(0, first * wanted.RowPx - 1), Math.Max(0, first * wanted.RowPx - 1) + 2);
+            if (!this.TryFindResource(GitChangeColors.KeyOf(mark.Kind), ActualThemeVariant, out var found) || found is not ISolidColorBrush brush) continue;
+            context.FillRectangle(new ImmutableSolidColorBrush(brush.Color, mark.Staged ? 0.45 : 1), new Rect(1, y, ChangeBarWidth, Math.Max(2, bottom - y)));
+        }
     }
 
     /// <summary>The strip at the right edge covers the whole file: the marks and the heatmap. In a sampled picture a mark stands where its line is in the file by bytes, like the pointer.</summary>

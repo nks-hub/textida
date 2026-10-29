@@ -51,6 +51,11 @@
                     <SolidColorBrush x:Key="GitDeleted">#B3261E</SolidColorBrush>
                     <SolidColorBrush x:Key="GitConflict">#A21CAF</SolidColorBrush>
                     <SolidColorBrush x:Key="GitIgnored">#7C828C</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterAdded">#1B8A4B</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterModified">#2B6CB0</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterRemoved">#B3261E</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffAddedWord">#8FD39C</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffRemovedWord">#F2A39D</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
@@ -97,6 +102,11 @@
                     <SolidColorBrush x:Key="GitDeleted">#FF8A80</SolidColorBrush>
                     <SolidColorBrush x:Key="GitConflict">#E879F9</SolidColorBrush>
                     <SolidColorBrush x:Key="GitIgnored">#7B828D</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterAdded">#4CC38A</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterModified">#6CA8E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="GitGutterRemoved">#FF8A80</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffAddedWord">#3F7F4C</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffRemovedWord">#8E4040</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

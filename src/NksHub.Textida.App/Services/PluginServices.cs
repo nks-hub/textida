@@ -232,7 +232,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
-             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString()],
+             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString(),
+             "--peek-max-lines", PluginLimitsPlaceholders.GitPeekMaxLines.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
@@ -426,21 +427,55 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// The changes of the file of the tab against the index and <c>HEAD</c>, for the gutter, as of <see cref="GitMarks.Revision"/> of the document. Empty for a document the gutter does not look at (no file,
     /// a secrets file, a file above <see cref="PluginLimitsPlaceholders.GitGutterMaxBytes"/>) and for a file Git has nothing to say about; null when Git could not be asked now (the document is busy with a command, the plugin does not run).
     /// </summary>
-    public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab)
+    public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab, GitBase gitBase = GitBase.Index)
     {
         var document = tab.Doc.Doc;
         if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file))
             return new GitMarks(document.Revision, []);
-        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\"", notify: false, background: true);
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"base\":\"{BaseName(gitBase)}\"", notify: false, background: true);
         if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } answer || !answer.TryGetProperty("hunks", out var hunks) || hunks.ValueKind != JsonValueKind.Array
             || !answer.TryGetProperty("revision", out var revision)) return null;
         var marks = new List<GitMark>(hunks.GetArrayLength());
         foreach (var h in hunks.EnumerateArray())
         {
             var kind = h.GetProperty("kind").GetString() switch { "added" => GitMarkKind.Added, "removed" => GitMarkKind.Removed, _ => GitMarkKind.Modified };
-            marks.Add(new GitMark(h.GetProperty("line").GetInt32(), h.GetProperty("lines").GetInt32(), kind, h.GetProperty("staged").GetBoolean()));
+            marks.Add(new GitMark(h.GetProperty("line").GetInt32(), h.GetProperty("lines").GetInt32(), kind, h.GetProperty("staged").GetBoolean(),
+                h.GetProperty("oldStart").GetInt32(), h.GetProperty("oldLines").GetInt32(), h.GetProperty("base").GetString() == "head" ? GitBase.Head : GitBase.Index));
         }
         return new GitMarks(revision.GetInt64(), marks);
+    }
+
+    internal static string BaseName(GitBase gitBase) => gitBase == GitBase.Head ? "head" : "index";
+
+    /// <summary>
+    /// The lines a change in the gutter replaced, as of the current revision of the document, for the peek at the change. Null when Git could not say now (the document changed since the marks were drawn, the
+    /// plugin does not run, a command of the user is running on the document).
+    /// </summary>
+    public async Task<GitPeek?> GitPeekAsync(MainWindow window, DocTab tab, GitMark mark, GitBase gitBase)
+    {
+        var document = tab.Doc.Doc;
+        if (document.FilePath is not { } file || !File.Exists(_gitProgram) || !InRepository(file)) return null;
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.peek",
+            $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"base\":\"{BaseName(gitBase)}\",\"line\":{mark.Line},\"staged\":{(mark.Staged ? "true" : "false")}", notify: false, background: true);
+        if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } a || a.GetProperty("status").GetString() != "peek") return null;
+        var kind = a.GetProperty("kind").GetString() switch { "added" => GitMarkKind.Added, "removed" => GitMarkKind.Removed, _ => GitMarkKind.Modified };
+        return new GitPeek(a.GetProperty("revision").GetInt64(), new GitMark(a.GetProperty("line").GetInt32(), a.GetProperty("lines").GetInt32(), kind, a.GetProperty("staged").GetBoolean(),
+                a.GetProperty("oldStart").GetInt32(), a.GetProperty("oldCount").GetInt32(), a.GetProperty("base").GetString() == "head" ? GitBase.Head : GitBase.Index),
+            [.. a.GetProperty("old").EnumerateArray().Select(l => l.GetString() ?? "")], a.GetProperty("endsWithNewline").GetBoolean(), a.GetProperty("truncated").GetBoolean());
+    }
+
+    /// <summary>
+    /// Who last changed the zero-based <paramref name="line"/> of the document as it is now (unsaved edits included). Null when Git cannot say: the file is in no repository or is not tracked, the plugin does not run,
+    /// a command of the user is running, the document changed meanwhile.
+    /// </summary>
+    public async Task<GitBlame?> GitBlameAsync(MainWindow window, DocTab tab, int line)
+    {
+        var document = tab.Doc.Doc;
+        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file)) return null;
+        var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.blame", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"line\":{line}", notify: false, background: true);
+        if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } a || a.GetProperty("status").GetString() is not ("blame" or "uncommitted")) return null;
+        return new GitBlame(a.GetProperty("revision").GetInt64(), line, a.GetProperty("sha").GetString() ?? "", a.GetProperty("author").GetString() ?? "",
+            DateTimeOffset.FromUnixTimeSeconds(a.GetProperty("time").GetInt64()), a.GetProperty("summary").GetString() ?? "", a.GetProperty("status").GetString() == "uncommitted");
     }
 
     /// <summary>Whether a <c>.git</c> folder or file stands in the folder of the file or above it. The plugin is not started for a file that cannot be in a repository.</summary>
