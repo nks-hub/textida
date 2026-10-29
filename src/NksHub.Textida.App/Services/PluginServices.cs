@@ -233,7 +233,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
              "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
              "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString(),
-             "--peek-max-lines", PluginLimitsPlaceholders.GitPeekMaxLines.ToString()],
+             "--peek-max-lines", PluginLimitsPlaceholders.GitPeekMaxLines.ToString(), "--network-timeout-ms", PluginLimitsPlaceholders.GitNetworkTimeoutMilliseconds.ToString(),
+             "--log-entries", PluginLimitsPlaceholders.GitLogEntries.ToString(), "--message-history", PluginLimitsPlaceholders.GitMessageHistory.ToString(),
+             "--max-pick-items", PluginLimitsPlaceholders.Ui().MaxPickItems.ToString(), "--max-text-length", PluginLimitsPlaceholders.Ui().MaxTextLength.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
@@ -421,6 +423,28 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     {
         var path = JsonEncodedText.Encode(tab.Doc.Doc.FilePath ?? "");
         return (await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", command, $",\"path\":\"{path}\"" + (offset is { } at ? $",\"offset\":{at}" : ""))).Started;
+    }
+
+    /// <summary>
+    /// Runs a Git command on the repository that holds <paramref name="path"/> (a file or a folder), with no document: the commit, fetch, pull and push, the branches, the stashes and the log, and the
+    /// reads and writes of the commit panel. <paramref name="extra"/> is more members of the request already written as JSON, each starting with a comma. The answer is what the plugin answered, or null
+    /// when the plugin could not be reached (the user is told, unless <paramref name="notify"/> is false). The plugin asks its questions and shows its notices itself.
+    /// </summary>
+    public async Task<JsonElement?> RunGitRepoAsync(MainWindow window, string command, string path, string extra = "", bool notify = true)
+    {
+        if (!File.Exists(_gitProgram)) return null;
+        try
+        {
+            await _host.ActivateAsync(GitActivation);
+            var request = $"{{\"command\":\"{JsonEncodedText.Encode(command)}\",\"language\":\"{Loc.Language}\",\"path\":\"{JsonEncodedText.Encode(path)}\"{extra}}}";
+            var answer = (await _host.CallAsync(GitPluginId, "command/execute", Encoding.UTF8.GetBytes(request))).Clone();
+            return answer.ValueKind == JsonValueKind.Object ? answer : null;
+        }
+        catch (Exception e) when (e is PluginCrashedException or PluginHandshakeException or PluginUnavailableException or NksHub.Textida.Rpc.RpcException)
+        {
+            if (notify && e is not PluginCrashedException) window.ShowNotice("plugin:" + GitPluginId, Loc.Get(K.PluginUnavailable, ("name", PluginName(GitPluginId)), ("reason", e.Message)), [], warning: true);
+            return null;
+        }
     }
 
     /// <summary>

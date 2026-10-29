@@ -14,7 +14,7 @@ namespace NksHub.Textida.Rpc.Tests;
 
 /// <summary>P8.6.1 and P8.6.2: the Git plugin as a real process against the real host, document API and UI API, on real temporary repositories.</summary>
 [Collection("PATH")]
-public class GitPluginTests
+public partial class GitPluginTests
 {
     sealed class Owner : IDocumentOwnerThread
     {
@@ -92,7 +92,7 @@ public class GitPluginTests
         public required UiApi UiApi { get; init; }
         public long Caret;
 
-        public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0, int treeEntries = 0)
+        public static async Task<Rig> CreateAsync(string path, long caret = 0, int maxFind = 2, TextCodec? codec = null, int watchMs = 0, int treeEntries = 0, string[]? extra = null)
         {
             var ui = new UiApiTests.RecordingUi();
             var tools = new DocumentApiTests.RecordingTools();
@@ -116,6 +116,7 @@ public class GitPluginTests
             string[] args = [dll, "--timeout-ms", "20000", "--max-bytes", "1000000", "--max-entries", "50", "--chunk-bytes", "60000", "--peek-max-lines", "500"];
             if (watchMs > 0) args = [.. args, "--watch-debounce-ms", watchMs.ToString()];
             if (treeEntries > 0) args = [.. args, "--max-tree-entries", treeEntries.ToString()];
+            if (extra is not null) args = [.. args, .. extra];
             host.Register(new PluginSpec("git", "Git", T.DotnetHost, args, ["onCommand:git"]));
             await host.ActivateAsync("onCommand:git");
             var doc = Document.FromBytes(File.ReadAllBytes(path), PagedBackendFactory.Instance, new DocumentOptions { Format = codec ?? TextCodec.Utf8 });
@@ -163,6 +164,13 @@ public class GitPluginTests
         public async Task<JsonElement> TreeStatusAsync(string folder)
         {
             var json = $"{{\"command\":\"{GitPlugin.TreeStatusCommand}\",\"language\":\"en\",\"path\":{JsonSerializer.Serialize(folder)}}}";
+            return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
+        }
+
+        /// <summary>A command on a repository, as the commit panel and the toolbar send it: no document, only a path; <paramref name="extra"/> is more members already written as JSON, each starting with a comma.</summary>
+        public async Task<JsonElement> RepoAsync(string command, string? path = null, string extra = "")
+        {
+            var json = $"{{\"command\":\"{command}\",\"language\":\"en\",\"path\":{JsonSerializer.Serialize(path ?? Path)}{extra}}}";
             return (await Host.CallAsync("git", "command/execute", Encoding.UTF8.GetBytes(json))).Clone();
         }
 

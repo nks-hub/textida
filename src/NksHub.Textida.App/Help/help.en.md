@@ -1678,8 +1678,24 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 15. The status bar shows who last changed the line at the caret: the author, the date and the subject of the commit; the tooltip has the commit and the whole subject. A line that is not committed says so. Git is asked once the caret has rested on the line for a moment. The setting Show who changed the line at the caret turns it off.
 - Revert is not offered for a change that is in the index, for a document that is read-only and for a change with more lines than the peek holds; the peek says so.
 - The marks, the peek and the line of blame are for text tabs. A large file shown in pages has none of them.
-- Not there yet: commit and branches.
+- Commit, fetch, pull, push, branches, stashes and the history are in the topic Git: commit, pull, push, branches and history.
 - The Git process starts with the first command, or when a file is opened while the marks in the margin are on. The `git` program must be on the PATH.
+
+## [tools.gitCommit] Git: commit, pull, push, branches and history
+commands: nks.git.commit, nks.git.fetch, nks.git.pull, nks.git.push, nks.git.switchBranch, nks.git.createBranch, nks.git.deleteBranch, nks.git.stashSave, nks.git.stashApply, nks.git.stashDrop, nks.git.logFile, nks.git.logRepo
+1. Choose Tools, Git, Git: Commit (or the Commit button of the toolbar). The commit panel opens as a tab, one for each repository. The list on the left has every changed file with a box: a ticked file is in the Git index and goes into the commit, a box with a dash means that only a part of the file is in the index. Tick or untick a box to stage or unstage the whole file; the box at the top does it for all files. A file in conflict has no box: resolve it first.
+2. Choose a file to see its changes on the right: the part that is staged (HEAD against the index) above, and the part that is not (the index against the file) below. The button of each comparison stages or unstages the change the comparison is on, so a commit can hold only a part of a file.
+3. Write the message in the box and choose Commit, or press Ctrl+Enter in the box. Commit and Push commits first and then asks for the push. Amend the last commit replaces the last commit with the index and the message (an empty box is filled with the old message). The list of earlier messages fills the box again.
+4. Git: Fetch, Git: Pull and Git: Push talk to the remote, and only when you choose them. A task with a progress bar and a Cancel button shows in the status bar, and Cancel stops git. Git: Pull asks how to bring in the new commits (merge or rebase); the setting Git Pull combines the changes by decides it once for all. An update that stops at conflicts shows them in the status panel. Git: Push shows the commits that go out and asks before it sends; a branch without an upstream is sent with `--set-upstream`.
+5. The branch in the status bar opens the list of branches. Git: Switch Branch, Git: New Branch and Git: Delete Branch work on the branches; switching with changes in the working tree asks first, and a branch that is not merged is deleted only after a second question. A branch of the remote becomes a local branch that tracks it.
+6. Git: Stash Changes sets the changes (untracked files too) aside, Git: Apply Stash brings them back and keeps them in the list, Git: Drop Stash deletes one after a question.
+7. Git: History of the File and Git: History of the Repository list the commits in the panel on the left. Opening a commit shows its change in a comparison; for the history of the repository you choose the file of the commit first.
+- Passwords are never typed into the editor or kept by it. Git asks its credential helper (`git config credential.helper`); when that cannot sign in either, the message says so. Addresses in messages are shown without a user name and password.
+- Git runs without a terminal: a question that would need one (a password, a host key) ends with a message and nothing is changed.
+- A push that the remote rejects because it has commits you do not have says so; update the branch first. Only the current branch is pushed; the question names other branches with unpushed commits.
+- The panel compares files up to the size of one answer of the plugin; a larger file, a binary file and a file in conflict are only named. Staging a part of a file needs a file that is not in conflict.
+- A commit needs user.name and user.email in the Git settings; the message says so when they are missing.
+- Only one of these commands runs at a time; the status line says when another one is still running.
 
 ## [tools.lsp] Language server: definition, references, rename, completion and diagnostics
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop

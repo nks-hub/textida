@@ -1678,8 +1678,24 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 15. Stavový riadok ukazuje, kto naposledy zmenil riadok pod kurzorom: autora, dátum a predmet commitu; bublina má commit a celý predmet. Riadok, ktorý nie je v žiadnom commite, to povie. Git sa pýta, až keď kurzor chvíľu stojí na riadku. Nastavenie Ukázať, kto zmenil riadok pod kurzorom to vypne.
 - Vrátiť späť sa nenúka pri zmene, ktorá je v indexe, pri dokumente len na čítanie a pri zmene s viac riadkami, než náhľad pojme; náhľad to povie.
 - Značky, náhľad a riadok s autorom sú len pre textové karty. Veľký súbor v stránkovanom režime ich nemá.
-- Zatiaľ chýba: commit a vetvy.
+- Commit, stiahnutie zmien, aktualizácia, odoslanie, vetvy, odložené zmeny a história sú v téme Git: commit, aktualizácia, odoslanie, vetvy a história.
 - Proces Git sa spustí prvým príkazom, alebo keď sa otvorí súbor a značky v ľavom okraji sú zapnuté. Program `git` musí byť v PATH.
+
+## [tools.gitCommit] Git: commit, aktualizácia, odoslanie, vetvy a história
+commands: nks.git.commit, nks.git.fetch, nks.git.pull, nks.git.push, nks.git.switchBranch, nks.git.createBranch, nks.git.deleteBranch, nks.git.stashSave, nks.git.stashApply, nks.git.stashDrop, nks.git.logFile, nks.git.logRepo
+1. Zvoľte Nástroje, Git, Git: commit (alebo tlačidlo Commit na paneli nástrojov). Panel commitu sa otvorí ako karta, jedna pre každý repozitár. Zoznam vľavo obsahuje všetky zmenené súbory s poľom: zaškrtnutý súbor je v indexe Gitu a pôjde do commitu, pole s pomlčkou znamená, že v indexe je len časť súboru. Zaškrtnutím alebo odškrtnutím poľa pridáte celý súbor do indexu alebo ho z indexu vrátite; pole hore to urobí pre všetky súbory. Súbor v konflikte pole nemá: najprv ho vyriešte.
+2. Vyberte súbor a vpravo uvidíte jeho zmeny: hore časť, ktorá je v indexe (HEAD proti indexu), dole časť, ktorá v indexe nie je (index proti súboru). Tlačidlo každého porovnania pridá do indexu (alebo z neho vráti) zmenu, na ktorej porovnanie stojí, takže commit môže obsahovať len časť súboru.
+3. Napíšte správu do poľa a zvoľte Commit, alebo v poli stlačte Ctrl+Enter. Commit a odoslať najprv urobí commit a potom sa opýta na odoslanie. Upraviť posledný commit (amend) nahradí posledný commit obsahom indexu a správou (prázdne pole sa vyplní starou správou). Zoznam skorších správ pole vyplní znova.
+4. Git: stiahnuť zmeny, Git: aktualizovať a Git: odoslať komunikujú so vzdialeným repozitárom, a to len keď ich zvolíte. V stavovom riadku sa ukáže úloha s ukazovateľom priebehu a tlačidlom Zrušiť, ktoré git zastaví. Git: aktualizovať sa opýta, ako nové commity zapracovať (zlúčiť, alebo preskladať); nastavenie Git: aktualizácia vetvy spája zmeny pomocou to určí raz navždy. Aktualizácia, ktorá sa zastaví na konfliktoch, ich ukáže v paneli stavu. Git: odoslať ukáže commity, ktoré odídu, a pred odoslaním sa opýta; vetva bez sledovanej vzdialenej vetvy sa pošle s `--set-upstream`.
+5. Vetva v stavovom riadku otvorí zoznam vetiev. Git: prepnúť vetvu, Git: nová vetva a Git: zmazať vetvu pracujú s vetvami; prepnutie so zmenami v pracovnom strome sa najprv opýta a nezlúčená vetva sa zmaže až po druhej otázke. Vetva vzdialeného repozitára sa stane miestnou vetvou, ktorá ju sleduje.
+6. Git: odložiť zmeny odloží zmeny (aj nesledované súbory), Git: použiť odložené zmeny ich vráti a ponechá v zozname, Git: zahodiť odložené zmeny jedny zmaže po otázke.
+7. Git: história súboru a Git: história repozitára vypíšu commity do panela vľavo. Otvorením commitu sa jeho zmena ukáže v porovnaní; pri histórii repozitára najprv vyberiete súbor z commitu.
+- Heslá sa v editore nikdy nezadávajú ani neukladajú. Git sa pýta svojho pomocníka pre prihlasovacie údaje (`git config credential.helper`); keď sa ani tak neprihlási, správa to povie. Adresy v správach sa ukazujú bez používateľského mena a hesla.
+- Git beží bez terminálu: otázka, ktorá by ho potrebovala (heslo, kľúč servera), skončí správou a nič sa nezmení.
+- Odoslanie, ktoré vzdialený repozitár odmietne, lebo má commity, ktoré nemáte, to povie; najprv vetvu aktualizujte. Odosiela sa len aktuálna vetva; otázka menuje ďalšie vetvy s neodoslanými commitmi.
+- Panel porovnáva súbory do veľkosti jednej odpovede pluginu; väčší súbor, binárny súbor a súbor v konflikte sa len pomenujú. Pridanie časti súboru do indexu vyžaduje súbor, ktorý nie je v konflikte.
+- Commit vyžaduje user.name a user.email v nastaveniach Gitu; keď chýbajú, správa to povie.
+- Taký príkaz beží vždy len jeden; stavový riadok povie, že iný ešte beží.
 
 ## [tools.lsp] Jazykový server: definícia, odkazy, premenovanie, dopĺňanie a diagnostika
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop

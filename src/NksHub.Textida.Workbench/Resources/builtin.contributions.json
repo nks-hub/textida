@@ -1806,6 +1806,67 @@
       "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
+      "id": "nks.git.commit",
+      "title": "cmd.git.commit",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.fetch",
+      "title": "cmd.git.fetch",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.pull",
+      "title": "cmd.git.pull",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.push",
+      "title": "cmd.git.push",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.switchBranch",
+      "title": "cmd.git.switchBranch",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.createBranch",
+      "title": "cmd.git.createBranch",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.deleteBranch",
+      "title": "cmd.git.deleteBranch",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.stashSave",
+      "title": "cmd.git.stashSave",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.stashApply",
+      "title": "cmd.git.stashApply",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.stashDrop",
+      "title": "cmd.git.stashDrop",
+      "category": "cat.tools"
+    },
+    {
+      "id": "nks.git.logFile",
+      "title": "cmd.git.logFile",
+      "category": "cat.tools",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.git.logRepo",
+      "title": "cmd.git.logRepo",
+      "category": "cat.tools"
+    },
+    {
       "id": "nks.lsp.start",
       "title": "cmd.lsp.start",
       "category": "cat.tools",
@@ -4483,6 +4544,90 @@
     },
     {
       "menu": "tools",
+      "command": "nks.git.commit",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 150
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.fetch",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 160
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.pull",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 170
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.push",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 180
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.switchBranch",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 190
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.createBranch",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 200
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.deleteBranch",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 210
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashSave",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 220
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashApply",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 230
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashDrop",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 240
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logFile",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 250
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logRepo",
+      "group": "3_code/08_9_git",
+      "submenu": "git",
+      "order": 260
+    },
+    {
+      "menu": "tools",
       "command": "nks.lsp.start",
       "group": "3_code/09_9_lsp",
       "submenu": "lsp",
@@ -6524,6 +6669,26 @@
         "blame",
         "author",
         "status bar"
+      ]
+    },
+    {
+      "key": "git.pullMode",
+      "type": "string",
+      "default": "ask",
+      "title": "setting.git.pullMode.title",
+      "description": "setting.git.pullMode.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "enum": [
+        "ask",
+        "merge",
+        "rebase"
+      ],
+      "tags": [
+        "git",
+        "pull",
+        "merge",
+        "rebase"
       ]
     },
     {

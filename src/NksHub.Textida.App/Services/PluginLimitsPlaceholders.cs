@@ -296,6 +296,18 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: rows of the peek at a change that are shown at once; more are reached by scrolling inside the peek. The owner has not decided it.</summary>
     public const int GitPeekVisibleRows = 14;
 
+    /// <summary>Placeholder, OPEN: time, in milliseconds, after which fetch, pull and push that have not finished are ended; 0 gives them no limit, and the user cancels them in the task row. The owner has not decided it.</summary>
+    public const int GitNetworkTimeoutMilliseconds = 0;
+
+    /// <summary>Placeholder, OPEN: commits the Git history panel lists for a file or a repository; the panel holds at most <see cref="Ui"/> items. The owner has not decided it.</summary>
+    public const int GitLogEntries = 500;
+
+    /// <summary>Placeholder, OPEN: messages of the last commits the commit panel offers again in its list of earlier messages. The owner has not decided it.</summary>
+    public const int GitMessageHistory = 20;
+
+    /// <summary>Placeholder, OPEN: quiet time, in milliseconds, after a change of the repository before the commit panel reads the list of changed files again. The owner has not decided it.</summary>
+    public const int GitCommitReloadMilliseconds = 400;
+
     /// <summary>Placeholder, OPEN: quiet time, in milliseconds, with the caret on one line before the author, time and subject of that line are asked for. The owner has not decided it.</summary>
     public const int GitBlameDebounceMilliseconds = 500;
 

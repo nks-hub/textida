@@ -43,7 +43,7 @@ public sealed record BlameLine(string Sha, string Author, long Time, string Summ
 /// A repository seen through the git program, started with an argument list and no shell. Reads never take the optional locks (a plain <c>git status</c> would refresh the
 /// index file); the only writes are <see cref="WriteIndexBlobAsync"/>, which the user asks for by staging.
 /// </summary>
-public sealed class GitRepository
+public sealed partial class GitRepository
 {
     /// <summary>The mode of a file that is not in the index yet.</summary>
     public const string NewFileMode = "100644";
@@ -85,10 +85,11 @@ public sealed class GitRepository
     /// <summary>The path of a file of the folder this repository was opened from, as git names it.</summary>
     public string RelativePath(string fileName) => Prefix + fileName;
 
-    private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct)
+    private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct, bool literalPathspecs = true)
     {
         ProcessStartInfo info;
-        try { info = ProcessLaunch.CreateStartInfo(_git, ["--literal-pathspecs", .. args]); } // a file named like a glob is that file
+        // a file named like a glob is that file; a command that finds its files itself (git stash -u lists the untracked ones with a pathspec of its own) must not have it
+        try { info = ProcessLaunch.CreateStartInfo(_git, literalPathspecs ? ["--literal-pathspecs", .. args] : [.. args]); }
         catch (ToolException e) { throw new GitException(e.Message); }
         info.WorkingDirectory = directory;
         info.UseShellExecute = false;

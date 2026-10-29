@@ -361,6 +361,17 @@
           "description": "Show who changed the line at the caret. Shows the author, the date and the subject of the commit that last changed the line at the caret in the status bar; the tooltip has the rest. Git is asked once the caret has rested on the line for a moment. A file outside a Git repository, or one Git does not track, shows nothing.",
           "x-scope": "application"
         },
+        "git.pullMode": {
+          "type": "string",
+          "default": "ask",
+          "enum": [
+            "ask",
+            "merge",
+            "rebase"
+          ],
+          "description": "Git Pull combines the changes by. ask: Git: Pull asks each time. merge: the new commits are merged into your branch. rebase: your commits are replayed on top of the new ones; changes in the working tree are set aside for a moment.",
+          "x-scope": "application"
+        },
         "tools.makeProgram": {
           "type": "string",
           "default": "",

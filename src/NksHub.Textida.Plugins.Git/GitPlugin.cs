@@ -18,7 +18,13 @@ namespace NksHub.Textida.Plugins.Git;
 /// <param name="WatchDebounceMs">Quiet time after a change in the repository before the status is read again; 0 does not watch the repository.</param>
 /// <param name="MaxTreeEntries">Entries <see cref="GitPlugin.TreeStatusCommand"/> answers with; 0 takes <paramref name="MaxEntries"/>.</param>
 /// <param name="PeekMaxLines">Old lines <see cref="GitPlugin.PeekCommand"/> answers with; 0 answers without any, only with how many there are.</param>
-public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0, int MaxTreeEntries = 0, int PeekMaxLines = 0);
+/// <param name="NetworkTimeoutMs">Time after which a command that talks to a remote (fetch, pull, push) is ended; 0 gives it no limit, the user can cancel it.</param>
+/// <param name="LogEntries">Commits the log panel lists; 0 takes <paramref name="MaxEntries"/>.</param>
+/// <param name="MessageHistory">Messages of the last commits the commit panel offers again; 0 offers none.</param>
+/// <param name="MaxPickItems">Choices the plugin puts in one question to the user (the limit of the editor); 0 takes <paramref name="MaxEntries"/>.</param>
+/// <param name="MaxTextLength">Characters of one text the plugin sends to the editor (the limit of the editor); 0 does not cut.</param>
+public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, int ChunkBytes, int WatchDebounceMs = 0, int MaxTreeEntries = 0, int PeekMaxLines = 0,
+    int NetworkTimeoutMs = 0, int LogEntries = 0, int MessageHistory = 0, int MaxPickItems = 0, int MaxTextLength = 0);
 
 /// <summary>
 /// The built-in Git: the status of the working tree in a panel (read again when files change outside the editor, in every repository that has an open file), the file against the index or against <c>HEAD</c> in a comparison tab,
@@ -26,7 +32,7 @@ public sealed record GitSettings(int TimeoutMs, long MaxBytes, int MaxEntries, i
 /// The index and <c>HEAD</c> versions of a file are virtual documents the plugin provides; staging goes through <c>diff/stage</c> into the index document and is then written to the
 /// repository, but only when the index is still what the plugin last read. Otherwise nothing is written, the index document is read again and the answer is <c>conflict</c>.
 /// </summary>
-public sealed class GitPlugin : PluginBase
+public sealed partial class GitPlugin : PluginBase
 {
     public const string StatusCommand = "git.status";
     public const string DiffIndexCommand = "git.diffIndex";
@@ -94,6 +100,7 @@ public sealed class GitPlugin : PluginBase
     private async ValueTask<byte[]?> ExecuteAsync(JsonElement p, CancellationToken ct)
     {
         if (p.TryGetProperty("command", out var first) && first.GetString() == TreeStatusCommand) return await TreeStatusAsync(p, ct);
+        if (first.ValueKind == JsonValueKind.String && RepoCommands.Contains(first.GetString()!)) return await RepoCommandAsync(p, ct);
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("language", out var l) && l.ValueKind == JsonValueKind.String ? l.GetString()! : "en",
             p.TryGetProperty("path", out var path) && path.ValueKind == JsonValueKind.String ? path.GetString() : null,
@@ -525,10 +532,15 @@ public sealed class GitPlugin : PluginBase
     protected override async ValueTask OnEventAsync(JsonElement eventPayload)
     {
         if (!eventPayload.TryGetProperty("name", out var name) || name.GetString() != UiEvents.PanelActivated || !eventPayload.TryGetProperty("payload", out var payload)
-            || payload.GetProperty("panel").GetString() != StatusPanel || payload.GetProperty("item").GetString() is not { } item) return;
+            || payload.GetProperty("panel").GetString() is not (StatusPanel or LogPanel) || payload.GetProperty("item").GetString() is not { } item) return;
         var ui = _language;
         try
         {
+            if (payload.GetProperty("panel").GetString() == LogPanel)
+            {
+                await OpenCommitAsync(item, default);
+                return;
+            }
             if (_panelRoot is not { } root || await GitRepository.OpenAsync(root, _settings.TimeoutMs, _settings.MaxBytes, default) is not { } repo) return;
             var rel = Path.GetRelativePath(repo.Root, item).Replace('\\', '/');
             if (rel.StartsWith("../", StringComparison.Ordinal) || rel == "..") return;

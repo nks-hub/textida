@@ -280,6 +280,19 @@ internal static class AppCommands
         On("nks.git.previousChange", w => w.GoToGitChange(forward: false));
         On("nks.git.showChange", w => w.ShowGitChangeAtCaret());
         On("nks.git.revertHunk", w => w.RevertGitChangeAtCaret());
+        // the commands on a repository need no document; the plugin asks its questions itself
+        On("nks.git.commit", w => w.ShowCommit());
+        On("nks.git.fetch", w => w.GitCommand("git.fetch"));
+        On("nks.git.pull", w => w.GitPull());
+        On("nks.git.push", w => w.GitCommand("git.push"));
+        On("nks.git.switchBranch", w => w.GitCommand("git.switchBranch"));
+        On("nks.git.createBranch", w => w.GitCommand("git.createBranch"));
+        On("nks.git.deleteBranch", w => w.GitCommand("git.deleteBranch"));
+        On("nks.git.stashSave", w => w.GitCommand("git.stashSave"));
+        On("nks.git.stashApply", w => w.GitCommand("git.stashApply"));
+        On("nks.git.stashDrop", w => w.GitCommand("git.stashDrop"));
+        On("nks.git.logFile", w => w.GitFileHistory());
+        On("nks.git.logRepo", w => w.GitCommand("git.logRepo"));
         Fire("nks.lsp.start", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.start"));
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));

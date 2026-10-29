@@ -262,9 +262,21 @@ internal sealed partial class MainWindow
         var shown = new List<Control>(ui.Status.Count + ui.Tasks.Count);
         foreach (var (plugin, status) in ui.Status)
         {
-            if (!_pluginStatusItems.TryGetValue(plugin, out var item)) _pluginStatusItems[plugin] = item = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+            if (!_pluginStatusItems.TryGetValue(plugin, out var item))
+            {
+                _pluginStatusItems[plugin] = item = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+                if (plugin == PluginServices.GitPluginId)
+                {
+                    // the branch in the status bar opens the list of branches
+                    item.Cursor = new Cursor(StandardCursorType.Hand);
+                    item.PointerPressed += (_, e) =>
+                    {
+                        if (e.GetCurrentPoint(item).Properties.IsLeftButtonPressed) ClickGitStatus();
+                    };
+                }
+            }
             item.Text = status.Text;
-            ToolTip.SetTip(item, status.Tooltip);
+            ToolTip.SetTip(item, plugin == PluginServices.GitPluginId && status.Tooltip is { Length: > 0 } tip ? tip + "\n" + Loc.Get(K.GitBranchHint) : status.Tooltip);
             AutomationProperties.SetName(item, status.Text);
             shown.Add(item);
         }

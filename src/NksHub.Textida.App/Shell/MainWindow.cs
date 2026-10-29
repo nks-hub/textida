@@ -350,6 +350,7 @@ internal sealed partial class MainWindow : Window
         ApplyTableTexts();
         ApplyCompareTexts();
         ApplyHistoryTexts();
+        ApplyCommitTexts();
         ApplyOutputTexts();
         ApplyAgentTexts();
         ApplyPreviewTexts();

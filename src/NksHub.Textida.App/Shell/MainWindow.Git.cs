@@ -292,6 +292,7 @@ internal sealed partial class MainWindow
         _gitStatusSeen = status;
         ResetGitBlame(); // a commit or a checkout changes who wrote a line
         foreach (var tab in Tabs) ScheduleGitGutter(tab);
+        ReloadCommitViews();
     }
 
     private void ReleaseGitGutter()

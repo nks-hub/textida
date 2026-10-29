@@ -71,6 +71,11 @@ public class TranslationGateTests
         ["update.title"] = "de",
         ["viewmode.text"] = "cs sk de",
         ["viewmode.hex"] = "cs sk de",
+        ["commit.title"] = "cs sk de", // Commit is the word of Git in each of them
+        ["commit.commit"] = "cs sk de",
+        ["commit.branch"] = "de",
+        ["commit.side.head"] = "cs sk de",
+        ["commit.side.index"] = "cs sk de",
     };
 
     private static readonly Dictionary<string, string> WorkbenchSameAsEnglish = new()
@@ -91,12 +96,17 @@ public class TranslationGateTests
         ["cmd.settings.language.sk"] = "cs sk de",
         ["cmd.settings.language.de"] = "cs sk de",
         ["cat.hex"] = "cs sk de",
+        ["cmd.git.commit"] = "de", // the names of the Git actions that German keeps
+        ["cmd.git.fetch"] = "de",
+        ["cmd.git.pull"] = "de",
+        ["cmd.git.push"] = "de",
     };
 
     private static readonly Dictionary<string, string> PluginSameAsEnglish = new()
     {
         ["Git:indexTitle"] = "cs sk",
         ["Git:headTitle"] = "cs sk de",
+        ["Git:pullModeRebase"] = "de", // a name of Git that German keeps
         ["TextTools:hash.task"] = "cs sk de",
         ["TextTools:hash.pickTitle"] = "cs sk de",
     };
