@@ -372,20 +372,20 @@ commands: nks.edit.upperCase, nks.edit.lowerCase
 
 ## [edit.clipboardHistory] Historie schránky
 commands: nks.edit.clipboardHistory, nks.edit.pasteKeepCaret
-1. Stiskněte Ctrl+Shift+V (menu Úpravy, Historie schránky). Seznam ukáže naposledy zkopírované nebo vyjmuté texty, nejnovější první, s náhledem označené položky.
+1. Stiskněte Ctrl+Shift+V (menu Úpravy, Schránka, Historie schránky). Seznam ukáže naposledy zkopírované nebo vyjmuté texty, nejnovější první, s náhledem označené položky.
 2. Psaním seznam zúžíte, šipkami vyberete text a stisknete Enter.
 - Text se vloží jako při Ctrl+V: při více kurzorech do každého kurzoru (jeden řádek na kurzor, když se počet řádků rovná počtu kurzorů), jako jeden krok zpět. Funguje i ve stránkovaném režimu.
 - Historie drží tolik textů, kolik říká nastavení Velikost historie schránky. Je jen v paměti a po zavření programu se zapomene. Text delší než 1 048 576 znaků se neukládá.
-- Vložit bez posunu kurzoru (menu Úpravy) vloží text ze schránky a kurzor nechá tam, kde byl, před novým textem. V blokovém výběru se kurzor vrátí do levého horního rohu.
+- Vložit bez posunu kurzoru (menu Úpravy, Schránka) vloží text ze schránky a kurzor nechá tam, kde byl, před novým textem. V blokovém výběru se kurzor vrátí do levého horního rohu.
 - Vložení nefunguje v dokumentu jen pro čtení; Vložit bez posunu kurzoru nefunguje ani ve stránkovaném režimu (téma Velké soubory).
 
 ## [edit.specialPaste] Vložit jako HTML a ze souboru
 commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
 1. Dejte kurzor tam, kam má text přijít. U Vložit jako HTML nejdřív zkopírujte formátovaný text v prohlížeči nebo textovém editoru.
-2. Zvolte Úpravy, Vložit a pak Vložit jako HTML nebo Vložit ze souboru. Vložit ze souboru vás požádá o výběr souboru.
+2. Zvolte Úpravy, Schránka, Vložit jako HTML, nebo Úpravy, Vkládání, Vložit ze souboru. Vložit ze souboru vás požádá o výběr souboru.
 3. Text se vloží do každého kurzoru jedním krokem Zpět; Ctrl+Z ho vrátí.
-- Vložit jako HTML (Úpravy, Vložit) vloží zdrojový kód HTML, který do schránky uložil prohlížeč nebo textový editor při kopírování formátovaného textu. Vloží se jako text, stejně jako při Ctrl+V, jako jeden krok zpět. Když ve schránce HTML není, řekne to stavový řádek.
-- Vložit ze souboru (Úpravy, Vložit) vloží text vybraného souboru do každého kurzoru jako jeden krok zpět. Kódování souboru se pozná jako při otevření a konce řádků se převedou na konce řádků dokumentu. Soubor větší než 16 MiB se nevloží.
+- Vložit jako HTML (Úpravy, Schránka) vloží zdrojový kód HTML, který do schránky uložil prohlížeč nebo textový editor při kopírování formátovaného textu. Vloží se jako text, stejně jako při Ctrl+V, jako jeden krok zpět. Když ve schránce HTML není, řekne to stavový řádek.
+- Vložit ze souboru (Úpravy, Vkládání) vloží text vybraného souboru do každého kurzoru jako jeden krok zpět. Kódování souboru se pozná jako při otevření a konce řádků se převedou na konce řádků dokumentu. Soubor větší než 16 MiB se nevloží.
 - Oba příkazy nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu (téma Velké soubory).
 - Ve schránce není HTML. Zkopírujte text z prohlížeče nebo textového editoru, který HTML do schránky ukládá. Nic se nevložilo.
 - Soubor název je větší než mez bajtů a nevložil se. Mez je 16 MiB (zatím provizorní hodnota); nic se nevložilo. Vložte menší soubor, nebo velký otevřete v samostatné kartě.
@@ -393,7 +393,7 @@ commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
 ## [edit.insertLines] Vložení do řádků
 commands: nks.edit.insertIntoLines
 Příkaz zapíše text, čísla nebo odrážky do řádků výběru, nebo do všech řádků, když je jen kurzor.
-1. Zvolte Úpravy, Vložit, Vložit do řádků. Náhled ukáže první řádky, jak budou vypadat.
+1. Zvolte Úpravy, Řádky, Vložit do řádků. Náhled ukáže první řádky, jak budou vypadat.
 2. Zvolte Text, Čísla nebo Odrážky a kam psát: začátek každého řádku, konec každého řádku, před sloupec, nebo do každého kurzoru.
 3. Stiskněte OK. Výsledek je jeden krok zpět.
 - Čísla: První číslo, Počet číslic (číslo se zleva doplní nulami na tuto šířku) a Oddělovač, který leží mezi číslem a textem řádku (na začátku řádku za číslem, na konci před číslem). Do každého kurzoru se zapíše jen číslo, takže tři kurzory dostanou 1, 2 a 3.
@@ -403,7 +403,7 @@ Příkaz zapíše text, čísla nebo odrážky do řádků výběru, nebo do vš
 
 ## [edit.sort] Řazení řádků
 commands: nks.edit.sortLines
-1. Vyberte řádky (nebo dejte kurzor kamkoli, aby se seřadily všechny) a zvolte Úpravy, Převody a recepty, Seřadit řádky.
+1. Vyberte řádky (nebo dejte kurzor kamkoli, aby se seřadily všechny) a zvolte Úpravy, Řádky, Seřadit řádky.
 2. Zvolte vzestupně nebo sestupně, zda záleží na velikosti písmen, zda odstranit duplicitní řádky a podle čeho porovnávat. Náhled ukáže první řádky výsledku.
 3. Stiskněte OK. Výsledek je jeden krok zpět a seřazené řádky zůstanou vybrané.
 - Kód znaků řadí podle kódu znaků. Jazykové pravidla použijí pravidla jazyka zadaného značkou, třeba cs-CZ, nebo šestnáctkovým číslem, třeba 0405 (prázdné znamená bez jazyka). Číslo na začátku čte číslo, kterým řádek začíná; řádky bez čísla jsou první.
@@ -413,7 +413,7 @@ commands: nks.edit.sortLines
 
 ## [search.selectLines] Výběr řádků podle rozsahu
 commands: nks.search.selectLinesByRange
-1. Zvolte Hledat, Vybrat řádky podle rozsahu.
+1. Zvolte Úpravy, Výběr, Vybrat řádky podle rozsahu.
 2. Napište čísla řádků a rozsahy, třeba 10-20, 40-50, oddělené čárkami, středníky nebo mezerami. Řádek pod polem říká, kolik výběrů vznikne.
 3. Stiskněte OK. Každý rozsah se stane vlastním výběrem s vlastním kurzorem a Kopírovat pak zkopíruje řádky všech rozsahů.
 - Rozsahy, které se překrývají nebo na sebe navazují, se spojí. Čísla řádků začínají od 1; řádky za koncem dokumentu se ignorují.
@@ -438,7 +438,7 @@ Tyto příkazy jsou v menu Formát. Působí na vybrané řádky, nebo na všech
 ## [edit.insertSmall] Datum, GUID a opakování
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 1. Dejte kurzor tam, kam má text přijít; kurzorů může být víc.
-2. Zvolte Úpravy, Vložit a pak Vložit datum a čas nebo Vložit GUID. Opakovat poslední příkaz je v nabídce Úpravy, Převody a recepty.
+2. Zvolte Úpravy, Vkládání a pak Vložit datum a čas nebo Vložit GUID. Opakovat poslední příkaz je v nabídce Úpravy.
 3. Text se vloží do každého kurzoru jedním krokem Zpět; Ctrl+Z ho vrátí.
 - Vložit datum a čas zapíše aktuální datum a čas do každého kurzoru ve formátu z nastavení Formát data a času (vlastní formát .NET, třeba yyyy-MM-dd HH:mm; názvy měsíců a dnů podle jazyka rozhraní). Výběr se nahradí. V profilu PSPad je to Alt+D.
 - Vložit GUID zapíše nový GUID do každého kurzoru, každý jiný: malými písmeny, s pomlčkami, bez složených závorek.
@@ -465,7 +465,7 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 ## [edit.json] Formátování JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
 1. Označte text JSON, nebo neoznačujte nic a příkaz se provede nad celým dokumentem.
-2. Nabídka Úpravy, Formátování, Formátovat JSON, naformátuje označené části (každý výběr) nebo celý dokument. Všechny části jsou jeden krok Zpět; text mimo ně zůstane bajt po bajtu stejný, včetně konců řádků a kódování.
+2. Nabídka Formát, Formátovat kód a data, Formátovat JSON, naformátuje označené části (každý výběr) nebo celý dokument. Všechny části jsou jeden krok Zpět; text mimo ně zůstane bajt po bajtu stejný, včetně konců řádků a kódování.
 3. Náhled formátování JSON ukáže změnu nejdřív jako návrh. Použijte ho z lišty nad editorem, nebo ho zahoďte.
 4. Sbalit JSON zapíše hodnotu na jeden řádek bez mezer a odstraní komentáře. Seřadit klíče JSON seřadí členy každého objektu podle názvu (komentář se přesune se svým členem) a text rozvrhne jako Formátovat JSON. Odstranit čárky na konci JSON odstraní jen čárky před zavírací závorkou a nic jiného nezmění.
 - Komentáře a čárky na konci patří do souborů JSONC (.jsonc, tsconfig.json a podobné). Formátovat JSON i Seřadit klíče JSON je tam zachovají. V běžném souboru JSON se ohlásí jako chyby; čárky opraví Odstranit čárky na konci JSON.
@@ -502,10 +502,10 @@ commands: nks.tools.pickColor, nks.tools.colorToHex, nks.tools.colorToRgb, nks.t
 
 ## [tools.markdown] Náhled Markdownu, tabulky a obsah
 commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdownFormatTable, nks.tools.markdownUpdateToc, nks.tools.markdownRepairTable, nks.markdown.nextCell, nks.markdown.previousCell, nks.markdown.newRow
-1. Nástroje, Markdown, Náhled Markdownu nebo HTML otevře pod editorem panel náhledu s aktuálním souborem. Panel sleduje psaní: překreslí se chvíli po poslední klávese. Editor a panel se posouvají společně: když posunete jedno, druhé jde za ním.
+1. Zobrazit, Náhled Markdownu nebo HTML otevře pod editorem panel náhledu s aktuálním souborem. Panel sleduje psaní: překreslí se chvíli po poslední klávese. Editor a panel se posouvají společně: když posunete jedno, druhé jde za ním.
 2. Markdown se ukáže jako stránka: nadpisy, seznamy, citace, kód, zvýraznění a tabulky s buňkami (dvojtečky v řádku pomlček určují zarovnání sloupce). Blok kódu označený `mermaid` se nakreslí jako vývojový diagram.
 3. Soubor HTML se ukáže také jako stránka, ale rozumí se jen malé části HTML: nadpisům, odstavcům, seznamům, tabulkám, předformátovanému textu, kódu, odkazům, obrázkům a zvýraznění. Každá jiná značka, každý komentář a vše uvnitř `script` a `style` se ukáže jako text, kterým je. Nic z toho souboru se nespouští.
-4. Nástroje, Markdown, Zobrazit osnovu Markdownu vypíše v témže panelu nadpisy souboru, odsazené podle úrovně. Klik, nebo Enter na nadpisu, přesune kurzor v editoru na jeho řádek.
+4. Zobrazit, Zobrazit osnovu Markdownu vypíše v témže panelu nadpisy souboru, odsazené podle úrovně. Klik, nebo Enter na nadpisu, přesune kurzor v editoru na jeho řádek.
 5. Nástroje, Markdown, Zarovnat tabulku v Markdowne přepíše tabulku pod kurzorem tak, aby měl každý sloupec šířku nejširší buňky. Značky `:--`, `:-:` a `--:` zůstanou a kratší řádek se doplní prázdnými buňkami. Zpět to vrátí jedním krokem.
 6. Nástroje, Markdown, Aktualizovat obsah Markdownu zapíše odkazy na nadpisy mezi řádky `<!-- TOC -->` a `<!-- /TOC -->`. Mění se jen text mezi nimi. Když tam nejsou, přidají se na místo kurzoru. Kotvy jsou malými písmeny, mezery se mění na pomlčky a opakovaný nadpis dostane `-1`, `-2`.
 7. V tabulce Tab vybere další buňku a Shift+Tab předchozí; sloupce se při tom zarovnají. Tab v poslední buňce přidá řádek. Mimo tabulku obě klávesy fungují jako dřív. Každý přesun vrátí Zpět jedním krokem.
@@ -521,7 +521,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
 Soubor Markdown (.md, .markdown) má tři režimy. Čtení vykreslí stránku přes celou kartu, úpravy ukážou editor se stránkou vedle něj a zdroj ukáže jen text. Přepíná je lišta nad souborem.
 1. Soubor Markdown se otevře ve čtení. Nastavení Výchozí režim Markdownu (Nastavení, Soubory) vybere čtení, úpravy nebo zdroj pro soubory otevřené od té chvíle.
-2. Stiskněte tlačítko v liště, použijte Nástroje, Markdown, Markdown: čtení, úpravy nebo zdroj, nebo stiskněte Ctrl+K a pak Ctrl+V (Zobrazit, Hex, Přepnout režim zobrazení), což přejde na další režim: čtení, úpravy, zdroj a zase čtení. Stavový řádek i čtečka obrazovky řeknou, který režim je zapnutý.
+2. Stiskněte tlačítko v liště, použijte Zobrazit, Režim zobrazení, Markdown: čtení, úpravy nebo zdroj, nebo stiskněte Ctrl+K a pak Ctrl+V (Zobrazit, Režim zobrazení, Přepnout režim zobrazení), což přejde na další režim: čtení, úpravy, zdroj a zase čtení. Stavový řádek i čtečka obrazovky řeknou, který režim je zapnutý.
 3. V úpravách se stránka překreslí chvíli po poslední klávese a posouvá se spolu s editorem; kreslí i neuložené změny. Čtení i úpravy kreslí stejným bezpečným rendererem jako náhled: nespustí se žádný skript a z webu se nic nenačte bez vašeho souhlasu.
 4. Změna režimu drží místo: stránka i editor se posunou na stejný řádek a po návratu do editoru se vrátí kurzor a výběr. Okno si režim souboru pamatuje, dokud se nezavře.
 - Soubor delší než limit náhledu nebo otevřený jako velký soubor se otevře jako zdroj a stavový řádek to řekne; lišta pak nenabízí čtení ani úpravy.
@@ -532,8 +532,8 @@ Soubor Markdown (.md, .markdown) má tři režimy. Čtení vykreslí stránku p�
 ## [view.image] Obrázky
 commands: nks.view.modeImage, nks.view.modeText
 Soubor PNG, JPEG, GIF, BMP, WebP nebo ICO, který se pozná podle prvních bajtů a ne podle názvu, se otevře jako obrázek. SVG je text a otevře se jako text. Obrázek se jen prohlíží; nic v něm nejde upravovat.
-1. Obrázek je přizpůsobený kartě. Klávesa 0 ho znovu přizpůsobí, 1 ho ukáže v původní velikosti, plus a mínus přibližují a oddalují a šipky, Page Up, Page Down, Home a End s ním posouvají. Ctrl+kolečko přibližuje kolem ukazatele, tažení myší obrázek posouvá a totéž dělají příkazy Zobrazit, Přiblížit, Oddálit a Původní velikost; Původní velikost obrázek přizpůsobí kartě.
-2. Lišta nad obrázkem nabízí Zobrazit jako obrázek, Zobrazit jako text a Zobrazit jako hex. Paleta příkazů nabízí Zobrazit jako obrázek a Zobrazit obrázek jako text, Ctrl+K a pak Ctrl+V (Zobrazit, Hex, Přepnout režim zobrazení) přejde na další režim a Ctrl+K a pak Ctrl+H přepíná hex. Soubor se nečte znovu, takže se k obrázku můžete kdykoli vrátit.
+1. Obrázek je přizpůsobený kartě. Klávesa 0 ho znovu přizpůsobí, 1 ho ukáže v původní velikosti, plus a mínus přibližují a oddalují a šipky, Page Up, Page Down, Home a End s ním posouvají. Ctrl+kolečko přibližuje kolem ukazatele, tažení myší obrázek posouvá a totéž dělají příkazy Zobrazit, Lupa, Přiblížit, Oddálit a Původní velikost; Původní velikost obrázek přizpůsobí kartě.
+2. Lišta nad obrázkem nabízí Zobrazit jako obrázek, Zobrazit jako text a Zobrazit jako hex. Paleta příkazů nabízí Zobrazit jako obrázek a Zobrazit obrázek jako text, Ctrl+K a pak Ctrl+V (Zobrazit, Režim zobrazení, Přepnout režim zobrazení) přejde na další režim a Ctrl+K a pak Ctrl+H přepíná hex. Soubor se nečte znovu, takže se k obrázku můžete kdykoli vrátit.
 3. Stavový řádek ukazuje formát, rozměry v bodech, velikost souboru a přiblížení. Čtečka obrazovky přečte totéž při otevření obrázku a při změně přiblížení a lišta jmenuje zapnutý režim.
 4. Nastavení Soubory obrázků (Nastavení, Soubory) rozhoduje, zda se soubor obrázku otevře jako obrázek, jako text nebo v hexu. Lišta je v každém případě.
 - Kde je obrázek průhledný, prosvítá šachovnice. Animovaný GIF ukáže jen první políčko.
@@ -544,16 +544,16 @@ Soubor PNG, JPEG, GIF, BMP, WebP nebo ICO, který se pozná podle prvních bajt�
 ## [tools.keys] Cesty klíčů v YAML a JSON
 commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tools.compareKeys
 1. V souboru YAML nebo JSON ukazuje stavový řádek cestu klíče pod kurzorem, například `cs.app.title`. Položky seznamu se píšou `items[0]` a klíč s tečkou nebo závorkou se píše `["a.b"]`. Cesta se čte pro revizi a kurzor, pro které se zeptalo: když mezitím píšete nebo kurzor přesunete, odpověď se zahodí.
-2. Nástroje, Struktura a jazyk, Kopírovat cestu klíče dá cestu do schránky.
-3. Nástroje, Struktura a jazyk, Přejít na klíč (nebo `@` v Přejít na cokoli) vypíše klíče souboru podle cesty; Enter označí klíč tak, jak je napsán. Zobrazit osnovu klíčů vypíše tytéž klíče v panelu pluginu a kliknutí tam označí stejné bajty.
-4. Nástroje, Struktura a jazyk, Porovnat klíče s jiným souborem se zeptá na další otevřený soubor YAML nebo JSON a do okna výstupu vypíše klíče s hodnotou, které každému souboru chybí.
+2. Nástroje, Data a schémata, Kopírovat cestu klíče dá cestu do schránky.
+3. Nástroje, Data a schémata, Přejít na klíč (nebo `@` v Přejít na cokoli) vypíše klíče souboru podle cesty; Enter označí klíč tak, jak je napsán. Zobrazit osnovu klíčů vypíše tytéž klíče v panelu pluginu a kliknutí tam označí stejné bajty.
+4. Nástroje, Data a schémata, Porovnat klíče s jiným souborem se zeptá na další otevřený soubor YAML nebo JSON a do okna výstupu vypíše klíče s hodnotou, které každému souboru chybí.
 - YAML v blokovém zápisu se čte: vnořené klíče, seznamy, klíče v uvozovkách a blokové skaláry. Hodnota ve složených nebo hranatých závorkách se počítá za jednu hodnotu. JSON smí mít komentáře a čárku na konci.
 - Chyba syntaxe zastaví čtení na tom místě; klíče před ní zůstanou a zpráva uvede řádek.
 
 ## [tools.outline] Osnova kódu a symboly
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. V souborech HTML, PHP, CSS, C# a Markdown ukáže Nástroje, Struktura a jazyk, Zobrazit osnovu kódu funkce, třídy, nadpisy a pravidla souboru jako strom v panelu pluginu. Kliknutí označí jméno symbolu.
-2. Nástroje, Struktura a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
+1. V souborech HTML, PHP, CSS, C# a Markdown ukáže Nástroje, Kód a jazyk, Zobrazit osnovu kódu funkce, třídy, nadpisy a pravidla souboru jako strom v panelu pluginu. Kliknutí označí jméno symbolu.
+2. Nástroje, Kód a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
 5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje. Osnova ukazuje stejnou položku tučně a čtečka obrazovky ji pojmenuje „aktuální položka“. Značka není výběr a nebere vám klávesnici; jde za kurzorem a při obnově osnovy zůstane u své položky.
@@ -680,7 +680,7 @@ commands: nks.search.relatedFile
 commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.bookmarks.clear
 1. Ctrl+F2 nastaví nebo zruší záložku na řádku s kurzorem; vlevo od čísel řádků se objeví tečka.
 2. F2 skočí na další záložku, Shift+F2 na předchozí; za poslední se pokračuje od první.
-- Hledat, Smazat záložky odstraní všechny záložky dokumentu.
+- Hledat, Záložky, Smazat záložky odstraní všechny záložky dokumentu.
 - Záložka se posouvá s textem, když nad ní přibudou nebo ubudou řádky, a ukládá se do relace: po restartu je zpět.
 
 ## [view.wordwrap] Zalamování řádků
@@ -712,7 +712,7 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Skryté hodnoty v souborech .env
 commands: nks.view.toggleSecrets
-1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`, v textovém editoru, ve stránkovaném režimu i v hexadecimálním zobrazení. Zobrazit a Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
+1. Soubory s názvem `.env`, `.env.*` nebo `*.env` ukazují každou hodnotu proměnné jako `••••`, v textovém editoru, ve stránkovaném režimu i v hexadecimálním zobrazení. Zobrazit, Zobrazení editoru, Zobrazit skryté hodnoty je ukáže v aktuální kartě, další použití je zase skryje.
 - V textovém editoru se po najetí ukazatelem myši na hodnotu ukáže jen ta jedna.
 - Text souboru se nemění: uložení zapíše stejné bajty.
 - Skryté jsou i v minimapě, v náhledech Přejít na cokoli a Místa úprav, ve výsledcích hledání a v exportech s formátováním (HTML, RTF). Kopírování dá do schránky `••••` místo skryté hodnoty a Vyjmout skrytou hodnotu nesmaže.
@@ -739,7 +739,7 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Ctrl+Shift+E otevře nebo zavře panel Soubory. Bez otevřené složky nabízí Otevřít složku.
 2. Šipky procházejí strom, Šipka doprava a doleva rozbalí a sbalí složku, Enter nebo dvojklik soubor otevře.
 3. Pravé tlačítko nabízí operace se soubory (téma Operace se soubory). F2 přejmenuje, Delete smaže do koše, F5 obnoví.
-4. Zobrazit, Zobrazit skryté položky v panelu souborů skryje nebo ukáže položky, jejichž název začíná tečkou nebo které mají atribut skrytý.
+4. Zobrazit, Rozložení panelů, Zobrazit skryté položky v panelu souborů skryje nebo ukáže položky, jejichž název začíná tečkou nebo které mají atribut skrytý.
 - Strom sleduje změny na disku sám.
 - Každá položka má ikonu a barvu podle typu: složka, text, zdrojový kód, značkovací jazyk, data, soubor stylů, obrázek, archiv nebo binární soubor. Skryté položky jsou ztlumené.
 - U složky v repozitáři Git má název barvu podle stavu, který Git souboru dává, a za ním písmeno: M změněno, N nové, D smazáno, I ignorováno, ! konflikt. Složka ukáže nejvážnější stav pod sebou. Nastavení Stav Gitu v panelu souborů to vypne; mimo repozitář se Git nespouští.
@@ -831,7 +831,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 ## [format.encoding] Kódování
 commands: nks.format.reread, nks.format.convert
 Stavový řádek ukazuje kódování; klepnutím na něj se otevře stejný výběr. Je-li kódování odhad, je u něj procento jistoty.
-1. Zvolte Formát a pak Převést na. Chcete-li soubor znovu přečíst v jiném kódování, zvolte Znovu přečíst jako v nabídce Soubor, Zvláštní otevření.
+1. Zvolte Formát a pak Převést na. Chcete-li soubor znovu přečíst v jiném kódování, zvolte Znovu přečíst jako v nabídce Formát.
 2. Vyberte kódování v seznamu. Kódování, které by znaky ztratilo, je označeno jako ztrátové s počtem znaků.
 3. Zkontrolujte okno Změny v bajtech a potvrďte ho (téma Inspektor bajtů). Stavový řádek řekne Převedeno na kódování.
 - Znovu přečíst jako: soubor se znovu přečte z disku v jiném kódování. Použijte, když se po otevření ukážou špatná písmena.
@@ -910,19 +910,19 @@ commands: nks.window.splitView, nks.window.moveToOtherGroup
 
 ## [settings.theme] Motiv
 commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.theme.dark
-1. Zvolte Nastavení a jeden z motivů: Motiv podle systému, Světlý motiv, Tmavý motiv.
+1. Zvolte Nastavení, Motiv a jeden z motivů: Motiv podle systému, Světlý motiv, Tmavý motiv.
 2. Změna se projeví hned a zapamatuje se.
 - Podle systému znamená, že se program řídí nastavením systému.
 
 ## [settings.language] Jazyk rozhraní
 commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
-1. Zvolte Nastavení a Čeština, English, Slovenčina nebo Deutsch.
+1. Otevřete Nastavení, vyhledejte Jazyk rozhraní a vyberte Čeština, English, Slovenčina nebo Deutsch.
 2. Nabídky, hlášení i tato nápověda se přepnou hned.
 - Výchozí volba je podle systému (nastavení Jazyk rozhraní).
 
 ## [settings.profile] Profil chování
 commands: nks.settings.profile.default, nks.settings.profile.pspad
-1. Zvolte Nastavení a Profil chování: výchozí, nebo Profil chování: PSPad.
+1. Zvolte Nastavení, Profil chování a Profil chování: výchozí, nebo Profil chování: PSPad.
 - Profil PSPad mění: Home a End přeskakují mezi prvním znakem a krajem řádku, Backspace v odsazení maže do tabulační zarážky, Alt+tažení dělá blokový výběr, párové znaky se doplňují podle PSPadu, a několik zkratek (Smazat řádek Ctrl+Y, Zpět Alt+Backspace, Zalamování Ctrl+W, F8 značka, Ctrl+Shift+C blokový výběr, Odsazení Ctrl+Shift+I a U).
 - Vlastní zkratky v nastavení mají přednost před profilem.
 
@@ -966,7 +966,7 @@ commands: nks.view.fullScreen
 ## [hex.open] Hex: otevření a pohyb
 commands: nks.view.hex, nks.file.openAsHex
 Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen řádky na obrazovce, takže velikost souboru nevadí.
-1. Ctrl+K a potom Ctrl+H přepne aktivní dokument mezi textem a hexem (nabídka Zobrazit, Hex, Přepnout hex a text). Je to stejný dokument se stejnou historií Zpět; výběr se převede přes bajty.
+1. Ctrl+K a potom Ctrl+H přepne aktivní dokument mezi textem a hexem (nabídka Zobrazit, Režim zobrazení, Přepnout hex a text). Je to stejný dokument se stejnou historií Zpět; výběr se převede přes bajty.
 2. Soubor a Otevřít v hex otevře vybraný soubor rovnou v hexu. Z příkazového řádku to dělá přepínač --hex, případně s --offset.
 3. Soubor, který vypadá binárně (nulový bajt v prvních 8 000 bajtech), nabídne lišta nad dokumentem: Otevřít v hex, nebo Nechat jako text.
 - Šipky, PageUp a PageDown, Home a End (na řádku), Ctrl+Home a Ctrl+End (celý soubor). Shift rozšiřuje výběr. Tab přepíná mezi sloupcem bajtů a znaků.
@@ -1150,7 +1150,7 @@ commands: nks.tools.makeTargets, nks.tools.makeRepeat
 
 ## [packages.registry] Manifesty balíčků: názvy, verze a značka novější verze
 commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
-1. V souborech package.json, composer.json, requirements.txt, .csproj, go.mod, Cargo.toml, Gemfile, pubspec.yaml, pom.xml, build.gradle a build.gradle.kts se editor umí zeptat registru balíčků (npm, Packagist, PyPI, NuGet, proxy Go, crates.io, RubyGems, pub.dev, Maven Central) na názvy a verze. V pom.xml se doplňují jen verze (skupina a artefakt jsou dva prvky); v souboru Gradle se doplňuje i celé skupina:artefakt. Novější verze se hledá jen u verze napsané celé, ne u rozsahu, proměnné jako ${project.version} ani chybějící verze. Bez vašeho souhlasu se nic neposílá: Nástroje, Balíčky, Zkontrolovat verze balíčků ukáže servery a zeptá se jednou pro každý registr.
+1. V souborech package.json, composer.json, requirements.txt, .csproj, go.mod, Cargo.toml, Gemfile, pubspec.yaml, pom.xml, build.gradle a build.gradle.kts se editor umí zeptat registru balíčků (npm, Packagist, PyPI, NuGet, proxy Go, crates.io, RubyGems, pub.dev, Maven Central) na názvy a verze. V pom.xml se doplňují jen verze (skupina a artefakt jsou dva prvky); v souboru Gradle se doplňuje i celé skupina:artefakt. Novější verze se hledá jen u verze napsané celé, ne u rozsahu, proměnné jako ${project.version} ani chybějící verze. Bez vašeho souhlasu se nic neposílá: Nástroje, Data a schémata, Zkontrolovat verze balíčků ukáže servery a zeptá se jednou pro každý registr.
 2. Po souhlasu nabídne Ctrl+J v názvu položky názvy z registru a ve verzi verze toho balíčku, od nejnovější. PyPI a proxy Go nemají vyhledávání: název se nabídne jen tehdy, když napsaný text je celý název.
 3. Položka s přesně zadanou verzí (1.2.3, ==1.2.3, v1.2.3), pro kterou existuje novější vydání, dostane informační značku na verzi. Rozsahy (^, ~, >=) se neznačí. Předběžná verze se za novější nebere, dokud existuje vydání. Kontrola běží, když přestanete psát.
 4. Odpovědi se drží v cache v paměti, nejvýše do limitu velikosti (nejstarší odpadnou první), jen omezenou dobu a nejdéle do zavření editoru. Nabídka nebo značka z cache to říká („cache“). Obnovit verze balíčků zahodí cache toho registru a zeptá se znovu.
@@ -1162,7 +1162,7 @@ commands: nks.packages.lookup, nks.packages.refresh, nks.packages.revoke
 commands: nks.schemas.allow
 1. Soubor JSON, JSONC, TOML nebo YAML se kontroluje podle schématu, které mu patří. Soubor může schéma pojmenovat sám („$schema“ na začátku souboru JSON, komentář „# yaml-language-server: $schema=ADRESA“ v YAML, „#:schema ADRESA“ v TOML); jinak rozhoduje název souboru (package.json, Cargo.toml, workflow GitHubu, soubory Claude Code, MCP a Codexu a krátký seznam běžných konfiguračních souborů). Stavový řádek ukáže název schématu, nebo „bez schématu“. Nález je podtržený a jeho bublina říká místo, u syntaktické chyby i řádek a sloupec.
 2. Ctrl+J nabídne klíče, které schéma v objektu kolem kurzoru dovoluje, a tam, kde se píše hodnota, i povolené hodnoty (hodnoty enum, true a false). Když myš chvíli stojí na klíči nebo hodnotě, ukáže se, co o ní schéma říká: popis, typ, povolené hodnoty a výchozí hodnota.
-3. Schémata package.json, Cargo.toml, workflow GitHubu a souborů agentů jsou součástí editoru. Schéma jiného známého souboru a schéma, které soubor pojmenuje adresou, se stáhne až po vašem souhlasu. Do té doby stavový řádek říká „stažení není povoleno“ a Nástroje, Balíčky, Povolit stažení schématu ukáže server a zeptá se jednou pro každý server. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy. Schéma, které soubor pojmenuje cestou, se čte z disku a souhlas nepotřebuje.
+3. Schémata package.json, Cargo.toml, workflow GitHubu a souborů agentů jsou součástí editoru. Schéma jiného známého souboru a schéma, které soubor pojmenuje adresou, se stáhne až po vašem souhlasu. Do té doby stavový řádek říká „stažení není povoleno“ a Nástroje, Data a schémata, Povolit stažení schématu ukáže server a zeptá se jednou pro každý server. Zakázat dotazy na registry a stahování schémat vezme zpět všechny souhlasy. Schéma, které soubor pojmenuje cestou, se čte z disku a souhlas nepotřebuje.
 4. Stažené schéma se ukládá do tohoto počítače, nejvýše do limitu velikosti (nejstarší se mažou první), a dokud je čerstvé, použije se bez dotazu. Když server neodpoví, použije se uložená kopie a stavový řádek to říká. Použije se síťová proxy z příkazu Síťová proxy, i s uživatelským jménem (dotazy jdou přes editor).
 5. Syntaktická chyba v souboru JSON, JSONC, TOML nebo YAML se podtrhne i tehdy, když žádné schéma neplatí. YAML s kotvami, tagy nebo složitými klíči se číst nedá: takový soubor se nekontroluje a stavový řádek to říká.
 6. Vlastní pravidla: nastavení Mapování schémat (Nastavení, hledejte „schéma“) přiřazuje souborům schémata. Zapište MASKA=SCHÉMA, oddělené středníky nebo zalomením řádku, například `*.cfg=package.json; config/**=https://example.test/a.json as yaml`. MASKA je název souboru, konec cesty nebo složka s /**. SCHÉMA je id známého schématu, adresa nebo cesta k souboru; koncovka as json, jsonc, toml, yaml nebo markdown určuje, jak se soubor čte. První vyhovující pravidlo má přednost před schématy, která editor zná; před pravidlem vyhrává jen $schema zapsané v souboru. Pravidlo zapsané jinak se přeskočí a stavový řádek ho jmenuje. Změna se na otevřené soubory projeví hned.
@@ -1170,7 +1170,7 @@ commands: nks.schemas.allow
 
 ## [packages.scripts] Skripty balíčku: npm a Composer
 commands: nks.packages.script
-1. S otevřeným souborem package.json nebo composer.json vypíše Nástroje, Balíčky, Spustit skript balíčku jeho skripty. Vybraný se spustí jako npm run název nebo composer run-script název ve složce souboru.
+1. S otevřeným souborem package.json nebo composer.json vypíše Nástroje, Data a schémata, Spustit skript balíčku jeho skripty. Vybraný se spustí jako npm run název nebo composer run-script název ve složce souboru.
 2. Jde to přes spouštěč nástrojů jako nástroj z projektové složky: příkaz, složka a soubor, ze kterého skript pochází, se ukážou a je třeba je potvrdit. Potvrzení je vázané na text skriptu, takže změněný skript se zeptá znovu. Výstup jde do karty Úlohy; Zastaviť ho ukončí.
 - npm nebo Composer musí být nainstalovaný. Na Windows jsou oba dávkové soubory; editor spustí Node s npm-cli.js, nebo PHP s composer.phar, ze složky dávkového souboru, takže funguje i název skriptu s koncem řádku nebo s !. Bez tohoto standardního uspořádání se dávka spustí přes cmd.exe.
 
@@ -1197,7 +1197,7 @@ commands: nks.plugins.manage
 
 ## [tools.lint] Lintery: podtržení nálezů PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy, RuboCopu, ESLintu, Ruffu, ShellChecku, SQLFluffu a dart analyze
 commands: nks.tools.lint
-1. Nástroje, Spouštění nástrojů, Zkontrolovat soubor linterem spustí linter, který se pro otevřený soubor hodí: PHPStan nebo Psalm pro PHP, golangci-lint pro Go, Clippy pro Rust (potřebuje Cargo.toml ve složce souboru nebo nad ní), clang-tidy pro C a C++, RuboCop pro Ruby, ESLint pro JavaScript a TypeScript, Ruff pro Python, ShellCheck pro skripty shellu, SQLFluff pro SQL a dart analyze pro Dart. Když soubor zpracovávají dva lintery, použije se první, jehož konfigurační soubor (phpstan.neon, psalm.xml) se najde, jinak první nainstalovaný.
+1. Nástroje, Kód a jazyk, Zkontrolovat soubor linterem spustí linter, který se pro otevřený soubor hodí: PHPStan nebo Psalm pro PHP, golangci-lint pro Go, Clippy pro Rust (potřebuje Cargo.toml ve složce souboru nebo nad ní), clang-tidy pro C a C++, RuboCop pro Ruby, ESLint pro JavaScript a TypeScript, Ruff pro Python, ShellCheck pro skripty shellu, SQLFluff pro SQL a dart analyze pro Dart. Když soubor zpracovávají dva lintery, použije se první, jehož konfigurační soubor (phpstan.neon, psalm.xml) se najde, jinak první nainstalovaný.
 2. Linter kontroluje soubor na disku, takže nejdřív ukládejte: dokument s neuloženými změnami se nekontroluje. Nálezy jsou v textu podtržené (hláška se ukáže po najetí) a vypsané na kartě Úlohy, jeden na řádek; klik nebo Enter otevře místo. Další běh stejného linteru je nahradí, takže opravený problém po něm zmizí. Když soubor během kontroly upravíte, nálezy se posunou s textem a ty, jejichž text jste změnili, zmizí.
 3. Chcete-li kontrolovat po každém uložení, zapněte v Soubor, Akce při uložení položku „Zkontrolovat nástrojem PHPStan“ (nebo jiného linteru), nebo napište do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter se nikdy nespouští při změně. Identifikátory jsou phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff a dart-analyze. Kontrola spuštěná uložením čeká půl vteřiny na další uložení téhož souboru; novější uložení ji nahradí.
 - Program se hledá v cestě, kterou zadáte, pak ve vendor/bin, node_modules/.bin a .venv (od složky souboru směrem nahoru) a v PATH; nic se nestahuje. Cestu zadáte v saveActions.json profilu: "toolPaths": {"phpstan": "C:\\nastroje\\phpstan.phar"} (soubor, nebo složka, kde program je). Platí i pro formátovače a soubor projektu ji nastavit nemůže. Cesta, která neexistuje, se ohlásí a nenahradí se hledáním. První spuštění vás požádá o potvrzení příkazu.
@@ -1223,7 +1223,7 @@ commands: nks.file.saveActions
 - Akce při uložení nabízí také „Zkontrolovat nástrojem ...“ pro lintery, které soubor zpracovávají; je vypnutá, dokud ji nezapnete. Kontrola běží po uložení a neblokuje je; její časový limit je lintTimeoutSeconds (bez něj provizorních 60 sekund).
 ## [file.configFiles] Konfigurační soubory souboru
 commands: nks.file.configFiles
-1. Stavový řádek ukazuje konfigurační soubory, které platí pro otevřený soubor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurace jazyka (například ruff.toml, stylua.toml, .shellcheckrc). U každé je to nejbližší soubor ve složce souboru nebo nad ní. Klepněte na položku, nebo použijte Soubor, Konfigurační soubory tohoto souboru.
+1. Stavový řádek ukazuje konfigurační soubory, které platí pro otevřený soubor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurace jazyka (například ruff.toml, stylua.toml, .shellcheckrc). U každé je to nejbližší soubor ve složce souboru nebo nad ní. Klepněte na položku, nebo použijte Nastavení, Konfigurační soubory tohoto souboru.
 2. Ze seznamu otevřete vybraný soubor. Chybějící konfiguraci lze vytvořit z minimální šablony; zapíše se do nejbližší nadřazené složky s .git, jinak do složky souboru, a existující soubor se nikdy nepřepíše.
 - Prochází se jen složky: žádný nástroj se nespouští, seznam tedy ukazuje, co je na disku, ne co by nástroj použil. Seznam se načte znovu při otevření, uložení a přejmenování souboru, takže soubor vytvořený mimo editor se ukáže po dalším uložení.
 ## [log.mode] Režim logu: úrovně a další chyba
@@ -1248,8 +1248,8 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 
 ## [export.highlight] Export a kopie se zvýrazněním
 commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
-1. Úpravy, Kopírovat jako, Exportovat jako HTML a Exportovat jako RTF zapíšou výběr, nebo celý dokument, když nic není označené, do souboru, který zvolíte. Barvy jsou barvy editoru ve stávajícím světlém nebo tmavém motivu: stejné tokeny gramatiky dokumentu a v logu barvy úrovní. Barva stránky a textu editoru je v exportu.
-2. Úpravy, Kopírovat jako, Kopírovat se zvýrazněním dá do schránky text, HTML a RTF najednou. Vložení do textového procesoru nebo pošty zachová barvy, vložení do editoru dá prostý text. Kopírovat jako zdroj HTML dá do schránky samotné HTML jako text.
+1. Soubor, Exportovat, Exportovat jako HTML a Exportovat jako RTF zapíšou výběr, nebo celý dokument, když nic není označené, do souboru, který zvolíte. Barvy jsou barvy editoru ve stávajícím světlém nebo tmavém motivu: stejné tokeny gramatiky dokumentu a v logu barvy úrovní. Barva stránky a textu editoru je v exportu.
+2. Úpravy, Schránka, Kopírovat se zvýrazněním dá do schránky text, HTML a RTF najednou. Vložení do textového procesoru nebo pošty zachová barvy, vložení do editoru dá prostý text. Kopírovat jako zdroj HTML dá do schránky samotné HTML jako text.
 - Obarví se celý dokument a výběr se z něj vyřízne, takže výběr začínající uvnitř komentáře je obarvený jako v editoru. U více kurzorů nebo bloku se bere jen označený text a barví se od svého začátku. U velkého souboru (stránkovaný režim) se výběr obarví jako v celém dokumentu: přečte se text před ním na jeho prvním řádku a barvy na začátku tohoto řádku se zjistí čtením souboru až k němu, což u výběru hluboko ve velmi velkém souboru chvíli trvá (okno zůstává použitelné, stavový řádek ukazuje, kam čtení došlo, a klávesa Esc ho zruší: export se pak neprovede a nic se nezapíše). Číslování řádků musí k výběru dojít, jinak zpráva vyzve k opakování. Část řádku delší než 32 MiB před výběrem se nečte a výběr se barví od svého začátku. Když se barvy na začátku řádku zjistit nedají (před ním leží řádek příliš dlouhý k obarvení, téma Velké soubory (stránkovaný režim)), gramatika se na tom řádku bere jako čerstvě začínající.
 - Text nad 8388608 znaků se odmítne zprávou, označte jeho část. Mez je placeholder, není rozhodnutá hodnota. Práce běží na pozadí, okno zůstává použitelné.
 - HTML je UTF-8. RTF je ASCII: zpětné lomítko, složené závorky a každý znak mimo ASCII (například česká písmena s diakritikou) se zapíšou jako escape.
@@ -1459,7 +1459,7 @@ Plugin, který nejde nainstalovat nebo neběží, se ohlásí v dialogu, v lišt
 ## [errors.agents] Chybová hlášení: MCP, /ide a agenti
 Hlášení serveru MCP, mostu /ide a agentů se objevují ve stavovém řádku, v dialozích a v panelu agenta. Každý řádek cituje hlášení a říká, co dělat. Nic se na vaše karty nepoužije bez vašeho potvrzení, takže nezdařený krok je nechá, jak byly.
 - Server MCP se nepodařilo spustit: důvod. Odstraňte důvod a zvolte Server MCP znovu. Zatím se nic nesdílí.
-- Nejdřív zapněte server MCP (Nástroje, Server MCP). Server zapněte a kartu pak sdílejte znovu (téma Editor jako server MCP).
+- Nejdřív zapněte server MCP (Nástroje, Agenti a AI, MCP, Server MCP). Server zapněte a kartu pak sdílejte znovu (téma Editor jako server MCP).
 - Tuto kartu nelze sdílet. Sdílet jde jen textové karty. Porovnání ani seznam výsledků hledání ne.
 - Výběr je větší než N B. Vyberte méně, nebo sdílejte celou kartu. Vyberte méně, nebo sdílejte celou kartu.
 - Most /ide se nepodařilo spustit: důvod. Odstraňte důvod a zvolte Most /ide znovu.
@@ -1487,7 +1487,7 @@ Hlášení serveru MCP, mostu /ide a agentů se objevují ve stavovém řádku, 
 - název nenabízí žádné nástroje ani zdroje dat. Server odpověděl, ale nenabízí nic k volání. Zkontrolujte jeho nastavení v souboru jeho agenta.
 - nástroj hlásí chybu, její text je v nové kartě. Volání server dostal a server hlásí chybu. Přečtěte si text v nové kartě a nástroj zavolejte znovu s jinými argumenty.
 - Hodnotu název se nepodařilo uložit (důvod); použije se jen pro toto spojení. Další připojení se na hodnotu zeptá znovu. Odstraňte příčinu uvedenou v důvodu.
-- Most /ide tohoto okna je vypnutý. Zapnete ho v nabídce Nástroje, Most /ide. Potom příkaz zopakujte (téma Most /ide pro Claude Code).
+- Most /ide tohoto okna je vypnutý. Zapnete ho v nabídce Nástroje, Agenti a AI, MCP, Most /ide. Potom příkaz zopakujte (téma Most /ide pro Claude Code).
 - agent verze N (tabulka uvádí M). Je to poznámka v panelu agenta, ne chyba: agent se přesto spustí, ale tato verze není ověřená (téma Agent přes ACP).
 - agent: verzi se nepodařilo zjistit (důvod). Neověřeno. I to je poznámka v panelu agenta: agent se přesto spustí, ale jeho verze není ověřená.
 
@@ -1501,8 +1501,8 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 - Uloženo bez formátování: důvod. Soubor se uložil, jak byl. Odstraňte důvod a uložte znovu, nebo formátování vypněte (téma Akce při uložení: formátovat, spustit nástroj, nahrát).
 - Nástroj ještě nebyl potvrzen; spusťte ho jednou ručně přes Spustit nástroj. Spusťte nástroj jednou příkazem Spustit nástroj a potvrďte jeho příkaz a složku; pak může běžet při uložení.
 - Nahrávání souborů z folder na název není povolené; uložte soubor projektu ručně a povolte ho. Uložte soubor projektu ručně: program se zeptá a nahrávání pro ten projekt můžete povolit.
-- Dotazy na registr nejsou možné: nejsou povoleny. Zvolte Nástroje, Balíčky, Zkontrolovat verze balíčků a pro registr souhlaste. Je-li příčinou síťová proxy, kontrola řekne, co dělat: proxy žádá přihlášení, odmítla uložené přihlášení, uživatelské jméno nemá uložené heslo nebo nelze přečíst síťové nastavení (téma Síťová proxy).
-- schéma název: stažení není povoleno. Zvolte Nástroje, Balíčky, Povolit stažení schématu a pro server souhlaste (téma Schémata pro JSON, YAML a TOML: kontrola, doplňování a popisy).
+- Dotazy na registr nejsou možné: nejsou povoleny. Zvolte Nástroje, Data a schémata, Zkontrolovat verze balíčků a pro registr souhlaste. Je-li příčinou síťová proxy, kontrola řekne, co dělat: proxy žádá přihlášení, odmítla uložené přihlášení, uživatelské jméno nemá uložené heslo nebo nelze přečíst síťové nastavení (téma Síťová proxy).
+- schéma název: stažení není povoleno. Zvolte Nástroje, Data a schémata, Povolit stažení schématu a pro server souhlaste (téma Schémata pro JSON, YAML a TOML: kontrola, doplňování a popisy).
 - Vedle otevřeného souboru ani v nadřazených složkách není Makefile. Otevřete soubor ve složce, která má Makefile, nebo přímo Makefile (téma Makefile: spuštění cíle).
 - Jazykový server pracuje jen s textovými dokumenty, ne s velkými soubory zobrazenými po stránkách. Soubor ve stránkovaném režimu se jazykovému serveru nikdy nepředá (téma Velké soubory (stránkovaný režim)).
 - Jazykový server pro jazyk nebyl nalezen: program. Nainstalujte server tak, aby se jeho program našel v PATH nebo ve složce projektu, nebo nastavte jeho cestu jako „lsp:“ a jazyk v toolPaths v saveActions.json (téma Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika).
@@ -1540,7 +1540,7 @@ Nápověda popisuje jen to, co tato verze umí. Tyto věci v ní nejsou a tady j
 ## [edit.clips] Klipy
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.clips.editProjectVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
 Klip je kus textu s místy pro proměnné a kurzory. Klipy dodávají datové pluginy ve složce plugins v profilu; jeden podadresář na plugin, se souborem nkspad-plugin.json a bez programu.
-1. Zvolte Úpravy, Vložit, Vložit klip. Seznam ukazuje klipy s náhledem textu, který by se vložil.
+1. Zvolte Úpravy, Vkládání, Vložit klip. Seznam ukazuje klipy s náhledem textu, který by se vložil.
 2. Vyberte klip. Má-li formulář, vyplňte ho: náhled sleduje, co píšete, špatná hodnota je označená a OK zůstane zašedlé, dokud každá hodnota nesedí k svému typu.
 3. Text se vloží do každého kurzoru a nahradí každý výběr, jako jeden krok Zpět. Kurzory skončí tam, kde má klip značku $|.
 - Uložit výběr jako klip se zeptá na název a přidá označený text do vaší vlastní knihovny (plugin user.clips, složka user-clips). Text se uloží doslova, takže dolar v něm zůstane dolarem. Klip je v seznamu hned.
@@ -1549,8 +1549,8 @@ Klip je kus textu s místy pro proměnné a kurzory. Klipy dodávají datové pl
 - Řádky snippetu za prvním dostanou odsazení řádku, na kterém snippet začíná; tabulátory v jeho vlastním odsazení se změní na odsazení dokumentu (tabulátory nebo mezery). Klip bez číslovaných míst se vkládá tak, jak je.
 - Ve snippetu $| není kurzor a dolar před číslicí je zástupné místo: dolar napište $$ nebo \$. Kromě ${name} fungují proměnné TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID a CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (i jako $NAME). Text, který do syntaxe nezapadá, zůstane, jak je.
 - Výchozí text může obsahovat další zástupná místa: ${1:for (${2:i} = 0)}. Tab navštěvuje místa jako obvykle podle čísel; místo, které další obsahuje, se upravuje tam, kde stojí, a ostatní výskyty jeho čísla ukazují text beze změny. Transformace ukáže místo se změněným textem: ${1/regex/formát/volby} pro zástupné místo (výskyt sleduje, co píšete do místa 1) a ${NAME/regex/formát/volby} pro proměnnou. Formát má $1, ${1:/upcase}, ${1:/downcase}, ${1:/capitalize}, ${1:/camelcase}, ${1:/pascalcase}, ${1:+text když}, ${1:?text když:text jinak} a ${1:-text jinak}; volby jsou g (každá shoda, jinak jen první), i, m a s. Lomítko v regulárním výrazu i ve formátu napište \/; výraz má syntaxi .NET. Místa vnořená hlouběji, než povoluje limit, zůstanou jako text; snippet, který přeroste limit délky nebo jehož transformace běží příliš dlouho, se odmítne se zprávou.
-- Odkud proměnná bere hodnotu, od nejsilnějšího: 1. hodnota napsaná ve formuláři klipu, 2. proměnné projektu, 3. vaše vlastní proměnné (Úpravy, Vložit, Upravit uživatelské proměnné otevře soubor variables.json v profilu: jeden objekt JSON se jménem a textem), 4. vestavěné. Stejné jméno dá stejnou hodnotu v klipu, receptu i externím nástroji.
-- Proměnné projektu: Úpravy, Vložit, Upravit proměnné projektu otevře soubor .textida/variables.json projektu otevřeného souboru, ve stejném tvaru jako variables.json v profilu. Projekt je nejbližší složka nad souborem, která takový soubor má; když žádná nemá, soubor se vytvoří v nejbližší složce se složkou .textida nebo .git. Jeho jména platí jen pro soubory toho projektu a mají přednost před vašimi proměnnými stejného jména. Poškozený soubor zastaví klipy, recepty i nástroje v tom projektu a jmenuje se ve zprávě. Externí nástroj, jehož příkaz používá proměnnou projektu, se po změně její hodnoty ptá na potvrzení znovu, stejně jako po změně definice.
+- Odkud proměnná bere hodnotu, od nejsilnějšího: 1. hodnota napsaná ve formuláři klipu, 2. proměnné projektu, 3. vaše vlastní proměnné (Úpravy, Vkládání, Upravit uživatelské proměnné otevře soubor variables.json v profilu: jeden objekt JSON se jménem a textem), 4. vestavěné. Stejné jméno dá stejnou hodnotu v klipu, receptu i externím nástroji.
+- Proměnné projektu: Úpravy, Vkládání, Upravit proměnné projektu otevře soubor .textida/variables.json projektu otevřeného souboru, ve stejném tvaru jako variables.json v profilu. Projekt je nejbližší složka nad souborem, která takový soubor má; když žádná nemá, soubor se vytvoří v nejbližší složce se složkou .textida nebo .git. Jeho jména platí jen pro soubory toho projektu a mají přednost před vašimi proměnnými stejného jména. Poškozený soubor zastaví klipy, recepty i nástroje v tom projektu a jmenuje se ve zprávě. Externí nástroj, jehož příkaz používá proměnnou projektu, se po změně její hodnoty ptá na potvrzení znovu, stejně jako po změně definice.
 - Vestavěné proměnné: file.path, file.dir, file.name, file.base, file.ext (neuložený dokument file.* nemá), date (rrrr-MM-dd), time (HH:mm:ss), datetime (nastavení Formát data a času), guid (pro každý kurzor nový), selection (text vybraný u tohoto kurzoru), user.name. Jméno bez hodnoty vložení zastaví a stavový řádek ho vypíše.
 - Pole formuláře: name, label, type, default, choices, required. Typy: text, integer (celé číslo), number (desetinná tečka), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (rrrr-MM-dd), file (existující soubor), choice (jedna z hodnot choices). Výchozí hodnota smí používat proměnné, třeba ${date}.
 - V nkspad-plugin.json je klip {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} v contributes.clips; klip s "command" dostane i příkaz toho jména.
@@ -1614,7 +1614,7 @@ Uložený recept se pustí znovu nad jinou sadou souborů. Každou změnu uvidí
 ## [edit.aiContext] Kopírovat jako kontext pro AI
 commands: nks.edit.copyAiContext
 Vloží do schránky výběr, soubor, otevřené karty nebo otevřenou složku jako jeden blok v Markdownu nebo XML, který vložíte do AI asistenta. Nic se nikam neposílá.
-1. Zvolte Úpravy, Kopírovat jako kontext pro AI a vyberte, co kopírovat: Výběr (všechny výběry), Tento soubor, Otevřené karty nebo Otevřenou složku.
+1. Zvolte Úpravy, Schránka, Kopírovat jako kontext pro AI a vyberte, co kopírovat: Výběr (všechny výběry), Tento soubor, Otevřené karty nebo Otevřenou složku.
 2. Náhled ukáže, kolik souborů se vloží, velikost jako Markdown a jako XML a co bylo vynecháno s důvodem. Zvolte Kopírovat jako Markdown nebo Kopírovat jako XML.
 - U každého souboru je cesta, řádky, jazyk, kódování a revize. Soubor s neuloženými změnami je označen a text je ten, který je teď v editoru.
 - Vynecháno a pojmenováno: soubory .env (jejich hodnoty se nikdy nekopírují, ani když jsou v editoru zobrazené), soubory a složky vyřazené soubory ignorování, skryté, binární soubory, soubory nad limitem velikosti při procházení složky a soubory, které nejdou přečíst.
@@ -1635,8 +1635,8 @@ commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nk
 commands: nks.tools.emmetPreview, nks.tools.emmetWrap
 1. V souboru HTML nebo CSS napište zkratku a stiskněte Tab. Z `ul>li*3` vznikne seznam o třech položkách s kurzorem v první z nich; každý další Tab skočí na další položku.
 2. Tab odsazuje jako dřív, když před kurzorem žádná zkratka není, když je něco označeno, když je kurzor uvnitř otevřené značky nebo když zkratka není platná.
-3. Nástroje, Struktura a jazyk, Náhled zkratky Emmet ukáže, čím by zkratka před kurzorem byla (`|` označuje místa, kam Tab skáče), a po potvrzení ji rozbalí.
-4. Nástroje, Struktura a jazyk, Obalit zkratkou Emmet (jen HTML) se zeptá na zkratku a obalí jí každý výběr. Text přijde do nejvnitřnějšího posledního prvku; holá `*` na tom prvku (`ul>li*`) udělá jeden prvek na řádek.
+3. Nástroje, Kód a jazyk, Náhled zkratky Emmet ukáže, čím by zkratka před kurzorem byla (`|` označuje místa, kam Tab skáče), a po potvrzení ji rozbalí.
+4. Nástroje, Kód a jazyk, Obalit zkratkou Emmet (jen HTML) se zeptá na zkratku a obalí jí každý výběr. Text přijde do nejvnitřnějšího posledního prvku; holá `*` na tom prvku (`ul>li*`) udělá jeden prvek na řádek.
 5. Každé rozbalení jde do všech kurzorů najednou a je jeden krok Zpět.
 - HTML: `name#id.class[attr=value]{text}*3`; `>` potomek, `+` sourozenec, `^` o úroveň výš, `( )` skupina; v názvech, třídách a textu je `$` číslo opakování (`$$` doplní nuly, `$@-` počítá dolů, `$@3` začíná od 3). Samotné slovo se rozbalí, jen když je to název značky HTML nebo krátký název z pluginu (`bq`, `btn`, `a:link`, `input:checkbox`, `!` pro kostru stránky). Uvnitř prvku se chybějící název doplní na `li`, `tr`, `td`, `option`, `span` nebo `div`, podle rodiče.
 - CSS: `m10-20` je `margin: 10px 20px;`, `w100p` je `width: 100%;`, `c#f00`, `pos:a`, `dn`, koncový `!` přidá `!important`, `+` spojí víc deklarací. Celé číslo dostane `px`, zlomek `em`; písmena `p`, `e`, `x`, `r` za číslem znamenají `%`, `em`, `ex`, `rem`. Funguje jen uvnitř bloku `{ }`.
@@ -1666,10 +1666,10 @@ commands: nks.git.status, nks.git.diffIndex, nks.git.diffHead, nks.git.stageHunk
 
 ## [tools.lsp] Jazykový server: definice, odkazy, přejmenování, doplňování a diagnostika
 commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp.rename, nks.lsp.restart, nks.lsp.stop
-1. Otevřete textový dokument a zvolte Nástroje, Jazykový server, Jazykový server: spustit pro tento dokument. Spustí se server pro jazyk dokumentu a dostane jeho text. Od té chvíle mu jde každá úprava a to, co server označí za chybu, se podtrhne.
+1. Otevřete textový dokument a zvolte Nástroje, Kód a jazyk, Jazykový server, Jazykový server: spustit pro tento dokument. Spustí se server pro jazyk dokumentu a dostane jeho text. Od té chvíle mu jde každá úprava a to, co server označí za chybu, se podtrhne.
 2. Jazykový server: přejít na definici skočí na definici slova pod kurzorem, i do jiného souboru. Jazykový server: najít odkazy vypíše všechna místa v panelu vlevo; Enter nebo dvojklik na položku ji otevře.
 3. Jazykový server: přejmenovat symbol se zeptá na nový název slova pod kurzorem. Změny serveru ve všech souborech, včetně vytvoření, přejmenování a smazání souborů, které žádá, se ukážou společně v náhledu změn; co přijmete, se použije jako jeden krok. Nový soubor se ukáže prvními řádky jako přidaný text. Karta otevřeného souboru se při přejmenování přesune s ním; karta smazaného souboru se zavře, a má-li neuložené změny, editor se zeptá, zda ji zavřít, nebo nechat otevřenou. Soubor otevřený v jiné kartě se změní přes tuto kartu, jako další krok její historie Zpět, když karta nemá neuložené změny; s neuloženými změnami se přejmenování odmítne celé s upozorněním a nic se nezmění.
-4. Ctrl+J (Úpravy, Vložit, Doplnit slovo nebo klip) nabídne i to, co běžící server nabízí u kurzoru. Výběr takové položky provede ve stejném kroku Zpět i další změny, které server žádá, třeba přidání importu. Odpověď, která přijde po změně textu, se nezobrazí.
+4. Ctrl+J (Úpravy, Vkládání, Doplnit slovo nebo klip) nabídne i to, co běžící server nabízí u kurzoru. Výběr takové položky provede ve stejném kroku Zpět i další změny, které server žádá, třeba přidání importu. Odpověď, která přijde po změně textu, se nezobrazí.
 5. Když server skončí sám, upozornění to oznámí a podtržení, která nakreslil, zmizí. Editor ho pak spustí znovu sám, po čekání, které je s každým pokusem delší, a předá mu všechny otevřené dokumenty tak, jak jsou teď. Po několika pokusech za sebou to vzdá a upozornění to oznámí; server, který před koncem nějakou dobu běžel, dostane pokusy zpět. Jazykový server: restartovat (nebo jiný příkaz této skupiny) ho spustí hned, i když to editor vzdal. Jazykový server: zastavit ho vypne a zruší čekající spuštění. Restart i zastavení platí pro server projektu, do kterého patří aktuální dokument; servery jiných projektů běží dál.
 - Editor žádný server sám nespouští: dokud nezvolíte první příkaz této skupiny, nic neběží a server o souboru nic neví.
 - Velké soubory zobrazené po stránkách a soubory nad limitem velikosti se serveru nikdy nepředají.
@@ -1693,7 +1693,7 @@ commands: nks.lsp.start, nks.lsp.goToDefinition, nks.lsp.findReferences, nks.lsp
 
 ## [edit.complete] Doplňování slov a klipů
 commands: nks.edit.complete
-1. Stiskněte Ctrl+J (Úpravy, Vložit, Doplnit slovo nebo klip). Seznam nabídne slova, která pokračují slovo před kurzorem, a pak klipy, které se hodí pro jazyk dokumentu.
+1. Stiskněte Ctrl+J (Úpravy, Vkládání, Doplnit slovo nebo klip). Seznam nabídne slova, která pokračují slovo před kurzorem, a pak klipy, které se hodí pro jazyk dokumentu.
 2. Vyberte položku. Slovo nahradí slovo před každým kurzorem; klip se vloží jako v tématu Klipy a nahradí toto slovo. Je to jeden krok Zpět.
 - Slova se berou ze všech otevřených textových karet. Slovo, které právě píšete, se nenabízí, a slovo se nabízí, jen když je delší než napsaný začátek. Nejdřív jdou slova z upravovaného dokumentu, z nich ta nejblíž kurzoru (v omezeném počtu znaků na každou stranu), pak ta častější.
 - Klipy jsou z knihovny z tématu Klipy. Klip bez jazyka se hodí do každého dokumentu; klip s jazykem jen do dokumentů toho jazyka.
@@ -1702,9 +1702,9 @@ commands: nks.edit.complete
 
 ## [edit.sql] SQL: dialekt a formátování
 commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
-1. Úpravy, Formátování, Formátovat SQL uspořádá výběry, nebo celý soubor, když nic není vybráno: klauzule na samostatném řádku, každá položka výběru na řádku, poddotazy odsazené, klíčová slova jedním typem písma. Je to jeden krok zpět a nic mimo výběr se nezmění.
-2. Úpravy, Formátování, Náhled formátování SQL ukáže stejný výsledek nejdřív v náhledu změn.
-3. Dialekt určuje barvy a to, která slova jsou klíčová. Platí první nastavený z těchto: Nástroje, Struktura a jazyk, Dialekt SQL (jen tento soubor); `sql_dialect = mysql` v souboru `.editorconfig` (každý soubor SQL v té složce a pod ní); nastavení Výchozí dialekt SQL. Bez nich je dialekt Generic a nic se nehlásí jako chyba.
+1. Formát, Formátovat kód a data, Formátovat SQL uspořádá výběry, nebo celý soubor, když nic není vybráno: klauzule na samostatném řádku, každá položka výběru na řádku, poddotazy odsazené, klíčová slova jedním typem písma. Je to jeden krok zpět a nic mimo výběr se nezmění.
+2. Formát, Formátovat kód a data, Náhled formátování SQL ukáže stejný výsledek nejdřív v náhledu změn.
+3. Dialekt určuje barvy a to, která slova jsou klíčová. Platí první nastavený z těchto: Nástroje, Kód a jazyk, Dialekt SQL (jen tento soubor); `sql_dialect = mysql` v souboru `.editorconfig` (každý soubor SQL v té složce a pod ní); nastavení Výchozí dialekt SQL. Bez nich je dialekt Generic a nic se nehlásí jako chyba.
 - Dialekty: generic, mysql, postgres, sqlite, tsql. Editor se k žádné databázi nepřipojuje.
 - Řetězce, uvozené názvy a komentáře se opíšou beze změny. Další formátování výsledku nic nezmění.
 - Výběr větší než limit pluginu se odmítne se zprávou.
@@ -1712,15 +1712,15 @@ commands: nks.edit.formatSql, nks.edit.previewFormatSql, nks.tools.sqlDialect
 
 ## [edit.html] HTML: entity a HTML Tidy
 commands: nks.edit.htmlEncode, nks.edit.htmlEncodeAll, nks.edit.htmlDecode, nks.edit.htmlTidy, nks.edit.htmlCloseTag, nks.edit.htmlMatchTag, nks.edit.htmlSelectElement, nks.edit.htmlRemoveTag, nks.edit.htmlWrapTag, nks.edit.htmlStripTags, nks.edit.htmlInsertImage, nks.edit.htmlInsertLink
-1. Úpravy, Formátování, Převést na entity HTML nahradí v označených částech (v celém souboru, když nic není vybráno) znaky & < > " ' entitami. Převést z entit HTML přečte pojmenované, desítkové i šestnáctkové entity zpět. Zakódovaný text převedený zpět dá původní text. Každé je jeden krok zpět.
-2. Úpravy, Formátování, Formátovat pomocí HTML Tidy pošle HTML programu HTML Tidy a výsledek ukáže v náhledu změn. Zprávy Tidy jdou do okna výstupu.
+1. HTML, Převést na entity HTML nahradí v označených částech (v celém souboru, když nic není vybráno) znaky & < > " ' entitami. Převést z entit HTML přečte pojmenované, desítkové i šestnáctkové entity zpět. Zakódovaný text převedený zpět dá původní text. Každé je jeden krok zpět.
+2. Formát, Formátovat kód a data, Formátovat pomocí HTML Tidy pošle HTML programu HTML Tidy a výsledek ukáže v náhledu změn. Zprávy Tidy jdou do okna výstupu.
 3. Tidy je samostatný program. Editor ho hledá na cestě z nastavení Program HTML Tidy, ve složce `tidy` vedle pluginu formátovačů, ve složce `tools/tidy` aplikace a ve složkách z PATH. Když ho nenajde, zpráva vypíše všechna místa.
 - Tidy není součástí tohoto sestavení: nainstalujte ho a nastavte cestu, nebo ho dejte na některé z těch míst.
 - Čísla řádků ve zprávách se počítají od začátku textu, který se Tidy poslal.
 - Převést na entity HTML včetně znaků mimo ASCII zapíše i každý znak mimo ASCII jako číselnou entitu (`&#233;`); převod zpět dá text zase.
-4. Nástroje pro tagy (soubory HTML, XML a PHP): Úpravy, Formátování, Zavřít otevřený tag zapíše koncový tag nejbližšího tagu, který je u kurzoru ještě otevřený. Přejít na protější tag přesune kurzor k protějšku tagu u kurzoru. Vybrat element vybere element kolem výběru; opakováním se vybere další nadřazený. Odstranit tag smaže počáteční a koncový tag elementu u kurzoru a obsah nechá. Obalit tagem se zeptá na název a obalí jím každý výběr. Odstranit všechny tagy smaže z označených částí všechny tagy a komentáře (z celého souboru, když nic není vybráno).
+4. Nástroje pro tagy (soubory HTML, XML a PHP): HTML, Zavřít otevřený tag zapíše koncový tag nejbližšího tagu, který je u kurzoru ještě otevřený. Přejít na protější tag přesune kurzor k protějšku tagu u kurzoru. Vybrat element vybere element kolem výběru; opakováním se vybere další nadřazený. Odstranit tag smaže počáteční a koncový tag elementu u kurzoru a obsah nechá. Obalit tagem se zeptá na název a obalí jím každý výběr. Odstranit všechny tagy smaže z označených částí všechny tagy a komentáře (z celého souboru, když nic není vybráno).
 - Tagy se párují podle vnoření. Komentáře a obsah `script` a `style` tagy neobsahují. Nepovinné koncové tagy HTML (`li`, `p`) se nedomýšlejí, takový tag se tedy počítá jako otevřený.
-5. Úpravy, Formátování, Vložit obrázek se zeptá na soubor s obrázkem a na místo každého výběru zapíše `<img src="…" width="…" height="…" alt="">`. Adresa je vzhledem k dokumentu (soubor na jiném disku nebo neuložený dokument dostane adresu `file:///`). Šířka a výška se čtou z hlavičky souborů PNG, GIF, JPEG, BMP a WebP; u jiného souboru, třeba SVG, tag rozměr nemá. Vybraný text na jednom řádku se stane alternativním textem; když nic není vybráno, kurzor stojí v prázdném alt.
+5. HTML, Vložit obrázek se zeptá na soubor s obrázkem a na místo každého výběru zapíše `<img src="…" width="…" height="…" alt="">`. Adresa je vzhledem k dokumentu (soubor na jiném disku nebo neuložený dokument dostane adresu `file:///`). Šířka a výška se čtou z hlavičky souborů PNG, GIF, JPEG, BMP a WebP; u jiného souboru, třeba SVG, tag rozměr nemá. Vybraný text na jednom řádku se stane alternativním textem; když nic není vybráno, kurzor stojí v prázdném alt.
 6. Vložit odkaz se zeptá na adresu a kolem každého výběru zapíše `<a href="…">`. Když nic není vybráno, odkaz ukáže adresu, nebo u souboru s obrázkem obrázek s šířkou a výškou. Adresa, která je cestou k existujícímu souboru, se zapíše vzhledem k dokumentu.
 
 ## [help.language] Nápověda k jazyku
@@ -1735,8 +1735,8 @@ commands: nks.help.languageHelp
 ## [table.view] Tabulka pro CSV a TSV
 commands: nks.view.table, nks.table.dialect
 Soubor CSV nebo TSV lze zobrazit jako tabulku: jeden řádek souboru je jeden řádek tabulky, jedno pole je jedna buňka. Je to týž dokument jako v textovém zobrazení, se stejnou historií Zpět; nic se nepřevádí a úprava buňky změní jen bajty té buňky.
-1. Ctrl+K a pak Ctrl+T (nabídka Zobrazení, Přepnout tabulku a text) přepíná mezi tabulkou a textem. Soubor .tsv nebo .tab se dělí podle tabulátorů, ostatní soubory podle čárek.
-2. Zobrazení, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona). Buňka v uvozovkách se zalomením řádku patří ke svému řádku a řádek utržený koncem prozkoumané části dlouhého souboru se vynechá.
+1. Ctrl+K a pak Ctrl+T (nabídka Zobrazit, Režim zobrazení, Přepnout tabulku a text) přepíná mezi tabulkou a textem. Soubor .tsv nebo .tab se dělí podle tabulátorů, ostatní soubory podle čárek.
+2. Zobrazit, Tabulka, Oddělovač a záhlaví tabulky vybere čárku, středník, tabulátor nebo svislítko jako oddělovač, zda uvozovky ohraničují hodnoty a zda je první řádek záhlaví. Dokud nevyberete, oddělovač se pozná z prvních řádků souboru (když jsou nejasné, rozhodne přípona). Buňka v uvozovkách se zalomením řádku patří ke svému řádku a řádek utržený koncem prozkoumané části dlouhého souboru se vynechá.
 - Velký soubor se otevře hned: řádky se počítají na pozadí a rozsah posuvníku roste, jak se soubor čte. Než se dojde na konec, stavový řádek ukazuje počet řádků s plusem, například 12+.
 - Šipky, Tab, PageUp a PageDown, Home a End (v rámci řádku), Ctrl+Home a Ctrl+End přesouvají aktuální buňku; Shift rozšiřuje výběr. Klepnutí na záhlaví sloupce vybere sloupec, klepnutí na číslo řádku vybere řádek.
 - Buňka v uvozovkách může obsahovat zalomení řádku; tabulka ukáže její první řádek a značku ↵.
@@ -1745,17 +1745,17 @@ Soubor CSV nebo TSV lze zobrazit jako tabulku: jeden řádek souboru je jeden ř
 ## [table.edit] Tabulka: úpravy a filtr
 commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.table.deleteColumn, nks.table.filter, nks.table.clearFilter
 1. Enter nebo F2 (nebo prostě psaní) upraví aktuální buňku. Enter uloží a posune se dolů, Shift+Enter vloží zalomení řádku, Esc zruší. Buňka, která byla v uvozovkách, v nich zůstane; jiná hodnota se uvede do uvozovek jen tehdy, když obsahuje oddělovač, uvozovku nebo zalomení řádku.
-2. Zobrazení, Vložit řádek přidá prázdný řádek za aktuální. Vložit sloupec se zeptá na název sloupce a přidá ho za aktuální. Smazat řádek a Smazat sloupec odstraní vybrané řádky nebo sloupce. Každá akce je jeden krok Zpět.
-3. Zobrazení, Filtrovat řádky ukáže jen řádky, jejichž aktuální sloupec obsahuje zadaný text (na velikosti písmen nezáleží). Zrušit filtr ukáže všechny řádky. Filtr soubor nikdy nemění a čísla řádků zůstávají čísly řádků v souboru.
+2. Zobrazit, Tabulka, Vložit řádek přidá prázdný řádek za aktuální. Vložit sloupec se zeptá na název sloupce a přidá ho za aktuální. Smazat řádek a Smazat sloupec odstraní vybrané řádky nebo sloupce. Každá akce je jeden krok Zpět.
+3. Zobrazit, Tabulka, Filtrovat řádky ukáže jen řádky, jejichž aktuální sloupec obsahuje zadaný text (na velikosti písmen nezáleží). Zrušit filtr ukáže všechny řádky. Filtr soubor nikdy nemění a čísla řádků zůstávají čísly řádků v souboru.
 - Delete vymaže vybrané buňky. Krátký řádek dostane chybějící oddělovače, když se vyplní buňka za jeho koncem.
 - Když je znak uvozovek vypnutý v Oddělovač a záhlaví tabulky, hodnota s oddělovačem nebo zalomením řádku se odmítne.
 - Dokud je zapnutý filtr, nelze přidat řádek.
 
 ## [table.copyAs] Kopírování buněk jako Markdown, SQL, JSON nebo HTML
 commands: nks.table.copyAs
-Označte buňky v tabulkovém pohledu a zvolte Zobrazení, Kopírovat tabulku jako a pak podobu. Do schránky se uloží označené sloupce a řádky v té podobě.
+Označte buňky v tabulkovém pohledu a zvolte Zobrazit, Tabulka, Kopírovat tabulku jako a pak podobu. Do schránky se uloží označené sloupce a řádky v té podobě.
 1. Otevřete soubor CSV nebo TSV v tabulkovém pohledu (téma Tabulka pro CSV a TSV) a označte buňky.
-2. Zvolte Zobrazení, Tabulka, Kopírovat tabulku jako a pak Tabulka Markdown, SQL INSERT, JSON nebo Tabulka HTML. SQL INSERT se nejdřív zeptá na název tabulky.
+2. Zvolte Zobrazit, Tabulka, Kopírovat tabulku jako a pak Tabulka Markdown, SQL INSERT, JSON nebo Tabulka HTML. SQL INSERT se nejdřív zeptá na název tabulky.
 3. Stavový řádek podobu pojmenuje, například Vybrané buňky jsou zkopírované jako Tabulka Markdown. Vložte je tam, kde je potřebujete.
 - Tabulka Markdown: tabulka s oddělovači svislítek, se záhlavím (nebo s písmeny sloupců A, B, ... bez záhlaví). Zvláštní znaky, například svislítko, zpětné lomítko, hvězdičky, podtržítka a špičaté závorky, dostanou zpětné lomítko a konec řádku v buňce se změní na `<br>`.
 - SQL INSERT: jeden příkaz na řádek, hodnoty jako text v jednoduchých uvozovkách (uvozovka se zdvojí). Názvy sloupců jsou ze záhlaví. Program se zeptá na název tabulky, nabídne název souboru.
@@ -1770,7 +1770,7 @@ Označte buňky v tabulkovém pohledu a zvolte Zobrazení, Kopírovat tabulku ja
 
 ## [table.region] Úprava vybraného textu jako tabulky
 commands: nks.table.editRegion
-Vyberte část textu, například blok řádků oddělených čárkami v poznámce nebo v logu, a zvolte Zobrazení, Upravit výběr jako tabulku.
+Vyberte část textu, například blok řádků oddělených čárkami v poznámce nebo v logu, a zvolte Zobrazit, Tabulka, Upravit výběr jako tabulku.
 1. Dialog se zeptá na oddělovač (čárka, středník, tabulátor nebo svislítko), zda uvozovky ohraničují hodnoty a zda je první vybraný řádek záhlaví. Náhled ukáže první řádky jako buňky.
 2. Vybraný text se stane tabulkou. Zbytek souboru zůstane textem: úprava buňky změní jen bajty té buňky a nic mimo výběr se nečte ani nemění.
 - Funguje v něm vše z tabulky: pohyb, úpravy, přidávání a mazání řádků a sloupců, filtr, kopírování a vkládání. Stavový řádek říká, že tabulkou je jen vybraný text.
@@ -1779,19 +1779,19 @@ Vyberte část textu, například blok řádků oddělených čárkami v poznám
 ## [compare.text] Porovnání textů
 commands: nks.compare.clipboard, nks.compare.file, nks.compare.texts, nks.compare.ignoreWhitespace, nks.compare.ignoreCase, nks.compare.action1, nks.compare.action2, nks.compare.action3, nks.compare.action4
 Dva texty se porovnají po řádcích v samostatné kartě. Stejné řádky stojí proti sobě, změněný blok je na obou stranách podbarvený a označený ve střední liště a lišta nahoře říká, kolik je rozdílů.
-1. Porovnat se schránkou (menu Nástroje nebo místní nabídka editoru) porovná kartu s textem ve schránce. Je-li v editoru vybraný text, porovná se jen výběr.
+1. Porovnat se schránkou (menu Nástroje, Porovnání nebo místní nabídka editoru) porovná kartu s textem ve schránce. Je-li v editoru vybraný text, porovná se jen výběr.
 2. Porovnat se souborem se zeptá na soubor a porovná s ním kartu. Porovnat s diskem je v menu Soubor a porovná kartu s jejím souborem.
 3. Porovnat dva texty otevře dvě prázdné strany. Tlačítka Vložit levý text a Vložit pravý text vloží do strany obsah schránky.
 - Z příkazového řádku otevře textida --diff levý pravý porovnání dvou souborů: levý soubor se otevře v kartě a může přijímat bloky z pravého, který je jen pro čtení.
 - Zásuvný modul může otevřít porovnání libovolných dvou zdrojů (revize dokumentu, soubor, virtuální dokument nebo text, který sám dodá) a přidat do něj tlačítka (Git přidává Připravit úsek a Vrátit úsek z indexu). Tlačítko působí na rozdíl, na kterém karta stojí. Z klávesnice stiskněte číslici 1 až 9, když má porovnání fokus (tip tlačítka říká, jakou klávesu má), nebo použijte příkazy Porovnání: první až čtvrtá akce zásuvného modulu v nabídce Nástroje. Tlačítka fungují, dokud se dokumenty a soubory porovnání od jeho vzniku nezměnily; jinak porovnání otevřete znovu. Když zásuvný modul porovnání obnoví, nová karta převezme místo staré a zůstane na stejném rozdílu. Strana větší, než editor zásuvným modulům dovolí, se odmítne.
 - Strana s kartou je samotný dokument: když se změní, porovná se znovu po krátké pauze. Schránka, výběr a soubor na disku jsou strany jen pro čtení.
-- Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano, dokud v menu Nástroje a Porovnání nezapnete Nerozlišovat mezery nebo Nerozlišovat velikost písmen. Pak jsou stejné řádky, které se liší jen mezerami a tabulátory (kdekoli v řádku), nebo jen velikostí písmen. Volba platí pro všechna porovnání, otevřená se hned porovnají znovu a lišta nahoře ji připomene. Stejné řádky se pak nepodbarví, i když se v mezerách liší, a Kopírovat doleva i doprava přenáší řádky tak, jak jsou.
+- Jiný konec řádku (CR, LF, CRLF) řádek nezmění. Mezery a velikost písmen ano, dokud v menu Nástroje, Porovnání nezapnete Nerozlišovat mezery nebo Nerozlišovat velikost písmen. Pak jsou stejné řádky, které se liší jen mezerami a tabulátory (kdekoli v řádku), nebo jen velikostí písmen. Volba platí pro všechna porovnání, otevřená se hned porovnají znovu a lišta nahoře ji připomene. Stejné řádky se pak nepodbarví, i když se v mezerách liší, a Kopírovat doleva i doprava přenáší řádky tak, jak jsou.
 - Velký soubor ve stránkovaném režimu se porovnává bez načtení: čtou se jen řádky na obrazovce.
 - Každá strana může mít mezi společným začátkem a společným koncem až 16 milionů řádků; víc je jeden změněný blok. Až 10 000 změněných řádků se najde přesně; při větším počtu lišta napíše, že výsledek není minimální, a změněné řádky se sloučí do větších bloků. Výsledek je pořád správný.
 
 ## [compare.navigate] Přechod mezi rozdíly a jejich kopírování
 commands: nks.compare.next, nks.compare.previous, nks.compare.copyToRight, nks.compare.copyToLeft
-1. F7 skočí na další rozdíl a Shift+F7 na předchozí (také v menu Nástroje). Aktuální rozdíl má rámeček.
+1. F7 skočí na další rozdíl a Shift+F7 na předchozí (také v menu Nástroje, Porovnání). Aktuální rozdíl má rámeček.
 2. Ve střední liště má první řádek každého rozdílu dvě šipky. Levá zkopíruje blok pravé strany doleva, pravá zkopíruje blok levé strany doprava. Totéž pro aktuální rozdíl dělají tlačítka nad stranami a příkazy Zkopírovat rozdíl doprava a doleva.
 3. Kopie je jedna úprava dokumentu, takže Zpět ji vrátí jedním krokem.
 - Blok může přijmout jen strana, která je otevřený dokument. Soubor na disku, schránka a výběr šipku nemají.
@@ -1810,11 +1810,11 @@ Dvě karty se posouvají spolu, takže stejný text dvou souborů zůstává pro
 ## [tools.mcp] Editor jako server MCP
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
 Asistent s umělou inteligencí, kterého na tomto počítači spustíte (například programovací agent), může Textidu používat přes Model Context Protocol. Vidí jen karty, které mu sdílíte, a nikdy nezapisuje: každý návrh uvidíte jako náhled změn a rozhodnete vy.
-1. Zvolte Nástroje, Server MCP. Dialog vypíše, co asistent dostane. Zapnutím se server spustí; dalším zvolením příkazu se vypne a všechny karty se odvolají.
+1. Zvolte Nástroje, Agenti a AI, MCP, Server MCP. Dialog vypíše, co asistent dostane. Zapnutím se server spustí; dalším zvolením příkazu se vypne a všechny karty se odvolají.
 2. Asistenta nastavte tak, aby spouštěl program textida-mcp.exe ze složky mcp vedle editoru (celou cestu ukáže stavový řádek). S editorem mluví přes místní rouru, žádný síťový port se neotevírá.
-3. Otevřete kartu a zvolte Nástroje, MCP, Sdílet kartu s MCP. Stejným příkazem kartu odvoláte. Karta, která není sdílená, není ani vypsaná.
-4. Chcete-li asistentovi dát jen část karty, vyberte text a zvolte Nástroje, MCP, Sdílet výběr s MCP. Vybraný text se otevře jako kopie jen pro čtení ve vlastní kartě: nesleduje originál a asistent k ní nemůže navrhovat změny. Zavřením té karty ji odvoláte.
-5. Volbou Nástroje, MCP, Nástroje MCP zapnete nebo vypnete jednotlivé nástroje. Výběr nástroje v seznamu změní jeho stav, Escape seznam zavře.
+3. Otevřete kartu a zvolte Nástroje, Agenti a AI, MCP, Sdílet kartu s MCP. Stejným příkazem kartu odvoláte. Karta, která není sdílená, není ani vypsaná.
+4. Chcete-li asistentovi dát jen část karty, vyberte text a zvolte Nástroje, Agenti a AI, MCP, Sdílet výběr s MCP. Vybraný text se otevře jako kopie jen pro čtení ve vlastní kartě: nesleduje originál a asistent k ní nemůže navrhovat změny. Zavřením té karty ji odvoláte.
+5. Volbou Nástroje, Agenti a AI, MCP, Nástroje MCP zapnete nebo vypnete jednotlivé nástroje. Výběr nástroje v seznamu změní jeho stav, Escape seznam zavře.
 - Asistent čte text tak, jak je v editoru, i neuložený, hledá v něm, zjišťuje, kde máte kurzor a výběr, čte chyby a varování pluginů a kontroly kódu, žádá osnovu, kódování a konce řádků, hledá řádky dané úrovně v logu libovolné velikosti a čte nebo hledá bajty (nejvýš 64 KiB najednou).
 - Změna je návrh pro jednu revizi textu. Když se text mezitím změnil, návrh se odmítne a asistent si musí text přečíst znovu. Návrh uvidíte jako jiné změny celého dokumentu a zvolíte, jestli ho použít; asistent se může zeptat, jak dopadl.
 - Hodnoty v souborech .env vidí asistent jako *. Při sdílení takové karty se zeptáme, jestli smí vidět skutečné hodnoty; odpověď platí jen pro tu kartu.
@@ -1825,21 +1825,21 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 ## [tools.ide] Most /ide pro Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code běžící v terminálu na tomto počítači se příkazem /ide připojí k oknu Textidy. Agent pak ví, kde máte výběr a který soubor je otevřený, a změny, které chce ve zpřístupněné kartě udělat, se objeví v kontrole změn. Vidí jen karty, které zpřístupníte, a Textida použije jen to, co potvrdíte.
-1. Nejdřív zapněte server MCP (Nástroje, Server MCP) a zpřístupněte kartu (Nástroje, Sdílet tuto kartu s MCP). Most používá stejné zpřístupněné karty.
-2. Zvolte Nástroje, Most /ide. Dialog řekne, co agent dostane. Teprve po potvrzení Textida otevře port, jen na tomto počítači (127.0.0.1), a zapíše soubor zámku s tokenem a složkami okna do ~/.claude/ide (nebo do složky ide v CLAUDE_CONFIG_DIR). Opětovná volba příkazu port zavře a soubor smaže.
+1. Nejdřív zapněte server MCP (Nástroje, Agenti a AI, MCP, Server MCP) a zpřístupněte kartu (Nástroje, Agenti a AI, MCP, Sdílet kartu s MCP). Most používá stejné zpřístupněné karty.
+2. Zvolte Nástroje, Agenti a AI, MCP, Most /ide. Dialog řekne, co agent dostane. Teprve po potvrzení Textida otevře port, jen na tomto počítači (127.0.0.1), a zapíše soubor zámku s tokenem a složkami okna do ~/.claude/ide (nebo do složky ide v CLAUDE_CONFIG_DIR). Opětovná volba příkazu port zavře a soubor smaže.
 3. V terminálu ve složce tohoto okna spusťte v Claude Code příkaz /ide. Program bez tokenu ze souboru zámku se odmítne.
-4. Stavový řádek ukazuje připojeného agenta. Kliknutím, nebo příkazem Nástroje, Most /ide: odpojit agenta ho odpojíte. Port zůstane otevřený, takže se agent může příkazem /ide připojit znovu; chcete-li tomu zabránit, most vypněte.
+4. Stavový řádek ukazuje připojeného agenta. Kliknutím, nebo příkazem Nástroje, Agenti a AI, MCP, Most /ide: odpojit agenta ho odpojíte. Port zůstane otevřený, takže se agent může příkazem /ide připojit znovu; chcete-li tomu zabránit, most vypněte.
 - Každé okno má svůj most s vlastním portem a tokenem, stejně jako každá instance Textidy. Agent připojený k oknu vidí jen karty zpřístupněné v tomto okně. Soubor zámku, který po sobě nechala spadlá instance, se smaže při spuštění dalšího mostu.
 - Agent se dozví výběr a cestu zpřístupněné karty při každé změně výběru i při přepnutí na kartu. Karta, která není zpřístupněná nebo ještě nemá soubor, se nehlásí. Hodnoty z .env jsou skryté jako u každého jiného čtení. Odvolání karty to okamžitě zastaví.
 - Změna, kterou Claude Code navrhne pro zpřístupněnou kartu, se otevře v kontrole změn (karta Výsledky hledání). Použití celé změny odpoví FILE_SAVED, odmítnutí DIFF_REJECTED; použití jen některých úseků odpoví chybou, aby si agent soubor přečetl znovu. Textida použije v kartě to, co potvrdíte, a soubor neuloží. Soubor, který není v okně otevřený nebo zpřístupněný, a soubor .env se odmítnou.
 - getDiagnostics vrací chyby a varování zpřístupněných karet. getOpenEditors vypíše zpřístupněné karty s názvem, jazykem a příznakem neuložených změn; checkDocumentDirty odpoví totéž pro jeden soubor; getWorkspaceFolders vrací složky okna, ty ze souboru zámku.
 - openFile otevře soubor v kartě a může v něm vybrat text. Funguje jen pro soubor v některé složce okna nebo ve zpřístupněné kartě, nikdy pro síťovou nebo relativní cestu. Soubor, který otevře, se agentovi nezpřístupní: agent dostane odpověď „Opened file“ a nic o obsahu. Agentovi se popíše jen zpřístupněná karta (jazyk, počet řádků) a text, který pojmenuje, se v souboru .env nehledá.
-- Příkazem Nástroje, MCP, Most /ide: poslat výběr agentovi jako kontext předáte agentovi soubor aktivní zpřístupněné karty a řádky výběru (@-zmínka). Bez výběru odejde jen soubor. Agent dostane cestu a čísla řádků, ne text.
+- Příkazem Nástroje, Agenti a AI, MCP, Most /ide: poslat výběr agentovi jako kontext předáte agentovi soubor aktivní zpřístupněné karty a řádky výběru (@-zmínka). Bez výběru odejde jen soubor. Agent dostane cestu a čísla řádků, ne text.
 - Neověřeno: Claude Code tento protokol nespecifikuje. Most se řídí oficiální stránkou o vestavěném serveru IDE a popisem komunity (coder/claudecode.nvim) a žádná verze Claude Code zatím nebyla potvrzena jako funkční. Neprovedeno: ukládání přes most (most nikdy nezapisuje soubor) a spouštění buněk notebooků.
 
 ## [tools.agent] Agent přes ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Nástroje, Agent, Spustit agenta... spustí programovacího agenta, který mluví Agent Client Protocolem (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot nebo OpenCode. Dialog ukáže přesný příkaz a složku, ve které poběží; bez potvrzení se nespustí nic. Agent musí být nainstalován a nalezen v PATH. Dávkový soubor (.cmd, .bat), obvyklá podoba agenta nainstalovaného přes npm na Windows, se spouští přes cmd.exe a každý argument se pro něj uzavře do uvozovek. Seznam u každého agenta říká, zda je jeho program nalezen v PATH; u chybějícího zpráva řekne, odkud jej nainstalovat, a nic se nespustí. Dialog ukáže úplnou cestu programu, který poběží. Po potvrzení Textida program spustí s --version a verzi zapíše do panelu vedle verze z tabulky; program, který žádnou nevypíše, se jen poznamená.
+1. Nástroje, Agenti a AI, Agent, Spustit agenta... spustí programovacího agenta, který mluví Agent Client Protocolem (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot nebo OpenCode. Dialog ukáže přesný příkaz a složku, ve které poběží; bez potvrzení se nespustí nic. Agent musí být nainstalován a nalezen v PATH. Dávkový soubor (.cmd, .bat), obvyklá podoba agenta nainstalovaného přes npm na Windows, se spouští přes cmd.exe a každý argument se pro něj uzavře do uvozovek. Seznam u každého agenta říká, zda je jeho program nalezen v PATH; u chybějícího zpráva řekne, odkud jej nainstalovat, a nic se nespustí. Dialog ukáže úplnou cestu programu, který poběží. Po potvrzení Textida program spustí s --version a verzi zapíše do panelu vedle verze z tabulky; program, který žádnou nevypíše, se jen poznamená.
 2. Panel agenta pod editorem ukazuje konverzaci. Napište zprávu a stiskněte Enter. Zrušit tah agenta (nebo tlačítko Zrušit tah) pošle agentovi zrušení a jeho otevřené dotazy na oprávnění zodpoví „zrušeno“; Zastavit agenta ukončí proces.
 3. Agent čte jen karty, které sdílíte: Sdílet kartu s agentem. Dostane text tak, jak je v editoru, včetně neuložených změn; hodnoty souborů .env zůstanou skryté. Zastavením agenta se všechny sdílené karty vezmou zpět.
 4. Když agent zapíše do sdíleného souboru, změna se ukáže po úsecích v kontrole změn (karta Výsledky hledání) a zapíše se, až ji použijete. Když ji odmítnete, agent dostane chybu. Soubor, který není sdílený nebo otevřený, se přes editor nezapisuje.
@@ -1853,7 +1853,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.hooks] Editor hooků agenta
 commands: nks.agent.hooks
 Upravuje hooky Claude Code (settings.json, settings.local.json, hooks.json pluginu) a Codexu (hooks.json) ve formuláři. Žádný hook nikdy nespustí: hook je příkaz a nic tu žádný příkaz nespouští.
-1. Otevřete soubor s nastavením v kartě a zvolte Nástroje, Agent, Upravit hooky agenta... Strom ukazuje události, skupiny filtrů a obsluhy souboru. Vyberte obsluhu, chcete-li ji změnit, nebo skupinu, chcete-li do ní obsluhu přidat.
+1. Otevřete soubor s nastavením v kartě a zvolte Nástroje, Agenti a AI, Agent, Upravit hooky agenta... Strom ukazuje události, skupiny filtrů a obsluhy souboru. Vyberte obsluhu, chcete-li ji změnit, nebo skupinu, chcete-li do ní obsluhu přidat.
 2. Vyplňte formulář: událost, filtr, typ obsluhy a její příkaz (nebo adresu URL, zadání, server MCP a nástroj), případně časový limit, stavovou zprávu, podmínku (if) a co se stane, když hook selže. Použít v seznamu změní seznam jen v tomto okně.
 3. Zkouška bez spuštění ukáže, co by hook dostal na standardním vstupu (vzorek z veřejné dokumentace produktu), zda filtr pro zadanou hodnotu vyhoví a co na dané události udělá který návratový kód. U Claude Code je kód 1 neblokující chyba a kód 2 blokuje tam, kde lze událost zablokovat. U Codexu se ukáže jen to, co uvádí jeho dokumentace.
 4. Navrhnout změny pošle nový text do revize změn (karta Výsledky hledání). Změny uvidíte jako úseky a použijete je jedním krokem zpět; soubor pak uložíte jako obvykle. Editor návrh odmítne, dokud má seznam chyby, a když se karta po otevření okna změnila.
@@ -1864,7 +1864,7 @@ Upravuje hooky Claude Code (settings.json, settings.local.json, hooks.json plugi
 ## [tools.transcript] Přepisy agentů
 commands: nks.agent.transcript
 Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude/projects, u Codexu ve složce ~/.codex/sessions) jako seznam tahů. Je jen pro čtení: do souboru se nikdy nezapisuje a nic se nikam neposílá.
-1. Zvolte Nástroje, Agent, Otevřít přepis agenta... a vyberte soubor, nebo soubor .jsonl nejdřív otevřete v kartě a příkaz spusťte. Okno vypisuje tahy, zatímco se soubor indexuje; soubor o mnoha gigabajtech se otevře hned a seznam roste, jak index vzniká.
+1. Zvolte Nástroje, Agenti a AI, Agent, Otevřít přepis agenta... a vyberte soubor, nebo soubor .jsonl nejdřív otevřete v kartě a příkaz spusťte. Okno vypisuje tahy, zatímco se soubor indexuje; soubor o mnoha gigabajtech se otevře hned a seznam roste, jak index vzniká.
 2. Vyberte tah a uvidíte zadání, odpovědi, volání nástrojů s řádky, které změnila (červeně a zeleně), a výsledky. Záhlaví ukazuje řádky tahu a odhad jeho tokenů.
 3. Hledání prochází celý přepis, i když se ještě indexuje, a vypíše nalezené řádky. Vyberte nález a skočíte na jeho tah a řádek. Řádek příliš dlouhý na přečtení celý se neprohledává; stavový řádek říká, kolik jich bylo přeskočeno.
 4. Soubory v tomto tahu uvádí soubory, které agent četl, zapsal nebo upravil; Otevřít soubor otevře vybraný v editoru. Otevřít surový řádek otevře řádek za vybranou řádkou jako dokument, který nejde uložit.
@@ -1876,7 +1876,7 @@ Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude
 commands: nks.agent.tokens
 Ukáže, jak velký je text v tokenech: u výběru, dokumentu nebo kopie pro AI asistenta. Číslo je vždy odhad (značka ≈) spočítaný na tomto počítači; žádný text se nikam neposílá.
 1. Dokud je něco vybráno, ukazuje stavový řádek jeho odhad, například „≈ 1 240 tokenů“. Kliknutím zvolíte pravidlo: obecné 4 znaky na token, nebo zveřejněné pravidlo OpenAI, Gemini či Claude (před Opus 4.7 a po něm).
-2. Nástroje, Agent, Odhadnout tokeny... ukáže výběr a dokument s pravidlem a jeho zdrojem. Ve stránkovaném režimu se počítá jen výběr.
+2. Nástroje, Agenti a AI, Agent, Odhadnout tokeny... ukáže výběr a dokument s pravidlem a jeho zdrojem. Ve stránkovaném režimu se počítá jen výběr.
 3. Kopírovat jako kontext pro AI ukáže v náhledu odhad pro text v Markdownu i v XML.
 - Pravidla jsou orientační pravidla pro anglický text, která zveřejňují výrobci, ne tokenizéry modelů. Jiné jazyky a kód se mohou hodně lišit. Přesný počet vyžaduje tokenizér modelu nebo službu výrobce; tento editor nežádá ani jedno.
 - Pravidlo platí do zavření okna.
@@ -1884,7 +1884,7 @@ Ukáže, jak velký je text v tokenech: u výběru, dokumentu nebo kopie pro AI 
 ## [tools.mcpAgents] Servery MCP agentů
 commands: nks.tools.mcpServers
 Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agenti. Textida čte Claude Code (.mcp.json, ~/.claude.json), Cursor (.cursor/mcp.json), Codex (~/.codex/config.toml) a OpenCode (opencode.json, opencode.jsonc). Soubory projektu hledá ve složce aktivního souboru a v nadřazených složkách. Soubory jen čte, nikdy do nich nezapisuje.
-1. Zvolte Nástroje, MCP, Servery MCP agentů. Každý řádek ukazuje server, agenta a soubor, odkud pochází, a jeho příkaz nebo adresu se skrytými tajnými hodnotami.
+1. Zvolte Nástroje, Agenti a AI, MCP, Servery MCP agentů. Každý řádek ukazuje server, agenta a soubor, odkud pochází, a jeho příkaz nebo adresu se skrytými tajnými hodnotami.
 2. Vyberte server a pak Vyzkoušet. Okno ukáže přesný příkaz, složku a proměnné s hodnotami skrytými (***). U serveru s adresou ukáže místo toho adresu a jména hlaviček. Nic se nespustí a nic se neodešle, dokud nestisknete Spustit (u adresy Připojit).
 3. Potom Textida program spustí nebo se připojí na adresu, zeptá se na nástroje (MCP verze 2026-07-28 a 2025-11-25 u programu, 2025-11-25 u adresy) a spojení ukončí. Výsledek řekne, kolik nástrojů server nabízí, nebo ukáže chybu a poslední řádky, které program napsal na chybový výstup. Stejné řádky jsou ve výstupu Úlohy.
 4. Volba Připojit slouží k použití serveru. Seznam ukáže jeho nástroje a zdroje dat. Zdroj dat se otevře v nové kartě jen pro čtení. U nástroje se zeptá na argumenty jako objekt JSON (při psaní se ukazuje schéma nástroje) a pak samostatná otázka ukáže server, nástroj, argumenty a to, zda server uvádí, že nástroj jen čte. Nic se neodešle, dokud nestisknete Zavolat; výchozí tlačítko je Zrušit. Odpověď se otevře v nové kartě jen pro čtení a výstup Úlohy zaznamená, že nástroj byl zavolán a kolik znaků měly argumenty, ne argumenty samotné.
@@ -1897,10 +1897,10 @@ Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agent
 ## [tools.shell] Nabídka Průzkumníka a asociace souborů
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Jen Windows. Textida se umí přidat do místní nabídky Průzkumníka vašeho uživatele a do seznamu Otevřít v programu. Nic nevyžaduje práva správce a zapisují se jen klíče Textidy pod HKEY_CURRENT_USER\Software\Classes. Klíče jiných programů, včetně PSPadu, se nečtou ani nemění. Oba příkazy fungují v nainstalované Textida.exe.
-1. Zvolte Nástroje, Integrace do systému, Přidat Textidu do nabídky Průzkumníka. Soubory dostanou položku Otevřít v Textidě; spustí Textidu se souborem, nebo soubor předá už běžící Textidě. Ve Windows 11 je položka pod Zobrazit další možnosti.
-2. Zvolte Nástroje, Integrace do systému, Asociace souborů a vyberte přípony. Volba přípony v seznamu přidá nebo odebere Textidu v jejím seznamu Otevřít v programu; Escape seznam zavře. Dokud příponu nevyberete, žádná asociace se nevytvoří.
+1. Zvolte Nastavení, Integrace do systému, Přidat Textidu do nabídky Průzkumníka. Soubory dostanou položku Otevřít v Textidě; spustí Textidu se souborem, nebo soubor předá už běžící Textidě. Ve Windows 11 je položka pod Zobrazit další možnosti.
+2. Zvolte Nastavení, Integrace do systému, Asociace souborů a vyberte přípony. Volba přípony v seznamu přidá nebo odebere Textidu v jejím seznamu Otevřít v programu; Escape seznam zavře. Dokud příponu nevyberete, žádná asociace se nevytvoří.
 3. Aby byla Textida výchozím programem přípony, použijte v Průzkumníku Otevřít v programu, Vybrat jinou aplikaci. Tuto volbu si Windows drží sám.
-4. Zvolte Nástroje, Integrace do systému, Odebrat Textidu z Průzkumníka: smaže položku nabídky a všechny asociace, které Textida přidala. Totéž udělá odinstalátor.
+4. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z Průzkumníka: smaže položku nabídky a všechny asociace, které Textida přidala. Totéž udělá odinstalátor.
 5. Stejné přepínače jsou v Nastavení v oddílu Integrace se systémem (hledejte „integrace“ nebo „zástupce“): položka v nabídce Průzkumníka, typy souborů, zástupce v nabídce Start a na ploše a tlačítko, které otevře ve Windows stránku s výchozími aplikacemi. Přepínač zapíše registr hned a ukazuje, co v registru je.
 - Instalátor TextidaSetup.exe nabízí stejné volby při instalaci a při odinstalaci je vrátí.
 - Text položky nabídky je v jazyce Textidy v okamžiku přidání. Po změně jazyka ji přidejte znovu.
@@ -1928,12 +1928,12 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 1. Zvolte Zkontrolovat změny. Karta převezme nový obsah, dřívější obsah zůstane v místní historii a po dobu kontroly se nesmaže a karta Výsledky hledání vypíše změny po řádcích.
 2. Zaškrtněte změny, které chcete ponechat. Nezaškrtnuté, nebo celý soubor s nezaškrtnutým polem, se po volbě Použít vrátí na dřívější obsah.
 3. Použít zapíše vrácený text do karty jako jeden krok zpět a soubor uloží; bajty mimo vrácené změny zůstanou beze změny.
-- Karta ukazuje štítek s počtem čekajících změn. Volbou Soubor, Historie a Zkontrolovat změny zvenku seznam otevřete znovu; vrátí se i po restartu.
+- Karta ukazuje štítek s počtem čekajících změn. Volbou Soubor, Místní historie a Zkontrolovat změny zvenku seznam otevřete znovu; vrátí se i po restartu.
 - Alt+F7 a Alt+Shift+F7 skočí na další a předchozí změnu zvenku.
 - Pokud během kontroly v kartě píšete, změny se ukážou znovu z nového textu.
 - Soubory s tajnými hodnotami (.env) a soubory s neuloženými úpravami zůstávají u staršího panelu: Znovu načíst, Ponechat moje, Porovnat.
 - S volbou Ponechat změny zvenku bez kontroly v nastavení karta převezme nový obsah hned. Ve výchozím stavu je vypnuta.
-- Sledují se i soubory otevřené složky, které žádná karta neukazuje. Když takový soubor změní jiný program a místní historie má jeho dřívější obsah (soubor se tu jednou otevřel nebo uložil), tento obsah se uchová jako základ a soubor čeká na kontrolu. Soubor, Historie a Zkontrolovat změny zvenku ve složce vypíše čekající soubory; vybraný se otevře se štítkem a změnami po úsecích, jako výše. Čekající soubory přežijí restart.
+- Sledují se i soubory otevřené složky, které žádná karta neukazuje. Když takový soubor změní jiný program a místní historie má jeho dřívější obsah (soubor se tu jednou otevřel nebo uložil), tento obsah se uchová jako základ a soubor čeká na kontrolu. Soubor, Místní historie a Zkontrolovat změny zvenku ve složce vypíše čekající soubory; vybraný se otevře se štítkem a změnami po úsecích, jako výše. Čekající soubory přežijí restart.
 - Soubor, který jiný program ve složce vytvoří, čeká na kontrolu jako přidání celého obsahu: základ je prázdný, takže každý řádek je změna, a odškrtnutím všeho zůstane soubor prázdný. Změněný soubor, jehož obsah historie nezná (tady se nikdy neotevřel ani neuložil), převezme obsah při prvním spatření jako základ a stavový řádek to řekne; další změna se měří proti tomuto obsahu. Ponecháním všech změn kontroly se ponechaný obsah stane základem příští kontroly.
 - Sledování vynechá .git, .codegraph, co ignorují soubory .gitignore a .ignore ve složce (ignorovaná složka vezme s sebou svůj obsah) a přepisy agentů (složku projects pod .claude* a složku sessions pod .codex*). Vynechá také soubory s tajnými hodnotami (.env), soubory příliš velké pro kartu, binární soubory, soubory, jejichž nový obsah historie už zná, a soubory, které editor zapsal sám, několik sekund po Nahradit v souborech, po dávce kódování nebo po operaci souborového panelu.
 - Naráz čeká nejvýš 200 souborů a jedno prohlédnutí zahrne nejvýš 500 souborů; stavový řádek řekne, když se mez dosáhne. Tyto meze, půl sekundy před prohlédnutím změněného souboru a několik sekund po vlastních zápisech editoru nejsou rozhodnuté hodnoty.

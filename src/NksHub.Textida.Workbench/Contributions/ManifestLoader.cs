@@ -48,6 +48,21 @@ public static class ManifestLoader
         return segments.All(s => s.Length > 0 && char.IsAsciiLetterLower(s[0]) && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'));
     }
 
+    /// <summary>Deepest nesting of submenus: <c>outer/middle/inner</c>.</summary>
+    public const int MaxSubmenuDepth = 3;
+
+    /// <summary>A submenu is one id or a path of ids separated by <c>/</c>, each segment non-empty, the whole at most 64 characters.</summary>
+    public static bool IsValidSubmenu(string? submenu)
+    {
+        if (string.IsNullOrWhiteSpace(submenu) || submenu.Length > 64)
+        {
+            return false;
+        }
+
+        var segments = submenu.Split('/');
+        return segments.Length <= MaxSubmenuDepth && segments.All(s => !string.IsNullOrWhiteSpace(s));
+    }
+
     public static ManifestLoadResult Load(string json, ManifestTrust trust)
     {
         if (Encoding.UTF8.GetByteCount(json) > MaxBytes)
@@ -146,7 +161,7 @@ public static class ManifestLoader
                 errors.Add($"Invalid menu item '{menu.Menu}' / '{menu.Command}'.");
             }
 
-            if (menu.Submenu is { } sub && (string.IsNullOrWhiteSpace(sub) || sub.Length > 64))
+            if (menu.Submenu is { } sub && !IsValidSubmenu(sub))
             {
                 errors.Add($"Invalid submenu '{sub}' of menu item '{menu.Command}'.");
             }

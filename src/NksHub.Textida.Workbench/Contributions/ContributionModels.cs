@@ -73,7 +73,10 @@ public sealed class MenuContribution
 
     public int Order { get; set; }
 
-    /// <summary>Id of a nested menu; entries of one menu with the same id share one submenu, placed at the group and order of the first. Its title is the string <c>submenu.&lt;id&gt;</c>.</summary>
+    /// <summary>
+    /// Id of a nested menu; entries of one menu with the same id share one submenu, placed at the group and order of the first. Its title is the string <c>submenu.&lt;id&gt;</c>.
+    /// A path <c>outer/inner</c> puts the entry into the submenu <c>inner</c> of the submenu <c>outer</c> (at most three levels); the title of <c>inner</c> is <c>submenu.outer.inner</c>.
+    /// </summary>
     public string? Submenu { get; set; }
 
     public string? When { get; set; }

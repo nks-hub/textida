@@ -177,14 +177,54 @@ public class ManifestTests
     public void Every_submenu_of_the_builtin_manifest_has_a_title_in_every_language()
     {
         var host = WorkbenchHost.CreateBuiltin();
-        var ids = host.Commands.MenuContributions.Select(m => m.Submenu).OfType<string>().Distinct().ToList();
-        Assert.True(ids.Count >= 20);
+        // a path like ai/agent needs the titles of ai and of ai/agent, written submenu.ai and submenu.ai.agent
+        var keys = host.Commands.MenuContributions.Select(m => m.Submenu).OfType<string>()
+            .SelectMany(path => Enumerable.Range(1, path.Split('/').Length).Select(n => "submenu." + string.Join('.', path.Split('/').Take(n)))).Distinct().ToList();
+        Assert.True(keys.Count >= 30);
         foreach (var language in StringTable.UiLanguages)
         {
             var table = BuiltinTable(language);
-            Assert.All(ids, id => Assert.True(table.HasOwn("submenu." + id), $"{language}: submenu.{id}"));
+            Assert.All(keys, key => Assert.True(table.HasOwn(key), $"{language}: {key}"));
         }
     }
+
+    [Fact]
+    public void No_submenu_title_is_left_without_a_menu_entry_and_the_menu_html_has_its_title()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var used = host.Commands.MenuContributions.Select(m => m.Submenu).OfType<string>()
+            .SelectMany(path => Enumerable.Range(1, path.Split('/').Length).Select(n => "submenu." + string.Join('.', path.Split('/').Take(n)))).ToHashSet();
+        foreach (var language in StringTable.UiLanguages)
+        {
+            using var stream = typeof(StringTable).Assembly.GetManifestResourceStream($"strings.{language}.json")!;
+            var texts = System.Text.Json.JsonSerializer.Deserialize(stream, ContributionJson.Default.DictionaryStringString)!;
+            Assert.Empty(texts.Keys.Where(k => k.StartsWith("submenu.", StringComparison.Ordinal) && !used.Contains(k)));
+            Assert.True(texts.ContainsKey("menu.html"), language);
+        }
+    }
+
+    [Fact]
+    public void Every_menu_entry_of_the_builtin_manifest_is_unique_has_a_group_and_names_a_known_command()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var entries = host.Commands.MenuContributions;
+        Assert.True(entries.Count > 300);
+        Assert.Empty(entries.GroupBy(m => (m.Menu, m.Command)).Where(g => g.Count() > 1).Select(g => g.Key));
+        Assert.All(entries, m =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(m.Group), $"{m.Menu}/{m.Command} has no group");
+            Assert.True(host.Commands.TryGet(m.Command, out _), $"{m.Menu}/{m.Command}: unknown command");
+        });
+    }
+
+    [Theory]
+    [InlineData("a/b/c", true)]
+    [InlineData("a/b/c/d", false)]
+    [InlineData("a//b", false)]
+    [InlineData("/a", false)]
+    [InlineData("a/", false)]
+    [InlineData(" ", false)]
+    public void A_submenu_path_has_up_to_three_non_empty_segments(string path, bool valid) => Assert.Equal(valid, ManifestLoader.IsValidSubmenu(path));
 
     [Fact]
     public void Plugin_cannot_claim_core_ids_or_foreign_prefixes()

@@ -59,14 +59,62 @@ public class MenuPaletteTests : IDisposable
         Assert.Equal(["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nástroje", "Nastavení", "Okno", "Nápověda"], _w.MenuHeaders);
         var shown = MenuBuilder.Order.Select(o => o.Id).ToList();
         Assert.Equal(["file", "projects", "edit", "search", "view", "format", "tools", "html", "settings", "window", "help"], shown);
-        // projects and html have no commands in the manifest, so they are not drawn
+        // projects has no commands in the manifest, so it is not drawn; html has them, but they are for HTML documents only, so a window without one draws no HTML menu
         var withCommands = _app.Workbench.Commands.MenuContributions.Select(m => m.Menu).ToHashSet();
         Assert.DoesNotContain("projects", withCommands);
         Assert.Contains("tools", withCommands);
-        Assert.DoesNotContain("html", withCommands);
+        Assert.Contains("html", withCommands);
     }
 
     private MenuGroup Menu(string header) => _w.MenuModel.Single(g => g.Label == header);
+
+    /// <summary>The header of a menu item without the access key mark.</summary>
+    private static string Plain(object? header) => MenuAccessKeys.Unmark((string)header!);
+
+    [AvaloniaFact]
+    public void Access_keys_are_unique_in_every_menu_of_every_language_and_the_marks_reach_the_menu_items()
+    {
+        foreach (var lang in Loc.Languages)
+        {
+            _app.SetLanguage(lang);
+            AssertUnique(lang, _w.MenuModel.Select(g => (g.Label, g.AccessAt)).ToList());
+            foreach (var topMenu in _w.MenuModel) AssertLevel(lang + " > " + topMenu.Label, topMenu.Items);
+        }
+
+        static void AssertUnique(string where, IReadOnlyList<(string Label, int At)> rows)
+        {
+            var keys = rows.Where(r => r.At >= 0).Select(r => char.ToLowerInvariant(r.Label[r.At])).ToList();
+            Assert.True(keys.Count == keys.Distinct().Count(), $"{where}: an access key is used twice");
+            Assert.All(rows.Where(r => r.At >= 0), r => Assert.True(char.IsAsciiLetterOrDigit(r.Label[r.At]), $"{where}: {r.Label} has a key that is not A to Z or 0 to 9"));
+        }
+
+        static void AssertLevel(string where, IReadOnlyList<MenuNode> nodes)
+        {
+            AssertUnique(where, [.. nodes.Select(n => n switch { MenuCommand c => (c.Label, c.AccessAt), MenuGroup g => (g.Label, g.AccessAt), _ => ("", -1) }).Where(r => r.Item1.Length > 0)]);
+            foreach (var group in nodes.OfType<MenuGroup>()) AssertLevel(where + " > " + group.Label, group.Items);
+        }
+
+        _app.SetLanguage("cs");
+        var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+        var file = menu.Items.OfType<MenuItem>().First();
+        Assert.Equal("_Soubor", (string)file.Header!);
+        Assert.Equal("Soubor", Avalonia.Automation.AutomationProperties.GetName(file));
+        Assert.Equal("Nový", Plain(file.Items.OfType<MenuItem>().First().Header));
+    }
+
+    [Fact]
+    public void Access_key_assignment_prefers_the_first_letter_then_other_words_then_any_letter_and_never_repeats()
+    {
+        // the second and the third word that start with N take a later letter; the marked letter of an accented first letter is not a key, so Ú gives way to P
+        Assert.Equal([0, 0, 0, 2], MenuAccessKeys.Assign(["Soubor", "Hledat", "Nastavení", "Nástroje"]));
+        Assert.Equal([1], MenuAccessKeys.Assign(["Úpravy"]));
+        Assert.Equal([0, 5, 0], MenuAccessKeys.Assign(["Open Folder", "Open File", "Save"])); // the first letter of the second word beats any other letter
+        Assert.Equal([-1], MenuAccessKeys.Assign(["..."]));
+        Assert.Equal("_Soubor", MenuAccessKeys.Mark("Soubor", 0));
+        Assert.Equal("a__b_c", MenuAccessKeys.Mark("a_bc", 3));
+        Assert.Equal("a__b", MenuAccessKeys.Mark("a_b", -1));
+        Assert.Equal("a_b", MenuAccessKeys.Unmark("_a__b"));
+    }
 
     [AvaloniaFact]
     public void Submenus_are_built_from_the_submenu_field_with_separators_between_their_groups()
@@ -78,15 +126,36 @@ public class MenuPaletteTests : IDisposable
         Assert.Contains(tools.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.plugins.manage");
 
         // one submenu gathers entries of several groups: they stay in their order, split by a separator
-        var structure = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Struktura a jazyk");
-        Assert.Contains(structure.Items, n => n is MenuSeparator);
-        Assert.Contains(Commands(structure.Items), c => c.CommandId == "nks.tools.sqlDialect");
+        var code = Assert.Single(tools.Items.OfType<MenuGroup>(), g => g.Label == "Kód a jazyk");
+        Assert.Contains(code.Items, n => n is MenuSeparator);
+        Assert.Contains(Commands(code.Items), c => c.CommandId == "nks.tools.sqlDialect");
 
-        var edit = Menu("Úpravy");
-        var format = Assert.Single(edit.Items.OfType<MenuGroup>(), g => g.Label == "Formátování");
+        // a submenu may hold another: the language server is a submenu of the code tools
+        var lsp = Assert.Single(code.Items.OfType<MenuGroup>(), g => g.Label == "Jazykový server");
+        Assert.Contains(lsp.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.lsp.goToDefinition");
+        Assert.DoesNotContain(code.Items.OfType<MenuCommand>(), c => c.CommandId!.StartsWith("nks.lsp.", StringComparison.Ordinal));
+        var select = Assert.Single(Menu("Úpravy").Items.OfType<MenuGroup>(), g => g.Label == "Výběr");
+        Assert.Contains(Commands(Assert.Single(select.Items.OfType<MenuGroup>(), g => g.Label == "Více kurzorů").Items), c => c.CommandId == "nks.edit.addNextOccurrence");
+
+        var format = Assert.Single(Menu("Formát").Items.OfType<MenuGroup>(), g => g.Label == "Formátovat kód a data");
         Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatJson");
         Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatSql");
-        Assert.Contains(edit.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.edit.undo");
+        Assert.Contains(Menu("Úpravy").Items.OfType<MenuCommand>(), c => c.CommandId == "nks.edit.undo");
+    }
+
+    [AvaloniaFact]
+    public void No_submenu_is_longer_than_the_limit_of_the_review_and_none_is_nested_deeper_than_three_levels()
+    {
+        // P3.6.17: a menu has at most 20 entries, a submenu at most 16, and submenus are nested at most two deep (menu, submenu, submenu)
+        void Walk(string where, IReadOnlyList<MenuNode> nodes, int depth, bool top)
+        {
+            int entries = nodes.Count(n => n is not MenuSeparator);
+            Assert.True(entries <= (top ? 20 : 16), $"{where} has {entries} entries");
+            Assert.True(depth <= 3, $"{where} is nested {depth} deep");
+            Assert.False(nodes.FirstOrDefault() is MenuSeparator || nodes.LastOrDefault() is MenuSeparator, $"{where} starts or ends with a separator");
+            foreach (var group in nodes.OfType<MenuGroup>()) Walk(where + " > " + group.Label, group.Items, depth + 1, false);
+        }
+        foreach (var menu in _w.MenuModel) Walk(menu.Label, menu.Items, 1, true);
     }
 
     [AvaloniaFact]
@@ -105,8 +174,8 @@ public class MenuPaletteTests : IDisposable
     public void A_command_in_a_submenu_is_enabled_and_disabled_like_one_at_the_top_level_and_the_item_has_a_name()
     {
         var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
-        var edit = menu.Items.OfType<MenuItem>().Single(m => (string)m.Header! == "Úpravy");
-        var casing = edit.Items.OfType<MenuItem>().Single(m => (string)m.Header! == "Velikost písmen");
+        var edit = menu.Items.OfType<MenuItem>().Single(m => Plain(m.Header) == "Úpravy");
+        var casing = edit.Items.OfType<MenuItem>().Single(m => Plain(m.Header) == "Velikost písmen");
         Assert.Equal("Velikost písmen", Avalonia.Automation.AutomationProperties.GetName(casing));
         var upper = casing.Items.OfType<MenuItem>().First(m => m.Tag is MenuCommand { CommandId: "nks.edit.upperCase" });
         Assert.False(upper.IsEnabled);
@@ -170,22 +239,25 @@ public class MenuPaletteTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Settings_menu_switches_theme_and_language_with_a_checked_item()
+    public void Settings_menu_switches_the_theme_with_a_checked_item_and_the_language_is_set_in_the_settings_not_in_the_menu()
     {
         Assert.True(Item("nks.settings.theme.system").Checked);
         Item("nks.settings.theme.dark").Run();
         Assert.Equal("dark", _app.Settings.Theme);
         Assert.True(Item("nks.settings.theme.dark").Checked);
         Assert.False(Item("nks.settings.theme.system").Checked);
-        Item("nks.settings.language.en").Run();
+        Item("nks.settings.theme.system").Run();
+
+        // P3.6.15: the language has no item in the menu any more; its commands stay for the palette and for keys
+        Assert.DoesNotContain(Commands(_w.MenuModel.SelectMany(g => g.Items)), c => c.CommandId!.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal));
+        var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.settings.language.en", context).AsTask().GetAwaiter().GetResult());
         Assert.Equal(["File", "Edit", "Search", "View", "Format", "Tools", "Settings", "Window", "Help"], _w.MenuHeaders);
         foreach (var lang in Loc.Languages.Reverse())
         {
-            Item("nks.settings.language." + lang).Run();
+            _app.Workbench.Commands.ExecuteAsync(AppCommands.LanguageCommandPrefix + lang, context).AsTask().GetAwaiter().GetResult();
             Assert.Equal(lang, _app.Settings.Language);
-            Assert.All(Loc.Languages, other => Assert.Equal(other == lang, Item("nks.settings.language." + other).Checked));
         }
-        Item("nks.settings.theme.system").Run();
     }
 
     [AvaloniaFact]
@@ -201,12 +273,12 @@ public class MenuPaletteTests : IDisposable
     {
         var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
         var file = menu.Items.OfType<MenuItem>().First();
-        Assert.Equal("Soubor", file.Header);
-        var labels = file.Items.OfType<MenuItem>().Select(m => (string)m.Header!).ToList();
+        Assert.Equal("Soubor", Plain(file.Header));
+        var labels = file.Items.OfType<MenuItem>().Select(m => Plain(m.Header)).ToList();
         Assert.Contains("Nový", labels);
         Assert.Contains("Otevřít...", labels);
         Assert.Contains(file.Items, i => i is Separator);
-        var save = file.Items.OfType<MenuItem>().First(m => (string)m.Header! == "Uložit");
+        var save = file.Items.OfType<MenuItem>().First(m => Plain(m.Header) == "Uložit");
         Assert.False(save.IsEnabled);
         _w.NewDocument();
         file.RaiseEvent(new RoutedEventArgs(MenuItem.SubmenuOpenedEvent));
