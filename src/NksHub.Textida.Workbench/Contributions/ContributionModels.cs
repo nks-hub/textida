@@ -35,6 +35,12 @@ public sealed class CommandContribution
     /// <summary>Resource key of the category shown in the palette.</summary>
     public string? Category { get; set; }
 
+    /// <summary>
+    /// The picture of the command in menus, the palette and the toolbar: the name of a built-in icon, <c>text</c> for a command that has no picture on purpose, or (in a plugin) the path of an SVG file
+    /// inside the plugin folder. The colours always come from the theme.
+    /// </summary>
+    public string? Icon { get; set; }
+
     /// <summary>The command is available (shown, bound) only while this expression is true.</summary>
     public string? When { get; set; }
 

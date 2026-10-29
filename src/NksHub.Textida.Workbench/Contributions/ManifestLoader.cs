@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Icons;
 using NksHub.Textida.Workbench.Keys;
 using NksHub.Textida.Workbench.Settings;
 
@@ -133,6 +134,7 @@ public static class ManifestLoader
 
             CheckText(errors, $"Command '{c.Id}' title", c.Title, required: true);
             CheckText(errors, $"Command '{c.Id}' category", c.Category, required: false);
+            CheckIcon(errors, c, builtin);
             CheckWhen(errors, $"Command '{c.Id}' when", c.When);
             CheckWhen(errors, $"Command '{c.Id}' enablement", c.Enablement);
             if (c.Undo is not ("none" or "transaction"))
@@ -242,6 +244,25 @@ public static class ManifestLoader
         {
             errors.Add($"Setting '{s.Key}' default is invalid: {why}");
         }
+    }
+
+    /// <summary>The path of an icon file in a plugin: relative, forward slashes, no <c>..</c>, ending in <c>.svg</c>.</summary>
+    public static bool IsIconFile(string? icon) =>
+        icon is { Length: > 4 and <= 128 } && icon.EndsWith(".svg", StringComparison.Ordinal) && !icon.StartsWith('/') && !icon.Contains("..", StringComparison.Ordinal) && !icon.Contains('\\') && !icon.Contains(':') && icon.All(c => !char.IsControl(c));
+
+    private static void CheckIcon(List<string> errors, CommandContribution c, bool builtin)
+    {
+        if (c.Icon is not { } icon)
+        {
+            return;
+        }
+
+        if (icon == BuiltinIcons.TextOnly || BuiltinIcons.All.ContainsKey(icon) || (!builtin && IsIconFile(icon)))
+        {
+            return;
+        }
+
+        errors.Add($"Command '{c.Id}' icon '{icon}' is neither the name of a built-in icon nor '{BuiltinIcons.TextOnly}'" + (builtin ? "." : " nor the path of an .svg file inside the plugin."));
     }
 
     private static void CheckText(List<string> errors, string what, string? text, bool required)

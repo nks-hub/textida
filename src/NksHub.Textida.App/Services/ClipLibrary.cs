@@ -121,7 +121,7 @@ internal sealed class ClipLibrary
         {
             if (!File.Exists(Path.Combine(folder, PluginManifest.FileName))) continue;
             var name = installed.Contains(folder) ? Path.GetFileName(Path.GetDirectoryName(folder)) ?? folder : Path.GetFileName(folder);
-            var result = PluginManifestLoader.Load(folder, PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes);
+            var result = PluginManifestLoader.Load(folder, PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes, PluginLimitsPlaceholders.IconMaxBytes);
             if (result.Plugin is not { } plugin) { _problems.Add($"{name}: {string.Join("; ", result.Errors)}"); continue; }
             // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
             if (installed.Contains(folder))
@@ -147,6 +147,7 @@ internal sealed class ClipLibrary
                 {
                     var conflicts = _commands.AddManifest(plugin.Contributions);
                     if (conflicts.Count > 0) { _problems.Add($"{name}: {string.Join("; ", conflicts)}"); continue; }
+                    plugin.ApplyIcons(_commands);
                     _registered[id] = plugin.Manifest.Version;
                     if (_declare?.Invoke(plugin) is { Count: > 0 } refused)
                     {

@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
+using NksHub.Textida.Workbench.Icons;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -15,6 +16,9 @@ internal sealed record MenuCommand(string Label, Action Run, KeyGesture? Gesture
 {
     /// <summary>Index in <see cref="Label"/> of the letter that opens the item with Alt; -1 for none.</summary>
     public int AccessAt { get; init; } = -1;
+
+    /// <summary>The picture before the text of the item; null for none. An item with a check mark or a radio mark has none: the mark takes its place.</summary>
+    public IconShape? Icon { get; init; }
 }
 
 internal sealed record MenuSeparator : MenuNode;
@@ -130,6 +134,7 @@ internal static class MenuRenderer
                 return parent;
             case MenuCommand c:
                 var item = new MenuItem { Header = MenuAccessKeys.Mark(c.Label, c.AccessAt), InputGesture = c.Gesture, IsEnabled = c.Enabled, Tag = c };
+                if (c.Icon is { } icon && c.Checked is null) item.Icon = CommandIcons.Create(icon);
                 AutomationProperties.SetName(item, c.Label);
                 if (c.Checked is { } on) { item.ToggleType = c.Radio ? MenuItemToggleType.Radio : MenuItemToggleType.CheckBox; item.IsChecked = on; item.GroupName = c.Radio ? (c.CommandId is { } id ? id[..id.LastIndexOf('.')] : "radio") : null; }
                 item.Click += (_, _) => c.Run();

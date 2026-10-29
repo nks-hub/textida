@@ -42,6 +42,9 @@ public sealed record ValidatorOptions
     /// <summary>Largest grammar file of the plugin, in bytes.</summary>
     public required long MaxGrammarBytes { get; init; }
 
+    /// <summary>Largest icon file (SVG) of the plugin, in bytes; while it is 0 an icon file is refused and only the names of built-in icons are accepted.</summary>
+    public long MaxIconBytes { get; init; }
+
     /// <summary>Largest size of the whole plugin folder, in bytes.</summary>
     public required long MaxFolderBytes { get; init; }
 

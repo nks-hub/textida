@@ -303,6 +303,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         if (plugin?.Spec is null || !_boundInstalled.TryAdd(plugin.Manifest.Id, plugin.Manifest.Version)) return;
         var commands = _app.Workbench.Commands;
         if (commands.AddManifest(plugin.Contributions).Count > 0) return;
+        plugin.ApplyIcons(commands);
         var (id, display) = (plugin.Manifest.Id, plugin.Manifest.Name);
         foreach (var problem in DeclarePlugin(plugin)) InstalledProblems.Add($"{id}: {problem}");
         foreach (var command in plugin.Contributions.Commands.Where(c => !plugin.CommandData.ContainsKey(c.Id)))

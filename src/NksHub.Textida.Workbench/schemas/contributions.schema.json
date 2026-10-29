@@ -30,6 +30,12 @@
               "null"
             ]
           },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "when": {
             "type": [
               "string",

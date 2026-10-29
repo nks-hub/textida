@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+  <rect x="1.5" y="2.5" width="5.5" height="11"/>
+  <rect x="9" y="2.5" width="5.5" height="11"/>
+  <path d="M3.3 5.5H5.2M3.3 8H5.2M3.3 10.5H5.2"/>
+  <path d="M10.8 5.5H12.7M10.8 10.5H12.7"/>
+  <path class="accent" d="M10.8 8H12.7"/>
+</svg>

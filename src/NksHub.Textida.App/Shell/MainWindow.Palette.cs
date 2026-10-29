@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Commands;
+using NksHub.Textida.Workbench.Icons;
 using NksHub.Textida.Workbench.Matching;
 
 namespace NksHub.Textida.App.Shell;
@@ -17,7 +18,7 @@ namespace NksHub.Textida.App.Shell;
 internal enum PaletteMode { Commands, Files, Edits, Choice }
 
 /// <summary>One row of any palette mode; <paramref name="Run"/> is what Enter does. A row that is not enabled is shown dimmed with its <paramref name="Reason"/>.</summary>
-internal sealed record QuickRow(string Title, string? Category, string? Detail, string? Shortcut, bool Enabled, string? Reason, string AutomationName, Action Run, Func<string>? Preview = null);
+internal sealed record QuickRow(string Title, string? Category, string? Detail, string? Shortcut, bool Enabled, string? Reason, string AutomationName, Action Run, Func<string>? Preview = null, IconShape? Icon = null);
 
 internal sealed partial class MainWindow
 {
@@ -232,7 +233,7 @@ internal sealed partial class MainWindow
         _paletteItems = [.. CommandPalette.Query(wb.Commands, wb.Keymap, wb.Strings, context, query, 400).Where(i => wb.Commands.HasHandler(i.CommandId)).Take(60)];
         return [.. _paletteItems.Select(item => new QuickRow(item.Title, item.Category, null, item.Shortcut, item.Enabled, item.DisabledReason,
             (item.Category is null ? "" : item.Category + ": ") + item.Title + (item.Shortcut is null ? "" : ", " + item.Shortcut) + (item.DisabledReason is null ? "" : ", " + item.DisabledReason),
-            () => _ = wb.Commands.ExecuteAsync(item.CommandId, new ShellContext(this, forMenu: true))))];
+            () => _ = wb.Commands.ExecuteAsync(item.CommandId, new ShellContext(this, forMenu: true)), Icon: wb.Commands.IconOf(item.CommandId)))];
     }
 
     /// <summary>The result of <c>=1+2*3</c>. The text goes through <see cref="Calculator"/>, a parser of arithmetic and nothing else; no code is ever run.</summary>
@@ -269,10 +270,18 @@ internal sealed partial class MainWindow
             if (note is not null) title.Inlines!.Add(new Run("  " + note) { FontSize = 12, Foreground = Brushes.Gray });
             var keys = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
             foreach (var key in KeyCaps(row.Shortcut)) keys.Children.Add(key.Length == 0 ? new Border { Width = 6 } : KeyCap(key));
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("110,*,Auto"), Opacity = row.Enabled ? 1 : 0.5 };
-            Grid.SetColumn(title, 1);
-            Grid.SetColumn(keys, 2);
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("110,24,*,Auto"), Opacity = row.Enabled ? 1 : 0.5 };
+            Grid.SetColumn(title, 2);
+            Grid.SetColumn(keys, 3);
             grid.Children.Add(category);
+            if (row.Icon is { } icon)
+            {
+                var picture = CommandIcons.Create(icon);
+                picture.VerticalAlignment = VerticalAlignment.Center;
+                picture.HorizontalAlignment = HorizontalAlignment.Left;
+                Grid.SetColumn(picture, 1);
+                grid.Children.Add(picture);
+            }
             grid.Children.Add(title);
             grid.Children.Add(keys);
             _paletteList.Items.Add(new ListBoxItem { Content = grid });

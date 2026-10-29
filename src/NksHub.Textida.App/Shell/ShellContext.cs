@@ -134,6 +134,9 @@ internal static class MenuBuilder
             state?.On, state?.Radio ?? false, commandId,
             () => command.IsEnabled(context),
             state is null ? null : () => checkState(commandId)?.On,
-            item.Enabled);
+            item.Enabled)
+        {
+            Icon = wb.Commands.IconOf(commandId),
+        };
     }
 }
