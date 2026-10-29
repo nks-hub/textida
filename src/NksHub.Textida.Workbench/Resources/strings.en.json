@@ -157,6 +157,8 @@
   "cmd.file.history": "Local History...",
   "cmd.file.historyMark": "Mark Revision...",
   "cmd.file.historySearch": "Search in History...",
+  "cmd.file.historyPanel": "Local History Panel",
+  "cmd.files.history": "Local History",
   "cmd.edit.selectLine": "Select Line",
   "cmd.edit.toggleBlockSelect": "Block Selection",
   "cmd.edit.joinLines": "Join Lines",

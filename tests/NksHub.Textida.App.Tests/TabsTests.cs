@@ -224,7 +224,7 @@ public class TabsTests : IDisposable
     {
         var a = Open("a.txt");
         var labels = ContextLabels(a);
-        Assert.Equal(["Zavřít", "Rozdělit pohled", "Kopírovat cestu"], labels);
+        Assert.Equal(["Zavřít", "Rozdělit pohled", "Kopírovat cestu", "Historie souboru"], labels);
 
         var b = Open("b.txt");
         labels = ContextLabels(b);

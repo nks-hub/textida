@@ -157,6 +157,8 @@
   "cmd.file.history": "Lokaler Verlauf...",
   "cmd.file.historyMark": "Revision markieren...",
   "cmd.file.historySearch": "Im Verlauf suchen...",
+  "cmd.file.historyPanel": "Panel Lokaler Verlauf",
+  "cmd.files.history": "Lokaler Verlauf",
   "cmd.edit.selectLine": "Zeile auswählen",
   "cmd.edit.toggleBlockSelect": "Blockauswahl",
   "cmd.edit.joinLines": "Zeilen verbinden",

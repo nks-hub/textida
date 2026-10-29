@@ -73,6 +73,8 @@ internal static class AppCommands
         On("nks.remote.proxy", w => w.SetNetworkProxy());
         On("nks.remote.exportConnections", w => w.ExportConnections());
         On("nks.remote.importConnections", w => w.ImportConnections());
+        On("nks.file.historyPanel", w => w.ShowHistoryPanel());
+        On("nks.files.history", w => w.ShowHistoryPanelOfSelectedFile());
         On("nks.file.historyMark", w => w.MarkRevision());
         On("nks.file.historySearch", w => w.SearchHistory());
         Do("nks.app.openSettings", _ => app.OpenSettings());

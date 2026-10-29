@@ -157,6 +157,8 @@
   "cmd.file.history": "Miestna história...",
   "cmd.file.historyMark": "Označiť revíziu...",
   "cmd.file.historySearch": "Hľadať v histórii...",
+  "cmd.file.historyPanel": "Panel miestnej histórie",
+  "cmd.files.history": "Miestna história",
   "cmd.edit.selectLine": "Vybrať riadok",
   "cmd.edit.toggleBlockSelect": "Blokový výber",
   "cmd.edit.joinLines": "Spojiť riadky",

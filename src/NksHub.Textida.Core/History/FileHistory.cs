@@ -213,6 +213,13 @@ public sealed partial class FileHistory
 
     public HistoryRecordResult Record(string path, Stream content, HistorySource source, string? label = null)
     {
+        var result = RecordCore(path, content, source, label);
+        if (result.Status == HistoryStatus.Recorded) RaiseChanged(path);
+        return result;
+    }
+
+    private HistoryRecordResult RecordCore(string path, Stream content, HistorySource source, string? label)
+    {
         if (!_policy.Enabled) return new(HistoryStatus.Skipped, null);
         if (!_policy.StoreSecretFiles && SecretValues.IsSecretFile(path)) return new(HistoryStatus.Skipped, null);
         if (_policy.MaxRevisionBytes is { } max && content.CanSeek && content.Length - content.Position > max) return new(HistoryStatus.TooLarge, null);
@@ -548,6 +555,7 @@ public sealed partial class FileHistory
             change(m);
             WriteAtomic(file, JsonSerializer.SerializeToUtf8Bytes(m, MetaContext.Default.MetaDto));
         }
+        RaiseChanged(path);
     }
 
     public void SetLabel(string path, string id, string? label) => Update(path, id, m => m.Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim());
@@ -594,6 +602,7 @@ public sealed partial class FileHistory
             EnsureRoot();
             PruneFolder(FolderOf(path));
         }
+        RaiseChanged(path);
     }
 
     /// <summary>Applies the per-file limits to every file and then the total size limit, oldest unpinned revision first. Returns the bytes freed.</summary>

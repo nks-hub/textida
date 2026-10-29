@@ -243,6 +243,18 @@ Program uchováva revíziu súboru pri každom uložení a pri každej zmene, kt
 - Pri veľkom súbore Porovnať potrebuje Externý porovnávač z nastavení, Obnoviť súbor a Obnoviť výber sa neponúkajú a Označiť revíziu chce súbor najprv uložiť. Uložiť ako kópiu zapíše ľubovoľnú revíziu vedľa súboru ako názov (dátum čas).prípona a otvorí ju; funguje pre každý súbor.
 - Revízie uchované ako záplata Hľadať v histórii nenájde.
 
+## [file.historyPanel] Panel miestnej histórie
+commands: nks.file.historyPanel, nks.files.history
+1. Zvoľte Súbor, potom História, potom Panel miestnej histórie, alebo Miestna história v ponuke súboru v paneli Súbory, alebo História súboru v ponuke karty. Panel sa otvorí ako karta; každý súbor má len jednu.
+2. Zoznam vľavo ukazuje všetky revízie súboru, najnovšia prvá: kedy vznikla, prečo, aká je veľká a vpravo koľko riadkov pridala k revízii pred ňou a koľko z nej odobrala. Počty sa počítajú na pozadí, revíziu po revízii, a objavujú sa, ako sú hotové; najstaršia revízia nemá s čím sa porovnať.
+3. Vyberte revíziu a vpravo uvidíte jej porovnanie. Pole nad zoznamom volí, s čím sa porovnáva: s aktuálnym textom súboru, alebo s revíziou pred ňou. Dve revízie vyberiete klávesom Ctrl alebo Shift a porovnajú sa medzi sebou, staršia vľavo. Porovnanie je rovnaké ako pri Porovnať s diskom, takže fungujú jeho šípky, Predchádzajúca a Ďalšia.
+4. Obnoviť súbor vloží celú revíziu do karty súboru. Ak chcete obnoviť len časť, použite šípku bloku v porovnaní s aktuálnym textom. Oboje je jeden krok Späť v karte a text, ktorý tam bol, sa predtým uchová ako revízia.
+5. Štítok, Pripnúť a Uložiť ako kópiu robia to isté ako v zozname Miestna história. Filtre zúžia zoznam podľa dôvodu revízie a podľa slova z jej štítka.
+- Pod zoznamom je počet revízií súboru, miesto, ktoré zaberajú na disku, najstaršia revízia a platné limity. Bez limitov sa najnovšia revízia napriek tomu ponechá.
+- Zoznam aj počty sledujú uloženie, zmenu iným programom, štítok a pripnutie, bez toho aby ste panel otvárali znova.
+- Revízia nad limitom veľkosti textovej karty sa tu neporovnáva, rovnako ako veľký súbor: použite Uložiť ako kópiu alebo Externý porovnávač. Pri veľkom súbore sa Obnoviť súbor nenúka.
+- Ovládanie klávesnicou funguje: Tab prechádza filtre, zoznam, tlačidlá a porovnanie, šípky vyberajú revíziu a čítačka obrazovky číta každý riadok s jeho počtami.
+
 ## [file.historyMark] Označiť revíziu
 commands: nks.file.historyMark
 1. Zvoľte Súbor a potom História a potom Označiť revíziu a napíšte štítok, napríklad Pred refaktorom.

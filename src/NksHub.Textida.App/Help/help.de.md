@@ -243,6 +243,18 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 - Bei einer großen Datei braucht Vergleichen das Externe Vergleichsprogramm aus den Einstellungen, Datei wiederherstellen und Auswahl wiederherstellen werden nicht angeboten, und Revision markieren verlangt, dass die Datei zuerst gespeichert ist. Als Kopie speichern schreibt jede Revision neben die Datei als Name (Datum Uhrzeit).Endung und öffnet sie; das geht bei jeder Datei.
 - Revisionen, die als Patch aufbewahrt werden, findet Im Verlauf suchen nicht.
 
+## [file.historyPanel] Panel Lokaler Verlauf
+commands: nks.file.historyPanel, nks.files.history
+1. Wählen Sie Datei, dann Verlauf, dann Panel Lokaler Verlauf, oder Lokaler Verlauf im Menü einer Datei im Dateien-Panel, oder Dateiverlauf im Menü eines Tabs. Das Panel öffnet sich als Tab; jede Datei hat nur eines.
+2. Die Liste links zeigt alle Revisionen der Datei, die neueste zuerst: wann sie entstand, warum, wie groß sie ist und rechts, wie viele Zeilen sie zur vorherigen Revision hinzugefügt und aus ihr entfernt hat. Die Zahlen werden im Hintergrund gezählt, Revision für Revision, und erscheinen, sobald sie fertig sind; die älteste Revision hat nichts, womit sie verglichen werden könnte.
+3. Wählen Sie eine Revision, dann sehen Sie rechts ihren Vergleich. Das Feld über der Liste wählt, womit verglichen wird: mit dem aktuellen Text der Datei oder mit der Revision davor. Zwei Revisionen wählen Sie mit Strg oder Umschalt, sie werden miteinander verglichen, die ältere links. Der Vergleich ist derselbe wie bei Mit Datenträger vergleichen, daher funktionieren seine Pfeile, Vorherige und Nächste.
+4. Datei wiederherstellen setzt die ganze Revision in den Tab der Datei. Für nur einen Teil verwenden Sie den Pfeil eines Blocks im Vergleich mit dem aktuellen Text. Beides ist ein Rückgängig-Schritt im Tab, und der Text, der dort stand, wird vorher als Revision aufbewahrt.
+5. Bezeichnung, Anheften und Als Kopie speichern tun dasselbe wie in der Liste Lokaler Verlauf. Die Filter grenzen die Liste nach dem Grund der Revision und nach einem Wort ihrer Bezeichnung ein.
+- Unter der Liste stehen die Zahl der Revisionen der Datei, der Platz, den sie auf dem Datenträger belegen, die älteste und die geltenden Limits. Ohne Limits bleibt die neueste Revision trotzdem erhalten.
+- Die Liste und die Zahlen folgen einem Speichern, einer Änderung durch ein anderes Programm, einer Bezeichnung und dem Anheften, ohne dass Sie das Panel neu öffnen müssen.
+- Eine Revision über dem Größenlimit eines Text-Tabs wird hier nicht verglichen, ebenso eine große Datei: Verwenden Sie Als Kopie speichern oder das externe Vergleichsprogramm. Bei einer großen Datei wird Datei wiederherstellen nicht angeboten.
+- Die Tastatur funktioniert: Tab geht durch die Filter, die Liste, die Schaltflächen und den Vergleich, die Pfeile wählen eine Revision, und ein Screenreader liest jede Zeile mit ihren Zahlen.
+
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
 1. Wählen Sie Datei und dann Verlauf und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.

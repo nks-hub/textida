@@ -243,6 +243,18 @@ The program keeps a revision of a file at every save and at every change another
 - For a large file Compare needs the External diff tool from the settings, Restore File and Restore Selection are not offered, and Mark Revision wants the file saved first. Save as a Copy writes any revision beside the file, as name (date time).ext, and opens it; it works for every file.
 - Revisions that are kept as patches are not found by Search in History.
 
+## [file.historyPanel] Local history panel
+commands: nks.file.historyPanel, nks.files.history
+1. Choose File, then History, then Local History Panel, or Local History in the menu of a file in the Files panel, or File history in the menu of a tab. The panel opens as a tab; each file has one.
+2. The list on the left shows every revision of the file, the newest first: when it was taken, why, how big it is and, at the right, how many lines it added to the revision before it and removed from it. The counts are made in the background, one revision after another, and appear as they are ready; the oldest revision has nothing to compare with.
+3. Choose a revision to see its comparison on the right. The box above the list chooses what it is compared with: the current text of the file, or the revision before it. Choose two revisions with Ctrl or Shift to compare them with each other, the older on the left. The comparison is the one of Compare with disk, so its arrows, Previous and Next work.
+4. Restore File puts the whole revision into the tab of the file. To restore only a part, use the arrow of a block in the comparison with the current text. Both are one Undo step in the tab, and the text that was there is kept as a revision first.
+5. Label, Pin and Save as a Copy do what they do in the list of Local History. The filters narrow the list by the reason of the revision and by a word of its label.
+- Under the list stand the number of revisions of the file, the disk they take, the oldest one and the limits in force. Without limits the newest revision is still kept.
+- The list and the counts follow a save, a change made by another program, a label and a pin without reopening the panel.
+- A revision above the size limit of a text tab is not compared here, and neither is a large file: use Save as a Copy or the External diff tool. Restore File is not offered for a large file.
+- The keyboard works: Tab goes through the filters, the list, the buttons and the comparison, the arrows choose a revision, and a screen reader reads each row with its counts.
+
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
 1. Choose File and then History and then Mark Revision and type a label, for example Before refactoring.

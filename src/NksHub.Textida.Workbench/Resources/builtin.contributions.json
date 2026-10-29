@@ -372,6 +372,18 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.file.historyPanel",
+      "title": "cmd.file.historyPanel",
+      "category": "cat.file",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
+      "id": "nks.files.history",
+      "title": "cmd.files.history",
+      "category": "cat.file",
+      "enablement": "fileSelected"
+    },
+    {
       "id": "nks.remote.open",
       "title": "cmd.remote.open",
       "category": "cat.file"
@@ -3157,6 +3169,13 @@
       "group": "2_disk",
       "submenu": "history",
       "order": 80
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historyPanel",
+      "group": "2_disk",
+      "submenu": "history",
+      "order": 55
     },
     {
       "menu": "file",

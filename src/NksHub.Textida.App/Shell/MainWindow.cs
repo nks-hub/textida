@@ -349,6 +349,7 @@ internal sealed partial class MainWindow : Window
         ApplyHexTexts();
         ApplyTableTexts();
         ApplyCompareTexts();
+        ApplyHistoryTexts();
         ApplyOutputTexts();
         ApplyAgentTexts();
         ApplyPreviewTexts();
