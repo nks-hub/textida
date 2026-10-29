@@ -123,8 +123,10 @@ public class ManifestTests
         Assert.Equal(["auto", .. StringTable.UiLanguages], setting.Values!);
         var languageCommands = host.Commands.Commands.Select(c => c.Id).Where(id => id.StartsWith("nks.settings.language.", StringComparison.Ordinal));
         Assert.Equal(StringTable.UiLanguages.Select(l => "nks.settings.language." + l), languageCommands);
+        // the language is chosen in the settings window (Appearance), so the menu of the settings does not list the commands; the palette and the keys still run them
         var inMenu = host.Commands.MenuContributions.Where(m => m.Menu == "settings").Select(m => m.Command).ToHashSet();
-        Assert.All(languageCommands, id => Assert.Contains(id, inMenu));
+        Assert.All(languageCommands, id => Assert.DoesNotContain(id, inMenu));
+        Assert.Equal("cat.appearance", setting.Category);
     }
 
     [Fact]

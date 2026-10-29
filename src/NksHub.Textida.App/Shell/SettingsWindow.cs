@@ -110,6 +110,11 @@ internal sealed partial class SettingsWindow : Window
 
     private void OnLanguageChanged()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnLanguageChanged);
+            return;
+        }
         ApplyTexts();
         Refresh();
     }
