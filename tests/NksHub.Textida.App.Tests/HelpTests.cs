@@ -498,6 +498,7 @@ public class HelpEverywhereTests : IDisposable
             ("search.regex", () => Show(new RegexTesterWindow(new SearchPattern(@"(\w+) (\w+)", true)))),
             ("tools.logPattern", () => Show(new LogPatternWindow("%F(%L,%C)", LogPatternSyntax.Mask, "a.cs(1,2): error"))),
             ("tools.edit", () => Show(new ToolEditorWindow(_app.Tools, _w.PreviewTool))),
+            ("view.toolbar", () => Show(new ToolbarEditorWindow(_app.Workbench, _app.Toolbar))),
         };
         foreach (var (topic, open) in windows)
         {

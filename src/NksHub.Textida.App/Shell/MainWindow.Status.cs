@@ -94,6 +94,7 @@ internal sealed partial class MainWindow
 
     private void UpdateStatusCore()
     {
+        RefreshToolbarState();
         long part = Core.TypingTrace.Begin();
         CheckJournalHealth();
         Core.TypingTrace.End("win.status.journalHealth", part);

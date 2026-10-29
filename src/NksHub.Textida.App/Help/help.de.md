@@ -724,6 +724,19 @@ commands: nks.view.toggleSecrets
 - Ein Plugin liest statt jedes verborgenen Werts das Zeichen `*`. Bevor ein eingebauter Befehl auf einer solchen Datei läuft, fragt das Programm, ob er die Werte lesen darf.
 - Die Einstellung Geheime Dateien enthält die Namensmuster der Dateien, deren Werte verborgen werden, durch Semikolon getrennt (`*` steht für beliebigen Text). Ihre Standardliste ist vorläufig.
 
+## [view.toolbar] Symbolleiste
+commands: nks.view.toggleToolbar, nks.view.editToolbar
+Die Symbolleiste ist eine Reihe von Schaltflächen unter der Menüleiste für die Befehle, die Sie am häufigsten brauchen. Sie ist aus, bis Sie sie einschalten.
+1. Wählen Sie Ansicht und dann Symbolleiste. Die Reihe erscheint unter der Menüleiste; mit derselben Wahl blenden Sie sie wieder aus.
+2. Ein Klick auf eine Schaltfläche führt ihren Befehl aus. Eine Schaltfläche ist abgeblendet, solange ihr Befehl für das geöffnete Dokument nicht ausgeführt werden kann, zum Beispiel Speichern ohne Dokument. Zeigen Sie mit dem Zeiger auf eine Schaltfläche, sehen Sie ihren Namen und ihr Tastenkürzel.
+3. Die Schaltflächen ändern Sie mit Ansicht und Symbolleiste anpassen. Wählen Sie links einen Befehl (die Liste engen Sie durch Tippen im Feld ein) und drücken Sie Hinzufügen oder Enter; er kommt hinter die Schaltfläche, die rechts gewählt ist.
+4. Wählen Sie rechts eine Schaltfläche und drücken Sie Entfernen (oder Entf), um sie herauszunehmen, Nach oben oder Nach unten (oder Alt+Pfeil nach oben und Alt+Pfeil nach unten), um sie zu verschieben, oder Trennlinie hinzufügen für eine dünne Linie zwischen zwei Gruppen.
+5. Mit OK speichern Sie die Symbolleiste; sie ändert sich in allen Fenstern gleichzeitig. Abbrechen lässt alles, wie es war; Standard wiederherstellen bringt die erste Zusammenstellung zurück.
+- Die erste Zusammenstellung ist Neu, Öffnen, Speichern, Alle speichern, Rückgängig, Wiederholen, Suchen und Ersetzen sowie die Schaltflächen Git commit, pull und push, wenn die Git-Befehle vorhanden sind. Eine Schaltfläche, deren Befehl nicht existiert, zum Beispiel der eines entfernten Plugins, wird nicht gezeichnet; sie bleibt in der Liste und kommt mit dem Befehl zurück.
+- Die Symbolleiste hat höchstens 40 Einträge (Schaltflächen und Trennlinien); die Grenze ist vorläufig, und der Editor meldet, wenn die Symbolleiste voll ist. Ein Befehl kann nur einmal in der Symbolleiste sein.
+- Die Schaltflächen stehen in toolbar.json im Profilordner und in der Konfigurationssicherung. Eine Datei, die nicht gelesen werden kann, wird übergangen: Die erste Zusammenstellung erscheint, und der Grund steht in der Statusleiste und im Editor. Beim Speichern gehen Kommentare in der Datei verloren.
+- Eine Schaltfläche zeigt das Symbol ihres Befehls und, wenn der Befehl keines hat, seinen Namen. Die Symbole folgen dem Design und den Farben des hohen Kontrasts des Systems.
+
 ## [view.tabs] Tabs wechseln
 commands: nks.view.nextTab, nks.view.previousTab
 1. Strg+Tab wechselt zum nächsten Tab der Gruppe, Strg+Umschalt+Tab zum vorherigen.

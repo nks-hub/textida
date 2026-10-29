@@ -143,6 +143,14 @@ public sealed class KeymapFile
     public List<KeybindingContribution> Bindings { get; set; } = [];
 }
 
+/// <summary>The buttons of the user toolbar as <c>toolbar.json</c> keeps them: command ids in the order they are shown, and <c>-</c> for a separator.</summary>
+public sealed class ToolbarFile
+{
+    public int SchemaVersion { get; set; } = 1;
+
+    public List<string> Buttons { get; set; } = [];
+}
+
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -152,6 +160,7 @@ public sealed class KeymapFile
     WriteIndented = true)]
 [JsonSerializable(typeof(ContributionManifest))]
 [JsonSerializable(typeof(KeymapFile))]
+[JsonSerializable(typeof(ToolbarFile))]
 [JsonSerializable(typeof(ProfileFile))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 public sealed partial class ContributionJson : JsonSerializerContext

@@ -48,6 +48,7 @@ internal sealed partial class MainWindow
         var groups = MenuBuilder.Build(wb, new ShellContext(this, forMenu: true), CheckState, id => _ = wb.Commands.ExecuteAsync(id, new ShellContext(this, forMenu: true)));
         _menuSignature = MenuSignature();
         _menuPathSeen = Active?.Doc.Path;
+        RefreshToolbar();
         if (_look.NativeMenu)
         {
             if (_nativeMenu is null) NativeMenu.SetMenu(this, _nativeMenu = new NativeMenu());
@@ -85,6 +86,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
+        "nks.view.toggleToolbar" => (ToolbarShown, false),
         "nks.view.fullScreen" => (IsFullScreen, false),
         _ => null,
     };

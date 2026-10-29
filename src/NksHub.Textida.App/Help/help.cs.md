@@ -724,6 +724,19 @@ commands: nks.view.toggleSecrets
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
 - Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.
 
+## [view.toolbar] Lišta nástrojů
+commands: nks.view.toggleToolbar, nks.view.editToolbar
+Lišta nástrojů je řada tlačítek pod nabídkou pro příkazy, které používáte nejčastěji. Dokud ji nezapnete, není vidět.
+1. Zvolte Zobrazit a Lišta nástrojů. Řada se ukáže pod nabídkou; dalším zvolením ji skryjete.
+2. Kliknutím na tlačítko spustíte jeho příkaz. Tlačítko je ztlumené, dokud se jeho příkaz s otevřeným dokumentem nedá použít, například Uložit bez dokumentu. Když na tlačítko ukážete myší, uvidíte jeho název a zkratku.
+3. Tlačítka změníte volbou Zobrazit a Upravit lištu nástrojů. Vlevo vyberte příkaz (seznam zúžíte psaním do pole) a stiskněte Přidat nebo Enter; příkaz se zařadí za tlačítko vybrané vpravo.
+4. Vpravo vyberte tlačítko a stiskněte Odebrat (nebo Delete), aby z lišty zmizelo, Posunout nahoru nebo Posunout dolů (nebo Alt+šipka nahoru a Alt+šipka dolů), aby se přesunulo, nebo Přidat oddělovač pro tenkou čáru mezi dvěma skupinami.
+5. Tlačítkem OK lištu uložíte; změní se ve všech oknech najednou. Zrušit nechá všechno, jak to bylo; Výchozí tlačítka vrátí první sadu.
+- První sada je Nový, Otevřít, Uložit, Uložit vše, Zpět, Znovu, Najít a Nahradit a tlačítka Git commit, pull a push, když příkazy Gitu existují. Tlačítko, jehož příkaz neexistuje, například příkaz odebraného pluginu, se nekreslí; zůstává v seznamu a vrátí se spolu s příkazem.
+- Lišta má nejvýš 40 položek (tlačítek a oddělovačů); mez je provizorní a editor oznámí, že je lišta plná. Příkaz může být na liště jen jednou.
+- Tlačítka se ukládají do souboru toolbar.json ve složce profilu a jsou v záloze konfigurace. Soubor, který nejde přečíst, se přeskočí: ukáže se první sada a důvod stojí ve stavovém řádku a v editoru. Uložením se ze souboru odstraní komentáře.
+- Tlačítko ukazuje ikonu svého příkazu, a když ji příkaz nemá, jeho název. Ikony se řídí motivem i barvami vysokého kontrastu systému.
+
 ## [view.tabs] Přepínání karet
 commands: nks.view.nextTab, nks.view.previousTab
 1. Ctrl+Tab přepne na další kartu skupiny, Ctrl+Shift+Tab na předchozí.

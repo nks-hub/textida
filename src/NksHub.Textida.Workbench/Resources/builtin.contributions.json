@@ -1004,6 +1004,18 @@
       "icon": "terminal"
     },
     {
+      "id": "nks.view.toggleToolbar",
+      "title": "cmd.view.toggleToolbar",
+      "category": "cat.view",
+      "icon": "text"
+    },
+    {
+      "id": "nks.view.editToolbar",
+      "title": "cmd.view.editToolbar",
+      "category": "cat.view",
+      "icon": "pencil"
+    },
+    {
       "id": "nks.view.fullScreen",
       "title": "cmd.view.fullScreen",
       "category": "cat.view",
@@ -3945,6 +3957,18 @@
     },
     {
       "menu": "view",
+      "command": "nks.view.toggleToolbar",
+      "group": "5_panels/00",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.editToolbar",
+      "group": "5_panels/00",
+      "order": 20
+    },
+    {
+      "menu": "view",
       "command": "nks.view.toggleDocumentList",
       "group": "5_panels/01",
       "order": 10
@@ -6636,6 +6660,21 @@
         "light",
         "appearance",
         "color"
+      ]
+    },
+    {
+      "key": "workbench.toolbar",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.workbench.toolbar.title",
+      "description": "setting.workbench.toolbar.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "tags": [
+        "toolbar",
+        "buttons",
+        "icons",
+        "appearance"
       ]
     },
     {

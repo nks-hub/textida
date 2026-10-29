@@ -68,6 +68,9 @@ public sealed partial class App : Application
     /// <summary>The macros the user saved, in the <c>macros</c> folder of the profile.</summary>
     internal MacroStore Macros { get; private set; } = null!;
 
+    /// <summary>The buttons of the user toolbar, in <c>toolbar.json</c> of the profile.</summary>
+    internal ToolbarStore Toolbar { get; private set; } = null!;
+
     /// <summary>The views of logs the user saved, in <c>logviews.json</c> of the profile.</summary>
     internal NksHub.Textida.Core.Tools.LogViewStore LogViews { get; private set; } = null!;
 
@@ -192,6 +195,7 @@ public sealed partial class App : Application
         Plugins?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
         Plugins = new PluginServices(this);
         Macros = new MacroStore(Path.Combine(ProfileDirectory, "macros"));
+        Toolbar = new ToolbarStore(ProfileDirectory);
         LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.ContributingFolders, Plugins.DeclarePlugin, Plugins.UndeclarePlugin);

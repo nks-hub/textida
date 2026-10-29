@@ -235,6 +235,12 @@
           "description": "Theme. Light, dark or follow the system.",
           "x-scope": "application"
         },
+        "workbench.toolbar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Toolbar. Shows a row of buttons under the menu bar. Choose the buttons with View, Customize Toolbar.",
+          "x-scope": "application"
+        },
         "files.journalDirectory": {
           "type": "string",
           "default": "",

@@ -180,6 +180,9 @@ public class PseudoLocalizationTests : IDisposable
         // the main window: menu, tabs, status bar and the panels and bars around the text
         _w.NewDocument();
         Look("main window", _w);
+        Run("nks.view.toggleToolbar");
+        Look("toolbar", _w);
+        Run("nks.view.toggleToolbar");
         _w.ToggleDocuments(true);
         Look("documents panel", _w);
         _w.ToggleDocuments(false);
@@ -227,6 +230,7 @@ public class PseudoLocalizationTests : IDisposable
         await InWindow("help", _app.HelpView!);
         await InWindow("regular expression tester", new RegexTesterWindow(new SearchPattern(@"(\w+) (\w+)", true)));
         await InWindow("tool editor", new ToolEditorWindow(_app.Tools, _w.PreviewTool));
+        await InWindow("toolbar editor", new ToolbarEditorWindow(_app.Workbench, _app.Toolbar));
         await InWindow("LOG pattern", new LogPatternWindow("%F(%L,%C)", LogPatternSyntax.Mask, "build\nProgram.cs(12,5): error CS1002: ; expected\n"));
 
         // dialogs

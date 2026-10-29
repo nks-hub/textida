@@ -132,7 +132,7 @@ public class ConfigBackupTests : IDisposable
     {
         string[] configuration =
         [
-            "user-settings.json", "keymap.json", "variables.json", "tools.json", "saveActions.json", "logviews.json", "workspace.json", "remote/connections.json", "remote/network.json",
+            "user-settings.json", "keymap.json", "variables.json", "tools.json", "saveActions.json", "logviews.json", "workspace.json", "remote/connections.json", "remote/network.json", "toolbar.json",
             "macros/wrap.json", "recipes/trim.json", "plugins/user-clips/nkspad-plugin.json", "projects/a/project.json",
         ];
         string[] other = ["journal/session.json", "history/a/1.rev", "backups/old.bak", "remote/cache/c/a.txt", "sessions/s.json", "logs/app.log", "recent.json", "config-restore.zip", "config-backups/before.zip", "macros/wip.json.tmp"];
