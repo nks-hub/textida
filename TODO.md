@@ -1126,6 +1126,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Editing/Minimap.cs`)
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (969c0630). Poměrný posun jako ve VS Code místo režimu „okolí“, pevné měřítko během tažení, vzorkovaná mapa velkého souboru podle bajtové pozice. Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
 
 ### P3.4 Inspektor bajtů
 
@@ -1269,6 +1270,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 29. 10. 2026 (noc):** Windows hotovo; `.icns` pro macOS je součástí P3.7.8.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** `.icns` pro macOS je hotová v rámci P3.7.8. Zbývá pohled na ikonu v běžícím systému.
 - [ ] **P3.6.9** Panely: změna velikosti, dokování a přesun
   - **Co a proč:** Boční panel (soubory a další) nejde roztáhnout, přesunout ani ukotvit jinam. Panely se mají dát roztáhnout tažením okraje, ukotvit vlevo, vpravo nebo dole, přesunout mezi skupinami a skrýt; rozložení se pamatuje v relaci a dá se vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1533,6 +1535,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** mimo jádro (distribuce)
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (8de6a475). `tools/BuildMacPackage.cs` a `.icns`; v aplikaci (Nastavení → Systém) odkaz `textida`, akce ve Finderu a přidružení přes Launch Services; podpis jen ad-hoc. Na Macu (macOS 15.7.4, arm64) builder vyrobil ZIP i DMG pro osx-arm64 i osx-x64 a kontrola balíku prošla; odkaz `textida`, přidružení, otevření souboru a předání běžící instanci ověřené. Neověřeno: macOS 14, nativní Intel (x64 jen pod Rosettou), notarizace (PR.3.1). Bundle ID `cz.nks-hub.textida` je pracovní (P3.7.6).
 
 ## P3b – základ pluginů
 
@@ -2159,6 +2162,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (f6dec96e). Panel historie s revizemi, diffem a statistikami řádků. Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
 
 ### P5.4 Vzdálené soubory
 
@@ -2771,6 +2775,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin `textida.git` (data), jádro (okraj, náhled, minimapa)
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (a78a7a80). Náhled změny s původními řádky, vrácení úseku, připravení a vrácení z indexu, skok na další a předchozí změnu, blame řádku, značky v minimapě, barvy z tématu. Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
 - [ ] **P8.6.4** Git: commit, pull, push a větve jako v PhpStormu
   - **Co a proč:** Majitel 28. 10. 2026 chce na liště tlačítka commit, pull a push a práci s Gitem podobnou PhpStormu. Plugin `textida.git` dnes umí stav souborů, diff s indexem a s `HEAD`, připravení a vrácení úseku a konflikty (naše, jejich, obě, smazat, označit vyřešené). Chybí vše kolem commitu:
     - commit a amend;
@@ -2801,6 +2806,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin `textida.git`, panel v jádru
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
+  - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (9f66ae0d). Commit, pull, push (`nks.git.commit`, `nks.git.pull`, `nks.git.push`), fetch, větve, stash a log; síť jen na pokyn uživatele, se zrušením a průběhem; hesla jen přes credential helper Gitu; ikony příkazů a podnabídka Git v novém menu. Časové limity sítě jsou placeholdery (OPEN). Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
 
 ### P8.7 Schémata a manifesty
 
