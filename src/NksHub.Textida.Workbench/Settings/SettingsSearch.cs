@@ -9,7 +9,7 @@ public enum SearchHitKind { Setting, Keybinding }
 
 /// <summary>
 /// One row of the settings search. A setting row carries its effective value and where it comes from;
-/// a keybinding row carries its shortcut, source and the conflicts it takes part in.
+/// a keybinding row carries its shortcut, source and the conflicts it takes part in. <paramref name="CategoryId"/> is the category key of the setting, or <see cref="SettingCategories.Keys"/> for a shortcut.
 /// </summary>
 public sealed record SearchHit(
     SearchHitKind Kind,
@@ -22,7 +22,8 @@ public sealed record SearchHit(
     string? Shortcut,
     string? ShortcutSource,
     IReadOnlyList<KeyConflict> Conflicts,
-    int Score)
+    int Score,
+    string? CategoryId = null)
 {
     /// <summary>True when the shortcut is part of a conflict the user should resolve.</summary>
     public bool HasConflict => Conflicts.Any(c => c.IsAmbiguous);
@@ -53,8 +54,8 @@ public sealed class SettingsSearchIndex
         }).ToList();
     }
 
-    /// <summary>Hits for the query, best first; settings before keybindings on equal score. An empty query lists all settings.</summary>
-    public IReadOnlyList<SearchHit> Search(string query, SettingsStack stack, CommandRegistry commands, Keymap keymap, string? language = null)
+    /// <summary>Hits for the query, best first; settings before keybindings on equal score. An empty query lists all settings, and all shortcuts too when <paramref name="allKeys"/> is set.</summary>
+    public IReadOnlyList<SearchHit> Search(string query, SettingsStack stack, CommandRegistry commands, Keymap keymap, string? language = null, bool allKeys = false)
     {
         var words = TextMatching.Fold(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var hits = new List<SearchHit>();
@@ -68,7 +69,7 @@ public sealed class SettingsSearchIndex
             if (score is not null)
             {
                 hits.Add(new SearchHit(SearchHitKind.Setting, e.Definition.Key, e.Title, e.Description, e.Category, valueText,
-                    resolved.Source, null, null, [], score.Value));
+                    resolved.Source, null, null, [], score.Value, e.Definition.Category));
             }
         }
 
@@ -84,10 +85,10 @@ public sealed class SettingsSearchIndex
             var shortcut = b.Sequence.Display(keymap.Platform);
             var score = Score(words, (TextMatching.Fold(command.Id), 6), (TextMatching.Fold(title), 8), (TextMatching.Fold(category), 4),
                 (TextMatching.Fold(shortcut), 5), (TextMatching.Fold(b.Sequence.ToString()), 5));
-            if (words.Length > 0 && score is not null)
+            if ((words.Length > 0 || allKeys) && score is not null)
             {
                 hits.Add(new SearchHit(SearchHitKind.Keybinding, command.Id, title, null, category, null, null, shortcut,
-                    $"{b.Layer}: {b.Source}", keymap.ConflictsOf(b), score.Value));
+                    $"{b.Layer}: {b.Source}", keymap.ConflictsOf(b), score.Value, SettingCategories.Keys));
             }
         }
 

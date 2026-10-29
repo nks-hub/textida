@@ -276,9 +276,11 @@ commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.rere
 ## [app.settings] Settings
 commands: nks.app.openSettings
 1. Press Ctrl+comma, or choose Settings and then Settings.
-2. Type what you look for in the box at the top, for example tab or shortcut. Both settings and keyboard shortcuts are searched.
-3. Every item shows its effective value and where it comes from (default, user, workspace, EditorConfig, document).
-4. Change the value right in the row; it takes effect at once and is written to the settings file. Reset to Default restores the original value.
+2. On the left choose a category: Appearance (theme, interface language, font, toolbar), Editor, Files, Search, Hex, Git, Local History, Tools and Languages, Keyboard Shortcuts, System or Advanced; each plugin has its own node under Plugins. On the right is the page of the category with its settings in sections. The tree works with the arrow keys.
+3. Type what you look for in the box at the top, for example tab or shortcut. Settings and keyboard shortcuts are searched by name, description, key and value. The tree narrows to the categories with a match and shows the count in each; the match is bold in the text, and the page lists the matches of every category.
+4. Every item shows its effective value and where it comes from (default, user, workspace, EditorConfig, document). What you changed is marked changed.
+5. Change the value right in the row; it takes effect at once and is written to the settings file. Reset to Default restores the original value of one setting; Reset Category to Default (above the page) restores everything you changed in the category, after a question.
+- The interface language is under Appearance: the choice takes effect at once and changes menus, messages and this help.
 - A nonsensical value is refused and the row says what is wrong. If the settings file cannot be written, the reason is above the list.
 - Shortcut conflicts are shown on the rows concerned.
 - The group Advanced holds the options that few people need: scrolling past the end, cutting a whole line without a selection, hiding the mouse pointer while typing, links with Ctrl+click, the indent of wrapped lines, how many recent files and undo steps are kept, the autosave interval, the blink time of the text cursor (0: it does not blink), smooth scrolling with the mouse wheel, and how many lines and columns around the screen get syntax colors at once. The text cursor of the usual blink time is the one of the editor; any other time draws the cursor in the program, and block selection mode uses the editor's again.
@@ -916,7 +918,7 @@ commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.them
 
 ## [settings.language] Interface language
 commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
-1. Open Settings, search for Interface language and choose Čeština, English, Slovenčina or Deutsch.
+1. Open Settings (Ctrl+comma), the category Appearance, and in Interface language choose Follow System, Čeština, English, Slovenčina or Deutsch.
 2. Menus, messages and this help switch at once.
 - The default is to follow the system (setting Interface language).
 

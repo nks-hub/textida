@@ -220,7 +220,7 @@ internal sealed partial class MainWindow
             return [.. wb.SearchIndex.Search(text, wb.Settings, wb.Commands, wb.Keymap, null)
                 .Where(h => h.Kind == NksHub.Textida.Workbench.Settings.SearchHitKind.Setting).Take(60)
                 .Select(h => new QuickRow(h.Title, h.Category, h.ValueText?.Trim('"'), null, true, null,
-                    $"{h.Category}: {h.Title}, {h.ValueText?.Trim('"')}", () => _app.OpenSettings(text.Length == 0 ? h.Id : text)))];
+                    $"{h.Category}: {h.Title}, {h.ValueText?.Trim('"')}", () => _app.OpenSettings(text.Length == 0 ? null : text, h.Id)))];
         }
         if (query.StartsWith('='))
         {

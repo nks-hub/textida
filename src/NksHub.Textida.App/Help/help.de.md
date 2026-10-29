@@ -276,9 +276,11 @@ commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.rere
 ## [app.settings] Einstellungen
 commands: nks.app.openSettings
 1. Drücken Sie Strg+Komma oder wählen Sie Einstellungen und dann Einstellungen.
-2. Tippen Sie oben, was Sie suchen, zum Beispiel tab oder Kürzel. Durchsucht werden Einstellungen und Tastenkürzel.
-3. Jeder Eintrag zeigt den gültigen Wert und woher er stammt (Standard, Benutzer, Arbeitsbereich, EditorConfig, Dokument).
-4. Ändern Sie den Wert direkt in der Zeile; er wirkt sofort und wird in die Einstellungsdatei geschrieben. Auf Standard zurücksetzen stellt den ursprünglichen Wert wieder her.
+2. Wählen Sie links eine Kategorie: Erscheinungsbild (Farbschema, Sprache der Oberfläche, Schrift, Symbolleiste), Editor, Dateien, Suchen, Hex, Git, Lokaler Verlauf, Werkzeuge und Sprachen, Tastenkürzel, System oder Erweitert; jedes Plugin hat unter Plugins einen eigenen Knoten. Rechts steht die Seite der Kategorie mit ihren Einstellungen in Abschnitten. Der Baum lässt sich mit den Pfeiltasten bedienen.
+3. Tippen Sie oben, was Sie suchen, zum Beispiel tab oder Kürzel. Durchsucht werden Einstellungen und Tastenkürzel nach Name, Beschreibung, Schlüssel und Wert. Der Baum schrumpft auf die Kategorien mit Treffer und zeigt bei jeder die Zahl; der Treffer ist im Text fett, und die Seite listet die Treffer aller Kategorien.
+4. Jeder Eintrag zeigt den gültigen Wert und woher er stammt (Standard, Benutzer, Arbeitsbereich, EditorConfig, Dokument). Was Sie geändert haben, trägt die Marke geändert.
+5. Ändern Sie den Wert direkt in der Zeile; er wirkt sofort und wird in die Einstellungsdatei geschrieben. Auf Standard zurücksetzen stellt den ursprünglichen Wert einer Einstellung wieder her; Kategorie auf Standard zurücksetzen (über der Seite) alles, was Sie in der Kategorie geändert haben, nach einer Rückfrage.
+- Die Sprache der Oberfläche steht unter Erscheinungsbild: Die Wahl wirkt sofort und ändert Menüs, Meldungen und diese Hilfe.
 - Ein unsinniger Wert wird abgelehnt, und die Zeile sagt, was daran nicht stimmt. Lässt sich die Einstellungsdatei nicht schreiben, steht der Grund über der Liste.
 - Kürzelkonflikte werden bei den betroffenen Zeilen angezeigt.
 - Die Gruppe Erweitert enthält Optionen, die nur wenige brauchen: Scrollen über das Textende hinaus, eine ganze Zeile ohne Auswahl ausschneiden, den Mauszeiger beim Tippen verbergen, Links mit Strg+Klick, den Einzug umbrochener Zeilen, wie viele zuletzt geöffnete Dateien und Rückgängig-Schritte behalten werden, das Intervall der automatischen Speicherung, die Blinkzeit des Textcursors (0: er blinkt nicht), weiches Scrollen mit dem Mausrad und für wie viele Zeilen und Spalten um den Bildschirm die Syntaxfarben auf einmal berechnet werden. Der Textcursor mit der üblichen Blinkzeit ist der des Editors; jede andere Zeit zeichnet den Cursor im Programm, und der Blockauswahlmodus nimmt wieder den des Editors.
@@ -916,7 +918,7 @@ commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.them
 
 ## [settings.language] Sprache der Oberfläche
 commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
-1. Öffnen Sie die Einstellungen, suchen Sie Sprache der Oberfläche und wählen Sie Čeština, English, Slovenčina oder Deutsch.
+1. Öffnen Sie die Einstellungen (Strg+Komma), die Kategorie Erscheinungsbild, und wählen Sie bei Sprache der Oberfläche Wie System, Čeština, English, Slovenčina oder Deutsch.
 2. Menüs, Meldungen und diese Hilfe schalten sofort um.
 - Standard ist die Systemsprache (Einstellung Sprache der Oberfläche).
 

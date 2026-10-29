@@ -431,6 +431,29 @@
         <Style Selector="Border.settingrow">
             <Setter Property="Background" Value="{DynamicResource Bg1}" />
         </Style>
+        <!-- the setting a link or the palette led to: the accent frames it, so it does not rely on the fill alone -->
+        <Style Selector="Border.settingrow.found">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Border.settingtree">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="TextBlock.settinggroup">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="TextBlock.settingsection">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+        </Style>
+        <Style Selector="TextBlock.settingchanged">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        </Style>
         <Style Selector="GridSplitter.groupsplitter">
             <Setter Property="Background" Value="{DynamicResource Border}" />
         </Style>

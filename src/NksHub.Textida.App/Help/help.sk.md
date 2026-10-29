@@ -276,9 +276,11 @@ commands: nks.open.special, nks.open.hex, nks.open.withEncoding, nks.format.rere
 ## [app.settings] Nastavenia
 commands: nks.app.openSettings
 1. Stlačte Ctrl+čiarka, alebo zvoľte Nastavenia a Nastavenia.
-2. Do poľa hore napíšte, čo hľadáte, napríklad tab alebo skratka. Hľadá sa v nastaveniach aj v klávesových skratkách.
-3. Pri každej položke je vidieť platná hodnota a odkiaľ pochádza (predvolená, používateľ, pracovný priestor, EditorConfig, dokument).
-4. Hodnotu zmeňte priamo v riadku; prejaví sa hneď a uloží sa do súboru nastavení. Tlačidlo Obnoviť predvolené vráti pôvodnú hodnotu.
+2. Vľavo vyberte kategóriu: Vzhľad (motív, jazyk rozhrania, písmo, lišta), Editor, Súbory, Hľadanie, Hex, Git, Lokálna história, Nástroje a jazyky, Klávesové skratky, Systém alebo Pokročilé; každý plugin má svoj uzol pod Pluginy. Vpravo je stránka kategórie s nastaveniami po oddieloch. Strom sa ovláda šípkami.
+3. Do poľa hore napíšte, čo hľadáte, napríklad tab alebo skratka. Hľadá sa v nastaveniach aj v klávesových skratkách, podľa názvu, popisu, kľúča aj hodnoty. Strom sa zúži na kategórie so zhodou a pri každej ukáže počet; zhoda je v texte tučne a stránka ukáže zhody všetkých kategórií.
+4. Pri každej položke je vidieť platná hodnota a odkiaľ pochádza (predvolená, používateľ, pracovný priestor, EditorConfig, dokument). Čo ste zmenili, má značku „zmenené“.
+5. Hodnotu zmeňte priamo v riadku; prejaví sa hneď a uloží sa do súboru nastavení. Tlačidlo Obnoviť predvolené vráti pôvodnú hodnotu jedného nastavenia, tlačidlo Vrátiť kategóriu na predvolené (nad stránkou) všetky vaše zmeny v kategórii, po otázke.
+- Jazyk rozhrania je vo Vzhľade: voľba platí hneď a zmení ponuky, hlásenia aj tohto pomocníka.
 - Nezmyselná hodnota sa odmietne a riadok napíše, čo s ňou je. Ak sa súbor nastavení nedá zapísať, nad zoznamom je dôvod.
 - Konflikty skratiek sú vidieť pri príslušných riadkoch.
 - Skupina Pokročilé obsahuje voľby, ktoré potrebuje málo ľudí: rolovanie za koniec textu, vystrihnutie celého riadka bez výberu, skrytie ukazovateľa myši pri písaní, odkazy cez Ctrl+klik, odsadenie zalomených riadkov, koľko posledných súborov a krokov späť sa drží, interval automatického ukladania, dobu blikania textového kurzora (0: neblikne), plynulé rolovanie kolieskom myši a koľko riadkov a stĺpcov okolo obrazovky sa naraz zafarbí. Textový kurzor s obvyklou dobou blikania je kurzor editora; iná doba ho vykreslí v programe a blokový výber používa zase kurzor editora.
@@ -916,7 +918,7 @@ commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.them
 
 ## [settings.language] Jazyk rozhrania
 commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.language.sk, nks.settings.language.de
-1. Otvorte Nastavenia, vyhľadajte Jazyk rozhrania a vyberte Čeština, English, Slovenčina alebo Deutsch.
+1. Otvorte Nastavenia (Ctrl+čiarka), kategóriu Vzhľad, a v Jazyku rozhrania vyberte Podľa systému, Čeština, English, Slovenčina alebo Deutsch.
 2. Ponuky, hlásenia aj tento pomocník sa prepnú hneď.
 - Predvolená voľba je podľa systému (nastavenie Jazyk rozhrania).
 

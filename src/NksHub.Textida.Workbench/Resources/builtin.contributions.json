@@ -5779,7 +5779,7 @@
       "default": 4,
       "title": "setting.editor.tabSize.title",
       "description": "setting.editor.tabSize.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "document",
       "minimum": 1,
       "maximum": 32,
@@ -5796,7 +5796,7 @@
       "default": 4,
       "title": "setting.editor.indentSize.title",
       "description": "setting.editor.indentSize.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "document",
       "minimum": 1,
       "maximum": 32,
@@ -5813,7 +5813,7 @@
       "default": true,
       "title": "setting.editor.insertSpaces.title",
       "description": "setting.editor.insertSpaces.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "document",
       "tags": [
         "indent",
@@ -5828,7 +5828,7 @@
       "default": true,
       "title": "setting.editor.detectIndentation.title",
       "description": "setting.editor.detectIndentation.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "document",
       "tags": [
         "indent",
@@ -5843,7 +5843,7 @@
       "default": "off",
       "title": "setting.editor.wordWrap.title",
       "description": "setting.editor.wordWrap.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "language",
       "enum": [
         "off",
@@ -5860,7 +5860,7 @@
       "default": "none",
       "title": "setting.editor.renderWhitespace.title",
       "description": "setting.editor.renderWhitespace.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "language",
       "enum": [
         "none",
@@ -5880,7 +5880,7 @@
       "default": "Cascadia Mono, Consolas, Menlo, monospace",
       "title": "setting.editor.fontFamily.title",
       "description": "setting.editor.fontFamily.description",
-      "category": "cat.editor",
+      "category": "cat.appearance",
       "scope": "application",
       "tags": [
         "font"
@@ -5892,7 +5892,7 @@
       "default": 14,
       "title": "setting.editor.fontSize.title",
       "description": "setting.editor.fontSize.description",
-      "category": "cat.editor",
+      "category": "cat.appearance",
       "scope": "application",
       "minimum": 6,
       "tags": [
@@ -5906,7 +5906,7 @@
       "default": "Segoe UI Symbol, Segoe UI Emoji, Microsoft YaHei UI, Apple Symbols, Apple Color Emoji, PingFang SC, Noto Sans Symbols 2, Noto Color Emoji, Noto Sans CJK SC",
       "title": "setting.editor.fallbackFontFamily.title",
       "description": "setting.editor.fallbackFontFamily.description",
-      "category": "cat.editor",
+      "category": "cat.appearance",
       "scope": "application",
       "tags": [
         "font",
@@ -5922,7 +5922,7 @@
       "default": false,
       "title": "setting.editor.renderLineEndings.title",
       "description": "setting.editor.renderLineEndings.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "language",
       "tags": [
         "line ending",
@@ -5938,7 +5938,7 @@
       "default": true,
       "title": "setting.editor.lineNumbers.title",
       "description": "setting.editor.lineNumbers.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "line",
@@ -5952,7 +5952,7 @@
       "default": true,
       "title": "setting.editor.highlightCurrentLine.title",
       "description": "setting.editor.highlightCurrentLine.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "line",
@@ -5966,7 +5966,7 @@
       "default": true,
       "title": "setting.editor.links.title",
       "description": "setting.editor.links.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "link",
@@ -5980,7 +5980,7 @@
       "default": 0,
       "title": "setting.editor.rightMargin.title",
       "description": "setting.editor.rightMargin.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "language",
       "minimum": 0,
       "maximum": 500,
@@ -5997,7 +5997,7 @@
       "default": true,
       "title": "setting.editor.minimap.title",
       "description": "setting.editor.minimap.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "minimap",
@@ -6011,7 +6011,7 @@
       "default": "utf-8",
       "title": "setting.files.encoding.title",
       "description": "setting.files.encoding.description",
-      "category": "cat.files",
+      "category": "cat.editor.encoding",
       "scope": "document",
       "enum": [
         "utf-8",
@@ -6034,7 +6034,7 @@
       "default": "auto",
       "title": "setting.files.eol.title",
       "description": "setting.files.eol.description",
-      "category": "cat.files",
+      "category": "cat.editor.encoding",
       "scope": "document",
       "enum": [
         "auto",
@@ -6055,7 +6055,7 @@
       "default": false,
       "title": "setting.files.trimTrailingWhitespace.title",
       "description": "setting.files.trimTrailingWhitespace.description",
-      "category": "cat.files",
+      "category": "cat.editor.format",
       "scope": "document",
       "tags": [
         "whitespace",
@@ -6068,7 +6068,7 @@
       "default": false,
       "title": "setting.files.insertFinalNewline.title",
       "description": "setting.files.insertFinalNewline.description",
-      "category": "cat.files",
+      "category": "cat.editor.format",
       "scope": "document",
       "tags": [
         "newline",
@@ -6097,7 +6097,7 @@
       "default": true,
       "title": "setting.files.gitStatus.title",
       "description": "setting.files.gitStatus.description",
-      "category": "cat.files",
+      "category": "cat.git",
       "scope": "application",
       "tags": [
         "git",
@@ -6129,7 +6129,7 @@
       "default": false,
       "title": "setting.updates.checkOnStart.title",
       "description": "setting.updates.checkOnStart.description",
-      "category": "cat.app",
+      "category": "cat.system",
       "scope": "application",
       "tags": [
         "update",
@@ -6161,7 +6161,7 @@
       "default": "default",
       "title": "setting.workbench.keymapProfile.title",
       "description": "setting.workbench.keymapProfile.description",
-      "category": "cat.workbench",
+      "category": "cat.keys",
       "scope": "application",
       "tags": [
         "keys",
@@ -6176,7 +6176,7 @@
       "default": "auto",
       "title": "setting.workbench.uiLanguage.title",
       "description": "setting.workbench.uiLanguage.description",
-      "category": "cat.workbench",
+      "category": "cat.appearance",
       "scope": "application",
       "tags": [
         "language",
@@ -6200,7 +6200,7 @@
       "default": true,
       "title": "setting.editor.autoClosePairs.title",
       "description": "setting.editor.autoClosePairs.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "bracket",
@@ -6215,7 +6215,7 @@
       "default": true,
       "title": "setting.editor.continueComments.title",
       "description": "setting.editor.continueComments.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "comment",
@@ -6229,7 +6229,7 @@
       "default": "system",
       "title": "setting.workbench.theme.title",
       "description": "setting.workbench.theme.description",
-      "category": "cat.workbench",
+      "category": "cat.appearance",
       "scope": "application",
       "enum": [
         "system",
@@ -6265,7 +6265,7 @@
       "default": true,
       "title": "setting.history.enabled.title",
       "description": "setting.history.enabled.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "tags": [
         "history",
@@ -6279,7 +6279,7 @@
       "default": false,
       "title": "setting.history.storeSecretFiles.title",
       "description": "setting.history.storeSecretFiles.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "tags": [
         "history",
@@ -6308,7 +6308,7 @@
       "default": 0,
       "title": "setting.history.maxRevisionsPerFile.title",
       "description": "setting.history.maxRevisionsPerFile.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "minimum": 0,
       "tags": [
@@ -6323,7 +6323,7 @@
       "default": 0,
       "title": "setting.history.maxAgeDays.title",
       "description": "setting.history.maxAgeDays.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "minimum": 0,
       "tags": [
@@ -6338,7 +6338,7 @@
       "default": 0,
       "title": "setting.history.maxMiBPerFile.title",
       "description": "setting.history.maxMiBPerFile.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "minimum": 0,
       "tags": [
@@ -6353,7 +6353,7 @@
       "default": 0,
       "title": "setting.history.maxTotalMiB.title",
       "description": "setting.history.maxTotalMiB.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "minimum": 0,
       "tags": [
@@ -6435,7 +6435,7 @@
       "default": "",
       "title": "setting.tools.diffTool.title",
       "description": "setting.tools.diffTool.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "diff",
@@ -6450,7 +6450,7 @@
       "default": "\"{left}\" \"{right}\"",
       "title": "setting.tools.diffArguments.title",
       "description": "setting.tools.diffArguments.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "diff",
@@ -6464,7 +6464,7 @@
       "default": false,
       "title": "setting.compare.ignoreWhitespace.title",
       "description": "setting.compare.ignoreWhitespace.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "diff",
@@ -6479,7 +6479,7 @@
       "default": false,
       "title": "setting.compare.ignoreCase.title",
       "description": "setting.compare.ignoreCase.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "diff",
@@ -6493,7 +6493,7 @@
       "default": true,
       "title": "setting.git.gutter.title",
       "description": "setting.git.gutter.description",
-      "category": "cat.tools",
+      "category": "cat.git",
       "scope": "application",
       "tags": [
         "git",
@@ -6507,7 +6507,7 @@
       "default": "",
       "title": "setting.tools.makeProgram.title",
       "description": "setting.tools.makeProgram.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "make",
@@ -6522,7 +6522,7 @@
       "default": 0,
       "title": "setting.tools.timeoutSeconds.title",
       "description": "setting.tools.timeoutSeconds.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "minimum": 0,
       "maximum": 86400,
@@ -6539,7 +6539,7 @@
       "default": "",
       "title": "setting.tools.outputEncoding.title",
       "description": "setting.tools.outputEncoding.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "tool",
@@ -6555,7 +6555,7 @@
       "default": "default",
       "title": "setting.editor.profile.title",
       "description": "setting.editor.profile.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "application",
       "enum": [
         "default",
@@ -6574,7 +6574,7 @@
       "default": false,
       "title": "setting.editor.enhancedHomeEnd.title",
       "description": "setting.editor.enhancedHomeEnd.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "home",
@@ -6589,7 +6589,7 @@
       "default": false,
       "title": "setting.editor.backspaceUnindent.title",
       "description": "setting.editor.backspaceUnindent.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "backspace",
@@ -6603,7 +6603,7 @@
       "default": "carets",
       "title": "setting.editor.altDragMode.title",
       "description": "setting.editor.altDragMode.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "application",
       "enum": [
         "carets",
@@ -6623,7 +6623,7 @@
       "default": "default",
       "title": "setting.editor.pairStyle.title",
       "description": "setting.editor.pairStyle.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "enum": [
         "default",
@@ -6642,7 +6642,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.renameTag.title",
       "description": "setting.editor.smartKeys.renameTag.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "html",
@@ -6657,7 +6657,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.closeTag.title",
       "description": "setting.editor.smartKeys.closeTag.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "html",
@@ -6672,7 +6672,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.escapeInString.title",
       "description": "setting.editor.smartKeys.escapeInString.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "paste",
@@ -6687,7 +6687,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.jsonComma.title",
       "description": "setting.editor.smartKeys.jsonComma.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "json",
@@ -6701,7 +6701,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.phpArrow.title",
       "description": "setting.editor.smartKeys.phpArrow.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "php",
@@ -6715,7 +6715,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.selectVariable.title",
       "description": "setting.editor.smartKeys.selectVariable.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "php",
@@ -6730,7 +6730,7 @@
       "default": true,
       "title": "setting.editor.smartKeys.sqlEnd.title",
       "description": "setting.editor.smartKeys.sqlEnd.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "sql",
@@ -6745,7 +6745,7 @@
       "default": true,
       "title": "setting.editor.emmet.title",
       "description": "setting.editor.emmet.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "language",
       "tags": [
         "emmet",
@@ -6822,7 +6822,7 @@
       "default": 20,
       "title": "setting.editor.clipboardHistorySize.title",
       "description": "setting.editor.clipboardHistorySize.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "application",
       "minimum": 1,
       "maximum": 100,
@@ -6839,7 +6839,7 @@
       "default": "yyyy-MM-dd HH:mm",
       "title": "setting.editor.dateTimeFormat.title",
       "description": "setting.editor.dateTimeFormat.description",
-      "category": "cat.editor",
+      "category": "cat.editor.typing",
       "scope": "application",
       "tags": [
         "date",
@@ -6854,7 +6854,7 @@
       "default": "generic",
       "title": "setting.sql.dialect.title",
       "description": "setting.sql.dialect.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "application",
       "enum": [
         "generic",
@@ -6875,7 +6875,7 @@
       "default": "",
       "title": "setting.schema.mappings.title",
       "description": "setting.schema.mappings.description",
-      "category": "cat.editor",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "schema",
@@ -6892,7 +6892,7 @@
       "default": "",
       "title": "setting.html.tidyPath.title",
       "description": "setting.html.tidyPath.description",
-      "category": "cat.editor",
+      "category": "cat.editor.format",
       "scope": "application",
       "tags": [
         "html",
@@ -6941,7 +6941,7 @@
       "default": false,
       "title": "setting.review.autoKeep.title",
       "description": "setting.review.autoKeep.description",
-      "category": "cat.files",
+      "category": "cat.history",
       "scope": "application",
       "tags": [
         "review",
@@ -7158,7 +7158,7 @@
       "default": true,
       "title": "setting.editor.matchBrackets.title",
       "description": "setting.editor.matchBrackets.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "bracket",
@@ -7173,7 +7173,7 @@
       "default": true,
       "title": "setting.editor.occurrences.enabled.title",
       "description": "setting.editor.occurrences.enabled.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -7190,7 +7190,7 @@
       "default": false,
       "title": "setting.editor.occurrences.wholeWord.title",
       "description": "setting.editor.occurrences.wholeWord.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -7206,7 +7206,7 @@
       "default": true,
       "title": "setting.editor.occurrences.matchCase.title",
       "description": "setting.editor.occurrences.matchCase.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -7222,7 +7222,7 @@
       "default": false,
       "title": "setting.editor.occurrences.atCaret.title",
       "description": "setting.editor.occurrences.atCaret.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -7238,7 +7238,7 @@
       "default": 2,
       "title": "setting.editor.occurrences.minLength.title",
       "description": "setting.editor.occurrences.minLength.description",
-      "category": "cat.editor",
+      "category": "cat.editor.display",
       "scope": "application",
       "minimum": 1,
       "maximum": 100,

@@ -366,16 +366,19 @@ public sealed partial class App : Application
 
     // ---- settings ----
 
-    internal void OpenSettings(string? query = null)
+    /// <summary>Opens the settings (one window). With a <paramref name="query"/> the search is filled in; with a <paramref name="key"/> (a setting, or the command of a shortcut) the page of its category opens with that row framed and in view.</summary>
+    internal void OpenSettings(string? query = null, string? key = null)
     {
         if (_settingsWindow is null)
         {
-            _settingsWindow = new SettingsWindow(this);
+            _settingsWindow = new SettingsWindow(this, query, key);
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
             _settingsWindow.Show();
+            return;
         }
-        else _settingsWindow.Activate();
+        _settingsWindow.Activate();
         if (query is not null) _settingsWindow.SetQuery(query);
+        if (key is not null) _settingsWindow.ShowKey(key, keepSearch: query is not null);
     }
 
     internal SettingsWindow? SettingsView => _settingsWindow;

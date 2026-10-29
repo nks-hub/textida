@@ -90,8 +90,19 @@ internal sealed record ContrastColors(Color Window, Color WindowText, Color Gray
 internal static class ThemeColors
 {
     /// <summary>The colour of errors in the theme in use. It reads on the window in the light and the dark theme, and in high contrast it is the colour the system uses for links.</summary>
-    public static IBrush Danger =>
-        Application.Current is { } app && app.TryFindResource("Danger", app.ActualThemeVariant, out var value) && value is IBrush brush ? brush : Brushes.Firebrick;
+    public static IBrush Danger => Of("Danger", Brushes.Firebrick);
+
+    /// <summary>The fill behind the part of a text that matches a search: a highlight in the light and the dark theme, the lighter mix of window and text colour in high contrast.</summary>
+    public static IBrush Mark => Of("Highlight", Brushes.Gold);
+
+    /// <summary>The colour of the accent of the theme in use.</summary>
+    public static IBrush Accent => Of("Accent", Brushes.Teal);
+
+    /// <summary>The text colour of the theme in use.</summary>
+    public static IBrush Text => Of("Fg", Brushes.Black);
+
+    private static IBrush Of(string key, IBrush fallback) =>
+        Application.Current is { } app && app.TryFindResource(key, app.ActualThemeVariant, out var value) && value is IBrush brush ? brush : fallback;
 }
 
 [SupportedOSPlatform("windows")]
