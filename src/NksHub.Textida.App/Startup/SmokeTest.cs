@@ -227,6 +227,8 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
 
         var outlineFile = Path.Combine(temp, "outline.md");
         await File.WriteAllTextAsync(outlineFile, "# Title\n## Part\ntext\n");
+        // a Markdown file opens in the reading page by default, which has no text surface for the outline (P9.3.4)
+        app.Workbench.Set("markdown.defaultMode", "source");
         var outline = window.OpenFile(outlineFile, null);
         await NextFrameAsync();
         Check(await app.Plugins.IndexSymbolsAsync(window, outline, reveal: false), "the Markdown outline is read");
