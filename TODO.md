@@ -1791,6 +1791,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Uzavřený seznam 10 převodů podle F048 je v jádře (SpecialConversions.All): desítkové/šestnáctkové oběma směry, URL, quoted-printable a Base64 kódování i dekódování…; Každý převod je vlastní příkaz nks.edit.convert.<id> v paletě i v nové podnabídce Úpravy › Speciální převody, dá se opakovat a nahrát do makra; zůstává i v seznamu…; Převod běží nad všemi výběry jako jeden krok Zpět, výběry zůstanou na novém textu; když jeden výběr nejde převést, nezmění se nic a stavový řádek řekne proč (nový text…; Tabulátory na mezery počítají zarážky od skutečného sloupce každého výběru a podle velikosti tabulátoru dokumentu, i při mnoha kurzorech na jednom řádku v lineárním čase. Testy prošly (289 v testovací sadě testera). Chybí: Seznam ID převodů ještě neschválil majitel jako vstupní rozhodnutí, v kódu je označený „Placeholder, OPEN“; Převod Add Accent Marks chybí, protože potřebuje slovník F079; Testy jsem podle zadání nespouštěl, spustí je tester.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** seznam 10 speciálních převodů zůstává, jak je v kódu (odpovídá F048); „Add Accent Marks“ zůstává mimo, chybí slovník F079.
 
 ### P4.3 LOG parser a režim logu
 
@@ -1851,6 +1852,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** F182 2–3 ČT (matice)
   - **Umístění:** vestavěný plugin
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Emmet převeden na snippet session z main (Tab v session skáče, mimo ni rozbalí, nastavení `editor.emmet`).
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** Emmet běží v HTML, XML, PHP, Latte, CSS, SCSS, Less, JSX a TSX (44dfa7cb); v JSX `className`, `htmlFor` a prázdné prvky ` />`.
 - [ ] **P4.5.3** Řádkové a blokové příkazy
   - **Co a proč:** Speciální vložení včetně sloupcové sémantiky, vkládání a číslování řádků s více výběry, řazení s náhledem a pravidly, výběr řádků podle rozsahů jako filtr, formátování bloku. Externí řazení obřích dat až později.
   - **Funkce:** F045 (částečně: speciální vložení mimo vložení do sloupce), F047, F052, F061, F071
@@ -1862,6 +1864,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Přidán příkaz Vložit jako HTML (nks.edit.pasteAsHtml): vezme HTML ze schránky, umí hlavičku CF_HTML i holé UTF-8, vloží se jako při Ctrl+V v jednom kroku zpět, a když…; Přidán příkaz Vložit ze souboru (nks.edit.insertFromFile): kódování pozná jako při otevření, konce řádků převede na ty v dokumentu a text vloží do každého kurzoru v…; Přidán příkaz Přeformátovat odstavec s koncem u krátkého řádku (nks.edit.reformatShortLines, F071): odstavec končí i za řádkem kratším než ReformatShortLinePercent…; Nové příkazy jsou v builtin.contributions.json i v menu Úpravy a Formát, mají texty a nápovědu v cs/en/sk/de a klíče v K.cs. Testy prošly (305 v testovací sadě testera). Chybí: Testy jsem podle zadání nespouštěl, sestavil jsem jen řešení s 0 chybami; spuštění nechávám testerovi; Vstupní rozhodnutí (seznam ID příkazů a voleb) musí schválit majitel; seznam je teď uzavřený v testu, ale schválení neudělám sám; Vložit jako HTML jsem ověřil jen na headless schránce, skutečné kopírování z prohlížeče nebo Wordu je ruční krok v okně, které tu nesmím….
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** sada řádkových a blokových příkazů zůstává, jak je v kódu.
 - [x] **P4.5.4** Malé vkládací příkazy
   - **Co a proč:** Datum a čas v uživatelském formátu, GUID, opakování posledního vhodného příkazu. Jsou příliš malé na vlastní proces.
   - **Funkce:** F049, F050, F077
@@ -1991,6 +1994,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Celý kontext má limit velikosti (zástupná hodnota 8 MiB v PluginLimitsPlaceholders.AiContextMaxBytes s poznámkou OPEN), počítá se v UTF-8 bajtech textu, takže Markdown i…; Soubor, karta nebo výběr, který se do limitu nevejde, se vynechá a náhled ho uvede s důvodem a limitem; menší soubor za ním se ještě vejde; Složka čte jen soubory, které se do limitu vejdou; soubor, který se nevejde ani v nejhorším případě (UTF-32), se vůbec nečte; Stránkovaný výběr nad limitem se nečte do paměti a pojmenuje se jako vynechaný; volba Výběr se povolí podle HasSelection bez čtení textu. Testy prošly (329 v testovací sadě testera). Chybí: Testy jsem nespouštěl, podle zadání je spustí tester; Hodnota limitu celé kopie není rozhodnutá, je to zástupná hodnota s poznámkou OPEN; Čtečka obrazovky a skutečné okno aplikace se na tomto PC neověřovaly, ověřeno je to jen headless.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** limit kopie kontextu pro AI 4 MiB (zhruba milion tokenů, největší okna dnešních modelů), varování v náhledu nad 512 KiB (zhruba 128 tisíc tokenů, běžné okno) (059619a3).
 
 ### P4.10 Hex nástroje
 
@@ -2090,6 +2094,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** vestavěný plugin
   - **Stav 27. 10. 2026 (noc):** částečně. SQL INSERT se píše v dialektu dokumentu (sql_dialect z .editorconfig nebo nastavení sql.dialect): MySQL zpětné apostrofy a zdvojené zpětné lomítko, T-SQL hranaté závorky…; Vlastní exportér jako převodník F095: převodník datového pluginu s "table": true se objeví v menu Kopírovat tabulku jako, dostane vybrané buňky jako text z Kopírovat…; Nápověda table.copyAs a řetězce stavového řádku doplněné v cs/en/sk/de; Testy: zpětné čtení INSERT pro každý dialekt s escapováním, dialekt přes proces pluginu, dialekt ze složky v aplikaci, převodník v menu a jeho výstup, skrytá hodnota…. Testy prošly (457 v testovací sadě testera). Chybí: Typy hodnot (NULL pro prázdnou buňku, čísla bez uvozovek) jsem nedělal, je to otevřené rozhodnutí majitele a hodnoty dál zůstávají text; Vložení HTML ze skutečné systémové schránky do jiné aplikace na tomto PC neověřuji, protože nesmím spustit okno aplikace; Testy jsem podle zadání nespouštěl, spustí je tester; build řešení má 0 chyb.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Opraveno: hláška nad limitem schránky říká „tabulka je nad limitem“ místo „plugin se nepodařilo spustit“.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** SQL INSERT píše prázdnou buňku jako NULL a čísla v invariantním tvaru bez uvozovek, vše ostatní jako řetězec; „007“, „1,5“ a „ 3“ zůstávají řetězce; JSON beze změny (3a6cef76).
 
 ### P5.2 Porovnání
 
@@ -2134,6 +2139,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Odhad:** v rámci F172 (viz P5.3.1)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Připnout/odepnout revizi, štítek Připnuto, úklid na pozadí při startu a změně `history.*`, chyby úložiště ve stavovém řádku. Výchozí limity zůstávají 0.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** výchozí historie 100 revizí na soubor, 90 dní, 50 MiB na soubor, 2 048 MiB celkem; nejnovější a připnuté revize se nemažou nikdy (826c1f72).
 - [x] **P5.3.3** Štítky a hledání v revizích
   - **Co a proč:** Štítek u revize a hledání textu ve starších revizích souboru.
   - **Funkce:** F172 (částečně: štítky a hledání)
@@ -2275,6 +2281,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Závisí na:** P1.3.1, P5.5.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Core/Encoding`)
+  - **Stav 31. 10. 2026 (sloučeno):** jednobajtové stránky Windows-1250 až 1258, ISO-8859-1 až 16 (bez 12), KOI8-R/U, DOS 437/850/852/866, Mac Roman a Central European, Kamenický, se zpátečním testem všech 256 bajtů (c94f74e4); výběr kódování po skupinách s hledáním a nedávnými v menu Formát i ve stavovém řádku (12961c2b); detekce cyrilice, řečtiny a turečtiny (280c235e); Shift-JIS, EUC-JP, GBK, GB18030, Big5 a EUC-KR s dekódováním po blocích, zachováním bajtů a detekcí (8439dc70). Chybí: vícebajtová kódování ve stránkovaném režimu (velké soubory je nenabídnou), ověření publikace NativeAOT, krátké asijské texty vychází jako nejisté.
 
 ### P5.6 Hex: hledání, záložky, porovnání
 
@@ -2434,6 +2441,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** F170 2–4 ČT (matice); souhlas a nástroje 1–2 ČT
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Nástroj `editor_get_selection`, příkaz Sdílet výběr s MCP, strop 10 čekajících návrhů, stažení návrhu při vypnutí a zavření. Chybí oprávnění po klientech (rozhodnutí majitele).
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** klient MCP se pozná podle `clientInfo`; nový klient nevidí žádný nástroj, dokud ho uživatel nepovolí; rozhodnutí se ukládá do profilu a příkaz Nástroje › MCP › Klienti MCP… klienta odebere, vrátí nebo zapomene (93921f28). Název si volí klient sám, není to důkaz totožnosti; most `/ide` má vlastní token.
 - [x] **P6.3.2** Nástroje MCP serveru navíc
   - **Co a proč:** `editor_outline` (osnova i neuložené karty), `editor_find_in_files` (worker F151 i nad živými buffery), `editor_file_facts` (kódování, BOM, EOL, neplatné sekvence, velký režim), `editor_log_query` nad režimem logu. Malá sada nástrojů s přesnými popisy, odpovědi jako úryvky se stropem.
   - **Funkce:** F256
@@ -3069,6 +3077,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Odhad ≈ ve stavovém řádku a dialogu s pravidly a zdroji; přesný tokenizér a „Spočítat přesně“ nejsou (nic se neodesílá).
   - **Stav 28. 10. 2026 (večer):** částečně. Síťový test potvrdil, že odhad tokenů nic neodesílá. Přesný tokenizér a „Spočítat přesně“ nejsou.
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** tokeny se odhadují jen offline bez sítě, odhad je v UI označený jako odhad.
 - [ ] **P8b.3.3** Prohlížeč přepisů agentů: panel tahů
   - **Co a proč:** `*.jsonl` z `~/.claude/projects/` a `~/.codex/sessions/` jako relace: panel tahů, tokeny, hledání, skok do surového řádku. Editor kreslí panel a virtuální dokument z P6.2.6. Neznámý záznam jako surový JSON. Jen pro čtení. Parsery a index jsou v P8b.3.4, maskování a limity v P8b.3.5.
   - **Funkce:** F257
