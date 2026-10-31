@@ -45,6 +45,7 @@ public static class Texts
         ["symbolsTitle"] = ["Symboly: {count}", "Symbols: {count}", "Symboly: {count}", "Symbole: {count}"],
         ["workspaceSymbolTitle"] = ["Symbol v projektu", "Symbol in the workspace", "Symbol v projekte", "Symbol im Projekt"],
         ["workspaceSymbolLabel"] = ["Hledaný název", "Name to search for", "Hľadaný názov", "Gesuchter Name"],
+        ["roslynTelemetry"] = ["Server Roslyn pro {language} odesílá telemetrii společnosti Microsoft, i když je vypnutá přepínačem. Bez telemetrie použijte csharp-ls.", "The Roslyn server for {language} sends telemetry to Microsoft even though the switch turns it off. Use csharp-ls to avoid that.", "Server Roslyn pre {language} odosiela telemetriu spoločnosti Microsoft, aj keď je vypnutá prepínačom. Bez telemetrie použite csharp-ls.", "Der Roslyn-Server für {language} sendet Telemetrie an Microsoft, auch wenn der Schalter sie ausschaltet. Ohne Telemetrie csharp-ls verwenden."],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

@@ -490,6 +490,7 @@ public sealed class LspPlugin : PluginBase
             slot.StartedAt = Environment.TickCount64;
             if (autoTicket is null) Volatile.Write(ref slot.RestartAttempts, 0);
             await ShowStateAsync(slot).ConfigureAwait(false);
+            if (autoTicket is null && RoslynWorkspace.IsRoslyn(launch.Program)) await NotifyAsync(NoticeLevel.Warning, "roslynTelemetry", ("language", slot.Language)).ConfigureAwait(false);
             server.Ended += detail => _ = OnEndedAsync(slot, server, detail);
             if (!server.Alive)
             {
