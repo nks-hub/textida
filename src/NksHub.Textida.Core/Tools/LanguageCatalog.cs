@@ -15,7 +15,7 @@ public sealed record CatalogMode(string Id, IReadOnlyList<string> Extensions, IR
 /// A language server for one mode; the language server plugin starts the first entry of a language whose program is found. <paramref name="Version"/> null means the version to pin is still open.
 /// <paramref name="Verified"/> is true only after the launch line was run against the real program.
 /// </summary>
-public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false);
+public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false, bool NeedsNetwork = false);
 
 /// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
 public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
@@ -133,17 +133,17 @@ public static class LanguageCatalog
             []),
         new("java", "Java",
             [M("java", [".java"], "java")],
-            [new("java", "jdtls", [])],
+            [new("java", "jdtls", [], NeedsNetwork: true)],
             [], [], [], [new("pom.xml", "Maven Central"), new("build.gradle", "Maven Central")]),
         new("csharp", "C#",
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
-            // csharp-ls is first: Roslyn 5.13 still opens connections to telemetry.visualstudio.microsoft.com with --telemetryLevel off (measured with the proxy listener of the real-tool test), and no other switch is known.
-            // So Roslyn starts only when csharp-ls is not installed, and the plugin warns that it sends telemetry.
-            // Tried on 5.13 with a proxy that counts connections (all still 48-64 CONNECTs to telemetry.visualstudio.microsoft.com, the manifest dyntelconfig.json fetched by Microsoft.VisualStudio.RemoteControl):
+            // Roslyn is first again: the pilot on a small project gives the same results as csharp-ls (definition, references, completion, diagnostics, rename; definition after 1.7 s against 2.5 s, 7 diagnostics against 1)
+            // at the price of 166 MiB in 3 processes against 91 MiB in 1. Its telemetry no longer leaves the machine: servers start behind the loopback proxy of the editor (ToolProxy), which refuses every host.
+            // Roslyn 5.13 itself still opens connections to telemetry.visualstudio.microsoft.com with --telemetryLevel off (measured with the proxy listener of the real-tool test), and no other switch is known. Tried on 5.13 with a proxy that counts connections (all still 48-64 CONNECTs to telemetry.visualstudio.microsoft.com, the manifest dyntelconfig.json fetched by Microsoft.VisualStudio.RemoteControl):
             // --telemetryLevel off, crash and absent, --sessionId, DOTNET_CLI_TELEMETRY_OPTOUT, VSTELEMETRY_OPTOUT, VS_TELEMETRY_OPTOUT, VSTEL_OPTOUT, DOTNET_TELEMETRY_OPTOUT, HKCU VSCommon\<ver>\SQM OptIn=0,
             // HKCU VisualStudio\Telemetry TurnOffSwitch=1. The libraries read no environment variable for it. Only HKCU\Software\Microsoft\VisualStudio\RemoteControl TurnOffSwitch=1 gives 0 connections;
             // it is Windows only and also switches off the remote settings of an installed Visual Studio, so an entry cannot set it.
-            [new("csharp", "csharp-ls", []), new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"])],
+            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
             [], [], [],
             [new("*.csproj", "NuGet")]),
         new("c-cpp", "C, C++",
@@ -168,7 +168,7 @@ public static class LanguageCatalog
             [new("composer.json", "Packagist")]),
         new("go", "Go",
             [M("go", [".go"], "go"), M("gomod", [], "gomod", ["go.mod", "go.work"]), M("gotmpl", [".gohtml", ".gotmpl"], "gotmpl")],
-            [new("go", "gopls", [])],
+            [new("go", "gopls", [], NeedsNetwork: true)],
             [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], Verified: true)],
             [new("golangci-lint", "golangci-lint", "golangci-lint", ["run", "--output.json.path=stdout", "${File}"], "golangci-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"],
@@ -177,7 +177,7 @@ public static class LanguageCatalog
             [new("go.mod", "Go module proxy")]),
         new("rust", "Rust",
             [M("rust", [".rs"], "rust"), M("toml", [".toml"], "toml", ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"])],
-            [new("rust", "rust-analyzer", [])],
+            [new("rust", "rust-analyzer", [], NeedsNetwork: true)],
             [new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"], Verified: true)],
             [new("clippy", "Clippy", "cargo", ["clippy", "--message-format=json", "--quiet"], "cargo-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info), new("help", ToolSeverity.Hint), AnyWarning], ["clippy.toml", ".clippy.toml"], [".rs"],

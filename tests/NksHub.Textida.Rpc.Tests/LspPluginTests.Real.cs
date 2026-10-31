@@ -81,13 +81,18 @@ public partial class LspPluginTests
     public async Task Roslyn_started_with_telemetry_off_opens_no_connection_to_the_telemetry_service()
     {
         using var canary = new NetCanary(); // set before the plugin starts, so that the server inherits it
+        string refusedLog = Path.Combine(Path.GetTempPath(), "textida-refused-" + Guid.NewGuid().ToString("N")[..8] + ".txt");
+        Environment.SetEnvironmentVariable("TEXTIDA_PROXY_LOG", refusedLog);
         await using var rig = await Rig.CreateAsync(language: "csharp", builtInCatalog: true, startTimeoutMs: 120_000, requestTimeoutMs: 120_000);
         File.WriteAllText(Path.Combine(rig.Folder, "demo.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <TargetFramework>net10.0</TargetFramework>\n    <OutputType>Library</OutputType>\n  </PropertyGroup>\n</Project>\n");
         var doc = rig.Add("A.cs", "namespace Demo;\npublic class Greeter { }\n");
         await StartedAsync(rig, doc, ("roslyn-language-server", ServerCatalog.Find("roslyn-language-server")!));
         await Task.Delay(5000); // the project is loaded and the server has been up for a while
 
+        // the server's proxy variables point at the proxy of the editor, which refuses every host: nothing may reach the canary, and what Roslyn asked for is in the log of the proxy
         Assert.True(canary.Connections == 0, "the server tried to reach: " + string.Join(", ", canary.Targets.Distinct()) + $" ({canary.Connections} connections)");
+        Assert.Contains(File.ReadAllLines(refusedLog), h => h.StartsWith("telemetry.visualstudio.microsoft.com:", StringComparison.Ordinal));
+        Environment.SetEnvironmentVariable("TEXTIDA_PROXY_LOG", null);
     }
 
     [RealToolFact("gopls", "go")]

@@ -40,6 +40,9 @@ public sealed record ToolResult(ToolEnd End, int ExitCode);
 /// </summary>
 public static class ToolRunner
 {
+    /// <summary>Called with the start info of every tool before it starts; the editor sets the proxy variables of its loopback proxy here.</summary>
+    public static Action<ProcessStartInfo>? NetworkGuard { get; set; }
+
     private static readonly TimeSpan DrainGrace = TimeSpan.FromSeconds(2);
 
     /// <summary>Replaces the variables and checks that the program and the directory exist. Throws <see cref="ToolException"/> with a message saying which part is wrong.</summary>
@@ -120,6 +123,7 @@ public static class ToolRunner
     /// </summary>
     public static async Task<ToolResult> RunAsync(ToolInvocation tool, Action<string> onLine, CancellationToken ct = default)
     {
+        // (the hook is set by the editor, which owns the network code; this assembly has none)
         var info = ProcessLaunch.CreateStartInfo(tool.Executable, tool.Args);
         info.WorkingDirectory = tool.WorkingDirectory;
         info.UseShellExecute = false;
@@ -128,6 +132,7 @@ public static class ToolRunner
         info.RedirectStandardOutput = true;
         info.RedirectStandardError = true;
         info.StandardOutputEncoding = info.StandardErrorEncoding = tool.OutputEncoding ?? Encoding.UTF8;
+        NetworkGuard?.Invoke(info); // a formatter or linter reaches nothing outside the machine unless the proxy lets it
         if (tool.Environment is { } environment)
             foreach (var (name, value) in environment) info.Environment[name] = value;
         using var process = new Process { StartInfo = info };

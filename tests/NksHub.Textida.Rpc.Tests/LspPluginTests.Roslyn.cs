@@ -63,7 +63,6 @@ public partial class LspPluginTests
             Assert.Equal("call bar\n", Rig.TextOf(second));
             string[] notes = File.ReadAllLines(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")));
             Assert.Single(notes, n => n.StartsWith("workspace project/open ", StringComparison.Ordinal) && n.Contains("demo.csproj", StringComparison.Ordinal));
-            lock (rig.Ui.Notices) Assert.Contains(rig.Ui.Notices, n => n.Level == NoticeLevel.Warning && n.Message.Contains("sends telemetry", StringComparison.Ordinal)); // the start of Roslyn warns once
         }
         finally { TestDirDelete(folder); }
     }

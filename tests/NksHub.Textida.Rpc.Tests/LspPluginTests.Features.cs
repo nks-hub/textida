@@ -250,6 +250,18 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task A_server_is_started_with_the_loopback_proxy_in_its_environment()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var doc = rig.Add("proxy.fake", "x\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        string notes = File.ReadAllText(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")));
+        Assert.Contains("proxy=http://127.0.0.1:", notes);
+        Assert.Contains("no_proxy=localhost,127.0.0.1,::1", notes);
+    }
+
+    [Fact]
     public async Task A_server_that_does_not_push_is_asked_for_diagnostics_after_open_and_after_edits_and_on_its_refresh_request()
     {
         await using var rig = await Rig.CreateAsync(["--features", "pull", "--refresh-after-ms", "100"]);

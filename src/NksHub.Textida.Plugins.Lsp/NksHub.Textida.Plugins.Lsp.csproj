@@ -18,6 +18,7 @@
     <!-- the same table as the editor, so the launch lines cannot drift between the two -->
     <Compile Include="..\NksHub.Textida.Core\Tools\LanguageCatalog.cs" Link="LanguageCatalog.cs" />
     <Compile Include="..\NksHub.Textida.Core\Tools\ToolLocator.cs" Link="ToolLocator.cs" />
+    <Compile Include="..\NksHub.Textida.Remote\ToolProxy.cs" Link="ToolProxy.cs" />
   </ItemGroup>
 
 </Project>
