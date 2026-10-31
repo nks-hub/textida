@@ -138,7 +138,7 @@ internal sealed partial class MainWindow
     {
         highlight = text;
         if (Active is not { } tab || PluginServices.SymbolPlugin(tab.Doc.Language.Id) is not { } plugin
-            || (tab.Surface is null && !(tab.Paged is not null && plugin == PluginServices.CodeExplorerPluginId)))
+            || (tab.Surface is null && !((tab.Paged is not null || tab.Custom is MarkdownPreview) && plugin == PluginServices.CodeExplorerPluginId)))
         {
             emptyText = Loc.Get(K.PaletteKeysNone);
             return [];

@@ -102,6 +102,26 @@ public class CodeExplorerAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_outline_of_the_Markdown_reading_page_is_read_without_a_text_surface_and_a_jump_scrolls_the_page()
+    {
+        _app.Workbench.Set("markdown.defaultMode", "read");
+        var body = string.Concat(Enumerable.Range(0, 60).Select(i => $"line {i}\n\n"));
+        var tab = _w.OpenFile(_temp.File("read.md", "# One\n\n" + body + "## Two\n\n" + body + "tail\n"), null);
+        _w.Width = 600;
+        _w.Height = 300;
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        var page = Assert.IsType<MarkdownPreview>(tab.Custom);
+        Assert.Null(tab.Surface);
+
+        Assert.Equal(["One", "Two"], await IndexedAsync(tab));
+        var two = _app.Plugins.TabSymbols(tab, out _).Single(s => s.Name == "Two");
+        Assert.Equal(0, page.Offset.Y);
+        Assert.True(_app.Plugins.RevealTabSymbol(tab, two.Id));
+        await Until(() => page.Offset.Y > 0, "the page scrolled to the heading");
+    }
+
+    [AvaloniaFact]
     public async Task After_an_edit_the_outline_is_outdated_for_a_moment_and_then_read_again()
     {
         var tab = Open("a.md", "# One\n## Two\n");
