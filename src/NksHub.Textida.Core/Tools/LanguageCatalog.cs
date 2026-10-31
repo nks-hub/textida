@@ -139,6 +139,10 @@ public static class LanguageCatalog
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
             // csharp-ls is first: Roslyn 5.13 still opens connections to telemetry.visualstudio.microsoft.com with --telemetryLevel off (measured with the proxy listener of the real-tool test), and no other switch is known.
             // So Roslyn starts only when csharp-ls is not installed, and the plugin warns that it sends telemetry.
+            // Tried on 5.13 with a proxy that counts connections (all still 48-64 CONNECTs to telemetry.visualstudio.microsoft.com, the manifest dyntelconfig.json fetched by Microsoft.VisualStudio.RemoteControl):
+            // --telemetryLevel off, crash and absent, --sessionId, DOTNET_CLI_TELEMETRY_OPTOUT, VSTELEMETRY_OPTOUT, VS_TELEMETRY_OPTOUT, VSTEL_OPTOUT, DOTNET_TELEMETRY_OPTOUT, HKCU VSCommon\<ver>\SQM OptIn=0,
+            // HKCU VisualStudio\Telemetry TurnOffSwitch=1. The libraries read no environment variable for it. Only HKCU\Software\Microsoft\VisualStudio\RemoteControl TurnOffSwitch=1 gives 0 connections;
+            // it is Windows only and also switches off the remote settings of an installed Visual Studio, so an entry cannot set it.
             [new("csharp", "csharp-ls", []), new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"])],
             [], [], [],
             [new("*.csproj", "NuGet")]),

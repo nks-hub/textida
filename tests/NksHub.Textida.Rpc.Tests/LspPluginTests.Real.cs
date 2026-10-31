@@ -72,7 +72,9 @@ public partial class LspPluginTests
     /// <summary>
     /// P8.5.1: a running language server records no telemetry. The catalog starts Roslyn with <c>--telemetryLevel off</c>, and 5.13 still opens connections to the telemetry service of Visual Studio, as many with the
     /// flag as without it (checked on Windows 11 and macOS 15: <c>CONNECT telemetry.visualstudio.microsoft.com:443</c> through the proxy of the environment, also from a server that only answered initialize).
-    /// The proxy refuses them, so what the connections would have carried is not known. No option or environment variable of the server that stops them is known either; this test stays red until one is found.
+    /// The proxy refuses them, so what the connections would have carried is not known. The connections are the download of the telemetry manifest (<c>/pub/v*/dyntelconfig.json</c>) by the RemoteControl library.
+    /// No option or environment variable stops them (the list tried is in <c>LanguageCatalog</c>); only the Windows registry value <c>HKCU\Software\Microsoft\VisualStudio\RemoteControl\TurnOffSwitch</c> does, which a launch entry cannot set.
+    /// The test stays red for Roslyn, which is why the catalog prefers csharp-ls.
     /// </summary>
     [RealToolFact("roslyn-language-server")]
     [Trait("Category", "RealTools")]
