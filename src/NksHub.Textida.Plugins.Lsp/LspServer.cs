@@ -52,6 +52,13 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool References { get; private set; }
     public bool Completion { get; private set; }
     public bool Rename { get; private set; }
+    private JsonElement _capabilities;
+
+    /// <summary>Whether the server announced the capability (<c>hoverProvider</c>, <c>codeActionProvider</c>, ...) in its <c>initialize</c> answer, as <c>true</c> or as an options object. A feature the server did not announce is never asked for.</summary>
+    public bool Has(string provider) => _capabilities.ValueKind == JsonValueKind.Object && Provides(_capabilities, provider);
+
+    /// <summary>The announced capability as an object (<c>semanticTokensProvider</c> has its legend there); default when it is not an object.</summary>
+    public JsonElement Options(string provider) => _capabilities.ValueKind == JsonValueKind.Object && _capabilities.TryGetProperty(provider, out var v) && v.ValueKind == JsonValueKind.Object ? v : default;
     public bool Alive => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _stopping) == 0 && !_rpc.IsClosed;
 
     /// <summary>The server was told to open a solution or projects and has not said yet that it loaded them: what it answers now covers the files it has seen so far, not the solution.</summary>
@@ -114,6 +121,8 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             .Append("\",\"workspaceFolders\":[{\"uri\":\"").Append(Encode(_rootUri)).Append("\",\"name\":\"").Append(Encode(Path.GetFileName(root.TrimEnd('/', '\\')))).Append("\"}]")
             .Append(",\"capabilities\":{\"general\":{\"positionEncodings\":[\"utf-16\"]},\"textDocument\":{\"synchronization\":{\"dynamicRegistration\":false,\"didSave\":false},")
             .Append("\"definition\":{\"linkSupport\":true},\"references\":{},\"completion\":{\"completionItem\":{\"snippetSupport\":false}},\"rename\":{\"prepareSupport\":false},")
+            .Append("\"hover\":{\"contentFormat\":[\"plaintext\",\"markdown\"]},\"signatureHelp\":{\"signatureInformation\":{\"documentationFormat\":[\"plaintext\"],\"parameterInformation\":{\"labelOffsetSupport\":false}}},")
+            .Append("\"codeAction\":{\"codeActionLiteralSupport\":{\"codeActionKind\":{\"valueSet\":[\"quickfix\",\"refactor\",\"source\"]}}},\"documentSymbol\":{\"hierarchicalDocumentSymbolSupport\":true},\"formatting\":{},")
             .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
         var answer = await RequestAsync("initialize", json.ToString(), _settings.StartTimeoutMs, ct).ConfigureAwait(false);
         if (answer.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object)
@@ -124,6 +133,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
                     : sync.ValueKind == JsonValueKind.Object && sync.TryGetProperty("change", out var change) && change.ValueKind == JsonValueKind.Number ? change.GetInt32() : 1;
                 Incremental = kind == 2;
             }
+            _capabilities = caps.Clone();
             Definition = Provides(caps, "definitionProvider");
             References = Provides(caps, "referencesProvider");
             Completion = Provides(caps, "completionProvider");

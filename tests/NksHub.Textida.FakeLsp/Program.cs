@@ -9,6 +9,7 @@
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
 // rename of a word changes its whole-word occurrences in every open document (documentChanges with the version the server holds); with --fileops it also creates
 // created.fake, deletes doomed.fake, renames moveme.fake to moved.fake (all next to the first open document) and edits the external file on disk.
+// With the features: hover of a word answers "WORD (n chars)" as markdown with the range of the word (a text containing SLOW answers a second late).
 // --load-ms N: like Roslyn, it knows the document of a request only until it is told to open a solution or projects (solution/open, project/open, noted in the process file); it says it loaded them with workspace/projectInitializationComplete N ms later,
 // and renames in the document of the request only until then.
 using System.Text;
@@ -16,6 +17,9 @@ using System.Text.Json;
 
 bool full = args.Contains("--full");
 bool fileOps = args.Contains("--fileops");
+// --features LIST announces more capabilities, comma separated: hover, signature, codeaction, symbols, formatting, inlay, semantic. Without it the server announces only what it always did.
+var features = (args.SkipWhile(a => a != "--features").Skip(1).FirstOrDefault() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+bool Feature(string name) => features.Contains(name);
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
 string? configSections = args.SkipWhile(a => a != "--config").Skip(1).FirstOrDefault();
@@ -202,6 +206,20 @@ string Completion(JsonElement p)
         + ",\"newText\":\"Console\"},\"additionalTextEdits\":[{\"range\":" + Range(text, 0, 0) + ",\"newText\":\"using System;\\n\"}]}]}";
 }
 
+string? Hover(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    if (text.Contains("SLOW")) Thread.Sleep(1000);
+    int caret = Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32());
+    int s = caret, e = caret;
+    while (s > 0 && IsWord(text[s - 1])) s--;
+    while (e < text.Length && IsWord(text[e])) e++;
+    if (e == s) return null;
+    return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
+}
+
 string? Rename(JsonElement p)
 {
     var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
@@ -239,6 +257,13 @@ string? Rename(JsonElement p)
     return $"{{\"documentChanges\":[{string.Join(',', changes)}]}}";
 }
 
+string ExtraCapabilities()
+{
+    var caps = new List<string>();
+    if (Feature("hover")) caps.Add("\"hoverProvider\":true");
+    return caps.Count == 0 ? "" : "," + string.Join(',', caps);
+}
+
 // ---- the loop ----
 
 while (ReadMessage() is { } body)
@@ -262,7 +287,7 @@ while (ReadMessage() is { } body)
             Note("root=" + (p.TryGetProperty("rootUri", out var rootUri) ? rootUri.GetString() : ""));
             Note("cwd=" + Environment.CurrentDirectory);
             Note("configuration=" + (p.TryGetProperty("capabilities", out var caps) && caps.TryGetProperty("workspace", out var ws) && ws.TryGetProperty("configuration", out var cfg) && cfg.ValueKind == JsonValueKind.True ? "yes" : "no"));
-            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
+            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true{ExtraCapabilities()}}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;
         case "initialized":
             if (configSections is not null)
@@ -339,6 +364,9 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/hover":
+            Send(Reply(Hover(p) ?? "null"));
             break;
         default:
             if (isRequest) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32601,\"message\":\"unknown\"}}}}");

@@ -97,6 +97,7 @@ public sealed class LspPlugin : PluginBase
         _catalog = catalog;
         On("command/execute", ExecuteAsync);
         On(DocumentRequests.Completion, CompleteAsync);
+        On(DocumentRequests.Hover, HoverAsync);
     }
 
     /// <summary>Offers the editor to ask this plugin for completion; sent on every start, so a restarted process answers again.</summary>
@@ -104,6 +105,8 @@ public sealed class LspPlugin : PluginBase
     {
         try { await CallAsync(DocumentMethods.CompletionRegister, "{\"enabled\":true}").ConfigureAwait(false); }
         catch (Exception e) when (e is RpcException or IOException) { /* the editor refused: the plugin still navigates */ }
+        try { await CallAsync(DocumentMethods.HoverRegister, "{\"enabled\":true}").ConfigureAwait(false); }
+        catch (Exception e) when (e is RpcException or IOException) { /* the editor shows no hover text: nothing is lost but the hover */ }
     }
 
     private async Task<JsonElement> CallAsync(string method, string paramsJson, CancellationToken ct = default) =>
@@ -892,6 +895,54 @@ public sealed class LspPlugin : PluginBase
             return Encoding.UTF8.GetBytes(json.Append("]}").ToString());
         }
         catch (Exception e) when (e is RpcException or RpcTimeoutException or ServerGone or Withheld or IOException or KeyNotFoundException or InvalidOperationException) { return Nothing(asked); }
+    }
+
+    // ---- hover ----
+
+    /// <summary>The text of a <c>Hover</c> answer: a string, a <c>MarkupContent</c>, a <c>MarkedString</c> or a list of them, parts separated by a blank line.</summary>
+    private static string HoverText(JsonElement contents)
+    {
+        static string One(JsonElement part) => part.ValueKind switch
+        {
+            JsonValueKind.String => part.GetString()!,
+            JsonValueKind.Object => Text(part, "value") ?? "",
+            _ => "",
+        };
+        if (contents.ValueKind != JsonValueKind.Array) return One(contents).Trim();
+        return string.Join("\n\n", contents.EnumerateArray().Select(One).Where(t => t.Trim().Length > 0)).Trim();
+    }
+
+    /// <summary>
+    /// Answers <c>hover/request</c> from the server's <c>textDocument/hover</c>: the text and the bytes it is about (the range of the answer, else the word under the caret) for the revision asked.
+    /// Nothing for a document the plugin does not follow, a server that is not running or announced no <c>hoverProvider</c>, or an answer for a text the document has left.
+    /// </summary>
+    private async ValueTask<byte[]?> HoverAsync(JsonElement p, CancellationToken ct)
+    {
+        long asked = p.GetProperty("revision").GetInt64();
+        byte[] Nothing() => Encoding.UTF8.GetBytes($"{{\"revision\":{asked}}}");
+        if (!Guid.TryParse(Text(p, "document"), out var id) || !_docs.TryGetValue(id, out var d) || d.Slot.Server is not { Alive: true, Loading: false } server || !server.Has("hoverProvider")) return Nothing();
+        try
+        {
+            await SyncAsync(d, ct).ConfigureAwait(false);
+            string text;
+            long revision;
+            TextCodec codec;
+            int bom;
+            await d.Gate.WaitAsync(ct).ConfigureAwait(false);
+            try { (text, revision, codec, bom) = (d.Text, d.Revision, d.Codec, d.Bom); }
+            finally { d.Gate.Release(); }
+            if (revision != asked) return Nothing();
+            var (position, caret) = await PositionAtAsync(d, asked, p.GetProperty("offset").GetInt64(), ct).ConfigureAwait(false);
+            var answer = await server.RequestAsync("textDocument/hover", $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+            if (answer.ValueKind != JsonValueKind.Object || !answer.TryGetProperty("contents", out var contents) || HoverText(contents) is not { Length: > 0 } said) return Nothing();
+            var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+            if (now.GetProperty("revision").GetInt64() != asked) return Nothing(); // the answer is for a text that is gone
+            var map = new LineMap(text);
+            var range = (answer.TryGetProperty("range", out var r) ? CharRange(map, r) : null) ?? WordAround(text, caret);
+            var bytes = ByteMap.ToBytes(codec, bom, text, [range.Start, range.End]);
+            return Encoding.UTF8.GetBytes($"{{\"revision\":{asked},\"text\":\"{Quote(said)}\",\"start\":{bytes[range.Start]},\"end\":{bytes[Math.Max(range.Start, range.End)]}}}");
+        }
+        catch (Exception e) when (e is RpcException or RpcTimeoutException or ServerGone or Withheld or IOException or KeyNotFoundException or InvalidOperationException) { return Nothing(); }
     }
 
     // ---- rename ----

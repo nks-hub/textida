@@ -115,7 +115,7 @@ public partial class LspPluginTests
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 400, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1),
                 MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
-                MaxDiagnosticsPerDocument = 100, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
+                MaxDiagnosticsPerDocument = 100, MaxHoverChars = 500, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
                 Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20)
                 {
                     OpenDocument = path => review.Open.FirstOrDefault(d => d.FilePath is { } p && PathUri.SamePath(p, path)),
