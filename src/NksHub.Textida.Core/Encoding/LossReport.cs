@@ -47,6 +47,10 @@ public sealed class LossReport
         return c.Build(text);
     }
 
+    /// <summary>The loss of a conversion that was counted block by block: the groups and the total, without the single places (they are positions in blocks that are gone).</summary>
+    internal static LossReport FromCounts(IReadOnlyDictionary<int, int> counts, int total) =>
+        total == 0 ? None : new([], [.. counts.Select(kv => new LossGroup(kv.Key, kv.Value)).OrderByDescending(g => g.Count).ThenBy(g => g.CodePoint)], total, true);
+
     internal sealed class Collector
     {
         private readonly List<(int Cp, int Index, long Offset, bool Invalid)> _items = [];

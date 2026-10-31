@@ -75,7 +75,8 @@ public sealed partial class Document
         }
         return applied;
     }
-    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null);
+    private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null,
+        bool IsTranscode = false, TextCodec? PendingBefore = null, TextCodec? PendingAfter = null);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
     private sealed class FillEdit(long offset, long deleted, long length, byte[] pattern, object removed)
@@ -573,6 +574,12 @@ public sealed partial class Document
         _redo.Add(entry);
         for (int s = entry.Steps.Count - 1; s >= 0; s--)
         {
+            if (entry.Steps[s].IsTranscode)
+            {
+                _pendingTranscode = entry.Steps[s].PendingBefore;
+                Commit(ChangeKind.Undo, null, new List<Pending>(), null, null);
+                continue;
+            }
             if (entry.Steps[s].Fill is { } fill)
             {
                 _backend.RestoreRemoved(fill.Offset, fill.Length, fill.Removed!);
@@ -605,6 +612,12 @@ public sealed partial class Document
         TrimUndo(); // the limit may have been lowered while the step waited
         foreach (var step in entry.Steps)
         {
+            if (step.IsTranscode)
+            {
+                _pendingTranscode = step.PendingAfter;
+                Commit(ChangeKind.Redo, null, new List<Pending>(), null, null);
+                continue;
+            }
             if (step.Fill is { } fill)
             {
                 fill.Removed = _backend.ReplaceRepeated(fill.Offset, fill.Deleted, fill.Pattern, fill.Length);

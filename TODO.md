@@ -2191,6 +2191,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Závisí na:** P1.7.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Ověření 31. 10. 2026:** úložiště hesel v klíčence macOS ověřené na skutečné klíčence uživatele na macOS 15.7.4 (`MacKeychainKeepsAndDeletesASecret`, SecretsTests 10/10).
 - [x] **P5.4.2** Bezpečná vzdálená editace: kontrola verze a nahrání
   - **Co a proč:** Před nahráním kontrola novější verze na serveru (čas a velikost, nebo obsah), při rozdílu diff místo přepsání. Lišta vzdálené karty „shodné se serverem“ / „změněno, nahrát?“. Lokální kopie je v P5.4.6, přerušení a obnova přenosu v P5.4.7. Záruka kontroly verze má hranice podle protokolu: mezi kontrolou a zápisem ji server nemusí umět zajistit atomicky, a UI to řekne.
   - **Funkce:** F162
@@ -2283,6 +2284,8 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Umístění:** jádro (`Core/Encoding`)
   - **Stav 31. 10. 2026 (sloučeno):** jednobajtové stránky Windows-1250 až 1258, ISO-8859-1 až 16 (bez 12), KOI8-R/U, DOS 437/850/852/866, Mac Roman a Central European, Kamenický, se zpátečním testem všech 256 bajtů (c94f74e4); výběr kódování po skupinách s hledáním a nedávnými v menu Formát i ve stavovém řádku (12961c2b); detekce cyrilice, řečtiny a turečtiny (280c235e); Shift-JIS, EUC-JP, GBK, GB18030, Big5 a EUC-KR s dekódováním po blocích, zachováním bajtů a detekcí (8439dc70). Chybí: vícebajtová kódování ve stránkovaném režimu (velké soubory je nenabídnou), ověření publikace NativeAOT, krátké asijské texty vychází jako nejisté.
   - **Stav 31. 10. 2026 (večer, sloučeno a818b892):** vícebajtová kódování fungují i ve stránkovaném režimu: hranice znaku se hledá zpět k bajtu, který může být jen celým znakem (EUC pod 0x80, Shift-JIS, GBK a Big5 pod 0x40, GB18030 pod 0x30); index řádků, hledání a uložení zůstávají bajtově přesné; „Znovu přečíst jako“ je nabízí i u velkých souborů. Opravena hranice uvnitř čtyřbajtového znaku GB18030. Testy na 2MiB souborech 51/51. Zbývá: ověření NativeAOT a vzhled v aplikaci; převod velkého souboru na jiné kódování zůstává vypnutý.
+  - **Stav 31. 10. 2026 (noc, sloučeno):** převod kódování jde i u velkého souboru: čeká jako krok dokumentu, ztráty se spočítají předem a potvrdí, uložení převádí po blocích na hranici znaku do dočasného souboru s atomickou výměnou, Zpět vrátí původní kódování (fcd6f9a5; testy UTF-8 → Shift-JIS → UTF-8 a CP1250 → UTF-16 bajtově přesně). Kouřový test `--smoke` ověřuje KOI8-R, ISO-8859-16, Shift-JIS a GB18030 v publikovaném programu (b6a53b63).
+  - **Ověření 31. 10. 2026:** ruční běh `release.yml` prošel na win-x64, osx-arm64, osx-x64 a linux-x64; publikovaný NativeAOT program v kouřovém testu zakóduje a dekóduje KOI8-R, ISO-8859-16, Shift-JIS a GB18030 a AOT kontrola projde všechny kodeky. Opraveno: AOT kontrola zkoušela české věty i v kódováních bez českých písmen.
 
 ### P5.6 Hex: hledání, záložky, porovnání
 
@@ -2469,6 +2472,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P6.3.1, P6.3.2
   - **Odhad:** bez odhadu
   - **Umístění:** testy, MCP server
+  - **Ověření 31. 10. 2026:** nový test `McpRealAgentsTests`: Claude Code 2.1.316 prošel — klient bez povolení nevidí nic, po povolení vypíše a přečte neuloženou kartu, `prepare_changes` čeká v revizi a nic nezapíše, nesdílená karta zůstane skrytá, `.env` přijde maskovaný, po odebrání povolení už nic. Codex: test je napsaný, ale účet má vyčerpaný limit do 4. 11. 2026.
 
 ### P6.4 Editor jako MCP klient
 
@@ -3038,6 +3042,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Balík NksHub.Textida.Plugin.Sdk s baseline veřejného API, testovací hostitel, šablona `dotnet new nkspad-plugin` (AOT win-x64). Zbývá CI a osx AOT (jen na Macu).
   - **Stav 31. 10. 2026:** šablona pluginu není vázaná na jeden RID (`NkspadPlugin.csproj` jen `PublishAot`). Chybí publikace v CI a ověření na macOS.
   - **Stav 31. 10. 2026:** CI (`release.yml`) publikuje ukázkový plugin `samples/csharp-hello` s NativeAOT pro win-x64, osx-arm64, osx-x64 a linux-x64 a ověří ho validátorem (`textida-plugin-validate --run` se záznamem relace); ruční běh prošel na všech čtyřech. Šablona `NkspadPlugin` se v CI nepublikuje, potřebuje balík SDK z NuGetu.
+  - **Ověření 31. 10. 2026:** šablona `nkspad-plugin` se na Macu publikuje s NativeAOT pro osx-arm64 (Mach-O arm64) i osx-x64 (x86_64), SDK 0.1.0 z lokálního zdroje.
 - [ ] **P8b.2.2** Ověřovač pluginů a kontraktové testy
   - **Co a proč:** Staticky kontroluje manifest, rozsah `api` a deklarace, za běhu handshake a validaci RPC. Bezpečnostní audit binárky neslibuje (R14). Kontraktové testy pokrývají všechna rozhraní z P8b.2.1, nejen API v1.
   - **Funkce:** F203
