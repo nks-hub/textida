@@ -517,7 +517,7 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Large")]
+    [Trait("Category", "Perf")] // over 5 minutes on the test machine: the Perf run allows a test 20 minutes, the Large run only 5
     public async Task A_multi_GiB_document_with_large_edits_and_a_streaming_save_recovers_after_a_crash()
     {
         long big = HugeText.SizePast(2L << 30, 3L << 30); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
