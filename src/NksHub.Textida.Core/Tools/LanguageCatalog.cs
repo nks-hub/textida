@@ -137,7 +137,9 @@ public static class LanguageCatalog
             [], [], [], [new("pom.xml", "Maven Central"), new("build.gradle", "Maven Central")]),
         new("csharp", "C#",
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
-            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
+            // csharp-ls is first: Roslyn 5.13 still opens connections to telemetry.visualstudio.microsoft.com with --telemetryLevel off (measured with the proxy listener of the real-tool test), and no other switch is known.
+            // So Roslyn starts only when csharp-ls is not installed, and the plugin warns that it sends telemetry.
+            [new("csharp", "csharp-ls", []), new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"])],
             [], [], [],
             [new("*.csproj", "NuGet")]),
         new("c-cpp", "C, C++",
@@ -151,7 +153,8 @@ public static class LanguageCatalog
             []),
         new("php", "PHP",
             [M("php", [".php"], "php"), M("latte", [".latte"], "latte"), M("neon", [".neon"], "neon"), M("blade", [".blade.php"], "blade"), M("twig", [".twig"], "twig")],
-            [new("php", "phpactor", ["language-server"])],
+            // Intelephense is first where installed; its rename is a paid feature, and the plugin reports a refused rename as "not supported". Phpactor stays as the free fallback.
+            [new("php", "intelephense", ["--stdio"]), new("php", "phpactor", ["language-server"])],
             [],
             [
                 new("phpstan", "PHPStan", "phpstan", ["analyse", "--error-format=json", "--no-progress", "--no-interaction", "${File}"], "phpstan-json", [new("*", ToolSeverity.Error)], ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"], [".php"], Supported: new("1.0.0", "3.0.0"), Verified: true),

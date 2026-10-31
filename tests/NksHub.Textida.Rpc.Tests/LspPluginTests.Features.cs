@@ -250,6 +250,28 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task A_server_that_does_not_push_is_asked_for_diagnostics_after_open_and_after_edits_and_on_its_refresh_request()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "pull", "--refresh-after-ms", "100"]);
+        var text = "é€😀 ok ERROR end\n";
+        var doc = rig.Add("pull.fake", text);
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        await T.Until(() => rig.DiagnosticsOf(doc).Count == 1); // after open, mapped on the bytes like a pushed one
+        var diagnostic = Assert.Single(rig.DiagnosticsOf(doc));
+        Assert.Equal(new ByteRange(Bytes("é€😀 ok "), Bytes("é€😀 ok ERROR")), diagnostic.Range);
+
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "pull-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "pull-requests")) == "2"); // the refresh request of the server: "unchanged" keeps the finding
+        Assert.Single(rig.DiagnosticsOf(doc));
+
+        await rig.Edit(doc, diagnostic.Range.Start, diagnostic.Range.End, "FINE!");
+        await T.Until(() => rig.DiagnosticsOf(doc).Count == 0); // after an edit
+        await rig.Edit(doc, 0, 0, "ERROR ");
+        await T.Until(() => rig.DiagnosticsOf(doc).Count == 1);
+        Assert.Equal(new ByteRange(0, Bytes("ERROR")), rig.DiagnosticsOf(doc)[0].Range);
+    }
+
+    [Fact]
     public async Task Semantic_tokens_are_decoded_with_the_legend_of_the_server_on_the_bytes_of_the_words()
     {
         await using (var plain = await Rig.CreateAsync())

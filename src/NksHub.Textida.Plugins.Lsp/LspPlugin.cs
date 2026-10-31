@@ -91,7 +91,13 @@ public sealed class LspPlugin : PluginBase
         public int WantDecorations;
         /// <summary>Changes with each edit and each refresh request of the server, so a wait that is out of date knows it.</summary>
         public int DecorationTicket;
+        /// <summary>The <c>resultId</c> of the last pull report, sent back as <c>previousResultId</c>; changes with each edit and each refresh request, so a wait that is out of date knows it.</summary>
+        public string? PullResultId;
+        public int PullTicket;
     }
+
+    /// <summary>How long the document must stay unchanged before the plugin pulls its diagnostics again.</summary>
+    private const int PullDelayMs = 300;
 
     /// <summary>The document cannot be handed to a language server (too large, bytes the encoding does not allow); <see cref="Exception.Message"/> is the status.</summary>
     private sealed class Withheld(string status) : Exception(status);
@@ -402,6 +408,7 @@ public sealed class LspPlugin : PluginBase
             {
                 await SyncAsync(d, CancellationToken.None).ConfigureAwait(false);
                 ScheduleDecorations(d);
+                SchedulePull(d);
             }
             catch (RpcException e) when (e.Code == DocumentErrorCodes.UnknownDocument) { await ForgetAsync(d).ConfigureAwait(false); }
             catch (Exception e) when (e is RpcException or Withheld or ServerGone or IOException) { /* a conflict repeats with the next event; the rest is reported by commands */ }
@@ -483,6 +490,7 @@ public sealed class LspPlugin : PluginBase
             slot.StartedAt = Environment.TickCount64;
             if (autoTicket is null) Volatile.Write(ref slot.RestartAttempts, 0);
             await ShowStateAsync(slot).ConfigureAwait(false);
+            if (autoTicket is null && RoslynWorkspace.IsRoslyn(launch.Program)) await NotifyAsync(NoticeLevel.Warning, "roslynTelemetry", ("language", slot.Language)).ConfigureAwait(false);
             server.Ended += detail => _ = OnEndedAsync(slot, server, detail);
             if (!server.Alive)
             {
@@ -493,7 +501,7 @@ public sealed class LspPlugin : PluginBase
             foreach (var d in slot.Docs.Values) d.Open = false;
             foreach (var d in slot.Docs.Values.ToList())
             {
-                try { await SyncAsync(d, ct).ConfigureAwait(false); }
+                try { await SyncAsync(d, ct).ConfigureAwait(false); SchedulePull(d); }
                 catch (RpcException e) when (e.Code == DocumentErrorCodes.UnknownDocument) { await ForgetAsync(d).ConfigureAwait(false); }
                 catch (Exception e) when (e is RpcException or Withheld) { /* the document is synchronised by its next event, or reported by the command that asks for it */ }
                 catch (Exception e) when (e is ServerGone or IOException) { return "crashed"; }
@@ -620,6 +628,11 @@ public sealed class LspPlugin : PluginBase
             foreach (var d in slot.Docs.Values) ScheduleDecorations(d);
             return ValueTask.CompletedTask;
         }
+        if (method == "workspace/diagnostic/refresh")
+        {
+            foreach (var d in slot.Docs.Values) { d.PullResultId = null; SchedulePull(d); }
+            return ValueTask.CompletedTask;
+        }
         return method == "textDocument/publishDiagnostics" ? new ValueTask(PublishAsync(slot, p)) : ValueTask.CompletedTask;
     }
 
@@ -646,15 +659,24 @@ public sealed class LspPlugin : PluginBase
         var local = PathUri.ToPath(uri);
         var d = slot.Docs.Values.FirstOrDefault(x => x.Uri == uri || (x.Path is not null && local is not null && PathUri.SamePath(local, x.Path)));
         if (d is null) return;
+        await ApplyDiagnosticsAsync(d, p.GetProperty("diagnostics"), p.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.Number ? v.GetInt64() : null).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Publishes the diagnostics of a push or a pull for the revision the server's text was read at; <paramref name="version"/> is the document version they were made for (null: the current one).
+    /// </summary>
+    private async Task ApplyDiagnosticsAsync(Doc d, JsonElement diagnostics, long? version, string? resultId = null)
+    {
         await d.Gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (!d.Open || (p.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.Number && v.GetInt64() != d.Version)) return;
+            if (!d.Open || (version is { } made && made != d.Version)) return;
             var map = new LineMap(d.Text);
-            d.Raw = p.GetProperty("diagnostics").Clone();
+            d.Raw = diagnostics.Clone();
             d.RawVersion = d.Version;
+            if (resultId is not null) d.PullResultId = resultId;
             var items = new List<(int Start, int End, DiagnosticSeverityName Severity, string Message, string? Code)>();
-            foreach (var item in p.GetProperty("diagnostics").EnumerateArray())
+            foreach (var item in diagnostics.EnumerateArray())
             {
                 if (items.Count >= _settings.MaxDiagnostics) break;
                 var range = item.GetProperty("range");
@@ -678,6 +700,41 @@ public sealed class LspPlugin : PluginBase
         }
         catch (Exception e) when (e is RpcException or IOException or KeyNotFoundException or InvalidOperationException) { /* the document moved on or is gone; the next publication replaces this one */ }
         finally { d.Gate.Release(); }
+    }
+
+    /// <summary>
+    /// For a server that announces <c>diagnosticProvider</c> (it does not push): asks for the diagnostics of the document with <c>textDocument/diagnostic</c> once <see cref="PullDelayMs"/> have passed
+    /// without another edit or refresh request, and publishes them like pushed ones. A report for a version the document has left is dropped.
+    /// shortcut: only the open documents are pulled, not <c>workspace/diagnostic</c>; the editor shows diagnostics of open documents only.
+    /// </summary>
+    private void SchedulePull(Doc d)
+    {
+        if (d.Slot.Server is not { Alive: true } first || !first.Has("diagnosticProvider")) return;
+        int ticket = Interlocked.Increment(ref d.PullTicket);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(PullDelayMs).ConfigureAwait(false);
+            if (Volatile.Read(ref d.PullTicket) != ticket) return;
+            try
+            {
+                if (d.Slot.Server is not { Alive: true } server) return;
+                await SyncAsync(d, CancellationToken.None).ConfigureAwait(false);
+                long version;
+                string? previous;
+                lock (d) { version = d.Version; previous = d.PullResultId; }
+                var previousJson = previous is null ? "" : $",\"previousResultId\":\"{Quote(previous)}\"";
+                var answer = await server.RequestAsync("textDocument/diagnostic", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}}{previousJson}}}", _settings.RequestTimeoutMs, CancellationToken.None).ConfigureAwait(false);
+                if (answer.ValueKind != JsonValueKind.Object) return;
+                string? resultId = answer.TryGetProperty("resultId", out var rid) && rid.ValueKind == JsonValueKind.String ? rid.GetString() : null;
+                if (answer.TryGetProperty("kind", out var kind) && kind.GetString() == "unchanged")
+                {
+                    if (d.Raw.ValueKind == JsonValueKind.Array) await ApplyDiagnosticsAsync(d, d.Raw, version, resultId).ConfigureAwait(false);
+                }
+                else if (answer.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+                    await ApplyDiagnosticsAsync(d, items, version, resultId).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is RpcException or RpcTimeoutException or ServerGone or Withheld or IOException or KeyNotFoundException or InvalidOperationException) { /* the next edit or refresh asks again */ }
+        });
     }
 
     // ---- definition and references ----
@@ -1012,7 +1069,9 @@ public sealed class LspPlugin : PluginBase
         if (asked.GetProperty("value").ValueKind != JsonValueKind.String || asked.GetProperty("value").GetString()!.Trim() is not { Length: > 0 } name || name == current) return Status("cancelled");
 
         await WaitForLoadAsync(server, ct).ConfigureAwait(false);
-        var answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        JsonElement answer;
+        try { answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false); }
+        catch (RpcException) when (server.PaidRename) { return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false); }
         if (answer.ValueKind != JsonValueKind.Object) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
         var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
         if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);

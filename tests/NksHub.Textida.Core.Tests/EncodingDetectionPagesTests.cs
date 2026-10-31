@@ -54,6 +54,15 @@ public class EncodingDetectionPagesTests
     }
 
     [Theory]
+    [InlineData("Le garçon a mangé des crêpes à l'école, où il a été très heureux de rencontrer ses amis français.")]
+    public void Western_text_is_Windows_1252_and_not_a_tie_with_the_Turkish_pages(string text)
+    {
+        var guess = GuessIn("Windows-1252", text);
+        Assert.Equal("Windows-1252", guess.Codec.Name);
+        Assert.False(guess.IsUncertain, $"{guess.Reason}; confidence {guess.Confidence:F2}");
+    }
+
+    [Theory]
     [InlineData("Shift-JIS", "日本語のテキストです。これは文字コードを判定するための例文で、ひらがなとカタカナと漢字が含まれています。今日は天気がよいので、公園に散歩に行きます。")]
     [InlineData("EUC-JP", "日本語のテキストです。これは文字コードを判定するための例文で、ひらがなとカタカナと漢字が含まれています。今日は天気がよいので、公園に散歩に行きます。")]
     [InlineData("GBK", "这是一个用来测试字符编码检测的中文例句，其中包含了很多简体字。今天天气很好，我们都去公园里散步，然后回家吃饭。")]

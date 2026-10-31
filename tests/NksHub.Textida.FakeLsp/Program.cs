@@ -17,7 +17,7 @@ using System.Text.Json;
 
 bool full = args.Contains("--full");
 bool fileOps = args.Contains("--fileops");
-// --features LIST announces more capabilities, comma separated: hover, signature, codeaction, symbols, formatting, inlay, semantic. Without it the server announces only what it always did.
+// --features LIST announces more capabilities, comma separated: hover, signature, codeaction, symbols, formatting, inlay, semantic, pull (diagnostics only on request, with resultId). Without it the server announces only what it always did.
 var features = (args.SkipWhile(a => a != "--features").Skip(1).FirstOrDefault() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
 bool Feature(string name) => features.Contains(name);
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
@@ -151,10 +151,26 @@ void Changed(string uri, long version, string text)
         File.WriteAllText(Path.Combine(dump, "fell-once"), "");
         Environment.Exit(3);
     }
+    if (Feature("pull")) return; // the client asks with textDocument/diagnostic
+    Send($"{{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{{\"uri\":{Quote(uri)},\"version\":{version},\"diagnostics\":[{string.Join(',', Findings(text))}]}}}}");
+}
+
+List<string> Findings(string text)
+{
     var items = new List<string>();
     for (int at = text.IndexOf("ERROR", StringComparison.Ordinal); at >= 0; at = text.IndexOf("ERROR", at + 5, StringComparison.Ordinal))
         items.Add($"{{\"range\":{Range(text, at, at + 5)},\"severity\":1,\"code\":\"E1\",\"message\":\"found ERROR\"}}");
-    Send($"{{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/publishDiagnostics\",\"params\":{{\"uri\":{Quote(uri)},\"version\":{version},\"diagnostics\":[{string.Join(',', items)}]}}}}");
+    return items;
+}
+
+// pull mode (--features pull): the answer is a full report whose resultId is the version of the text, or "unchanged" when the client already has that one
+string PullDiagnostics(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    string resultId = "v" + versions[uri];
+    if (p.TryGetProperty("previousResultId", out var previous) && previous.ValueKind == JsonValueKind.String && previous.GetString() == resultId)
+        return $"{{\"kind\":\"unchanged\",\"resultId\":\"{resultId}\"}}";
+    return $"{{\"kind\":\"full\",\"resultId\":\"{resultId}\",\"items\":[{string.Join(',', Findings(texts[uri]))}]}}";
 }
 
 string? Definition(JsonElement p)
@@ -425,6 +441,7 @@ string ExtraCapabilities()
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
     if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
     if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
+    if (Feature("pull")) caps.Add("\"diagnosticProvider\":{\"interFileDependencies\":false,\"workspaceDiagnostics\":false}");
     if (Feature("inlay")) caps.Add("\"inlayHintProvider\":true");
     if (Feature("semantic")) caps.Add("\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"function\",\"class\",\"keyword\"],\"tokenModifiers\":[]},\"full\":true}");
     if (Feature("symbols")) caps.Add("\"documentSymbolProvider\":true,\"workspaceSymbolProvider\":true");
@@ -531,7 +548,12 @@ while (ReadMessage() is { } body)
             Send(Reply(Completion(p)));
             break;
         case "textDocument/rename":
-            Send(Reply(Rename(p) ?? "null"));
+            if (Feature("paidrename")) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32001,\"message\":\"Rename requires a licence key.\"}}}}");
+            else Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/diagnostic":
+            Send(Reply(PullDiagnostics(p)));
+            CountAndPush("pull-requests", 7102, "workspace/diagnostic/refresh");
             break;
         case "textDocument/inlayHint":
             Send(Reply(InlayHints(p)));
