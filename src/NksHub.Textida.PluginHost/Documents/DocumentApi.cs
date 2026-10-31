@@ -409,7 +409,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         var codec = snap.Codec;
         if (offset < t.Bom || offset > snap.ByteLength) return false;
         if (offset == t.Bom || offset == snap.ByteLength) return true;
-        long start = Math.Max(t.Bom, offset - 4);
+        long start = Math.Max(t.Bom, offset - Math.Max(4, codec.ContextBefore(offset, t.Bom, (at, buffer) => snap.Read(at, buffer))));
         start -= (start - t.Bom) % codec.Alignment;
         long end = Math.Min(snap.ByteLength, offset + 4);
         var window = new byte[end - start];

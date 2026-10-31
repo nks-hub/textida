@@ -203,6 +203,44 @@ public sealed class TextCodec
     // ---- multi-byte units ----
 
     /// <summary>
+    /// True for a byte that can only be a whole character of its own, never the second or later byte of a longer one: below 0x80 in the EUC encodings, below 0x30 in GB18030 (whose four-byte characters
+    /// have digits as their second and fourth byte), below 0x40 in Shift-JIS, GBK and Big5 (whose trail bytes start at 0x40). The character after such a byte starts a fresh run, whatever came before it.
+    /// </summary>
+    public bool IsSyncByte(byte b) => Kind == CodecKind.MultiByte && (_rule is MultiByteRule.EucJp or MultiByteRule.EucKr ? b < 0x80 : _rule == MultiByteRule.Gb18030 ? b < 0x30 : b < 0x40);
+
+    /// <summary>
+    /// How many bytes before <paramref name="offset"/> a window needs to start at a character: 0 for every encoding whose characters can be found from the three bytes before (the callers add those),
+    /// and for a multi-byte encoding the distance back to the last byte that can only start a character (<see cref="IsSyncByte"/>), found by reading <paramref name="read"/> backwards in small chunks
+    /// down to <paramref name="floor"/>, the start of the text, which is a boundary itself. A text of more than 1 MiB without such a byte (no line break, space or ASCII letter) is cut there and its
+    /// characters are taken as they fall.
+    /// </summary>
+    public int ContextBefore(long offset, long floor, Action<long, byte[]> read)
+    {
+        if (Kind != CodecKind.MultiByte) return 0;
+        const int Chunk = 256, Cap = 1 << 20;
+        long end = offset;
+        while (end > floor && offset - end < Cap)
+        {
+            long start = Math.Max(floor, end - Chunk);
+            var part = new byte[end - start];
+            read(start, part);
+            for (int i = part.Length - 1; i >= 0; i--)
+                if (IsSyncByte(part[i])) return (int)(offset - (start + i));
+            end = start;
+        }
+        return (int)(offset - Math.Max(floor, end));
+    }
+
+    /// <summary>The index of the first byte of <paramref name="bytes"/> that certainly starts a character, for a run of bytes cut out of the middle of a text; the length when there is none.</summary>
+    public int FirstBoundary(ReadOnlySpan<byte> bytes)
+    {
+        if (Kind != CodecKind.MultiByte) return 0;
+        for (int i = 0; i < bytes.Length; i++)
+            if (IsSyncByte(bytes[i])) return i + 1;
+        return bytes.Length;
+    }
+
+    /// <summary>
     /// The length of the character that starts with <paramref name="d"/>[<paramref name="i"/>] by the lead byte alone (1 for a byte that stands alone). Whether the bytes are a character the encoding has is
     /// decided by the encoding; this only says where a character would end, so a block can be cut between two characters.
     /// </summary>
@@ -443,8 +481,8 @@ public sealed class TextCodec
                 return true;
             case CodecKind.MultiByte:
                 // not self-synchronising: walk from the last byte that can only start a character (below 0x40, or below 0x80 for the EUC encodings), or from the start of the window when it holds none
-                int syncBelow = _rule is MultiByteRule.EucJp or MultiByteRule.EucKr ? 0x80 : 0x40, start = pos - 1;
-                while (start > 0 && window[start] >= syncBelow) start--;
+                int start = pos - 1;
+                while (start > 0 && !IsSyncByte(window[start])) start--;
                 int cursor = start;
                 while (cursor < pos) cursor += MultiRead(window, cursor, out _) is var step and > 0 ? step : 1;
                 return cursor == pos;
