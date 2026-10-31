@@ -124,7 +124,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             .Append("\"hover\":{\"contentFormat\":[\"plaintext\",\"markdown\"]},\"signatureHelp\":{\"signatureInformation\":{\"documentationFormat\":[\"plaintext\"],\"parameterInformation\":{\"labelOffsetSupport\":false}}},")
             .Append("\"codeAction\":{\"codeActionLiteralSupport\":{\"codeActionKind\":{\"valueSet\":[\"quickfix\",\"refactor\",\"source\"]}}},\"documentSymbol\":{\"hierarchicalDocumentSymbolSupport\":true},\"formatting\":{},")
             .Append("\"inlayHint\":{},\"semanticTokens\":{\"requests\":{\"full\":true},\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\",\"decorator\"],\"tokenModifiers\":[],\"formats\":[\"relative\"]},")
-            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"inlayHint\":{\"refreshSupport\":true},\"semanticTokens\":{\"refreshSupport\":true},\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
+            .Append("\"publishDiagnostics\":{\"versionSupport\":true},\"diagnostic\":{\"dynamicRegistration\":false}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"diagnostics\":{\"refreshSupport\":true},\"inlayHint\":{\"refreshSupport\":true},\"semanticTokens\":{\"refreshSupport\":true},\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
         var answer = await RequestAsync("initialize", json.ToString(), _settings.StartTimeoutMs, ct).ConfigureAwait(false);
         if (answer.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object)
         {
@@ -174,6 +174,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
                 return ValueTask.FromResult<byte[]?>(null);
             case "workspace/inlayHint/refresh":
             case "workspace/semanticTokens/refresh":
+            case "workspace/diagnostic/refresh":
                 return Refresh(method, p);
             case "workspace/configuration":
                 return ValueTask.FromResult<byte[]?>(Encoding.UTF8.GetBytes(Configuration(p)));
