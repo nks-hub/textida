@@ -53,6 +53,30 @@ public class EncodingDetectionPagesTests
         if (guess.IsUncertain) Assert.Contains(guess.Alternatives, c => c.Group == EncodingGroup.Turkish);
     }
 
+    [Theory]
+    [InlineData("Shift-JIS", "日本語のテキストです。これは文字コードを判定するための例文で、ひらがなとカタカナと漢字が含まれています。今日は天気がよいので、公園に散歩に行きます。")]
+    [InlineData("EUC-JP", "日本語のテキストです。これは文字コードを判定するための例文で、ひらがなとカタカナと漢字が含まれています。今日は天気がよいので、公園に散歩に行きます。")]
+    [InlineData("GBK", "这是一个用来测试字符编码检测的中文例句，其中包含了很多简体字。今天天气很好，我们都去公园里散步，然后回家吃饭。")]
+    [InlineData("Big5", "這是一個用來測試字元編碼偵測的中文例句，其中包含了很多繁體字。今天天氣很好，我們都去公園裡散步，然後回家吃飯。")]
+    [InlineData("EUC-KR", "이것은 문자 인코딩 감지를 시험하기 위한 한국어 예문입니다. 오늘은 날씨가 좋아서 공원에 산책하러 갑니다.")]
+    public void Japanese_Chinese_and_Korean_text_is_told_apart_by_its_characters(string page, string text)
+    {
+        var guess = GuessIn(page, text);
+        Assert.Equal(page, guess.Codec.Name);
+        Assert.False(guess.IsUncertain, $"{guess.Reason}; confidence {guess.Confidence:F2}");
+    }
+
+    [Fact]
+    public void A_few_Asian_characters_are_uncertain_and_Latin_text_is_never_taken_for_Asian()
+    {
+        var little = EncodingGuesser.Guess(TextCodec.ByName("GBK")!.Encode("你好"), wholeFile: true);
+        Assert.True(little.IsUncertain || little.Codec.Name == "GBK");
+        var czech = GuessIn("Windows-1250", Czech);
+        Assert.NotEqual(CodecKind.MultiByte, czech.Codec.Kind);
+        var russian = GuessIn("Windows-1251", Russian);
+        Assert.NotEqual(CodecKind.MultiByte, russian.Codec.Kind);
+    }
+
     [Fact]
     public void A_little_Russian_text_is_uncertain_rather_than_wrong_and_offers_the_other_Cyrillic_pages()
     {

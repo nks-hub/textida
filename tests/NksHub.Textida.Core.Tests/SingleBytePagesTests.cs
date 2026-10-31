@@ -23,7 +23,7 @@ public class SingleBytePagesTests
         Assert.All(expected, name => Assert.NotNull(TextCodec.ByName(name)));
         Assert.DoesNotContain(names, n => n == "ISO-8859-12");
         Assert.All(TextCodec.All, c => Assert.True(Enum.IsDefined(c.Group)));
-        Assert.All(TextCodec.All.Where(c => c.Kind != CodecKind.SingleByte), c => Assert.Equal(EncodingGroup.Unicode, c.Group));
+        Assert.All(TextCodec.All.Where(c => c.Kind is CodecKind.Utf8 or CodecKind.Utf16 or CodecKind.Utf32), c => Assert.Equal(EncodingGroup.Unicode, c.Group));
     }
 
     [Theory]

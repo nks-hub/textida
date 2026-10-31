@@ -2,7 +2,10 @@ using System.Text;
 
 namespace NksHub.Textida.Core.Encodings;
 
-public enum CodecKind { Utf8, Utf16, Utf32, SingleByte }
+public enum CodecKind { Utf8, Utf16, Utf32, SingleByte, MultiByte }
+
+/// <summary>How the bytes of a multi-byte encoding are cut into characters: which lead bytes start a longer character and how long it is.</summary>
+public enum MultiByteRule { ShiftJis, EucJp, Gbk, Gb18030, Big5, EucKr }
 
 /// <summary>The family a code page is listed under in the encoding picker (by the languages it serves).</summary>
 public enum EncodingGroup { Unicode, CentralEuropean, WesternEuropean, Cyrillic, Greek, Turkish, Baltic, Hebrew, Arabic, Asian, Dos }
@@ -21,6 +24,8 @@ public sealed class TextCodec
 
     private readonly char[]? _toChar;                  // single-byte: byte -> char
     private readonly Dictionary<char, byte>? _toByte;    // single-byte: char -> byte
+    private readonly Encoding? _multi;                   // multi-byte: the strict .NET encoding of one character (it never replaces anything)
+    private readonly MultiByteRule _rule;
 
     public string Name { get; }
     /// <summary>The group the picker lists this encoding under.</summary>
@@ -32,12 +37,12 @@ public sealed class TextCodec
     /// <summary>Windows code page number, or 0 for tables that do not have one in .NET.</summary>
     public int CodePage { get; }
 
-    /// <summary>True when the target cannot represent every Unicode character (any single-byte page).</summary>
-    public bool IsLossy => Kind == CodecKind.SingleByte;
+    /// <summary>True when the target cannot represent every Unicode character (any single-byte page, and every multi-byte encoding but GB18030).</summary>
+    public bool IsLossy => Kind == CodecKind.SingleByte || (Kind == CodecKind.MultiByte && _rule != MultiByteRule.Gb18030);
 
-    private TextCodec(string name, CodecKind kind, bool bigEndian, byte[] bom, int codePage, char[]? table, EncodingGroup group = EncodingGroup.Unicode)
+    private TextCodec(string name, CodecKind kind, bool bigEndian, byte[] bom, int codePage, char[]? table, EncodingGroup group = EncodingGroup.Unicode, Encoding? multi = null, MultiByteRule rule = default)
     {
-        Name = name; Kind = kind; BigEndian = bigEndian; Bom = bom; CodePage = codePage; Group = group;
+        Name = name; Kind = kind; BigEndian = bigEndian; Bom = bom; CodePage = codePage; Group = group; _multi = multi; _rule = rule;
         if (table is null) return;
         _toChar = table;
         _toByte = new Dictionary<char, byte>(256);
@@ -57,6 +62,13 @@ public sealed class TextCodec
     public static readonly TextCodec Cp1250 = Page("Windows-1250", 1250, EncodingGroup.CentralEuropean);
     public static readonly TextCodec Cp1252 = Page("Windows-1252", 1252, EncodingGroup.WesternEuropean);
     public static readonly TextCodec Latin2 = Page("ISO-8859-2", 28592, EncodingGroup.CentralEuropean);
+    private static TextCodec Multi(string name, int codePage, MultiByteRule rule)
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var enc = Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+        return new TextCodec(name, CodecKind.MultiByte, false, [], codePage, null, EncodingGroup.Asian, enc, rule);
+    }
+
     public static readonly TextCodec Kamenicky = new("Kamenický (CP895)", CodecKind.SingleByte, false, [], 0, KamenickyTable.Build(), EncodingGroup.Dos);
 
     private static TextCodec Page(string name, int codePage, EncodingGroup group) => new(name, CodecKind.SingleByte, false, [], codePage, FromDotNet(codePage), group);
@@ -81,6 +93,16 @@ public sealed class TextCodec
         Page("Mac Roman", 10000, EncodingGroup.WesternEuropean), Page("Mac Central European", 10029, EncodingGroup.CentralEuropean),
     ];
 
+    /// <summary>
+    /// The multi-byte Asian encodings. Their characters are one to four bytes long, so the large file view (which reads blocks of bytes and finds characters by a window of three bytes) does not take them:
+    /// <see cref="Documents.PagedBackend.Supports"/> says so. Everywhere else they are decoded and written like the other encodings, with the bytes of an invalid sequence left as they are.
+    /// </summary>
+    private static readonly TextCodec[] MultiBytePages =
+    [
+        Multi("Shift-JIS", 932, MultiByteRule.ShiftJis), Multi("EUC-JP", 51932, MultiByteRule.EucJp), Multi("GBK", 936, MultiByteRule.Gbk),
+        Multi("GB18030", 54936, MultiByteRule.Gb18030), Multi("Big5", 950, MultiByteRule.Big5), Multi("EUC-KR", 51949, MultiByteRule.EucKr),
+    ];
+
     /// <summary>ISO-8859-11 is TIS-620 with a no-break space at 0xA0; windows-874 has the same Thai letters from 0xA1 and extra characters below them.</summary>
     private static char[] ThaiIso()
     {
@@ -92,7 +114,7 @@ public sealed class TextCodec
     public static IReadOnlyList<TextCodec> All { get; } =
     [
         Utf8, Utf8Bom, Utf16LE, Utf16LEBom, Utf16BE, Utf16BEBom, Utf32LE, Utf32LEBom, Utf32BE, Utf32BEBom,
-        .. SingleBytePages,
+        .. SingleBytePages, .. MultiBytePages,
     ];
 
     public static TextCodec? ByName(string name) =>
@@ -173,8 +195,56 @@ public sealed class TextCodec
                 int n = data.Length & ~1;
                 if (n >= 2 && char.IsHighSurrogate(ReadUnit(data, n - 2))) n -= 2;
                 return n;
+            case CodecKind.MultiByte: return MultiCompleteLength(data);
             default: return data.Length;
         }
+    }
+
+    // ---- multi-byte units ----
+
+    /// <summary>
+    /// The length of the character that starts with <paramref name="d"/>[<paramref name="i"/>] by the lead byte alone (1 for a byte that stands alone). Whether the bytes are a character the encoding has is
+    /// decided by the encoding; this only says where a character would end, so a block can be cut between two characters.
+    /// </summary>
+    private int MultiLength(ReadOnlySpan<byte> d, int i)
+    {
+        byte b = d[i];
+        if (b < 0x80) return 1;
+        switch (_rule)
+        {
+            case MultiByteRule.ShiftJis: return b is >= 0x81 and <= 0x9F or >= 0xE0 and <= 0xFC ? 2 : 1;
+            case MultiByteRule.EucJp: return b == 0x8F ? 3 : b == 0x8E || b is >= 0xA1 and <= 0xFE ? 2 : 1;
+            case MultiByteRule.Gb18030: return b is >= 0x81 and <= 0xFE ? (i + 1 < d.Length && d[i + 1] is >= 0x30 and <= 0x39 ? 4 : 2) : 1;
+            case MultiByteRule.EucKr: return b is >= 0xA1 and <= 0xFE ? 2 : 1;
+            default: return b is >= 0x81 and <= 0xFE ? 2 : 1; // GBK and Big5
+        }
+    }
+
+    /// <summary>Reads the character that starts at <paramref name="i"/>: returns the bytes it takes and its text, or -1 when the bytes are not a character of the encoding (the caller then treats one byte as an invalid unit).</summary>
+    private int MultiRead(ReadOnlySpan<byte> d, int i, out string chars)
+    {
+        int n = MultiLength(d, i);
+        chars = "";
+        if (n == 1 && d[i] < 0x80) { chars = ((char)d[i]).ToString(); return 1; }
+        if (i + n > d.Length) return -1; // cut short: only the end of the data can do that, and it is invalid
+        try
+        {
+            chars = _multi!.GetString(d.Slice(i, n));
+            return chars.Length > 0 ? n : -1;
+        }
+        catch (DecoderFallbackException) { return -1; }
+    }
+
+    private int MultiCompleteLength(ReadOnlySpan<byte> data)
+    {
+        int i = 0;
+        while (i < data.Length)
+        {
+            int n = MultiLength(data, i);
+            if (i + n > data.Length && n > 1) return i; // starts a character the data does not finish
+            i += Math.Min(n, data.Length - i);
+        }
+        return data.Length;
     }
 
     private char ReadUnit(ReadOnlySpan<byte> d, int i) =>
@@ -280,6 +350,15 @@ public sealed class TextCodec
                     i += 4;
                 }
                 break;
+            case CodecKind.MultiByte:
+                while (i < d.Length)
+                {
+                    int used = MultiRead(d, i, out var decoded);
+                    if (used < 0) { AddBad(i); i++; continue; }
+                    foreach (char c in decoded) AddChar(c, i);
+                    i += used;
+                }
+                break;
             default:
                 for (; i < d.Length; i++) { map?.Add(baseOffset + i); text.Append(_toChar![d[i]]); }
                 break;
@@ -329,6 +408,10 @@ public sealed class TextCodec
                 return Math.Max(1, used);
             case CodecKind.SingleByte:
                 return 1;
+            case CodecKind.MultiByte:
+                int taken = MultiRead(data, 0, out var unit);
+                chars = taken < 0 ? 1 : unit.Length;
+                return taken < 0 ? 1 : taken;
             case CodecKind.Utf16:
                 if (data.Length < 2) return data.Length;
                 if (char.IsHighSurrogate(ReadUnit(data, 0)) && data.Length >= 4 && char.IsLowSurrogate(ReadUnit(data, 2)))
@@ -358,6 +441,13 @@ public sealed class TextCodec
         {
             case CodecKind.SingleByte:
                 return true;
+            case CodecKind.MultiByte:
+                // not self-synchronising: walk from the last byte that can only start a character (below 0x40, or below 0x80 for the EUC encodings), or from the start of the window when it holds none
+                int syncBelow = _rule is MultiByteRule.EucJp or MultiByteRule.EucKr ? 0x80 : 0x40, start = pos - 1;
+                while (start > 0 && window[start] >= syncBelow) start--;
+                int cursor = start;
+                while (cursor < pos) cursor += MultiRead(window, cursor, out _) is var step and > 0 ? step : 1;
+                return cursor == pos;
             case CodecKind.Utf8:
                 if ((window[pos] & 0xC0) != 0x80) return true;
                 int lead = pos - 1, floor = Math.Max(0, pos - 3);
@@ -393,6 +483,11 @@ public sealed class TextCodec
     public bool CanEncode(int codePoint)
     {
         if (!Rune.IsValid(codePoint)) return false;
+        if (Kind == CodecKind.MultiByte)
+        {
+            try { _multi!.GetBytes(char.ConvertFromUtf32(codePoint)); return true; }
+            catch (EncoderFallbackException) { return false; }
+        }
         return Kind != CodecKind.SingleByte || (codePoint <= 0xFFFF && _toByte!.ContainsKey((char)codePoint));
     }
 
@@ -419,6 +514,9 @@ public sealed class TextCodec
             case CodecKind.Utf32:
                 if (BigEndian) { output.Add((byte)(codePoint >> 24)); output.Add((byte)(codePoint >> 16)); output.Add((byte)(codePoint >> 8)); output.Add((byte)codePoint); }
                 else { output.Add((byte)codePoint); output.Add((byte)(codePoint >> 8)); output.Add((byte)(codePoint >> 16)); output.Add((byte)(codePoint >> 24)); }
+                break;
+            case CodecKind.MultiByte:
+                foreach (byte b in _multi!.GetBytes(char.ConvertFromUtf32(codePoint))) output.Add(b);
                 break;
             default:
                 output.Add(_toByte![(char)codePoint]);
@@ -457,6 +555,7 @@ public sealed class TextCodec
                     if (!(char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))) runes++;
                     else { runes++; i++; }
                 return runes * 4;
+            case CodecKind.MultiByte: return EncodeLossy(text).Length;
             default: return text.Length;
         }
     }
@@ -473,7 +572,7 @@ public sealed class TextCodec
             bool ok = Rune.DecodeFromUtf16(text[i..], out Rune r, out int used) == System.Buffers.OperationStatus.Done;
             if (ok && CanEncode(r.Value)) { EncodeRune(r.Value, result); i += used; continue; }
             used = Math.Max(1, used);
-            for (int k = 0; k < used; k++) EncodeRune(Kind == CodecKind.SingleByte ? '?' : 0xFFFD, result);
+            for (int k = 0; k < used; k++) EncodeRune(Kind is CodecKind.SingleByte or CodecKind.MultiByte ? '?' : 0xFFFD, result);
             i += used;
         }
         return result.ToArray();

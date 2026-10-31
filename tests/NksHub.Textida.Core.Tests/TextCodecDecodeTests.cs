@@ -80,7 +80,7 @@ public class TextCodecDecodeTests
     [InlineData("emoji 😀 and 𝄞 behind ascii 😀😀")]
     public void Valid_text_decodes_to_the_same_text_and_map_in_every_codec(string text)
     {
-        foreach (var codec in TextCodec.All.Where(c => c.Kind != CodecKind.SingleByte))
+        foreach (var codec in TextCodec.All.Where(c => c.Kind is CodecKind.Utf8 or CodecKind.Utf16 or CodecKind.Utf32))
         {
             var bytes = new List<byte>(codec.Bom);
             bytes.AddRange(codec.Encode(text));
@@ -100,7 +100,7 @@ public class TextCodecDecodeTests
             [0x41, 0x42, 0xE2, 0x82],
             [0x00, 0x00, 0xD8, 0x00, 0x00, 0x41],
         ];
-        foreach (var codec in TextCodec.All.Where(c => c.Kind != CodecKind.SingleByte))
+        foreach (var codec in TextCodec.All.Where(c => c.Kind is CodecKind.Utf8 or CodecKind.Utf16 or CodecKind.Utf32))
             foreach (var input in inputs) AssertSame(codec, input);
 
         var random = new Random(7731);
@@ -108,7 +108,7 @@ public class TextCodecDecodeTests
         {
             var bytes = new byte[random.Next(0, 200)];
             random.NextBytes(bytes);
-            foreach (var codec in TextCodec.All.Where(c => c.Kind != CodecKind.SingleByte)) AssertSame(codec, bytes);
+            foreach (var codec in TextCodec.All.Where(c => c.Kind is CodecKind.Utf8 or CodecKind.Utf16 or CodecKind.Utf32)) AssertSame(codec, bytes);
         }
     }
 
