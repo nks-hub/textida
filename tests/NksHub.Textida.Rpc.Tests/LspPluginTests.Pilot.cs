@@ -35,7 +35,7 @@ public partial class LspPluginTests
     {
         ["Greeter.php"] = "<?php\nclass Greeter\n{\n    public function hello(string $name): string\n    {\n        return \"Hello \" . $name;\n    }\n}\n",
         ["main.php"] = "<?php\nrequire_once __DIR__ . '/Greeter.php';\n$g = new Greeter();\necho $g->hello('x');\necho $g->hel\n",
-    }, "main.php", "hello", "Greeter.php", "hello", "main.php", "echo $g->hel", "hello", "$x = ;\n", DeclaredArgs: ["--stdio"], Rename: false); // not in the catalog: started the way a plugin manifest declares a server; rename is a paid feature of this server (the plugin answers notSupported)
+    }, "main.php", "hello", "Greeter.php", "hello", "main.php", "echo $g->hel", "hello", "$x = ;\n", Rename: false); // rename is a paid feature of this server (the plugin answers notSupported)
 
     private static readonly Pilot Rust = new("rust", "rust-analyzer", new()
     {
