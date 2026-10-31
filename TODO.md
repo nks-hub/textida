@@ -2282,6 +2282,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Odhad:** bez odhadu
   - **Umístění:** jádro (`Core/Encoding`)
   - **Stav 31. 10. 2026 (sloučeno):** jednobajtové stránky Windows-1250 až 1258, ISO-8859-1 až 16 (bez 12), KOI8-R/U, DOS 437/850/852/866, Mac Roman a Central European, Kamenický, se zpátečním testem všech 256 bajtů (c94f74e4); výběr kódování po skupinách s hledáním a nedávnými v menu Formát i ve stavovém řádku (12961c2b); detekce cyrilice, řečtiny a turečtiny (280c235e); Shift-JIS, EUC-JP, GBK, GB18030, Big5 a EUC-KR s dekódováním po blocích, zachováním bajtů a detekcí (8439dc70). Chybí: vícebajtová kódování ve stránkovaném režimu (velké soubory je nenabídnou), ověření publikace NativeAOT, krátké asijské texty vychází jako nejisté.
+  - **Stav 31. 10. 2026 (večer, sloučeno a818b892):** vícebajtová kódování fungují i ve stránkovaném režimu: hranice znaku se hledá zpět k bajtu, který může být jen celým znakem (EUC pod 0x80, Shift-JIS, GBK a Big5 pod 0x40, GB18030 pod 0x30); index řádků, hledání a uložení zůstávají bajtově přesné; „Znovu přečíst jako“ je nabízí i u velkých souborů. Opravena hranice uvnitř čtyřbajtového znaku GB18030. Testy na 2MiB souborech 51/51. Zbývá: ověření NativeAOT a vzhled v aplikaci; převod velkého souboru na jiné kódování zůstává vypnutý.
 
 ### P5.6 Hex: hledání, záložky, porovnání
 
@@ -2520,6 +2521,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Nástroje openFile, getOpenEditors, getWorkspaceFolders, checkDocumentDirty a `at_mentioned` podle veřejného popisu protokolu. Neověřeno se skutečným Claude Code, verze CLI nezapsaná.
   - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Claude Code 2.1.312 se k `/ide` připojí jen v interaktivním režimu (ConPTY), ne s `-p`. Volá jen `closeAllDiffTabs`, `openDiff`, `close_tab` a `getDiagnostics`. Výsledek `openDiff` FILE_SAVED potřebuje druhý textový blok s přijatým obsahem (opraveno d02ca58b). Po přijetí CLI zapíše soubor samo: karta zůstane neuložená a Uložit se ptá na konflikt. Zadáno vývojáři 31. 10. 2026: karta má převzít obsah z disku, když je stejný jako přijatý text.
   - **Stav 31. 10. 2026:** převzetí souboru po přijetí diffu je už hotové (042b5dc4, test ve `FileFlowTests`): soubor shodný s kartou se převezme a karta je čistá. Opakovaný běh `IdeRealClaudeTests` čeká na testera.
+  - **Ověření 31. 10. 2026:** `IdeRealClaudeTests` se skutečným Claude Code prošly 3/3; karta je po zápisu agentem čistá (test opraven ve větvi testera, 73165198).
 
 ### P6.6 Agent přes ACP
 
@@ -2561,6 +2563,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Stav 28. 10. 2026:** částečně. Tabulka adaptérů s kontrolou v PATH a `--version`. Neověřeno se skutečnými agenty.
   - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Codex na Windows potřebuje pro workspace-write `-c windows.sandbox=unelevated` (zadáno vývojáři 31. 10. 2026). Ani jeden adaptér nečte neuloženou kartu přes ACP, viz P6.6.1.
   - **Stav 31. 10. 2026 (sloučeno, 0f542d40):** adaptér Codexu se na Windows spouští s `-c windows.sandbox=unelevated`.
+  - **Ověření 31. 10. 2026:** claude-agent-acp: zápis přes diff v oprávnění se ukáže jako návrh v revizi a prošel (86ed532b). Codex: testy nejdou spustit, účet má vyčerpaný limit použití do 4. 11. 2026; zopakovat potom.
 
 ## P7 – velká editace
 
