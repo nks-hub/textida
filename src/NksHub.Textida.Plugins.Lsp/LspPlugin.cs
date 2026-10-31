@@ -1310,24 +1310,36 @@ public sealed class LspPlugin : PluginBase
 
     // ---- signature help ----
 
-    /// <summary>The text of the active signature with its active parameter between « and »; the documentation of the signature follows on a second line.</summary>
-    private static string? SignatureText(JsonElement help)
+    /// <summary>The active signature of a <c>SignatureHelp</c> answer: its label, the character range of each parameter inside the label, the active parameter (-1: none) and the documentation.</summary>
+    private static (string Label, List<(int Start, int End)> Parameters, int Active, string? Documentation)? SignatureOf(JsonElement help)
     {
         if (help.ValueKind != JsonValueKind.Object || !help.TryGetProperty("signatures", out var signatures) || signatures.ValueKind != JsonValueKind.Array || signatures.GetArrayLength() == 0) return null;
         int index = help.TryGetProperty("activeSignature", out var a) && a.ValueKind == JsonValueKind.Number && a.GetInt32() is >= 0 and var i && i < signatures.GetArrayLength() ? i : 0;
         var signature = signatures[index];
         var label = Text(signature, "label");
         if (string.IsNullOrEmpty(label)) return null;
-        var activeParameter = signature.TryGetProperty("activeParameter", out var sp) && sp.ValueKind == JsonValueKind.Number ? sp.GetInt32()
+        int active = signature.TryGetProperty("activeParameter", out var sp) && sp.ValueKind == JsonValueKind.Number ? sp.GetInt32()
             : help.TryGetProperty("activeParameter", out var hp) && hp.ValueKind == JsonValueKind.Number ? hp.GetInt32() : -1;
-        if (activeParameter >= 0 && signature.TryGetProperty("parameters", out var parameters) && parameters.ValueKind == JsonValueKind.Array && activeParameter < parameters.GetArrayLength()
-            && Text(parameters[activeParameter], "label") is { Length: > 0 } parameter && label.IndexOf(parameter, StringComparison.Ordinal) is var at and >= 0)
-            label = label[..at] + "«" + parameter + "»" + label[(at + parameter.Length)..];
+        var ranges = new List<(int, int)>();
+        if (signature.TryGetProperty("parameters", out var parameters) && parameters.ValueKind == JsonValueKind.Array)
+        {
+            int from = 0;
+            foreach (var parameter in parameters.EnumerateArray())
+            {
+                var name = Text(parameter, "label");
+                int at = string.IsNullOrEmpty(name) ? -1 : label.IndexOf(name, from, StringComparison.Ordinal);
+                ranges.Add(at < 0 ? (0, 0) : (at, at + name!.Length));
+                if (at >= 0) from = at + name!.Length;
+            }
+        }
         var documentation = signature.TryGetProperty("documentation", out var doc) ? doc.ValueKind == JsonValueKind.String ? doc.GetString() : Text(doc, "value") : null;
-        return string.IsNullOrWhiteSpace(documentation) ? label : label + "\n" + documentation.Trim();
+        return (label, ranges, active >= 0 && active < ranges.Count ? active : -1, string.IsNullOrWhiteSpace(documentation) ? null : documentation.Trim());
     }
 
-    /// <summary>Asks the server for the signature of the call at the caret and shows it as a notice; a server without <c>signatureHelpProvider</c> is told so.</summary>
+    /// <summary>
+    /// Asks the server for the signature of the call at the caret. The answer holds the label, where each parameter stands in it, the active one and the documentation; the editor shows it in a small popup
+    /// at the caret and follows the caret from parameter to parameter. A server without <c>signatureHelpProvider</c> is told so.
+    /// </summary>
     private async Task<byte[]> SignatureHelpAsync(LspServer server, Doc d, Request r, CancellationToken ct)
     {
         if (!server.Has("signatureHelpProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
@@ -1335,10 +1347,10 @@ public sealed class LspPlugin : PluginBase
         var answer = await server.RequestAsync("textDocument/signatureHelp", $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
         var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
         if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
-        if (SignatureText(answer) is not { } text) return await TellAsync("none", NoticeLevel.Info, "noSignature").ConfigureAwait(false);
-        text = Limited(text);
-        await CallAsync(UiMethods.Notify, $"{{\"level\":\"info\",\"message\":\"{Quote(text)}\"}}", ct).ConfigureAwait(false);
-        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"signature\":\"{Quote(text)}\"}}");
+        if (SignatureOf(answer) is not { } signature) return await TellAsync("none", NoticeLevel.Info, "noSignature").ConfigureAwait(false);
+        var ranges = string.Join(',', signature.Parameters.Select(x => $"{{\"start\":{x.Start},\"end\":{x.End}}}"));
+        var documentation = signature.Documentation is null ? "" : $",\"documentation\":\"{Quote(signature.Documentation)}\"";
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"label\":\"{Quote(signature.Label)}\",\"parameters\":[{ranges}],\"active\":{signature.Active}{documentation}}}");
     }
 
     // ---- formatting ----

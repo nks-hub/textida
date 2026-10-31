@@ -125,10 +125,12 @@ public partial class LspPluginTests
 
         var first = await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, Bytes("é😀 run(1"));
         Assert.Equal("ok", first.GetProperty("status").GetString());
-        Assert.StartsWith("run(«a: int», b: string)", first.GetProperty("signature").GetString());
+        Assert.Equal("run(a: int, b: string)", first.GetProperty("label").GetString());
+        Assert.Equal([(4, 10), (12, 21)], first.GetProperty("parameters").EnumerateArray().Select(x => (x.GetProperty("start").GetInt32(), x.GetProperty("end").GetInt32())));
+        Assert.Equal((0, "Calls run."), (first.GetProperty("active").GetInt32(), first.GetProperty("documentation").GetString()));
         var second = await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, Bytes("é😀 run(1, 2"));
-        Assert.StartsWith("run(a: int, «b: string»)", second.GetProperty("signature").GetString());
-        Assert.Contains(rig.Ui.Notices, n => n.Message.StartsWith("run(a: int, «b: string»)", StringComparison.Ordinal));
+        Assert.Equal(1, second.GetProperty("active").GetInt32());
+        Assert.Empty(rig.Ui.Notices); // the editor shows the popup, the plugin says nothing
         Assert.Equal("none", (await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, 0)).GetProperty("status").GetString()); // outside any call
     }
 

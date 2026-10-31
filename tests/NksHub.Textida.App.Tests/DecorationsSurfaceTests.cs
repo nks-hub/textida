@@ -1,4 +1,5 @@
 using Avalonia.Headless.XUnit;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 
@@ -38,6 +39,52 @@ public class DecorationsSurfaceTests : IDisposable
         surface.SetSemanticTokens([]);
         Assert.Empty(surface.InlayHints);
         Assert.Empty(surface.SemanticTokens);
+    }
+
+    [AvaloniaFact]
+    public void The_signature_popup_follows_the_arguments_and_closes_on_Esc_and_when_the_caret_leaves_the_call()
+    {
+        var w = _app.CreateWindow(null);
+        w.Width = 800;
+        w.Height = 500;
+        var tab = w.OpenFile(_temp.File("call.txt", "x = run(1, f(2), 3) + 4\n"), null);
+        var surface = tab.Editor!;
+        w.UpdateLayout();
+        surface.TextArea.Focus();
+        var info = new SignatureInfo("run(a: int, b: string, c: int)", [(4, 10), (12, 21), (23, 29)], 0, "Calls run.");
+
+        Assert.False(surface.ShowSignature(info)); // the caret is not inside a call
+        surface.CaretOffset = "x = run(1".Length;
+        Assert.True(surface.ShowSignature(info));
+        Assert.Same(info, surface.Signature);
+
+        surface.CaretOffset = "x = run(1, f(2".Length; // inside a call of its own: still the second argument of run
+        Assert.NotNull(surface.Signature);
+        Assert.Equal(1, EditorSurface.ArgumentAt(surface.Document.Text, 7, surface.CaretOffset));
+        surface.CaretOffset = "x = run(1, f(2), 3".Length;
+        Assert.Equal(2, EditorSurface.ArgumentAt(surface.Document.Text, 7, surface.CaretOffset));
+
+        surface.CaretOffset = "x = run(1, f(2), 3) + ".Length; // behind the closing bracket
+        Assert.Null(surface.Signature);
+
+        surface.CaretOffset = "x = run(1".Length;
+        Assert.True(surface.ShowSignature(info));
+        surface.TextArea.RaiseEvent(new Avalonia.Input.KeyEventArgs { RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent, Key = Avalonia.Input.Key.Escape });
+        Assert.Null(surface.Signature);
+
+        Assert.True(surface.ShowSignature(info));
+        surface.Document.Remove(7, 1); // the opening bracket is gone
+        Assert.Null(surface.Signature);
+    }
+
+    [AvaloniaTheory]
+    [InlineData("f(a, (b, c), d", 1, 2)]
+    [InlineData("f(a, b)", -1, -1)]
+    public void The_bracket_before_the_caret_and_the_argument_are_found_by_counting_brackets(string text, int open, int argument)
+    {
+        int found = EditorSurface.OpenBracketBefore(text, text.Length);
+        Assert.Equal(open == -1 ? -1 : 1, found);
+        if (found >= 0) Assert.Equal(argument, EditorSurface.ArgumentAt(text, found, text.Length));
     }
 
     [AvaloniaTheory]

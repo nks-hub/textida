@@ -395,6 +395,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             window.GoToPlace(place.GetProperty("path").GetString()!, place.GetProperty("line").GetInt32(), place.GetProperty("character").GetInt32(),
                 place.GetProperty("endLine").GetInt32(), place.GetProperty("endCharacter").GetInt32());
         }
+        else if (command == "lsp.signatureHelp" && outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } sig } && sig.TryGetProperty("status", out var sigStatus) && sigStatus.GetString() == "ok"
+            && sig.TryGetProperty("label", out var label))
+        {
+            var ranges = sig.GetProperty("parameters").EnumerateArray().Select(x => (x.GetProperty("start").GetInt32(), x.GetProperty("end").GetInt32())).ToList();
+            surface.ShowSignature(new SignatureInfo(label.GetString()!, ranges, sig.GetProperty("active").GetInt32(), sig.TryGetProperty("documentation", out var documentation) ? documentation.GetString() : null));
+        }
         return outcome.Started;
     }
 
