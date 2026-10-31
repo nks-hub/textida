@@ -506,6 +506,7 @@ public class McpAppTests : IDisposable
     public async Task The_editors_own_client_reads_a_shared_tab_through_the_real_server_and_reports_the_server_going_away()
     {
         await SwitchOnAsync();
+        _app.Plugins.Mcp.Clients.Decide(ClientOptions.ClientName, true); // a new client has no permission until the user decides
         var tab = Open("client.txt", "on disk\n");
         tab.Editor!.Document.Text = "unsaved for the client\n";
         Settle();
@@ -569,6 +570,7 @@ public class McpAppTests : IDisposable
         var npx = Npx();
         Assert.SkipWhen(npx is null, "Node.js (npx) is not installed here.");
         await SwitchOnAsync();
+        foreach (var name in new[] { "inspector-cli", "mcp-inspector" }) _app.Plugins.Mcp.Clients.Decide(name, true); // the names the inspector gives in its clientInfo (by version)
         var tab = Open("note.txt", "text for the inspector\n");
         tab.Editor!.Document.Text = "unsaved text for the inspector\n";
         Settle();
