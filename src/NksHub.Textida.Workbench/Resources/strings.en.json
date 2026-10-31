@@ -244,6 +244,8 @@
   "cmd.lsp.rename": "Language Server: Rename Symbol",
   "cmd.lsp.restart": "Language Server: Restart",
   "cmd.lsp.stop": "Language Server: Stop",
+  "cmd.lsp.workspaceSymbols": "Language Server: Find Symbol in Workspace",
+  "cmd.lsp.documentSymbols": "Language Server: Document Outline",
   "cmd.lsp.signatureHelp": "Language Server: Parameter Info",
   "cmd.lsp.codeActions": "Language Server: Code Actions and Quick Fixes",
   "cmd.lsp.format": "Language Server: Format Document",

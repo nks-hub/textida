@@ -257,7 +257,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
              "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
              "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
@@ -867,7 +867,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// both to the same bytes. <paramref name="reveal"/> opens the outline. False when the language has no symbols or nothing was started.
     /// </summary>
     public Task<bool> IndexSymbolsAsync(MainWindow window, DocTab tab, bool reveal) =>
-        SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+        SymbolSourceOf(tab) == LspPluginId ? RunLspAsync(window, tab, "lsp.documentSymbols")
+        : SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+
+    /// <summary>The plugin whose symbols the outline and <c>@</c> use for the tab: the language server when it has published the symbols of the document (Language Server: Outline), else the plugin for the language mode.</summary>
+    internal string? SymbolSourceOf(DocTab tab) =>
+        Documents.SymbolsOf(LspPluginId, tab.Doc.Doc.Id, out _).Count > 0 ? LspPluginId : SymbolPlugin(tab.Doc.Language.Id);
 
     private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
     {
@@ -999,14 +1004,14 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>The symbols published for the tab, and whether they are those of the revision the tab has now.</summary>
     internal IReadOnlyList<SymbolInfo> TabSymbols(DocTab tab, out bool current)
     {
-        if (SymbolPlugin(tab.Doc.Language.Id) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
+        if (SymbolSourceOf(tab) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
         current = false;
         return [];
     }
 
     /// <summary>Jumps to a published symbol exactly as a click in the outline does. False when the symbol is gone or the text it stood on was changed.</summary>
     public bool RevealTabSymbol(DocTab tab, string symbolId) =>
-        SymbolPlugin(tab.Doc.Language.Id) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
+        SymbolSourceOf(tab) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
 
     /// <summary>
     /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the

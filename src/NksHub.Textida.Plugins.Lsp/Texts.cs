@@ -41,6 +41,10 @@ public static class Texts
         ["noActions"] = ["Server na tomto místě nenabízí žádnou akci ani opravu.", "The server offers no action or fix at this place.", "Server na tomto mieste neponúka žiadnu akciu ani opravu.", "Der Server bietet an dieser Stelle keine Aktion und keine Korrektur an."],
         ["actionsTitle"] = ["Akce a rychlé opravy", "Code actions and quick fixes", "Akcie a rýchle opravy", "Aktionen und Schnellkorrekturen"],
         ["noSignature"] = ["Na tomto místě není žádné volání, ke kterému by server znal podpis.", "There is no call at this place that the server knows a signature for.", "Na tomto mieste nie je žiadne volanie, ku ktorému by server poznal podpis.", "An dieser Stelle gibt es keinen Aufruf, zu dem der Server eine Signatur kennt."],
+        ["noSymbols"] = ["Server nenašel žádné symboly.", "The server found no symbols.", "Server nenašiel žiadne symboly.", "Der Server fand keine Symbole."],
+        ["symbolsTitle"] = ["Symboly: {count}", "Symbols: {count}", "Symboly: {count}", "Symbole: {count}"],
+        ["workspaceSymbolTitle"] = ["Symbol v projektu", "Symbol in the workspace", "Symbol v projekte", "Symbol im Projekt"],
+        ["workspaceSymbolLabel"] = ["Hledaný název", "Name to search for", "Hľadaný názov", "Gesuchter Name"],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

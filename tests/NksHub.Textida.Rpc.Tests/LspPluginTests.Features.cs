@@ -131,6 +131,57 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task The_symbols_of_the_document_are_published_on_the_bytes_of_their_names_for_the_revision_asked()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "symbols"]);
+        var text = "# é😀\nclass Box\n  def area\n  def size\ndef helper\n";
+        var doc = rig.Add("symbols.fake", text);
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        var r = await rig.RunAsync(doc, LspPlugin.DocumentSymbolsCommand);
+
+        Assert.Equal(("ok", 4), (r.GetProperty("status").GetString(), r.GetProperty("count").GetInt32()));
+        var symbols = rig.Docs.SymbolsOf("lsp", doc.Id, out bool current);
+        Assert.True(current);
+        Assert.Equal(["Box", "area", "size", "helper"], symbols.Select(s => s.Name));
+        Assert.Equal(["class", "method", "method", "function"], symbols.Select(s => s.Kind));
+        Assert.Equal([null, symbols[0].Id, symbols[0].Id, null], symbols.Select(s => s.ParentId));
+        var snapshot = doc.GetSnapshot();
+        Assert.All(symbols, s => Assert.Equal(s.Name, Encoding.UTF8.GetString(snapshot.ReadBytes(s.Range))));
+        Assert.Equal(Bytes("# é😀\nclass "), symbols[0].Range.Start);
+    }
+
+    [Fact]
+    public async Task Symbols_of_a_server_without_them_are_not_asked_and_a_search_in_the_workspace_lists_the_places()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "def a\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.DocumentSymbolsCommand)).GetProperty("status").GetString());
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.WorkspaceSymbolsCommand)).GetProperty("status").GetString());
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "symbols"]);
+        var first = rig.Add("one.fake", "é\ndef helper\n");
+        var second = rig.Add("two.fake", "😀\ndef other\ndef helperTwo\n");
+        await rig.RunAsync(first, LspPlugin.StartCommand);
+        await rig.RunAsync(second, LspPlugin.StartCommand);
+        rig.Ui.Input = _ => "HELPER"; // without regard to case
+
+        var r = await rig.RunAsync(first, LspPlugin.WorkspaceSymbolsCommand);
+
+        Assert.Equal(("ok", 2), (r.GetProperty("status").GetString(), r.GetProperty("count").GetInt32()));
+        var panel = Assert.Single(rig.Ui.Panels);
+        Assert.Equal(2, panel.Items.Count);
+        var starts = r.GetProperty("locations").EnumerateArray().Select(l => (l.GetProperty("start").GetInt64(), l.GetProperty("inDocument").GetBoolean())).ToList();
+        Assert.Equal([(Bytes("é\ndef "), true), (Bytes("😀\ndef other\ndef "), false)], starts);
+
+        rig.Ui.Input = _ => "nothing like it";
+        Assert.Equal("none", (await rig.RunAsync(first, LspPlugin.WorkspaceSymbolsCommand)).GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task Hover_is_not_asked_of_a_server_that_does_not_announce_it_and_an_old_answer_is_dropped()
     {
         await using (var plain = await Rig.CreateAsync())

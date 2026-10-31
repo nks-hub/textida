@@ -30,6 +30,8 @@ public sealed class LspPlugin : PluginBase
     public const string FormatCommand = "lsp.format";
     public const string CodeActionsCommand = "lsp.codeActions";
     public const string SignatureHelpCommand = "lsp.signatureHelp";
+    public const string DocumentSymbolsCommand = "lsp.documentSymbols";
+    public const string WorkspaceSymbolsCommand = "lsp.workspaceSymbols";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -156,7 +158,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand or DocumentSymbolsCommand or WorkspaceSymbolsCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         try
@@ -189,6 +191,8 @@ public sealed class LspPlugin : PluginBase
                 FormatCommand => await FormatAsync(server, doc, r, p, ct).ConfigureAwait(false),
                 CodeActionsCommand => await CodeActionsAsync(server, doc, r, p, ct).ConfigureAwait(false),
                 SignatureHelpCommand => await SignatureHelpAsync(server, doc, r, ct).ConfigureAwait(false),
+                DocumentSymbolsCommand => await DocumentSymbolsAsync(server, doc, r, ct).ConfigureAwait(false),
+                WorkspaceSymbolsCommand => await WorkspaceSymbolsAsync(server, doc, r, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
@@ -791,6 +795,12 @@ public sealed class LspPlugin : PluginBase
             references ? $"{{{position},\"context\":{{\"includeDeclaration\":true}}}}" : $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
         var raw = Locations(answer);
         if (raw.Count == 0) return await TellAsync("none", NoticeLevel.Info, references ? "noReferences" : "noDefinition").ConfigureAwait(false);
+        return await ShowPlacesAsync(d, r, raw, references ? "referencesTitle" : "definitionsTitle", ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Shows the places an answer named: one place in the document is revealed, several go to the list in the panel on the left. Stale when the document moved on meanwhile.</summary>
+    private async Task<byte[]> ShowPlacesAsync(Doc d, Request r, List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)> raw, string titleKey, CancellationToken ct)
+    {
         bool truncated = raw.Count > _settings.MaxLocations;
         var places = Resolve(d, truncated ? raw.Take(_settings.MaxLocations).ToList() : raw);
         var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
@@ -810,7 +820,7 @@ public sealed class LspPlugin : PluginBase
         {
             var items = string.Join(',', places.Select(x =>
                 $"{{\"id\":\"{Quote($"{x.Line}:{x.Character}:{x.EndLine}:{x.EndCharacter}|{x.Path}")}\",\"label\":\"{Quote(Limited($"{x.Path}:{x.Line + 1}:{x.Character + 1}"))}\",\"detail\":\"{Quote(Limited(x.LineText))}\"}}"));
-            var title = Texts.Get(_ui, references ? "referencesTitle" : "definitionsTitle", ("count", raw.Count.ToString()));
+            var title = Texts.Get(_ui, titleKey, ("count", raw.Count.ToString()));
             await CallAsync(UiMethods.PanelSet, $"{{\"panel\":\"{LocationsPanel}\",\"title\":\"{Quote(title)}\",\"kind\":\"list\",\"items\":[{items}],\"reveal\":true}}", ct).ConfigureAwait(false);
         }
         if (truncated) await NotifyAsync(NoticeLevel.Warning, "truncated", ("max", _settings.MaxLocations.ToString())).ConfigureAwait(false);
@@ -1069,6 +1079,92 @@ public sealed class LspPlugin : PluginBase
         var changes = await ChangesOfAsync(d, edit, ct).ConfigureAwait(false);
         if (changes.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noActions").ConfigureAwait(false);
         return await SubmitChangesAsync(Limited(Text(action, "title")!), changes, ct).ConfigureAwait(false);
+    }
+
+    // ---- symbols of the document and of the workspace ----
+
+    private static readonly string[] SymbolKinds =
+    [
+        "", "file", "module", "namespace", "package", "class", "method", "property", "field", "constructor", "enum", "interface", "function", "variable", "constant", "string", "number", "boolean",
+        "array", "object", "key", "null", "enumMember", "struct", "event", "operator", "typeParameter",
+    ];
+
+    private const int SymbolNameChars = 200;
+
+    /// <summary>
+    /// Publishes the symbols of the document (<c>DocumentSymbol[]</c> with children, or flat <c>SymbolInformation[]</c>) through the symbols API for the revision they were asked for, so the outline lists them
+    /// and Go to Anything (<c>@</c>) jumps to them. Each symbol covers the bytes of its name (the selection range). The count is cut at the limit of the editor.
+    /// </summary>
+    private async Task<byte[]> DocumentSymbolsAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    {
+        if (!server.Has("documentSymbolProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var answer = await server.RequestAsync("textDocument/documentSymbol", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        string text;
+        TextCodec codec;
+        int bom;
+        await d.Gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+            (text, codec, bom) = (d.Text, d.Codec, d.Bom);
+        }
+        finally { d.Gate.Release(); }
+        if (answer.ValueKind != JsonValueKind.Array || answer.GetArrayLength() == 0) return await TellAsync("none", NoticeLevel.Info, "noSymbols").ConfigureAwait(false);
+
+        var map = new LineMap(text);
+        int cap = _settings.MaxSymbols > 0 ? _settings.MaxSymbols : _settings.MaxLocations;
+        var found = new List<(string Name, string Kind, int Parent, (int Start, int End) Range)>();
+        bool truncated = false;
+        void Walk(JsonElement item, int parent)
+        {
+            if (item.ValueKind != JsonValueKind.Object || Text(item, "name") is not { Length: > 0 } name) return;
+            if (found.Count >= cap) { truncated = true; return; }
+            var rangeElement = item.TryGetProperty("selectionRange", out var selection) ? selection
+                : item.TryGetProperty("range", out var plain) ? plain
+                : item.TryGetProperty("location", out var location) && location.ValueKind == JsonValueKind.Object && location.TryGetProperty("range", out var inner) ? inner : default;
+            if (CharRange(map, rangeElement) is not { } range) return;
+            string kind = item.TryGetProperty("kind", out var k) && k.ValueKind == JsonValueKind.Number && k.GetInt32() is > 0 and var n && n < SymbolKinds.Length ? SymbolKinds[n] : "";
+            int cut = Math.Min(name.Length, SymbolNameChars);
+            if (cut < name.Length && cut > 0 && char.IsHighSurrogate(name[cut - 1])) cut--;
+            int index = found.Count;
+            found.Add((name[..cut], kind, parent, (range.Start, Math.Max(range.Start, range.End))));
+            if (item.TryGetProperty("children", out var children) && children.ValueKind == JsonValueKind.Array)
+                foreach (var child in children.EnumerateArray()) Walk(child, index);
+        }
+        foreach (var item in answer.EnumerateArray()) Walk(item, -1);
+        if (found.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noSymbols").ConfigureAwait(false);
+
+        var bytes = ByteMap.ToBytes(codec, bom, text, found.SelectMany(s => new[] { s.Range.Start, s.Range.End }));
+        var symbols = string.Join(',', found.Select((s, i) =>
+            $"{{\"id\":\"{i}\",\"name\":\"{Quote(s.Name)}\",\"kind\":\"{s.Kind}\"{(s.Parent >= 0 ? $",\"parent\":\"{s.Parent}\"" : "")},\"start\":{bytes[s.Range.Start]},\"end\":{bytes[s.Range.End]}}}"));
+        await CallAsync(DocumentMethods.SymbolsPublish, $"{{\"document\":\"{d.Id}\",\"revision\":{r.Revision},\"symbols\":[{symbols}]}}", ct).ConfigureAwait(false);
+        if (truncated) await NotifyAsync(NoticeLevel.Warning, "truncated", ("max", cap.ToString())).ConfigureAwait(false);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"revision\":{r.Revision},\"count\":{found.Count},\"truncated\":{(truncated ? "true" : "false")}}}");
+    }
+
+    /// <summary>Asks for a name, has the server search its workspace for it and lists the places in the panel on the left (one place is revealed).</summary>
+    private async Task<byte[]> WorkspaceSymbolsAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    {
+        if (!server.Has("workspaceSymbolProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var asked = await CallAsync(UiMethods.Input, $"{{\"title\":\"{Quote(Texts.Get(_ui, "workspaceSymbolTitle"))}\",\"label\":\"{Quote(Texts.Get(_ui, "workspaceSymbolLabel"))}\",\"value\":\"\"}}", ct).ConfigureAwait(false);
+        if (asked.GetProperty("value").ValueKind != JsonValueKind.String || asked.GetProperty("value").GetString()!.Trim() is not { Length: > 0 } query) return Status("cancelled");
+        await WaitForLoadAsync(server, ct).ConfigureAwait(false);
+        var answer = await server.RequestAsync("workspace/symbol", $"{{\"query\":\"{Quote(query)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        var raw = new List<(string Uri, int Line, int Character, int EndLine, int EndCharacter)>();
+        if (answer.ValueKind == JsonValueKind.Array)
+            foreach (var item in answer.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("location", out var location) || Text(location, "uri") is not { } uri) continue;
+                if (location.TryGetProperty("range", out var range) && range.ValueKind == JsonValueKind.Object)
+                {
+                    var s = range.GetProperty("start");
+                    var e = range.GetProperty("end");
+                    raw.Add((uri, s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32(), e.GetProperty("line").GetInt32(), e.GetProperty("character").GetInt32()));
+                }
+                else raw.Add((uri, 0, 0, 0, 0)); // a WorkspaceSymbol without a range: the file is all that is known
+            }
+        if (raw.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noSymbols").ConfigureAwait(false);
+        return await ShowPlacesAsync(d, r, raw, "symbolsTitle", ct).ConfigureAwait(false);
     }
 
     // ---- signature help ----

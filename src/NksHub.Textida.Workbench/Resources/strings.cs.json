@@ -244,6 +244,8 @@
   "cmd.lsp.rename": "Jazykový server: přejmenovat symbol",
   "cmd.lsp.restart": "Jazykový server: restartovat",
   "cmd.lsp.stop": "Jazykový server: zastavit",
+  "cmd.lsp.workspaceSymbols": "Jazykový server: najít symbol v projektu",
+  "cmd.lsp.documentSymbols": "Jazykový server: osnova dokumentu",
   "cmd.lsp.signatureHelp": "Jazykový server: nápověda k parametrům",
   "cmd.lsp.codeActions": "Jazykový server: akce a rychlé opravy",
   "cmd.lsp.format": "Jazykový server: formátovat dokument",

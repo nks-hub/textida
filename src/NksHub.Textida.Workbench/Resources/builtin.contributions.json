@@ -2259,6 +2259,22 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.lsp.documentSymbols",
+      "title": "cmd.lsp.documentSymbols",
+      "category": "cat.tools",
+      "icon": "goto",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.workspaceSymbols",
+      "title": "cmd.lsp.workspaceSymbols",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -5166,6 +5182,20 @@
       "group": "1_text/04",
       "submenu": "code/lsp",
       "order": 103
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.documentSymbols",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 104
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.workspaceSymbols",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 105
     },
     {
       "menu": "tools",

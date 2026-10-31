@@ -22,7 +22,7 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <param name="RestartMaxDelayMs">Longest wait between two automatic starts.</param>
 /// <param name="RestartStableMs">A server that ran this long before it ended counts as healthy: the next crash is a first one again.</param>
 public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0, int RootSearchLevels = 1,
-    int RestartMaxAttempts = 0, int RestartBaseDelayMs = 0, int RestartMaxDelayMs = 0, int RestartStableMs = 0);
+    int RestartMaxAttempts = 0, int RestartBaseDelayMs = 0, int RestartMaxDelayMs = 0, int RestartStableMs = 0, int MaxSymbols = 0);
 
 public sealed class ServerStartException(string message) : Exception(message);
 

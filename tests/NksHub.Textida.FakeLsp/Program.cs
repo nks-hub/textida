@@ -220,6 +220,61 @@ string? Hover(JsonElement p)
     return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
 }
 
+// symbols: "class NAME" (kind 5) with the indented "def NAME" lines under it as children, and "def NAME" at the start of a line (kind 12), as DocumentSymbol with the selection range on the name;
+// workspace/symbol lists every such name that contains the query (without regard to case) in the open documents as SymbolInformation
+List<(int Line, string Keyword, string Name, int Indent, int NameStart, int LineStart, int LineEnd)> SymbolLines(string text)
+{
+    var found = new List<(int, string, string, int, int, int, int)>();
+    int line = 0;
+    for (int at = 0; at <= text.Length; line++)
+    {
+        int end = at;
+        while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
+        int indent = 0;
+        while (at + indent < end && text[at + indent] == ' ') indent++;
+        foreach (var keyword in new[] { "class ", "def " })
+            if (string.CompareOrdinal(text, at + indent, keyword, 0, keyword.Length) == 0)
+            {
+                int nameStart = at + indent + keyword.Length, nameEnd = nameStart;
+                while (nameEnd < end && IsWord(text[nameEnd])) nameEnd++;
+                if (nameEnd > nameStart) found.Add((line, keyword.Trim(), text[nameStart..nameEnd], indent, nameStart, at, end));
+            }
+        if (end >= text.Length) break;
+        at = text[end] == '\r' && end + 1 < text.Length && text[end + 1] == '\n' ? end + 2 : end + 1;
+    }
+    return found;
+}
+
+string DocumentSymbols(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var lines = SymbolLines(text);
+    var top = new List<string>();
+    for (int i = 0; i < lines.Count; i++)
+    {
+        var (_, keyword, name, indent, nameStart, lineStart, lineEnd) = lines[i];
+        if (indent > 0) continue;
+        var children = new List<string>();
+        if (keyword == "class")
+            for (int j = i + 1; j < lines.Count && lines[j].Indent > 0; j++)
+                children.Add($"{{\"name\":{Quote(lines[j].Name)},\"kind\":6,\"range\":{Range(text, lines[j].LineStart, lines[j].LineEnd)},\"selectionRange\":{Range(text, lines[j].NameStart, lines[j].NameStart + lines[j].Name.Length)}}}");
+        top.Add($"{{\"name\":{Quote(name)},\"kind\":{(keyword == "class" ? 5 : 12)},\"range\":{Range(text, lineStart, lineEnd)},\"selectionRange\":{Range(text, nameStart, nameStart + name.Length)},\"children\":[{string.Join(',', children)}]}}");
+    }
+    return "[" + string.Join(',', top) + "]";
+}
+
+string WorkspaceSymbols(JsonElement p)
+{
+    var query = p.GetProperty("query").GetString()!;
+    var found = new List<string>();
+    foreach (var (uri, text) in texts)
+        foreach (var s in SymbolLines(text))
+            if (s.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                found.Add($"{{\"name\":{Quote(s.Name)},\"kind\":{(s.Keyword == "class" ? 5 : 12)},\"location\":{Location(uri, text, s.NameStart, s.NameStart + s.Name.Length)}}}");
+    return "[" + string.Join(',', found) + "]";
+}
+
 // signature help: inside the arguments of NAME( ... ) it answers "NAME(a: int, b: string)" with the parameter the caret is in (the number of commas before it)
 string? SignatureHelp(JsonElement p)
 {
@@ -317,6 +372,7 @@ string ExtraCapabilities()
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
     if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
     if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
+    if (Feature("symbols")) caps.Add("\"documentSymbolProvider\":true,\"workspaceSymbolProvider\":true");
     if (Feature("signature")) caps.Add("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}");
     return caps.Count == 0 ? "" : "," + string.Join(',', caps);
 }
@@ -421,6 +477,12 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/documentSymbol":
+            Send(Reply(DocumentSymbols(p)));
+            break;
+        case "workspace/symbol":
+            Send(Reply(WorkspaceSymbols(p)));
             break;
         case "textDocument/signatureHelp":
             Send(Reply(SignatureHelp(p) ?? "null"));
