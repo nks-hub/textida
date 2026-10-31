@@ -1,5 +1,7 @@
 using System.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.Plugins.Lsp;
 
 namespace NksHub.Textida.Rpc.Tests;
@@ -208,6 +210,41 @@ public partial class LspPluginTests
         Assert.Equal([Bytes("é😀 run(") + 1, Bytes("é😀 run(1, 2)\nPARTS list(") + 1], rig.Docs.DecorationsOf(call.Id).Select(h => h.Range.Start));
         await rig.Edit(call, Bytes("xé😀 run"), Bytes("xé😀 run(1"), ""); // the text around the first hint is deleted, so the hint has no place any more
         Assert.Single(rig.Docs.DecorationsOf(call.Id));
+    }
+
+    [Fact]
+    public async Task Shown_inlay_hints_and_semantic_tokens_are_asked_for_again_after_an_edit_and_a_hint_for_a_revision_the_text_left_is_dropped()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "inlay,semantic"]);
+        var doc = rig.Add("again.fake", "é run(1)\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        await rig.RunAsync(doc, LspPlugin.InlayHintsCommand);
+        await rig.RunAsync(doc, LspPlugin.SemanticTokensCommand);
+        Assert.Single(rig.Docs.DecorationsOf(doc.Id), d => d.Kind == DecorationKinds.Inlay);
+
+        await rig.Edit(doc, Bytes("é run(1)\n"), Bytes("é run(1)\n"), "def area\nlist(x)\n"); // a new call and a new definition, without a command
+
+        await T.Until(() => rig.Docs.DecorationsOf(doc.Id).Count(d => d.Kind == DecorationKinds.Inlay) == 2 && rig.Docs.DecorationsOf(doc.Id).Count(d => d.Kind == DecorationKinds.Semantic) == 2);
+        Assert.Equal([Bytes("é run("), Bytes("é run(1)\ndef area\nlist(")], rig.Docs.DecorationsOf(doc.Id).Where(d => d.Kind == DecorationKinds.Inlay).Select(d => d.Range.Start));
+        Assert.DoesNotContain(rig.Ui.Notices, n => n.Level == NoticeLevel.Warning); // an automatic refresh never nags
+
+        // two edits in a row: the answer for the first is for a revision the text has left; what stays is what fits the last
+        await rig.Edit(doc, 0, 0, "x");
+        await rig.Edit(doc, 0, 0, "y");
+        await T.Until(() => rig.Docs.DecorationsOf(doc.Id).Where(d => d.Kind == DecorationKinds.Inlay).Select(d => d.Range.Start).SequenceEqual([Bytes("yxé run("), Bytes("yxé run(1)\ndef area\nlist(")]));
+    }
+
+    [Fact]
+    public async Task A_refresh_request_of_the_server_makes_the_plugin_ask_again_for_what_is_shown()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "inlay,semantic", "--refresh-after-ms", "100"]);
+        var doc = rig.Add("push.fake", "def area\nrun(1)\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        await rig.RunAsync(doc, LspPlugin.InlayHintsCommand);
+        await rig.RunAsync(doc, LspPlugin.SemanticTokensCommand);
+
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "inlay-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "inlay-requests")) == "2");
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "semantic-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "semantic-requests")) == "2");
     }
 
     [Fact]

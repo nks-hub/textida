@@ -275,6 +275,21 @@ string WorkspaceSymbols(JsonElement p)
     return "[" + string.Join(',', found) + "]";
 }
 
+// every request for hints or tokens is counted in a file of the dump folder (inlay-requests, semantic-requests); with --refresh-after-ms N the first one is followed, N ms later, by the request of the server to ask again
+int refreshAfterMs = int.TryParse(args.SkipWhile(a => a != "--refresh-after-ms").Skip(1).FirstOrDefault(), out var refreshValue) ? refreshValue : -1;
+var requestCounts = new Dictionary<string, int>();
+void CountAndPush(string file, int id, string refreshMethod)
+{
+    int n = requestCounts[file] = requestCounts.GetValueOrDefault(file) + 1;
+    if (dump is not null) File.WriteAllText(Path.Combine(dump, file), n.ToString());
+    if (refreshAfterMs < 0 || n != 1) return;
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(refreshAfterMs);
+        Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id},\"method\":\"{refreshMethod}\"}}");
+    });
+}
+
 // inlay hints: "a:" right after the ( of every NAME( call; the second hint of a text containing PARTS is a label in two parts
 string InlayHints(JsonElement p)
 {
@@ -520,9 +535,11 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/inlayHint":
             Send(Reply(InlayHints(p)));
+            CountAndPush("inlay-requests", 7100, "workspace/inlayHint/refresh");
             break;
         case "textDocument/semanticTokens/full":
             Send(Reply(SemanticTokens(p)));
+            CountAndPush("semantic-requests", 7101, "workspace/semanticTokens/refresh");
             break;
         case "textDocument/documentSymbol":
             Send(Reply(DocumentSymbols(p)));

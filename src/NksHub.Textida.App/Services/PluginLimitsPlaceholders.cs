@@ -245,6 +245,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most inlay hints, and most semantic tokens, one plugin may publish for one document. The owner has not decided it.</summary>
     public const int DecorationsPerDocument = 20000;
 
+    /// <summary>Placeholder, OPEN: milliseconds the language server plugin waits after an edit (or after the server asked for a refresh) before it asks again for the inlay hints and semantic tokens that are shown. The owner has not decided it.</summary>
+    public const int LspDecorationRefreshMilliseconds = 600;
+
     /// <summary>Placeholder: longest symbol id, name or kind, in UTF-16 units.</summary>
     public const int SymbolTextLength = 400;
 

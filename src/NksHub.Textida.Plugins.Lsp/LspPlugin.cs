@@ -87,6 +87,10 @@ public sealed class LspPlugin : PluginBase
         /// <summary>The <c>diagnostics</c> array the server last published for <see cref="RawVersion"/>, as it sent it; code actions hand the ones at the caret back to the server.</summary>
         public JsonElement Raw;
         public long RawVersion = -1;
+        /// <summary>Which decorations the user asked for and the plugin keeps current: 1 inlay hints, 2 semantic tokens.</summary>
+        public int WantDecorations;
+        /// <summary>Changes with each edit and each refresh request of the server, so a wait that is out of date knows it.</summary>
+        public int DecorationTicket;
     }
 
     /// <summary>The document cannot be handed to a language server (too large, bytes the encoding does not allow); <see cref="Exception.Message"/> is the status.</summary>
@@ -394,7 +398,11 @@ public sealed class LspPlugin : PluginBase
                 }
                 d.Dirty = false;
             }
-            try { await SyncAsync(d, CancellationToken.None).ConfigureAwait(false); }
+            try
+            {
+                await SyncAsync(d, CancellationToken.None).ConfigureAwait(false);
+                ScheduleDecorations(d);
+            }
             catch (RpcException e) when (e.Code == DocumentErrorCodes.UnknownDocument) { await ForgetAsync(d).ConfigureAwait(false); }
             catch (Exception e) when (e is RpcException or Withheld or ServerGone or IOException) { /* a conflict repeats with the next event; the rest is reported by commands */ }
         }
@@ -522,6 +530,8 @@ public sealed class LspPlugin : PluginBase
         {
             d.Open = false;
             await ClearDiagnosticsAsync(d).ConfigureAwait(false);
+            if (Interlocked.Exchange(ref d.WantDecorations, 0) != 0)
+                foreach (var kind in new[] { DecorationKinds.Inlay, DecorationKinds.Semantic }) await PublishDecorationsAsync(d, d.Revision, kind, "", CancellationToken.None).ConfigureAwait(false);
         }
         if (server is not null) await server.StopAsync().ConfigureAwait(false);
     }
@@ -603,8 +613,15 @@ public sealed class LspPlugin : PluginBase
 
     // ---- diagnostics ----
 
-    private ValueTask OnServerNotificationAsync(Slot slot, string method, JsonElement p) =>
-        method == "textDocument/publishDiagnostics" ? new ValueTask(PublishAsync(slot, p)) : ValueTask.CompletedTask;
+    private ValueTask OnServerNotificationAsync(Slot slot, string method, JsonElement p)
+    {
+        if (method is "workspace/inlayHint/refresh" or "workspace/semanticTokens/refresh")
+        {
+            foreach (var d in slot.Docs.Values) ScheduleDecorations(d);
+            return ValueTask.CompletedTask;
+        }
+        return method == "textDocument/publishDiagnostics" ? new ValueTask(PublishAsync(slot, p)) : ValueTask.CompletedTask;
+    }
 
     private static DiagnosticSeverityName Severity(JsonElement item) =>
         item.TryGetProperty("severity", out var s) && s.ValueKind == JsonValueKind.Number
@@ -1173,7 +1190,35 @@ public sealed class LspPlugin : PluginBase
 
     // ---- inlay hints and semantic tokens ----
 
-    private int MaxDecorations => _settings.MaxDecorations > 0 ? _settings.MaxDecorations : _settings.MaxLocations;
+    /// <summary>The answer of a command about a state: the notice is shown only when the user asked, not when the plugin refreshes by itself.</summary>
+    private Task<byte[]> SayAsync(bool quiet, string status, NoticeLevel level, string key) => quiet ? Task.FromResult(Status(status)) : TellAsync(status, level, key);
+
+    /// <summary>
+    /// Asks again for the inlay hints and semantic tokens the user has shown in the document, once <see cref="LspSettings.DecorationRefreshMs"/> have passed without another edit or request to refresh.
+    /// An answer made for a revision the document has left is dropped like any other.
+    /// </summary>
+    private void ScheduleDecorations(Doc d)
+    {
+        if (_settings.DecorationRefreshMs <= 0 || Volatile.Read(ref d.WantDecorations) == 0) return;
+        int ticket = Interlocked.Increment(ref d.DecorationTicket);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(_settings.DecorationRefreshMs).ConfigureAwait(false);
+            if (Volatile.Read(ref d.DecorationTicket) != ticket) return;
+            try
+            {
+                if (d.Slot.Server is not { Alive: true } server) return;
+                await SyncAsync(d, CancellationToken.None).ConfigureAwait(false);
+                var r = new Request("", d.Id.ToString(), d.Revision, 0, "");
+                int want = Volatile.Read(ref d.WantDecorations);
+                if ((want & 1) != 0) await InlayHintsAsync(server, d, r, CancellationToken.None, quiet: true).ConfigureAwait(false);
+                if ((want & 2) != 0) await SemanticTokensAsync(server, d, r, CancellationToken.None, quiet: true).ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is RpcException or RpcTimeoutException or ServerGone or Withheld or IOException or KeyNotFoundException or InvalidOperationException) { /* the next edit or refresh asks again */ }
+        });
+    }
+
+    private int MaxDecorations =>_settings.MaxDecorations > 0 ? _settings.MaxDecorations : _settings.MaxLocations;
 
     /// <summary>The text and codec of the document as the server holds it, read together; null when the document is not at <paramref name="revision"/> any more.</summary>
     private async Task<(string Text, TextCodec Codec, int Bom)?> TextAtAsync(Doc d, long revision, CancellationToken ct)
@@ -1190,22 +1235,22 @@ public sealed class LspPlugin : PluginBase
             await CallAsync(DocumentMethods.DecorationsPublish, $"{{\"document\":\"{d.Id}\",\"revision\":{revision},\"kind\":\"{kind}\",\"items\":[{items}]}}", ct).ConfigureAwait(false);
             return true;
         }
-        catch (RpcException e) when (e.Code is DocumentErrorCodes.RevisionConflict or DocumentErrorCodes.DecorationsQuotaExceeded or RpcErrorCodes.MethodNotFound) { return false; } // the editor shows none, or the text moved on
+        catch (RpcException e) when (e.Code is DocumentErrorCodes.RevisionConflict or DocumentErrorCodes.DecorationsQuotaExceeded or DocumentErrorCodes.UnknownDocument or RpcErrorCodes.MethodNotFound) { return false; } // the editor shows none, or the text moved on
     }
 
     /// <summary>
     /// Asks the server for the inlay hints of the whole document and has the editor show them between the characters they belong to. A hint has the text of its label (or of the parts of it); the count is cut
     /// at the limit of the editor. The hints move with the text until it changes where they stand; run the command again to read them anew.
     /// </summary>
-    private async Task<byte[]> InlayHintsAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    private async Task<byte[]> InlayHintsAsync(LspServer server, Doc d, Request r, CancellationToken ct, bool quiet = false)
     {
-        if (!server.Has("inlayHintProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
-        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (!server.Has("inlayHintProvider")) return await SayAsync(quiet, "notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
         var map = new LineMap(held.Text);
         var (endLine, endCharacter) = map.PositionOf(held.Text.Length);
         var answer = await server.RequestAsync("textDocument/inlayHint",
             $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"range\":{{\"start\":{{\"line\":0,\"character\":0}},\"end\":{{\"line\":{endLine},\"character\":{endCharacter}}}}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
-        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
 
         var found = new List<(int Offset, string Label)>();
         if (answer.ValueKind == JsonValueKind.Array)
@@ -1220,7 +1265,8 @@ public sealed class LspPlugin : PluginBase
             }
         var bytes = ByteMap.ToBytes(held.Codec, held.Bom, held.Text, found.Select(f => f.Offset));
         var items = string.Join(',', found.Select(f => $"{{\"start\":{bytes[f.Offset]},\"text\":\"{Quote(f.Label)}\"}}"));
-        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Inlay, items, ct).ConfigureAwait(false)) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Inlay, items, ct).ConfigureAwait(false)) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        Volatile.Write(ref d.WantDecorations, d.WantDecorations | 1);
         return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"revision\":{r.Revision},\"count\":{found.Count}}}");
     }
 
@@ -1228,16 +1274,16 @@ public sealed class LspPlugin : PluginBase
     /// Asks the server for the semantic tokens of the whole document and has the editor colour them. The answer is the server's compact list of numbers; it is read with the legend the server announced,
     /// and the positions it counts in UTF-16 units become bytes. A token the legend has no type for is left out.
     /// </summary>
-    private async Task<byte[]> SemanticTokensAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    private async Task<byte[]> SemanticTokensAsync(LspServer server, Doc d, Request r, CancellationToken ct, bool quiet = false)
     {
-        if (!server.Has("semanticTokensProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        if (!server.Has("semanticTokensProvider")) return await SayAsync(quiet, "notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
         var options = server.Options("semanticTokensProvider");
         if (options.ValueKind != JsonValueKind.Object || !options.TryGetProperty("legend", out var legend) || !legend.TryGetProperty("tokenTypes", out var typeNames) || typeNames.ValueKind != JsonValueKind.Array)
-            return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+            return await SayAsync(quiet, "notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
         var types = typeNames.EnumerateArray().Select(t => t.GetString() ?? "").ToArray();
-        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
         var answer = await server.RequestAsync("textDocument/semanticTokens/full", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
-        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
 
         var map = new LineMap(held.Text);
         var found = new List<(int Start, int End, string Type)>();
@@ -1257,7 +1303,8 @@ public sealed class LspPlugin : PluginBase
         }
         var bytes = ByteMap.ToBytes(held.Codec, held.Bom, held.Text, found.SelectMany(f => new[] { f.Start, f.End }));
         var items = string.Join(',', found.Select(f => $"{{\"start\":{bytes[f.Start]},\"end\":{bytes[f.End]},\"text\":\"{Quote(f.Type)}\"}}"));
-        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Semantic, items, ct).ConfigureAwait(false)) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Semantic, items, ct).ConfigureAwait(false)) return await SayAsync(quiet, "stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        Volatile.Write(ref d.WantDecorations, d.WantDecorations | 2);
         return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"revision\":{r.Revision},\"count\":{found.Count}}}");
     }
 
