@@ -1133,6 +1133,7 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
   - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (969c0630). Poměrný posun jako ve VS Code místo režimu „okolí“, pevné měřítko během tažení, vzorkovaná mapa velkého souboru podle bajtové pozice. Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
   - **Chyba nalezená 31. 10. 2026 (bisekce na Macu):** commit 969c0630 zpomalil psaní ve velkém souboru (300 000 řádků, p95 10,9 → 42,5 ms). Ve vzorkovaném režimu každá úprava přestaví celý obraz minimapy, znovu načte pruhy textu a obarví je. Bez vzorkování psaní klesne na 10,2 ms. Zadáno vývojáři: při psaní nepřestavovat celý obraz, při tažení obraz znovu použít; zároveň zrychlit tažení na 100 000 řádcích (Mac p95 56 ms).
+  - **Stav 31. 10. 2026 (sloučeno 52e4e801):** opraveno. Klíč obrazu minimapy obsahoval délku souboru, takže se vzorkovaný obraz přestavěl při každé klávese; teď se přestaví až po 120 ms pauze. Při tažení se společné řádky zkopírují z viditelného obrazu a obarvení minimapy i editoru se odloží na konec tahu. Na vývojovém PC headless: psaní 300k řádků p95 37 → 14 ms, tah 20k řádků prochází, tah 100k p95 44–79 → 22–34 ms. Potvrzení na Macu zadáno testerovi.
 
 ### P3.4 Inspektor bajtů
 
