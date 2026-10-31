@@ -29,7 +29,7 @@ public sealed record CatalogVersionRange(string Min, string? Below);
 /// <summary>
 /// A linter: <paramref name="OutputFormat"/> names the parser of its output (the parsers come with the linter display) and <paramref name="Severities"/> maps its severity words.
 /// <paramref name="Environment"/> are variables set for the run; the catalog uses them to keep a linter that would fetch packages (Cargo crates, Go modules) off the network.
-/// <paramref name="Supported"/> are the versions the arguments and the parser were written for (placeholder, OPEN: taken from the documentation of the tools, the owner has not decided them; the upper ends are the next major version), null where no window is claimed;
+/// <paramref name="Supported"/> are the versions the arguments and the parser were written for (decided: taken from the documentation of the tools; the upper ends are the next major version), null where no window is claimed;
 /// <paramref name="VersionArgs"/> are the arguments that make the program print its version (null: <c>--version</c>).
 /// </summary>
 public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions,
@@ -69,7 +69,7 @@ public sealed record LanguageGroup(
 /// The versioned table of language tools: one record per language group (the 17 groups of the plan). It is the single source of the file extensions and names of the language modes,
 /// the grammars, the language server launch lines, the formatters of Save Actions, the linters, the configuration files shown in the status bar and the package manifests.
 /// Nothing here runs a program or reaches the network; <see cref="ToolLocator"/> only looks for a program on disk.
-/// OPEN: no tool version is pinned (<c>Version</c> is null everywhere); what a linter's arguments and parser were written for is <see cref="CatalogLinter.Supported"/>, taken from the documentation of the tools
+/// Decided: no tool version is pinned (<c>Version</c> is null everywhere); what a linter's arguments and parser were written for is <see cref="CatalogLinter.Supported"/>, taken from the documentation of the tools
 /// (widened to the versions that were run), and checked at run time without stopping the run. Clippy and clang-tidy have none: no version window is claimed for them.
 /// Every formatter and linter is marked verified: its command line and output were run against the real program on Windows 11 and macOS 15 (RealToolsTests): gofmt (Go 1.27), rustfmt 1.9, clang-format 23.1
 /// (it formats code that does not parse and fails only on a broken configuration), RuboCop 1.92, Prettier 3.9, Biome 2.6, SQLFluff 4.1 and 4.4, Ruff 0.17, shfmt 3.14, StyLua 2.6, dart format and dart analyze 3.13, PHPStan 2.3, Psalm 6.20,
@@ -218,7 +218,7 @@ public static class LanguageCatalog
     /// <summary>
     /// The versioned table group → kind → tool and version → scenarios → systems, one row per tool of <see cref="Groups"/> (and one per mode for the grammar). Rows are derived from the groups, so the table cannot drift from the data.
     /// A formatter or linter promises a run with success, a syntax error, a missing program, a time-out and no network; a language server promises only that it is found and never downloaded (its runs are tested with a fake server).
-    /// OPEN: <c>Version</c> is null while no version is pinned.
+    /// Decided: <c>Version</c> is null while no version is pinned.
     /// </summary>
     public static IReadOnlyList<CatalogMatrixRow> Matrix { get; } =
     [
