@@ -1759,6 +1759,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Spouštěč nástrojů bere proměnné ze stejného místa jako klipy a recepty (VariableScope přes App.VariableContextFor), takže file.path, date, datetime, selection, user.name…; Poškozený variables.json zastaví nástroj před potvrzením a výstup řekne důvod, stejně jako u klipu a receptu; ${ jméno } s mezerami v závorce funguje v nástroji stejně jako v klipu; Nápověda (cs/en/sk/de) u nástrojů a klipů popisuje sdílené proměnné; nové texty v UI nebyly potřeba, použit existující klíč clips.variablesBroken. Testy prošly (342 v testovací sadě testera). Chybí: Testy jsem nespouštěl, jen build řešení (0 chyb), jak bylo zadáno; spustí je tester; Interní nástroje (lintery, formátovače, git, MCP) dál dostávají jen ${File}, protože mají pevné argumenty a nejsou to uživatelské definice; docs/TODO.md jsem neměnil, takže řádky Stav u P4.1.3 a P4.3.3 jsou pořád staré.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Stav 31. 10. 2026:** kód je hotový: nástroje berou proměnné ze sdíleného `VariableScope`.
 - [x] **P4.1.4** Šablony souborů
   - **Co a proč:** Uživatelské šablony nových souborů jako data načítaná jádrem F029.
   - **Funkce:** F022
@@ -2101,6 +2102,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Řádkový diff v jádru umí nerozlišovat mezery (kdekoli v řádku) a velikost písmen (DiffIgnore v LineDiff.Compute), i při různém kódování stran; Nová nastavení compare.ignoreWhitespace a compare.ignoreCase a přepínací příkazy se zaškrtnutím v menu Nástroje > Porovnání; otevřené karty porovnání se po změně hned…; Karta porovnání má automation peer: čtečka dostane číslo rozdílu, řádky na obou stranách a první řádek každé strany a změnu hodnoty při přechodu; Karta porovnání nově přebírá změny písma a velikosti (ApplyOptions se dřív nevolal). Testy prošly (277 v testovací sadě testera). Chybí: Test se skutečnou čtečkou obrazovky (NVDA/Narrator) neproběhl, potřebuje člověka; Vzhled karty porovnání a časy (Perf) nejsou ověřené, na tomhle PC se aplikace nespouští; Testy jsem nespouštěl, podle zadání je spustí tester.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Stav 31. 10. 2026:** kód je hotový včetně ignorování mezer a velikosti písmen a čtečky karty porovnání. Chybí zkouška se skutečnou čtečkou obrazovky.
 - [x] **P5.2.2** Synchronizované posouvání
   - **Co a proč:** Dva pohledy (dva soubory nebo strany diffu) se posouvají spolu.
   - **Funkce:** F133
@@ -2219,6 +2221,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Nový ConfigBackup (src/NksHub.Textida.App/Services/ConfigBackup.cs) zabalí konfiguraci profilu do ZIP s datem v názvu: nastavení, klávesy, proměnné, nástroje, akce při…; Záloha vynechá JSON vlastnosti pojmenované jako heslo, token nebo klíč, hodnoty s heslem z klíčenky a soubory, které nejde zkontrolovat; počet vynechaných ukáže stavový…; Obnova zálohu nejdřív zkontroluje (manifest, verze formátu, cesty jen uvnitř profilu, strop velikosti jako Placeholder, OPEN) a zařadí ji. Při příštím startu ji…; Příkazy nks.settings.backup a nks.settings.restore jsou v nabídce Nastavení; po startu s obnovou se ukáže oznámení o výsledku. Testy prošly (186 v testovací sadě testera). Chybí: Automatické mazání cache podle CachePolicy jsem nezapojil, protože limity zůstávají otevřené rozhodnutí; cache se tedy dál nečistí; Klíčenku pro macOS a Linux tady nejde ověřit; export na těchto systémech jen přeskočí kontrolu známých hesel; Token v souboru, který není JSON (klipy, šablony), záloha pozná jen tehdy, když se shoduje s heslem z klíčenky.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Stav 31. 10. 2026 (sloučeno, 91c7f681 a 2a923412):** lokální kopie vzdálených souborů se po obnově relace při startu čistí podle `CachePolicy`, nejdřív nejdéle nepoužité. Zůstanou kopie s neodeslanými změnami, otevřené v kartě a ty, které znovu otevře relace, projekt nebo hot exit. Limity 2 GiB a 90 dní jsou placeholdery (OPEN). Složka `deploy` se nečistí.
 - [ ] **P5.4.4** Proxy a síťová pravidla
   - **Co a proč:** Proxy a síťová politika společná pro všechny služby editoru; vestavěný e-mail se vypouští.
   - **Funkce:** F117
@@ -2229,6 +2232,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Nové API pluginů net/request: požadavek jde přes proxy ze síťové politiky editoru včetně hesla z klíčenky, politika se načte pro každý požadavek a nečitelná politika…; Oprávnění network jde uvést v manifestu a má popisek v cs/en/sk/de; přesměrování se nesledují, aby hlavička s klíčem neodešla jinému serveru; Limity (timeout 30 s, odpověď max. 2 MiB) jsou v PluginLimitsPlaceholders s poznámkou Placeholder, OPEN; V PluginSdk přibyl EditorHttpHandler a plugin wiki posílá všechny požadavky přes editor (dostal vestavěné oprávnění network). Testy prošly (266 v testovací sadě testera). Chybí: Plugin JSON (dotazy do registrů balíčků) dál používá vlastního HTTP klienta s proxy předanou souborem, takže proxy s uživatelským jménem…; Plugin, který si spojení otevře sám, proxy obejde; skutečné omezení na úrovni OS (sandbox) není a nápověda to říká; ConnectTimeoutSeconds pro FTPS a SFTP zůstává otevřené rozhodnutí, nic jsem nenastavil.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Stav 31. 10. 2026:** kód je hotový: plugin JSON posílá dotazy do registrů přes `EditorHttpHandler`, tedy přes proxy a síťovou politiku editoru. `ConnectTimeoutSeconds` pro FTPS a SFTP čeká na rozhodnutí majitele.
 - [x] **P5.4.5** Zámky a souběžný zápis
   - **Co a proč:** Systémové a vlastní zámky editoru a nový výslovný režim souběžného zápisu. Zámky `.lck` PSPadu se v 1.0 nečtou; editor nenačítá žádné soubory PSPadu.
   - **Funkce:** F026
@@ -2325,6 +2329,7 @@ Společný základ celé etapy (kap. 5.3). F179, F180 a pluginy do ní jen posí
   - **Odhad:** F178 2–3 ČT (matice)
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Sledovaná složka s ignorováním `.gitignore`/`.ignore`, čekající kontroly se základem z historie přežijí restart; nové soubory a soubory bez základu se nekontrolují. Neověřeno se skutečným Claude Code a Codexem.
+  - **Stav 31. 10. 2026:** kód je hotový: `ReviewIgnore` vynechá `.git`, `.codegraph` a pravidla `.gitignore`. Chybí ověření se skutečným Claude Code a Codexem.
 - [x] **P6.1.2** Návrhy pluginů do revize změn
   - **Co a proč:** `edit/propose` z P3b se přepojí ze služby náhledu změn na revizi F178. Odpověď přijde po rozhodnutí uživatele. Je to rozšíření kontraktu F199; návrhový mechanismus z P3b se znovu neúčtuje.
   - **Funkce:** F199 (částečně: napojení na F178)
@@ -2401,6 +2406,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. Upravitelné virtuální dokumenty (`uri`, `editable`, `virtual/save`, `virtual/close`), odznak a lišta, zavření při konci pluginu.
+  - **Stav 31. 10. 2026:** kód je hotový (`virtual/close`, upravitelné virtuální dokumenty).
 
 ### P6.3 Editor jako MCP server
 
@@ -2643,6 +2649,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Akce při uložení nabízejí všech 11 formátovačů z katalogu P8.5.3, každý jen při existující konfiguraci (shfmt má .editorconfig, dart format analysis_options.yaml); verze…; clang-format 19.1.5 a dart format (Dart 3.12.2) jsem spustil ručně se skutečnými programy, mají v katalogu Verified a dostaly testy se skutečným programem, které se…; Bez formatTimeoutSeconds teď platí prozatímní limit 10 s v PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds (Placeholder, OPEN), platí i pro recepty; Uložit jako spouští akce složky cílového souboru a kopie ze serveru uložená jinam už nenahraje starý soubor. Testy prošly (400 v testovací sadě testera). Chybí: Testy jsem podle zadání nespouštěl, jen build řešení s 0 chybami; spustí je tester; rustfmt, RuboCop, Prettier, Biome, Ruff, shfmt, SQLFluff a StyLua tu nejsou nainstalované, takže jejich příkazové řádky ani výstupy chyb…; Formátovače se dál hledají jen v PATH, ne v node_modules/.bin, vendor/bin ani .venv; to patří k P8.5.3 a vyžaduje potvrzení programu z….
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Stav 31. 10. 2026:** kód je hotový: 11 formátovačů, výchozí timeout 10 s, hledání nástrojů i v `toolPaths` (P8.5.3). Chybí ověření s nástroji, které na vývojovém PC nejsou (rustfmt a další).
 
 ### P8.4 Rozšíření API pro jazykové služby
 
@@ -2907,6 +2914,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** F245 3–5 ČT (matice) za P8.10.1–P8.10.5; revize ho považuje za optimistický
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Šablony ZIP, PE, ELF, STL, otevření souboru šablony, `hex.structureTemplates`, synchronizace kurzoru a stromu. Ověřeno proti reálným souborům.
+  - **Stav 31. 10. 2026:** kód je hotový: šablony ZIP, ELF, PE a STL a vlastní `.ksy` ze souboru (`Core/Hex/Ksy/Templates`, `nks.hex.template.open`) i synchronizace kurzoru se stromem. Chybí jen měření 10GiB ZIPu na stroji R8.
 - [x] **P8.10.5** Výběr připnutých šablon `.ksy`
   - **Co a proč:** Parser nemůže stát na výběru šablon, který vznikne až při integraci. Nejdřív se vyberou skutečné soubory a z nich se odvodí podporovaná podmnožina a testovací vstupy.
   - **Funkce:** F245 (částečně: výběr šablon)
@@ -2925,6 +2933,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci F245 (viz P8.10.1)
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Desetinná čísla, bitové typy, vnořené výčty, `endian: switch-on`. `process` odmítnuto.
+  - **Stav 31. 10. 2026:** kód je hotový: `KsyParser` umí `if`, `switch-on`, `instances`, bitové typy a `process` xor/rol/ror; zlib a ostatní zpracování odmítá jménem.
 - [x] **P8.10.3** Líné čtení a limity proti škodlivému vstupu
   - **Co a proč:** Pole se čtou až při rozbalení. Limity hloubky rekurze, počtu opakování, rozsahů, času a paměti chrání před škodlivým datovým vstupem.
   - **Funkce:** F245 (částečně: limity)
@@ -2970,6 +2979,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** F202 2–3 ČT (matice)
   - **Umístění:** jádro (vývojová infrastruktura)
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Balík NksHub.Textida.Plugin.Sdk s baseline veřejného API, testovací hostitel, šablona `dotnet new nkspad-plugin` (AOT win-x64). Zbývá CI a osx AOT (jen na Macu).
+  - **Stav 31. 10. 2026:** šablona pluginu není vázaná na jeden RID (`NkspadPlugin.csproj` jen `PublishAot`). Chybí publikace v CI a ověření na macOS.
 - [ ] **P8b.2.2** Ověřovač pluginů a kontraktové testy
   - **Co a proč:** Staticky kontroluje manifest, rozsah `api` a deklarace, za běhu handshake a validaci RPC. Bezpečnostní audit binárky neslibuje (R14). Kontraktové testy pokrývají všechna rozhraní z P8b.2.1, nejen API v1.
   - **Funkce:** F203
@@ -3111,6 +3121,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (večer):** částečně. Export HTML a RTF dokumentu nebo výběru se stejnými tokeny a barvami motivu; Úpravy → Kopírovat jako (text + HTML + RTF do schránky, zdroj HTML). Limit 8 Mi znaků je placeholder. Chybí: ruční zkouška vložení do Wordu, výběr ve stránkovaném režimu se barví od svého začátku; TeX a PDF až později.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Výběr ve stránkovaném režimu se obarví podle celého dokumentu. Zbývá ruční zkouška vložení do Wordu.
+  - **Stav 31. 10. 2026:** kód je hotový: výběr ve stránkovaném režimu se barví podle celého dokumentu. Chybí ruční zkouška vložení do Wordu.
 - [x] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
@@ -3169,6 +3180,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (večer):** částečně. Sbalení nezajímavých řádků (jen běžný editor, ve stránkovaném se tlumí), odkazy ze stack trace (.NET, Java, Python, PHP, Node), heatmapa chyb v minimapě (vzorkování nad 256 MiB, placeholdery), barvy ANSI bez změny bajtů a přepnutí na syrové zobrazení. Chybí: styl ANSI přes konec řádku, ruční ověření v aplikaci.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Styl ANSI pokračuje přes konec řádku v editoru i stránkovaném zobrazení. Neměřeno: heatmapa v 10GiB logu.
+  - **Stav 31. 10. 2026:** kód je hotový: styl ANSI pokračuje přes konec řádku v editoru i ve stránkovaném zobrazení. Chybí heatmapa 10GiB logu (za `TEXTIDA_HUGE=1`) a ruční ověření v aplikaci.
 
 ### P9.5 Pracovní prostor
 
