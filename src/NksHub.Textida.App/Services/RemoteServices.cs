@@ -18,6 +18,16 @@ internal sealed class RemoteServices(string profileDirectory, ICredentialStore s
     public WorkingCopyStore Deployments { get; } = new(Path.Combine(profileDirectory, "remote", "deploy"));
     public string NetworkPolicyPath => Path.Combine(Folder, "network.json");
 
+    /// <summary>The limits of the cache of remote copies (placeholders, OPEN).</summary>
+    public static CachePolicy CachePolicy { get; } = new(PluginLimitsPlaceholders.RemoteCacheMaxBytes, TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays));
+
+    /// <summary>Removes the copies over the limits of <see cref="CachePolicy"/> in the background, least recently used first; a copy with unsent changes stays. Tried again at the next start.</summary>
+    public Task PruneCopiesAsync() => Task.Run(() =>
+    {
+        try { return Copies.Prune(CachePolicy, DateTime.UtcNow).Count; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return 0; }
+    });
+
     public NetworkPolicy Policy() => NetworkPolicy.Load(NetworkPolicyPath, Secrets);
 
     public IRemoteClient CreateClient(RemoteConnection connection, IServerTrustPrompt trust) =>

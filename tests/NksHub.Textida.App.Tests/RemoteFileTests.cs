@@ -451,6 +451,23 @@ public class RemoteFileTests : IDisposable
 }
 
 /// <summary>File locks in the window (P5.4.5): a locked file opens read only, says why, refuses to save, and can be switched to concurrent writing on purpose.</summary>
+public class RemoteCachePruneTests
+{
+    [Fact]
+    public async Task The_start_up_cleanup_keeps_a_copy_that_was_never_sent()
+    {
+        using var profile = new TempDir();
+        var services = new RemoteServices(profile.Path, new MemoryCredentials());
+        string source = profile.File("a.txt", "one");
+        var unsent = services.Copies.Stage("c1", "/unsent.txt", source); // staged with the base None: its content was never sent
+
+        await services.PruneCopiesAsync();
+
+        Assert.True(File.Exists(unsent.LocalPath));
+        Assert.Equal(TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays), RemoteServices.CachePolicy.MaxAge);
+    }
+}
+
 [Collection("LocState")]
 public class LockedFileTests : IDisposable
 {

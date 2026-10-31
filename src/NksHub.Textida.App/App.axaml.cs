@@ -208,6 +208,7 @@ public sealed partial class App : Application
         PruneHistoryInBackground();
         Locks = new NksHub.Textida.Core.Files.FileLocks(Path.Combine(ProfileDirectory, "locks"), Guid.NewGuid().ToString("N")[..8]);
         Remote = new RemoteServices(ProfileDirectory, Credentials);
+        _ = Remote.PruneCopiesAsync();
         Reviews = new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
     }
 
