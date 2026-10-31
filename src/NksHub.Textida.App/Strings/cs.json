@@ -2276,6 +2276,7 @@
   "tokens.dialog.rule": "Pravidlo: {rule}. Zdroj: {source}.",
   "tokens.dialog.note": "Je to odhad podle zveřejněného orientačního pravidla pro anglický text, ne počet tokenů z tokenizéru modelu. Nic se nikam neposílalo.",
   "aicontext.tokens": "Odhad velikosti: ≈ {markdown} tokenů jako Markdown, ≈ {xml} jako XML ({rule}).",
+  "aicontext.largeWarning": "Pozor: text je větší než {size} a nemusí se vejít do kontextu modelu (běžně 128 až 200 tisíc tokenů). Zvažte menší výběr.",
   "hooks.title": "Hooky agentů",
   "hooks.file": "Soubor: {path}",
   "hooks.file.unsaved": "Karta {title}, neuložená do souboru",

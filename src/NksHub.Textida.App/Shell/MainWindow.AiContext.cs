@@ -24,6 +24,9 @@ internal sealed partial class MainWindow
     /// <summary>Size limit of one copy, <see cref="PluginLimitsPlaceholders.AiContextMaxBytes"/>; tests lower it.</summary>
     internal long AiContextMaxBytes { get; set; } = PluginLimitsPlaceholders.AiContextMaxBytes;
 
+    /// <summary>Size above which the preview warns, <see cref="PluginLimitsPlaceholders.AiContextWarnBytes"/>; tests lower it.</summary>
+    internal long AiContextWarnBytes { get; set; } = PluginLimitsPlaceholders.AiContextWarnBytes;
+
     /// <summary>What a scope gathered: the sources and what was left out, or the reason it could not run.</summary>
     internal sealed record AiGathered(IReadOnlyList<AiSource> Sources, IReadOnlyList<AiOmission> Omissions);
 
@@ -69,7 +72,8 @@ internal sealed partial class MainWindow
         if (markdown.Omissions.Count > details.Count) details.Add(Loc.Get(K.PreviewMore, ("count", markdown.Omissions.Count - details.Count)));
         var message = Loc.Get(K.AiPreview, ("files", markdown.Files), ("markdown", OpenDocument.FormatSize(markdown.Bytes)), ("xml", OpenDocument.FormatSize(xml.Bytes)))
             + (markdown.Files > 0 ? " " + Loc.Get(K.AiTokens, ("markdown", FormatTokens(TokenEstimator.Estimate(markdown.Text.Length, _tokenRule))), ("xml", FormatTokens(TokenEstimator.Estimate(xml.Text.Length, _tokenRule))), ("rule", TokenRuleName(_tokenRule))) : "")
-            + (details.Count > 0 ? " " + Loc.Get(K.AiLeftOut) : "");
+            + (details.Count > 0 ? " " + Loc.Get(K.AiLeftOut) : "")
+            + (markdown.Bytes > AiContextWarnBytes ? " " + Loc.Get(K.AiLargeWarning, ("size", OpenDocument.FormatSize(AiContextWarnBytes))) : "");
         var buttons = markdown.Files == 0
             ? new List<DialogButton> { new(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true) }
             : [new(Loc.Get(K.AiCopyMarkdown), IsDefault: true), new(Loc.Get(K.AiCopyXml)), new(Loc.Get(K.DialogCancel), IsCancel: true)];

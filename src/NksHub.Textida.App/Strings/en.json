@@ -2228,6 +2228,7 @@
   "tokens.dialog.rule": "Rule: {rule}. Source: {source}.",
   "tokens.dialog.note": "This is an estimate by a published rule of thumb for English text, not the count of the tokenizer of a model. Nothing was sent anywhere.",
   "aicontext.tokens": "Estimated size: ≈ {markdown} tokens as Markdown, ≈ {xml} as XML ({rule}).",
+  "aicontext.largeWarning": "Warning: the text is larger than {size} and may not fit the context window of a model (commonly 128 to 200 thousand tokens). Consider a smaller selection.",
   "hooks.title": "Agent Hooks",
   "hooks.file": "File: {path}",
   "hooks.file.unsaved": "Tab {title}, not saved to a file",

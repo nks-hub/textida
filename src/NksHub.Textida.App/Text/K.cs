@@ -2236,6 +2236,7 @@ public static class K
     public const string TokensRule = "tokens.dialog.rule";
     public const string TokensEstimateNote = "tokens.dialog.note";
     public const string AiTokens = "aicontext.tokens";
+    public const string AiLargeWarning = "aicontext.largeWarning";
     public const string HooksTitle = "hooks.title";
     public const string HooksFile = "hooks.file";
     public const string HooksFileUnsaved = "hooks.file.unsaved";

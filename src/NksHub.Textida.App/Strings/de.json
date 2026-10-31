@@ -2228,6 +2228,7 @@
   "tokens.dialog.rule": "Regel: {rule}. Quelle: {source}.",
   "tokens.dialog.note": "Das ist eine Schätzung nach einer veröffentlichten Faustregel für englischen Text, nicht die Zählung des Tokenizers eines Modells. Es wurde nichts gesendet.",
   "aicontext.tokens": "Geschätzte Größe: ≈ {markdown} Tokens als Markdown, ≈ {xml} als XML ({rule}).",
+  "aicontext.largeWarning": "Achtung: Der Text ist größer als {size} und passt womöglich nicht in das Kontextfenster eines Modells (üblich sind 128 bis 200 Tausend Tokens). Erwägen Sie eine kleinere Auswahl.",
   "hooks.title": "Agent-Hooks",
   "hooks.file": "Datei: {path}",
   "hooks.file.unsaved": "Tab {title}, nicht in einer Datei gespeichert",

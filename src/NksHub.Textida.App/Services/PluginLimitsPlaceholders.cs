@@ -171,8 +171,11 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: most entries (buttons and separators) the user toolbar holds; the editor refuses to add more and a <c>toolbar.json</c> with more is not read. The owner has not decided it.</summary>
     public const int ToolbarMaxButtons = 40;
 
-    /// <summary>Placeholder, OPEN: size limit of one Copy as AI Context, in UTF-8 bytes of the copied text; files past it are left out and named. The owner has not decided it.</summary>
-    public const long AiContextMaxBytes = 8L << 20;
+    /// <summary>Size limit of one Copy as AI Context, in UTF-8 bytes of the copied text; files past it are left out and named. 4 MiB is about one million tokens, the largest context window of current models.</summary>
+    public const long AiContextMaxBytes = 4L << 20;
+
+    /// <summary>A copy as AI Context larger than this many bytes (about 128 thousand tokens, the common context window) gets a warning in its preview before it is copied.</summary>
+    public const long AiContextWarnBytes = 512L << 10;
 
     /// <summary>Placeholder, OPEN: seconds a formatter of the save actions (and a format step of a recipe) has when <c>formatTimeoutSeconds</c> in saveActions.json is not set; then the file is saved unformatted.</summary>
     public const int FormatOnSaveTimeoutSeconds = 10;
