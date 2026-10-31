@@ -257,7 +257,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--decoration-refresh-ms", PluginLimitsPlaceholders.LspDecorationRefreshMilliseconds.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
              "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
              "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
@@ -394,6 +394,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             var place = places[0];
             window.GoToPlace(place.GetProperty("path").GetString()!, place.GetProperty("line").GetInt32(), place.GetProperty("character").GetInt32(),
                 place.GetProperty("endLine").GetInt32(), place.GetProperty("endCharacter").GetInt32());
+        }
+        else if (command == "lsp.signatureHelp" && outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } sig } && sig.TryGetProperty("status", out var sigStatus) && sigStatus.GetString() == "ok"
+            && sig.TryGetProperty("label", out var label))
+        {
+            var ranges = sig.GetProperty("parameters").EnumerateArray().Select(x => (x.GetProperty("start").GetInt32(), x.GetProperty("end").GetInt32())).ToList();
+            surface.ShowSignature(new SignatureInfo(label.GetString()!, ranges, sig.GetProperty("active").GetInt32(), sig.TryGetProperty("documentation", out var documentation) ? documentation.GetString() : null));
         }
         return outcome.Started;
     }

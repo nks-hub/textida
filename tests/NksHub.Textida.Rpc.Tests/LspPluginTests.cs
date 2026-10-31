@@ -126,7 +126,7 @@ public partial class LspPluginTests
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
             Assert.True(File.Exists(dll), dll);
             List<string> pluginArguments =
-                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50", "--max-symbols", "10", "--max-decorations", "50",
+                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50", "--max-symbols", "10", "--max-decorations", "50", "--decoration-refresh-ms", "150",
                  "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
             if (!builtInCatalog) pluginArguments.AddRange(["--catalog", catalog]);
             if (restart is { } r)

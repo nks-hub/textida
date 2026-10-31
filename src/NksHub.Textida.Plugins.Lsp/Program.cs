@@ -5,7 +5,7 @@ using NksHub.Textida.Rpc;
 // Built-in language server client: one process speaking the plugin protocol on stdin/stdout; the servers it starts speak LSP on their own stdin/stdout.
 // Required options (no defaults, the editor decides): --max-bytes N, --start-timeout-ms N, --request-timeout-ms N, --stop-timeout-ms N, --max-locations N,
 // --stderr-lines N, --max-message-chars N, --max-diagnostics N. Optional: --catalog FILE (JSON list of servers instead of the built-in ones), --idle-stop-ms N (stop a server that long after its last document closed; 0 or absent: never),
-// --max-symbols N (most symbols published for one document; absent: --max-locations), --max-decorations N (most inlay hints, and most semantic tokens, published for one document; absent: --max-locations),--root-search-levels N (folders searched upwards for the project root of a document, the folder of the file included; absent: 1, the folder of the file).
+// --max-symbols N (most symbols published for one document; absent: --max-locations), --max-decorations N (most inlay hints, and most semantic tokens, published for one document; absent: --max-locations),--decoration-refresh-ms N (the wait after an edit, or after a "refresh" request of the server, before inlay hints and semantic tokens that are shown are asked for again; 0 or absent: never), --root-search-levels N (folders searched upwards for the project root of a document, the folder of the file included; absent: 1, the folder of the file).
 // Restart after a crash (all four together, or none: a server that ends unexpectedly is then only started again by the next command): --restart-max-attempts N, --restart-base-delay-ms N (doubles with each attempt),
 // --restart-max-delay-ms N, --restart-stable-ms N (a server that ran this long before it ended gets the count of attempts back).
 // One server runs per language, project root and server configuration; the root is the nearest folder with a marker file of the language, otherwise the nearest with .git or .textida.
@@ -13,7 +13,7 @@ using NksHub.Textida.Rpc;
 long maxBytes = -1;
 int startMs = -1, requestMs = -1, stopMs = -1, maxLocations = -1, stderrLines = -1, messageChars = -1, maxDiagnostics = -1;
 string? catalogFile = null;
-int idleStopMs = 0, rootSearchLevels = 1, restartAttempts = 0, restartBaseMs = 0, restartMaxMs = 0, restartStableMs = 0, maxSymbols = 0, maxDecorations = 0;
+int idleStopMs = 0, rootSearchLevels = 1, restartAttempts = 0, restartBaseMs = 0, restartMaxMs = 0, restartStableMs = 0, maxSymbols = 0, maxDecorations = 0, decorationRefreshMs = 0;
 for (var i = 0; i < args.Length - 1; i++)
 {
     if (args[i] == "--max-bytes") maxBytes = long.Parse(args[i + 1]);
@@ -33,6 +33,7 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--restart-stable-ms") restartStableMs = int.Parse(args[i + 1]);
     else if (args[i] == "--max-symbols") maxSymbols = int.Parse(args[i + 1]);
     else if (args[i] == "--max-decorations") maxDecorations = int.Parse(args[i + 1]);
+    else if (args[i] == "--decoration-refresh-ms") decorationRefreshMs = int.Parse(args[i + 1]);
 }
 if (maxBytes < 1 || startMs < 1 || requestMs < 1 || stopMs < 1 || maxLocations < 1 || stderrLines < 1 || messageChars < 2 || maxDiagnostics < 1)
 {
@@ -47,7 +48,7 @@ if (restartAttempts > 0 && (restartBaseMs < 1 || restartMaxMs < restartBaseMs ||
 
 var catalog = catalogFile is null ? ServerCatalog.BuiltIn : ServerCatalog.FromJson(File.ReadAllText(catalogFile));
 var plugin = new LspPlugin(new LspSettings(maxBytes, startMs, requestMs, stopMs, maxLocations, stderrLines, messageChars, maxDiagnostics, idleStopMs, rootSearchLevels,
-    restartAttempts, restartBaseMs, restartMaxMs, restartStableMs, maxSymbols, maxDecorations), catalog);
+    restartAttempts, restartBaseMs, restartMaxMs, restartStableMs, maxSymbols, maxDecorations, decorationRefreshMs), catalog);
 var code = await PluginRunner.RunAsync(plugin, new RpcLimits(4 * 1024 * 1024, 8, 64, 100_000, 64 * 1024 * 1024, 64 * 1024 * 1024));
 await plugin.StopAllAsync();
 return code;
