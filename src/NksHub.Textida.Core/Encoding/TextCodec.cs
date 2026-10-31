@@ -4,6 +4,9 @@ namespace NksHub.Textida.Core.Encodings;
 
 public enum CodecKind { Utf8, Utf16, Utf32, SingleByte }
 
+/// <summary>The family a code page is listed under in the encoding picker (by the languages it serves).</summary>
+public enum EncodingGroup { Unicode, CentralEuropean, WesternEuropean, Cyrillic, Greek, Turkish, Baltic, Hebrew, Arabic, Asian, Dos }
+
 /// <summary>
 /// The one codec layer of the editor (it replaced a second, windowed-only codec of the document model). It serves two
 /// callers: whole-buffer decoding with a char-to-byte map (<see cref="Decode(ReadOnlyMemory{byte})"/>) for loss checks,
@@ -20,6 +23,8 @@ public sealed class TextCodec
     private readonly Dictionary<char, byte>? _toByte;    // single-byte: char -> byte
 
     public string Name { get; }
+    /// <summary>The group the picker lists this encoding under.</summary>
+    public EncodingGroup Group { get; }
     public CodecKind Kind { get; }
     public bool BigEndian { get; }
     /// <summary>Byte order mark written/stripped by this codec variant; empty when it has none.</summary>
@@ -30,9 +35,9 @@ public sealed class TextCodec
     /// <summary>True when the target cannot represent every Unicode character (any single-byte page).</summary>
     public bool IsLossy => Kind == CodecKind.SingleByte;
 
-    private TextCodec(string name, CodecKind kind, bool bigEndian, byte[] bom, int codePage, char[]? table)
+    private TextCodec(string name, CodecKind kind, bool bigEndian, byte[] bom, int codePage, char[]? table, EncodingGroup group = EncodingGroup.Unicode)
     {
-        Name = name; Kind = kind; BigEndian = bigEndian; Bom = bom; CodePage = codePage;
+        Name = name; Kind = kind; BigEndian = bigEndian; Bom = bom; CodePage = codePage; Group = group;
         if (table is null) return;
         _toChar = table;
         _toByte = new Dictionary<char, byte>(256);
@@ -49,15 +54,45 @@ public sealed class TextCodec
     public static readonly TextCodec Utf32LEBom = new("UTF-32 LE with BOM", CodecKind.Utf32, false, [0xFF, 0xFE, 0, 0], 12000, null);
     public static readonly TextCodec Utf32BE = new("UTF-32 BE", CodecKind.Utf32, true, [], 12001, null);
     public static readonly TextCodec Utf32BEBom = new("UTF-32 BE with BOM", CodecKind.Utf32, true, [0, 0, 0xFE, 0xFF], 12001, null);
-    public static readonly TextCodec Cp1250 = new("Windows-1250", CodecKind.SingleByte, false, [], 1250, FromDotNet(1250));
-    public static readonly TextCodec Cp1252 = new("Windows-1252", CodecKind.SingleByte, false, [], 1252, FromDotNet(1252));
-    public static readonly TextCodec Latin2 = new("ISO-8859-2", CodecKind.SingleByte, false, [], 28592, FromDotNet(28592));
-    public static readonly TextCodec Kamenicky = new("Kamenický (CP895)", CodecKind.SingleByte, false, [], 0, KamenickyTable.Build());
+    public static readonly TextCodec Cp1250 = Page("Windows-1250", 1250, EncodingGroup.CentralEuropean);
+    public static readonly TextCodec Cp1252 = Page("Windows-1252", 1252, EncodingGroup.WesternEuropean);
+    public static readonly TextCodec Latin2 = Page("ISO-8859-2", 28592, EncodingGroup.CentralEuropean);
+    public static readonly TextCodec Kamenicky = new("Kamenický (CP895)", CodecKind.SingleByte, false, [], 0, KamenickyTable.Build(), EncodingGroup.Dos);
+
+    private static TextCodec Page(string name, int codePage, EncodingGroup group) => new(name, CodecKind.SingleByte, false, [], codePage, FromDotNet(codePage), group);
+
+    private static TextCodec Page(string name, EncodingGroup group, char[] table) => new(name, CodecKind.SingleByte, false, [], 0, table, group);
+
+    /// <summary>
+    /// The single-byte code pages. Each is a table of 256 characters, so the bytes of a file stay exactly as they are and the large file view reads them as it reads any single-byte page.
+    /// ISO-8859-11 is windows-874 below its Thai letters made plain; 8859-10, -14 and -16 come from the mapping tables of the Unicode Consortium because .NET has no data for them.
+    /// </summary>
+    private static readonly TextCodec[] SingleBytePages =
+    [
+        Cp1250, Page("Windows-1251", 1251, EncodingGroup.Cyrillic), Cp1252, Page("Windows-1253", 1253, EncodingGroup.Greek), Page("Windows-1254", 1254, EncodingGroup.Turkish),
+        Page("Windows-1255", 1255, EncodingGroup.Hebrew), Page("Windows-1256", 1256, EncodingGroup.Arabic), Page("Windows-1257", 1257, EncodingGroup.Baltic), Page("Windows-1258", 1258, EncodingGroup.Asian),
+        Page("ISO-8859-1", 28591, EncodingGroup.WesternEuropean), Latin2, Page("ISO-8859-3", 28593, EncodingGroup.WesternEuropean), Page("ISO-8859-4", 28594, EncodingGroup.Baltic),
+        Page("ISO-8859-5", 28595, EncodingGroup.Cyrillic), Page("ISO-8859-6", 28596, EncodingGroup.Arabic), Page("ISO-8859-7", 28597, EncodingGroup.Greek), Page("ISO-8859-8", 28598, EncodingGroup.Hebrew),
+        Page("ISO-8859-9", 28599, EncodingGroup.Turkish), Page("ISO-8859-10", EncodingGroup.WesternEuropean, IsoTables.Build(IsoTables.Iso10)),
+        Page("ISO-8859-11", EncodingGroup.Asian, ThaiIso()), Page("ISO-8859-13", 28603, EncodingGroup.Baltic), Page("ISO-8859-14", EncodingGroup.WesternEuropean, IsoTables.Build(IsoTables.Iso14)),
+        Page("ISO-8859-15", 28605, EncodingGroup.WesternEuropean), Page("ISO-8859-16", EncodingGroup.CentralEuropean, IsoTables.Build(IsoTables.Iso16)),
+        Page("KOI8-R", 20866, EncodingGroup.Cyrillic), Page("KOI8-U", 21866, EncodingGroup.Cyrillic),
+        Page("DOS CP437", 437, EncodingGroup.Dos), Page("DOS CP850", 850, EncodingGroup.Dos), Page("DOS CP852", 852, EncodingGroup.Dos), Page("DOS CP866", 866, EncodingGroup.Dos), Kamenicky,
+        Page("Mac Roman", 10000, EncodingGroup.WesternEuropean), Page("Mac Central European", 10029, EncodingGroup.CentralEuropean),
+    ];
+
+    /// <summary>ISO-8859-11 is TIS-620 with a no-break space at 0xA0; windows-874 has the same Thai letters from 0xA1 and extra characters below them.</summary>
+    private static char[] ThaiIso()
+    {
+        var table = FromDotNet(874);
+        for (int b = 0; b <= 0xA0; b++) table[b] = (char)b;
+        return table;
+    }
 
     public static IReadOnlyList<TextCodec> All { get; } =
     [
         Utf8, Utf8Bom, Utf16LE, Utf16LEBom, Utf16BE, Utf16BEBom, Utf32LE, Utf32LEBom, Utf32BE, Utf32BEBom,
-        Cp1250, Cp1252, Latin2, Kamenicky,
+        .. SingleBytePages,
     ];
 
     public static TextCodec? ByName(string name) =>
@@ -73,7 +108,7 @@ public sealed class TextCodec
     };
 
     /// <summary>True when both codecs map characters to the same bytes and differ at most in the byte order mark.</summary>
-    public bool SameBytesAs(TextCodec other) => Kind == other.Kind && BigEndian == other.BigEndian && CodePage == other.CodePage;
+    public bool SameBytesAs(TextCodec other) => Kind == other.Kind && BigEndian == other.BigEndian && (Kind == CodecKind.SingleByte ? Name == other.Name : CodePage == other.CodePage);
 
     public override string ToString() => Name;
 
@@ -83,12 +118,16 @@ public sealed class TextCodec
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var enc = Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
         var table = new char[256];
+        var used = new HashSet<char>();
         var one = new byte[1];
         for (int b = 0; b < 256; b++)
         {
             one[0] = (byte)b;
-            try { table[b] = enc.GetString(one)[0]; }
-            catch (DecoderFallbackException) { table[b] = (char)b; } // undefined slot: keep as a C1 control so it round-trips
+            char c;
+            try { c = enc.GetString(one)[0]; }
+            catch (DecoderFallbackException) { c = b < 0xA0 ? (char)b : (char)(0xF800 + b); } // undefined slot: a C1 control, or above 0x9F a private-use character, so it round-trips
+            if (!used.Add(c)) used.Add(c = (char)(0xF800 + b)); // two bytes for one character: the later one gets its own, so no byte is lost
+            table[b] = c;
         }
         return table;
     }
