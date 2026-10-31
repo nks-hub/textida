@@ -73,6 +73,7 @@ internal sealed partial class EditorSurface : TextEditor
         ApplyLogLevels();
         Syntax = new SyntaxFeeder(doc, ApplyTokens, _colorizer.ClearTokens, LineText, () => Document.LineCount, () => OnVisualLinesChanged(null, EventArgs.Empty));
         Syntax.SetLimits(options.HighlightMaxLines, options.HighlightMaxColumns);
+        Syntax.DefersJumps = true; // a minimap drag jumps by hundreds of lines per frame; the colors follow once the jumps stop
         TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
         TextArea.TextView.ScrollOffsetChanged += (_, _) => QueueSyntaxView();
         TextArea.TextEntering += OnTextEntering;

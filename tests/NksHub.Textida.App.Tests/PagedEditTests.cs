@@ -688,6 +688,7 @@ public class PagedEditTests : IDisposable
         }
         times.Sort();
         double p95 = times[(int)(times.Count * 0.95)];
+        _output.WriteLine($"typing on 300000 lines: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0} ms, minimap pictures started {tab.Minimap?.BuildsStarted}");
         Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
         Assert.Equal(1, tab.Doc.Doc.UndoDepth); // 330 keystrokes at one place are one undo step
     }
