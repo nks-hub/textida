@@ -819,13 +819,15 @@ public class ViewOptionsTests : IDisposable
         return InWindow(map, new Rect(2, map.Bounds.Height * 0.65, map.Bounds.Width - 12, map.Bounds.Height * 0.3));
     }
 
-    private bool WaitForColors(DocTab tab, string[] kinds, int seconds = 10)
+    /// <param name="top">Looks at the top fifth of the map instead of the lower part: a sparse file has text only at its start, and a sampled map draws the start of the file in its first rows.</param>
+    private bool WaitForColors(DocTab tab, string[] kinds, int seconds = 10, bool top = false)
     {
         var colors = SyntaxColors(kinds).ToList();
         var clock = Stopwatch.StartNew();
         while (clock.Elapsed.TotalSeconds < seconds)
         {
-            if (Matching(Capture(), MinimapLowerPart(tab), colors) > 20) return true;
+            var area = top ? InWindow(tab.Minimap!, new Rect(2, 0, tab.Minimap!.Bounds.Width - 12, tab.Minimap!.Bounds.Height * 0.2)) : MinimapLowerPart(tab);
+            if (Matching(Capture(), area, colors) > 20) return true;
             Thread.Sleep(50);
         }
         return false;
@@ -1467,7 +1469,7 @@ public class ViewOptionsTests : IDisposable
         var clock = Stopwatch.StartNew();
         var tab = _w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
-        Assert.True(WaitForColors(tab, ["keyword", "comment"], seconds: 50), "no colors in the map of the 10 GiB file");
+        Assert.True(WaitForColors(tab, ["keyword", "comment"], seconds: 50, top: true), "no colors in the map of the 10 GiB file");
         Assert.True(tab.Minimap!.IsSampled);
         Assert.True(clock.Elapsed.TotalSeconds < 60, $"took {clock.Elapsed}");
         Assert.Equal(length, tab.Doc.Doc.ByteLength);
