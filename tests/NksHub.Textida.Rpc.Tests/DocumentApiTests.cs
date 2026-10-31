@@ -242,6 +242,40 @@ public partial class DocumentApiTests
         finally { Directory.Delete(Path.GetDirectoryName(path)!, true); }
     }
 
+    /// <summary>P3b.3.1: a plugin reads ranges of a paged 10 GiB document at random places and at its end, exactly, without the process growing by the size of the file. Runs where <c>TEXTIDA_HUGE=1</c>.</summary>
+    [Fact]
+    public async Task APluginReadsRangesOfA10GiBPagedDocumentWithoutLoadingIt()
+    {
+        if (!NksHub.Textida.Tests.HugeText.Enabled) return;
+        long size = NksHub.Textida.Tests.HugeText.Size(10L << 30);
+        var dir = Directory.CreateTempSubdirectory("textida-api-huge-").FullName;
+        var path = Path.Combine(dir, "huge.txt");
+        try
+        {
+            NksHub.Textida.Tests.HugeText.RequireRoom(path, size + (2L << 30));
+            NksHub.Textida.Tests.HugeText.WriteFile(path, size);
+            await using var rig = await Rig.CreateAsync(Utf8("x"));
+            var doc = Document.Open(path, PagedBackendFactory.Instance);
+            rig.Owner.Run(() => { rig.Api.Expose(doc); return 0; });
+            Assert.Equal(size, doc.ByteLength);
+            long before = System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64;
+            var random = new Random(3101);
+            for (int k = 0; k < 40; k++)
+            {
+                long start = k == 0 ? size - 100 : random.NextInt64(0, size - 4096);
+                int length = k == 0 ? 100 : 4096;
+                var r = await rig.CallAsync(DocumentMethods.ReadBytes, $"{{\"document\":\"{doc.Id}\",\"revision\":{doc.Revision},\"start\":{start},\"end\":{start + length}}}");
+                var expected = new byte[length];
+                NksHub.Textida.Tests.HugeText.Fill(0, start, expected);
+                Assert.Equal(expected, FromB64(r));
+            }
+            Assert.True(System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64 - before < 512L << 20, "the read must not load the file");
+            await rig.ErrorAsync(DocumentMethods.ReadBytes, $"{{\"document\":\"{doc.Id}\",\"revision\":{doc.Revision + 5},\"start\":0,\"end\":10}}", DocumentErrorCodes.RevisionConflict);
+            rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     [Fact]
     public async Task PositionsAreExactAndAnIncompleteIndexIsNotReportedAsLineZero()
     {

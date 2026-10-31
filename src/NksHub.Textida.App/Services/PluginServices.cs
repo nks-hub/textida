@@ -870,7 +870,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
     {
-        if ((tab.Surface is null && tab.Paged is null) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
+        if ((tab.Surface is null && tab.Paged is null && tab.Custom is not MarkdownPreview) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
         bool paged = tab.Paged is not null; // a large file: read from its start up to the limit, in the background
         _outlineWanted.Add(tab.Doc.Doc.Id);
         _revealOutline = _revealAlways = reveal;
