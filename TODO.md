@@ -2487,6 +2487,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Most `/ide`: zámek s tokenem a úklidem po pádu, most na okno, `selection_changed`, `openDiff` přes revizi změn, `getDiagnostics`, stavový řádek a odpojení; testy s falešným agentem i v aplikaci. Protokol mimo oficiální dokumentaci podle komunitního popisu. Neověřeno se skutečným Claude Code; chybí openFile, getOpenEditors a další nástroje.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Nástroje openFile, getOpenEditors, getWorkspaceFolders, checkDocumentDirty a `at_mentioned` podle veřejného popisu protokolu. Neověřeno se skutečným Claude Code, verze CLI nezapsaná.
+  - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Claude Code 2.1.312 se k `/ide` připojí jen v interaktivním režimu (ConPTY), ne s `-p`. Volá jen `closeAllDiffTabs`, `openDiff`, `close_tab` a `getDiagnostics`. Výsledek `openDiff` FILE_SAVED potřebuje druhý textový blok s přijatým obsahem (opraveno d02ca58b). Po přijetí CLI zapíše soubor samo: karta zůstane neuložená a Uložit se ptá na konflikt. Zadáno vývojáři 31. 10. 2026: karta má převzít obsah z disku, když je stejný jako přijatý text.
 
 ### P6.6 Agent přes ACP
 
@@ -2498,6 +2499,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P6.6.2, P6.6.3, P6.6.4
   - **Odhad:** F180 3–5 ČT (matice) za P6.6.1–P6.6.4
   - **Umístění:** vestavěný plugin
+  - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** claude-agent-acp 0.98.0/0.99.0 ani codex-acp 2.3.0 nevolají `fs/read_text_file` ani `fs/write_text_file`, čtou a píšou disk samy. Čtení neuložené karty ani návrh v revizi tak u nich neprojdou. Jejich `session/request_permission` u Write/Edit nese diff. Zadáno vývojáři 31. 10. 2026: tento diff ukázat jako úseky v revizi změn a odpověď na oprávnění řídit potvrzením.
 - [ ] **P6.6.2** ACP relace a transport
   - **Co a proč:** Adaptér ACP z P3b.1.1: řádkové stdio, inicializace, `session/new`, tahy, `session/cancel` a rušení požadavků podle ACP.
   - **Funkce:** F180 (částečně: relace a transport)
@@ -2524,6 +2526,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** v rámci F180 (viz P6.6.1)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Tabulka adaptérů s kontrolou v PATH a `--version`. Neověřeno se skutečnými agenty.
+  - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Codex na Windows potřebuje pro workspace-write `-c windows.sandbox=unelevated` (zadáno vývojáři 31. 10. 2026). Ani jeden adaptér nečte neuloženou kartu přes ACP, viz P6.6.1.
 
 ## P7 – velká editace
 
@@ -2729,6 +2732,21 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** data, čte je jádro a podle nich spouští LSP plugin
   - **Stav 28. 10. 2026:** částečně. Tabulka skupina → nástroj → scénář → OS (`LanguageCatalog.Matrix`).
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Plugin spustí servery všech jazyků katalogu (verze katalogu 4), hledání v toolPaths, složkách projektu a PATH se souhlasem. Neověřeno proti skutečným serverům.
+
+- [ ] **P8.5.6** LSP: zbývající funkce
+  - **Co a proč:** Plugin LSP umí synchronizaci, definice, odkazy, doplňování, rename, diagnostiku a workspace edits. Chybí: hover, nápověda k parametrům (signature help), code actions a rychlé opravy, symboly dokumentu a workspace z LSP (osnova a `@` v Přejít na cokoli), formátování přes LSP, sémantické tokeny a inlay hints. Zjištěno auditem 27. 10. 2026, do TODO doplněno 31. 10. 2026.
+  - **Funkce:** F157
+  - **Hotovo, když:** každá z funkcí jde přes plugin a API z P8.4 a je pokrytá testem proti FakeLsp včetně převodu UTF-16 pozic na bajty; funkce, kterou server neohlásí v capabilities, se v menu nenabídne; odpověď na starou revizi se zahodí.
+  - **Závisí na:** P8.5.1, P8.4.1, P8.4.2
+  - **Odhad:** bez odhadu
+  - **Umístění:** vestavěný plugin LSP
+- [ ] **P8.5.7** Ověření se skutečnými jazykovými servery
+  - **Co a proč:** Všechny testy LSP běží jen proti FakeLsp; skutečné servery katalogu nikdo neověřil. Audit 27. 10. 2026 doporučil pilot: Roslyn LSP a csharp-ls (C#), rust-analyzer (Rust), Dart Analysis Server, clangd (C/C++ s `compile_commands.json`), bash-language-server se ShellCheckem a pro PHP porovnání DEVSENSE, Intelephense a PHPantom. Test RealTools našel, že Roslyn posílá telemetrii i s `--telemetryLevel off` (otevřené, porušuje PR.6.4).
+  - **Funkce:** F157, F213
+  - **Hotovo, když:** pro každý server z pilotu je zapsaná verze a výsledek definice, odkazů, rename, doplnění v neuložené kartě, diagnostiky a studeného a teplého startu s pamětí na skutečném projektu; síťový test PR.6.4 s běžícím Roslynem nezaznamená telemetrii, nebo je Roslyn v katalogu nahrazený serverem bez ní.
+  - **Závisí na:** P8.5.1, P8.5.3, PR.6.4
+  - **Odhad:** bez odhadu
+  - **Umístění:** testy (`Category=RealTools`), katalog
 
 ### P8.6 Git
 
@@ -3501,12 +3519,12 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P5 | 6 | 26 | 24–37 (neúplné) |
 | P6 | 6 | 21 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
-| P8 | 10 | 30 | 38–64,5 |
+| P8 | 10 | 32 | 38–64,5 |
 | P8b | 3 | 10 | 12,5–20 |
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **343** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **345** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
