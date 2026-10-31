@@ -244,6 +244,7 @@
   "cmd.lsp.rename": "Jazykový server: přejmenovat symbol",
   "cmd.lsp.restart": "Jazykový server: restartovat",
   "cmd.lsp.stop": "Jazykový server: zastavit",
+  "cmd.lsp.codeActions": "Jazykový server: akce a rychlé opravy",
   "cmd.lsp.format": "Jazykový server: formátovat dokument",
   "cmd.edit.complete": "Doplnit slovo nebo klip...",
   "cmd.tools.compareKeys": "Porovnat klíče s jiným souborem...",

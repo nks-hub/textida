@@ -38,6 +38,8 @@ public static class Texts
         ["tabUnsaved"] = ["Soubor, který se má změnit, je otevřený v kartě s neuloženými úpravami. Uložte kartu nebo ji zavřete a spusťte příkaz znovu. Nic se nezměnilo.", "A file that would change is open in a tab with unsaved changes. Save the tab or close it, then run the command again. Nothing was changed.", "Súbor, ktorý sa má zmeniť, je otvorený v karte s neuloženými úpravami. Uložte kartu alebo ju zavrite a spustite príkaz znova. Nič sa nezmenilo.", "Eine Datei, die geändert würde, ist in einem Tab mit ungespeicherten Änderungen geöffnet. Speichern Sie den Tab oder schließen Sie ihn und führen Sie den Befehl erneut aus. Es wurde nichts geändert."],
         ["noFormat"] = ["Server nenašel nic k naformátování.", "The server found nothing to format.", "Server nenašiel nič na formátovanie.", "Der Server fand nichts zu formatieren."],
         ["formatBatch"] = ["Formátovat dokument", "Format document", "Formátovať dokument", "Dokument formatieren"],
+        ["noActions"] = ["Server na tomto místě nenabízí žádnou akci ani opravu.", "The server offers no action or fix at this place.", "Server na tomto mieste neponúka žiadnu akciu ani opravu.", "Der Server bietet an dieser Stelle keine Aktion und keine Korrektur an."],
+        ["actionsTitle"] = ["Akce a rychlé opravy", "Code actions and quick fixes", "Akcie a rýchle opravy", "Aktionen und Schnellkorrekturen"],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

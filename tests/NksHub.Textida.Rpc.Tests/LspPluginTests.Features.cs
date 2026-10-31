@@ -65,6 +65,48 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task A_quick_fix_for_the_problem_at_the_caret_is_picked_and_applied_through_the_review()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "codeaction"]);
+        var doc = rig.Add("fix.fake", "é😀 ok ERROR here\n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+        await T.Until(() => rig.DiagnosticsOf(doc).Count == 1);
+        rig.Ui.Pick = request => request.Items[0].Id;
+
+        var r = await rig.RunAsync(doc, LspPlugin.CodeActionsCommand, Bytes("é😀 ok ER"));
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var picked = Assert.Single(rig.Ui.Picks);
+        Assert.Equal(["Remove ERROR"], picked.Items.Select(i => i.Label)); // the action that only runs a command and the disabled one are not offered
+        Assert.Equal("Remove ERROR", Assert.Single(rig.Review.Shown).Proposal.Title);
+        Assert.Equal("é😀 ok  here\n", Rig.TextOf(doc));
+        Assert.Equal(1, doc.UndoDepth);
+    }
+
+    [Fact]
+    public async Task Code_actions_are_not_asked_of_a_server_that_does_not_announce_them_and_a_cancelled_pick_changes_nothing()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "ERROR\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.CodeActionsCommand, 1)).GetProperty("status").GetString());
+            Assert.Empty(plain.Ui.Picks);
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "codeaction"]);
+        var elsewhere = rig.Add("elsewhere.fake", "fine\n");
+        await rig.RunAsync(elsewhere, LspPlugin.StartCommand);
+        Assert.Equal("none", (await rig.RunAsync(elsewhere, LspPlugin.CodeActionsCommand, 1)).GetProperty("status").GetString()); // no problem here: only the actions without an edit
+        var cancel = rig.Add("cancel.fake", "ERROR\n");
+        await rig.RunAsync(cancel, LspPlugin.StartCommand);
+        await T.Until(() => rig.DiagnosticsOf(cancel).Count == 1);
+        Assert.Equal("cancelled", (await rig.RunAsync(cancel, LspPlugin.CodeActionsCommand, 1)).GetProperty("status").GetString());
+        Assert.Equal("ERROR\n", Rig.TextOf(cancel));
+        Assert.Empty(rig.Review.Shown);
+    }
+
+    [Fact]
     public async Task Hover_is_not_asked_of_a_server_that_does_not_announce_it_and_an_old_answer_is_dropped()
     {
         await using (var plain = await Rig.CreateAsync())

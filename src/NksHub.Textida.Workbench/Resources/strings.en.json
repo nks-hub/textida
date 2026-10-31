@@ -244,6 +244,7 @@
   "cmd.lsp.rename": "Language Server: Rename Symbol",
   "cmd.lsp.restart": "Language Server: Restart",
   "cmd.lsp.stop": "Language Server: Stop",
+  "cmd.lsp.codeActions": "Language Server: Code Actions and Quick Fixes",
   "cmd.lsp.format": "Language Server: Format Document",
   "cmd.edit.complete": "Complete Word or Clip...",
   "cmd.tools.compareKeys": "Compare Keys with Another File...",

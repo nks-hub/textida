@@ -300,6 +300,7 @@ internal static class AppCommands
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
         Fire("nks.lsp.rename", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.rename"));
         Fire("nks.lsp.format", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.format"));
+        Fire("nks.lsp.codeActions", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.codeActions"));
         Fire("nks.lsp.restart", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.restart"));
         Fire("nks.lsp.stop", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.stop"));
         Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());

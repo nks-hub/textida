@@ -220,6 +220,20 @@ string? Hover(JsonElement p)
     return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
 }
 
+// code actions: "Remove ERROR" (a quick fix with the edit, preferred) for every diagnostic the client sent in the context, "Run it" that only has a command, and a disabled one; the two last must not be offered
+string CodeActions(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var actions = new List<string>
+    {
+        "{\"title\":\"Run it\",\"kind\":\"refactor\",\"command\":{\"title\":\"Run it\",\"command\":\"fake.run\"}}",
+        "{\"title\":\"Not here\",\"kind\":\"refactor\",\"disabled\":{\"reason\":\"no\"},\"edit\":{\"changes\":{}}}",
+    };
+    foreach (var diagnostic in p.GetProperty("context").GetProperty("diagnostics").EnumerateArray())
+        actions.Insert(0, $"{{\"title\":\"Remove ERROR\",\"kind\":\"quickfix\",\"isPreferred\":true,\"diagnostics\":[{diagnostic.GetRawText()}],\"edit\":{{\"documentChanges\":[{{\"textDocument\":{{\"uri\":{Quote(uri)},\"version\":{versions[uri]}}},\"edits\":[{{\"range\":{diagnostic.GetProperty("range").GetRawText()},\"newText\":\"\"}}]}}]}}}}");
+    return "[" + string.Join(',', actions) + "]";
+}
+
 // formatting removes the spaces and tabs at the end of every line, reported against the version the server holds
 string Formatting(JsonElement p)
 {
@@ -280,6 +294,7 @@ string ExtraCapabilities()
     var caps = new List<string>();
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
     if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
+    if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
     return caps.Count == 0 ? "" : "," + string.Join(',', caps);
 }
 
@@ -383,6 +398,9 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/codeAction":
+            Send(Reply(CodeActions(p)));
             break;
         case "textDocument/formatting":
             Send(Reply(Formatting(p)));

@@ -28,6 +28,7 @@ public sealed class LspPlugin : PluginBase
     public const string StopCommand = "lsp.stop";
     public const string RenameCommand = "lsp.rename";
     public const string FormatCommand = "lsp.format";
+    public const string CodeActionsCommand = "lsp.codeActions";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -78,6 +79,9 @@ public sealed class LspPlugin : PluginBase
         public int Bom;
         public bool Dirty;
         public bool Pumping;
+        /// <summary>The <c>diagnostics</c> array the server last published for <see cref="RawVersion"/>, as it sent it; code actions hand the ones at the caret back to the server.</summary>
+        public JsonElement Raw;
+        public long RawVersion = -1;
     }
 
     /// <summary>The document cannot be handed to a language server (too large, bytes the encoding does not allow); <see cref="Exception.Message"/> is the status.</summary>
@@ -151,7 +155,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         try
@@ -182,6 +186,7 @@ public sealed class LspPlugin : PluginBase
                 ReferencesCommand => await NavigateAsync(slot, server, doc, r, references: true, ct).ConfigureAwait(false),
                 RenameCommand => await RenameAsync(server, doc, r, ct).ConfigureAwait(false),
                 FormatCommand => await FormatAsync(server, doc, r, p, ct).ConfigureAwait(false),
+                CodeActionsCommand => await CodeActionsAsync(server, doc, r, p, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
@@ -619,6 +624,8 @@ public sealed class LspPlugin : PluginBase
         {
             if (!d.Open || (p.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.Number && v.GetInt64() != d.Version)) return;
             var map = new LineMap(d.Text);
+            d.Raw = p.GetProperty("diagnostics").Clone();
+            d.RawVersion = d.Version;
             var items = new List<(int Start, int End, DiagnosticSeverityName Severity, string Message, string? Code)>();
             foreach (var item in p.GetProperty("diagnostics").EnumerateArray())
             {
@@ -1003,6 +1010,63 @@ public sealed class LspPlugin : PluginBase
             file.Edits.Add(((s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32(), en.GetProperty("line").GetInt32(), en.GetProperty("character").GetInt32()), Text(e, "newText") ?? ""));
         }
         return file;
+    }
+
+    // ---- code actions and quick fixes ----
+
+    /// <summary>The line and character (UTF-16) of a byte offset of <paramref name="revision"/> in the text the server holds.</summary>
+    private async Task<(int Line, int Character)> LspPositionAsync(Doc d, long revision, long offset, CancellationToken ct)
+    {
+        var before = await CallAsync(DocumentMethods.ReadText, $"{{\"document\":\"{d.Id}\",\"revision\":{revision},\"start\":{d.Bom},\"end\":{Math.Max(offset, d.Bom)}}}", ct).ConfigureAwait(false);
+        return new LineMap(d.Text).PositionOf(before.GetProperty("text").GetString()!.Length);
+    }
+
+    private static int Compare((int Line, int Character) a, (int Line, int Character) b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Character.CompareTo(b.Character);
+
+    /// <summary>
+    /// Asks the server for the actions at the selection (else the caret), with the diagnostics it published there, lets the user pick one and shows its workspace edit in the change review.
+    /// Actions that only run a command of the server, and disabled ones, are not offered: the editor runs no command for a server. A server that did not announce code actions is told so.
+    /// </summary>
+    private async Task<byte[]> CodeActionsAsync(LspServer server, Doc d, Request r, JsonElement p, CancellationToken ct)
+    {
+        if (!server.Has("codeActionProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        long from = p.TryGetProperty("selectionStart", out var ss) && ss.TryGetInt64(out var a) ? a : r.Offset, to = p.TryGetProperty("selectionEnd", out var se) && se.TryGetInt64(out var b) ? b : from;
+        var start = await LspPositionAsync(d, r.Revision, Math.Min(from, to), ct).ConfigureAwait(false);
+        var end = await LspPositionAsync(d, r.Revision, Math.Max(from, to), ct).ConfigureAwait(false);
+        var here = new List<string>();
+        if (d.RawVersion == d.Version && d.Raw.ValueKind == JsonValueKind.Array)
+            foreach (var item in d.Raw.EnumerateArray())
+            {
+                var range = item.GetProperty("range");
+                var s = range.GetProperty("start");
+                var e = range.GetProperty("end");
+                var itemStart = (s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32());
+                var itemEnd = (e.GetProperty("line").GetInt32(), e.GetProperty("character").GetInt32());
+                if (Compare(itemStart, end) <= 0 && Compare(start, itemEnd) <= 0) here.Add(item.GetRawText());
+            }
+        var answer = await server.RequestAsync("textDocument/codeAction",
+            $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"range\":{{\"start\":{{\"line\":{start.Line},\"character\":{start.Character}}},\"end\":{{\"line\":{end.Line},\"character\":{end.Character}}}}},\"context\":{{\"diagnostics\":[{string.Join(',', here)}]}}}}",
+            _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        var actions = new List<JsonElement>();
+        if (answer.ValueKind == JsonValueKind.Array)
+            foreach (var item in answer.EnumerateArray())
+                if (item.ValueKind == JsonValueKind.Object && Text(item, "title") is { Length: > 0 } && !item.TryGetProperty("disabled", out _)
+                    && (item.TryGetProperty("edit", out _) || (server.Options("codeActionProvider").ValueKind == JsonValueKind.Object && server.Options("codeActionProvider").TryGetProperty("resolveProvider", out var rp) && rp.ValueKind == JsonValueKind.True && item.TryGetProperty("data", out _))))
+                    actions.Add(item.Clone());
+        actions = [.. actions.OrderBy(x => x.TryGetProperty("isPreferred", out var preferred) && preferred.ValueKind == JsonValueKind.True ? 0 : 1)];
+        if (actions.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noActions").ConfigureAwait(false);
+        var shown = actions.Take(_settings.MaxLocations).ToList();
+        var pick = string.Join(',', shown.Select((x, i) => $"{{\"id\":\"{i}\",\"label\":\"{Quote(Limited(Text(x, "title")!))}\"{(Text(x, "kind") is { Length: > 0 } kind ? $",\"detail\":\"{Quote(Limited(kind))}\"" : "")}}}"));
+        var chosen = await CallAsync(UiMethods.QuickPick, $"{{\"title\":\"{Quote(Texts.Get(_ui, "actionsTitle"))}\",\"items\":[{pick}]}}", ct).ConfigureAwait(false);
+        if (chosen.GetProperty("id").ValueKind != JsonValueKind.String || !int.TryParse(chosen.GetProperty("id").GetString(), out int index) || index < 0 || index >= shown.Count) return Status("cancelled");
+        var action = shown[index];
+        if (!action.TryGetProperty("edit", out _)) action = (await server.RequestAsync("codeAction/resolve", action.GetRawText(), _settings.RequestTimeoutMs, ct).ConfigureAwait(false)).Clone();
+        var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+        if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        if (!action.TryGetProperty("edit", out var edit) || edit.ValueKind != JsonValueKind.Object) return await TellAsync("none", NoticeLevel.Info, "noActions").ConfigureAwait(false);
+        var changes = await ChangesOfAsync(d, edit, ct).ConfigureAwait(false);
+        if (changes.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noActions").ConfigureAwait(false);
+        return await SubmitChangesAsync(Limited(Text(action, "title")!), changes, ct).ConfigureAwait(false);
     }
 
     // ---- formatting ----
