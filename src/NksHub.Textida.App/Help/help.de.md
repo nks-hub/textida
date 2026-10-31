@@ -1865,7 +1865,7 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 - Es endet, wenn einer der beiden Tabs geschlossen wird. Hex- und Tabellenansicht nehmen nicht teil.
 
 ## [tools.mcp] Der Editor als MCP-Server
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools, nks.tools.mcpClients
 Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
 1. Wählen Sie Extras, Agenten und KI, MCP, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
 2. Richten Sie den Assistenten so ein, dass er das Programm textida-mcp.exe aus dem Ordner mcp neben dem Editor startet (die Statusleiste zeigt den vollständigen Pfad). Es spricht über eine lokale Pipe mit dem Editor, ein Netzwerkport wird nicht geöffnet.
@@ -1878,6 +1878,7 @@ Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-A
 - Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen, und ein Vorschlag, der noch auf Ihre Entscheidung wartet, wird zurückgezogen und gilt als abgelehnt. Auch das erneute Laden einer Datei entzieht sie.
 - Nur eine begrenzte Zahl von Vorschlägen kann gleichzeitig auf Ihre Entscheidung warten (das Limit ist vorläufig); ein weiterer wird abgelehnt, bis Sie entschieden haben. Ein Ergebnis über dem Größenlimit wird abgelehnt, und der Assistent erfährt, dass er weniger anfordern soll.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
+- MCP-Clients (Werkzeuge, MCP, MCP-Clients...) legt fest, welches Programm den MCP-Server nutzen darf. Ein Client wird an dem Namen erkannt, den er beim Verbinden angibt. Ein neuer Client darf nichts, bis Sie es in der Frage erlauben, die beim ersten Verbinden erscheint; bis dahin sieht er kein Werkzeug, und jeder seiner Aufrufe wird abgelehnt. In der Liste der Clients können Sie einem Client die Berechtigung entziehen (er wird getrennt) oder zurückgeben oder die Entscheidung vergessen, damit der Editor beim nächsten Mal erneut fragt. Den Namen wählt der Client selbst, er beweist also nicht, wer es ist: Die Berechtigung hindert nur ein unbekanntes Programm daran, von selbst an die freigegebenen Tabs zu kommen.
 
 ## [tools.ide] Die /ide-Brücke für Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention

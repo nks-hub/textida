@@ -30,13 +30,36 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     private readonly Dictionary<Guid, Shared> _shared = [];
     private IpcServer? _endpoint;
 
-    public McpService(PluginServices plugins, string mainChannel)
+    public McpService(PluginServices plugins, string mainChannel, string profileDirectory)
     {
         _plugins = plugins;
         _channel = IpcEndpoint.McpChannel(mainChannel);
         Ledger = new ProposalLedger(PluginLimitsPlaceholders.McpTrackedProposals);
         Proposals = new McpProposals(Ledger, this);
-        Server = new McpServer(PluginLimitsPlaceholders.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync));
+        Clients = new McpClients(Path.Combine(profileDirectory, "mcp-clients.json"));
+        Server = new McpServer(PluginLimitsPlaceholders.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed });
+        Clients.Asked += name => Dispatcher.UIThread.Post(() => ClientAsked?.Invoke(name));
+    }
+
+    /// <summary>The permissions of the clients (who may use the editor, by the name they give).</summary>
+    public McpClients Clients { get; }
+
+    /// <summary>A client without a decision connected and sees nothing until the user decides. Raised on the UI thread.</summary>
+    public event Action<string>? ClientAsked;
+
+    /// <summary>The user decided about a client: its connections hear that the tools changed, and a client that is no longer allowed is disconnected.</summary>
+    public void ClientDecided(string name, bool allowed)
+    {
+        Clients.Decide(name, allowed);
+        if (!allowed) Server.DisconnectClient(name);
+        else Server.ClientsChanged();
+    }
+
+    /// <summary>The user took back the decision about a client: it is disconnected and asked about again the next time it connects.</summary>
+    public void ClientForgotten(string name)
+    {
+        Clients.Forget(name);
+        Server.DisconnectClient(name);
     }
 
     public McpServer Server { get; }

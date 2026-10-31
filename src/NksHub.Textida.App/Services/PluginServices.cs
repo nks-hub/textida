@@ -120,7 +120,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // a registry lookup behind a proxy with a login goes through net/request, so the password stays in the editor; the plugin asks nothing before the user allowed the registry
         permissions.Grant(JsonPluginId, PluginPermissionNames.Network, GrantScope.All);
         Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
-        Mcp = new McpService(this, App.Startup.Channel);
+        Mcp = new McpService(this, App.Startup.Channel, app.ProfileDirectory);
+        Mcp.ClientAsked += name => _app.ActiveWindow?.AskMcpClient(name);
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;

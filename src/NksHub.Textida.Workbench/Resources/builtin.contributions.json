@@ -2773,6 +2773,12 @@
       "icon": "list"
     },
     {
+      "id": "nks.tools.mcpClients",
+      "title": "cmd.tools.mcpClients",
+      "category": "cat.tools",
+      "icon": "list"
+    },
+    {
       "id": "nks.tools.ideBridge",
       "title": "cmd.tools.ideBridge",
       "category": "cat.tools",
@@ -5676,6 +5682,13 @@
       "group": "3_ai/01",
       "submenu": "ai/mcp",
       "order": 120
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpClients",
+      "group": "3_ai/01",
+      "submenu": "ai/mcp",
+      "order": 125
     },
     {
       "menu": "tools",

@@ -27,6 +27,11 @@ public sealed record McpServerOptions
     public required int MaxPendingProposals { get; init; }
     /// <summary>Name of a document for the assistant (the tab title); the file name is used when this is missing or answers null.</summary>
     public Func<Guid, string?>? TitleOf { get; init; }
+    /// <summary>
+    /// Whether the client of this name (from its <c>clientInfo</c>; <see cref="McpServer.UnknownClient"/> when it gave none) may use the editor. A client that is not allowed sees no tools and every call
+    /// of it is refused. Null: every client is allowed (tests, and the connections of the /ide bridge, which the user switched on and which prove themselves with a token).
+    /// </summary>
+    public Func<string, bool>? ClientGate { get; init; }
     /// <summary>Makes sure an outline of the live text exists before it is read (indexes the tab).</summary>
     public Func<Guid, CancellationToken, Task>? EnsureOutline { get; init; }
 }
@@ -43,6 +48,8 @@ public sealed class McpServer
 {
     /// <summary>The id the assistant has in the permission model and the call log.</summary>
     public const string ClientId = "mcp";
+    /// <summary>The name a client has for the permissions of clients when it said none.</summary>
+    public const string UnknownClient = "(unknown)";
     public const string ModernVersion = "2026-07-28";
     public const string LegacyVersion = "2025-11-25";
     /// <summary>Largest range <c>editor_read_bytes</c> returns.</summary>
@@ -80,6 +87,24 @@ public sealed class McpServer
         }
         ToolsChanged?.Invoke();
         foreach (var session in Sessions()) session.ToolsListChanged();
+    }
+
+    /// <summary>The permission of a client changed: every connection hears that its list of tools changed.</summary>
+    public void ClientsChanged()
+    {
+        foreach (var session in Sessions()) session.ToolsListChanged();
+    }
+
+    /// <summary>Ends the connections of the client of this name (the user took its permission away).</summary>
+    public void DisconnectClient(string name)
+    {
+        foreach (var session in Sessions().Where(s => string.Equals(s.ClientName, name, StringComparison.Ordinal))) session.Close();
+    }
+
+    /// <summary>The names the connected clients gave.</summary>
+    public IReadOnlyList<string> ConnectedClients()
+    {
+        lock (_gate) return [.. _sessions.Select(s => s.ClientName).Where(n => n is not null).Select(n => n!).Distinct()];
     }
 
     public int ConnectionCount

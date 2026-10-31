@@ -161,6 +161,7 @@ internal static class AppCommands
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpShareSelection", w => w.ShareSelectionWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
+        On("nks.tools.mcpClients", w => w.ShowMcpClients());
         On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
         On("nks.tools.ideDisconnect", w => w.DisconnectIdeAgent());
         On("nks.tools.ideMention", w => w.SendIdeMention());
