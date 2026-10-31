@@ -22,6 +22,9 @@ internal sealed class BigFileBackendFactory : IBackendFactory
             try { Directory.Delete(old, recursive: true); } catch (IOException) { }
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
+            // the finalizers of the undisposed documents unmap their files; without this the files of a whole run stay behind and fill the disk
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             try { Directory.Delete(Dir, recursive: true); } catch (IOException) { }
         };
     }
