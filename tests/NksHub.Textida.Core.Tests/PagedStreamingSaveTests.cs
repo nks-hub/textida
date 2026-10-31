@@ -12,7 +12,9 @@ namespace NksHub.Textida.Core.Tests;
 /// <summary>
 /// P7.1.3: a paged document is saved by streaming an immutable snapshot to a temporary file and swapping it in, while the user keeps editing.
 /// The expected bytes come from <see cref="LargeModel"/>, which generates them from the edit script and never reads the product.
+/// Runs alone: the private memory size counts every thread of the process, so tests running beside it would show up as growth.
 /// </summary>
+[Collection("Process memory")]
 public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-stream-").FullName;
