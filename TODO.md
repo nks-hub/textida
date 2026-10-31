@@ -962,6 +962,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Závisí na:** P1.2.8
   - **Odhad:** v rámci F153 (viz P3.1.1)
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Řádek z bloku s offsetem u neupraveného dokumentu, nejvýš 6 přečtených bloků (placeholder) na 80MB i Large 30M řádků. Upravený dokument a 10 GiB doplňuje další vývojář.
+  - **Stav 31. 10. 2026:** kód je hotový (výřez upraveného dokumentu s limitem bloků a test 10 GiB, commit a1572c24). Chybí jen měření 10 GiB, které je za `TEXTIDA_HUGE=1` (rozhodnutí majitele 28. 10.).
 - [x] **P3.1.7** Navigace a výběr ve stránkované ploše
   - **Co a proč:** Kurzor, výběr, klávesy a myš nad bajtovými pozicemi bez materializace řádku.
   - **Funkce:** F153 (částečně: navigace a výběr)
@@ -1632,6 +1633,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Odhad:** F198 2–3 ČT (matice) za P3b.3.1, P3b.3.3 a P3b.3.4; revize ho považuje za optimistický, rozpad může odhad zvýšit
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. Čtení staré revize ze snapshotu, `oldestMappableRevision`, ověřeno pro UTF-8/BOM/UTF-16/Windows-1250 a nevalidní UTF-8.
+  - **Stav 31. 10. 2026 (sloučeno, f2bc62fa):** API je zapojené v aplikaci; přibyl test čtení rozsahů z 10GiB stránkovaného dokumentu s kontrolou paměti a starou revizí (běží jen s `TEXTIDA_HUGE=1`). Hodnoty limitů v `DocumentApiOptions` čekají na majitele.
 - [ ] **P3b.3.3** Snapshoty a mapování pozic v API
   - **Co a proč:** Omezené snapshoty revize s expirací a převod pozic mezi revizemi přes záznam změn z P1.2.4.
   - **Funkce:** F198 (částečně: snapshoty)
@@ -3127,6 +3129,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (večer):** hotovo v kódu (sloučeno 097b429a): `.md` se otevře ve Čtení, Úpravy (editor se stránkou vedle, společný posun) a Zdroj lištou, příkazy i Ctrl+K Ctrl+V, režim pro soubor v okně, nastavení `markdown.defaultMode`, velký soubor jako Zdroj s hláškou; opravena posunutá synchronizace posunu náhledu; testy prošly. Zbývá pohled v běžící aplikaci.
   - **Chyba nalezená 29. 10. 2026:** v režimu čtení (výchozí pro `.md`) nefunguje osnova ani skok na nadpis přes `@`. Karta čtení nemá textovou plochu a `PluginServices.IndexOutlineAsync` pro ni vrátí false. Na to narazil kouřový test balíku v CI, ten teď čte osnovu ve zdrojovém režimu. Oprava: osnova má číst text dokumentu i bez plochy a skok má posunout stránku náhledu.
+  - **Stav 31. 10. 2026 (sloučeno, f0a72181):** opraveno. Osnova Markdownu se v režimu čtení načte z textu dokumentu bez textové plochy, `@` v Přejít na cokoli ji nabízí a skok posune stránku náhledu na řádek nadpisu. Kouřový test čte osnovu ve čtení a hlídá, že se `.md` otevře ve čtení. Neověřeno v běžící aplikaci.
 
 ### P9.4 Logy
 
