@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using NksHub.Textida.Core.Tools;
+using NksHub.Textida.Remote;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Plugins.Lsp;
@@ -91,6 +92,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         try { info = ProcessLaunch.CreateStartInfo(launch.Program, launch.Arguments); }
         catch (ToolException e) { throw new ServerStartException(e.Message); }
         (info.RedirectStandardInput, info.RedirectStandardOutput, info.RedirectStandardError, info.UseShellExecute, info.CreateNoWindow, info.WorkingDirectory) = (true, true, true, false, true, root);
+        if (!launch.NeedsNetwork) ToolProxy.Shared.Apply(info); // a server that does not need the network reaches nothing outside the machine; its entry's own environment still wins
         foreach (var (name, value) in launch.Environment) info.Environment[name] = value;
         Process process;
         try { process = Process.Start(info) ?? throw new ServerStartException("The process did not start."); }

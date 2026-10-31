@@ -471,6 +471,7 @@ while (ReadMessage() is { } body)
             if (dump is not null && p.TryGetProperty("initializationOptions", out var initOptions)) File.WriteAllText(Path.Combine(dump, "init-options.json"), initOptions.GetRawText());
             Note("root=" + (p.TryGetProperty("rootUri", out var rootUri) ? rootUri.GetString() : ""));
             Note("cwd=" + Environment.CurrentDirectory);
+            Note("proxy=" + Environment.GetEnvironmentVariable("HTTPS_PROXY") + " no_proxy=" + Environment.GetEnvironmentVariable("NO_PROXY"));
             Note("configuration=" + (p.TryGetProperty("capabilities", out var caps) && caps.TryGetProperty("workspace", out var ws) && ws.TryGetProperty("configuration", out var cfg) && cfg.ValueKind == JsonValueKind.True ? "yes" : "no"));
             Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true{ExtraCapabilities()}}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;

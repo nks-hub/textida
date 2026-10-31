@@ -168,6 +168,7 @@ public sealed partial class App : Application
         Journal?.Dispose();
         ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
         ConfigRestore = ConfigBackup.ApplyPending(ProfileDirectory, Clock()); // before any service reads the files it puts back
+        ToolRunner.NetworkGuard = info => NksHub.Textida.Remote.ToolProxy.Shared.Apply(info); // formatters and linters reach nothing outside the machine
         if (!OperatingSystem.IsWindows()) // Windows ends the children of a killed editor with a job object, see ProcessLaunch.Track
         {
             ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimitsPlaceholders.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.StartTimeToleranceMilliseconds));
