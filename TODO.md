@@ -2262,6 +2262,20 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
 
+- [ ] **P5.5.3** Další kódování znaků
+  - **Co a proč:** Majitel 31. 10. 2026: nabídka kódování je chudá, CP1250 není jediná věc po UTF. `TextCodec.All` dnes zná jen UTF-8, UTF-16 a UTF-32 (s BOM i bez), Windows-1250, Windows-1252, ISO-8859-2 a Kamenický; detektor (`EncodingGuesser`) zkouší jen tyto čtyři jednobajtové. .NET přitom nese data všech kódových stránek (`CodePagesEncodingProvider`, funguje i pod NativeAOT).
+  - **Rozsah:**
+    - Jednobajtové: Windows-1250 až 1258, ISO-8859-1 až 16 (bez 12), KOI8-R, KOI8-U, DOS CP437, 850, 852, 866, Mac Roman a Mac Central European, Kamenický. Všechny přes stávající tabulku bajt ↔ znak, takže zachování bajtů a stránkovaný režim fungují beze změny.
+    - Vícebajtové: Shift-JIS, EUC-JP, GBK/GB2312, GB18030, Big5, EUC-KR. Potřebují nový druh kodeku s dekódováním po blocích na hranici znaku a se ztrátovou kontrolou při ukládání; ve stránkovaném režimu přes stejné bloky.
+    - Výběr kódování podle skupin (Unicode, středoevropské, západoevropské, cyrilice, řečtina, turečtina, baltské, hebrejština, arabština, asijské, DOS) s vyhledáváním, v menu Formát i ve stavovém řádku; nedávno použitá nahoře.
+    - Detekce: k dnešním čtyřem stránkám rozlišit cyrilici (1251, KOI8-R, 866), řečtinu, turečtinu a vícebajtové asijské podle statistiky dvojic bajtů; nejistý výsledek nabídne volbu, jako dnes.
+    - Dávková konverze (P5.5.2), inspektor bajtů (P5.5.1) a „Znovu otevřít v kódování“ nabídnou všechny kodeky.
+  - **Funkce:** F046 (požadavek majitele 31. 10. 2026)
+  - **Hotovo, když:** každý kodek projde zpátečním testem bajt → text → bajt na všech 256 bajtech (jednobajtové) a na vzorových textech (vícebajtové) i v blocích s hranicí uprostřed znaku; uložení znaku, který kodek neumí, ohlásí ztrátu jako dnes; detektor správně pozná vzorové texty v češtině, ruštině, řečtině, japonštině a čínštině; výběr kódování jde z klávesnice a čtečka hlásí skupinu a název; NativeAOT publikace všechny stránky najde.
+  - **Závisí na:** P1.3.1, P5.5.1
+  - **Odhad:** bez odhadu
+  - **Umístění:** jádro (`Core/Encoding`)
+
 ### P5.6 Hex: hledání, záložky, porovnání
 
 Hotovo celku podle analýzy konkurence: porovnání dvou 1GiB souborů se 100 oddělenými změnami na pevných offsetech najde přesně těch 100 rozsahů; u 100MiB souboru s vloženými bloky ukáže vložení, ne posun; nahrazení všeho jde vrátit jedním krokem a nad novější revizí se odmítne; záložky přežijí vložení před ně; minimapa 50GiB souboru se ukáže do 1 s.
@@ -3531,7 +3545,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P3 | 7 | 53 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
-| P5 | 6 | 26 | 24–37 (neúplné) |
+| P5 | 6 | 27 | 24–37 (neúplné) |
 | P6 | 6 | 22 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
 | P8 | 10 | 32 | 38–64,5 |
@@ -3539,7 +3553,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **346** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **347** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
