@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Markdown;
@@ -286,7 +287,7 @@ internal static partial class PreviewRenderer
     private static void AddLink(InlineCollection into, string label, string target, Ctx ctx, FontWeight weight, FontStyle style)
     {
         var text = Loc.Get(K.PreviewPanelLink, ("text", label), ("url", target));
-        if (ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)));
+        if (ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)) { BaselineAlignment = BaselineAlignment.Baseline });
         else into.Add(new Run(text) { FontWeight = weight, FontStyle = style });
     }
 
