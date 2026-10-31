@@ -1293,6 +1293,25 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_choice_list_without_categories_and_icons_has_no_empty_column_before_the_names()
+    {
+        static QuickRow Row(string name, string? category) => new(name, category, "povoleno", null, true, null, name, () => { });
+        _w.ShowChoice("pick", "pick", [Row("alpha", null), Row("beta", null)]);
+        _w.UpdateLayout();
+        var list = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_w).OfType<ListBox>().First(l => l.IsVisible && l.Items.Count == 2);
+        var grid = (Grid)((ListBoxItem)list.Items[0]!).Content!;
+        var title = grid.Children.OfType<TextBlock>().First(t => t.Text is null || t.Text.Length > 0 && grid.Children.IndexOf(t) >= 0 && Grid.GetColumn(t) == 2);
+        Assert.True(title.TranslatePoint(default, grid)!.Value.X < 30, $"the names start {title.TranslatePoint(default, grid)!.Value.X} px from the left");
+
+        _w.ShowChoice("pick", "pick", [Row("alpha", "Soubor"), Row("beta", null)]);
+        _w.UpdateLayout();
+        list = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_w).OfType<ListBox>().First(l => l.IsVisible && l.Items.Count == 2);
+        grid = (Grid)((ListBoxItem)list.Items[0]!).Content!;
+        Assert.True(Grid.GetColumn(grid.Children.OfType<TextBlock>().First(t => Grid.GetColumn(t) == 2)) == 2);
+        Assert.Equal(110, grid.ColumnDefinitions[0].Width.Value); // a category column is back as soon as one row has a category
+    }
+
+    [AvaloniaFact]
     public void The_status_bar_takes_the_chrome_color_of_the_theme_and_is_not_left_white_in_the_dark_one()
     {
         var bar = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_w).OfType<Border>().First(b => b.Classes.Contains("statusbar"));
