@@ -71,6 +71,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
 
             await CheckBundledPluginsAsync(temp);
             await CheckDataPackageAsync(temp);
+            CheckEncodings();
 
             // a file above the switch size opens in the paged mode and takes a typed character, undo and save
             app.Workbench.Set("files.largeFileThreshold", System.Text.Json.Nodes.JsonValue.Create(1));
@@ -241,6 +242,26 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     /// P8b.2.3: a data package (a clip, a converter and a grammar) is installed from a ZIP, works without a process and is uninstalled; the own clip of the user, the other package
     /// and the files of the profile stay as they were.
     /// </summary>
+    /// <summary>
+    /// Code pages from the runtime (KOI8-R, Shift-JIS, GB18030) and one from a table of the editor (ISO-8859-16) turn a short sample into bytes and back to the same text and the same bytes: the
+    /// published program carries the code page data, which a NativeAOT build might have trimmed.
+    /// </summary>
+    private void CheckEncodings()
+    {
+        foreach (var (name, text) in new[] { ("KOI8-R", "Привет, мир"), ("ISO-8859-16", "Șase țărani în Țara Românească"), ("Shift-JIS", "日本語テキスト ｶﾀｶﾅ"), ("GB18030", "中文 😀 ř") })
+        {
+            var codec = Core.Encodings.TextCodec.ByName(name);
+            Check(codec is not null, $"the encoding {name} is listed");
+            if (codec is null) continue;
+            byte[] bytes;
+            try { bytes = codec.Encode(text); }
+            catch (Core.Encodings.UnrepresentableCharactersException) { Check(false, $"{name} writes its sample"); continue; }
+            var decoded = codec.Decode(bytes);
+            Check(decoded.Text == text && decoded.InvalidCount == 0, $"{name} reads its sample back");
+            Check(codec.Encode(decoded.Text).SequenceEqual(bytes), $"{name} writes the same bytes again");
+        }
+    }
+
     private async Task CheckDataPackageAsync(string temp)
     {
         var manager = app.Plugins.Manager;

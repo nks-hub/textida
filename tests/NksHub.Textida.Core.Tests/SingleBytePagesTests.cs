@@ -74,6 +74,19 @@ public class SingleBytePagesTests
         Assert.Equal(expected.ToString(), text);
     }
 
+    [Theory]
+    [InlineData("KOI8-R", "Привет, мир")]
+    [InlineData("ISO-8859-16", "Șase țărani în Țara Românească")]
+    [InlineData("Shift-JIS", "日本語テキスト ｶﾀｶﾅ")]
+    [InlineData("GB18030", "中文 😀 ř")]
+    public void The_samples_of_the_smoke_test_go_to_bytes_and_back(string name, string text)
+    {
+        var codec = TextCodec.ByName(name)!;
+        var bytes = codec.Encode(text);
+        Assert.Equal(text, codec.Decode(bytes).Text);
+        Assert.Equal(bytes, codec.Encode(codec.Decode(bytes).Text));
+    }
+
     [Fact]
     public void A_character_a_page_cannot_hold_is_reported_as_a_loss_and_never_replaced()
     {
