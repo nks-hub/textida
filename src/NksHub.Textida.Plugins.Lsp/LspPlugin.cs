@@ -27,6 +27,7 @@ public sealed class LspPlugin : PluginBase
     public const string RestartCommand = "lsp.restart";
     public const string StopCommand = "lsp.stop";
     public const string RenameCommand = "lsp.rename";
+    public const string FormatCommand = "lsp.format";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -150,7 +151,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         try
@@ -180,6 +181,7 @@ public sealed class LspPlugin : PluginBase
                 DefinitionCommand => await NavigateAsync(slot, server, doc, r, references: false, ct).ConfigureAwait(false),
                 ReferencesCommand => await NavigateAsync(slot, server, doc, r, references: true, ct).ConfigureAwait(false),
                 RenameCommand => await RenameAsync(server, doc, r, ct).ConfigureAwait(false),
+                FormatCommand => await FormatAsync(server, doc, r, p, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
@@ -977,10 +979,51 @@ public sealed class LspPlugin : PluginBase
 
         var changes = await ChangesOfAsync(d, answer, ct).ConfigureAwait(false);
         if (changes.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
-        var title = Texts.Get(_ui, "renameBatch", ("old", current), ("new", name));
+        return await SubmitChangesAsync(Texts.Get(_ui, "renameBatch", ("old", current), ("new", name)), changes, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Sends the changes of a server's answer to the editor as one workspace edit for the change review, and tells how the user decided.</summary>
+    private async Task<byte[]> SubmitChangesAsync(string title, List<string> changes, CancellationToken ct)
+    {
         var decision = await CallAsync(DocumentMethods.WorkspaceEdit, $"{{\"title\":\"{Quote(title)}\",\"changes\":[{string.Join(',', changes)}]}}", ct).ConfigureAwait(false);
         var outcome = decision.GetProperty("decision").GetString()!;
         return Encoding.UTF8.GetBytes($"{{\"status\":\"{(outcome is "applied" or "partial" ? "ok" : outcome)}\",\"decision\":\"{outcome}\",\"accepted\":{decision.GetProperty("accepted").GetInt32()},\"total\":{decision.GetProperty("total").GetInt32()}}}");
+    }
+
+    /// <summary>The <c>TextEdit[]</c> a server answered for one document, as the file edits of the change review; empty when it has nothing to change.</summary>
+    private static FileEdits EditsOf(Doc d, JsonElement edits)
+    {
+        var file = new FileEdits(d.Uri);
+        if (edits.ValueKind != JsonValueKind.Array) return file;
+        foreach (var e in edits.EnumerateArray())
+        {
+            var range = e.GetProperty("range");
+            var s = range.GetProperty("start");
+            var en = range.GetProperty("end");
+            file.Edits.Add(((s.GetProperty("line").GetInt32(), s.GetProperty("character").GetInt32(), en.GetProperty("line").GetInt32(), en.GetProperty("character").GetInt32()), Text(e, "newText") ?? ""));
+        }
+        return file;
+    }
+
+    // ---- formatting ----
+
+    /// <summary>The <c>FormattingOptions</c> for the indent unit the editor sent: a tab, or as many spaces as the unit has.</summary>
+    private static string FormattingOptions(JsonElement p)
+    {
+        var unit = Text(p, "indent") ?? "    ";
+        return unit.StartsWith('\t') ? "{\"tabSize\":4,\"insertSpaces\":false}" : $"{{\"tabSize\":{Math.Clamp(unit.Length, 1, 16)},\"insertSpaces\":true}}";
+    }
+
+    /// <summary>Formats the document through the server and shows the result in the change review; a server without <c>documentFormattingProvider</c> is told so.</summary>
+    private async Task<byte[]> FormatAsync(LspServer server, Doc d, Request r, JsonElement p, CancellationToken ct)
+    {
+        if (!server.Has("documentFormattingProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var answer = await server.RequestAsync("textDocument/formatting", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"options\":{FormattingOptions(p)}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+        if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        var file = EditsOf(d, answer);
+        if (file.Edits.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noFormat").ConfigureAwait(false);
+        return await SubmitChangesAsync(Texts.Get(_ui, "formatBatch"), [await RenderEditsAsync(d, file, ct).ConfigureAwait(false)], ct).ConfigureAwait(false);
     }
 
     /// <summary>The <c>changes</c> of the workspace edit API for a server's <c>WorkspaceEdit</c> (<c>documentChanges</c> or <c>changes</c>), one entry per file or file operation, in the order the server gave them.</summary>

@@ -220,6 +220,24 @@ string? Hover(JsonElement p)
     return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
 }
 
+// formatting removes the spaces and tabs at the end of every line, reported against the version the server holds
+string Formatting(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var edits = new List<string>();
+    for (int at = 0; at < text.Length;)
+    {
+        int end = at;
+        while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
+        int keep = end;
+        while (keep > at && (text[keep - 1] == ' ' || text[keep - 1] == '\t')) keep--;
+        if (keep < end) edits.Add($"{{\"range\":{Range(text, keep, end)},\"newText\":\"\"}}");
+        at = end < text.Length && text[end] == '\r' && end + 1 < text.Length && text[end + 1] == '\n' ? end + 2 : end + 1;
+    }
+    return "[" + string.Join(',', edits) + "]";
+}
+
 string? Rename(JsonElement p)
 {
     var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
@@ -261,6 +279,7 @@ string ExtraCapabilities()
 {
     var caps = new List<string>();
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
+    if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
     return caps.Count == 0 ? "" : "," + string.Join(',', caps);
 }
 
@@ -364,6 +383,9 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/formatting":
+            Send(Reply(Formatting(p)));
             break;
         case "textDocument/hover":
             Send(Reply(Hover(p) ?? "null"));

@@ -244,6 +244,7 @@
   "cmd.lsp.rename": "Sprachserver: Symbol umbenennen",
   "cmd.lsp.restart": "Sprachserver: Neu starten",
   "cmd.lsp.stop": "Sprachserver: Beenden",
+  "cmd.lsp.format": "Sprachserver: Dokument formatieren",
   "cmd.edit.complete": "Wort oder Clip vervollständigen...",
   "cmd.tools.compareKeys": "Schlüssel mit anderer Datei vergleichen...",
   "cat.log": "Log",

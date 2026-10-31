@@ -384,7 +384,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         MainWindow.LspProgram? program = declared is null && command != "lsp.stop" ? await window.LocateLspProgramAsync(tab, language) : null;
         if (program is { Declined: true }) return false;
         var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
-            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0}"
+            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0},\"indent\":\"{JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\""
+            + (surface.ByteSelections()?.PrimarySelection is { } selection ? $",\"selectionStart\":{selection.Start},\"selectionEnd\":{selection.End}" : "")
             + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language))
             + (program is null ? "" : $",\"lspProgram\":{{\"name\":\"{JsonEncodedText.Encode(program.Name)}\",\"path\":\"{JsonEncodedText.Encode(program.Path)}\"}}"), keep: true, keepOpen: true);
         if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"

@@ -2235,6 +2235,14 @@
       "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
+      "id": "nks.lsp.format",
+      "title": "cmd.lsp.format",
+      "category": "cat.tools",
+      "icon": "pencil",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -5121,6 +5129,13 @@
       "group": "1_text/04",
       "submenu": "code/lsp",
       "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.format",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 101
     },
     {
       "menu": "tools",

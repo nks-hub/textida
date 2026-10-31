@@ -29,6 +29,42 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task Formatting_shows_the_edits_of_the_server_in_the_review_and_applies_them_as_one_step()
+    {
+        await using var rig = await Rig.CreateAsync(["--features", "formatting"]);
+        var doc = rig.Add("format.fake", "é😀 one   \ntwo\t\n\nthree  \n");
+        await rig.RunAsync(doc, LspPlugin.StartCommand);
+
+        var r = await rig.RunAsync(doc, LspPlugin.FormatCommand);
+
+        Assert.Equal(("ok", "applied"), (r.GetProperty("status").GetString(), r.GetProperty("decision").GetString()));
+        var shown = Assert.Single(rig.Review.Shown);
+        Assert.Equal("Format document", shown.Proposal.Title);
+        Assert.Equal(3, Assert.Single(shown.Proposal.Files).Hunks.Count);
+        Assert.Equal("é😀 one\ntwo\n\nthree\n", Rig.TextOf(doc));
+        Assert.Equal(1, doc.UndoDepth);
+    }
+
+    [Fact]
+    public async Task Formatting_is_not_asked_of_a_server_that_does_not_announce_it_and_a_changed_document_drops_the_answer()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "a  \n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            var r = await plain.RunAsync(doc, LspPlugin.FormatCommand);
+            Assert.Equal("notSupported", r.GetProperty("status").GetString());
+            Assert.Empty(plain.Review.Shown);
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "formatting"]);
+        var clean = rig.Add("clean.fake", "already clean\n");
+        await rig.RunAsync(clean, LspPlugin.StartCommand);
+        Assert.Equal("none", (await rig.RunAsync(clean, LspPlugin.FormatCommand)).GetProperty("status").GetString());
+        Assert.Empty(rig.Review.Shown);
+    }
+
+    [Fact]
     public async Task Hover_is_not_asked_of_a_server_that_does_not_announce_it_and_an_old_answer_is_dropped()
     {
         await using (var plain = await Rig.CreateAsync())
