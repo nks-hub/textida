@@ -587,12 +587,20 @@ public sealed class LargeChangeJournalTests : IDisposable
         Assert.Contains("failures 0", output);
     }
 
-    [Fact]
-    [Trait("Category", "Large")]
-    public void Killing_the_process_during_a_save_of_a_document_over_2_GiB_recovers_the_edits_and_leaves_the_original_whole()
+    // one harness run per kill point, each about 5 minutes of disk work for 2 GiB on the test machine: the Perf run allows a test 20 minutes, the Large run only 5
+    [Theory]
+    [Trait("Category", "Perf")]
+    [InlineData("journal-flushed")]
+    [InlineData("mid-write")]
+    [InlineData("temp-written")]
+    [InlineData("mid-swap")]
+    [InlineData("after-swap")]
+    [InlineData("saved")]
+    [InlineData("cancel")]
+    public void Killing_the_process_during_a_save_of_a_document_over_2_GiB_recovers_the_edits_and_leaves_the_original_whole(string point)
     {
         var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", HugeText.SizePast(2L << 30, 3L << 30).ToString(),
-            "--points", "journal-flushed,mid-write,temp-written,mid-swap,after-swap,saved,cancel");
+            "--points", point);
         Assert.Contains("failures 0", output);
     }
 }
