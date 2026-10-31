@@ -2497,6 +2497,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Stav 28. 10. 2026:** částečně. Most `/ide`: zámek s tokenem a úklidem po pádu, most na okno, `selection_changed`, `openDiff` přes revizi změn, `getDiagnostics`, stavový řádek a odpojení; testy s falešným agentem i v aplikaci. Protokol mimo oficiální dokumentaci podle komunitního popisu. Neověřeno se skutečným Claude Code; chybí openFile, getOpenEditors a další nástroje.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Nástroje openFile, getOpenEditors, getWorkspaceFolders, checkDocumentDirty a `at_mentioned` podle veřejného popisu protokolu. Neověřeno se skutečným Claude Code, verze CLI nezapsaná.
   - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Claude Code 2.1.312 se k `/ide` připojí jen v interaktivním režimu (ConPTY), ne s `-p`. Volá jen `closeAllDiffTabs`, `openDiff`, `close_tab` a `getDiagnostics`. Výsledek `openDiff` FILE_SAVED potřebuje druhý textový blok s přijatým obsahem (opraveno d02ca58b). Po přijetí CLI zapíše soubor samo: karta zůstane neuložená a Uložit se ptá na konflikt. Zadáno vývojáři 31. 10. 2026: karta má převzít obsah z disku, když je stejný jako přijatý text.
+  - **Stav 31. 10. 2026:** převzetí souboru po přijetí diffu je už hotové (042b5dc4, test ve `FileFlowTests`): soubor shodný s kartou se převezme a karta je čistá. Opakovaný běh `IdeRealClaudeTests` čeká na testera.
 
 ### P6.6 Agent přes ACP
 
@@ -2509,6 +2510,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** F180 3–5 ČT (matice) za P6.6.1–P6.6.4
   - **Umístění:** vestavěný plugin
   - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** claude-agent-acp 0.98.0/0.99.0 ani codex-acp 2.3.0 nevolají `fs/read_text_file` ani `fs/write_text_file`, čtou a píšou disk samy. Čtení neuložené karty ani návrh v revizi tak u nich neprojdou. Jejich `session/request_permission` u Write/Edit nese diff. Zadáno vývojáři 31. 10. 2026: tento diff ukázat jako úseky v revizi změn a odpověď na oprávnění řídit potvrzením.
+  - **Stav 31. 10. 2026:** diff z `session/request_permission` u Write/Edit už jde do revize změn (15a868ef, `AcpDiff`, testy `permdiff` v `AcpAppTests`), povolit a zamítnout odpovídají podle volby uživatele. Běh se skutečnými adaptéry čeká na testera.
 - [ ] **P6.6.2** ACP relace a transport
   - **Co a proč:** Adaptér ACP z P3b.1.1: řádkové stdio, inicializace, `session/new`, tahy, `session/cancel` a rušení požadavků podle ACP.
   - **Funkce:** F180 (částečně: relace a transport)
@@ -2536,6 +2538,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Tabulka adaptérů s kontrolou v PATH a `--version`. Neověřeno se skutečnými agenty.
   - **Nález 28. 10. 2026 (testy se skutečnými nástroji, `Category=RealAgents`):** Codex na Windows potřebuje pro workspace-write `-c windows.sandbox=unelevated` (zadáno vývojáři 31. 10. 2026). Ani jeden adaptér nečte neuloženou kartu přes ACP, viz P6.6.1.
+  - **Stav 31. 10. 2026 (sloučeno, 0f542d40):** adaptér Codexu se na Windows spouští s `-c windows.sandbox=unelevated`.
 
 ## P7 – velká editace
 
@@ -2749,6 +2752,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.5.1, P8.4.1, P8.4.2
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin LSP
+  - **Stav 31. 10. 2026 (sloučeno):** hotovo v kódu: hover (2dc91bba), formátování přes revizi změn (9019445d), code actions a rychlé opravy přes revizi (22911d4a; akce, které jen spouštějí příkaz serveru, se nenabízejí), nápověda k parametrům jako oznámení s aktivním parametrem (780ef358; plovoucí okno ne), symboly dokumentu a projektu v osnově a `@` (290c003d), vložené nápovědy a sémantické barvy přes nové API `decorations/publish` (a5074922). Vše jen podle capabilities serveru, s převodem UTF-16 na bajty a zahozením staré revize; testy proti FakeLsp. Neověřeno: vzhled v aplikaci, skutečné servery (P8.5.7); nápovědy a barvy se načítají příkazem, po úpravě se jen posouvají.
 - [ ] **P8.5.7** Ověření se skutečnými jazykovými servery
   - **Co a proč:** Všechny testy LSP běží jen proti FakeLsp; skutečné servery katalogu nikdo neověřil. Audit 27. 10. 2026 doporučil pilot: Roslyn LSP a csharp-ls (C#), rust-analyzer (Rust), Dart Analysis Server, clangd (C/C++ s `compile_commands.json`), bash-language-server se ShellCheckem a pro PHP porovnání DEVSENSE, Intelephense a PHPantom. Test RealTools našel, že Roslyn posílá telemetrii i s `--telemetryLevel off` (otevřené, porušuje PR.6.4).
   - **Funkce:** F157, F213
