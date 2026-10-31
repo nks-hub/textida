@@ -12,13 +12,20 @@ public sealed record EncodingGuess(TextCodec Codec, double Confidence, string Re
 
 /// <summary>
 /// Order: BOM, UTF-32 and UTF-16 without BOM (byte pattern), ASCII, strict UTF-8, then a statistical choice
-/// among the 8-bit pages. The statistics are letter sets per language (own tables), not frequencies from any other program.
+/// among the 8-bit pages. The statistics are letter sets per language (own tables), not frequencies from any other program; for the Cyrillic pages, which decode the same bytes to letters of
+/// every case, the lowercase letters are weighed by how common they are in Russian, because text is mostly lowercase and only the right page turns it into lowercase.
+/// Greek and Turkish text decodes to the same letters in the Windows and the ISO page, so there the result is uncertain and offers both.
 /// </summary>
 public static class EncodingGuesser
 {
     public const double UncertainBelow = 0.8;
 
-    private static readonly TextCodec[] EightBit = [TextCodec.Cp1250, TextCodec.Cp1252, TextCodec.Latin2, TextCodec.Kamenicky];
+    private static readonly TextCodec[] EightBit =
+    [
+        TextCodec.Cp1250, TextCodec.Cp1252, TextCodec.Latin2, TextCodec.Kamenicky,
+        TextCodec.ByName("Windows-1251")!, TextCodec.ByName("KOI8-R")!, TextCodec.ByName("DOS CP866")!,
+        TextCodec.ByName("Windows-1253")!, TextCodec.ByName("ISO-8859-7")!, TextCodec.ByName("Windows-1254")!, TextCodec.ByName("ISO-8859-9")!,
+    ];
 
     private static readonly char[][] Tables = EightBit.Select(c =>
     {
@@ -40,7 +47,28 @@ public static class EncodingGuesser
         "áâãàçéêíóôõú",          // Portuguese
         "åæøäöéü",               // Danish, Norwegian, Swedish
         "äöåšž",                 // Finnish, Estonian
+        "çğışöü",                // Turkish
     ];
+
+    /// <summary>The lowercase Cyrillic letters by how common they are in Russian text (and the few of Ukrainian), most common first.</summary>
+    private const string CyrillicByFrequency = "оеаинтсрвлкмдпуяыьгзбчйхжшюцщэфъёіїє";
+
+    /// <summary>The lowercase Greek letters by how common they are in Greek text, most common first (accented vowels and the final sigma count with their plain letters).</summary>
+    private const string GreekByFrequency = "αοτιενρσςκηυμπλωδγχθφβξζψάέήίόύώ";
+
+    private static double GreekWeight(char c)
+    {
+        if (char.IsUpper(c)) return 0.15;
+        int rank = GreekByFrequency.IndexOf(c);
+        return rank < 0 ? 0.2 : rank < 9 ? 1.0 : rank < 17 ? 0.8 : rank < 25 ? 0.4 : 0.7;
+    }
+
+    private static double CyrillicWeight(char c)
+    {
+        if (char.IsUpper(c)) return 0.15; // capitals are rare inside text, so a page that makes capitals of most bytes is the wrong page
+        int rank = CyrillicByFrequency.IndexOf(c);
+        return rank < 0 ? 0.2 : rank < 10 ? 1.0 : rank < 20 ? 0.8 : rank < 28 ? 0.5 : 0.2;
+    }
 
     private const string PlainPunctuation = " «»„“”‘’–—•…°§©®×÷€±¼½¾²³µ¶·";
 
@@ -125,19 +153,29 @@ public static class EncodingGuesser
     private static double Score(char[] table, List<byte> high)
     {
         if (high.Count == 0) return 0;
-        var perLang = new int[Languages.Length];
-        double penalty = 0;
+        var perLang = new double[Languages.Length];
+        double penalty = 0, cyrillic = 0, greek = 0;
         foreach (byte b in high)
         {
             char c = table[b];
             if (char.IsControl(c)) { penalty += 1; continue; }
-            if (char.IsLetter(c))
+            if (char.IsLetter(c) && c is >= '\u0400' and <= '\u04FF')
+            {
+                cyrillic += CyrillicWeight(c);
+                for (int l = 0; l < Languages.Length; l++) perLang[l] -= 1;
+            }
+            else if (char.IsLetter(c) && c is >= '\u0370' and <= '\u03FF')
+            {
+                greek += GreekWeight(c);
+                for (int l = 0; l < Languages.Length; l++) perLang[l] -= 1;
+            }
+            else if (char.IsLetter(c))
             {
                 char lower = char.ToLowerInvariant(c);
                 for (int l = 0; l < Languages.Length; l++) perLang[l] += Languages[l].Contains(lower) ? 1 : -1; // a foreign letter counts against the language
             }
             else if (!PlainPunctuation.Contains(c)) penalty += 0.5;
         }
-        return Math.Max(0, (perLang.Max() - penalty) / high.Count);
+        return Math.Max(0, (Math.Max(perLang.Max(), Math.Max(cyrillic, greek)) - penalty) / high.Count);
     }
 }
