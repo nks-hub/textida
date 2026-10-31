@@ -92,6 +92,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Závisí na:** PR.2.1
   - **Odhad:** bez odhadu; účtuje se v P3 (P3.7.3) a P10 (P10.1.1)
   - **Nález 31. 10. 2026 (měření referenčního stroje):** na referenční Windows VM nejde bránu 33 ms posoudit. Pět střídavých běhů starého (4361560b) a nového main (41bee928), p95 medián (min–max): psaní 54,7 (45,9–57,3) proti 43,9 (40,2–44,4) ms, minimapa 10k řádků 81,8 (77,6–98,8) proti 97,5 (79,9–115,8) ms, minimapa 100k 88,0 proti 88,3 ms. Rozptyl uvnitř jednoho buildu 15–25 %, tentýž kód během dne 35 → 57 ms. Regrese prokázaná není. Úkol: stabilizovat referenční stroj (vyhrazená jádra a vypnutá úspora energie hostitele, nebo měření na fyzickém stroji či na Macu) a teprve pak brány hodnotit; `WordCompletion` p95 34 ms proti limitu 33 ms je v tomto šumu.
+  - **Měření 31. 10. 2026 na Macu (Apple Silicon, main 2bf10da, headless, 5 běhů, p95 medián):** psaní 38,6 ms (brána 33 ms splněna 1 z 5), minimapa 10k 40,2 ms (1 z 5), minimapa 100k 56,0 ms (0 z 5, trvale 1,7× nad), WordCompletion 5/5. Mac je stabilní (rozptyl 5–10 %), takže jde o skutečnou rychlost kódu. Zadáno: najít commit, od kterého psaní zpomalilo (28. 10. bylo na Macu p95 28 ms), a zrychlit minimapu 100k řádků.
 - [ ] **PR.2.3** Latence psaní a posunu na skutečném displeji
   - **Co a proč:** Měření v P0 bylo headless a neobsahuje prezentaci na displeji. Cíl p95 ≤ 33 ms, p99 ≤ 80 ms platí od vstupu po prezentaci. Počet přečtených bajtů není čas vykreslení.
   - **Funkce:** žádná (infrastruktura)
