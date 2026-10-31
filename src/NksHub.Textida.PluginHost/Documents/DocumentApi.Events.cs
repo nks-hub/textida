@@ -51,6 +51,7 @@ public sealed partial class DocumentApi
     {
         MarkSymbolsOutdated(e.Doc, change.Revision);
         MoveDiagnostics(e.Doc, change.Revision);
+        MoveDecorations(e.Doc, change.Revision);
         MarkPreviewsOutdated(e.Doc, change.Revision);
         string[] subscribers;
         lock (_gate) subscribers = [.. e.Subscribers];

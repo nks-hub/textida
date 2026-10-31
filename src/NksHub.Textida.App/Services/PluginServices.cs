@@ -257,7 +257,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
              "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
              "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
@@ -384,7 +384,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         MainWindow.LspProgram? program = declared is null && command != "lsp.stop" ? await window.LocateLspProgramAsync(tab, language) : null;
         if (program is { Declined: true }) return false;
         var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
-            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0}"
+            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0},\"indent\":\"{JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\""
+            + (surface.ByteSelections()?.PrimarySelection is { } selection ? $",\"selectionStart\":{selection.Start},\"selectionEnd\":{selection.End}" : "")
             + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language))
             + (program is null ? "" : $",\"lspProgram\":{{\"name\":\"{JsonEncodedText.Encode(program.Name)}\",\"path\":\"{JsonEncodedText.Encode(program.Path)}\"}}"), keep: true, keepOpen: true);
         if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"
@@ -866,7 +867,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// both to the same bytes. <paramref name="reveal"/> opens the outline. False when the language has no symbols or nothing was started.
     /// </summary>
     public Task<bool> IndexSymbolsAsync(MainWindow window, DocTab tab, bool reveal) =>
-        SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+        SymbolSourceOf(tab) == LspPluginId ? RunLspAsync(window, tab, "lsp.documentSymbols")
+        : SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+
+    /// <summary>The plugin whose symbols the outline and <c>@</c> use for the tab: the language server when it has published the symbols of the document (Language Server: Outline), else the plugin for the language mode.</summary>
+    internal string? SymbolSourceOf(DocTab tab) =>
+        Documents.SymbolsOf(LspPluginId, tab.Doc.Doc.Id, out _).Count > 0 ? LspPluginId : SymbolPlugin(tab.Doc.Language.Id);
 
     private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
     {
@@ -998,14 +1004,14 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>The symbols published for the tab, and whether they are those of the revision the tab has now.</summary>
     internal IReadOnlyList<SymbolInfo> TabSymbols(DocTab tab, out bool current)
     {
-        if (SymbolPlugin(tab.Doc.Language.Id) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
+        if (SymbolSourceOf(tab) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
         current = false;
         return [];
     }
 
     /// <summary>Jumps to a published symbol exactly as a click in the outline does. False when the symbol is gone or the text it stood on was changed.</summary>
     public bool RevealTabSymbol(DocTab tab, string symbolId) =>
-        SymbolPlugin(tab.Doc.Language.Id) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
+        SymbolSourceOf(tab) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
 
     /// <summary>
     /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the
@@ -1300,6 +1306,22 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             if (backend.TryToCharOffset(d.Range.Start, out int start) && backend.TryToCharOffset(d.Range.End, out int end))
                 marks.Add(new DiagnosticMark(start, end, d.Severity, d.Message));
         surface.SetDiagnostics(marks);
+    });
+
+    /// <summary>Draws the decorations of a document again: inlay hints between characters and semantic token colours, at the text offsets of the tab.</summary>
+    public void DecorationsChanged(Guid document) => OnUi(() =>
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var hints = new List<(int, string)>();
+        var tokens = new List<(int, int, string)>();
+        foreach (var d in Documents.DecorationsOf(document))
+        {
+            if (!backend.TryToCharOffset(d.Range.Start, out int start) || !backend.TryToCharOffset(d.Range.End, out int end)) continue;
+            if (d.Kind == DecorationKinds.Inlay) hints.Add((start, d.Text));
+            else tokens.Add((start, end, d.Text));
+        }
+        surface.SetInlayHints(hints);
+        surface.SetSemanticTokens(tokens);
     });
 
     /// <summary>Publishes what the editor found itself (a linter run) for a tab through the store plugins publish to; the document is exposed and stays so, as for an outline. Call on the UI thread.</summary>

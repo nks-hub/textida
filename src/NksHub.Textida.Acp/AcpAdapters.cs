@@ -48,10 +48,11 @@ public sealed record AcpAdapter(string Id, string Name, string Command, IReadOnl
 /// </summary>
 public static class AcpAdapters
 {
+    /// <summary>On Windows <c>codex-acp</c> needs <c>-c windows.sandbox=unelevated</c> to run its workspace-write sandbox without administrator rights.</summary>
     public static IReadOnlyList<AcpAdapter> All { get; } =
     [
         new("gemini", "Gemini CLI", "gemini", ["--acp"], "0.66.0", "https://github.com/google-gemini/gemini-cli"),
-        new("codex", "Codex", "codex-acp", [], "2.3.0", "https://github.com/agentclientprotocol/codex-acp"),
+        new("codex", "Codex", "codex-acp", OperatingSystem.IsWindows() ? ["-c", "windows.sandbox=unelevated"] : [], "2.3.0", "https://github.com/agentclientprotocol/codex-acp"),
         new("claude", "Claude", "claude-agent-acp", [], "0.98.0", "https://github.com/agentclientprotocol/claude-agent-acp"),
         new("junie", "Junie", "junie", ["--acp=true"], "3893.5.0", "https://github.com/JetBrains/junie-acp-release"),
         new("copilot", "GitHub Copilot", "copilot", ["--acp"], "1.0.104", "https://github.com/github/copilot-cli"),

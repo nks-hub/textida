@@ -242,6 +242,9 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder: keys of one file published as symbols (outline, Go to Anything).</summary>
     public const int SymbolsPerDocument = 5000;
 
+    /// <summary>Placeholder, OPEN: most inlay hints, and most semantic tokens, one plugin may publish for one document. The owner has not decided it.</summary>
+    public const int DecorationsPerDocument = 20000;
+
     /// <summary>Placeholder: longest symbol id, name or kind, in UTF-16 units.</summary>
     public const int SymbolTextLength = 400;
 
@@ -697,6 +700,7 @@ internal static partial class PluginLimitsPlaceholders
         MaxCompletionEdits = CompletionEditsPerItem,
         CompletionTimeout = TimeSpan.FromMilliseconds(CompletionTimeoutMilliseconds),
         MaxHoverChars = HoverMaxChars,
+        MaxDecorationsPerDocument = DecorationsPerDocument,
         Tools = tools,
         MaxReadBytes = DocumentReadMaxBytes,
         MaxFindMatches = DocumentFindMaxMatches,

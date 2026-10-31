@@ -9,6 +9,7 @@
 // completion of a prefix of "Console" offers it with an additional edit that inserts "using System;" at the top (a text containing SLOW answers a second late);
 // rename of a word changes its whole-word occurrences in every open document (documentChanges with the version the server holds); with --fileops it also creates
 // created.fake, deletes doomed.fake, renames moveme.fake to moved.fake (all next to the first open document) and edits the external file on disk.
+// With the features: hover of a word answers "WORD (n chars)" as markdown with the range of the word (a text containing SLOW answers a second late).
 // --load-ms N: like Roslyn, it knows the document of a request only until it is told to open a solution or projects (solution/open, project/open, noted in the process file); it says it loaded them with workspace/projectInitializationComplete N ms later,
 // and renames in the document of the request only until then.
 using System.Text;
@@ -16,6 +17,9 @@ using System.Text.Json;
 
 bool full = args.Contains("--full");
 bool fileOps = args.Contains("--fileops");
+// --features LIST announces more capabilities, comma separated: hover, signature, codeaction, symbols, formatting, inlay, semantic. Without it the server announces only what it always did.
+var features = (args.SkipWhile(a => a != "--features").Skip(1).FirstOrDefault() ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries);
+bool Feature(string name) => features.Contains(name);
 string? dump = args.SkipWhile(a => a != "--dump").Skip(1).FirstOrDefault();
 string? external = args.SkipWhile(a => a != "--external").Skip(1).FirstOrDefault();
 string? configSections = args.SkipWhile(a => a != "--config").Skip(1).FirstOrDefault();
@@ -202,6 +206,167 @@ string Completion(JsonElement p)
         + ",\"newText\":\"Console\"},\"additionalTextEdits\":[{\"range\":" + Range(text, 0, 0) + ",\"newText\":\"using System;\\n\"}]}]}";
 }
 
+string? Hover(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    if (text.Contains("SLOW")) Thread.Sleep(1000);
+    int caret = Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32());
+    int s = caret, e = caret;
+    while (s > 0 && IsWord(text[s - 1])) s--;
+    while (e < text.Length && IsWord(text[e])) e++;
+    if (e == s) return null;
+    return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
+}
+
+// symbols: "class NAME" (kind 5) with the indented "def NAME" lines under it as children, and "def NAME" at the start of a line (kind 12), as DocumentSymbol with the selection range on the name;
+// workspace/symbol lists every such name that contains the query (without regard to case) in the open documents as SymbolInformation
+List<(int Line, string Keyword, string Name, int Indent, int NameStart, int LineStart, int LineEnd)> SymbolLines(string text)
+{
+    var found = new List<(int, string, string, int, int, int, int)>();
+    int line = 0;
+    for (int at = 0; at <= text.Length; line++)
+    {
+        int end = at;
+        while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
+        int indent = 0;
+        while (at + indent < end && text[at + indent] == ' ') indent++;
+        foreach (var keyword in new[] { "class ", "def " })
+            if (string.CompareOrdinal(text, at + indent, keyword, 0, keyword.Length) == 0)
+            {
+                int nameStart = at + indent + keyword.Length, nameEnd = nameStart;
+                while (nameEnd < end && IsWord(text[nameEnd])) nameEnd++;
+                if (nameEnd > nameStart) found.Add((line, keyword.Trim(), text[nameStart..nameEnd], indent, nameStart, at, end));
+            }
+        if (end >= text.Length) break;
+        at = text[end] == '\r' && end + 1 < text.Length && text[end + 1] == '\n' ? end + 2 : end + 1;
+    }
+    return found;
+}
+
+string DocumentSymbols(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var lines = SymbolLines(text);
+    var top = new List<string>();
+    for (int i = 0; i < lines.Count; i++)
+    {
+        var (_, keyword, name, indent, nameStart, lineStart, lineEnd) = lines[i];
+        if (indent > 0) continue;
+        var children = new List<string>();
+        if (keyword == "class")
+            for (int j = i + 1; j < lines.Count && lines[j].Indent > 0; j++)
+                children.Add($"{{\"name\":{Quote(lines[j].Name)},\"kind\":6,\"range\":{Range(text, lines[j].LineStart, lines[j].LineEnd)},\"selectionRange\":{Range(text, lines[j].NameStart, lines[j].NameStart + lines[j].Name.Length)}}}");
+        top.Add($"{{\"name\":{Quote(name)},\"kind\":{(keyword == "class" ? 5 : 12)},\"range\":{Range(text, lineStart, lineEnd)},\"selectionRange\":{Range(text, nameStart, nameStart + name.Length)},\"children\":[{string.Join(',', children)}]}}");
+    }
+    return "[" + string.Join(',', top) + "]";
+}
+
+string WorkspaceSymbols(JsonElement p)
+{
+    var query = p.GetProperty("query").GetString()!;
+    var found = new List<string>();
+    foreach (var (uri, text) in texts)
+        foreach (var s in SymbolLines(text))
+            if (s.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                found.Add($"{{\"name\":{Quote(s.Name)},\"kind\":{(s.Keyword == "class" ? 5 : 12)},\"location\":{Location(uri, text, s.NameStart, s.NameStart + s.Name.Length)}}}");
+    return "[" + string.Join(',', found) + "]";
+}
+
+// inlay hints: "a:" right after the ( of every NAME( call; the second hint of a text containing PARTS is a label in two parts
+string InlayHints(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var hints = new List<string>();
+    for (int at = text.IndexOf('('); at >= 0; at = text.IndexOf('(', at + 1))
+    {
+        if (at == 0 || !IsWord(text[at - 1])) continue;
+        var (line, character) = Position(text, at + 1);
+        string label = text.Contains("PARTS") ? "[{\"value\":\"a\"},{\"value\":\":\"}]" : "\"a:\"";
+        hints.Add($"{{\"position\":{{\"line\":{line},\"character\":{character}}},\"label\":{label},\"kind\":2}}");
+    }
+    return "[" + string.Join(',', hints) + "]";
+}
+
+// semantic tokens: the keyword (def, class) is type 2, the name after "class" type 1 and after "def" type 0, in the relative encoding of the protocol
+string SemanticTokens(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var tokens = new List<(int Offset, int Length, int Type)>();
+    foreach (var s in SymbolLines(text))
+    {
+        tokens.Add((s.LineStart + s.Indent, s.Keyword.Length, 2));
+        tokens.Add((s.NameStart, s.Name.Length, s.Keyword == "class" ? 1 : 0));
+    }
+    var data = new List<int>();
+    int previousLine = 0, previousCharacter = 0;
+    foreach (var (offset, length, type) in tokens.OrderBy(t => t.Offset))
+    {
+        var (line, character) = Position(text, offset);
+        data.AddRange([line - previousLine, line == previousLine ? character - previousCharacter : character, length, type, 0]);
+        (previousLine, previousCharacter) = (line, character);
+    }
+    return "{\"data\":[" + string.Join(',', data) + "]}";
+}
+
+// signature help: inside the arguments of NAME( ... ) it answers "NAME(a: int, b: string)" with the parameter the caret is in (the number of commas before it)
+string? SignatureHelp(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    int caret = Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32());
+    int depth = 0, commas = 0, open = -1;
+    for (int i = caret - 1; i >= 0 && open < 0; i--)
+    {
+        if (text[i] == ')') depth++;
+        else if (text[i] == '(' && depth > 0) depth--;
+        else if (text[i] == '(') open = i;
+        else if (text[i] == ',' && depth == 0) commas++;
+    }
+    if (open < 0) return null;
+    int s = open;
+    while (s > 0 && IsWord(text[s - 1])) s--;
+    if (s == open) return null;
+    return "{\"signatures\":[{\"label\":" + Quote($"{text[s..open]}(a: int, b: string)") + ",\"documentation\":" + Quote($"Calls {text[s..open]}.") + ",\"parameters\":[{\"label\":\"a: int\"},{\"label\":\"b: string\"}]}],\"activeSignature\":0,\"activeParameter\":" + commas + "}";
+}
+
+// code actions: "Remove ERROR" (a quick fix with the edit, preferred) for every diagnostic the client sent in the context, "Run it" that only has a command, and a disabled one; the two last must not be offered
+string CodeActions(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var actions = new List<string>
+    {
+        "{\"title\":\"Run it\",\"kind\":\"refactor\",\"command\":{\"title\":\"Run it\",\"command\":\"fake.run\"}}",
+        "{\"title\":\"Not here\",\"kind\":\"refactor\",\"disabled\":{\"reason\":\"no\"},\"edit\":{\"changes\":{}}}",
+    };
+    foreach (var diagnostic in p.GetProperty("context").GetProperty("diagnostics").EnumerateArray())
+        actions.Insert(0, $"{{\"title\":\"Remove ERROR\",\"kind\":\"quickfix\",\"isPreferred\":true,\"diagnostics\":[{diagnostic.GetRawText()}],\"edit\":{{\"documentChanges\":[{{\"textDocument\":{{\"uri\":{Quote(uri)},\"version\":{versions[uri]}}},\"edits\":[{{\"range\":{diagnostic.GetProperty("range").GetRawText()},\"newText\":\"\"}}]}}]}}}}");
+    return "[" + string.Join(',', actions) + "]";
+}
+
+// formatting removes the spaces and tabs at the end of every line, reported against the version the server holds
+string Formatting(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var edits = new List<string>();
+    for (int at = 0; at < text.Length;)
+    {
+        int end = at;
+        while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
+        int keep = end;
+        while (keep > at && (text[keep - 1] == ' ' || text[keep - 1] == '\t')) keep--;
+        if (keep < end) edits.Add($"{{\"range\":{Range(text, keep, end)},\"newText\":\"\"}}");
+        at = end < text.Length && text[end] == '\r' && end + 1 < text.Length && text[end + 1] == '\n' ? end + 2 : end + 1;
+    }
+    return "[" + string.Join(',', edits) + "]";
+}
+
 string? Rename(JsonElement p)
 {
     var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
@@ -239,6 +404,19 @@ string? Rename(JsonElement p)
     return $"{{\"documentChanges\":[{string.Join(',', changes)}]}}";
 }
 
+string ExtraCapabilities()
+{
+    var caps = new List<string>();
+    if (Feature("hover")) caps.Add("\"hoverProvider\":true");
+    if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
+    if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
+    if (Feature("inlay")) caps.Add("\"inlayHintProvider\":true");
+    if (Feature("semantic")) caps.Add("\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"function\",\"class\",\"keyword\"],\"tokenModifiers\":[]},\"full\":true}");
+    if (Feature("symbols")) caps.Add("\"documentSymbolProvider\":true,\"workspaceSymbolProvider\":true");
+    if (Feature("signature")) caps.Add("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}");
+    return caps.Count == 0 ? "" : "," + string.Join(',', caps);
+}
+
 // ---- the loop ----
 
 while (ReadMessage() is { } body)
@@ -262,7 +440,7 @@ while (ReadMessage() is { } body)
             Note("root=" + (p.TryGetProperty("rootUri", out var rootUri) ? rootUri.GetString() : ""));
             Note("cwd=" + Environment.CurrentDirectory);
             Note("configuration=" + (p.TryGetProperty("capabilities", out var caps) && caps.TryGetProperty("workspace", out var ws) && ws.TryGetProperty("configuration", out var cfg) && cfg.ValueKind == JsonValueKind.True ? "yes" : "no"));
-            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
+            Send(Reply($"{{\"capabilities\":{{\"textDocumentSync\":{{\"openClose\":true,\"change\":{(full ? 1 : 2)}}},\"definitionProvider\":true,\"referencesProvider\":true,\"completionProvider\":{{}},\"renameProvider\":true{ExtraCapabilities()}}},\"serverInfo\":{{\"name\":\"fake\"}}}}"));
             break;
         case "initialized":
             if (configSections is not null)
@@ -339,6 +517,30 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/inlayHint":
+            Send(Reply(InlayHints(p)));
+            break;
+        case "textDocument/semanticTokens/full":
+            Send(Reply(SemanticTokens(p)));
+            break;
+        case "textDocument/documentSymbol":
+            Send(Reply(DocumentSymbols(p)));
+            break;
+        case "workspace/symbol":
+            Send(Reply(WorkspaceSymbols(p)));
+            break;
+        case "textDocument/signatureHelp":
+            Send(Reply(SignatureHelp(p) ?? "null"));
+            break;
+        case "textDocument/codeAction":
+            Send(Reply(CodeActions(p)));
+            break;
+        case "textDocument/formatting":
+            Send(Reply(Formatting(p)));
+            break;
+        case "textDocument/hover":
+            Send(Reply(Hover(p) ?? "null"));
             break;
         default:
             if (isRequest) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32601,\"message\":\"unknown\"}}}}");

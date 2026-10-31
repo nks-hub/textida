@@ -2235,6 +2235,62 @@
       "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
+      "id": "nks.lsp.format",
+      "title": "cmd.lsp.format",
+      "category": "cat.tools",
+      "icon": "pencil",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
+      "id": "nks.lsp.codeActions",
+      "title": "cmd.lsp.codeActions",
+      "category": "cat.tools",
+      "icon": "play",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode && !readOnly"
+    },
+    {
+      "id": "nks.lsp.signatureHelp",
+      "title": "cmd.lsp.signatureHelp",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.documentSymbols",
+      "title": "cmd.lsp.documentSymbols",
+      "category": "cat.tools",
+      "icon": "goto",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.workspaceSymbols",
+      "title": "cmd.lsp.workspaceSymbols",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.inlayHints",
+      "title": "cmd.lsp.inlayHints",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.semanticTokens",
+      "title": "cmd.lsp.semanticTokens",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -5121,6 +5177,55 @@
       "group": "1_text/04",
       "submenu": "code/lsp",
       "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.format",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 101
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.codeActions",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 102
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.signatureHelp",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 103
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.documentSymbols",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 104
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.workspaceSymbols",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 105
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.inlayHints",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 106
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.semanticTokens",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 107
     },
     {
       "menu": "tools",
