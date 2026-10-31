@@ -135,7 +135,7 @@ internal sealed class SyntaxFeeder : IDisposable
         // a jump to lines that share nothing with the last request is colored at once when it comes after a quiet time, and a jump that follows another one closely
         // (dragging the minimap makes dozens of them a second) once the jumps have stopped: each would run a slice of the grammar from the nearest checkpoint on the UI thread,
         // and the lines in between are on screen for one frame
-        if (DefersJumps && before.First >= 0 && _session is not null && (_wanted.First >= before.First + before.Count || _wanted.First + _wanted.Count <= before.First))
+        if (DefersJumps && before.First >= 0 && _session is not null && (DefersMoves || _wanted.First >= before.First + before.Count || _wanted.First + _wanted.Count <= before.First))
         {
             long now = Stopwatch.GetTimestamp();
             bool close = _lastJump != 0 && Stopwatch.GetElapsedTime(_lastJump, now) < TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds);
@@ -158,6 +158,9 @@ internal sealed class SyntaxFeeder : IDisposable
 
     /// <summary>A request for lines that share nothing with the last one, and comes within <see cref="PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds"/> of a jump before it, waits until the jumps stop; set by the view of a large file, where a jump starts a walk from a checkpoint.</summary>
     public bool DefersJumps { get; set; }
+
+    /// <summary>With <see cref="DefersJumps"/>, every request that leaves the last window waits like a jump, not only one that shares nothing with it; set by the minimap, whose window moves by dozens of lines per frame of a drag.</summary>
+    public bool DefersMoves { get; set; }
 
     private DispatcherTimer NewJumpTimer()
     {

@@ -53,6 +53,11 @@ internal interface IMinimapHost
     /// <summary>Up to <paramref name="rows"/> lines (see <see cref="LineText"/>) from the line that holds the byte <paramref name="offset"/>; empty when that line cannot be found.</summary>
     string?[] SampleStrip(long offset, int rows) => [];
 
+    /// <summary>The minimap starts or ends a drag: a surface may postpone the work that only the last position of the drag needs (the colors) until it ends.</summary>
+    void DragChanged(bool dragging)
+    {
+    }
+
     /// <summary>Scrolls so that the line holding the byte <paramref name="offset"/> is the first on screen. The caret does not move.</summary>
     void ScrollToOffset(long offset)
     {
@@ -258,6 +263,9 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private BuildKey _backKey;
     private WriteableBitmap? _back;
     private int _nextRow;
+    private bool _fresh;
+    /// <summary>Rows of the picture being built that are copied from the shown one (<c>_shiftDelta</c> rows further down there), not painted.</summary>
+    private int _keepFrom, _keepTo, _shiftDelta;
     private bool _queued;
     private bool _attached;
     private bool _disposed;
@@ -476,7 +484,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (_feeder is null)
         {
             if (LanguageModes.GrammarId(_doc) is null) return;
-            _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle);
+            _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle) { DefersJumps = true, DefersMoves = true };
         }
         if (_feeder.Active && layout.Rows > 0) _feeder.SetVisible(layout.Top, layout.Top + layout.Rows - 1, 0, columns);
     }
@@ -516,7 +524,10 @@ internal sealed unsafe class Minimap : Control, IDisposable
             layout = MinimapGeometry.ComputeSampled(bytes, Math.Max(0, start), Math.Max(0, end), height, rowPx);
         }
         else layout = MinimapGeometry.Compute(lines, first, count, height, rowPx, _anchor);
-        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, layout.Sampled ? bytes : 0), layout, rowPx);
+        // an edit changes the length of the file at every key: the shown sampled picture stays (and is the scale of a drag) until the text timer bumps the version, so typing does not rebuild it
+        long keyBytes = !layout.Sampled ? 0
+            : _shown is not null && _shownKey.Version == _version && _shownKey.Bytes > 0 && Math.Abs(bytes - _shownKey.Bytes) <= Math.Max(1, _shownKey.Bytes / 100) ? _shownKey.Bytes : bytes;
+        return (new BuildKey(layout.Top, layout.Rows, width, height, rowPx, Dark, _version, keyBytes), layout, rowPx);
     }
 
     private void Pump()
@@ -538,6 +549,15 @@ internal sealed unsafe class Minimap : Control, IDisposable
         {
             _backKey = key;
             _nextRow = 0;
+            _fresh = true;
+            (_keepFrom, _keepTo) = (0, 0);
+            // a drag only moves the first line: the rows both pictures have are copied from the shown one, shifted, and only the new rows are read and painted
+            if (_shown is not null && key.Bytes == 0 && _shownKey.Bytes == 0 && key with { Top = 0, Rows = 0 } == _shownKey with { Top = 0, Rows = 0 })
+            {
+                long delta = key.Top - _shownKey.Top;
+                long lo = Math.Max(0, -delta), hi = Math.Min(key.Rows, _shownKey.Rows - delta);
+                if (hi > lo) (_keepFrom, _keepTo, _shiftDelta) = ((int)lo, (int)hi, (int)delta);
+            }
             BuildsStarted++;
             var size = new PixelSize(key.Width, key.Height);
             if (_back is null || _back.PixelSize != size)
@@ -553,16 +573,25 @@ internal sealed unsafe class Minimap : Control, IDisposable
         {
             uint* pixels = (uint*)buffer.Address.ToPointer();
             int stride = buffer.RowBytes / 4;
-            if (_nextRow == 0)
+            if (_fresh)
             {
+                _fresh = false;
                 for (int y = 0; y < key.Height; y++) new Span<uint>(pixels + (long)y * stride, key.Width).Clear();
                 _stripIndex = -1;
+                if (_keepTo > _keepFrom && _shown is not null)
+                {
+                    using var old = _shown.Lock();
+                    uint* source = (uint*)old.Address.ToPointer();
+                    int oldStride = old.RowBytes / 4, from = _keepFrom * key.RowPx, to = Math.Min(key.Height, _keepTo * key.RowPx);
+                    for (int y = from; y < to; y++) new ReadOnlySpan<uint>(source + (long)(y + _shiftDelta * key.RowPx) * oldStride, key.Width).CopyTo(new Span<uint>(pixels + (long)y * stride, key.Width));
+                }
             }
             int columns = key.Width - LaneWidth(key.Width) - TextPad;
             int stripRows = PluginLimitsPlaceholders.MinimapSampleStripRows;
             var sampler = wanted.Layout.Sampled ? Sampler() : null;
             while (_nextRow < key.Rows)
             {
+                if (_nextRow == _keepFrom && _keepTo > _keepFrom) { _nextRow = _keepTo; continue; }
                 string? text;
                 Token[]? tokens;
                 if (wanted.Layout.Sampled)
@@ -830,6 +859,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
             _drag = new DragState(layout, lines, count, wanted.RowPx, 0, first, y, _anchor);
         }
         e.Pointer.Capture(this);
+        _host.DragChanged(true);
         e.Handled = true;
     }
 
@@ -848,6 +878,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         base.OnPointerReleased(e);
         if (_drag is null) return;
         _drag = null;
+        _host.DragChanged(false);
         e.Pointer.Capture(null);
         e.Handled = true;
     }
@@ -855,6 +886,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
         base.OnPointerCaptureLost(e);
+        if (_drag is not null) _host.DragChanged(false);
         _drag = null;
     }
 
