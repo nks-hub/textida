@@ -2439,6 +2439,14 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** F247 0,5–1 ČT (matice)
   - **Umístění:** jádro (hex, kap. 5.5)
 
+- [ ] **P6.3.4** MCP server se skutečnými klienty
+  - **Co a proč:** Majitel 31. 10. 2026: MCP není otestované a doladěné se skutečnými agenty. MCP server editoru (`textida-mcp`) je ověřený jen MCP Inspectorem 2.12.0 a testovacími klienty; ani Claude Code, ani Codex se k němu jako klient v testu nepřipojily. MCP klient (P6.4.3) je ověřený proti oficiálnímu `server-everything`.
+  - **Funkce:** F170
+  - **Hotovo, když:** test `Category=RealAgents` zaregistruje `textida-mcp` v Claude Code (`--mcp-config`) i v Codexu (`config.toml`) nad editorem běžícím headless v testu; agent vypíše zpřístupněné karty, přečte neuloženou kartu a připraví změnu, která se ukáže v revizi a bez potvrzení se nezapíše; nezpřístupněnou kartu nevidí; hodnota `.env` přijde maskovaná; odvolání přístupu za běhu zastaví další čtení; zapsané jsou verze CLI a co který agent z nástrojů skutečně volá; nalezené chyby jsou opravené.
+  - **Závisí na:** P6.3.1, P6.3.2
+  - **Odhad:** bez odhadu
+  - **Umístění:** testy, MCP server
+
 ### P6.4 Editor jako MCP klient
 
 - [x] **P6.4.3** MCP klient
@@ -3519,14 +3527,14 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 26 | 24–37 (neúplné) |
-| P6 | 6 | 21 | 21,5–38 |
+| P6 | 6 | 22 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
 | P8 | 10 | 32 | 38–64,5 |
 | P8b | 3 | 10 | 12,5–20 |
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **345** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **346** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
