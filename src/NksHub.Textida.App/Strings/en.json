@@ -1956,7 +1956,7 @@
   "packages.noConsent": "Lookups at {registry} are not possible: they are not allowed.",
   "packages.tooLarge": "The manifest is too large to check",
   "packages.busy": "The document is in use by another command. Try again.",
-  "packages.revoked": "Package registry lookups and schema downloads are forbidden. Cached answers are dropped and downloaded schemas are not used.",
+  "packages.revoked": "Package registry lookups, schema downloads and the network of language servers are forbidden. Cached answers are dropped and downloaded schemas are not used.",
   "packages.script.watermark": "Run a package script",
   "a11y.packages.scripts": "Package scripts",
   "packages.script.notManifest": "The open file is not a package.json or composer.json",

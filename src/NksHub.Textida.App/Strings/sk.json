@@ -2001,7 +2001,7 @@
   "packages.noConsent": "Dotazy na {registry} nie sú možné: nie sú povolené.",
   "packages.tooLarge": "Manifest je príliš veľký na kontrolu",
   "packages.busy": "Dokument práve používa iný príkaz. Skúste to znova.",
-  "packages.revoked": "Dotazy na registre balíkov a sťahovanie schém sú zakázané. Odpovede z cache sú zahodené a stiahnuté schémy sa nepoužívajú.",
+  "packages.revoked": "Dotazy na registre balíkov, sťahovanie schém a sieť jazykových serverov sú zakázané. Odpovede z cache sú zahodené a stiahnuté schémy sa nepoužívajú.",
   "packages.script.watermark": "Spustiť skript balíka",
   "a11y.packages.scripts": "Skripty balíka",
   "packages.script.notManifest": "Otvorený súbor nie je package.json ani composer.json",

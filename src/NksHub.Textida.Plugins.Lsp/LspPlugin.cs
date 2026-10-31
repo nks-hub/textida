@@ -8,6 +8,7 @@ using NksHub.Textida.PluginHost;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Ui;
 using NksHub.Textida.PluginSdk;
+using NksHub.Textida.Remote;
 using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Plugins.Lsp;
@@ -476,6 +477,7 @@ public sealed class LspPlugin : PluginBase
                 await NotifyAsync(NoticeLevel.Warning, launch is null ? "noLanguage" : "noServer", ("language", slot.Language), ("program", launch?.Program ?? "")).ConfigureAwait(false);
                 return launch is null ? "noLanguage" : "noServer";
             }
+            await AskNetworkAsync(launch, slot.Root, ct).ConfigureAwait(false);
             LspServer server;
             try { server = await LspServer.StartAsync(launch, slot.Root, _settings, (method, p) => OnServerNotificationAsync(slot, method, p), ct).ConfigureAwait(false); }
             catch (ServerStartException e)
@@ -508,6 +510,26 @@ public sealed class LspPlugin : PluginBase
             return null;
         }
         finally { slot.Lifecycle.Release(); }
+    }
+
+    /// <summary>
+    /// Asks the user once whether the server may reach the hosts of its entry (the package sources it restores from), and remembers the answer in the consent file of the profile.
+    /// A tool the user declined, or hosts the user already allowed, are not asked about again; a server without hosts needs no question.
+    /// </summary>
+    private async Task AskNetworkAsync(ServerLaunch launch, string root, CancellationToken ct)
+    {
+        var hosts = LspServer.HostsOf(launch, root);
+        if (hosts.Count == 0 || ToolProxy.Shared.Consent is not { } consent) return;
+        string tool = LspServer.ToolName(launch);
+        if (consent.Declined(tool) || hosts.All(h => consent.IsAllowed(tool, h))) return;
+        string list = hosts.Contains("*") ? Texts.Get(_ui, "networkAnyHost") : string.Join(", ", hosts);
+        try
+        {
+            var answer = await CallAsync(UiMethods.Confirm, $"{{\"title\":\"{Quote(Texts.Get(_ui, "networkTitle"))}\",\"message\":\"{Quote(Texts.Get(_ui, "networkMessage", ("tool", tool), ("hosts", list)))}\"}}", ct).ConfigureAwait(false);
+            if (answer.GetProperty("confirmed").ValueKind == JsonValueKind.True) consent.Allow(tool, hosts);
+            else consent.Decline(tool);
+        }
+        catch (Exception e) when (e is RpcException or IOException) { /* no question could be shown: nothing is allowed */ }
     }
 
     /// <summary>The catalog server of the slot: the program the editor found for it when that is still there, otherwise the first entry of the language whose program is on the PATH.</summary>

@@ -64,6 +64,7 @@ internal sealed partial class MainWindow
     internal CommandOutcome PackageRevoke()
     {
         _app.Plugins.Registries.RevokeAll();
+        _app.Plugins.ToolNetwork.RevokeAll(); // the network consents of language servers go with the others
         foreach (var tab in Tabs.Where(t => PluginServices.IsManifestFile(t) || PluginServices.IsSchemaFile(t)).ToList()) _ = RecheckAfterRevokeAsync(tab);
         SetStatusMessage(Loc.Get(K.PackagesRevoked));
         return CommandOutcome.Handled;

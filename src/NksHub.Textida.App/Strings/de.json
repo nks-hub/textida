@@ -1956,7 +1956,7 @@
   "packages.noConsent": "Abfragen bei {registry} sind nicht möglich: nicht erlaubt.",
   "packages.tooLarge": "Das Manifest ist zu groß für die Prüfung",
   "packages.busy": "Das Dokument wird gerade von einem anderen Befehl verwendet. Versuchen Sie es erneut.",
-  "packages.revoked": "Abfragen bei Paketregistern und Schema-Downloads sind verboten. Zwischengespeicherte Antworten wurden verworfen, geladene Schemas werden nicht mehr benutzt.",
+  "packages.revoked": "Abfragen bei Paketregistern, Schema-Downloads und das Netzwerk der Sprachserver sind verboten. Zwischengespeicherte Antworten wurden verworfen, geladene Schemas werden nicht mehr benutzt.",
   "packages.script.watermark": "Paketskript ausführen",
   "a11y.packages.scripts": "Paketskripte",
   "packages.script.notManifest": "Die geöffnete Datei ist keine package.json oder composer.json",

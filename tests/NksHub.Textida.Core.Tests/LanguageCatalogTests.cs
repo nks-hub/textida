@@ -96,8 +96,12 @@ public sealed class LanguageCatalogTests : IDisposable
         // C#: Roslyn first (the executable of the C# extension, then the command of the .NET tool), csharp-ls as the fallback; none of them needs the network, so all run behind the proxy of the editor
         Assert.Equal(["Microsoft.CodeAnalysis.LanguageServer", "roslyn-language-server", "csharp-ls"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
         Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Language == "csharp").Arguments);
-        Assert.DoesNotContain(LanguageCatalog.Lsp.Where(l => l.Language == "csharp"), l => l.NeedsNetwork);
-        Assert.All(LanguageCatalog.Lsp.Where(l => l.Program is "gopls" or "rust-analyzer" or "jdtls"), l => Assert.True(l.NeedsNetwork)); // these fetch modules and crates
+        // every server that fetches packages names the hosts it may be allowed to reach; nobody gets the whole network
+        Assert.All(LanguageCatalog.Lsp.Where(l => l.Language == "csharp"), l => Assert.Equal(["api.nuget.org", "globalcdn.nuget.org"], l.Hosts));
+        Assert.Equal(["proxy.golang.org", "sum.golang.org"], LanguageCatalog.Lsp.First(l => l.Program == "gopls").Hosts);
+        Assert.Equal(["crates.io", "index.crates.io", "static.crates.io"], LanguageCatalog.Lsp.First(l => l.Program == "rust-analyzer").Hosts);
+        Assert.NotEmpty(LanguageCatalog.Lsp.First(l => l.Program == "jdtls").Hosts!);
+        Assert.DoesNotContain(LanguageCatalog.Lsp.SelectMany(l => l.Hosts ?? []), h => h == "*" || h.Contains("telemetry"));
     }
 
     [Fact]

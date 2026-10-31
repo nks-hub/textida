@@ -4,7 +4,7 @@ using NksHub.Textida.Core.Tools;
 namespace NksHub.Textida.Plugins.Lsp;
 
 /// <summary>How a language server is started: the program, its arguments one by one (no shell) extra environment variables and the raw JSON object sent as <c>initializationOptions</c>.</summary>
-public sealed record ServerLaunch(string Language, string Program, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment, string? InitializationOptions = null, bool NeedsNetwork = false)
+public sealed record ServerLaunch(string Language, string Program, IReadOnlyList<string> Arguments, IReadOnlyDictionary<string, string> Environment, string? InitializationOptions = null, bool NeedsNetwork = false, IReadOnlyList<string>? Hosts = null)
 {
     /// <summary>Equal for two launches that start the same server with the same configuration (the language apart), different otherwise.</summary>
     public string Fingerprint => string.Join('\0', Program, string.Join('\u0001', Arguments),
@@ -22,7 +22,7 @@ public sealed class ServerCatalog(IReadOnlyList<ServerLaunch> entries)
     /// The servers that come with the editor: every entry of <c>LanguageCatalog</c>. Decided: no version of a server is pinned, so an entry names the program and leaves the version to the installation;
     /// the launch lines (<c>--stdio</c>, <c>--telemetryLevel off</c> for Roslyn, ...) are data from the documentation of the servers and have not been run against a real server.
     /// </summary>
-    public static ServerCatalog BuiltIn { get; } = new([.. LanguageCatalog.Lsp.Select(x => new ServerLaunch(x.Language, x.Program, x.Arguments, NoEnvironment, null, x.NeedsNetwork))]);
+    public static ServerCatalog BuiltIn { get; } = new([.. LanguageCatalog.Lsp.Select(x => new ServerLaunch(x.Language, x.Program, x.Arguments, NoEnvironment, null, false, x.Hosts))]);
 
     /// <summary>The entry of a language whose program has this name (the name the editor found a program for); null when there is none.</summary>
     public ServerLaunch? Entry(string language, string program) => entries.FirstOrDefault(x => x.Language == language && x.Program == program);

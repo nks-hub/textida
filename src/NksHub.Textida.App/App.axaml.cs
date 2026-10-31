@@ -168,7 +168,7 @@ public sealed partial class App : Application
         Journal?.Dispose();
         ProfileDirectory = ctx.Args.Smoke ? Path.Combine(ctx.Profile.Directory, "smoke-" + Environment.ProcessId) : ctx.Profile.Directory;
         ConfigRestore = ConfigBackup.ApplyPending(ProfileDirectory, Clock()); // before any service reads the files it puts back
-        ToolRunner.NetworkGuard = info => NksHub.Textida.Remote.ToolProxy.Shared.Apply(info); // formatters and linters reach nothing outside the machine
+        ToolRunner.NetworkGuard = info => NksHub.Textida.Remote.ToolProxy.Shared.Apply(info, "formatter-or-linter"); // formatters and linters have no host on any list: they reach nothing outside the machine
         if (!OperatingSystem.IsWindows()) // Windows ends the children of a killed editor with a job object, see ProcessLaunch.Track
         {
             ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimitsPlaceholders.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.StartTimeToleranceMilliseconds));
@@ -212,7 +212,8 @@ public sealed partial class App : Application
         PruneHistoryInBackground();
         Locks = new NksHub.Textida.Core.Files.FileLocks(Path.Combine(ProfileDirectory, "locks"), Guid.NewGuid().ToString("N")[..8]);
         Remote = new RemoteServices(ProfileDirectory, Credentials);
-        Reviews = new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
+        Plugins.SyncToolNetwork(); // the tools' proxy follows the network policy from the first server on
+        Reviews =new ReviewStore(Path.Combine(ProfileDirectory, "reviews"));
     }
 
     /// <summary>Reads the data plugins of the profile again; a plugin seen for the first time gets its commands.</summary>
