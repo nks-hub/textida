@@ -245,12 +245,12 @@ public sealed class WorkingCopyStore(string root)
         if (Directory.Exists(folder) && folder.StartsWith(Root, StringComparison.OrdinalIgnoreCase)) Directory.Delete(folder, true);
     }
 
-    /// <summary>Removes copies that exceed the policy, least recently used first. A copy with unsent changes is never removed. Returns what was removed.</summary>
-    public IReadOnlyList<WorkingCopy> Prune(CachePolicy policy, DateTime nowUtc)
+    /// <summary>Removes copies that exceed the policy, least recently used first. A copy with unsent changes is never removed, nor one that <paramref name="inUse"/> names. Returns what was removed.</summary>
+    public IReadOnlyList<WorkingCopy> Prune(CachePolicy policy, DateTime nowUtc, Func<WorkingCopy, bool>? inUse = null)
     {
         var removed = new List<WorkingCopy>();
         var entries = All().Select(c => (Copy: c, Meta: ReadMeta(Path.GetDirectoryName(c.LocalPath)!)!))
-            .Where(e => LocalStateOf(e.Copy) == LocalState.InSync).OrderBy(e => e.Meta.LastUsedUtc).ToList();
+            .Where(e => LocalStateOf(e.Copy) == LocalState.InSync && inUse?.Invoke(e.Copy) != true).OrderBy(e => e.Meta.LastUsedUtc).ToList();
         if (policy.MaxAge is { } age)
             foreach (var e in entries.Where(e => nowUtc - e.Meta.LastUsedUtc > age).ToList()) { Forget(e.Copy); removed.Add(e.Copy); entries.Remove(e); }
         if (policy.MaxBytes is { } max)

@@ -479,6 +479,12 @@ internal static partial class PluginLimitsPlaceholders
     /// <summary>Placeholder, OPEN: bytes of registry answers the cache of the JSON plugin holds; the oldest answers go first and one larger than this is not kept. The owner has not decided it.</summary>
     public const long RegistryCacheMaxBytes = 16L << 20;
 
+    /// <summary>Placeholder, OPEN: bytes the local copies of remote files may take; at start the least recently used copies without unsent changes go until the total fits. The owner has not decided it.</summary>
+    public const long RemoteCacheMaxBytes = 2L << 30;
+
+    /// <summary>Placeholder, OPEN: days a local copy of a remote file may stay unused before it is removed at start (a copy with unsent changes never is). The owner has not decided it.</summary>
+    public const int RemoteCacheMaxAgeDays = 90;
+
     /// <summary>Placeholder, OPEN: seconds a cached registry answer is used; an older one is asked for again (Refresh Package Versions drops the cache at any time). The owner has not decided it.</summary>
     public const int RegistryCacheLifetimeSeconds = 3600;
 

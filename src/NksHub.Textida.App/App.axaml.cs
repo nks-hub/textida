@@ -148,6 +148,7 @@ public sealed partial class App : Application
                 first.CheckUpdatesOnStart();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
                 else if (first.Active is null) first.NewDocument(); // nothing to open or restore: start with an empty document, not an empty window
+                _ = Remote.PruneCopiesAsync(PathsInUse());
             };
         }
         else if (PagedMeasure.Requested) first.Opened += (_, _) => _ = new PagedMeasure(this, first, desktop).RunAsync();
@@ -328,6 +329,24 @@ public sealed partial class App : Application
     }
 
     /// <summary>Writes the tab layout of every window into the journal.</summary>
+    /// <summary>The full paths of the files the editor has open or will open again: tabs, saved sessions, projects and the documents of the journal.</summary>
+    internal HashSet<string> PathsInUse()
+    {
+        var paths = new HashSet<string>(OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
+        void Add(string? path)
+        {
+            if (!string.IsNullOrEmpty(path)) try { paths.Add(Path.GetFullPath(path)); } catch (ArgumentException) { /* not a path */ }
+        }
+        foreach (var window in _windows)
+            foreach (var tab in window.Tabs) Add(tab.Doc.Path);
+        foreach (var session in Workspace.Sessions())
+            foreach (var tab in session.Groups.SelectMany(g => g.Tabs)) Add(tab.Path);
+        foreach (var file in Workspace.Projects.SelectMany(p => p.Files)) Add(file);
+        foreach (var document in Journal.Recovery.Documents) Add(document.Path);
+        foreach (var document in Journal.Pending) Add(document.Path);
+        return paths;
+    }
+
     internal void SaveSession()
     {
         var groups = new List<SessionGroup>();
