@@ -7124,7 +7124,7 @@
     {
       "key": "history.maxRevisionsPerFile",
       "type": "integer",
-      "default": 0,
+      "default": 100,
       "title": "setting.history.maxRevisionsPerFile.title",
       "description": "setting.history.maxRevisionsPerFile.description",
       "category": "cat.history",
@@ -7139,7 +7139,7 @@
     {
       "key": "history.maxAgeDays",
       "type": "integer",
-      "default": 0,
+      "default": 90,
       "title": "setting.history.maxAgeDays.title",
       "description": "setting.history.maxAgeDays.description",
       "category": "cat.history",
@@ -7154,7 +7154,7 @@
     {
       "key": "history.maxMiBPerFile",
       "type": "integer",
-      "default": 0,
+      "default": 50,
       "title": "setting.history.maxMiBPerFile.title",
       "description": "setting.history.maxMiBPerFile.description",
       "category": "cat.history",
@@ -7169,7 +7169,7 @@
     {
       "key": "history.maxTotalMiB",
       "type": "integer",
-      "default": 0,
+      "default": 2048,
       "title": "setting.history.maxTotalMiB.title",
       "description": "setting.history.maxTotalMiB.description",
       "category": "cat.history",
