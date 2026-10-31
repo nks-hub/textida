@@ -158,15 +158,9 @@ public class IdeRealClaudeTests : IDisposable
         Assert.Equal("alpha delta\ngamma\n", File.ReadAllText(tab.Path!));
         Assert.Equal("alpha delta\ngamma\n", tab.Editor.Document.Text);
 
-        // the program wrote the accepted text to the disk itself, so the tab holds the same text as the file but still counts as unsaved; saving it asks the question of a file that changed on disk
-        Assert.True(tab.Doc.Doc.IsModified);
-        int before = _dialogs.Asked.Count;
-        _dialogs.Answers.Enqueue(0); // Overwrite, in case the conflict is asked
-        var save = _w.SaveAsync(tab);
-        await Pump(() => save.IsCompleted, TimeSpan.FromSeconds(10), "the save");
-        Assert.True(await save);
+        // the program wrote the accepted text to the disk itself: the file now holds what the tab holds, so the tab is the saved state and nothing was asked
         Assert.False(tab.Doc.Doc.IsModified);
-        TestContext.Current.SendDiagnosticMessage($"saving the tab after the program wrote the same text asked {_dialogs.Asked.Count - before} question(s)");
+        Assert.Equal(asked, _dialogs.Asked.Count);
         Assert.Equal("alpha delta\ngamma\n", File.ReadAllText(tab.Path!));
 
         // what the program asked of the bridge: only calls the bridge answers, no tool it does not know (that would have switched the bridge off)
