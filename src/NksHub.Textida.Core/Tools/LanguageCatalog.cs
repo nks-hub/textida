@@ -106,7 +106,7 @@ public static class LanguageCatalog
                 C(EslintConfigs, "// ESLint reports nothing but syntax errors while this list is empty.\nexport default [];\n")],
             [new("package.json", "npm")]),
         new("web", "HTML, CSS",
-            [M("html", [".html", ".htm", ".xhtml"], "html"), M("css", [".css"], "css")],
+            [M("html", [".html", ".htm", ".xhtml"], "html"), M("css", [".css", ".scss", ".less"], "css")],
             [new("html", "vscode-html-language-server", ["--stdio"]), new("css", "vscode-css-language-server", ["--stdio"])],
             [], [], [], []),
         new("sql", "SQL",

@@ -1547,11 +1547,19 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     // ---- Emmet ----
 
-    /// <summary>The abbreviation syntax (<c>html</c> or <c>css</c>) Emmet expands in a language mode; null for any other mode.</summary>
-    internal static string? EmmetSyntax(string languageId) => languageId is "html" or "css" ? languageId : null;
+    /// <summary>
+    /// The language Emmet is told a tab is in, or null for a tab it does not work in. Emmet works in HTML, XML, PHP and Latte (markup), CSS, SCSS and Less (style sheets) and JSX and TSX (React files, which are
+    /// the JavaScript and TypeScript modes with that extension; <c>.scss</c> and <c>.less</c> files are the CSS mode).
+    /// </summary>
+    internal static string? EmmetSyntax(DocTab tab)
+    {
+        var id = tab.Doc.Language.Id;
+        if (id is "html" or "xml" or "php" or "latte" or "css") return id;
+        return id is "javascript" or "typescript" && tab.Doc.Path is { } path && Path.GetExtension(path).ToLowerInvariant() is ".jsx" or ".tsx" ? "jsx" : null;
+    }
 
     /// <summary>Whether Tab in the tab goes to Emmet: a language mode it works in and the setting Emmet on Tab on for that language.</summary>
-    internal static bool EmmetOnTab(DocTab tab) => tab.Surface is { Settings.Emmet: true } && EmmetSyntax(tab.Doc.Language.Id) is not null;
+    internal static bool EmmetOnTab(DocTab tab) => tab.Surface is { Settings.Emmet: true } && EmmetSyntax(tab) is not null;
 
     /// <summary>Starts the Emmet process when it is not running, so that it can answer the Tab key. False when it cannot run; Tab then does what it does without it.</summary>
     private Task<bool> EnsureEmmetAsync() => EnsureAsync(EmmetActivation);
@@ -1572,7 +1580,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// </summary>
     public async Task<bool> RunEmmetAsync(MainWindow window, DocTab tab, string command)
     {
-        if (tab.Surface is not { } surface || EmmetSyntax(tab.Doc.Language.Id) is not { } syntax) return false;
+        if (tab.Surface is not { } surface || EmmetSyntax(tab) is not { } syntax) return false;
         string extra = $",\"syntax\":\"{syntax}\",\"indent\":\"{System.Text.Json.JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\"";
         return (await ExecuteAsync(window, tab, EmmetPluginId, EmmetActivation, "Emmet", command, extra)).Started;
     }
@@ -1591,7 +1599,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // a document that stays visible to plugins (an outline provider) is not hidden again when Tab is done
         bool own = !Documents.IsExposed(document.Id);
         if (own) Documents.Expose(document, surface.ByteSelections);
-        try { return await Documents.OfferTabAsync(document.Id, default, tab.Doc.Language.Id, surface.Settings.Indent.Unit, skip: emmet ? null : EmmetPluginId); }
+        // the language Emmet is told is the abbreviation family of the tab (HTML for PHP and Latte, JSX for React files), not the mode id
+        try { return await Documents.OfferTabAsync(document.Id, default, EmmetSyntax(tab) ?? tab.Doc.Language.Id, surface.Settings.Indent.Unit, skip: emmet ? null : EmmetPluginId); }
         finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
     }
 

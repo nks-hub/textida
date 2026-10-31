@@ -265,4 +265,13 @@ public class EmmetExpandTests
     [InlineData("css", "a { color: red; d:n", 16)]
     [InlineData("css", "", -1)]
     public void The_abbreviation_is_found_in_front_of_the_caret(string syntax, string line, int start) => Assert.Equal(start, AbbreviationText.Find(syntax, line));
+
+    [Fact]
+    public void In_JSX_a_class_is_className_for_is_htmlFor_and_an_empty_element_ends_with_a_slash()
+    {
+        var jsx = new ExpandOptions("	", "", 10_000, 64, Jsx: true);
+        Assert.Equal("<div className=\"box\"><img src=\"\" alt=\"\" /><br /></div>", HtmlExpander.Expand("div.box>img+br", jsx)!.Text);
+        Assert.Equal("<label htmlFor=\"name\"></label>", HtmlExpander.Expand("label[for=name]", jsx)!.Text);
+        Assert.Equal("<div class=\"box\"><br></div>", HtmlExpander.Expand("div.box>br", Options())!.Text); // HTML stays as it was
+    }
 }

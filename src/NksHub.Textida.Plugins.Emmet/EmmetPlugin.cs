@@ -47,7 +47,13 @@ public sealed class EmmetPlugin : PluginBase
     private async Task NotifyAsync(NoticeLevel level, string message, CancellationToken ct) =>
         await CallAsync(UiMethods.Notify, $"{{\"level\":\"{level.ToString().ToLowerInvariant()}\",\"message\":\"{Quote(message)}\"}}", ct);
 
-    private static string? SyntaxOf(string? language) => language switch { "html" => "html", "css" => "css", _ => null };
+    /// <summary>
+    /// The abbreviation syntax for a language the editor names: HTML for markup (HTML, XML, PHP and Latte templates), CSS for style sheets (CSS, SCSS, Less), and JSX for the React files (JSX, TSX), which differ
+    /// from HTML in the attribute names and in how an empty element ends. Null for any other language.
+    /// </summary>
+    private static string? SyntaxOf(string? language) => language switch { "html" or "xml" or "php" or "latte" => "html", "css" or "scss" or "less" => "css", "jsx" => "jsx", _ => null };
+
+    private static bool IsMarkup(string syntax) => syntax is "html" or "jsx";
 
     // ---- reading ----
 
@@ -100,7 +106,7 @@ public sealed class EmmetPlugin : PluginBase
             if (at < 0 || before.Invalid.Any(i => i >= lineStart + at)) return null;
             string abbreviation = line[at..];
             if (syntax == "css" && !CssExpander.InsideBlock(before.Text[..(lineStart + at)])) return null;
-            var options = new ExpandOptions(indent, LineIndent(line), _settings.MaxChars, _settings.MaxCarets);
+            var options = new ExpandOptions(indent, LineIndent(line), _settings.MaxChars, _settings.MaxCarets, syntax == "jsx");
             var expansion = syntax == "css" ? CssExpander.Expand(abbreviation, options) : HtmlExpander.Expand(abbreviation, options);
             if (expansion is null) return null;
             items.Add(new Item(caret - d.Codec.WithBom(false).Encode(abbreviation).Length, caret, expansion, abbreviation));
@@ -227,7 +233,7 @@ public sealed class EmmetPlugin : PluginBase
     /// <summary>Wraps every non-blank selection in the abbreviation the user types; the text goes into the innermost last element. One snippet insertion, one undo step.</summary>
     private async Task<string> WrapAsync(Doc d, string syntax, string indent, string ui, CancellationToken ct)
     {
-        if (syntax != "html")
+        if (!IsMarkup(syntax))
         {
             await NotifyAsync(NoticeLevel.Warning, Texts.Get(ui, "wrap.html"), ct);
             return Status("unsupported");
@@ -262,7 +268,7 @@ public sealed class EmmetPlugin : PluginBase
             if (await ReadBeforeAsync(d, from, ct) is { } before && (LineStart(before.Text) > 0 || before.Complete)) indentation = LineIndent(before.Text[LineStart(before.Text)..]);
             var lines = content.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
             for (int i = 1; i < lines.Length; i++) lines[i] = lines[i].StartsWith(indentation, StringComparison.Ordinal) ? lines[i][indentation.Length..] : lines[i].TrimStart(' ', '\t');
-            var expansion = HtmlExpander.Wrap(abbreviation, string.Join('\n', lines), new ExpandOptions(indent, indentation, _settings.MaxChars, _settings.MaxCarets));
+            var expansion = HtmlExpander.Wrap(abbreviation, string.Join('\n', lines), new ExpandOptions(indent, indentation, _settings.MaxChars, _settings.MaxCarets, syntax == "jsx"));
             if (expansion is null)
             {
                 await NotifyAsync(NoticeLevel.Error, Texts.Get(ui, "invalid"), ct);
