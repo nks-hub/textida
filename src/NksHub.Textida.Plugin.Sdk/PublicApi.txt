@@ -2,8 +2,12 @@
 type NksHub.Textida.PluginHost.AwaitingUserParams : sealed class , System.IEquatable<NksHub.Textida.PluginHost.AwaitingUserParams>
   ctor public(bool Awaiting)
   property public Awaiting : bool { get; init; }
+type NksHub.Textida.PluginHost.Documents.DecorationKinds : static class
+  const Inlay : string = "inlay"
+  const Semantic : string = "semantic"
 type NksHub.Textida.PluginHost.Documents.DocumentErrorCodes : static class
   const AgentPanelBusy : int = -32040
+  const DecorationsQuotaExceeded : int = -32044
   const DiagnosticsQuotaExceeded : int = -32034
   const DiffTooLarge : int = -32043
   const EditsOverlap : int = -32027
@@ -41,6 +45,7 @@ type NksHub.Textida.PluginHost.Documents.DocumentMethods : static class
   const AgentUpdate : string = "agent/update"
   const ClipboardWrite : string = "clipboard/write"
   const CompletionRegister : string = "editor/completionProvider"
+  const DecorationsPublish : string = "decorations/publish"
   const DiagnosticsList : string = "diagnostics/list"
   const DiagnosticsPublish : string = "diagnostics/publish"
   const DiffCompute : string = "diff/compute"

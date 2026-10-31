@@ -120,7 +120,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // a registry lookup behind a proxy with a login goes through net/request, so the password stays in the editor; the plugin asks nothing before the user allowed the registry
         permissions.Grant(JsonPluginId, PluginPermissionNames.Network, GrantScope.All);
         Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
-        Mcp = new McpService(this, App.Startup.Channel);
+        Mcp = new McpService(this, App.Startup.Channel, app.ProfileDirectory);
+        Mcp.ClientAsked += name => _app.ActiveWindow?.AskMcpClient(name);
         Acp = new AcpService(this, app);
         UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
         Ui.Api = UiApi;
@@ -257,7 +258,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--decoration-refresh-ms", PluginLimitsPlaceholders.LspDecorationRefreshMilliseconds.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
              "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
              "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
@@ -384,7 +385,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         MainWindow.LspProgram? program = declared is null && command != "lsp.stop" ? await window.LocateLspProgramAsync(tab, language) : null;
         if (program is { Declined: true }) return false;
         var outcome = await ExecuteAsync(window, tab, LspPluginId, LspActivation, "Language server", command,
-            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0}"
+            $",\"lspLanguage\":\"{JsonEncodedText.Encode(declared?.LanguageFor(language) ?? language)}\",\"offset\":{CaretOf(surface) ?? 0},\"indent\":\"{JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\""
+            + (surface.ByteSelections()?.PrimarySelection is { } selection ? $",\"selectionStart\":{selection.Start},\"selectionEnd\":{selection.End}" : "")
             + (declared is null ? "" : ",\"lspServer\":" + declared.ToLaunchJson(language))
             + (program is null ? "" : $",\"lspProgram\":{{\"name\":\"{JsonEncodedText.Encode(program.Name)}\",\"path\":\"{JsonEncodedText.Encode(program.Path)}\"}}"), keep: true, keepOpen: true);
         if (outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } r } && r.TryGetProperty("status", out var status) && status.GetString() == "ok"
@@ -393,6 +395,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             var place = places[0];
             window.GoToPlace(place.GetProperty("path").GetString()!, place.GetProperty("line").GetInt32(), place.GetProperty("character").GetInt32(),
                 place.GetProperty("endLine").GetInt32(), place.GetProperty("endCharacter").GetInt32());
+        }
+        else if (command == "lsp.signatureHelp" && outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } sig } && sig.TryGetProperty("status", out var sigStatus) && sigStatus.GetString() == "ok"
+            && sig.TryGetProperty("label", out var label))
+        {
+            var ranges = sig.GetProperty("parameters").EnumerateArray().Select(x => (x.GetProperty("start").GetInt32(), x.GetProperty("end").GetInt32())).ToList();
+            surface.ShowSignature(new SignatureInfo(label.GetString()!, ranges, sig.GetProperty("active").GetInt32(), sig.TryGetProperty("documentation", out var documentation) ? documentation.GetString() : null));
         }
         return outcome.Started;
     }
@@ -866,11 +874,16 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// both to the same bytes. <paramref name="reveal"/> opens the outline. False when the language has no symbols or nothing was started.
     /// </summary>
     public Task<bool> IndexSymbolsAsync(MainWindow window, DocTab tab, bool reveal) =>
-        SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+        SymbolSourceOf(tab) == LspPluginId ? RunLspAsync(window, tab, "lsp.documentSymbols")
+        : SymbolPlugin(tab.Doc.Language.Id) == CodeExplorerPluginId ? IndexOutlineAsync(window, tab, reveal, notify: reveal) : IndexKeysAsync(window, tab, reveal);
+
+    /// <summary>The plugin whose symbols the outline and <c>@</c> use for the tab: the language server when it has published the symbols of the document (Language Server: Outline), else the plugin for the language mode.</summary>
+    internal string? SymbolSourceOf(DocTab tab) =>
+        Documents.SymbolsOf(LspPluginId, tab.Doc.Doc.Id, out _).Count > 0 ? LspPluginId : SymbolPlugin(tab.Doc.Language.Id);
 
     private async Task<bool> IndexOutlineAsync(MainWindow window, DocTab tab, bool reveal, bool notify)
     {
-        if ((tab.Surface is null && tab.Paged is null) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
+        if ((tab.Surface is null && tab.Paged is null && tab.Custom is not MarkdownPreview) || SymbolPlugin(tab.Doc.Language.Id) != CodeExplorerPluginId) return false;
         bool paged = tab.Paged is not null; // a large file: read from its start up to the limit, in the background
         _outlineWanted.Add(tab.Doc.Doc.Id);
         _revealOutline = _revealAlways = reveal;
@@ -998,14 +1011,14 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>The symbols published for the tab, and whether they are those of the revision the tab has now.</summary>
     internal IReadOnlyList<SymbolInfo> TabSymbols(DocTab tab, out bool current)
     {
-        if (SymbolPlugin(tab.Doc.Language.Id) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
+        if (SymbolSourceOf(tab) is { } plugin) return Documents.SymbolsOf(plugin, tab.Doc.Doc.Id, out current);
         current = false;
         return [];
     }
 
     /// <summary>Jumps to a published symbol exactly as a click in the outline does. False when the symbol is gone or the text it stood on was changed.</summary>
     public bool RevealTabSymbol(DocTab tab, string symbolId) =>
-        SymbolPlugin(tab.Doc.Language.Id) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
+        SymbolSourceOf(tab) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
 
     /// <summary>
     /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the
@@ -1302,6 +1315,22 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         surface.SetDiagnostics(marks);
     });
 
+    /// <summary>Draws the decorations of a document again: inlay hints between characters and semantic token colours, at the text offsets of the tab.</summary>
+    public void DecorationsChanged(Guid document) => OnUi(() =>
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var hints = new List<(int, string)>();
+        var tokens = new List<(int, int, string)>();
+        foreach (var d in Documents.DecorationsOf(document))
+        {
+            if (!backend.TryToCharOffset(d.Range.Start, out int start) || !backend.TryToCharOffset(d.Range.End, out int end)) continue;
+            if (d.Kind == DecorationKinds.Inlay) hints.Add((start, d.Text));
+            else tokens.Add((start, end, d.Text));
+        }
+        surface.SetInlayHints(hints);
+        surface.SetSemanticTokens(tokens);
+    });
+
     /// <summary>Publishes what the editor found itself (a linter run) for a tab through the store plugins publish to; the document is exposed and stays so, as for an outline. Call on the UI thread.</summary>
     public int PublishOwnDiagnostics(DocTab tab, string source, long revision, IReadOnlyList<Diagnostic> diagnostics)
     {
@@ -1519,11 +1548,19 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     // ---- Emmet ----
 
-    /// <summary>The abbreviation syntax (<c>html</c> or <c>css</c>) Emmet expands in a language mode; null for any other mode.</summary>
-    internal static string? EmmetSyntax(string languageId) => languageId is "html" or "css" ? languageId : null;
+    /// <summary>
+    /// The language Emmet is told a tab is in, or null for a tab it does not work in. Emmet works in HTML, XML, PHP and Latte (markup), CSS, SCSS and Less (style sheets) and JSX and TSX (React files, which are
+    /// the JavaScript and TypeScript modes with that extension; <c>.scss</c> and <c>.less</c> files are the CSS mode).
+    /// </summary>
+    internal static string? EmmetSyntax(DocTab tab)
+    {
+        var id = tab.Doc.Language.Id;
+        if (id is "html" or "xml" or "php" or "latte" or "css") return id;
+        return id is "javascript" or "typescript" && tab.Doc.Path is { } path && Path.GetExtension(path).ToLowerInvariant() is ".jsx" or ".tsx" ? "jsx" : null;
+    }
 
     /// <summary>Whether Tab in the tab goes to Emmet: a language mode it works in and the setting Emmet on Tab on for that language.</summary>
-    internal static bool EmmetOnTab(DocTab tab) => tab.Surface is { Settings.Emmet: true } && EmmetSyntax(tab.Doc.Language.Id) is not null;
+    internal static bool EmmetOnTab(DocTab tab) => tab.Surface is { Settings.Emmet: true } && EmmetSyntax(tab) is not null;
 
     /// <summary>Starts the Emmet process when it is not running, so that it can answer the Tab key. False when it cannot run; Tab then does what it does without it.</summary>
     private Task<bool> EnsureEmmetAsync() => EnsureAsync(EmmetActivation);
@@ -1544,7 +1581,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// </summary>
     public async Task<bool> RunEmmetAsync(MainWindow window, DocTab tab, string command)
     {
-        if (tab.Surface is not { } surface || EmmetSyntax(tab.Doc.Language.Id) is not { } syntax) return false;
+        if (tab.Surface is not { } surface || EmmetSyntax(tab) is not { } syntax) return false;
         string extra = $",\"syntax\":\"{syntax}\",\"indent\":\"{System.Text.Json.JsonEncodedText.Encode(surface.Settings.Indent.Unit)}\"";
         return (await ExecuteAsync(window, tab, EmmetPluginId, EmmetActivation, "Emmet", command, extra)).Started;
     }
@@ -1563,7 +1600,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         // a document that stays visible to plugins (an outline provider) is not hidden again when Tab is done
         bool own = !Documents.IsExposed(document.Id);
         if (own) Documents.Expose(document, surface.ByteSelections);
-        try { return await Documents.OfferTabAsync(document.Id, default, tab.Doc.Language.Id, surface.Settings.Indent.Unit, skip: emmet ? null : EmmetPluginId); }
+        // the language Emmet is told is the abbreviation family of the tab (HTML for PHP and Latte, JSX for React files), not the mode id
+        try { return await Documents.OfferTabAsync(document.Id, default, EmmetSyntax(tab) ?? tab.Doc.Language.Id, surface.Settings.Indent.Unit, skip: emmet ? null : EmmetPluginId); }
         finally { if (own) await Dispatcher.UIThread.InvokeAsync(() => Documents.Withdraw(document)); }
     }
 

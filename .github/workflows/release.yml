@@ -43,6 +43,13 @@ jobs:
           $p = Start-Process smoke/Textida.exe -ArgumentList '--smoke' -Wait -PassThru -NoNewWindow -RedirectStandardOutput smoke.out -RedirectStandardError smoke.err
           Get-Content smoke.out, smoke.err
           if ($p.ExitCode -ne 0) { throw "smoke test failed with $($p.ExitCode)" }
+      - name: Sample plugin
+        shell: pwsh
+        run: |
+          # publishes the sample plugin with NativeAOT and runs the plugin validator on it (manifest, native program, handshake, recorded session)
+          $env:PATH += ';C:\Program Files (x86)\Microsoft Visual Studio\Installer'
+          dotnet run tools/CheckSamplePlugin.cs -- --rid win-x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -77,6 +84,8 @@ jobs:
         run: |
           ditto -x -k "artifacts/Textida-$VERSION-${{ matrix.rid }}.zip" smoke
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" smoke/Textida.app/Contents/MacOS/Textida --smoke
+      - name: Sample plugin
+        run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
       - uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.rid }}
@@ -107,6 +116,8 @@ jobs:
           mkdir smoke
           tar -xzf "artifacts/Textida-$VERSION-linux-x64.tar.gz" -C smoke
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-linux-x64/Textida" --smoke
+      - name: Sample plugin
+        run: dotnet run tools/CheckSamplePlugin.cs -- --rid linux-x64
       - uses: actions/upload-artifact@v4
         with:
           name: linux

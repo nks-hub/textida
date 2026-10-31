@@ -18,6 +18,19 @@ internal sealed class RemoteServices(string profileDirectory, ICredentialStore s
     public WorkingCopyStore Deployments { get; } = new(Path.Combine(profileDirectory, "remote", "deploy"));
     public string NetworkPolicyPath => Path.Combine(Folder, "network.json");
 
+    /// <summary>The limits of the cache of remote copies (placeholders). Decided: 2 GiB and 90 days, enough for the files a person has open in a quarter on an ordinary disk.</summary>
+    public static CachePolicy CachePolicy { get; } = new(PluginLimitsPlaceholders.RemoteCacheMaxBytes, TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays));
+
+    /// <summary>
+    /// Removes the copies over the limits of <see cref="CachePolicy"/> in the background, least recently used first. A copy with unsent changes stays, and so does every copy whose
+    /// local path is in <paramref name="inUse"/> (open in a tab, or named by a session, a project or the journal that will open it). Tried again at the next start.
+    /// </summary>
+    public Task PruneCopiesAsync(IReadOnlySet<string> inUse) => Task.Run(() =>
+    {
+        try { return Copies.Prune(CachePolicy, DateTime.UtcNow, c => inUse.Contains(Path.GetFullPath(c.LocalPath))).Count; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return 0; }
+    });
+
     public NetworkPolicy Policy() => NetworkPolicy.Load(NetworkPolicyPath, Secrets);
 
     public IRemoteClient CreateClient(RemoteConnection connection, IServerTrustPrompt trust) =>

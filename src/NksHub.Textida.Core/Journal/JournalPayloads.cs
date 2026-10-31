@@ -5,30 +5,30 @@ using NksHub.Textida.Core.Documents;
 namespace NksHub.Textida.Core.Journal;
 
 /// <summary>
-/// OPEN DECISIONS (P7.1.4): the owner has not decided from which size on a change is recorded as a reference or a list instead of inline bytes,
-/// nor from which size on a recovery asks before it replays. The values below are placeholders, not decided numbers.
+/// Decisions (P7.1.4): the size from which a change is recorded as a reference or a list instead of inline bytes, and the size from which a recovery asks before it replays,
+/// are the round numbers below: small enough that the journal stays quick to write, large enough that an ordinary edit is stored inline.
 /// </summary>
 public static class JournalPlaceholders
 {
-    /// <summary>Placeholder, OPEN: inserted bytes of one edit above which the journal records a reference to a payload file.</summary>
+    /// <summary>Default: inserted bytes of one edit above which the journal records a reference to a payload file. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineEditBytes = 1 << 20;
 
-    /// <summary>Placeholder, OPEN: inserted bytes of a document that its records may hold inline between two saves; past it every edit of more than <see cref="SmallEditBytes"/> goes to a payload file, so a recovery holds a bounded part of the journal in memory.</summary>
+    /// <summary>Default: inserted bytes of a document that its records may hold inline between two saves; past it every edit of more than <see cref="SmallEditBytes"/> goes to a payload file, so a recovery holds a bounded part of the journal in memory. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MaxInlineDocumentBytes = 32L << 20;
 
-    /// <summary>Placeholder, OPEN: inserted bytes of an edit that always stay inline, whatever the inline budget of the document: typing.</summary>
+    /// <summary>Default: inserted bytes of an edit that always stay inline, whatever the inline budget of the document: typing. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SmallEditBytes = 4096;
 
-    /// <summary>Placeholder, OPEN: edits of one change set above which the journal writes them to a payload file as a list instead of into the record (Replace All over a large file).</summary>
+    /// <summary>Default: edits of one change set above which the journal writes them to a payload file as a list instead of into the record (Replace All over a large file). Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineEditCount = 4096;
 
-    /// <summary>Placeholder, OPEN: inserted bytes of the edits of one change set that may stand inline in its record; past it the change set is written as a list.</summary>
+    /// <summary>Default: inserted bytes of the edits of one change set that may stand inline in its record; past it the change set is written as a list. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineRecordBytes = 8 << 20;
 
-    /// <summary>Placeholder, OPEN: bytes of changes of one document (inserted and removed) above which a recovery waits for the choice to restore or discard instead of replaying them at start.</summary>
+    /// <summary>Default: bytes of changes of one document (inserted and removed) above which a recovery waits for the choice to restore or discard instead of replaying them at start. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long AskBeforeRecoverBytes = 64L << 20;
 
-    /// <summary>Placeholder, OPEN: most edits of one change set that a recovery rebuilds in memory; a longer list is reported as not restorable and stays in the journal.</summary>
+    /// <summary>Default: most edits of one change set that a recovery rebuilds in memory; a longer list is reported as not restorable and stays in the journal. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MaxRecoveredEdits = 20_000_000;
 }
 

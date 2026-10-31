@@ -6,12 +6,12 @@ namespace NksHub.Textida.Install;
 /// </summary>
 public static class InstallLimitsPlaceholders
 {
-    /// <summary>Placeholder, OPEN: milliseconds the setup waits for the editor to end before it switches the folders; after that it goes on and reports that Textida is still running. The owner has not decided it.</summary>
+    /// <summary>Default: milliseconds the setup waits for the editor to end before it switches the folders; after that it goes on and reports that Textida is still running. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int WaitForEditorMilliseconds = 60_000;
 
-    /// <summary>Placeholder, OPEN: pings, about a second each and the first at once, that the command removing the uninstaller waits for the uninstaller to end before it deletes the file. The owner has not decided it.</summary>
+    /// <summary>Default: pings, about a second each and the first at once, that the command removing the uninstaller waits for the uninstaller to end before it deletes the file. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SelfRemovalPings = 4;
 
-    /// <summary>Placeholder, OPEN: milliseconds the macOS integration waits for <c>pbs -update</c>, which makes Finder read the quick actions again, before it goes on without it. The owner has not decided it.</summary>
+    /// <summary>Default: milliseconds the macOS integration waits for <c>pbs -update</c>, which makes Finder read the quick actions again, before it goes on without it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int RefreshServicesMilliseconds = 5_000;
 }

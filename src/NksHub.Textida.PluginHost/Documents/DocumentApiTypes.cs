@@ -68,6 +68,8 @@ public sealed record DocumentApiOptions
     public required TimeSpan CompletionTimeout { get; init; }
     /// <summary>Longest hover text taken from a plugin, in UTF-16 code units; a longer one is cut. Zero means the editor takes no hover text.</summary>
     public int MaxHoverChars { get; init; }
+    /// <summary>Decorations (inlay hints or semantic tokens) one plugin may publish for one kind in one document. Zero means the editor takes no decorations.</summary>
+    public int MaxDecorationsPerDocument { get; init; }
     /// <summary>Workspace edits (<see cref="DocumentMethods.WorkspaceEdit"/>); null means the editor takes none.</summary>
     public WorkspaceEditOptions? Workspace { get; init; }
     /// <summary>File sources for URI schemes (<see cref="DocumentMethods.SourceRegister"/>); null means the editor takes none.</summary>
@@ -201,6 +203,15 @@ public sealed record DiagnosticSet(string PluginId, Guid Document, string Source
 /// <summary>A diagnostic with its range moved to the current revision of the document.</summary>
 public sealed record PlacedDiagnostic(string PluginId, string Source, DiagnosticSeverity Severity, string Message, string? Code, ByteRange Range);
 
+/// <summary>One decoration: <paramref name="Text"/> is the label of an inlay hint, or the type name of a semantic token over <paramref name="Range"/>.</summary>
+public sealed record Decoration(ByteRange Range, string Text);
+
+/// <summary>The decorations of one <paramref name="Kind"/> a plugin published for <paramref name="Revision"/> of a document; the ranges are bytes of that revision.</summary>
+public sealed record DecorationSet(string PluginId, Guid Document, string Kind, long Revision, IReadOnlyList<Decoration> Items);
+
+/// <summary>A decoration with its range moved to the current revision of the document.</summary>
+public sealed record PlacedDecoration(string PluginId, string Kind, ByteRange Range, string Text);
+
 /// <summary>An edit that goes with a completion elsewhere in the file (an import, a <c>use</c>): the bytes of <paramref name="Range"/> of the answered revision become <paramref name="Text"/>.</summary>
 public sealed record CompletionEdit(ByteRange Range, string Text);
 
@@ -252,6 +263,8 @@ public interface IEditorTools
     /// Called on the thread that owns the documents.
     /// </summary>
     void DiagnosticsChanged(Guid document);
+    /// <summary>The decorations (inlay hints, semantic tokens) of a document changed: draw <see cref="DocumentApi.DecorationsOf"/> again. Called on the thread that owns the documents.</summary>
+    void DecorationsChanged(Guid document) { }
 }
 
 /// <summary>What <see cref="DocumentMethods.VirtualOpen"/> says about a virtual document besides its content: the <paramref name="Key"/> the plugin chose, its <paramref name="Uri"/> (null when it gave none) and whether the user may edit it.</summary>

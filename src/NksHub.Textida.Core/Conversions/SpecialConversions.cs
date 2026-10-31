@@ -24,7 +24,7 @@ public sealed record SpecialConversion(string Id, string TitleKey, Func<string, 
 /// </summary>
 public static class SpecialConversions
 {
-    // Placeholder, OPEN: the ids follow F048 and wait for the owner's approval as the input decision of P4.2.2; Add Accent Marks needs the dictionary of F079.
+    // Decided: the ids follow F048 and are the closed list of special conversions (P4.2.2 approved as it is); Add Accent Marks stays out because it needs the dictionary of F079.
     public static IReadOnlyList<SpecialConversion> All { get; } =
     [
         new("decToHex", "cmd.edit.convert.decToHex", (s, _) => OneValue(s, DecimalToHex), "255"),

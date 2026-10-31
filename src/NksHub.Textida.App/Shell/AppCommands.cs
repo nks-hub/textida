@@ -161,6 +161,7 @@ internal static class AppCommands
         On("nks.tools.mcpShareTab", w => w.ShareTabWithMcp());
         On("nks.tools.mcpShareSelection", w => w.ShareSelectionWithMcp());
         On("nks.tools.mcpTools", w => w.ShowMcpTools());
+        On("nks.tools.mcpClients", w => w.ShowMcpClients());
         On("nks.tools.ideBridge", w => w.ToggleIdeBridge());
         On("nks.tools.ideDisconnect", w => w.DisconnectIdeAgent());
         On("nks.tools.ideMention", w => w.SendIdeMention());
@@ -299,6 +300,13 @@ internal static class AppCommands
         Fire("nks.lsp.goToDefinition", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.definition"));
         Fire("nks.lsp.findReferences", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.references"));
         Fire("nks.lsp.rename", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.rename"));
+        Fire("nks.lsp.format", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.format"));
+        Fire("nks.lsp.codeActions", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.codeActions"));
+        Fire("nks.lsp.signatureHelp", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.signatureHelp"));
+        Fire("nks.lsp.documentSymbols", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.documentSymbols"));
+        Fire("nks.lsp.workspaceSymbols", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.workspaceSymbols"));
+        Fire("nks.lsp.inlayHints", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.inlayHints"));
+        Fire("nks.lsp.semanticTokens", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.semanticTokens"));
         Fire("nks.lsp.restart", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.restart"));
         Fire("nks.lsp.stop", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.stop"));
         Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());

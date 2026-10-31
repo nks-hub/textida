@@ -825,4 +825,48 @@ public class McpServerTests
         Assert.Single(rig.Reviewer.Seen);
         Assert.Equal(-32602, (await rig.ModernAsync("tools/call", $"\"name\":\"editor_prepare_byte_changes\",\"arguments\":{rig.Args(doc, $"\"revision\":{revision + 1},\"edits\":[{{\"offset\":600,\"bytes\":\"0\"}}]")}")).Code);
     }
+
+    // ---- permissions of clients (P6.3.1) ----
+
+    [Fact]
+    public async Task A_client_the_gate_does_not_allow_sees_no_tools_and_is_refused_until_it_is_allowed_and_a_revoked_one_is_disconnected()
+    {
+        var allowed = new HashSet<string>();
+        var asked = new List<string>();
+        await using var rig = Rig.Create(o => o with { ClientGate = name => { lock (asked) asked.Add(name); return allowed.Contains(name); } });
+        var hello = await rig.RequestAsync("initialize", "{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"agent-a\",\"version\":\"1\"}}");
+        Assert.False(hello.IsError, hello.Message.GetRawText());
+        Assert.Equal(["agent-a"], rig.Server.ConnectedClients());
+
+        var list = await rig.RequestAsync("tools/list", "{}");
+        Assert.Empty(list.Result.GetProperty("tools").EnumerateArray());
+        var call = await rig.RequestAsync("tools/call", "{\"name\":\"editor_list_documents\",\"arguments\":{}}");
+        Assert.True(call.Result.GetProperty("isError").GetBoolean());
+        Assert.Contains("has not allowed", call.Result.GetProperty("content")[0].GetProperty("text").GetString());
+        Assert.All(asked, n => Assert.Equal("agent-a", n));
+
+        allowed.Add("agent-a");
+        rig.Server.ClientsChanged();
+        Assert.Equal(McpServer.AllTools.Count, (await rig.RequestAsync("tools/list", "{}")).Result.GetProperty("tools").GetArrayLength());
+        Assert.False((await rig.RequestAsync("tools/call", "{\"name\":\"editor_list_documents\",\"arguments\":{}}")).Result.GetProperty("isError").GetBoolean());
+
+        allowed.Remove("agent-a");
+        rig.Server.DisconnectClient("agent-a");
+        await Assert.ThrowsAnyAsync<Exception>(() => rig.RequestAsync("tools/list", "{}"));
+    }
+
+    [Fact]
+    public async Task A_client_of_the_current_protocol_is_known_by_the_client_info_in_its_meta_and_one_without_it_by_the_unknown_name()
+    {
+        async Task<string> NameSeenAsync(string clientInfo)
+        {
+            var seen = new List<string>();
+            await using var rig = Rig.Create(o => o with { ClientGate = name => { lock (seen) seen.Add(name); return false; } });
+            await rig.RequestAsync("tools/list", "{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}" + clientInfo + "}}");
+            lock (seen) return Assert.Single(seen.Distinct());
+        }
+
+        Assert.Equal("agent-b", await NameSeenAsync(",\"io.modelcontextprotocol/clientInfo\":{\"name\":\"agent-b\"}"));
+        Assert.Equal(McpServer.UnknownClient, await NameSeenAsync(""));
+    }
 }

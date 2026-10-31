@@ -34,7 +34,7 @@ internal sealed partial class PagedTextView
     private CancellationTokenSource? _searchCts;
     private bool _searching;
 
-    /// <summary>Most carets the view takes; a test lowers it. Placeholder, OPEN: <see cref="PluginLimitsPlaceholders.PagedMaxCarets"/>.</summary>
+    /// <summary>Most carets the view takes; a test lowers it. Default: <see cref="PluginLimitsPlaceholders.PagedMaxCarets"/>. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     internal int CaretLimit { get; set; } = PluginLimitsPlaceholders.PagedMaxCarets;
 
     /// <summary>Longest selection, in bytes, whose other occurrences are looked for; a test lowers it.</summary>

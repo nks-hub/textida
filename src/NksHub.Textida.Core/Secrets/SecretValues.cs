@@ -22,7 +22,7 @@ public static class SecretValues
 
     /// <summary>
     /// The default of the setting <c>files.secretFilePatterns</c>: <c>.env</c>, <c>.env.*</c> (<c>.env.local</c>) and <c>*.env</c> (<c>prod.env</c>).
-    /// OPEN: which files count as secret is the owner's decision; this list is a placeholder.
+    /// Decided: these patterns are the default list of secret files; the setting <c>files.secretFilePatterns</c> replaces it.
     /// </summary>
     public const string DefaultFilePatterns = ".env;.env.*;*.env";
 

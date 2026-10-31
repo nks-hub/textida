@@ -137,7 +137,16 @@ internal sealed partial class MainWindow
             paged.GoToOffset(range.Start);
             return true;
         }
-        if (tab.Surface is not { } surface || tab.Doc.TextBackend is not { } backend) return false;
+        if (tab.Doc.TextBackend is not { } backend) return false;
+        if (tab.Custom is MarkdownPreview page)
+        {
+            // the reading page has no caret: it scrolls to the line of the heading
+            if (!backend.TryToCharOffset(range.Start, out int at)) return false;
+            SelectTab(tab);
+            page.ScrollToLine(backend.TextDocument.GetLineByOffset(at).LineNumber - 1);
+            return true;
+        }
+        if (tab.Surface is not { } surface) return false;
         if (!backend.TryToCharOffset(range.Start, out int start) || !backend.TryToCharOffset(range.End, out int end)) return false;
         SelectTab(tab);
         surface.SetSelections([new Sel(start, end)]);

@@ -22,7 +22,7 @@ namespace NksHub.Textida.Plugins.Lsp;
 /// <param name="RestartMaxDelayMs">Longest wait between two automatic starts.</param>
 /// <param name="RestartStableMs">A server that ran this long before it ended counts as healthy: the next crash is a first one again.</param>
 public sealed record LspSettings(long MaxBytes, int StartTimeoutMs, int RequestTimeoutMs, int StopTimeoutMs, int MaxLocations, int StderrLines, int MaxMessageChars, int MaxDiagnostics, int IdleStopMs = 0, int RootSearchLevels = 1,
-    int RestartMaxAttempts = 0, int RestartBaseDelayMs = 0, int RestartMaxDelayMs = 0, int RestartStableMs = 0);
+    int RestartMaxAttempts = 0, int RestartBaseDelayMs = 0, int RestartMaxDelayMs = 0, int RestartStableMs = 0, int MaxSymbols = 0, int MaxDecorations = 0, int DecorationRefreshMs = 0);
 
 public sealed class ServerStartException(string message) : Exception(message);
 
@@ -52,6 +52,13 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool References { get; private set; }
     public bool Completion { get; private set; }
     public bool Rename { get; private set; }
+    private JsonElement _capabilities;
+
+    /// <summary>Whether the server announced the capability (<c>hoverProvider</c>, <c>codeActionProvider</c>, ...) in its <c>initialize</c> answer, as <c>true</c> or as an options object. A feature the server did not announce is never asked for.</summary>
+    public bool Has(string provider) => _capabilities.ValueKind == JsonValueKind.Object && Provides(_capabilities, provider);
+
+    /// <summary>The announced capability as an object (<c>semanticTokensProvider</c> has its legend there); default when it is not an object.</summary>
+    public JsonElement Options(string provider) => _capabilities.ValueKind == JsonValueKind.Object && _capabilities.TryGetProperty(provider, out var v) && v.ValueKind == JsonValueKind.Object ? v : default;
     public bool Alive => Volatile.Read(ref _ended) == 0 && Volatile.Read(ref _stopping) == 0 && !_rpc.IsClosed;
 
     /// <summary>The server was told to open a solution or projects and has not said yet that it loaded them: what it answers now covers the files it has seen so far, not the solution.</summary>
@@ -114,7 +121,10 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             .Append("\",\"workspaceFolders\":[{\"uri\":\"").Append(Encode(_rootUri)).Append("\",\"name\":\"").Append(Encode(Path.GetFileName(root.TrimEnd('/', '\\')))).Append("\"}]")
             .Append(",\"capabilities\":{\"general\":{\"positionEncodings\":[\"utf-16\"]},\"textDocument\":{\"synchronization\":{\"dynamicRegistration\":false,\"didSave\":false},")
             .Append("\"definition\":{\"linkSupport\":true},\"references\":{},\"completion\":{\"completionItem\":{\"snippetSupport\":false}},\"rename\":{\"prepareSupport\":false},")
-            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
+            .Append("\"hover\":{\"contentFormat\":[\"plaintext\",\"markdown\"]},\"signatureHelp\":{\"signatureInformation\":{\"documentationFormat\":[\"plaintext\"],\"parameterInformation\":{\"labelOffsetSupport\":false}}},")
+            .Append("\"codeAction\":{\"codeActionLiteralSupport\":{\"codeActionKind\":{\"valueSet\":[\"quickfix\",\"refactor\",\"source\"]}}},\"documentSymbol\":{\"hierarchicalDocumentSymbolSupport\":true},\"formatting\":{},")
+            .Append("\"inlayHint\":{},\"semanticTokens\":{\"requests\":{\"full\":true},\"tokenTypes\":[\"namespace\",\"type\",\"class\",\"enum\",\"interface\",\"struct\",\"typeParameter\",\"parameter\",\"variable\",\"property\",\"enumMember\",\"event\",\"function\",\"method\",\"macro\",\"keyword\",\"modifier\",\"comment\",\"string\",\"number\",\"regexp\",\"operator\",\"decorator\"],\"tokenModifiers\":[],\"formats\":[\"relative\"]},")
+            .Append("\"publishDiagnostics\":{\"versionSupport\":true}},\"workspace\":{\"workspaceFolders\":true,\"configuration\":true,\"inlayHint\":{\"refreshSupport\":true},\"semanticTokens\":{\"refreshSupport\":true},\"workspaceEdit\":{\"documentChanges\":true,\"resourceOperations\":[\"create\",\"rename\",\"delete\"]}}}}");
         var answer = await RequestAsync("initialize", json.ToString(), _settings.StartTimeoutMs, ct).ConfigureAwait(false);
         if (answer.TryGetProperty("capabilities", out var caps) && caps.ValueKind == JsonValueKind.Object)
         {
@@ -124,6 +134,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
                     : sync.ValueKind == JsonValueKind.Object && sync.TryGetProperty("change", out var change) && change.ValueKind == JsonValueKind.Number ? change.GetInt32() : 1;
                 Incremental = kind == 2;
             }
+            _capabilities = caps.Clone();
             Definition = Provides(caps, "definitionProvider");
             References = Provides(caps, "referencesProvider");
             Completion = Provides(caps, "completionProvider");
@@ -144,6 +155,13 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
 
     // ---- what the server sends to us ----
 
+    /// <summary>The server says what it showed before is out of date: the plugin hears it like a notification and asks again; the server is answered with null.</summary>
+    private async ValueTask<byte[]?> Refresh(string method, JsonElement p)
+    {
+        await _onNotification(method, p).ConfigureAwait(false);
+        return null;
+    }
+
     /// <summary>Requests of the server. The ones a client must answer to let the server go on are answered with nothing; the rest are not known.</summary>
     ValueTask<byte[]?> IRpcHandler.HandleRequestAsync(string method, JsonElement p, CancellationToken ct)
     {
@@ -154,6 +172,9 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
             case "window/workDoneProgress/create":
             case "window/showMessageRequest":
                 return ValueTask.FromResult<byte[]?>(null);
+            case "workspace/inlayHint/refresh":
+            case "workspace/semanticTokens/refresh":
+                return Refresh(method, p);
             case "workspace/configuration":
                 return ValueTask.FromResult<byte[]?>(Encoding.UTF8.GetBytes(Configuration(p)));
             case "workspace/workspaceFolders":

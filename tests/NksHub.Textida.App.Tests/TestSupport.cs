@@ -202,6 +202,8 @@ internal static class TestApp
         PluginLimitsPlaceholders.HandshakeTimeout = TimeSpan.FromSeconds(60);
         app.Configure();
         app.Dialogs = dialogs ?? new ScriptedDialogs();
+        // the test clients of the MCP server do not say who they are; a new client has no permission, so the tests of the server's tools allow that name (McpClientPermissionTests do not)
+        app.Plugins.Mcp.Clients.Decide(NksHub.Textida.PluginHost.Mcp.McpServer.UnknownClient, true);
         // a Markdown file opens in reading by default (P9.3.4); the tests of the other features open .md files and work in the editor, so the layer under the user's settings (nothing is written)
         // gives them source; the tests of the modes set the user's value
         app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.Plugin, new System.Text.Json.Nodes.JsonObject { ["markdown.defaultMode"] = "source" }, name: "tests");

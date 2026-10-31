@@ -184,6 +184,19 @@ public class AiContextCommandTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_copy_over_the_warning_size_is_warned_about_in_the_preview_and_a_small_one_is_not()
+    {
+        OpenFile("A.cs", new string('a', 300) + "\n");
+
+        await CopyAsync("Open tabs");
+        Assert.DoesNotContain("may not fit", _dialogs.Asked[^1].Message);
+
+        _w.AiContextWarnBytes = 100;
+        await CopyAsync("Open tabs");
+        Assert.Contains("may not fit the context window", _dialogs.Asked[^1].Message);
+    }
+
+    [AvaloniaFact]
     public async Task A_paged_selection_far_over_the_size_limit_is_named_without_being_copied()
     {
         _app.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
@@ -224,8 +237,8 @@ public class AiContextCommandTests : IDisposable
     [AvaloniaFact]
     public void The_size_limit_of_the_whole_copy_starts_at_8_MiB()
     {
-        Assert.Equal(8L << 20, _w.AiContextMaxBytes);
-        Assert.Equal(8L << 20, PluginLimitsPlaceholders.AiContextMaxBytes);
+        Assert.Equal(4L << 20, _w.AiContextMaxBytes);
+        Assert.Equal(4L << 20, PluginLimitsPlaceholders.AiContextMaxBytes);
     }
 
     [AvaloniaFact]

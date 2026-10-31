@@ -23,6 +23,22 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
     private readonly List<RpcId> _toolSubscriptions = [];
     private JsonRpcDispatcher? _rpc;
     private volatile bool _legacy;
+    private volatile string? _clientName;
+
+    /// <summary>The name the client gave in <c>clientInfo</c> (at <c>initialize</c>, or in the <c>_meta</c> of a request of the current protocol); null before it said any.</summary>
+    public string? ClientName => _clientName;
+
+    /// <summary>Whether this client may use the editor: a client of the /ide bridge always may, any other one when the gate of the server allows its name. A client that has not said who it is is asked about as <see cref="McpServer.UnknownClient"/>.</summary>
+    private bool Allowed => peer is not null || server.Options.ClientGate is not { } gate || gate(_clientName ?? McpServer.UnknownClient);
+
+    private void NoteClient(JsonElement p)
+    {
+        if (_clientName is not null || !p.TryGetProperty("_meta", out var meta) || meta.ValueKind != JsonValueKind.Object) return;
+        if (meta.TryGetProperty("io.modelcontextprotocol/clientInfo", out var info) && info.ValueKind == JsonValueKind.Object && info.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String)
+            _clientName = name.GetString();
+    }
+
+    private const string NotAllowedText = "The user has not allowed this client to use the editor. The editor asks the user the first time a client connects; it can be allowed in Tools, MCP, Clients.";
 
     public void Attach(JsonRpcDispatcher rpc) => _rpc = rpc;
 
@@ -41,6 +57,7 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
     public async ValueTask<byte[]?> HandleRequestAsync(string method, JsonElement p, CancellationToken cancellation)
     {
         if (p.ValueKind != JsonValueKind.Object) p = EmptyObject;
+        if (method is "tools/list" or "tools/call") NoteClient(p);
         switch (method)
         {
             case "initialize": return Initialize(p);
@@ -126,16 +143,13 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         if (p.ValueKind != JsonValueKind.Object || !p.TryGetProperty("protocolVersion", out var v) || v.ValueKind != JsonValueKind.String)
             throw InvalidParams("initialize needs a protocolVersion. This server also speaks " + McpServer.ModernVersion + ", where every request carries its version in _meta.");
         _legacy = true;
-        if (peer is not null)
+        string? name = null, version = null;
+        if (p.TryGetProperty("clientInfo", out var info) && info.ValueKind == JsonValueKind.Object)
         {
-            string? name = null, version = null;
-            if (p.TryGetProperty("clientInfo", out var info) && info.ValueKind == JsonValueKind.Object)
-            {
-                if (info.TryGetProperty("name", out var clientName) && clientName.ValueKind == JsonValueKind.String) name = clientName.GetString();
-                if (info.TryGetProperty("version", out var clientVersion) && clientVersion.ValueKind == JsonValueKind.String) version = clientVersion.GetString();
-            }
-            peer.Identify(name, version);
+            if (info.TryGetProperty("name", out var clientName) && clientName.ValueKind == JsonValueKind.String) name = _clientName = clientName.GetString();
+            if (info.TryGetProperty("version", out var clientVersion) && clientVersion.ValueKind == JsonValueKind.String) version = clientVersion.GetString();
         }
+        peer?.Identify(name, version);
         return DocumentApi.Obj(w =>
         {
             w.WriteString("protocolVersion", McpServer.LegacyVersion);
@@ -169,7 +183,7 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         return Result(modern, true, w =>
         {
             w.WriteStartArray("tools");
-            foreach (var tool in server.EnabledTools().Concat(peer?.ExtraTools ?? []))
+            foreach (var tool in Allowed ? server.EnabledTools().Concat(peer?.ExtraTools ?? []) : [])
             {
                 w.WriteStartObject();
                 w.WriteString("name", tool.Name);
@@ -194,6 +208,7 @@ internal sealed class McpSession(McpServer server, McpPeer? peer = null) : IRpcH
         bool modern = IsModern(p);
         if (!p.TryGetProperty("name", out var n) || n.ValueKind != JsonValueKind.String) throw InvalidParams("Parameter 'name' must be a string.");
         var name = n.GetString()!;
+        if (!Allowed) return Result(modern, false, w => WriteText(w, NotAllowedText, failed: true));
         var tool = server.FindEnabled(name) ?? peer?.ExtraTools.FirstOrDefault(t => t.Name == name);
         if (tool is null)
         {
