@@ -330,6 +330,7 @@ public class AcpClientTests
             Assert.False(a.EditorSetsMode);
         });
         Assert.Equal("opencode acp", AcpAdapters.Find("opencode")!.CommandLine);
+        Assert.Equal(OperatingSystem.IsWindows() ? "codex-acp -c windows.sandbox=unelevated" : "codex-acp", AcpAdapters.Find("codex")!.CommandLine);
     }
 
     // ---- P6.6.3 / P6.6.4: the table as data, the version probe and the boundary of the guarantee ----
