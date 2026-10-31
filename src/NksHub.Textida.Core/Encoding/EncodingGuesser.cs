@@ -201,10 +201,13 @@ public static class EncodingGuesser
     {
         var high = new List<byte>();
         foreach (byte b in sample[..Math.Min(sample.Length, 1 << 20)]) if (b >= 0x80) high.Add(b);
-        var scores = EightBit.Select(c => (Codec: c, Score: Score(Tables[Array.IndexOf(EightBit, c)], high))).ToList();
+        // Windows-1254 and ISO-8859-9 decode every letter of Western text exactly as Windows-1252 does, except at six bytes (Ğ İ Ş ğ ı ş); without one of those the Turkish pages are not candidates,
+        // so a tie goes to Windows-1252 and French or Spanish text is not left uncertain between three pages
+        bool turkish = high.Any(b => b is 0xD0 or 0xDD or 0xDE or 0xF0 or 0xFD or 0xFE);
+        var scores = EightBit.Where(c => turkish || c.Group != EncodingGroup.Turkish).Select(c => (Codec: c, Score: Score(Tables[Array.IndexOf(EightBit, c)], high))).ToList();
         var ordered = scores.OrderByDescending(x => x.Score).ToList(); // stable: ties keep the EightBit order
         double s1 = ordered[0].Score, margin = s1 - ordered[1].Score;
-        double conf = s1 <= 0 ? 0.2 : Math.Min(0.95, 0.5 + 1.5 * margin) * Math.Min(1, high.Count / 4.0) * Math.Min(1, s1);
+        double conf = s1 <= 0 ? 0.2 : Math.Min(0.95, 0.5 + 1.8 * margin) * Math.Min(1, high.Count / 4.0) * Math.Min(1, s1);
         var alternatives = conf < UncertainBelow
             ? ordered.Skip(1).Where(x => x.Score >= s1 * 0.5).Select(x => x.Codec).ToList()
             : [];
