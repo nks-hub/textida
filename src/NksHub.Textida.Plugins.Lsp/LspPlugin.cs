@@ -32,6 +32,8 @@ public sealed class LspPlugin : PluginBase
     public const string SignatureHelpCommand = "lsp.signatureHelp";
     public const string DocumentSymbolsCommand = "lsp.documentSymbols";
     public const string WorkspaceSymbolsCommand = "lsp.workspaceSymbols";
+    public const string InlayHintsCommand = "lsp.inlayHints";
+    public const string SemanticTokensCommand = "lsp.semanticTokens";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -158,7 +160,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand or DocumentSymbolsCommand or WorkspaceSymbolsCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand or DocumentSymbolsCommand or WorkspaceSymbolsCommand or InlayHintsCommand or SemanticTokensCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         try
@@ -193,6 +195,8 @@ public sealed class LspPlugin : PluginBase
                 SignatureHelpCommand => await SignatureHelpAsync(server, doc, r, ct).ConfigureAwait(false),
                 DocumentSymbolsCommand => await DocumentSymbolsAsync(server, doc, r, ct).ConfigureAwait(false),
                 WorkspaceSymbolsCommand => await WorkspaceSymbolsAsync(server, doc, r, ct).ConfigureAwait(false),
+                InlayHintsCommand => await InlayHintsAsync(server, doc, r, ct).ConfigureAwait(false),
+                SemanticTokensCommand => await SemanticTokensAsync(server, doc, r, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
@@ -1165,6 +1169,96 @@ public sealed class LspPlugin : PluginBase
             }
         if (raw.Count == 0) return await TellAsync("none", NoticeLevel.Info, "noSymbols").ConfigureAwait(false);
         return await ShowPlacesAsync(d, r, raw, "symbolsTitle", ct).ConfigureAwait(false);
+    }
+
+    // ---- inlay hints and semantic tokens ----
+
+    private int MaxDecorations => _settings.MaxDecorations > 0 ? _settings.MaxDecorations : _settings.MaxLocations;
+
+    /// <summary>The text and codec of the document as the server holds it, read together; null when the document is not at <paramref name="revision"/> any more.</summary>
+    private async Task<(string Text, TextCodec Codec, int Bom)?> TextAtAsync(Doc d, long revision, CancellationToken ct)
+    {
+        await d.Gate.WaitAsync(ct).ConfigureAwait(false);
+        try { return d.Revision == revision ? (d.Text, d.Codec, d.Bom) : null; }
+        finally { d.Gate.Release(); }
+    }
+
+    private async Task<bool> PublishDecorationsAsync(Doc d, long revision, string kind, string items, CancellationToken ct)
+    {
+        try
+        {
+            await CallAsync(DocumentMethods.DecorationsPublish, $"{{\"document\":\"{d.Id}\",\"revision\":{revision},\"kind\":\"{kind}\",\"items\":[{items}]}}", ct).ConfigureAwait(false);
+            return true;
+        }
+        catch (RpcException e) when (e.Code is DocumentErrorCodes.RevisionConflict or DocumentErrorCodes.DecorationsQuotaExceeded or RpcErrorCodes.MethodNotFound) { return false; } // the editor shows none, or the text moved on
+    }
+
+    /// <summary>
+    /// Asks the server for the inlay hints of the whole document and has the editor show them between the characters they belong to. A hint has the text of its label (or of the parts of it); the count is cut
+    /// at the limit of the editor. The hints move with the text until it changes where they stand; run the command again to read them anew.
+    /// </summary>
+    private async Task<byte[]> InlayHintsAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    {
+        if (!server.Has("inlayHintProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        var map = new LineMap(held.Text);
+        var (endLine, endCharacter) = map.PositionOf(held.Text.Length);
+        var answer = await server.RequestAsync("textDocument/inlayHint",
+            $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}},\"range\":{{\"start\":{{\"line\":0,\"character\":0}},\"end\":{{\"line\":{endLine},\"character\":{endCharacter}}}}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+
+        var found = new List<(int Offset, string Label)>();
+        if (answer.ValueKind == JsonValueKind.Array)
+            foreach (var item in answer.EnumerateArray())
+            {
+                if (found.Count >= MaxDecorations) break;
+                if (item.ValueKind != JsonValueKind.Object || !item.TryGetProperty("position", out var position) || position.ValueKind != JsonValueKind.Object || !item.TryGetProperty("label", out var label)) continue;
+                var text = label.ValueKind == JsonValueKind.String ? label.GetString()! : label.ValueKind == JsonValueKind.Array ? string.Concat(label.EnumerateArray().Select(part => Text(part, "value") ?? "")) : "";
+                if (text.Length == 0) continue;
+                int offset = map.OffsetOf(position.GetProperty("line").GetInt32(), position.GetProperty("character").GetInt32());
+                found.Add((offset, text.Length <= SymbolNameChars ? text : text[..(char.IsHighSurrogate(text[SymbolNameChars - 1]) ? SymbolNameChars - 1 : SymbolNameChars)]));
+            }
+        var bytes = ByteMap.ToBytes(held.Codec, held.Bom, held.Text, found.Select(f => f.Offset));
+        var items = string.Join(',', found.Select(f => $"{{\"start\":{bytes[f.Offset]},\"text\":\"{Quote(f.Label)}\"}}"));
+        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Inlay, items, ct).ConfigureAwait(false)) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"revision\":{r.Revision},\"count\":{found.Count}}}");
+    }
+
+    /// <summary>
+    /// Asks the server for the semantic tokens of the whole document and has the editor colour them. The answer is the server's compact list of numbers; it is read with the legend the server announced,
+    /// and the positions it counts in UTF-16 units become bytes. A token the legend has no type for is left out.
+    /// </summary>
+    private async Task<byte[]> SemanticTokensAsync(LspServer server, Doc d, Request r, CancellationToken ct)
+    {
+        if (!server.Has("semanticTokensProvider")) return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var options = server.Options("semanticTokensProvider");
+        if (options.ValueKind != JsonValueKind.Object || !options.TryGetProperty("legend", out var legend) || !legend.TryGetProperty("tokenTypes", out var typeNames) || typeNames.ValueKind != JsonValueKind.Array)
+            return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false);
+        var types = typeNames.EnumerateArray().Select(t => t.GetString() ?? "").ToArray();
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is not { } held) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        var answer = await server.RequestAsync("textDocument/semanticTokens/full", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        if (await TextAtAsync(d, r.Revision, ct).ConfigureAwait(false) is null) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+
+        var map = new LineMap(held.Text);
+        var found = new List<(int Start, int End, string Type)>();
+        if (answer.ValueKind == JsonValueKind.Object && answer.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+        {
+            var numbers = data.EnumerateArray().Select(n => n.GetInt32()).ToArray();
+            int line = 0, character = 0;
+            for (int i = 0; i + 4 < numbers.Length && found.Count < MaxDecorations; i += 5)
+            {
+                line += numbers[i];
+                character = numbers[i] == 0 ? character + numbers[i + 1] : numbers[i + 1];
+                int length = numbers[i + 2], type = numbers[i + 3];
+                if (type < 0 || type >= types.Length || length <= 0 || line >= map.LineCount) continue;
+                int start = map.OffsetOf(line, character), end = Math.Min(start + length, map.OffsetOf(line, int.MaxValue));
+                if (end > start) found.Add((start, end, types[type]));
+            }
+        }
+        var bytes = ByteMap.ToBytes(held.Codec, held.Bom, held.Text, found.SelectMany(f => new[] { f.Start, f.End }));
+        var items = string.Join(',', found.Select(f => $"{{\"start\":{bytes[f.Start]},\"end\":{bytes[f.End]},\"text\":\"{Quote(f.Type)}\"}}"));
+        if (!await PublishDecorationsAsync(d, r.Revision, DecorationKinds.Semantic, items, ct).ConfigureAwait(false)) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"revision\":{r.Revision},\"count\":{found.Count}}}");
     }
 
     // ---- signature help ----

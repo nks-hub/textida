@@ -48,6 +48,7 @@ The editor never answers a refused request with an empty result: a plugin that l
 | -32041 | NoAgentSession | The plugin has no conversation in the agent panel (never opened, or the user or the editor ended it). | Open it again with `agent/open`. |
 | -32042 | NetworkUnavailable | A `net/request` got no answer: no connection, the proxy refused it, a timeout, an answer over the limit, or a network policy the editor cannot read. The `message` says which. | The request may have reached the server. Try again later; ask for less if the answer was too large. |
 | -32043 | DiffTooLarge | A side of a diff is larger than the editor compares for a plugin (`data.limitBytes`, `data.bytes`). | Compare smaller parts. |
+| -32044 | DecorationsQuotaExceeded | The plugin published more decorations (inlay hints or semantic tokens) of one kind for a document than it may (`data.limit`). | Publish the ones in the visible part of the document, or fewer. |
 
 ## User interface
 

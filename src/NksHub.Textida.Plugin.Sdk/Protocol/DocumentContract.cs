@@ -100,6 +100,11 @@ public static class DocumentMethods
     public const string VirtualClose = "virtual/close";
     /// <summary>The plugin publishes the diagnostics of one source for one revision of a document; an empty list takes that source's diagnostics away.</summary>
     public const string DiagnosticsPublish = "diagnostics/publish";
+    /// <summary>
+    /// Replaces the decorations of one kind a plugin shows in a document (<c>document</c>, <c>revision</c> of the text they were made for, <c>kind</c> <c>inlay</c> or <c>semantic</c>, <c>items</c>):
+    /// an inlay hint is <c>{start, text}</c>, a semantic token <c>{start, end, text}</c> with the type name as the text. Only the current revision is accepted; an empty list takes them away.
+    /// </summary>
+    public const string DecorationsPublish = "decorations/publish";
     /// <summary>The diagnostics stored for a document (plugins and the editor's own linter), with ranges in the current revision; those touching a hidden value are left out.</summary>
     public const string DiagnosticsList = "diagnostics/list";
     /// <summary>The plugin offers (or stops offering) to answer completion requests (<see cref="DocumentRequests.Completion"/>).</summary>
@@ -160,6 +165,15 @@ public static class DocumentRequests
     /// An answer is a save; an error leaves the document unsaved and the user sees its message. Nothing is written to a file.
     /// </summary>
     public const string VirtualSave = "virtual/save";
+}
+
+/// <summary>The kinds of decoration a plugin publishes (<see cref="DocumentMethods.DecorationsPublish"/>).</summary>
+public static class DecorationKinds
+{
+    /// <summary>A text shown at one place, between two characters; the item has <c>start</c> and <c>text</c>.</summary>
+    public const string Inlay = "inlay";
+    /// <summary>A type name (<c>keyword</c>, <c>type</c>, <c>function</c>, ...) for a stretch of text, which the editor colours as that kind of syntax; the item has <c>start</c>, <c>end</c> and <c>text</c>.</summary>
+    public const string Semantic = "semantic";
 }
 
 /// <summary>Names of the events (<c>$/event</c> payloads) the editor sends for subscribed documents. They carry ranges and revisions, never text.</summary>
@@ -242,6 +256,8 @@ public static class DocumentErrorCodes
     public const int VirtualQuotaExceeded = -32033;
     /// <summary>The plugin published more diagnostics than it may.</summary>
     public const int DiagnosticsQuotaExceeded = -32034;
+    /// <summary>The plugin published more decorations of one kind for a document than the limit.</summary>
+    public const int DecorationsQuotaExceeded = -32044;
     /// <summary>A workspace edit holds more changes than the editor takes (<c>limit</c> in the error data), or more bytes of new text and new files together (<c>limitBytes</c>).</summary>
     public const int WorkspaceQuotaExceeded = -32035;
     /// <summary>A source refused a write because the file is not at the expected revision (data: <c>currentRevision</c>, a string, or null when the file is gone).</summary>

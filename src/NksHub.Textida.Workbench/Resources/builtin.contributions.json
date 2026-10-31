@@ -2275,6 +2275,22 @@
       "enablement": "hasDocument && !largeFileMode"
     },
     {
+      "id": "nks.lsp.inlayHints",
+      "title": "cmd.lsp.inlayHints",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.semanticTokens",
+      "title": "cmd.lsp.semanticTokens",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -5196,6 +5212,20 @@
       "group": "1_text/04",
       "submenu": "code/lsp",
       "order": 105
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.inlayHints",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 106
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.semanticTokens",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 107
     },
     {
       "menu": "tools",

@@ -304,6 +304,8 @@ internal static class AppCommands
         Fire("nks.lsp.signatureHelp", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.signatureHelp"));
         Fire("nks.lsp.documentSymbols", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.documentSymbols"));
         Fire("nks.lsp.workspaceSymbols", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.workspaceSymbols"));
+        Fire("nks.lsp.inlayHints", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.inlayHints"));
+        Fire("nks.lsp.semanticTokens", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.semanticTokens"));
         Fire("nks.lsp.restart", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.restart"));
         Fire("nks.lsp.stop", (w, t) => app.Plugins.RunLspAsync(w, t, "lsp.stop"));
         Fire("nks.tools.sqlDialect", (w, _) => w.ChooseSqlDialectAsync());

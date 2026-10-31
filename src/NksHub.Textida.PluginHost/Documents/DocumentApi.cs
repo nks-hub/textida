@@ -120,6 +120,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         ClearPreviews(key => key.Document == document.Id);
         ClearSymbols(key => key.Document == document.Id);
         ClearDiagnostics(key => key.Document == document.Id);
+        ClearDecorations(key => key.Document == document.Id);
         var payload = Obj(w => w.WriteString("document", document.Id));
         foreach (var plugin in subscribers) Enqueue(plugin, document.Id, DocumentEvents.Withdrawn, payload);
     }
@@ -201,6 +202,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
             case DocumentMethods.VirtualClose: return await VirtualCloseAsync(pluginId, p);
             case DocumentMethods.DiagnosticsPublish: return await PublishDiagnosticsAsync(pluginId, p);
             case DocumentMethods.DiagnosticsList: return await DiagnosticsListAsync(pluginId, p);
+            case DocumentMethods.DecorationsPublish: return await PublishDecorationsAsync(pluginId, p);
             case DocumentMethods.CompletionRegister: return RegisterCompletion(pluginId, p);
             case DocumentMethods.HoverRegister: return RegisterHover(pluginId, p);
             case DocumentMethods.WorkspaceEdit: return await WorkspaceEditAsync(pluginId, p, cancellation);
@@ -829,6 +831,7 @@ public sealed partial class DocumentApi : IPluginStateSource, IAsyncDisposable
         ClearOutbox(pluginId);
         ClearSymbols(key => key.Plugin == pluginId);
         ClearDiagnostics(key => key.Plugin == pluginId);
+        ClearDecorations(key => key.Plugin == pluginId);
         ClearPreviews(key => key.Plugin == pluginId);
         _options.Agent?.Panel.Close(pluginId);
         lock (_gate)

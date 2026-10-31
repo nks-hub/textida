@@ -182,6 +182,58 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task Inlay_hints_are_shown_on_the_bytes_between_characters_move_with_the_text_and_go_when_their_place_is_edited()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "run(1)\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.InlayHintsCommand)).GetProperty("status").GetString());
+            Assert.Empty(plain.Docs.DecorationsOf(doc.Id));
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "inlay"]);
+        var text = "é😀 run(1, 2)\nPARTS list(x)\n";
+        var call = rig.Add("inlay.fake", text);
+        await rig.RunAsync(call, LspPlugin.StartCommand);
+
+        var r = await rig.RunAsync(call, LspPlugin.InlayHintsCommand);
+
+        Assert.Equal(("ok", 2), (r.GetProperty("status").GetString(), r.GetProperty("count").GetInt32()));
+        var hints = rig.Docs.DecorationsOf(call.Id);
+        Assert.Equal([(Bytes("é😀 run("), "a:"), (Bytes("é😀 run(1, 2)\nPARTS list("), "a:")], hints.Select(h => (h.Range.Start, h.Text))); // the second label came in two parts
+        Assert.All(hints, h => Assert.Equal(h.Range.Start, h.Range.End));
+
+        await rig.Edit(call, 0, 0, "x"); // before both: they move one byte on
+        Assert.Equal([Bytes("é😀 run(") + 1, Bytes("é😀 run(1, 2)\nPARTS list(") + 1], rig.Docs.DecorationsOf(call.Id).Select(h => h.Range.Start));
+        await rig.Edit(call, Bytes("xé😀 run"), Bytes("xé😀 run(1"), ""); // the text around the first hint is deleted, so the hint has no place any more
+        Assert.Single(rig.Docs.DecorationsOf(call.Id));
+    }
+
+    [Fact]
+    public async Task Semantic_tokens_are_decoded_with_the_legend_of_the_server_on_the_bytes_of_the_words()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "def a\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.SemanticTokensCommand)).GetProperty("status").GetString());
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "semantic"]);
+        var text = "# é😀\nclass Box\n  def área\ndef helper\n";
+        var doc2 = rig.Add("semantic.fake", text);
+        await rig.RunAsync(doc2, LspPlugin.StartCommand);
+
+        var r = await rig.RunAsync(doc2, LspPlugin.SemanticTokensCommand);
+
+        Assert.Equal(("ok", 6), (r.GetProperty("status").GetString(), r.GetProperty("count").GetInt32()));
+        var snapshot = doc2.GetSnapshot();
+        var tokens = rig.Docs.DecorationsOf(doc2.Id).Select(t => (Encoding.UTF8.GetString(snapshot.ReadBytes(t.Range)), t.Text)).ToList();
+        Assert.Equal([("class", "keyword"), ("Box", "class"), ("def", "keyword"), ("área", "function"), ("def", "keyword"), ("helper", "function")], tokens);
+    }
+
+    [Fact]
     public async Task Hover_is_not_asked_of_a_server_that_does_not_announce_it_and_an_old_answer_is_dropped()
     {
         await using (var plain = await Rig.CreateAsync())

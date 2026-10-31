@@ -275,6 +275,44 @@ string WorkspaceSymbols(JsonElement p)
     return "[" + string.Join(',', found) + "]";
 }
 
+// inlay hints: "a:" right after the ( of every NAME( call; the second hint of a text containing PARTS is a label in two parts
+string InlayHints(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var hints = new List<string>();
+    for (int at = text.IndexOf('('); at >= 0; at = text.IndexOf('(', at + 1))
+    {
+        if (at == 0 || !IsWord(text[at - 1])) continue;
+        var (line, character) = Position(text, at + 1);
+        string label = text.Contains("PARTS") ? "[{\"value\":\"a\"},{\"value\":\":\"}]" : "\"a:\"";
+        hints.Add($"{{\"position\":{{\"line\":{line},\"character\":{character}}},\"label\":{label},\"kind\":2}}");
+    }
+    return "[" + string.Join(',', hints) + "]";
+}
+
+// semantic tokens: the keyword (def, class) is type 2, the name after "class" type 1 and after "def" type 0, in the relative encoding of the protocol
+string SemanticTokens(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var text = texts[uri];
+    var tokens = new List<(int Offset, int Length, int Type)>();
+    foreach (var s in SymbolLines(text))
+    {
+        tokens.Add((s.LineStart + s.Indent, s.Keyword.Length, 2));
+        tokens.Add((s.NameStart, s.Name.Length, s.Keyword == "class" ? 1 : 0));
+    }
+    var data = new List<int>();
+    int previousLine = 0, previousCharacter = 0;
+    foreach (var (offset, length, type) in tokens.OrderBy(t => t.Offset))
+    {
+        var (line, character) = Position(text, offset);
+        data.AddRange([line - previousLine, line == previousLine ? character - previousCharacter : character, length, type, 0]);
+        (previousLine, previousCharacter) = (line, character);
+    }
+    return "{\"data\":[" + string.Join(',', data) + "]}";
+}
+
 // signature help: inside the arguments of NAME( ... ) it answers "NAME(a: int, b: string)" with the parameter the caret is in (the number of commas before it)
 string? SignatureHelp(JsonElement p)
 {
@@ -372,6 +410,8 @@ string ExtraCapabilities()
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
     if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
     if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
+    if (Feature("inlay")) caps.Add("\"inlayHintProvider\":true");
+    if (Feature("semantic")) caps.Add("\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":[\"function\",\"class\",\"keyword\"],\"tokenModifiers\":[]},\"full\":true}");
     if (Feature("symbols")) caps.Add("\"documentSymbolProvider\":true,\"workspaceSymbolProvider\":true");
     if (Feature("signature")) caps.Add("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}");
     return caps.Count == 0 ? "" : "," + string.Join(',', caps);
@@ -477,6 +517,12 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/inlayHint":
+            Send(Reply(InlayHints(p)));
+            break;
+        case "textDocument/semanticTokens/full":
+            Send(Reply(SemanticTokens(p)));
             break;
         case "textDocument/documentSymbol":
             Send(Reply(DocumentSymbols(p)));

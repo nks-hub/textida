@@ -257,7 +257,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
             ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
+             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
              "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
              "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
@@ -1306,6 +1306,22 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             if (backend.TryToCharOffset(d.Range.Start, out int start) && backend.TryToCharOffset(d.Range.End, out int end))
                 marks.Add(new DiagnosticMark(start, end, d.Severity, d.Message));
         surface.SetDiagnostics(marks);
+    });
+
+    /// <summary>Draws the decorations of a document again: inlay hints between characters and semantic token colours, at the text offsets of the tab.</summary>
+    public void DecorationsChanged(Guid document) => OnUi(() =>
+    {
+        if (TabOf(document) is not { } found || found.Tab.Surface is not { } surface || found.Tab.Doc.TextBackend is not { } backend) return;
+        var hints = new List<(int, string)>();
+        var tokens = new List<(int, int, string)>();
+        foreach (var d in Documents.DecorationsOf(document))
+        {
+            if (!backend.TryToCharOffset(d.Range.Start, out int start) || !backend.TryToCharOffset(d.Range.End, out int end)) continue;
+            if (d.Kind == DecorationKinds.Inlay) hints.Add((start, d.Text));
+            else tokens.Add((start, end, d.Text));
+        }
+        surface.SetInlayHints(hints);
+        surface.SetSemanticTokens(tokens);
     });
 
     /// <summary>Publishes what the editor found itself (a linter run) for a tab through the store plugins publish to; the document is exposed and stays so, as for an outline. Call on the UI thread.</summary>

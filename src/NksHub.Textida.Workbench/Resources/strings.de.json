@@ -244,6 +244,8 @@
   "cmd.lsp.rename": "Sprachserver: Symbol umbenennen",
   "cmd.lsp.restart": "Sprachserver: Neu starten",
   "cmd.lsp.stop": "Sprachserver: Beenden",
+  "cmd.lsp.semanticTokens": "Sprachserver: Semantische Farben laden",
+  "cmd.lsp.inlayHints": "Sprachserver: Inlay-Hinweise laden",
   "cmd.lsp.workspaceSymbols": "Sprachserver: Symbol im Projekt suchen",
   "cmd.lsp.documentSymbols": "Sprachserver: Dokumentgliederung",
   "cmd.lsp.signatureHelp": "Sprachserver: Parameterinfo",

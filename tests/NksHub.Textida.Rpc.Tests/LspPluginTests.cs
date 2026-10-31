@@ -115,7 +115,7 @@ public partial class LspPluginTests
                 EventQueueCapacity = 64, MaxRememberedBatches = 16, Permissions = permissions, CallLog = new PluginCallLog(100), Proposals = new NoProposals(),
                 Tools = tools, MaxSymbolsPerDocument = 10, MaxSymbolTextLength = 400, MaxSnippetLength = 100, MaxSnippetCarets = 2, TabTimeout = TimeSpan.FromSeconds(1),
                 MaxSecretScanBytes = 1 << 20, MaxClipboardChars = 1000, MaxScanBytes = 1 << 22, MaxVirtualDocumentsPerPlugin = 4, MaxVirtualBytes = 1 << 20,
-                MaxDiagnosticsPerDocument = 100, MaxHoverChars = 500, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
+                MaxDiagnosticsPerDocument = 100, MaxHoverChars = 500, MaxDecorationsPerDocument = 50, MaxCompletionItems = 100, MaxCompletionEdits = 4, CompletionTimeout = TimeSpan.FromSeconds(5),
                 Workspace = new WorkspaceEditOptions(review, () => [folder], path => review.Open.Any(d => d.FilePath is { } p && PathUri.SamePath(p, path)), 20, 1 << 20)
                 {
                     OpenDocument = path => review.Open.FirstOrDefault(d => d.FilePath is { } p && PathUri.SamePath(p, path)),
@@ -126,7 +126,7 @@ public partial class LspPluginTests
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Lsp.dll");
             Assert.True(File.Exists(dll), dll);
             List<string> pluginArguments =
-                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50", "--max-symbols", "10",
+                [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50", "--max-symbols", "10", "--max-decorations", "50",
                  "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
             if (!builtInCatalog) pluginArguments.AddRange(["--catalog", catalog]);
             if (restart is { } r)
