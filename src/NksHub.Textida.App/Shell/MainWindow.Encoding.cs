@@ -46,7 +46,7 @@ internal sealed partial class MainWindow
     public IReadOnlyList<EncodingChoice> ConvertChoices(DocTab tab)
     {
         var doc = tab.Doc.Doc;
-        if (tab.Doc.IsLarge) return [.. TextCodec.All.Select(c => new EncodingChoice(c, 0, c == doc.Codec, false))];
+        if (tab.Doc.IsLarge) return [.. TextCodec.All.Select(c => new EncodingChoice(c, 0, c == (doc.PendingTranscode ?? doc.Codec), doc.Backend.Supports(c)))]; // the loss is counted when one is picked: it takes a pass over the file
         var targets = ByteFidelity.ListTargets(doc.Codec.Decode(doc.ReadBytes(new ByteRange(0, doc.ByteLength))));
         return [.. targets.Select(t => new EncodingChoice(t.Codec, t.Lost, t.Codec == doc.Codec, doc.Backend.Supports(t.Codec)))];
     }
@@ -67,7 +67,8 @@ internal sealed partial class MainWindow
     {
         var od = tab.Doc;
         var doc = od.Doc;
-        if (codec == doc.Codec || od.IsLarge) return false;
+        if (od.IsLarge) return await ConvertLargeAsync(tab, codec);
+        if (codec == doc.Codec) return false;
         var before = doc.Codec;
         if (!await ConfirmTypedLossAsync(tab)) return false;
         if (doc.Codec != before) return true; // the inspector already converted to the encoding the user picked
@@ -85,6 +86,39 @@ internal sealed partial class MainWindow
         od.SetEncodingChosen();
         od.NotifyChanged();
         SetStatusMessage(Loc.Get(K.StatusConverted, ("encoding", codec.Name)));
+        return true;
+    }
+
+    /// <summary>
+    /// "Convert to" for a large file: the characters the target cannot hold are counted in a pass over the file on a worker thread and, when there are any, the user confirms replacing them; then the
+    /// conversion waits as a step of the document and the next save streams the file into the new encoding. Nothing is written now.
+    /// </summary>
+    private async Task<bool> ConvertLargeAsync(DocTab tab, TextCodec codec)
+    {
+        var od = tab.Doc;
+        var doc = od.Doc;
+        LossReport loss;
+        try { loss = await Task.Run(() => doc.PreviewTranscode(codec)); }
+        catch (Exception e) when (e is IOException or ObjectDisposedException or SnapshotInvalidatedException)
+        {
+            SetStatusMessage(Loc.Get(K.StatusConvertFailed, ("encoding", codec.Name)));
+            return false;
+        }
+        string? replacement = null;
+        if (loss.HasLoss)
+        {
+            var request = new ChoiceRequest(Loc.Get(K.LossTitle), DescribeLoss(loss, codec) + "\n" + Loc.Get(K.LossReplacement),
+                [new DialogButton(Loc.Get(K.LossTranscodeReplace)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)]);
+            if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
+            replacement = "?";
+        }
+        if (!doc.StageTranscode(codec, replacement).Applied)
+        {
+            SetStatusMessage(Loc.Get(K.StatusConvertFailed, ("encoding", codec.Name)));
+            return false;
+        }
+        od.NotifyChanged();
+        SetStatusMessage(Loc.Get(K.StatusTranscodeStaged, ("encoding", codec.Name)));
         return true;
     }
 

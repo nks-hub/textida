@@ -57,6 +57,9 @@ public static class K
     public const string StatusRereadAs = "status.rereadAs";
     public const string StatusConverted = "status.converted";
     public const string StatusConvertFailed = "status.convertFailed";
+    public const string StatusTranscodeStaged = "status.transcodeStaged";
+    public const string LossTranscodeReplace = "loss.transcodeReplace";
+    public const string StatusTranscodeLoss = "status.transcodeLoss";
     public const string StatusNothingToChange = "status.nothingToChange";
     public const string StatusNormalizeBlocked = "status.normalizeBlocked";
     public const string StatusChangeConflict = "status.changeConflict";
