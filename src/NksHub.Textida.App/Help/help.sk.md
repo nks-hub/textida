@@ -1865,7 +1865,7 @@ Dve karty sa posúvajú spolu, takže rovnaký text dvoch súborov zostáva opro
 - Skončí, keď sa zavrie jedna z dvoch kariet. Hexadecimálny a tabuľkový pohľad sa nezúčastňujú.
 
 ## [tools.mcp] Editor ako server MCP
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools, nks.tools.mcpClients
 Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (napríklad programovací agent), môže Textidu používať cez Model Context Protocol. Vidí len karty, ktoré mu zdieľate, a nikdy nezapisuje: každý návrh uvidíte ako náhľad zmien a rozhodnete vy.
 1. Zvoľte Nástroje, Agenti a AI, MCP, Server MCP. Dialóg vypíše, čo asistent dostane. Zapnutím sa server spustí; ďalším zvolením príkazu sa vypne a všetky karty sa odvolajú.
 2. Asistenta nastavte tak, aby spúšťal program textida-mcp.exe z priečinka mcp vedľa editora (celú cestu ukáže stavový riadok). S editorom komunikuje cez miestnu rúru, žiadny sieťový port sa neotvára.
@@ -1878,6 +1878,7 @@ Asistent s umelou inteligenciou, ktorého na tomto počítači spustíte (naprí
 - Odvolanie karty alebo vypnutie servera zastaví požiadavky, ktoré práve bežia, a návrh, ktorý ešte čaká na vaše rozhodnutie, sa stiahne a počíta sa ako zamietnutý. Odvolá ju aj opätovné načítanie súboru.
 - Na vaše rozhodnutie môže čakať len obmedzený počet návrhov naraz (limit je zatiaľ provizórny); ďalší sa odmietne, kým nerozhodnete. Výsledok väčší ako limit veľkosti sa odmietne a asistent sa dozvie, že má chcieť menej.
 - Program pre asistenta hovorí aktuálnou verziou MCP (2026-07-28) a pre asistentov, ktorí ešte začínajú príkazom initialize, verziou 2025-11-25.
+- Klienti MCP (Nástroje, MCP, Klienti MCP...) určujú, ktorý program smie používať server MCP. Klient sa pozná podľa názvu, ktorý uvedie pri pripojení. Nový klient nesmie nič, kým to nepovolíte v otázke, ktorá sa ukáže pri jeho prvom pripojení; dovtedy nevidí žiadny nástroj a každé jeho volanie je odmietnuté. V zozname klientov možno oprávnenie jednému klientovi odobrať (je odpojený) alebo vrátiť, alebo rozhodnutie zabudnúť, aby sa editor nabudúce opýtal znova. Názov si klient volí sám, takže nie je dôkazom totožnosti: oprávnenie bráni len tomu, aby sa neznámy program sám dostal k zdieľaným kartám.
 
 ## [tools.ide] Most /ide pre Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention

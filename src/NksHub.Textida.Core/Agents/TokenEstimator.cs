@@ -7,7 +7,8 @@ namespace NksHub.Textida.Core.Agents;
 public sealed record TokenPreset(string Id, double CharsPerToken, double Factor, string Source);
 
 /// <summary>
-/// Estimates the size of a text in tokens on this computer; the text goes nowhere and nothing is looked up. Characters are counted as UTF-16 code units, the length of a .NET string.
+/// Estimates the size of a text in tokens on this computer; the text goes nowhere and nothing is looked up. Decided: the editor counts tokens offline only, with these published rules of thumb and
+/// always labelled as an estimate; it has no exact tokenizer and sends no text to a service to count one (an exact count would need either a vendor's network call or a bundled vocabulary per model). Characters are counted as UTF-16 code units, the length of a .NET string.
 /// The presets are the published rules of thumb: OpenAI "approximately 4 characters or 0.75 words for English text" (developers.openai.com/api/docs/concepts); Gemini "about 4 characters"
 /// (ai.google.dev/gemini-api/docs/tokens); Claude "approximately 3.5 English characters" on the models before Claude Opus 4.7, and "approximately 30 percent more tokens for the same text" on the newer
 /// tokenizer (platform.claude.com glossary and token counting pages). Any other model has no preset: it gets the generic estimate of 4 characters per token, which is the number OpenAI and Google publish.

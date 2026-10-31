@@ -39,7 +39,7 @@ internal static partial class ConfigBackup
     /// <summary>Folder of the profile that keeps the configuration a restore replaced.</summary>
     public const string BeforeRestoreFolder = "config-backups";
 
-    /// <summary>Placeholder, OPEN: the largest total size the files of one restore may unpack to; a larger backup is refused. The owner has not decided it.</summary>
+    /// <summary>Default: the largest total size the files of one restore may unpack to; a larger backup is refused. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MaxUnpackedBytes = 256L << 20;
 
     private static readonly string[] Files =

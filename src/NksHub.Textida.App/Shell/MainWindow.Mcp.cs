@@ -306,6 +306,49 @@ internal sealed partial class MainWindow
         }
     }
 
+    /// <summary>The task of the last question about a client or the list of clients; tests wait for it.</summary>
+    internal Task McpClientTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>A client with no decision connected: asks the user once whether it may use the editor. Until the answer it sees nothing.</summary>
+    internal void AskMcpClient(string name) => McpClientTask = AskMcpClientAsync(name);
+
+    private async Task AskMcpClientAsync(string name)
+    {
+        var buttons = new List<DialogButton> { new(Loc.Get(K.McpClientAllow)), new(Loc.Get(K.McpClientDeny), IsDefault: true, IsCancel: true) };
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpClientTitle), Loc.Get(K.McpClientMessage, ("name", name)), buttons));
+        _app.Plugins.Mcp.ClientDecided(name, answer == 0);
+    }
+
+    internal CommandOutcome ShowMcpClients()
+    {
+        McpClientTask = ChooseMcpClientsAsync();
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>Lists the clients with a decision and the ones connected now; choosing one gives its actions: take the permission away or give it, or forget the decision.</summary>
+    private async Task ChooseMcpClientsAsync()
+    {
+        var mcp = _app.Plugins.Mcp;
+        while (true)
+        {
+            var decisions = mcp.Clients.Decisions;
+            var names = decisions.Keys.Concat(mcp.Server.ConnectedClients()).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+            if (names.Count == 0)
+            {
+                SetStatusMessage(Loc.Get(K.McpClientsNone));
+                return;
+            }
+            var items = names.Select(n => new PickItem(n, n, Loc.Get(decisions.TryGetValue(n, out var allowed) && allowed ? K.McpClientsAllowed : K.McpClientsDenied))).ToList();
+            var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.McpClientsTitle), Loc.Get(K.McpClientsWatermark), items), CancellationToken.None);
+            if (chosen is null) return;
+            bool allowedNow = decisions.TryGetValue(chosen, out var was) && was;
+            var actions = new List<PickItem> { new("toggle", Loc.Get(allowedNow ? K.McpClientsRevoke : K.McpClientsGrant), null), new("forget", Loc.Get(K.McpClientsForget), null) };
+            var action = await PluginPickAsync(new QuickPickRequest(chosen, Loc.Get(K.McpClientsWatermark), actions), CancellationToken.None);
+            if (action == "toggle") mcp.ClientDecided(chosen, !allowedNow);
+            else if (action == "forget") mcp.ClientForgotten(chosen);
+        }
+    }
+
     internal static string McpToolLabel(string tool) => Loc.Get(tool switch
     {
         "editor_list_documents" => K.McpToolListDocuments,

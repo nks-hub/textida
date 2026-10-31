@@ -7,7 +7,7 @@ using NksHub.Textida.Core.Documents;
 namespace NksHub.Textida.Core.Hex.Ksy;
 
 /// <summary>
-/// Limits that keep a hostile template or file from exhausting the editor. Placeholder, OPEN: the numbers are not decided (P8.10.3), the owner has not chosen them.
+/// Limits that keep a hostile template or file from exhausting the editor. Decided: round numbers that a real file of any supported format stays far below (P8.10.3).
 /// <c>MaxExprChars</c> and <c>MaxExprDepth</c> bound the text and the nesting of one expression (P8.10.4); computing it counts against <c>MaxWork</c>,
 /// and a chain of instances or of lazily read structures a field refers to is cut at <c>MaxDepth</c>. <c>MaxMilliseconds</c> is the time one expansion of a node may take (0 switches it off);
 /// <c>PageSize</c> is the most children one node shows at once: a longer array is shown as groups of ranges (<c>items[0..255]</c>), so a tree never gets thousands of rows in one step.

@@ -23,7 +23,7 @@ internal sealed class JournalService : IDisposable
 
     /// <summary>
     /// Changes of one document above which start does not replay it but asks (bytes inserted and removed); read when the next run starts, so a test lowers it before
-    /// <see cref="Start"/>. Placeholder, OPEN: <see cref="JournalPlaceholders.AskBeforeRecoverBytes"/>.
+    /// <see cref="Start"/>. Default: <see cref="JournalPlaceholders.AskBeforeRecoverBytes"/> (decided there).
     /// </summary>
     internal static long AskBeforeRecoverBytes { get; set; } = JournalPlaceholders.AskBeforeRecoverBytes;
 

@@ -1865,7 +1865,7 @@ Two tabs scroll together, so equal text of two files stays side by side.
 - It stops when one of the two tabs is closed. The hex view and the table view do not take part.
 
 ## [tools.mcp] The editor as an MCP server
-commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools
+commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools, nks.tools.mcpClients
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
 1. Choose Tools, Agents and AI, MCP, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
@@ -1878,6 +1878,7 @@ An AI assistant that you start on this computer (for example a coding agent) can
 - Withdrawing a tab or switching the server off stops the requests that are running, and a proposal that still waits for your decision is withdrawn and counts as rejected. A reload of a file also withdraws it.
 - Only a limited number of proposals can wait for your decision at once (the limit is provisional); a further one is refused until you have decided. A result larger than the size limit is refused, and the assistant is told to ask for less.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
+- MCP Clients (Tools, MCP, MCP Clients...) decides which program may use the MCP server. A client is known by the name it gives when it connects. A new client may do nothing until you allow it in the question shown the first time it connects; until then it sees no tool and every call of it is refused. In the list of clients you can take the permission of one client away (it is disconnected) or give it back, or forget the decision so that the editor asks again next time. The client chooses its own name, so the name does not prove who it is: the permission only keeps an unknown program from reaching the shared tabs by itself.
 
 ## [tools.ide] The /ide bridge for Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention

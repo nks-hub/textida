@@ -106,6 +106,15 @@ public partial class TextToolsTests
         string Name() => Quoted(open, close);
         string Value()
         {
+            if (string.CompareOrdinal(sql, i, "NULL", 0, 4) == 0) { i += 4; return ""; } // the empty cell
+            if (sql[i] is '-' or (>= '0' and <= '9'))
+            {
+                int start = i;
+                while (sql[i] != ',' && sql[i] != ')') i++;
+                var number = sql[start..i];
+                Assert.True(TableExport.IsInvariantNumber(number), number);
+                return number;
+            }
             if (dialect == "tsql") Assert.Equal('N', sql[i++]);
             return Quoted('\'', '\'', escapes: dialect == "mysql");
         }
@@ -152,6 +161,16 @@ public partial class TextToolsTests
         Assert.Equal(table.Rows.SelectMany(r => r), statements.SelectMany(s => s.Values));
         Assert.Contains("'it''s'", TableExport.Sql(table, "t"));
         Assert.Contains("\"na'me\"", TableExport.Sql(table, "t"));
+    }
+
+    [Fact]
+    public void Sql_writes_an_empty_cell_as_NULL_an_invariant_number_as_it_is_and_everything_else_as_a_string()
+    {
+        var table = new TableData(0, 8, null, [["", "1", "-2.5", "3e10", "007", "1,5", " 4", "text"]]);
+        Assert.Equal("INSERT INTO \"t\" VALUES (NULL, 1, -2.5, 3e10, '007', '1,5', ' 4', 'text');\n", TableExport.Sql(table, "t"));
+        Assert.Equal("INSERT INTO [t] VALUES (NULL, 1, -2.5, 3e10, N'007', N'1,5', N' 4', N'text');\n", TableExport.Sql(table, "t", "tsql"));
+        foreach (var number in new[] { "0", "-0", "10", "0.5", "1E+3", "12345678901234567890" }) Assert.True(TableExport.IsInvariantNumber(number), number);
+        foreach (var text in new[] { "", "-", "+1", "00", "01", ".5", "5.", "1e", "1e5000000", "0x10", "1 ", "١٢", "NaN" }) Assert.False(TableExport.IsInvariantNumber(text), text);
     }
 
     [Theory]

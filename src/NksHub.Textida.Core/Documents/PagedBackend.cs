@@ -64,7 +64,8 @@ public sealed class PagedBackend : IByteBackend
     public BackendCapabilities Capabilities => Caps;
     public TextCodec Codec => _doc.Codec;
 
-    public bool Supports(TextCodec codec) => true;
+    /// <summary>The large file view reads blocks of bytes and finds characters with a window of three bytes; an encoding whose characters are longer and cannot be found from the middle is not shown there.</summary>
+    public bool Supports(TextCodec codec) => codec.Kind != CodecKind.MultiByte;
 
     public void Reinterpret(TextCodec codec)
     {

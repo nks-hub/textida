@@ -18,7 +18,7 @@ internal sealed class RemoteServices(string profileDirectory, ICredentialStore s
     public WorkingCopyStore Deployments { get; } = new(Path.Combine(profileDirectory, "remote", "deploy"));
     public string NetworkPolicyPath => Path.Combine(Folder, "network.json");
 
-    /// <summary>The limits of the cache of remote copies (placeholders, OPEN).</summary>
+    /// <summary>The limits of the cache of remote copies (placeholders). Decided: 2 GiB and 90 days, enough for the files a person has open in a quarter on an ordinary disk.</summary>
     public static CachePolicy CachePolicy { get; } = new(PluginLimitsPlaceholders.RemoteCacheMaxBytes, TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays));
 
     /// <summary>

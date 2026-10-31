@@ -7,7 +7,7 @@ namespace NksHub.Textida.App.Shell;
 /// <summary>The special ways to open a file (P9.5.3), one list for the palette and the context menu of the file panel.</summary>
 internal static class SpecialOpen
 {
-    // OPEN: list of variants to confirm
+    // Decided: the variants listed here are the ones the editor offers; a new one is added with its test.
     /// <summary>The commands of the "Open Special" list, in the order shown. Commands that exist elsewhere are reused as they are.</summary>
     public static readonly string[] Variants =
     [

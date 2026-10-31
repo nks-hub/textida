@@ -6,7 +6,7 @@ namespace NksHub.Textida.Plugins.TextTools;
 
 /// <summary>
 /// Selected cells of a table: the <paramref name="Header"/> of the selected columns (null without one), the rows and the 0-based index of the first selected column
-/// (a column without a header name is called by its spreadsheet letter). Every value is text; no type is guessed.
+/// (a column without a header name is called by its spreadsheet letter). Every value is text; only the SQL form looks at its type (see <see cref="TableExport.Sql"/>).
 /// </summary>
 public sealed record TableData(int FirstColumn, int Columns, IReadOnlyList<string>? Header, IReadOnlyList<IReadOnlyList<string>> Rows)
 {
@@ -66,6 +66,8 @@ public static class TableExport
     /// or with a column that has no name, the values go in column order. <paramref name="dialect"/> is an id of the <c>sql.dialect</c> setting: <c>mysql</c> quotes
     /// names with backticks and doubles a backslash (MySQL reads one as an escape), <c>tsql</c> quotes names with brackets and writes <c>N'...'</c> so Unicode text
     /// survives; any other id writes standard SQL (double quotes, nothing else changed).
+    /// Values are typed by what the cell holds: an empty cell is <c>NULL</c>, a number in the invariant form (<see cref="IsInvariantNumber"/>) is written as it is,
+    /// and everything else is a string literal. So "007", "1,5" and " 3" stay strings, and a column of whole numbers loads into a numeric column.
     /// </summary>
     public static string Sql(TableData t, string table, string dialect = "generic")
     {
@@ -81,10 +83,39 @@ public static class TableExport
             "tsql" => v => "N'" + v.Replace("'", "''") + "'",
             _ => v => "'" + v.Replace("'", "''") + "'",
         };
+        string Value(string v) => v.Length == 0 ? "NULL" : IsInvariantNumber(v) ? v : literal(v);
         var head = $"INSERT INTO {identifier(table)}" + (t.Header is null || t.Header.Any(h => h.Length == 0) ? "" : " (" + string.Join(", ", t.Header.Select(identifier)) + ")") + " VALUES (";
         var text = new StringBuilder();
-        foreach (var row in t.Rows) text.Append(head).AppendJoin(", ", row.Select(literal)).Append(");\n");
+        foreach (var row in t.Rows) text.Append(head).AppendJoin(", ", row.Select(Value)).Append(");\n");
         return text.ToString();
+    }
+
+    /// <summary>
+    /// A number in the form every SQL dialect and JSON read the same: an optional minus, digits without a leading zero, an optional fraction with a dot, an optional exponent.
+    /// Anything else (a plus sign, a leading zero, a thousands separator, a decimal comma, spaces) is text.
+    /// </summary>
+    public static bool IsInvariantNumber(string value)
+    {
+        int i = 0, n = value.Length;
+        if (i < n && value[i] == '-') i++;
+        int digits = i;
+        while (i < n && value[i] is >= '0' and <= '9') i++;
+        if (i == digits || (value[digits] == '0' && i - digits > 1) || i - digits > 38) return false;
+        if (i < n && value[i] == '.')
+        {
+            int fraction = ++i;
+            while (i < n && value[i] is >= '0' and <= '9') i++;
+            if (i == fraction) return false;
+        }
+        if (i < n && value[i] is 'e' or 'E')
+        {
+            i++;
+            if (i < n && value[i] is '+' or '-') i++;
+            int exponent = i;
+            while (i < n && value[i] is >= '0' and <= '9') i++;
+            if (i == exponent || i - exponent > 4) return false;
+        }
+        return i == n;
     }
 
     // ---- JSON ----

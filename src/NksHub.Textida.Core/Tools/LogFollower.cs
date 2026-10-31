@@ -90,7 +90,7 @@ public sealed record LogFollowUpdate(LogFollowChange Change, long BytesRead, lon
 /// </summary>
 public sealed class LogFollower
 {
-    /// <summary>Placeholder, OPEN: bytes from the start of the file kept to recognise a replaced file; not a decided value.</summary>
+    /// <summary>Default: bytes from the start of the file kept to recognise a replaced file; not a decided value. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int HeadBytes = 4096;
 
     private readonly ILogSource _source;

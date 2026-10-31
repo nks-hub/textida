@@ -6,7 +6,8 @@ namespace NksHub.Textida.Plugins.Emmet;
 /// <param name="BaseIndent">The indentation of the line the expansion starts on; every further line of the expansion begins with it.</param>
 /// <param name="MaxChars">Longest expansion; a longer one is refused.</param>
 /// <param name="MaxCarets">Most places Tab visits in one expansion; the first ones are kept.</param>
-public sealed record ExpandOptions(string Indent, string BaseIndent, int MaxChars, int MaxCarets);
+/// <param name="Jsx">The text goes into JSX or TSX: <c>class</c> is written <c>className</c>, <c>for</c> is <c>htmlFor</c> and an empty element ends with <c> /&gt;</c>.</param>
+public sealed record ExpandOptions(string Indent, string BaseIndent, int MaxChars, int MaxCarets, bool Jsx = false);
 
 /// <summary>
 /// The text an abbreviation expands to (lines separated by <c>\n</c>) and the UTF-16 offsets of the places Tab visits, in this order: first the
@@ -309,7 +310,7 @@ public static class HtmlExpander
 
             _sb.Append('<').Append(tag);
             WriteAttributes(node, tag, frame);
-            _sb.Append('>');
+            _sb.Append(_o.Jsx && Void.Contains(tag) ? " />" : ">");
             if (Void.Contains(tag))
             {
                 if (node.Children.Count > 0) throw new AbbreviationException("A void element has no children.");
@@ -372,7 +373,7 @@ public static class HtmlExpander
             }
             foreach (var (attribute, value) in attributes)
             {
-                _sb.Append(' ').Append(attribute).Append("=\"");
+                _sb.Append(' ').Append(_o.Jsx ? attribute switch { "class" => "className", "for" => "htmlFor", _ => attribute } : attribute).Append("=\"");
                 if (value.Length == 0) _emptyAttributes.Add(_sb.Length);
                 _sb.Append(value.Replace("\"", "&quot;")).Append('"');
             }

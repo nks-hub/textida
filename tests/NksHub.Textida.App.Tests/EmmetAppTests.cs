@@ -426,4 +426,24 @@ public class EmmetAppTests : IDisposable
         await CommandAsync("nks.tools.emmetWrap");
         Assert.Equal("text", Text(tab));
     }
+
+    [AvaloniaTheory]
+    [InlineData("a.html", "html", "html")]
+    [InlineData("a.xml", "xml", "xml")]
+    [InlineData("a.php", "php", "php")]
+    [InlineData("a.latte", "latte", "latte")]
+    [InlineData("a.css", "css", "css")]
+    [InlineData("a.scss", "css", "css")]
+    [InlineData("a.less", "css", "css")]
+    [InlineData("a.jsx", "javascript", "jsx")]
+    [InlineData("a.tsx", "typescript", "jsx")]
+    [InlineData("a.js", "javascript", null)]
+    [InlineData("a.ts", "typescript", null)]
+    [InlineData("a.py", "python", null)]
+    public void Emmet_works_in_html_xml_php_latte_css_scss_less_jsx_and_tsx_and_nowhere_else(string name, string mode, string? syntax)
+    {
+        var tab = Open(name, "x");
+        Assert.Equal(mode, tab.Doc.Language.Id);
+        Assert.Equal(syntax, PluginServices.EmmetSyntax(tab));
+    }
 }

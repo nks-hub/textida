@@ -19,7 +19,7 @@ public sealed class ServerCatalog(IReadOnlyList<ServerLaunch> entries)
     private static readonly IReadOnlyDictionary<string, string> NoEnvironment = new Dictionary<string, string>();
 
     /// <summary>
-    /// The servers that come with the editor: every entry of <c>LanguageCatalog</c>. OPEN: no version of a server is pinned, so an entry names the program and leaves the version to the installation;
+    /// The servers that come with the editor: every entry of <c>LanguageCatalog</c>. Decided: no version of a server is pinned, so an entry names the program and leaves the version to the installation;
     /// the launch lines (<c>--stdio</c>, <c>--telemetryLevel off</c> for Roslyn, ...) are data from the documentation of the servers and have not been run against a real server.
     /// </summary>
     public static ServerCatalog BuiltIn { get; } = new([.. LanguageCatalog.Lsp.Select(x => new ServerLaunch(x.Language, x.Program, x.Arguments, NoEnvironment))]);
