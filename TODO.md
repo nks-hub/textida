@@ -142,6 +142,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
     - Obří varianty s `TEXTIDA_HUGE=1` zůstávají beze změny.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu
+  - **Stav 31. 10. 2026 (sloučeno 727e47b8):** testy bez `TEXTIDA_HUGE` zapisují nejvýš asi 2 GiB; příčina plného disku virtuálu opravena (testy držely namapované řídké soubory 4,5 GiB, továrna je teď zavírá); `LogFollowPerfTests` běží sám; test pádu při ukládání 2 GiB je rozdělený po bodech v Perf. Otevřené: pád testovacího procesu u bodů mid-write/temp-written a latence psaní a tažení minimapy na virtuálu nad limitem (porovnání se starším main běží).
 
 ### PR.3 Podpis a notarizace
 
@@ -2286,6 +2287,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Stav 31. 10. 2026 (večer, sloučeno a818b892):** vícebajtová kódování fungují i ve stránkovaném režimu: hranice znaku se hledá zpět k bajtu, který může být jen celým znakem (EUC pod 0x80, Shift-JIS, GBK a Big5 pod 0x40, GB18030 pod 0x30); index řádků, hledání a uložení zůstávají bajtově přesné; „Znovu přečíst jako“ je nabízí i u velkých souborů. Opravena hranice uvnitř čtyřbajtového znaku GB18030. Testy na 2MiB souborech 51/51. Zbývá: ověření NativeAOT a vzhled v aplikaci; převod velkého souboru na jiné kódování zůstává vypnutý.
   - **Stav 31. 10. 2026 (noc, sloučeno):** převod kódování jde i u velkého souboru: čeká jako krok dokumentu, ztráty se spočítají předem a potvrdí, uložení převádí po blocích na hranici znaku do dočasného souboru s atomickou výměnou, Zpět vrátí původní kódování (fcd6f9a5; testy UTF-8 → Shift-JIS → UTF-8 a CP1250 → UTF-16 bajtově přesně). Kouřový test `--smoke` ověřuje KOI8-R, ISO-8859-16, Shift-JIS a GB18030 v publikovaném programu (b6a53b63).
   - **Ověření 31. 10. 2026:** ruční běh `release.yml` prošel na win-x64, osx-arm64, osx-x64 a linux-x64; publikovaný NativeAOT program v kouřovém testu zakóduje a dekóduje KOI8-R, ISO-8859-16, Shift-JIS a GB18030 a AOT kontrola projde všechny kodeky. Opraveno: AOT kontrola zkoušela české věty i v kódováních bez českých písmen.
+  - **Chyba nalezená 31. 10. 2026:** francouzský text v CP1252 vychází po detekci turečtiny jako nejistý, protože 1254 a ISO-8859-9 dávají stejná písmena. Rozhodnuto: při shodě přednost Windows-1252, pokud nejsou použitá čistě turecká písmena (zadáno vývojáři).
 
 ### P5.6 Hex: hledání, záložky, porovnání
 
@@ -2790,6 +2792,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.5.1, P8.5.3, PR.6.4
   - **Odhad:** bez odhadu
   - **Umístění:** testy (`Category=RealTools`), katalog
+  - **Ověření 31. 10. 2026 (pilot, `LspPluginTests.Pilot.cs`, sloučeno 727e47b8):** csharp-ls 0.28.0, Roslyn 5.13.0, bash-language-server 5.8.1 se ShellCheckem 0.10, Intelephense, rust-analyzer 0.3.3097 a clangd 23.1.0 — definice, odkazy, doplnění v neuložené kartě, rename a start prošly u všech; diagnostika u všech kromě Roslynu. Paměť po testu: csharp-ls 119 MiB, Roslyn 167 MiB, bash-ls 147 MiB, Intelephense 205 MiB, rust-analyzer 829 MiB (s cargo), clangd 174 MiB. Nálezy (zadáno vývojáři): Roslyn chce pull diagnostiku (`textDocument/diagnostic`), plugin umí jen publishDiagnostics; Roslyn s `--telemetryLevel off` dál otevírá 32 spojení na telemetry.visualstudio.microsoft.com; rename v Intelephense je placený; katalog PHP znal jen phpactor. Dart, DEVSENSE a PHPantom přeskočeny.
 
 ### P8.6 Git
 
