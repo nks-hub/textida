@@ -548,7 +548,8 @@ while (ReadMessage() is { } body)
             Send(Reply(Completion(p)));
             break;
         case "textDocument/rename":
-            Send(Reply(Rename(p) ?? "null"));
+            if (Feature("paidrename")) Send($"{{\"jsonrpc\":\"2.0\",\"id\":{id.GetRawText()},\"error\":{{\"code\":-32001,\"message\":\"Rename requires a licence key.\"}}}}");
+            else Send(Reply(Rename(p) ?? "null"));
             break;
         case "textDocument/diagnostic":
             Send(Reply(PullDiagnostics(p)));

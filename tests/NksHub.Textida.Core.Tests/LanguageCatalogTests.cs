@@ -91,6 +91,8 @@ public sealed class LanguageCatalogTests : IDisposable
         Assert.Contains(".cs", ConfigFormatters.Find("clang-format")!.Extensions);
         Assert.Equal([".editorconfig"], ConfigFormatters.Find("shfmt")!.ConfigFiles); // shfmt reads its options from EditorConfig
         Assert.Equal(["analysis_options.yaml"], ConfigFormatters.Find("dart-format")!.ConfigFiles);
+        Assert.Equal(["intelephense", "phpactor"], LanguageCatalog.Lsp.Where(l => l.Language == "php").Select(l => l.Program)); // Intelephense is the default where found, phpactor the free fallback
+        Assert.Equal(["--stdio"], LanguageCatalog.Lsp.First(l => l.Program == "intelephense").Arguments);
         // C#: csharp-ls first, because Roslyn sends telemetry even with the switch off; Roslyn (the executable of the C# extension, then the command of the .NET tool) is the fallback
         Assert.Equal(["csharp-ls", "Microsoft.CodeAnalysis.LanguageServer", "roslyn-language-server"], LanguageCatalog.Lsp.Where(l => l.Language == "csharp").Select(l => l.Program));
         Assert.Equal(["--stdio", "--telemetryLevel", "off"], LanguageCatalog.Lsp.First(l => l.Program == "roslyn-language-server").Arguments);

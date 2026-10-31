@@ -1069,7 +1069,9 @@ public sealed class LspPlugin : PluginBase
         if (asked.GetProperty("value").ValueKind != JsonValueKind.String || asked.GetProperty("value").GetString()!.Trim() is not { Length: > 0 } name || name == current) return Status("cancelled");
 
         await WaitForLoadAsync(server, ct).ConfigureAwait(false);
-        var answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        JsonElement answer;
+        try { answer = await server.RequestAsync("textDocument/rename", $"{{{position},\"newName\":\"{Quote(name)}\"}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false); }
+        catch (RpcException) when (server.PaidRename) { return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false); }
         if (answer.ValueKind != JsonValueKind.Object) return await TellAsync("none", NoticeLevel.Info, "noRename").ConfigureAwait(false);
         var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
         if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);

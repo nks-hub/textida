@@ -52,6 +52,9 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
     public bool References { get; private set; }
     public bool Completion { get; private set; }
     public bool Rename { get; private set; }
+
+    /// <summary>The server is Intelephense, whose rename is a paid feature: a rename it refuses is "not supported", not an error.</summary>
+    public bool PaidRename { get; private set; }
     private JsonElement _capabilities;
 
     /// <summary>Whether the server announced the capability (<c>hoverProvider</c>, <c>codeActionProvider</c>, ...) in its <c>initialize</c> answer, as <c>true</c> or as an options object. A feature the server did not announce is never asked for.</summary>
@@ -98,6 +101,7 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         try
         {
             await server.InitializeAsync(root, launch.InitializationOptions, ct).ConfigureAwait(false);
+            server.PaidRename = Path.GetFileNameWithoutExtension(launch.Program).Equals("intelephense", StringComparison.OrdinalIgnoreCase);
             if (RoslynWorkspace.IsRoslyn(launch.Program) && RoslynWorkspace.Open(root) is { } open)
             {
                 server._loading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -26,16 +26,16 @@ public partial class LspPluginTests
     }
 
     /// <summary>A program named like the command of the Roslyn .NET tool that starts the dotnet host with the arguments it gets, so the plugin takes the fake server for Roslyn.</summary>
-    private static string RoslynLauncher(string folder)
+    private static string RoslynLauncher(string folder, string name = "roslyn-language-server")
     {
         Directory.CreateDirectory(folder);
         if (OperatingSystem.IsWindows())
         {
-            string batch = Path.Combine(folder, "roslyn-language-server.cmd");
+            string batch = Path.Combine(folder, name + ".cmd");
             File.WriteAllText(batch, $"@echo off\r\n\"{T.DotnetFullPath}\" %*\r\n");
             return batch;
         }
-        string script = Path.Combine(folder, "roslyn-language-server");
+        string script = Path.Combine(folder, name);
         File.WriteAllText(script, $"#!/bin/sh\nexec \"{T.DotnetFullPath}\" \"$@\"\n");
         File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         return script;
@@ -64,6 +64,25 @@ public partial class LspPluginTests
             string[] notes = File.ReadAllLines(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")));
             Assert.Single(notes, n => n.StartsWith("workspace project/open ", StringComparison.Ordinal) && n.Contains("demo.csproj", StringComparison.Ordinal));
             lock (rig.Ui.Notices) Assert.Contains(rig.Ui.Notices, n => n.Level == NoticeLevel.Warning && n.Message.Contains("sends telemetry", StringComparison.Ordinal)); // the start of Roslyn warns once
+        }
+        finally { TestDirDelete(folder); }
+    }
+
+    [Fact]
+    public async Task A_rename_that_Intelephense_refuses_because_it_is_paid_is_not_supported_and_not_an_error()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "textida-intelephense-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            await using var rig = await Rig.CreateAsync(["--features", "paidrename"], declared: true, program: RoslynLauncher(folder, "intelephense"));
+            var doc = rig.Add("one.fake", "foo = foo + 1\n");
+            await rig.RunAsync(doc, LspPlugin.StartCommand);
+            rig.Ui.Input = _ => "bar";
+
+            var r = await rig.RunAsync(doc, LspPlugin.RenameCommand, 1);
+
+            Assert.Equal("notSupported", r.GetProperty("status").GetString());
+            Assert.Equal("foo = foo + 1\n", Rig.TextOf(doc));
         }
         finally { TestDirDelete(folder); }
     }

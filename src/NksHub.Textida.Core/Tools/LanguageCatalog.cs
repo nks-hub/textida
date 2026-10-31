@@ -153,7 +153,8 @@ public static class LanguageCatalog
             []),
         new("php", "PHP",
             [M("php", [".php"], "php"), M("latte", [".latte"], "latte"), M("neon", [".neon"], "neon"), M("blade", [".blade.php"], "blade"), M("twig", [".twig"], "twig")],
-            [new("php", "phpactor", ["language-server"])],
+            // Intelephense is first where installed; its rename is a paid feature, and the plugin reports a refused rename as "not supported". Phpactor stays as the free fallback.
+            [new("php", "intelephense", ["--stdio"]), new("php", "phpactor", ["language-server"])],
             [],
             [
                 new("phpstan", "PHPStan", "phpstan", ["analyse", "--error-format=json", "--no-progress", "--no-interaction", "${File}"], "phpstan-json", [new("*", ToolSeverity.Error)], ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"], [".php"], Supported: new("1.0.0", "3.0.0"), Verified: true),
