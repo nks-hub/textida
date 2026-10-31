@@ -6,7 +6,9 @@ using Xunit.Abstractions;
 
 namespace NksHub.Textida.Core.Tests;
 
-/// <summary>P9.4.3 on a real file: a sparse log that doubles in size, followed through <see cref="FileLogSource"/>; 1 GiB as a large test, 10 GiB as a performance test.</summary>
+/// <summary>P9.4.3 on a real file: a sparse log that doubles in size, followed through <see cref="FileLogSource"/>; 1 GiB as a large test, 10 GiB as a performance test.
+/// Runs alone: the private memory size counts every thread of the process, so tests running beside it would show up as growth.</summary>
+[Collection("Process memory")]
 public sealed class LogFollowPerfTests(ITestOutputHelper output)
 {
     private const long GiB = 1L << 30;
