@@ -137,7 +137,7 @@ public sealed partial class Document : IDisposable
 
     private (byte[] Window, int Pos) Window(long offset, int before, int after)
     {
-        long start = Math.Max(_bomLength, offset - before);
+        long start = Math.Max(_bomLength, offset - Math.Max(before, _codec.ContextBefore(offset, _bomLength, (at, buffer) => _backend.Read(at, buffer))));
         start -= (start - _bomLength) % _codec.Alignment;
         long end = Math.Min(ByteLength, offset + after);
         var window = new byte[end - start];

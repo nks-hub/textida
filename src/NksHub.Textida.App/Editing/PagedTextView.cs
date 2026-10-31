@@ -929,10 +929,11 @@ internal sealed partial class PagedTextView : Grid
         offset = Math.Clamp(offset, full.Start, end);
         long from = full.Start + (Math.Max(full.Start, offset - LocalBytes - 3) - full.Start) / unit * unit;
         long to = Math.Min(end, offset + LocalBytes + 4);
+        if (codec.Kind == CodecKind.MultiByte && from > full.Start) from -= codec.ContextBefore(from, full.Start, (at, buffer) => Doc.Read(at, buffer)); // start at a byte that can only begin a character
         var bytes = new byte[to - from];
         Doc.Read(from, bytes);
         int first = 0;
-        if (from > full.Start)
+        if (from > full.Start && codec.Kind != CodecKind.MultiByte)
             for (first = (3 + unit - 1) / unit * unit; first < bytes.Length && !codec.IsBoundary(bytes, first); first += unit) { }
         int last = to < end ? first + codec.CompleteLength(bytes.AsSpan(first)) : bytes.Length;
         var map = codec.WithBom(false).Decode(bytes.AsMemory(first, last - first));

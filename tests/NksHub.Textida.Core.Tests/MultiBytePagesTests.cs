@@ -119,11 +119,4 @@ public class MultiBytePagesTests
         Assert.Equal("a ? b".Length, TextCodec.ByName("Shift-JIS")!.EncodeLossy("a ř b").Length); // typed into a view that cannot refuse: a question mark
     }
 
-    [Fact]
-    public void The_large_file_view_does_not_take_a_multi_byte_encoding_and_the_others_still_work()
-    {
-        var doc = Core.Documents.Document.FromBytes("abc"u8.ToArray(), PagedBackendFactory.Instance);
-        foreach (var codec in TextCodec.All)
-            Assert.Equal(codec.Kind != CodecKind.MultiByte, doc.Backend.Supports(codec));
-    }
 }
