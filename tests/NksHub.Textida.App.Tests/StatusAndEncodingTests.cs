@@ -142,6 +142,24 @@ public class StatusAndEncodingTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_picker_lists_the_encodings_in_groups_names_the_group_to_a_screen_reader_and_keeps_the_last_ones_on_top()
+    {
+        OpenHtml();
+        var groups = _w.ShowEncodingMenu(onlyConvert: false)!.Items.OfType<MenuItem>().Where(m => m.Items.Count > 0).ToList();
+        Assert.Equal(["Unicode", "Středoevropské", "Západoevropské", "Cyrilice", "Řečtina", "Turečtina", "Baltské", "Hebrejština", "Arabština", "Asijské", "DOS"], groups.Select(g => (string)g.Header!));
+        var cyrillic = groups.Single(g => (string)g.Header! == "Cyrilice").Items.OfType<MenuItem>().ToList();
+        Assert.Contains(cyrillic, m => (string)m.Header! == "KOI8-R");
+        var koi = cyrillic.Single(m => (string)m.Header! == "KOI8-R");
+        Assert.Equal("Cyrilice: KOI8-R", Avalonia.Automation.AutomationProperties.GetName(koi));
+
+        koi.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(MenuItem.ClickEvent));
+        var again = _w.ShowEncodingMenu(onlyConvert: false)!.Items;
+        Assert.Equal("Nedávno použitá", (string)((MenuItem)again[0]!).Header!);
+        Assert.Equal("KOI8-R", (string)((MenuItem)again[1]!).Header!);
+        Assert.Contains(again.OfType<MenuItem>(), m => m.Header is "Najít kódování…");
+    }
+
+    [AvaloniaFact]
     public void Lossy_targets_are_flagged_before_the_choice()
     {
         var tab = _w.NewDocument();
@@ -155,7 +173,7 @@ public class StatusAndEncodingTests : IDisposable
         Assert.DoesNotContain("ztrátové", choices["UTF-8 with BOM"].Label);
 
         var menu = _w.ShowEncodingMenu(onlyConvert: true)!;
-        Assert.Contains(menu.Items.OfType<MenuItem>(), m => ((string)m.Header!).Contains("Windows-1250") && ((string)m.Header!).Contains("ztrátové"));
+        Assert.Contains(menu.Items.OfType<MenuItem>().SelectMany(g => g.Items.OfType<MenuItem>()), m => ((string)m.Header!).Contains("Windows-1250") && ((string)m.Header!).Contains("ztrátové")); // inside its group
     }
 
     [AvaloniaFact]

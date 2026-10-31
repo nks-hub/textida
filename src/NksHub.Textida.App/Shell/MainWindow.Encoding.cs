@@ -4,6 +4,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.PluginHost.Ui;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -11,6 +12,28 @@ namespace NksHub.Textida.App.Shell;
 internal sealed record EncodingChoice(TextCodec Codec, int Lost, bool IsCurrent, bool Enabled)
 {
     public string Label => Lost > 0 ? $"{Codec.Name} · {Loc.Plural(K.EncodingLossy, Lost)}" : Codec.Name;
+
+    /// <summary>The name a screen reader says: the group, then the encoding.</summary>
+    public string SpokenName => Loc.Get(K.EncodingChoiceName, ("group", EncodingGroups.NameOf(Codec.Group)), ("name", Label));
+}
+
+/// <summary>The names of the groups the encoding picker lists, in the language of the interface.</summary>
+internal static class EncodingGroups
+{
+    public static string NameOf(EncodingGroup group) => Loc.Get(group switch
+    {
+        EncodingGroup.Unicode => K.EncodingGroupUnicode,
+        EncodingGroup.CentralEuropean => K.EncodingGroupCentralEuropean,
+        EncodingGroup.WesternEuropean => K.EncodingGroupWesternEuropean,
+        EncodingGroup.Cyrillic => K.EncodingGroupCyrillic,
+        EncodingGroup.Greek => K.EncodingGroupGreek,
+        EncodingGroup.Turkish => K.EncodingGroupTurkish,
+        EncodingGroup.Baltic => K.EncodingGroupBaltic,
+        EncodingGroup.Hebrew => K.EncodingGroupHebrew,
+        EncodingGroup.Arabic => K.EncodingGroupArabic,
+        EncodingGroup.Asian => K.EncodingGroupAsian,
+        _ => K.EncodingGroupDos,
+    });
 }
 
 internal sealed partial class MainWindow
@@ -162,7 +185,7 @@ internal sealed partial class MainWindow
         MenuItem Submenu(string header, IReadOnlyList<EncodingChoice> choices, Action<EncodingChoice> pick)
         {
             var parent = new MenuItem { Header = header };
-            foreach (var c in choices) parent.Items.Add(ChoiceItem(c, pick));
+            foreach (var item in GroupedItems(choices, pick)) parent.Items.Add(item);
             return parent;
         }
         if (onlyConvert is null)
@@ -172,16 +195,63 @@ internal sealed partial class MainWindow
         }
         else
         {
-            foreach (var c in onlyConvert.Value ? ConvertChoices(tab) : RereadChoices(tab))
-                flyout.Items.Add(ChoiceItem(c, onlyConvert.Value ? c2 => _ = ConvertToAsync(tab, c2.Codec) : c2 => RereadAs(tab, c2.Codec)));
+            foreach (var item in GroupedItems(onlyConvert.Value ? ConvertChoices(tab) : RereadChoices(tab), onlyConvert.Value ? c2 => _ = ConvertToAsync(tab, c2.Codec) : c2 => RereadAs(tab, c2.Codec)))
+                flyout.Items.Add(item);
         }
         flyout.ShowAt(_encodingItem);
         return flyout;
     }
 
+    /// <summary>
+    /// The picker: the encodings used last on top, then one submenu per group (Unicode, Central European, Western European, Cyrillic, ...), and an item that opens a search. A screen reader says the group
+    /// and then the name of an encoding. Choosing one puts it on top of the recent list.
+    /// </summary>
+    internal IReadOnlyList<Control> GroupedItems(IReadOnlyList<EncodingChoice> choices, Action<EncodingChoice> pick)
+    {
+        void Picked(EncodingChoice c)
+        {
+            _app.RecentEncodings.Used(c.Codec.Name);
+            pick(c);
+        }
+        var items = new List<Control>();
+        var recent = _app.RecentEncodings.Names.Select(n => choices.FirstOrDefault(c => c.Codec.Name == n)).Where(c => c is not null).Select(c => c!).ToList();
+        if (recent.Count > 0)
+        {
+            var header = new MenuItem { Header = Loc.Get(K.EncodingRecent), IsEnabled = false };
+            items.Add(header);
+            items.AddRange(recent.Select(c => ChoiceItem(c, Picked)));
+            items.Add(new Separator());
+        }
+        foreach (var group in Enum.GetValues<EncodingGroup>())
+        {
+            var inGroup = choices.Where(c => c.Codec.Group == group).ToList();
+            if (inGroup.Count == 0) continue;
+            var parent = new MenuItem { Header = EncodingGroups.NameOf(group) };
+            foreach (var c in inGroup) parent.Items.Add(ChoiceItem(c, Picked));
+            items.Add(parent);
+        }
+        items.Add(new Separator());
+        var find = new MenuItem { Header = Loc.Get(K.EncodingFind) };
+        find.Click += (_, _) => EncodingPickTask = FindEncodingAsync(choices, Picked);
+        items.Add(find);
+        return items;
+    }
+
+    /// <summary>The search of the picker; tests wait for it.</summary>
+    internal Task EncodingPickTask { get; private set; } = Task.CompletedTask;
+
+    /// <summary>Lists every encoding with its group; typing narrows the list by the name of the encoding or of the group.</summary>
+    private async Task FindEncodingAsync(IReadOnlyList<EncodingChoice> choices, Action<EncodingChoice> pick)
+    {
+        var items = choices.Where(c => c.Enabled).Select(c => new PickItem(c.Codec.Name, c.Label, EncodingGroups.NameOf(c.Codec.Group))).ToList();
+        var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.EncodingFindTitle), Loc.Get(K.EncodingFindWatermark), items), CancellationToken.None);
+        if (chosen is not null && choices.FirstOrDefault(c => c.Codec.Name == chosen) is { } choice) pick(choice);
+    }
+
     private static MenuItem ChoiceItem(EncodingChoice choice, Action<EncodingChoice> pick)
     {
         var item = new MenuItem { Header = choice.Label, IsEnabled = choice.Enabled, ToggleType = MenuItemToggleType.Radio, IsChecked = choice.IsCurrent, GroupName = "encoding", Tag = choice };
+        Avalonia.Automation.AutomationProperties.SetName(item, choice.SpokenName);
         item.Click += (_, _) => pick(choice);
         return item;
     }
