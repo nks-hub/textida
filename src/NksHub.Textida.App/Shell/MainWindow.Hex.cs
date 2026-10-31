@@ -644,6 +644,7 @@ internal sealed partial class MainWindow
             return true;
         }
         if (result.Conflict is { } change) return await ResolveSaveConflictAsync(tab, change);
+        if (result.Loss is { HasLoss: true } loss) SetStatusMessage(Loc.Get(K.StatusTranscodeLoss, ("message", DescribeLoss(loss, doc.PendingTranscode ?? doc.Codec)))); // text typed after the conversion was chosen has a character the target lacks
         return false;
     }
 

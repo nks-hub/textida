@@ -364,9 +364,11 @@ public sealed partial class Document
         bool streaming = false;
         try
         {
-            var plan = inPlace ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
-            // the snapshot is taken before the first await, so the document takes edits (when it can) from the moment the save is called
-            streaming = plan.Mode == SaveMode.Stream && _backend.EditsDuringStreamingSave;
+            var transcode = _pendingTranscode;
+            var plan = inPlace && transcode is null ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
+            // the snapshot is taken before the first await, so the document takes edits (when it can) from the moment the save is called;
+            // a file that is rewritten in another encoding takes none: the bytes the edits point to are not the ones that are written
+            streaming = plan.Mode == SaveMode.Stream && _backend.EditsDuringStreamingSave && transcode is null;
             IByteSnapshot? snapshot = streaming ? _backend.BeginStreamingSave() : _backend.CreateSnapshot();
             var mark = new SaveMark(_undo.Count > 0 ? _undo[^1] : null, _revision, snapshot.ByteLength);
             if (streaming)
@@ -407,9 +409,18 @@ public sealed partial class Document
             {
                 temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
                 string tempPath = temp;
+                var fromCodec = _codec;
+                long oldLength = snapshot!.ByteLength;
                 try
                 {
-                    (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
+                    if (transcode is not null)
+                    {
+                        // the loss is known before a byte is written: a character the target cannot hold, and no replacement the user confirmed, ends the save here
+                        var (loss, blocked) = await Task.Run(() => Transcode(snapshot!, fromCodec, transcode, _transcodeReplacement, ct, null, null, 0), CancellationToken.None);
+                        if (blocked) return new(false, null, loss);
+                        (hash, baseline) = await Task.Run(() => WriteTranscoded(snapshot!, fromCodec, transcode, _transcodeReplacement, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
+                    }
+                    else (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
                     StreamSaveStep?.Invoke("temp-written", tempPath);
                 }
                 catch (SnapshotInvalidatedException) when (guard)
@@ -426,6 +437,7 @@ public sealed partial class Document
                 if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(tempPath, target);
                 else FileSwap.Replace(tempPath, target);
                 StreamSaveStep?.Invoke("after-swap", tempPath);
+                if (transcode is not null) ResetAfterTranscode(fromCodec, transcode, oldLength);
             }
             CompleteSave(target, hash, baseline, streaming ? mark : null);
             StreamSaveStep?.Invoke("saved", target);
@@ -467,6 +479,19 @@ public sealed partial class Document
         var written = CopyHashed(snapshot, fs, ct, progress, intervalMs);
         fs.Flush(true);
         return written;
+    }
+
+    /// <summary>Writes the snapshot to <paramref name="temp"/> converted from <paramref name="from"/> to <paramref name="to"/>, block by block; the hash and block digests are those of the bytes written.</summary>
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTranscoded(IByteSnapshot snapshot, Encodings.TextCodec from, Encodings.TextCodec to, string? replacement, string temp, CancellationToken ct, Action<string, string>? step, IProgress<SaveProgress>? progress, int intervalMs)
+    {
+        using var fs = new FileStream(temp, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 0 });
+        step?.Invoke("temp-writing", temp);
+        var blocks = new OriginalBlockHashes();
+        var hashing = new HashingStream(fs, blocks);
+        Transcode(snapshot, from, to, replacement, ct, hashing, progress, intervalMs);
+        var hash = hashing.Finish();
+        fs.Flush(true);
+        return (hash, blocks);
     }
 
     /// <summary>Copies the snapshot to <paramref name="sink"/> and returns the hash and block digests of the bytes that went through; <see cref="Stream.Null"/> as sink only hashes.</summary>

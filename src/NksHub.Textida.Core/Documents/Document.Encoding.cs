@@ -103,6 +103,114 @@ public sealed partial class Document
         return new(true, _revision, ConflictReason.None);
     }
 
+    // ---- convert a large file on save ----
+
+    private TextCodec? _pendingTranscode;
+    private string? _transcodeReplacement;
+
+    /// <summary>The encoding the file is rewritten in by the next save (<see cref="StageTranscode"/>); null when the save keeps the encoding of the bytes.</summary>
+    public TextCodec? PendingTranscode => _pendingTranscode;
+
+    /// <summary>
+    /// Counts, block by block, the characters of the document that <paramref name="target"/> cannot write (and the undecodable bytes, which cannot be carried across), without changing or writing anything.
+    /// Block after block is read from a snapshot and cut between characters, so a file of any size costs no more memory than one block. Run it on a worker thread.
+    /// </summary>
+    public LossReport PreviewTranscode(TextCodec target, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        return Transcode(GetSnapshot(), _codec, target, null, ct, null, null, 0).Loss;
+    }
+
+    /// <summary>
+    /// "Convert to" for a document that is not decoded as a whole (the large file view): the conversion is a pending step of the document and the next save streams the file into the new
+    /// encoding, block by block (<see cref="Transcode"/>), and swaps it in only when it is complete. One undo step: undoing it before the save cancels it; undoing it after the save makes the next
+    /// save convert back. <paramref name="replacement"/> is the user's confirmed text for each character the target cannot hold (null: the save reports the loss and writes nothing).
+    /// </summary>
+    public EditResult StageTranscode(TextCodec target, string? replacement = null)
+    {
+        ThrowIfDisposed();
+        if (_saving) return EditResult.Fail(ConflictReason.Saving, _revision);
+        RequireSupported(target);
+        var after = target.SameBytesAs(_codec) ? null : target;
+        if (after == _pendingTranscode) return new(true, _revision, ConflictReason.None);
+        var before = _pendingTranscode;
+        _pendingTranscode = after;
+        _transcodeReplacement = replacement;
+        Commit(ChangeKind.View, "transcode", new List<Pending>(), new Step([], null, null, IsTranscode: true, PendingBefore: before, PendingAfter: after), null);
+        return new(true, _revision, ConflictReason.None);
+    }
+
+    /// <summary>
+    /// Reads <paramref name="snapshot"/> in blocks of 1 MiB cut at character boundaries of <paramref name="from"/>, plans each block in <paramref name="to"/> and writes it to <paramref name="sink"/> (null: only counts).
+    /// The byte order mark of the target is written once at the start; a mark in the middle of the source is a character. The loss is added up over the blocks; <c>Blocked</c> is true when a character
+    /// was lost and there is no <paramref name="replacement"/>, in which case nothing may be written.
+    /// </summary>
+    private static (LossReport Loss, bool Blocked) Transcode(IByteSnapshot snapshot, TextCodec from, TextCodec to, string? replacement, CancellationToken ct, Stream? sink, IProgress<SaveProgress>? progress, int intervalMs)
+    {
+        const int Block = 1 << 20;
+        var counts = new Dictionary<int, int>();
+        int total = 0;
+        bool blocked = false, first = true;
+        var target = to.WithBom(false);
+        if (sink is not null && to.Bom.Length > 0) sink.Write(to.Bom);
+        var buffer = new byte[Block + 16];
+        int have = 0;
+        long at = 0, length = snapshot.ByteLength, written = 0;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long nextReport = intervalMs;
+        while (at < length || have > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (at < length)
+            {
+                int n = snapshot.Read(at, buffer.AsSpan(have, (int)Math.Min(Block, length - at)));
+                if (n == 0) throw new EndOfStreamException("The snapshot ended before its declared length.");
+                at += n;
+                have += n;
+            }
+            bool end = at >= length;
+            int cut = end ? have : from.CompleteLength(buffer.AsSpan(0, have));
+            if (cut == 0) cut = have; // a block that is one unfinished character cannot happen at this size; take it whole rather than loop
+            var decoded = (first ? from : from.WithBom(false)).Decode(buffer.AsMemory(0, cut).ToArray());
+            var plan = ByteFidelity.PlanConvert(decoded, target, replacement);
+            if (plan.Loss.HasLoss)
+            {
+                total += plan.Loss.Total;
+                foreach (var g in plan.Loss.Groups) counts[g.CodePoint] = counts.GetValueOrDefault(g.CodePoint) + g.Count;
+            }
+            blocked |= plan.IsBlocked;
+            if (sink is not null && !blocked)
+            {
+                var data = plan.ToBytes();
+                sink.Write(data);
+                written += data.Length;
+            }
+            first = false;
+            Buffer.BlockCopy(buffer, cut, buffer, 0, have - cut);
+            have -= cut;
+            if (progress is not null && (at >= length || clock.ElapsedMilliseconds >= nextReport))
+            {
+                progress.Report(new(at - have, length));
+                nextReport = clock.ElapsedMilliseconds + intervalMs;
+            }
+        }
+        return (LossReport.FromCounts(counts, total), blocked);
+    }
+
+    /// <summary>After a save wrote the document in <paramref name="to"/>: the history that described the old bytes is gone, the encoding is the new one, and one step remembers the old one so undo converts back.</summary>
+    private void ResetAfterTranscode(TextCodec from, TextCodec to, long oldLength)
+    {
+        _undo.Clear();
+        _redo.Clear();
+        _undoTrimmed = 0;
+        _saved = null;
+        _savedUnreachable = false;
+        _pendingTranscode = null;
+        SetCodec(to);
+        Commit(ChangeKind.Backend, "transcode", [new ChangeSet.Span(0, oldLength, ByteLength)], null, null);
+        PushUndo(new Step([], null, null, IsTranscode: true, PendingBefore: from, PendingAfter: null), null);
+    }
+
     /// <summary>
     /// "Save as" with a target encoding. The loss check runs first: without a confirmed <paramref name="replacement"/>
     /// nothing is converted or written and the result carries the <see cref="SaveResult.Loss"/>. A failed save (external change)
