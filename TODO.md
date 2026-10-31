@@ -1711,6 +1711,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Závisí na:** P3b.1.1
   - **Odhad:** v rámci zbytku rozpočtu P3b (viz P3b.5.4); cena F202 v matici patří veřejnému SDK (P8b.2.1)
   - **Umístění:** jádro (vývojová infrastruktura)
+  - **Stav 31. 10. 2026:** CI (`release.yml`) publikuje ukázkový plugin `samples/csharp-hello` s NativeAOT pro win-x64, osx-arm64, osx-x64 a linux-x64 a ověří ho validátorem (`textida-plugin-validate --run` se záznamem relace); ruční běh prošel na všech čtyřech. Šablona `NkspadPlugin` se v CI nepublikuje, potřebuje balík SDK z NuGetu.
 - [ ] **P3b.5.2** Integrační zkouška distribuce pluginů na Windows a macOS
   - **Co a proč:** Na konci P3b: přibalený i cizí plugin přes hotového správce na Apple Silicon i Intel, karanténa staženého ZIP, první spuštění a aktualizace pluginu. Na macOS musí být spustitelný soubor pluginu podepsaný a notarizovaný, jinak ho může zablokovat Gatekeeper. Používá skript z P3b.5.4.
   - **Funkce:** žádná (ověření)
@@ -2998,6 +2999,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Umístění:** jádro (vývojová infrastruktura)
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Balík NksHub.Textida.Plugin.Sdk s baseline veřejného API, testovací hostitel, šablona `dotnet new nkspad-plugin` (AOT win-x64). Zbývá CI a osx AOT (jen na Macu).
   - **Stav 31. 10. 2026:** šablona pluginu není vázaná na jeden RID (`NkspadPlugin.csproj` jen `PublishAot`). Chybí publikace v CI a ověření na macOS.
+  - **Stav 31. 10. 2026:** CI (`release.yml`) publikuje ukázkový plugin `samples/csharp-hello` s NativeAOT pro win-x64, osx-arm64, osx-x64 a linux-x64 a ověří ho validátorem (`textida-plugin-validate --run` se záznamem relace); ruční běh prošel na všech čtyřech. Šablona `NkspadPlugin` se v CI nepublikuje, potřebuje balík SDK z NuGetu.
 - [ ] **P8b.2.2** Ověřovač pluginů a kontraktové testy
   - **Co a proč:** Staticky kontroluje manifest, rozsah `api` a deklarace, za běhu handshake a validaci RPC. Bezpečnostní audit binárky neslibuje (R14). Kontraktové testy pokrývají všechna rozhraní z P8b.2.1, nejen API v1.
   - **Funkce:** F203
