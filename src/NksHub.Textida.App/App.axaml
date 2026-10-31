@@ -236,6 +236,11 @@
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="Opacity" Value="0.7" />
         </Style>
+        <Style Selector="Border.statusbar">
+            <Setter Property="Background" Value="{DynamicResource ChromeBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+        </Style>
         <Style Selector="Border.statusbar TextBlock">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />

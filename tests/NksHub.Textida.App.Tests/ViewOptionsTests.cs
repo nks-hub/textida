@@ -1293,6 +1293,20 @@ public class ViewOptionsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_status_bar_takes_the_chrome_color_of_the_theme_and_is_not_left_white_in_the_dark_one()
+    {
+        var bar = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_w).OfType<Border>().First(b => b.Classes.Contains("statusbar"));
+        foreach (var (variant, expected) in new[] { (Avalonia.Styling.ThemeVariant.Light, Color.Parse("#EEF0F3")), (Avalonia.Styling.ThemeVariant.Dark, Color.Parse("#202225")) })
+        {
+            _app.RequestedThemeVariant = variant;
+            _w.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(expected, Assert.IsAssignableFrom<ISolidColorBrush>(bar.Background).Color);
+        }
+        _app.RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Default;
+    }
+
+    [AvaloniaFact]
     public void In_a_row_of_the_strip_the_more_severe_mark_wins_whichever_came_first()
     {
         var tab = Open("sev.cs", KeywordFile(3000));
