@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Tests;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -516,10 +517,10 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     [Fact]
-    [Trait("Category", "Large")]
+    [Trait("Category", "Perf")] // over 5 minutes on the test machine: the Perf run allows a test 20 minutes, the Large run only 5
     public async Task A_multi_GiB_document_with_large_edits_and_a_streaming_save_recovers_after_a_crash()
     {
-        const long big = 3L << 30;
+        long big = HugeText.SizePast(2L << 30, 3L << 30); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
         string path = Data;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         LargeText.WriteFile(path, big);
@@ -586,12 +587,20 @@ public sealed class LargeChangeJournalTests : IDisposable
         Assert.Contains("failures 0", output);
     }
 
-    [Fact]
-    [Trait("Category", "Large")]
-    public void Killing_the_process_during_a_save_of_a_3_GiB_document_recovers_the_edits_and_leaves_the_original_whole()
+    // one harness run per kill point, each about 5 minutes of disk work for 2 GiB on the test machine: the Perf run allows a test 20 minutes, the Large run only 5
+    [Theory]
+    [Trait("Category", "Perf")]
+    [InlineData("journal-flushed")]
+    [InlineData("mid-write")]
+    [InlineData("temp-written")]
+    [InlineData("mid-swap")]
+    [InlineData("after-swap")]
+    [InlineData("saved")]
+    [InlineData("cancel")]
+    public void Killing_the_process_during_a_save_of_a_document_over_2_GiB_recovers_the_edits_and_leaves_the_original_whole(string point)
     {
-        var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", (3L << 30).ToString(),
-            "--points", "journal-flushed,mid-write,temp-written,mid-swap,after-swap,saved,cancel");
+        var output = RunHarness(Path.Combine(_dir, "w"), "--iterations", "0", "--parallel", "1", "--seed", "9200", "--size", HugeText.SizePast(2L << 30, 3L << 30).ToString(),
+            "--points", point);
         Assert.Contains("failures 0", output);
     }
 }

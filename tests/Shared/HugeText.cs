@@ -8,6 +8,7 @@ namespace NksHub.Textida.Tests;
 /// (<c>INFO </c>, <c>WARN </c> or <c>ERROR</c>), a space, 44 letters that depend on the seed of the text, and a line feed. Line <c>n</c> of a text starts at byte <c>64 n</c>, so
 /// the expected offset and content of any line is a formula, not a pass over the file.
 /// The tests that need a machine with 100 GiB of free disk run only where <c>TEXTIDA_HUGE=1</c> is set; <c>TEXTIDA_HUGE_SCALE</c> (for example <c>0.01</c>) shrinks every size for a dry run.
+/// Without <c>TEXTIDA_HUGE=1</c> no size from <see cref="Size"/> is more than 2 GiB; the giant sizes come back with it.
 /// </summary>
 internal static class HugeText
 {
@@ -33,8 +34,22 @@ internal static class HugeText
         catch (IOException) { }
     }
 
-    /// <summary>A size scaled for a dry run, whole MiB, at least 2 MiB.</summary>
-    public static long Size(long bytes) => Math.Max(2L * BlockBytes, (long)(bytes * Scale) / BlockBytes * BlockBytes);
+    /// <summary>The most real bytes a test writes by default, that is without <c>TEXTIDA_HUGE=1</c>.</summary>
+    public const long DefaultCapBytes = 2L << 30;
+
+    private static long Scaled(long bytes) => Math.Max(2L * BlockBytes, (long)(bytes * Scale) / BlockBytes * BlockBytes);
+
+    /// <summary>
+    /// A size scaled for a dry run, whole MiB, at least 2 MiB. Where <c>TEXTIDA_HUGE=1</c> is not set it is also at most <see cref="DefaultCapBytes"/>, so a test that asks for 10 GiB writes 2 GiB;
+    /// every position of such a test must come from the size it gets, not from the size it asked for.
+    /// </summary>
+    public static long Size(long bytes) => Enabled ? Scaled(bytes) : Math.Min(Scaled(bytes), DefaultCapBytes);
+
+    /// <summary>
+    /// <see cref="Size"/> for a test whose point is a file past a boundary of the offsets (2 GiB, 4 GiB): without <c>TEXTIDA_HUGE=1</c> it is only 4 MiB past <paramref name="boundary"/>, not the
+    /// <paramref name="bytes"/> asked for, which a machine set up for the huge tests still gets.
+    /// </summary>
+    public static long SizePast(long boundary, long bytes) => Enabled ? Scaled(bytes) : Math.Min(Scaled(bytes), boundary + 4L * BlockBytes);
 
     /// <summary>Fails with the numbers when the drive of <paramref name="path"/> has less than <paramref name="bytes"/> free; a performance run must never fill the disk.</summary>
     public static void RequireRoom(string path, long bytes)

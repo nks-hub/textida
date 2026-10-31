@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using NksHub.Textida.Tests;
 
 namespace NksHub.Textida.Core.Tests;
 
@@ -169,9 +170,10 @@ public sealed class PagedSpillTests : IDisposable
 
     [Fact]
     [Trait("Category", "Large")]
-    public void Inserting_3_GiB_and_undoing_it_stays_under_1_GiB_of_private_memory_and_restores_the_bytes()
+    public void Inserting_over_2_GiB_and_undoing_it_stays_under_1_GiB_of_private_memory_and_restores_the_bytes()
     {
-        const int blocks = 768, blockSize = 4 << 20; // 3 GiB
+        const int blockSize = 4 << 20;
+        int blocks = Math.Max(1, (int)(HugeText.SizePast(2L << 30, 3L << 30) / blockSize)); // 513 blocks, 3 GiB (768 blocks) with TEXTIDA_HUGE=1
         byte[] original = Encoding.ASCII.GetBytes("start\nend\n");
         var options = Options(PagedSpillPlaceholders.MemoryBudgetBytes);
         using var doc = PagedDocument.OpenMemory(original, options);

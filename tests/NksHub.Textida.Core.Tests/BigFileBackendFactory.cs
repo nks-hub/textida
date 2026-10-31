@@ -22,6 +22,9 @@ internal sealed class BigFileBackendFactory : IBackendFactory
             try { Directory.Delete(old, recursive: true); } catch (IOException) { }
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
+            // the finalizers of the undisposed documents unmap their files; without this the files of a whole run stay behind and fill the disk
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             try { Directory.Delete(Dir, recursive: true); } catch (IOException) { }
         };
     }
@@ -47,8 +50,21 @@ internal sealed class BigFileBackendFactory : IBackendFactory
         using (var fs = CreateSparse(path)) fs.Write(bytes.Span);
         var backend = PagedBackend.FromFile(path, codec);
         backend.Replace(bytes.Length, FileSize - bytes.Length, []);
+        // the contract tests never dispose their documents, and every mapped 4.5 GiB file keeps its disk space charged: only the latest few stay open
+        lock (_open)
+        {
+            _open.Enqueue((backend, path));
+            while (_open.Count > 3)
+            {
+                var (old, oldPath) = _open.Dequeue();
+                old.Dispose();
+                try { File.Delete(oldPath); } catch (IOException) { }
+            }
+        }
         return backend;
     }
+
+    private static readonly Queue<(IByteBackend Backend, string Path)> _open = new();
 }
 
 [Trait("Category", "Large")]

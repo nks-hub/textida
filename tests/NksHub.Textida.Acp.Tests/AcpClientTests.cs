@@ -356,7 +356,8 @@ public class AcpClientTests
         Assert.All(AcpAdapters.All, a =>
         {
             Assert.Matches("^[a-z][a-z-]*$", a.Command);
-            Assert.All(a.Args, arg => Assert.Matches("^([a-z]+|--[a-z]+(=(true|false))?)$", arg));
+            // a word, a long flag, a short flag, or one setting of a program written as lower case name=word (codex-acp on Windows: -c windows.sandbox=unelevated); a key or a token would have digits or capitals
+            Assert.All(a.Args, arg => Assert.Matches("^([a-z]+|--[a-z]+(=(true|false))?|-[a-z]|[a-z]+\\.[a-z]+=[a-z]+)$", arg));
         });
     }
 

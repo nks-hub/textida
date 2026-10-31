@@ -187,10 +187,11 @@ public class AcpRealAgentsTests : IDisposable
 
         var said = await SayAsync($"Read the file {path}, then change its first line to the word CHANGED and keep the other lines. Use your file tools.");
 
-        // the adapter did not ask the editor for the file: the read was of the disk (the text of the tab was not seen), and the write went to the disk without a proposal
+        // the adapter did not ask the editor for the file: the read was of the disk (the text of the tab was not seen), and the write went to the disk through no proposal of the editor;
+        // the permission question that Claude Code asks before the write is the one thing shown in the review (its diff counts as one proposal)
         var boundary = Acp.Boundary();
         Assert.Equal(0, boundary.Reads);
-        Assert.Equal(0, boundary.Proposals);
+        Assert.Equal(id == "claude" ? 1 : 0, boundary.Proposals);
         Assert.StartsWith("CHANGED\nbeta\ngamma", File.ReadAllText(path).Replace("\r\n", "\n"));
         Assert.Equal("unsaved alpha\nbeta\ngamma\n", tab.Editor!.Document.Text); // the tab is untouched
         Assert.False(_w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true);

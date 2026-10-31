@@ -725,7 +725,7 @@ public class McpServerTests
         Assert.InRange(scannedTo, 1L << 29, 3L << 30);
         var third = (await rig.ToolAsync("editor_log_query", rig.Args(doc, $"\"level\":\"error\",\"start\":{(7L << 30) - 1024},\"maxLines\":1"))).Json;
         Assert.Equal("2026-01-01 ERROR failure at seven gigabytes", third.GetProperty("lines")[0].GetProperty("text").GetString());
-        Assert.InRange(GC.GetTotalMemory(true) - before, -1, 128L << 20);
+        Assert.True(GC.GetTotalMemory(true) - before <= 128L << 20, "the managed heap grew by more than 128 MiB");
         rig.Owner.Run(() => { rig.Api.Withdraw(doc); doc.Dispose(); return 0; });
     }
 

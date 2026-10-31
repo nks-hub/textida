@@ -5,6 +5,7 @@ using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Tests;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -64,28 +65,30 @@ public sealed class HexFillLargeTests : IDisposable
         return Convert.ToHexString(sha.GetHashAndReset());
     }
 
+    /// <summary>The save writes the whole fill, so this is the one test of the class that writes real bytes: 2 GiB and 4 MiB (past the offsets of a 32 bit signed number), 5 GiB with <c>TEXTIDA_HUGE=1</c>.</summary>
     [Fact]
     [Trait("Category", "Large")]
-    public void Filling_5_GiB_takes_no_memory_and_the_saved_file_is_byte_exact_by_an_independent_computation()
+    public void Filling_a_file_past_2_GiB_takes_no_memory_and_the_saved_file_is_byte_exact_by_an_independent_computation()
     {
+        long size = HugeText.SizePast(2L << 30, FiveGiB);
         byte[] pattern = [0xDE, 0xAD, 0xBE, 0xEF, 0x01];
-        string path = SparseFile("five.bin", FiveGiB, (0, 0x11), (FiveGiB / 2, 0x22), (FiveGiB - 1, 0x33));
+        string path = SparseFile("fill.bin", size, (0, 0x11), (size / 2, 0x22), (size - 1, 0x33));
         var d = Open(path);
         d.Replace(new ByteRange(0, 1), new byte[] { 0x44 }, new() { RawBytes = true }); // an ordinary edit before the fill: it goes below the fill in the undo stack
         long allocated = GC.GetAllocatedBytesForCurrentThread();
-        var result = d.Fill(new ByteRange(0, FiveGiB), pattern, FiveGiB, new() { RawBytes = true });
+        var result = d.Fill(new ByteRange(0, size), pattern, size, new() { RawBytes = true });
         long grown = GC.GetAllocatedBytesForCurrentThread() - allocated;
         Assert.True(result.Applied);
         Assert.True(grown <= 16 << 20, $"The fill allocated {grown} bytes.");
-        Assert.Equal(FiveGiB, d.ByteLength);
+        Assert.Equal(size, d.ByteLength);
 
         var probe = new byte[7];
-        d.Read(FiveGiB / 2 - 2, probe);
-        Assert.Equal(Enumerable.Range(0, 7).Select(i => pattern[(FiveGiB / 2 - 2 + i) % 5]).ToArray(), probe);
+        d.Read(size / 2 - 2, probe);
+        Assert.Equal(Enumerable.Range(0, 7).Select(i => pattern[(size / 2 - 2 + i) % 5]).ToArray(), probe);
 
         var saved = d.SaveAsync().GetAwaiter().GetResult();
         Assert.True(saved.Saved);
-        string independent = VerifyPattern(path, FiveGiB, pattern);
+        string independent = VerifyPattern(path, size, pattern);
         Assert.Equal(independent, d.Fingerprint!.Sha256);
         Assert.False(d.IsModified);
         // the save wrote over the mapped file: the undo of the fill, and of what came before it, is released

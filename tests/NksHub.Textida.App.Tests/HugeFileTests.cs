@@ -18,10 +18,10 @@ using NksHub.Textida.Tests;
 namespace NksHub.Textida.App.Tests;
 
 /// <summary>
-/// The big-file conditions of P3.1.6, P3.1.8 and P9.4.2 on real files of 10 and 50 GiB, through the window of the app: a view at random places of a 10 GiB file, the window
-/// while the index of a 50 GiB file is built and a jump ahead of it, the heatmap of a 10 GiB log. The files have fixed lines of 64 bytes (see <see cref="HugeText"/>), so every expected
-/// offset, line number and text is a formula. The 10 GiB tests are Perf tests; the 50 GiB ones run only where <c>TEXTIDA_HUGE=1</c> is set and the disk has the room, and they are
-/// meant for the test machine of the project, not for a developer PC. The numbers are written to the output of the test.
+/// The big-file conditions of P3.1.6, P3.1.8 and P9.4.2 on real files, through the window of the app: a view at random places of a big file, the window
+/// while the index of a 50 GiB file is built and a jump ahead of it, the heatmap of a big log. The files have fixed lines of 64 bytes (see <see cref="HugeText"/>), so every expected
+/// offset, line number and text is a formula. The big files are 2 GiB, and 10 GiB where <c>TEXTIDA_HUGE=1</c> is set (<see cref="HugeText.Size"/>); they are Perf tests. The 50 GiB tests run only
+/// where <c>TEXTIDA_HUGE=1</c> is set and the disk has the room, and they are meant for the test machine of the project, not for a developer PC. The numbers are written to the output of the test.
 /// </summary>
 [Collection("LocState")]
 [Trait("Category", "Perf")]
@@ -111,11 +111,11 @@ public sealed class HugeFileTests : IDisposable
     // ---- P3.1.6 ----
 
     /// <summary>
-    /// A view put at random places of a 10 GiB file shows the characters of the reference decoding of the bytes there (here the line number and the letters of the generator) and reads
-    /// at most <see cref="PluginLimitsPlaceholders.PagedViewportMaxBlocks"/> blocks of 1 MiB for it.
+    /// A view put at random places of a big file (2 GiB, 10 GiB with <c>TEXTIDA_HUGE=1</c>) shows the characters of the reference decoding of the bytes there (here the line number and the
+    /// letters of the generator) and reads at most <see cref="PluginLimitsPlaceholders.PagedViewportMaxBlocks"/> blocks of 1 MiB for it.
     /// </summary>
     [AvaloniaFact]
-    public void A_view_at_a_random_place_of_a_10_GiB_file_shows_the_reference_text_and_reads_few_blocks()
+    public void A_view_at_a_random_place_of_a_big_file_shows_the_reference_text_and_reads_few_blocks()
     {
         _app.Workbench.Set("editor.minimap", JsonValue.Create(false)); // the map reads the file on its own
         long size = HugeText.Size(10L << 30);
@@ -181,11 +181,11 @@ public sealed class HugeFileTests : IDisposable
     }
 
     /// <summary>
-    /// The heatmap of the log in the strip of the minimap puts the clusters of errors and of warnings of a 10 GiB log where they are and nowhere else, and it is ready in
-    /// seconds because only a window at the start of each bucket is read.
+    /// The heatmap of the log in the strip of the minimap puts the clusters of errors and of warnings of a big log (2 GiB, 10 GiB with <c>TEXTIDA_HUGE=1</c>) where they are and nowhere else,
+    /// and it is ready in seconds because only a window at the start of each bucket is read.
     /// </summary>
     [AvaloniaFact]
-    public void The_heatmap_of_a_10_GiB_log_shows_its_clusters_of_errors_and_warnings_where_they_are()
+    public void The_heatmap_of_a_big_log_shows_its_clusters_of_errors_and_warnings_where_they_are()
     {
         long size = HugeText.Size(10L << 30), blocksInFile = size / HugeText.BlockBytes;
         string path = Files.Get("heat.log", size, b => LevelOfBlock(b, blocksInFile), _output);

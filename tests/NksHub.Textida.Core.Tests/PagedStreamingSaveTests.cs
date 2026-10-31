@@ -12,7 +12,9 @@ namespace NksHub.Textida.Core.Tests;
 /// <summary>
 /// P7.1.3: a paged document is saved by streaming an immutable snapshot to a temporary file and swapping it in, while the user keeps editing.
 /// The expected bytes come from <see cref="LargeModel"/>, which generates them from the edit script and never reads the product.
+/// Runs alone: the private memory size counts every thread of the process, so tests running beside it would show up as growth.
 /// </summary>
+[Collection("Process memory")]
 public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-stream-").FullName;
@@ -386,7 +388,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
     [Trait("Category", "Large")]
     public async Task A_multi_GiB_file_is_edited_during_a_streaming_save_and_the_file_equals_the_snapshot()
     {
-        const long size = 3L << 30;
+        long size = HugeText.SizePast(2L << 30, 3L << 30); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
         string path = NewFile(size);
         using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
         var model = new LargeModel(size);
@@ -561,7 +563,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
 
     [Fact]
     [Trait("Category", "Large")]
-    public void Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => OnOwnerThread(() => SaveWhileEditingAsync(3L << 30));
+    public void Private_memory_stays_bounded_while_a_multi_GiB_save_streams_and_edits_continue() => OnOwnerThread(() => SaveWhileEditingAsync(HugeText.SizePast(2L << 30, 3L << 30)));
 
     /// <summary>
     /// The size of the file of P7.1.3. The memory of the machine does not decide the result: the save holds a few buffers and one digest per MiB, not the file. The file and the expected
@@ -676,7 +678,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
 
     private async Task EditsAndTheEndOfTheSaveAsync()
     {
-        const long size = 3L << 30;
+        long size = HugeText.SizePast(2L << 30, 3L << 30);
         string path = NewFile(size);
         using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
         var model = new LargeModel(size);
@@ -712,7 +714,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         times.Sort();
         double p99 = times[(int)(times.Count * 0.99)];
         double stall = Stopwatch.GetElapsedTime(swapAt, doneAt).TotalMilliseconds;
-        output.WriteLine($"Edits during a 3 GiB streaming save: {times.Count} edits, p50 {times[times.Count / 2]:0.0}, p95 {times[(int)(times.Count * 0.95)]:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms; SaveAsync call {callMs:0.0} ms; swap to done {stall:0} ms");
+        output.WriteLine($"Edits during a {size / 1073741824.0:0.0##} GiB streaming save: {times.Count} edits, p50 {times[times.Count / 2]:0.0}, p95 {times[(int)(times.Count * 0.95)]:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms; SaveAsync call {callMs:0.0} ms; swap to done {stall:0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} edits fitted in the save");
         Assert.True(callMs <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"starting the save held the caller for {callMs:0.0} ms");
         Assert.True(p99 <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"edit p99 {p99:0.0} ms (median {times[times.Count / 2]:0.0} ms)");

@@ -121,8 +121,8 @@ public class TableCopyAsTests : IDisposable
 
         _dialogs.Prompts.Enqueue("people");
         var sql = await CopyAsAsync("table.copyAs.sql");
-        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES ('1', 'Ann', 'it''s');\n", sql);
-        Assert.Contains("VALUES ('3', 'Cyd', 'x\ny');\n", sql);
+        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES (1, 'Ann', 'it''s');\n", sql);
+        Assert.Contains("VALUES (3, 'Cyd', 'x\ny');\n", sql);
         Assert.Equal(Sample, Bytes(tab));
     }
 
@@ -192,7 +192,7 @@ public class TableCopyAsTests : IDisposable
 
         _dialogs.Prompts.Enqueue("people");
         var sql = await CopyAsAsync("table.copyAs.sql");
-        Assert.Contains("INSERT INTO `people` (`id`, `name`, `note`) VALUES ('1', 'Ann', 'it''s');\n", sql);
+        Assert.Contains("INSERT INTO `people` (`id`, `name`, `note`) VALUES (1, 'Ann', 'it''s');\n", sql);
     }
 
     [AvaloniaFact]
@@ -205,12 +205,12 @@ public class TableCopyAsTests : IDisposable
 
         _dialogs.Prompts.Enqueue("people");
         var sql = await CopyAsAsync("table.copyAs.sql");
-        Assert.Contains("INSERT INTO [people] ([id], [name], [note]) VALUES (N'1', N'Ann', N'it''s');\n", sql);
+        Assert.Contains("INSERT INTO [people] ([id], [name], [note]) VALUES (1, N'Ann', N'it''s');\n", sql);
 
         tab.Doc.ChooseSqlDialect("sqlite");
         _dialogs.Prompts.Enqueue("people");
         sql = await CopyAsAsync("table.copyAs.sql");
-        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES ('1', 'Ann', 'it''s');\n", sql);
+        Assert.Contains("INSERT INTO \"people\" (\"id\", \"name\", \"note\") VALUES (1, 'Ann', 'it''s');\n", sql);
     }
 
     [AvaloniaFact]
@@ -278,7 +278,7 @@ public class TableCopyAsTests : IDisposable
         Assert.Equal("| b | c | d |\n| --- | --- | --- |\n| x\\<y \\& 'z' | 3 | 4\\|4 |\n| 7 | 8 | 9 |\n", await CopyAsAsync("table.copyAs.markdown"));
 
         _dialogs.Prompts.Enqueue("t");
-        Assert.Equal("INSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES ('x<y & ''z''', '3', '4|4');\nINSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES ('7', '8', '9');\n", await CopyAsAsync("table.copyAs.sql"));
+        Assert.Equal("INSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES ('x<y & ''z''', 3, '4|4');\nINSERT INTO \"t\" (\"b\", \"c\", \"d\") VALUES (7, 8, 9);\n", await CopyAsAsync("table.copyAs.sql"));
 
         using (var json = System.Text.Json.JsonDocument.Parse((await CopyAsAsync("table.copyAs.json"))!))
         {

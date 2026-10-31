@@ -233,6 +233,8 @@ public class HistoryPanelTests : IDisposable
     {
         Loc.SetLanguage("en");
         var (_, _, view) = await OpenPanel(Versions.Take(2).ToArray());
+        _app.History.Policy = new HistoryPolicy(); // the defaults have limits now (90 days, 100 revisions, 50 MiB); this is the user who removed them all
+        view.Reload();
         Assert.Equal(Loc.Get(K.HistoryPanelRetentionNone), view.RetentionText);
 
         _app.History.Policy = new HistoryPolicy { MaxAge = TimeSpan.FromDays(30), MaxRevisionsPerFile = 50, MaxBytesPerFile = 4L << 20 };

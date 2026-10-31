@@ -191,7 +191,7 @@ public class EncodingGuessTests
         var (_, codec, bytes) = EncodingCorpus.Get(name);
         var g = EncodingGuesser.Guess(bytes, true);
         Assert.Same(codec, g.Codec);
-        Assert.False(g.IsUncertain);
+        Assert.False(g.IsUncertain, $"{name}: confidence {g.Confidence:0.00}, {g.Reason}; alternatives {string.Join(", ", g.Alternatives.Select(a => a.Name))}");
     }
 
     [Fact]
