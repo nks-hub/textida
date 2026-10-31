@@ -358,6 +358,7 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
   - **Hotovo, když:** hlavní okno na obou OS odpovídá měření kap. D5: nahoře jen menu a karty, žádný pruh tlačítek; na každém OS se navíc funkčně ověří menu, titulková oblast, fokus, přepnutí světlého a tmavého tématu za běhu, změna DPI a dostupnost skrytých panelů z klávesnice; na Windows 10 22H2 má okno jednobarevné pozadí podle tématu.
   - **Závisí na:** P1.1.1
   - **Odhad:** bez odhadu
+  - **Kontrola vykreslení 1. 11. 2026 (headless 3×, světlé a tmavé, 50 obrázků):** nalezené chyby: stavový řádek zůstává v tmavém tématu bílý; odkazy v náhledu Markdownu jsou posazené výš než okolní text; řádky výběrových seznamů mají vlevo prázdný sloupec asi 90 px; náhled změny z Gitu překrývá kód místo odsunutí řádků; rozbalovací nastavení ukazují surové hodnoty (`none`); „(unknown)“ v seznamu klientů MCP není přeložené; okno s parametry zakrývá další řádek. Zadáno vývojáři.
 - [x] **P1.1.4** Jedna instance a příkazová řádka
   - **Co a proč:** Druhé spuštění předá cesty běžící instanci přes vlastní IPC; výslovně jde otevřít nové okno. Příkazová řádka otevře cestu a pozici. `--wait` skončí až po zavření karty, pro Git a `crontab -e`.
   - **Funkce:** F114, F003
@@ -3197,6 +3198,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Stav 27. 10. 2026 (večer):** částečně. Export HTML a RTF dokumentu nebo výběru se stejnými tokeny a barvami motivu; Úpravy → Kopírovat jako (text + HTML + RTF do schránky, zdroj HTML). Limit 8 Mi znaků je placeholder. Chybí: ruční zkouška vložení do Wordu, výběr ve stránkovaném režimu se barví od svého začátku; TeX a PDF až později.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Výběr ve stránkovaném režimu se obarví podle celého dokumentu. Zbývá ruční zkouška vložení do Wordu.
   - **Stav 31. 10. 2026:** kód je hotový: výběr ve stránkovaném režimu se barví podle celého dokumentu. Chybí ruční zkouška vložení do Wordu.
+  - **Ověření 1. 11. 2026:** `HighlightExportWordTests` se skutečným Wordem na vývojovém PC prošel (1/1).
 - [x] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
