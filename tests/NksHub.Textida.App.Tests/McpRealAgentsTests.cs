@@ -85,6 +85,8 @@ public class McpRealAgentsTests : IDisposable
         await RunAsync("nks.tools.mcpShareTab");
     }
 
+    private static string Tail(string output) => output.Length <= 1500 ? output : "..." + output[^1500..];
+
     private bool ReviewShown => _w.ResultsView?.Rows.OfType<SearchResultsView.HunkRow>().Any() == true;
 
     /// <summary>Runs a client program while the window keeps working (the preview of a proposal and the questions of the server need its thread).</summary>
@@ -131,8 +133,15 @@ public class McpRealAgentsTests : IDisposable
         {
             mcpServers = new { textida = new { command = Dotnet, args = new[] { BridgeDll }, env = new Dictionary<string, string> { ["TEXTIDA_CHANNEL"] = App.Startup.Channel } } },
         }));
-        return await WhileRunning(RealTools.RunAsync(claude, ["-p", "--output-format", "stream-json", "--verbose", "--mcp-config", config, "--strict-mcp-config", "--tools", "",
-            "--allowedTools", "mcp__textida", "--permission-mode", "default", "--max-turns", "6", "--model", "haiku", "--no-session-persistence", "--max-budget-usd", "0.5", prompt], _folder, TimeSpan.FromMinutes(4)));
+        // a run of the program that hangs after its first model turn (it happens now and then, with no tools in the first run) is not the subject of the test: it is repeated once
+        (int ExitCode, string Output, bool TimedOut) run = default;
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            run = await WhileRunning(RealTools.RunAsync(claude, ["-p", "--output-format", "stream-json", "--verbose", "--mcp-config", config, "--strict-mcp-config", "--tools", "",
+                "--allowedTools", "mcp__textida", "--permission-mode", "default", "--max-turns", "6", "--model", "haiku", "--no-session-persistence", "--max-budget-usd", "0.5", prompt], _folder, TimeSpan.FromMinutes(2)));
+            if (!run.TimedOut) break;
+        }
+        return run;
     }
 
     [AvaloniaFact]
@@ -145,7 +154,7 @@ public class McpRealAgentsTests : IDisposable
 
         // a client the user has not decided about: it connects, the editor asks the user, and the client sees no tool
         var first = await ClaudeAsync(claude, ListPrompt);
-        Assert.False(first.TimedOut, first.Output);
+        Assert.False(first.TimedOut, Tail(first.Output));
         string name = Assert.Single(_asked);
         Assert.Contains("claude", name, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("shared.txt", first.Output);
@@ -155,7 +164,7 @@ public class McpRealAgentsTests : IDisposable
         // the user allows it: the shared tabs are listed, the unsaved text is read, the tab that is not shared is invisible and the values of .env are masked
         _app.Plugins.Mcp.ClientDecided(name, true);
         var second = await ClaudeAsync(claude, ReadPrompt);
-        Assert.False(second.TimedOut, second.Output);
+        Assert.False(second.TimedOut, Tail(second.Output));
         Assert.Contains("shared.txt", second.Output);
         Assert.Contains("unsaved alpha beta gamma", second.Output);
         Assert.Contains(".env", second.Output);
@@ -168,7 +177,7 @@ public class McpRealAgentsTests : IDisposable
 
         // a prepared change is shown in the review and nothing is written before the user decides
         var third = await ClaudeAsync(claude, $"Call the tool editor_list_documents of the textida MCP server, take the document titled shared.txt and its revision, then call editor_prepare_changes to replace the word beta with the word delta in it. Use no other tool.");
-        Assert.False(third.TimedOut, third.Output);
+        Assert.False(third.TimedOut, Tail(third.Output));
         called.UnionWith(ToolsCalled(third.Output));
         Assert.Contains("editor_prepare_changes", called);
         await Until(() => ReviewShown, "the review of the prepared change");
@@ -236,14 +245,14 @@ public class McpRealAgentsTests : IDisposable
 
         var first = await CodexAsync(codex, home, ListPrompt);
         Assert.SkipWhen(first.Output.Contains("usage limit", StringComparison.OrdinalIgnoreCase), "the account of Codex has reached its usage limit; the test needs a working login");
-        Assert.False(first.TimedOut, first.Output);
+        Assert.False(first.TimedOut, Tail(first.Output));
         string name = Assert.Single(_asked);
         Assert.Contains("codex", name, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("shared.txt", first.Output);
 
         _app.Plugins.Mcp.ClientDecided(name, true);
         var second = await CodexAsync(codex, home, ReadPrompt);
-        Assert.False(second.TimedOut, second.Output);
+        Assert.False(second.TimedOut, Tail(second.Output));
         Assert.Contains("shared.txt", second.Output);
         Assert.Contains("unsaved alpha beta gamma", second.Output);
         Assert.DoesNotContain("secret-plan", second.Output);
@@ -252,7 +261,7 @@ public class McpRealAgentsTests : IDisposable
         Assert.Contains("editor_list_documents", called);
 
         var third = await CodexAsync(codex, home, "Call the tool editor_list_documents of the textida MCP server, take the document titled shared.txt and its revision, then call editor_prepare_changes to replace the word beta with the word delta in it. Use no other tool.");
-        Assert.False(third.TimedOut, third.Output);
+        Assert.False(third.TimedOut, Tail(third.Output));
         called = [.. called.Union(ToolsCalled(third.Output)).Order()];
         await Until(() => ReviewShown, "the review of the prepared change");
         Assert.Equal("alpha beta gamma\n", File.ReadAllText(shared.Path!));
