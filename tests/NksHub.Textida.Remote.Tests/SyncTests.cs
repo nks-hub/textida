@@ -480,4 +480,18 @@ public class SyncTests
         Assert.Equal("/a.txt", Assert.Single(store.All()).RemotePath);
         Assert.Empty(store.Prune(new CachePolicy(MaxBytes: 0), DateTime.UtcNow));
     }
+
+    [Fact]
+    public async Task PruneLeavesACopyThatIsInUse()
+    {
+        await using var r = await Rig.StartAsync(RemoteProtocol.Ftps, ("a.txt", "aaaa"), ("b.txt", "bbbb"));
+        var store = r.Store;
+        foreach (var n in new[] { "a", "b" }) await store.OpenAsync(r.Client, $"/{n}.txt", default);
+        var open = store.Find(r.Client.Connection.Id, "/a.txt")!;
+
+        var removed = store.Prune(new CachePolicy(MaxAge: TimeSpan.FromDays(1)), DateTime.UtcNow.AddDays(2), c => c.LocalPath == open.LocalPath);
+        Assert.Equal(["/b.txt"], removed.Select(c => c.RemotePath).ToArray());
+        Assert.True(File.Exists(open.LocalPath));
+        Assert.Empty(store.Prune(new CachePolicy(MaxBytes: 0), DateTime.UtcNow, c => c.LocalPath == open.LocalPath));
+    }
 }

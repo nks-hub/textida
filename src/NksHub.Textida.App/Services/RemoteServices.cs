@@ -21,10 +21,13 @@ internal sealed class RemoteServices(string profileDirectory, ICredentialStore s
     /// <summary>The limits of the cache of remote copies (placeholders, OPEN).</summary>
     public static CachePolicy CachePolicy { get; } = new(PluginLimitsPlaceholders.RemoteCacheMaxBytes, TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays));
 
-    /// <summary>Removes the copies over the limits of <see cref="CachePolicy"/> in the background, least recently used first; a copy with unsent changes stays. Tried again at the next start.</summary>
-    public Task PruneCopiesAsync() => Task.Run(() =>
+    /// <summary>
+    /// Removes the copies over the limits of <see cref="CachePolicy"/> in the background, least recently used first. A copy with unsent changes stays, and so does every copy whose
+    /// local path is in <paramref name="inUse"/> (open in a tab, or named by a session, a project or the journal that will open it). Tried again at the next start.
+    /// </summary>
+    public Task PruneCopiesAsync(IReadOnlySet<string> inUse) => Task.Run(() =>
     {
-        try { return Copies.Prune(CachePolicy, DateTime.UtcNow).Count; }
+        try { return Copies.Prune(CachePolicy, DateTime.UtcNow, c => inUse.Contains(Path.GetFullPath(c.LocalPath))).Count; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return 0; }
     });
 

@@ -451,8 +451,28 @@ public class RemoteFileTests : IDisposable
 }
 
 /// <summary>File locks in the window (P5.4.5): a locked file opens read only, says why, refuses to save, and can be switched to concurrent writing on purpose.</summary>
+[Collection("LocState")]
 public class RemoteCachePruneTests
 {
+    [AvaloniaFact]
+    public void Paths_in_use_name_open_tabs_sessions_and_projects()
+    {
+        using var temp = new TempDir();
+        var app = TestApp.Prepare(temp);
+        try
+        {
+            var w = app.CreateWindow(null);
+            string open = temp.File("open.txt", "x");
+            w.OpenFile(open, null);
+            string projectFile = Path.Combine(temp.Path, "project-file.txt");
+            app.Workspace.SaveProject(new ProjectData { Name = "P", Files = [projectFile] });
+            var used = app.PathsInUse();
+            Assert.Contains(Path.GetFullPath(open), used);
+            Assert.Contains(Path.GetFullPath(projectFile), used);
+        }
+        finally { TestApp.Cleanup(app); }
+    }
+
     [Fact]
     public async Task The_start_up_cleanup_keeps_a_copy_that_was_never_sent()
     {
@@ -461,7 +481,7 @@ public class RemoteCachePruneTests
         string source = profile.File("a.txt", "one");
         var unsent = services.Copies.Stage("c1", "/unsent.txt", source); // staged with the base None: its content was never sent
 
-        await services.PruneCopiesAsync();
+        await services.PruneCopiesAsync(new HashSet<string>());
 
         Assert.True(File.Exists(unsent.LocalPath));
         Assert.Equal(TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays), RemoteServices.CachePolicy.MaxAge);
