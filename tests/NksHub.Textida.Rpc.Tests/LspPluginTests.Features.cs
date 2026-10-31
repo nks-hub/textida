@@ -107,6 +107,30 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task Parameter_info_marks_the_parameter_at_the_caret_and_is_not_asked_of_a_server_without_it()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "run(1)\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.SignatureHelpCommand, 4)).GetProperty("status").GetString());
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "signature"]);
+        var text = "é😀 run(1, 2)\n";
+        var call = rig.Add("sig.fake", text);
+        await rig.RunAsync(call, LspPlugin.StartCommand);
+
+        var first = await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, Bytes("é😀 run(1"));
+        Assert.Equal("ok", first.GetProperty("status").GetString());
+        Assert.StartsWith("run(«a: int», b: string)", first.GetProperty("signature").GetString());
+        var second = await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, Bytes("é😀 run(1, 2"));
+        Assert.StartsWith("run(a: int, «b: string»)", second.GetProperty("signature").GetString());
+        Assert.Contains(rig.Ui.Notices, n => n.Message.StartsWith("run(a: int, «b: string»)", StringComparison.Ordinal));
+        Assert.Equal("none", (await rig.RunAsync(call, LspPlugin.SignatureHelpCommand, 0)).GetProperty("status").GetString()); // outside any call
+    }
+
+    [Fact]
     public async Task Hover_is_not_asked_of_a_server_that_does_not_announce_it_and_an_old_answer_is_dropped()
     {
         await using (var plain = await Rig.CreateAsync())

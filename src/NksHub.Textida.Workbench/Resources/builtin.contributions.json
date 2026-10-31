@@ -2251,6 +2251,14 @@
       "enablement": "hasDocument && !largeFileMode && !readOnly"
     },
     {
+      "id": "nks.lsp.signatureHelp",
+      "title": "cmd.lsp.signatureHelp",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView && fileKind != 'text'",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.lsp.restart",
       "title": "cmd.lsp.restart",
       "category": "cat.tools",
@@ -5151,6 +5159,13 @@
       "group": "1_text/04",
       "submenu": "code/lsp",
       "order": 102
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.signatureHelp",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 103
     },
     {
       "menu": "tools",

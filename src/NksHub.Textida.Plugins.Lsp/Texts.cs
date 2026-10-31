@@ -40,6 +40,7 @@ public static class Texts
         ["formatBatch"] = ["Formátovat dokument", "Format document", "Formátovať dokument", "Dokument formatieren"],
         ["noActions"] = ["Server na tomto místě nenabízí žádnou akci ani opravu.", "The server offers no action or fix at this place.", "Server na tomto mieste neponúka žiadnu akciu ani opravu.", "Der Server bietet an dieser Stelle keine Aktion und keine Korrektur an."],
         ["actionsTitle"] = ["Akce a rychlé opravy", "Code actions and quick fixes", "Akcie a rýchle opravy", "Aktionen und Schnellkorrekturen"],
+        ["noSignature"] = ["Na tomto místě není žádné volání, ke kterému by server znal podpis.", "There is no call at this place that the server knows a signature for.", "Na tomto mieste nie je žiadne volanie, ku ktorému by server poznal podpis.", "An dieser Stelle gibt es keinen Aufruf, zu dem der Server eine Signatur kennt."],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

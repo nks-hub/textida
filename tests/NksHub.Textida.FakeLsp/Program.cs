@@ -220,6 +220,28 @@ string? Hover(JsonElement p)
     return "{\"contents\":{\"kind\":\"markdown\",\"value\":" + Quote($"**{text[s..e]}** ({e - s} chars)") + "},\"range\":" + Range(text, s, e) + "}";
 }
 
+// signature help: inside the arguments of NAME( ... ) it answers "NAME(a: int, b: string)" with the parameter the caret is in (the number of commas before it)
+string? SignatureHelp(JsonElement p)
+{
+    var uri = p.GetProperty("textDocument").GetProperty("uri").GetString()!;
+    var pos = p.GetProperty("position");
+    var text = texts[uri];
+    int caret = Offset(text, pos.GetProperty("line").GetInt32(), pos.GetProperty("character").GetInt32());
+    int depth = 0, commas = 0, open = -1;
+    for (int i = caret - 1; i >= 0 && open < 0; i--)
+    {
+        if (text[i] == ')') depth++;
+        else if (text[i] == '(' && depth > 0) depth--;
+        else if (text[i] == '(') open = i;
+        else if (text[i] == ',' && depth == 0) commas++;
+    }
+    if (open < 0) return null;
+    int s = open;
+    while (s > 0 && IsWord(text[s - 1])) s--;
+    if (s == open) return null;
+    return "{\"signatures\":[{\"label\":" + Quote($"{text[s..open]}(a: int, b: string)") + ",\"documentation\":" + Quote($"Calls {text[s..open]}.") + ",\"parameters\":[{\"label\":\"a: int\"},{\"label\":\"b: string\"}]}],\"activeSignature\":0,\"activeParameter\":" + commas + "}";
+}
+
 // code actions: "Remove ERROR" (a quick fix with the edit, preferred) for every diagnostic the client sent in the context, "Run it" that only has a command, and a disabled one; the two last must not be offered
 string CodeActions(JsonElement p)
 {
@@ -295,6 +317,7 @@ string ExtraCapabilities()
     if (Feature("hover")) caps.Add("\"hoverProvider\":true");
     if (Feature("formatting")) caps.Add("\"documentFormattingProvider\":true");
     if (Feature("codeaction")) caps.Add("\"codeActionProvider\":true");
+    if (Feature("signature")) caps.Add("\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}");
     return caps.Count == 0 ? "" : "," + string.Join(',', caps);
 }
 
@@ -398,6 +421,9 @@ while (ReadMessage() is { } body)
             break;
         case "textDocument/rename":
             Send(Reply(Rename(p) ?? "null"));
+            break;
+        case "textDocument/signatureHelp":
+            Send(Reply(SignatureHelp(p) ?? "null"));
             break;
         case "textDocument/codeAction":
             Send(Reply(CodeActions(p)));
