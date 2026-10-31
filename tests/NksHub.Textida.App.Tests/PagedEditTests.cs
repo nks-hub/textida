@@ -16,8 +16,12 @@ using NksHub.Textida.Tests;
 
 namespace NksHub.Textida.App.Tests;
 
+/// <summary>Runs alone: the typing latency during a save is measured over the whole process, so tests running beside it would show up as delay.</summary>
+[CollectionDefinition("Latency", DisableParallelization = true)]
+public class LatencyCollection;
+
 /// <summary>Editing on the paged surface through the keyboard path of the window: typing, moving, deleting, undo, redo and save.</summary>
-[Collection("LocState")]
+[Collection("Latency")]
 public class PagedEditTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
