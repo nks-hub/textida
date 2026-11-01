@@ -44,8 +44,11 @@ public class LocalizationTests : IDisposable
         Assert.Equal(["cs", "en", "sk", "de"], Loc.Languages); // P1.1.7: MVP UI languages
         Assert.Equal(Loc.DefaultLanguage, Loc.Languages[0]);
         const string prefix = "NksHub.Textida.App.Strings.";
-        var embedded = typeof(Loc).Assembly.GetManifestResourceNames().Where(n => n.StartsWith(prefix, StringComparison.Ordinal)).Select(n => n[prefix.Length..^".json".Length]);
-        Assert.Equal(Loc.Languages.Order(), embedded.Order());
+        var embedded = typeof(Loc).Assembly.GetManifestResourceNames().Where(n => n.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(n => n[prefix.Length..^".json".Length]).ToList();
+        Assert.Equal(Loc.Languages.Order(), embedded.Where(n => !n.Contains('.')).Order());
+        foreach (var family in embedded.GroupBy(n => n.Contains('.') ? n[..n.LastIndexOf('.')] : ""))
+            Assert.Equal(Loc.Languages.Order(), family.Select(n => n[(n.LastIndexOf('.') + 1)..]).Order());
     }
 
     [Theory, MemberData(nameof(Languages))]

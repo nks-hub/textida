@@ -160,6 +160,30 @@ public class TranslationReviewTests
     }
 
     [Fact]
+    public void Every_embedded_app_catalogue_is_in_the_review_inventory()
+    {
+        var register = LoadRegister();
+        const string prefix = "NksHub.Textida.App.Strings.";
+        foreach (var lang in StringTable.UiLanguages)
+        {
+            var rows = Inventory(register, lang).Where(row => row.Catalogue == "app").ToDictionary(row => row.Key);
+            var resources = typeof(Loc).Assembly.GetManifestResourceNames().Where(name => name.StartsWith(prefix, StringComparison.Ordinal)
+                && name.EndsWith("." + lang + ".json", StringComparison.Ordinal));
+            foreach (string resource in resources)
+            {
+                using var stream = typeof(Loc).Assembly.GetManifestResourceStream(resource)!;
+                using var catalogue = JsonDocument.Parse(stream);
+                foreach (var text in catalogue.RootElement.EnumerateObject())
+                {
+                    Assert.NotNull(AreaOf(register, "app", text.Name));
+                    Assert.True(rows.TryGetValue(text.Name, out var row), resource + ": " + text.Name);
+                    Assert.Equal(text.Value.GetString(), row.Text);
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void The_inventory_is_exported_as_one_sheet_per_language_for_the_reviewer()
     {
         using var dir = new TempDir();

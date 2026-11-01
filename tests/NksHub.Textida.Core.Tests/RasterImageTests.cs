@@ -43,6 +43,19 @@ public class RasterImageTests
     }
 
     [Fact]
+    public void A_bitmap_with_the_minimum_signed_height_has_no_size()
+    {
+        var bmp = Padded([.. "BM"u8], 54);
+        bmp[14] = 40;
+        bmp[26] = 1;
+        bmp[28] = 24;
+        BitConverter.GetBytes(1).CopyTo(bmp, 18);
+        BitConverter.GetBytes(int.MinValue).CopyTo(bmp, 22);
+
+        Assert.Null(RasterImage.Size(bmp));
+    }
+
+    [Fact]
     public void The_three_kinds_of_webp_give_their_size()
     {
         var extended = Padded([.. "RIFF"u8, 0, 0, 0, 0, .. "WEBPVP8X"u8, 10, 0, 0, 0, 0, 0, 0, 0, 0x1F, 0x03, 0x00, 0x57, 0x02, 0x00]);

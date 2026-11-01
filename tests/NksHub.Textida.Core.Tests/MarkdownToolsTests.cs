@@ -14,6 +14,54 @@ public class MarkdownToolsTests
         Assert.Equal([(1, "One", 0), (2, "Two", 4)], h.Select(x => (x.Level, x.Title, x.Line)));
     }
 
+    [Theory]
+    [InlineData("# C#")]
+    [InlineData("   # C#")]
+    [InlineData("# C# ##")]
+    public void A_hash_in_a_heading_title_is_kept(string source)
+    {
+        Assert.Equal("C#", Assert.Single(MarkdownTools.Headings(Lines(source))).Title);
+    }
+
+    [Theory]
+    [InlineData("~~~\n# hidden\n~~~\n# visible", 3)]
+    [InlineData("````\n# hidden\n```\n# still hidden\n````\n# visible", 5)]
+    [InlineData("```\n# hidden\n~~~\n# still hidden\n```\n# visible", 5)]
+    [InlineData("  ```\n# hidden\n  ```\n# visible", 3)]
+    public void A_heading_inside_a_fence_is_not_in_the_outline(string source, int line)
+    {
+        var heading = Assert.Single(MarkdownTools.Headings(Lines(source)));
+        Assert.Equal((1, "visible", line), (heading.Level, heading.Title, heading.Line));
+    }
+
+    [Theory]
+    [InlineData("```")]
+    [InlineData("~~~")]
+    public void Table_navigation_does_not_treat_fenced_source_as_a_table(string fence)
+    {
+        var source = Lines(fence + "\n| a | b |\n|---|---|\n| 1 | 2 |\n" + fence);
+        Assert.Null(MarkdownTools.TableAround(source, 3));
+        Assert.Null(MarkdownTools.MoveCell(source, 3, 2, forward: true));
+    }
+
+    [Theory]
+    [InlineData("# after | heading")]
+    [InlineData("- after | item")]
+    [InlineData("```text|info")]
+    public void A_table_stops_before_another_block_that_contains_a_pipe(string boundary)
+    {
+        var source = Lines("a|b\n---|---\n1|2\n" + boundary + "\n");
+        Assert.Equal((0, 2), MarkdownTools.TableAround(source, 2));
+        Assert.Null(MarkdownTools.TableAround(source, 3));
+    }
+
+    [Fact]
+    public void Table_of_contents_markers_inside_fenced_source_are_not_the_edit_target()
+    {
+        var source = Lines("```markdown\n<!-- TOC -->\nexample\n<!-- /TOC -->\n```\n\n<!-- TOC -->\nold\n<!-- /TOC -->");
+        Assert.Equal((6, 8), MarkdownTools.TocBlock(source));
+    }
+
     [Fact]
     public void A_table_is_aligned_with_marks_kept_and_short_rows_filled()
     {
