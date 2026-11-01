@@ -7,7 +7,25 @@ using Markdig.Syntax.Inlines;
 
 namespace NksHub.Textida.Core.Markdown;
 
-public sealed class MarkdownSyntaxException(string message, Exception? inner = null) : FormatException(message, inner);
+public enum MarkdownSyntaxFailure { Parse, Nesting, GeneratedTableCells }
+
+public sealed class MarkdownSyntaxException(string message, Exception? inner = null) : FormatException(message, inner)
+{
+    public MarkdownSyntaxFailure Failure { get; } = MarkdownSyntaxFailure.Parse;
+    public int? Limit { get; }
+
+    public MarkdownSyntaxException(MarkdownSyntaxFailure failure, int? limit = null, Exception? inner = null)
+        : this(failure switch
+        {
+            MarkdownSyntaxFailure.Nesting => $"Markdown nesting exceeds the parser limit of {limit}.",
+            MarkdownSyntaxFailure.GeneratedTableCells => $"Markdown tables would add more than {limit} empty cells.",
+            _ => "Markdown could not be parsed.",
+        }, inner)
+    {
+        Failure = failure;
+        Limit = limit;
+    }
+}
 
 public static class MarkdownSyntax
 {
@@ -17,8 +35,8 @@ public static class MarkdownSyntax
         builder.Extensions.Add(new TableExpansionLimit());
         if (maximumDepth is { } depth) builder.MaximumNestingDepth = depth;
         try { return Markdig.Markdown.Parse(source, builder.Build()); }
-        catch (ArgumentException e) { throw new MarkdownSyntaxException("Markdown nesting exceeds the parser limit.", e); }
-        catch (InvalidOperationException e) { throw new MarkdownSyntaxException("Markdown could not be parsed.", e); }
+        catch (ArgumentException e) { throw new MarkdownSyntaxException(MarkdownSyntaxFailure.Nesting, builder.MaximumNestingDepth, e); }
+        catch (InvalidOperationException e) { throw new MarkdownSyntaxException(MarkdownSyntaxFailure.Parse, inner: e); }
     }
 
     public static MarkdownDocument Parse(IReadOnlyList<string> lines) => Parse(string.Join('\n', lines));

@@ -112,6 +112,10 @@ public static partial class MarkdownTools
     {
         var table = rows.Select(Cells).ToList();
         int columns = table.Max(r => r.Count);
+        long addedCells = 0;
+        for (int r = 0; r < table.Count; r++)
+            if (r != 1) addedCells += columns - table[r].Count;
+        TableExpansionLimit.CheckAddedCells(addedCells);
         var marks = new string[columns];
         for (int c = 0; c < columns; c++)
         {

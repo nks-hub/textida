@@ -11,6 +11,12 @@ internal sealed class TableExpansionLimit : IMarkdownExtension
 {
     private const int MaxAddedCells = 20_000;
 
+    internal static void CheckAddedCells(long count)
+    {
+        if (count > MaxAddedCells)
+            throw new MarkdownSyntaxException(MarkdownSyntaxFailure.GeneratedTableCells, MaxAddedCells);
+    }
+
     public void Setup(MarkdownPipelineBuilder pipeline)
     {
         var parser = pipeline.InlineParsers.FindExact<PipeTableParser>()!;
@@ -37,8 +43,7 @@ internal sealed class TableExpansionLimit : IMarkdownExtension
                     foreach (TableRow row in table) columns = Math.Max(columns, row.Count);
 
                 foreach (TableRow row in table) addedCells += Math.Max(0, columns - row.Count);
-                if (addedCells > MaxAddedCells)
-                    throw new MarkdownSyntaxException($"Markdown tables would add more than {MaxAddedCells} empty cells.");
+                CheckAddedCells(addedCells);
             }
             return base.PostProcess(state, root, lastChild, index, isFinalProcessing);
         }
