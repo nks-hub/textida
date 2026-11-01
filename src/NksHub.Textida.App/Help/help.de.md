@@ -1555,7 +1555,7 @@ Diese Meldungen stammen von Programmen, die der Editor für Sie startet. Sie ers
 
 ## [limits] Was diese Version nicht kann
 Diese Hilfe beschreibt nur, was diese Version kann. Diese Dinge gibt es nicht, und so gehen Sie stattdessen vor:
-- Updates: Das Programm aktualisiert sich nur unter Windows selbst, im installierten Textida (Thema Updates und Rückkehr zur vorherigen Version). Unter macOS und Linux installieren Sie eine neue Version selbst. Ein Build ohne Update-Adresse und Signaturschlüssel sucht nicht nach Updates und sagt das.
+- Updates: Automatische Updates benötigen einen eingerichteten Signaturschlüssel. Windows benötigt lokales NTFS mit Transaktionsunterstützung; macOS prüft App-Signatur und Notarisierung. Linux-Installationen aus .deb verwenden apt.
 - Gespeicherte Passwörter: Windows (Anmeldeinformationsverwaltung), macOS (Schlüsselbund) und Linux (Secret Service über libsecret). Die Speicher für macOS und Linux wurden noch auf keinem echten System ausprobiert. Fehlt der Speicher des Systems, speichert das Programm kein Passwort und fragt bei jeder Verbindung danach (Thema Remote-Verbindungen).
 - Plugins: Ein Plugin ist ein Programm, das mit Ihren Benutzerrechten läuft. Seine Berechtigungen halten fest, was Sie erlaubt haben, sie sind keine Sandbox, und die Signaturen von Plugins werden nicht geprüft (Thema Plugin-Manager: Plugins installieren, aktualisieren, zurücksetzen und entfernen). Installieren Sie nur Plugins, denen Sie vertrauen.
 - Assistenten: Die /ide-Brücke und der Agent über ACP sind nicht mit den echten Programmen geprüft (Themen Die /ide-Brücke für Claude Code und Agent über ACP). Eine Verbindung, die nicht klappt, meldet das Programm mit dem Grund in der Statusleiste oder in der Ausgabe Aufgaben.
@@ -1990,7 +1990,7 @@ Textida für macOS gibt es als Disk-Image (.dmg) und als ZIP mit derselben Anwen
 
 ## [help.updates] Updates und Rückkehr zur vorherigen Version
 commands: nks.help.updateCheck, nks.help.updateReturn
-Nur Windows, in der installierten Textida (der mit TextidaSetup.exe oder Setup.ps1 angelegte Ordner). Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.
+Updates unterstützen Windows-Installationen auf lokalem NTFS mit Transaktionsunterstützung, macOS-Apps und entpackte Linux-Pakete. Aktualisieren Sie .deb-Installationen über apt. Updates und Rückkehr lehnen ein portables Profil innerhalb von Textida.app ab; verwenden Sie ein Profil außerhalb des signierten Pakets. Textida prüft nie von selbst, außer Sie schalten die Einstellung Beim Start nach Updates suchen ein; sie ist standardmäßig aus. Eine Prüfung ist eine einzige Anfrage nach einer kleinen signierten Datei; sonst wird nichts gesendet, keine Kennung von Ihnen oder Ihrem Computer.
 1. Wählen Sie Hilfe, Nach Updates suchen. Wird eine neuere Version angeboten, fragt Textida, bevor es etwas tut.
 2. Installieren und neu starten lädt das Paket herunter, prüft seine Prüfsumme anhand der signierten Datei und entpackt es neben der aktuellen Version. Erst dann schließt Textida, die Ordner werden getauscht und Textida startet mit Ihren Tabs neu. Ungespeicherter Text bleibt im Journal; bei ausgeschaltetem Journal speichern oder schließen Sie die Dokumente zuerst.
 3. Stimmt etwas nicht (Signatur, Prüfsumme, ein Paket, das nicht passt), wird nichts installiert und die aktuelle Version läuft weiter.
@@ -1998,7 +1998,7 @@ Nur Windows, in der installierten Textida (der mit TextidaSetup.exe oder Setup.p
 - Die Einstellungen von Textida und das Journal bleiben, ein portabler Profilordner wird übernommen.
 - Dieser Build sucht nur, wenn er eine Update-Adresse und einen Signaturschlüssel hat; ohne beide sagt er das.
 ### Meldungen
-- Updates funktionieren nur in einer installierten Textida (TextidaSetup.exe oder Setup.ps1 neben Textida.exe unter Windows). Updates funktionieren nur unter Windows, im installierten Textida. Anderswo installieren Sie die neue Version selbst (Thema Was diese Version nicht kann).
+- Automatische Updates sind für diese Installation nicht verfügbar.
 - In diesem Build sind weder Update-Adresse noch Signaturschlüssel gesetzt, daher kann er nicht nach Updates suchen. Verwenden Sie einen Build mit Update-Adresse und Signaturschlüssel oder installieren Sie die neue Version selbst.
 - Update fehlgeschlagen: Grund. Es wurde nichts installiert, die aktuelle Version läuft weiter. Der Grund nennt die Ursache (eine nicht passende Signatur oder Prüfsumme, ein nicht passendes Paket, ein Netzwerkfehler); versuchen Sie es später erneut.
 - Speichern oder schließen Sie zuerst die Dokumente mit ungespeicherten Änderungen: Das Journal ist aus, ein Update könnte sie verlieren. Speichern Sie die Dokumente oder schalten Sie die Wiederherstellung nach Absturz ein (Thema Wiederherstellung nach Absturz) und wählen Sie das Update dann erneut.

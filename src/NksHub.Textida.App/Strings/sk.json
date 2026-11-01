@@ -2240,7 +2240,7 @@
   "update.checking": "Zisťujem aktualizácie...",
   "update.current": "Textida {version} je aktuálna.",
   "update.notConfigured": "Tento build nemá nastavenú adresu aktualizácií ani podpisový kľúč, aktualizácie preto nemožno zistiť.",
-  "update.unavailable": "Aktualizácie fungujú len v nainštalovanej Textide (TextidaSetup.exe alebo Setup.ps1 vedľa Textida.exe vo Windows).",
+  "update.unavailable": "Automatické aktualizácie nie sú pre túto inštaláciu dostupné.",
   "update.packageManager": "Túto inštaláciu spravuje apt. Aktualizujte ju cez správcu balíkov.",
   "update.failed": "Aktualizácia zlyhala: {reason}",
   "update.available": "Je k dispozícii Textida {version}, máte {current}. Otvorené dokumenty zostanú. Textida sa kvôli inštalácii reštartuje a súčasná verzia zostane pre Návrat na predchádzajúcu verziu.",

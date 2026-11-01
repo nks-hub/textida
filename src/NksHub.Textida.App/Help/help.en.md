@@ -1555,7 +1555,7 @@ These messages come from programs the editor starts for you. They appear in the 
 
 ## [limits] What this version cannot do
 This help describes only what this version can do. These things are not in it, and this is what to do instead:
-- Updates: the program updates itself only on Windows, in the installed Textida (topic Updates and return to the previous version). On macOS and Linux you install a new version yourself. A build without an update address and a signing key cannot look for updates and says so.
+- Updates: Automatic updates require a configured signing key. Windows needs local NTFS with transaction support; macOS checks the application signature and notarization. Linux .deb installations use apt.
 - Saved passwords: Windows (Credential Manager), macOS (Keychain) and Linux (Secret Service through libsecret). The macOS and Linux stores have not been tried on a real system yet. Where the store of the system is missing, the program keeps no password anywhere and asks for it at every connection (topic Remote connections).
 - Plugins: a plugin is a program that runs with your user rights. Its permissions record what you allowed, they are not a sandbox, and the signatures of plugins are not checked (topic Plugin manager: install, update, roll back and remove plugins). Install only plugins you trust.
 - Assistants: the /ide bridge and the agent over ACP have not been verified against the real programs (topics The /ide bridge for Claude Code and Agent over ACP). A connection that does not work is reported with its reason in the status bar or the Tasks output.
@@ -1990,7 +1990,7 @@ Textida for macOS comes as a disk image (a .dmg) and as a ZIP with the same appl
 
 ## [help.updates] Updates and return to the previous version
 commands: nks.help.updateCheck, nks.help.updateReturn
-Windows only, in the installed Textida (the folder made by TextidaSetup.exe or Setup.ps1). Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
+Updates support Windows installations on local NTFS with transaction support, macOS apps, and unpacked Linux packages. Update .deb installations through apt. Updates and rollback refuse a portable profile inside Textida.app; use a profile outside the signed bundle. Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
 1. Choose Help, Check for Updates. If a newer version is offered, Textida asks before it does anything.
 2. Install and restart downloads the package, checks its checksum against the signed file, and unpacks it next to the current version. Only then Textida closes, the folders are switched and Textida starts again with your tabs. Unsaved text is kept by the journal; with the journal off, save or close the documents first.
 3. If anything is wrong (signature, checksum, a package that does not match), nothing is installed and the current version keeps running.
@@ -1998,7 +1998,7 @@ Windows only, in the installed Textida (the folder made by TextidaSetup.exe or S
 - The settings of Textida and the journal stay where they are, and a portable profile folder is carried over.
 - This build checks only when it has an update address and a signing key; a build without them says so.
 ### Messages
-- Updates work only in an installed Textida (TextidaSetup.exe or Setup.ps1 next to Textida.exe on Windows). Updating works only on Windows, in the installed Textida. Elsewhere install the new version yourself (topic What this version cannot do).
+- Automatic updates are unavailable for this installation.
 - This build has no update address or signing key set, so it cannot check for updates. Use a build that comes with the update address and the signing key, or install the new version yourself.
 - Update failed: reason. Nothing was installed and the current version keeps running. The reason names the cause (a signature or checksum that does not fit, a package that does not match, a network error); try again later.
 - Save or close the documents with unsaved changes first: the journal is off, so an update could lose them. Save the documents, or turn on crash recovery (topic Crash recovery), then choose the update again.

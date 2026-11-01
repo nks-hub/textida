@@ -1555,7 +1555,7 @@ Tieto hlásenia pochádzajú z programov, ktoré editor spúšťa za vás. Objav
 
 ## [limits] Čo táto verzia nevie
 Pomocník opisuje len to, čo táto verzia vie. Tieto veci v nej nie sú a tu je, čo robiť namiesto nich:
-- Aktualizácie: program sa sám aktualizuje len vo Windows, v nainštalovanom Textida (téma Aktualizácie a návrat na predchádzajúcu verziu). V macOS a Linuxe novú verziu nainštalujete sami. Zostavenie bez adresy aktualizácií a podpisového kľúča nové verzie nehľadá a povie to.
+- Aktualizácie: Automatické aktualizácie vyžadujú nastavený podpisový kľúč. Windows potrebujú miestny NTFS s podporou transakcií; macOS overuje podpis aplikácie a notarizáciu. Inštalácie Linuxu z .deb sa aktualizujú cez apt.
 - Uložené heslá: Windows (Správca poverení), macOS (Kľúčenka) a Linux (Secret Service cez libsecret). Úložiská pre macOS a Linux zatiaľ nikto nevyskúšal na skutočnom systéme. Ak systémové úložisko chýba, program heslo nikam neukladá a pýta si ho pri každom pripojení (téma Vzdialené pripojenia).
 - Pluginy: plugin je program, ktorý beží s právami vášho používateľa. Jeho oprávnenia sú záznam toho, čo ste povolili, nie izolácia, a podpisy pluginov sa nekontrolujú (téma Správca pluginov: inštalácia, aktualizácia, návrat a odobratie pluginov). Inštalujte len pluginy, ktorým dôverujete.
 - Asistenti: most /ide a agent cez ACP nie sú overené so skutočnými programami (témy Most /ide pre Claude Code a Agent cez ACP). Pripojenie, ktoré nejde, program ohlási s dôvodom v stavovom riadku alebo vo výstupe Úlohy.
@@ -1990,7 +1990,7 @@ Textida pre macOS sa dodáva ako obraz disku (.dmg) a ako ZIP s rovnakou apliká
 
 ## [help.updates] Aktualizácie a návrat na predchádzajúcu verziu
 commands: nks.help.updateCheck, nks.help.updateReturn
-Len Windows, v nainštalovanej Textide (priečinok vytvorený cez TextidaSetup.exe alebo Setup.ps1). Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.
+Aktualizácie podporujú inštaláciu Windows na miestnom NTFS s podporou transakcií, aplikáciu macOS a rozbalený balík Linuxu. Inštaláciu .deb aktualizujte cez apt. Aktualizácia aj návrat odmietnu prenosný profil vnútri Textida.app; použite profil mimo podpísaného balíka. Textida sama nič nezisťuje, kým nezapnete nastavenie Zisťovať aktualizácie pri štarte; predvolene je vypnuté. Zistenie je jedna požiadavka na malý podpísaný súbor; neposiela sa nič iné, žiadny identifikátor vás ani počítača.
 1. Zvoľte Pomocník, Zistiť aktualizácie. Ak sa ponúka novšia verzia, Textida sa pred čímkoľvek opýta.
 2. Nainštalovať a reštartovať stiahne balík, overí jeho kontrolný súčet podľa podpísaného súboru a rozbalí ho vedľa súčasnej verzie. Až potom sa Textida zatvorí, priečinky sa prepnú a Textida sa spustí znova s vašimi kartami. Neuložený text drží žurnál; pri vypnutom žurnáli dokumenty najprv uložte alebo zatvorte.
 3. Ak čokoľvek nesedí (podpis, kontrolný súčet, balík, ktorý nezodpovedá), nič sa nenainštaluje a súčasná verzia beží ďalej.
@@ -1998,7 +1998,7 @@ Len Windows, v nainštalovanej Textide (priečinok vytvorený cez TextidaSetup.e
 - Nastavenia Textidy a žurnál zostávajú, priečinok prenosného profilu sa prenesie.
 - Tento build zisťuje aktualizácie len vtedy, ak má adresu aktualizácií a podpisový kľúč; build bez nich to povie.
 ### Hlásenia
-- Aktualizácie fungujú len v nainštalovanej Textide (TextidaSetup.exe alebo Setup.ps1 vedľa Textida.exe vo Windows). Aktualizácie fungujú len vo Windows, v nainštalovanej Textide. Inde novú verziu nainštalujete sami (téma Čo táto verzia nevie).
+- Automatické aktualizácie nie sú pre túto inštaláciu dostupné.
 - Tento build nemá nastavenú adresu aktualizácií ani podpisový kľúč, aktualizácie preto nemožno zistiť. Použite zostavenie, ktoré má adresu aktualizácií a podpisový kľúč, alebo novú verziu nainštalujte sami.
 - Aktualizácia zlyhala: dôvod. Nič sa nenainštalovalo a beží ďalej súčasná verzia. Dôvod uvádza príčinu (nesedí podpis alebo kontrolný súčet, balík, ktorý nesúhlasí, chyba siete); skúste to neskôr.
 - Najprv uložte alebo zatvorte dokumenty s neuloženými zmenami: žurnál je vypnutý, aktualizácia by ich mohla stratiť. Dokumenty uložte, alebo zapnite obnovu po páde (téma Obnova po páde), a potom aktualizáciu zvoľte znova.
