@@ -586,6 +586,12 @@
           "description": "Path to address rules. Rules like folder=>address separated by semicolons, from which the command Open File at Its Address builds the address of a file. The longest matching folder wins.",
           "x-scope": "application"
         },
+        "files.decompileAssemblies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Decompile .NET assemblies on open. A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab. When off, it opens like any binary file.",
+          "x-scope": "application"
+        },
         "review.autoKeep": {
           "type": "boolean",
           "default": false,

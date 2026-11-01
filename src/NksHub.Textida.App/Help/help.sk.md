@@ -2104,3 +2104,10 @@ Dva príkazy v ponuke Nástroje otvoria prehliadač: hľadanie označeného text
 2. V nastavení web.pathMap zapíšte pravidlá v tvare priečinok=>adresa, oddelené bodkočiarkami, napríklad priečinok webu na disku a adresa jeho lokálneho servera. Potom zvoľte Nástroje a Otvoriť súbor na jeho adrese.
 - Text sa na web pošle len príkazom a len na adresu, ktorú ste zapísali; editor žiadnu predvolenú adresu nemá. Zo súboru s tajnými hodnotami sa nič nehľadá. Hľadaný text má najviac 1000 znakov.
 - Pravidlo s najdlhším priečinkom, ktorý súbor obsahuje, vyhráva; zvyšok cesty sa pripojí k adrese. Editor žiadny webový server nespúšťa, len otvorí adresu. Adresy musia byť http alebo https.
+
+## [files.assembly] Zostavenia .NET ako C#
+commands: nks.file.open
+Súbor .dll, .exe alebo .winmd s kódom .NET sa otvorí ako dekompilovaný C# v záložke len na čítanie.
+1. Otvorte zostavenie príkazom Otvoriť alebo pretiahnutím. Záložka najprv napíše, že dekompiluje, a text sa doplní, keď je hotový.
+- Kód sa len číta, nič zo zostavenia sa nespúšťa ani nenačítava. Odkazy na iné zostavenia sa hľadajú vedľa súboru a v priečinku bežiaceho prostredia, nie v sieti. Záložku nejde uložiť cez zostavenie.
+- Veľké zostavenie (nad 300 typov) sa vypíše typ po type a skráti sa na 8 miliónov znakov alebo po 60 sekundách; koniec výpisu to povie. Súbory nad 256 MB sa nedekompilujú. Nastavenie files.decompileAssemblies to vypne, súbor sa potom otvorí ako každý binárny.

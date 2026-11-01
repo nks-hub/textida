@@ -418,6 +418,8 @@
   "setting.hex.wildcardMaxBytes.description": "N, najviac koľko bajtov smie v hex hľadaní nahradiť zástupný znak * a každé otvorené opakovanie v regulárnom výraze nad bajtmi (.*, +, {n,}). 0 znamená, že N ešte nie je zvolené: platí vstavená predvolená hodnota 256 bajtov. Vlastný rozsah ide vždy napísať ako *{m,n}.",
   "setting.hex.structureTemplates.title": "Šablóna štruktúry podľa typu súboru",
   "setting.hex.structureTemplates.description": "Ktorú šablónu štruktúry hex pohľad použije pre príponu súboru, zapísané prípona=šablóna a oddelené čiarkami, napríklad bin=elf_file, dat=png_chunks. Zapíše ju zoznam v paneli štruktúry, keď vyberiete šablónu. Pribalené šablóny sú bmp_header, png_chunks, zip_archive, pe_file, elf_file a stl_binary. Prípona, ktorá v zozname nie je, dostane šablónu podľa prvých bajtov súboru alebo podľa prípony.",
+  "setting.files.decompileAssemblies.title": "Dekompilovať zostavenia .NET pri otvorení",
+  "setting.files.decompileAssemblies.description": "Súbor .dll, .exe alebo .winmd s kódom .NET sa otvorí ako dekompilovaný C# v záložke len na čítanie. Po vypnutí sa otvorí ako každý binárny súbor.",
   "setting.web.searchUrl.title": "Adresa hľadania na webe",
   "setting.web.searchUrl.description": "Adresa, na ktorú príkaz Hľadať výber na webe pošle označený text; {query} sa nahradí textom. Prázdne nastavenie príkaz vypne. Musí to byť adresa http alebo https.",
   "setting.web.pathMap.title": "Pravidlá cesty na adresu",

@@ -418,6 +418,8 @@
   "setting.hex.wildcardMaxBytes.description": "N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
   "setting.hex.structureTemplates.title": "Structure template per file type",
   "setting.hex.structureTemplates.description": "Which structure template the hex view uses for a file extension, written extension=template and separated by commas, for example bin=elf_file, dat=png_chunks. The list in the structure panel writes it when you pick a template. The shipped templates are bmp_header, png_chunks, zip_archive, pe_file, elf_file and stl_binary. An extension that is not listed gets the template that fits the first bytes of the file or its extension.",
+  "setting.files.decompileAssemblies.title": "Decompile .NET assemblies on open",
+  "setting.files.decompileAssemblies.description": "A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab. When off, it opens like any binary file.",
   "setting.web.searchUrl.title": "Web search address",
   "setting.web.searchUrl.description": "The address the command Search Selection on the Web sends the selected text to; {query} is replaced by the text. Empty turns the command off. It must be an http or https address.",
   "setting.web.pathMap.title": "Path to address rules",

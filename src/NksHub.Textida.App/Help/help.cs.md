@@ -2104,3 +2104,10 @@ Dva příkazy v nabídce Nástroje otevřou prohlížeč: hledání označeného
 2. V nastavení web.pathMap zapište pravidla ve tvaru složka=>adresa, oddělená středníky, například složka webu na disku a adresa jejího lokálního serveru. Pak zvolte Nástroje a Otevřít soubor na jeho adrese.
 - Text se na web pošle jen příkazem a jen na adresu, kterou jste zapsali; editor žádnou výchozí adresu nemá. Ze souboru s tajnými hodnotami se nic nehledá. Hledaný text má nejvýše 1000 znaků.
 - Pravidlo s nejdelší složkou, která soubor obsahuje, vyhraje; zbytek cesty se připojí k adrese. Editor žádný webový server nespouští, jen otevře adresu. Adresy musí být http nebo https.
+
+## [files.assembly] Sestavení .NET jako C#
+commands: nks.file.open
+Soubor .dll, .exe nebo .winmd s kódem .NET se otevře jako dekompilovaný C# v kartě jen pro čtení.
+1. Otevřete sestavení příkazem Otevřít nebo přetažením. Karta nejdřív napíše, že dekompiluje, a text se doplní, až je hotový.
+- Kód se jen čte, nic ze sestavení se nespouští ani nenačítá. Odkazy na jiná sestavení se hledají vedle souboru a ve složce běhového prostředí, ne v síti. Karta nejde uložit přes sestavení.
+- Velké sestavení (přes 300 typů) se vypíše typ po typu a zkrátí se na 8 milionů znaků nebo po 60 sekundách; konec výpisu to řekne. Soubory přes 256 MB se nedekompilují. Nastavení files.decompileAssemblies to vypne, soubor se pak otevře jako každý binární.

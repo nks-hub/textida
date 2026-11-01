@@ -8182,6 +8182,21 @@
       ]
     },
     {
+      "key": "files.decompileAssemblies",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.files.decompileAssemblies.title",
+      "description": "setting.files.decompileAssemblies.description",
+      "category": "cat.files",
+      "scope": "application",
+      "tags": [
+        "dotnet",
+        "assembly",
+        "decompile",
+        "dll"
+      ]
+    },
+    {
       "key": "review.autoKeep",
       "type": "boolean",
       "default": false,

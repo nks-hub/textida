@@ -2104,3 +2104,10 @@ Zwei Befehle im Menü Extras öffnen den Browser: eine Suche nach dem markierten
 2. Tragen Sie in der Einstellung web.pathMap Regeln der Form Ordner=>Adresse ein, durch Semikolons getrennt, zum Beispiel den Webordner auf der Platte und die Adresse seines lokalen Servers. Wählen Sie dann Extras und Datei unter ihrer Adresse öffnen.
 - Text geht nur über den Befehl und nur an die Adresse, die Sie eingetragen haben, ins Web; der Editor hat keine Standardadresse. Aus einer Datei mit geheimen Werten wird nichts gesucht. Der Text darf höchstens 1000 Zeichen haben.
 - Die Regel mit dem längsten Ordner, der die Datei enthält, gewinnt; der Rest des Pfads wird an die Adresse angehängt. Der Editor startet keinen Webserver, er öffnet nur die Adresse. Adressen müssen http oder https sein.
+
+## [files.assembly] .NET-Assemblies als C#
+commands: nks.file.open
+Eine .dll-, .exe- oder .winmd-Datei mit .NET-Code öffnet sich als dekompilierter C#-Code in einem schreibgeschützten Tab.
+1. Öffnen Sie die Assembly mit Öffnen oder durch Ablegen. Der Tab sagt zuerst, dass er dekompiliert, und erhält den Text, sobald er fertig ist.
+- Der Code wird nur gelesen, nichts von der Assembly wird ausgeführt oder geladen. Verweise auf andere Assemblies werden neben der Datei und im Laufzeitordner gesucht, nicht im Netz. Der Tab lässt sich nicht über die Assembly speichern.
+- Eine große Assembly (über 300 Typen) wird Typ für Typ geschrieben und bei 8 Millionen Zeichen oder nach 60 Sekunden gekürzt; das Ende der Ausgabe sagt es. Dateien über 256 MB werden nicht dekompiliert. Die Einstellung files.decompileAssemblies schaltet das ab, die Datei öffnet sich dann wie jede Binärdatei.

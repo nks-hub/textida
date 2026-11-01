@@ -502,6 +502,11 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string AssemblyTitle = "assembly.title";
+    public const string AssemblyWorking = "assembly.working";
+    public const string AssemblyTruncated = "assembly.truncated";
+    public const string AssemblyFailed = "assembly.failed";
+    public const string AssemblyTooSlow = "assembly.tooSlow";
     public const string WebSearchNoTemplate = "web.searchNoTemplate";
     public const string WebSearchSecrets = "web.searchSecrets";
     public const string WebSearchNothing = "web.searchNothing";

@@ -2104,3 +2104,10 @@ Two commands in the Tools menu open the browser: a search for the selected text 
 2. In the setting web.pathMap write rules like folder=>address separated by semicolons, for example the web folder on disk and the address of its local server. Then choose Tools and Open File at Its Address.
 - Text goes to the web only through the command and only to the address you wrote; the editor has no default address. Nothing is searched from a file with secret values. The text may have at most 1000 characters.
 - The rule with the longest folder that holds the file wins; the rest of the path is appended to the address. The editor starts no web server, it only opens the address. Addresses must be http or https.
+
+## [files.assembly] .NET assemblies as C#
+commands: nks.file.open
+A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab.
+1. Open the assembly with Open or by dropping it. The tab first says that it is decompiling and gets the text when it is done.
+- The code is only read; nothing of the assembly is run or loaded. References to other assemblies are looked up next to the file and in the runtime folder, not on the network. The tab cannot be saved over the assembly.
+- A large assembly (over 300 types) is written type by type and cut at 8 million characters or after 60 seconds; the end of the listing says so. Files over 256 MB are not decompiled. The setting files.decompileAssemblies turns this off, and the file then opens like any binary.
