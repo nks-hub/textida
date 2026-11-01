@@ -47,12 +47,14 @@ internal sealed partial class MainWindow
 
         var answer = CodeGraphCallers.Parse(symbol, run.Output);
         if (answer.NotFound) { SetStatusMessage(Loc.Get(K.CallersNotFound, ("symbol", symbol))); return; }
-        if (tab.Doc.Doc.IsModified) tab.ShowBar(new InfoBar(Loc.Get(K.CallersUnsaved), [], onClose: () => tab.ShowBar(null)));
+        bool unsaved = tab.Doc.Doc.IsModified;
+        if (unsaved) tab.ShowBar(new InfoBar(Loc.Get(K.CallersUnsaved), [], onClose: () => tab.ShowBar(null)));
 
         var rows = new List<QuickRow>();
         int total = answer.Definitions.Sum(d => d.Callers.Count);
         string summary = Loc.Plural(K.CallersSummary, total, ("symbol", answer.Symbol), ("definitions", answer.Definitions.Count));
-        rows.Add(new QuickRow(summary, null, answer.Note, null, false, null, summary, () => { }));
+        string? note = unsaved ? string.Join(" ", new[] { answer.Note, Loc.Get(K.CallersUnsaved) }.Where(t => !string.IsNullOrEmpty(t))) : answer.Note; // the panel says it too, for whoever reads the list and not the tab
+        rows.Add(new QuickRow(summary, null, note, null, false, null, summary, () => { }));
         foreach (var definition in answer.Definitions)
             foreach (var caller in definition.Callers)
             {
