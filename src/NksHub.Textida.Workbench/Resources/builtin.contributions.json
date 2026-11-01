@@ -2041,6 +2041,18 @@
       "enablement": "!largeFileMode"
     },
     {
+      "id": "nks.view.iconSkin",
+      "title": "cmd.view.iconSkin",
+      "category": "cat.view",
+      "icon": "text"
+    },
+    {
+      "id": "nks.view.iconSkinOff",
+      "title": "cmd.view.iconSkinOff",
+      "category": "cat.view",
+      "icon": "text"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5366,6 +5378,18 @@
       "order": 40
     },
     {
+      "menu": "view",
+      "command": "nks.view.iconSkin",
+      "group": "7_skin/01",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.iconSkinOff",
+      "group": "7_skin/01",
+      "order": 20
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8631,6 +8655,20 @@
         "scripting",
         "javascript",
         "prototype"
+      ]
+    },
+    {
+      "key": "appearance.iconSkin",
+      "type": "string",
+      "default": "",
+      "title": "setting.appearance.iconSkin.title",
+      "description": "setting.appearance.iconSkin.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "tags": [
+        "icons",
+        "skin",
+        "bitmap"
       ]
     },
     {

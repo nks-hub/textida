@@ -502,6 +502,10 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string IconSkinEmpty = "iconSkin.empty";
+    public const string IconSkinNoPictures = "iconSkin.noPictures";
+    public const string IconSkinUsed = "iconSkin.used";
+    public const string IconSkinOff = "iconSkin.off";
     public const string ScriptingOff = "scripting.off";
     public const string ScriptingTooLarge = "scripting.tooLarge";
     public const string ScriptingFailed = "scripting.failed";

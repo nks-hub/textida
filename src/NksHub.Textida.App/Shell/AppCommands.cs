@@ -191,6 +191,8 @@ internal static class AppCommands
         On("nks.file.openConverted", w => w.OpenThroughConverter());
         On("nks.tools.runWsh", w => w.RunWsh());
         On("nks.tools.runScript", w => w.RunEditorScript());
+        On("nks.view.iconSkin", w => w.ChooseIconSkin());
+        On("nks.view.iconSkinOff", w => w.ResetIconSkin());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Workbench.Icons;
 
 namespace NksHub.Textida.App.Shell;
@@ -35,6 +36,7 @@ internal sealed class IconView : Control
 
     private readonly (Geometry Geometry, IconPaint Paint)[] _paths;
     private readonly double _size;
+    private readonly SkinImage? _skin;
 
     static IconView()
     {
@@ -45,6 +47,7 @@ internal sealed class IconView : Control
     {
         Shape = shape;
         _size = size;
+        _skin = IconSkin.Current is { } skin && IconSkin.NameOf(shape) is { } name ? skin.Find(name) : null;
         _paths = [.. shape.Paths.Select(p => (Geometry: GeometryOf(p.Data), p.Paint)).Where(p => p.Geometry is not null).Select(p => (p.Geometry!, p.Paint))];
         Width = size;
         Height = size;
@@ -73,8 +76,18 @@ internal sealed class IconView : Control
 
     protected override Size MeasureOverride(Size availableSize) => new(_size, _size);
 
+    /// <summary>The bitmap of the skin in use for this icon, or null: the vector drawing is used.</summary>
+    public SkinImage? SkinBitmap => _skin;
+
     public override void Render(DrawingContext context)
     {
+        if (_skin is { } image)
+        {
+            // the picture keeps its own colours; a disabled host dims it
+            using var _dim = context.PushOpacity(IsEffectivelyEnabled ? 1 : DisabledAccentOpacity);
+            context.DrawImage(image.Bitmap, new Rect(image.Source.X, image.Source.Y, image.Source.Width, image.Source.Height), new Rect(0, 0, _size, _size));
+            return;
+        }
         double scale = _size / Shape.Size;
         IBrush line = LineBrush, accent = AccentBrush;
         using var _ = context.PushTransform(Matrix.CreateScale(scale, scale));

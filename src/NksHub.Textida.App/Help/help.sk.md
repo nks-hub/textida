@@ -2250,3 +2250,9 @@ commands: nks.tools.runScript
 Prototyp: súbor JavaScriptu s funkciou transform(text) sa spustí v editore (Jint) na výbere a výsledok je zmena v prehľade zmien. Vypnuté, kým nezapnete nastavenie scripting.enabled.
 1. Skript vidí len text, ktorý dostane, a funkciu log(text), ktorá píše do okna výstupu. Nemá prístup k .NET, súborom ani sieti a beh je obmedzený časom (3 s), pamäťou (32 MiB), počtom príkazov a hĺbkou rekurzie.
 - Označené ako prototyp: slúži na meranie a skúšanie, nie ako rozhranie pre pluginy. Pluginy vo vlastnom procese zostávajú cestou, ako editor rozširovať.
+
+## [view.iconSkin] Sada bitmapových ikon
+commands: nks.view.iconSkin, nks.view.iconSkinOff
+Zobrazenie, Sada bitmapových ikon nahradí vektorové ikony príkazov obrázkami z priečinka, ktorý zvolíte. Ikona, pre ktorú sada obrázok nemá, zostane vektorová. Voliteľné; predvolene sa kreslia vektorové ikony.
+1. Obrázok pomenovaný podľa ikony (save.png; aj .bmp, .gif, .jpg) je bitmapa tej ikony. Súbor skin.json môže pridať map (iný názov súboru pre ikonu) a strips: vodorovný pás štvorcových buniek, ktorého výška je veľkosť bunky, a mená ikon v poradí buniek. S transparent: corner je priehľadná farba pixelu vľavo dole, ako v pásoch PSPadu.
+- Pás nenesie mená ikon, takže ich poradie určuje sada; editor neprebiera z PSPadu žiadne mapovanie. Neznáme meno sa preskočí a započíta do upozornení. Sada sa použije pri ikonách vytvorených po zvolení (panel nástrojov sa obnoví hneď, ponuky pri ďalšom otvorení).

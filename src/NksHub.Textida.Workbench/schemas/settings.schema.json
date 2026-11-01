@@ -622,6 +622,12 @@
           "description": "Scripts in the editor (prototype). Allows the command Run Script on Selection, which runs JavaScript (Jint) in the editor with limited time and memory and no access to the system. A prototype, off by default.",
           "x-scope": "application"
         },
+        "appearance.iconSkin": {
+          "type": "string",
+          "default": "",
+          "description": "Bitmap icon skin. A folder of icon pictures (see the help Bitmap icon skin). Empty means the vector icons. The command View, Bitmap Icon Skin sets it.",
+          "x-scope": "application"
+        },
         "terminal.shell": {
           "type": "string",
           "default": "",
