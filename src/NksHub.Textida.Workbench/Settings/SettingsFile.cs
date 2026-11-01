@@ -5,11 +5,14 @@ using System.Text.Json.Nodes;
 
 namespace NksHub.Textida.Workbench.Settings;
 
-/// <summary>One step that upgrades a settings document from <see cref="From"/> to <c>From + 1</c>. It may change only the keys it owns.</summary>
-public sealed record SettingsMigration(int From, Action<JsonObject> Apply)
+/// <summary>One step from <see cref="From"/> to <c>From + 1</c>, with an optional reverse. It may change only the keys it owns.</summary>
+public sealed record SettingsMigration(int From, Action<JsonObject> Apply, Action<JsonObject>? Revert = null)
 {
     /// <summary>A step that renames a key in the general settings and in every language section. When the new key already exists, both keys stay as they are.</summary>
-    public static SettingsMigration RenameKey(int from, string oldKey, string newKey) => new(from, root =>
+    public static SettingsMigration RenameKey(int from, string oldKey, string newKey) =>
+        new(from, root => Rename(root, oldKey, newKey), root => Rename(root, newKey, oldKey));
+
+    private static void Rename(JsonObject root, string oldKey, string newKey)
     {
         foreach (var section in SettingsFile.Sections(root))
         {
@@ -18,16 +21,17 @@ public sealed record SettingsMigration(int From, Action<JsonObject> Apply)
                 section[newKey] = value;
             }
         }
-    });
+    }
 }
 
-/// <summary>Upgrades older documents step by step. Version numbers start at 1 and have no gaps.</summary>
+/// <summary>Converts known schema versions step by step. Version numbers start at 1 and have no gaps; missing reverse steps block a return.</summary>
 public sealed class SettingsMigrator
 {
     private readonly Dictionary<int, SettingsMigration> _steps;
 
     public SettingsMigrator(int currentVersion, IEnumerable<SettingsMigration> steps)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(currentVersion, 1);
         CurrentVersion = currentVersion;
         _steps = steps.ToDictionary(s => s.From);
         for (var v = 1; v < currentVersion; v++)
@@ -45,12 +49,32 @@ public sealed class SettingsMigrator
     /// <summary>The migrator of this build.</summary>
     public static SettingsMigrator Default { get; } = new(1, []);
 
-    internal void Upgrade(JsonObject root, int from)
+    internal void Migrate(JsonObject root, int from, int target)
     {
-        for (var v = from; v < CurrentVersion; v++)
+        for (var v = from; v < target; v++)
         {
             _steps[v].Apply(root);
             root["schemaVersion"] = v + 1;
+        }
+
+        for (var v = from - 1; v >= target; v--)
+        {
+            var step = _steps[v];
+            if (step.Revert is null)
+            {
+                throw new InvalidOperationException($"No reverse migration from version {v + 1}.");
+            }
+
+            var before = root.DeepClone();
+            step.Revert(root);
+            root["schemaVersion"] = v;
+            var replay = (JsonObject)root.DeepClone();
+            step.Apply(replay);
+            replay["schemaVersion"] = v + 1;
+            if (!JsonNode.DeepEquals(before, replay))
+            {
+                throw new InvalidOperationException($"Reverse migration from version {v + 1} would lose settings.");
+            }
         }
     }
 }
@@ -149,7 +173,7 @@ public sealed class SettingsFile
 
         try
         {
-            migrator.Upgrade(root, version);
+            migrator.Migrate(root, version, migrator.CurrentVersion);
         }
         catch (Exception ex) when (ex is InvalidOperationException or JsonException or KeyNotFoundException)
         {
@@ -183,6 +207,23 @@ public sealed class SettingsFile
 
     private static SettingsFile Broken(string error, SettingsMigrator migrator) =>
         new(new JsonObject(), migrator.CurrentVersion, null, error, migrator);
+
+    /// <summary>Creates an unsaved copy for a supported schema version. A reverse step must reproduce the source when upgraded again; otherwise the return is refused.</summary>
+    public SettingsFile MigrateTo(int version)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(version, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(version, _migrator.CurrentVersion);
+        if (LoadError is not null || IsNewerThanSupported)
+        {
+            throw new InvalidOperationException("Cannot migrate settings this editor could not load.");
+        }
+
+        var root = (JsonObject)Root.DeepClone();
+        root["schemaVersion"] = Version;
+        _migrator.Migrate(root, Version, version);
+        var originalVersion = MigratedFrom ?? Version;
+        return new SettingsFile(root, version, version == originalVersion ? null : originalVersion, null, _migrator);
+    }
 
     /// <summary>The general section and each language section of a document tree.</summary>
     public static IEnumerable<JsonObject> Sections(JsonObject root)
