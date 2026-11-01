@@ -84,6 +84,7 @@ internal sealed partial class EditorSurface
         var caretRect = CaretRectangle();
         RenderSignature(ArgumentAt(text, open, CaretOffset));
         body.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        // room is what the editor has above the line: a popup that would lie over the lines above it covers code as the one below does, so then it goes below
         bool above = caretRect.Top >= body.DesiredSize.Height + 4;
         _signaturePopup = new Popup
         {

@@ -78,6 +78,29 @@ public class DecorationsSurfaceTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_line_with_inlay_hints_is_as_tall_as_a_line_without_them()
+    {
+        var w = _app.CreateWindow(null);
+        w.Width = 800;
+        w.Height = 500;
+        var tab = w.OpenFile(_temp.File("hints.cs", "int total = run(1, 2);\nint plain = other;\nint again = run(3, 4);\nend\n"), null);
+        var surface = tab.Editor!;
+        w.UpdateLayout();
+        var view = surface.TextArea.TextView;
+        view.EnsureVisualLines();
+        double plain = view.GetVisualTopByDocumentLine(2) - view.GetVisualTopByDocumentLine(1);
+
+        string text = surface.Document.Text;
+        surface.SetInlayHints([(text.IndexOf("run(1", StringComparison.Ordinal) + 4, "a:"), (text.IndexOf(" 2)", StringComparison.Ordinal) + 1, "b:"), (text.IndexOf("run(3", StringComparison.Ordinal) + 4, "a:")]);
+        w.UpdateLayout();
+        view.EnsureVisualLines();
+
+        Assert.Equal(plain, view.GetVisualTopByDocumentLine(2) - view.GetVisualTopByDocumentLine(1), 0.5); // two hints on the line
+        Assert.Equal(plain, view.GetVisualTopByDocumentLine(3) - view.GetVisualTopByDocumentLine(2), 0.5);
+        Assert.Equal(plain, view.GetVisualTopByDocumentLine(4) - view.GetVisualTopByDocumentLine(3), 0.5); // one hint
+    }
+
+    [AvaloniaFact]
     public void The_signature_popup_is_put_above_the_line_of_the_caret_when_there_is_room_and_below_it_when_there_is_not()
     {
         var w = _app.CreateWindow(null);
