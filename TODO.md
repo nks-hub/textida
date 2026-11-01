@@ -3420,6 +3420,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** monitor schránky je ve výchozím stavu vypnutý a zapnutý sbírá jen kopie od zapnutí.
   - **Závisí na:** P4.5.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** kapátko z obrazovky a monitor schránky jen po výslovném zapnutí; na macOS je potřeba povolení nahrávání obrazovky, čtení pixelů na macOS a Linuxu nespuštěno (de8e26da).
 - [ ] **PZ.4.2** Otevření chráněné cesty
   - **Co a proč:** Obecné otevření chráněné cesty bez pevného seznamu systémových souborů.
   - **Funkce:** F096
@@ -3447,6 +3448,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** formátovač PHP se napojí přes akce při uložení F176 a katalog F213.
   - **Závisí na:** P8.3.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** formátovač PHP přes katalog nástrojů (php-cs-fixer nalezený lokálně, nic se nestahuje) přes revizi změn; ověřeno s php-cs-fixer 3.95.27 a PHP 8.4 (935fd8da).
 - [ ] **PZ.5.2** Převodníky typů souborů
   - **Co a proč:** Externí převodník s jasným vstupem a výstupem; kontrakt otevření a uložení přes převod zatím není navržený.
   - **Funkce:** F138
@@ -3459,6 +3461,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** importovaná gramatika se převede na vlastní formát a psaní zůstane pod 33 ms p95.
   - **Závisí na:** P3.2.1
   - **Odhad:** F192 3–5 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** import gramatik TextMate (`.tmLanguage`, `.tmLanguage.json`, `.tmbundle`) jako zdroj pravidel, tokenizace vlastním enginem; nepodporované konstrukce se hlásí, část výrazů Oniguruma je převedená jen přibližně (ed856f13).
 - [ ] **PZ.5.4** Prohlížeč .NET sestavení
   - **Co a proč:** `.dll` jen pro čtení jako dekompilovaný C# přes `ICSharpCode.Decompiler` (MIT).
   - **Funkce:** F193
@@ -3467,6 +3470,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F193 1–2 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** .dll jako dekompilovaný C# jen pro čtení přes ICSharpCode.Decompiler 11.2 přímo v aplikaci; NativeAOT publikace bez varování ověřená na Windows; vypíná `files.decompileAssemblies` (9a54d7dd).
   - **Ověření 1. 11. 2026 na Macu:** NativeAOT publikace osx-arm64 s dekompilátorem prošla; samostatný AOT program dekompiloval malou .dll i System.Collections.dll (33/33 typů, 965 ms). Kontrola do kouřového testu zadána.
+  - **Stav 1. 11. 2026 (sloučeno):** kouřový test otevře vloženou .NET knihovnu v prohlížeči sestavení (e798f23f).
 
 ### PZ.6 Vývojářské doplňky
 
@@ -3476,6 +3480,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** terminál v panelu spustí shell, přežije změnu velikosti a zavření ukončí proces.
   - **Závisí na:** P8.2.1
   - **Odhad:** F159 3–5 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** integrovaný terminál (ConPTY na Windows, pty na macOS a Linuxu, shell v `terminal.shell`); ověřeno se skutečným cmd.exe, pty na macOS a Linuxu nespuštěno (2363cb4c).
 - [ ] **PZ.6.2** Poslat výběr do interpretu
   - **Co a proč:** Řádek nebo výběr do `python`, `php -a`, `node`, `psql` v okně výstupu; `.venv` ve složce se použije.
   - **Funkce:** F191
@@ -3499,6 +3504,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** panel ukáže volající symbolu pod kurzorem a u neuložené karty lištu „graf odpovídá disku“.
   - **Závisí na:** P3b.2.2
   - **Odhad:** F258 1–2 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** panel „Kdo to volá“ přes `codegraph callers --json` jen při existujícím `.codegraph/`; ověřeno se skutečným codegraph (c78394f6).
 - [ ] **PZ.6.5** Strukturální hledání přes ast-grep
   - **Co a proč:** Vzor a přepis přes `ast-grep run --json=stream` do náhledu F152, neuložené karty přes `--stdin`.
   - **Funkce:** F259
@@ -3530,6 +3536,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** obnovená úloha vrátí karty, výběry, filtry a rozpracovaný návrh úpravy.
   - **Závisí na:** P9.4.1, P1.5.1
   - **Odhad:** F168 3–5 ČT navíc (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** uložení a obnova pojmenované pracovní úlohy: dokumenty, výběry, dotazy hledání, filtry a recepty (4c820c87).
 - [ ] **PZ.7.3** Porovnání složek
   - **Co a proč:** Dvě složky nebo lokální složka proti FTP podle velikosti, času nebo obsahu, kopie jedním směrem s náhledem.
   - **Funkce:** F177
@@ -3566,6 +3573,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** ukázkový plugin přidá typ do inspektoru dat bez přístupu k zápisu.
   - **Závisí na:** P8b.2.1, P3.5.6
   - **Odhad:** F249 0,5–1 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** místa pro pluginy v hexu s oprávněním `hex.read`: dekodér inspektoru, hash, export a zdroj šablon; plugin dostane kopii bajtů (tajné hodnoty maskované), zápis jde jen přes API dokumentu jako návrh; ukázka `samples/plugins/python-hex` (08edbf15).
 
 ### PZ.9 Hex
 
