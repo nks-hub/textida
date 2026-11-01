@@ -6,6 +6,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      signing_only:
+        description: Only verify the update signing key
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,6 +21,7 @@ env:
 
 jobs:
   windows:
+    if: inputs.signing_only != true
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
@@ -59,6 +65,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: inputs.signing_only != true
     runs-on: macos-latest
     timeout-minutes: 60
     strategy:
@@ -95,6 +102,7 @@ jobs:
           if-no-files-found: error
 
   linux:
+    if: inputs.signing_only != true
     # the oldest supported runner, so the program needs no newer glibc than Ubuntu 22.04 has
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -124,6 +132,33 @@ jobs:
           path: |
             artifacts/*.tar.gz
             artifacts/*.deb
+          if-no-files-found: error
+
+  verify-update-signing:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Verify the release signing key against the app
+        env:
+          FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
+        run: |
+          folder="$RUNNER_TEMP/update-signing"
+          mkdir "$folder"
+          for rid in win-x64 osx-arm64 osx-x64 linux-x64; do
+            ext=zip
+            if [ "$rid" = linux-x64 ]; then ext=tar.gz; fi
+            printf 'Signing verification fixture\n' > "$folder/Textida-0.0.0-keycheck-$rid.$ext"
+          done
+          dotnet run tools/SignUpdateFeed.cs -- "$folder" 0.0.0-keycheck https://example.test/updates
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-signing-proof
+          path: ${{ runner.temp }}/update-signing/feed.json
           if-no-files-found: error
 
   release:

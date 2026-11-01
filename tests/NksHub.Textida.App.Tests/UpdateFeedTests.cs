@@ -17,10 +17,9 @@ public sealed class UpdateFeedTests : IDisposable
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var package = Encoding.UTF8.GetBytes("package bytes for the signed digest");
-        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
-            File.WriteAllBytes(Path.Combine(_temp.Path, $"Textida-1.1.0-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip")), package);
+        WritePackages(package);
         using var server = new FeedServer();
-        var (exitCode, output) = await SignAsync(key.ExportPkcs8PrivateKeyPem(), server.Base.TrimEnd('/'));
+        var (exitCode, output) = await SignAsync(key.ExportPkcs8PrivateKeyPem(), server.Base.TrimEnd('/'), Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()));
         Assert.True(exitCode == 0, output);
         server.Routes["/feed.json"] = File.ReadAllBytes(Path.Combine(_temp.Path, "feed.json"));
         var updater = new AppUpdater(new HttpClient(), server.Base + "feed.json", Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), "unused");
@@ -44,13 +43,31 @@ public sealed class UpdateFeedTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_temp.Path, "feed.json")));
     }
 
-    private async Task<(int ExitCode, string Output)> SignAsync(string privateKey, string releaseUrl)
+    [Fact]
+    public async Task A_release_signed_with_another_key_fails_without_writing_a_feed()
+    {
+        WritePackages(Encoding.UTF8.GetBytes("package"));
+        using var wrongKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var (exitCode, output) = await SignAsync(wrongKey.ExportPkcs8PrivateKeyPem(), "https://example.test/release");
+        Assert.NotEqual(0, exitCode);
+        Assert.Contains("does not match the public key", output);
+        Assert.False(File.Exists(Path.Combine(_temp.Path, "feed.json")));
+    }
+
+    private void WritePackages(byte[] bytes)
+    {
+        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
+            File.WriteAllBytes(Path.Combine(_temp.Path, $"Textida-1.1.0-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip")), bytes);
+    }
+
+    private async Task<(int ExitCode, string Output)> SignAsync(string privateKey, string releaseUrl, string? publicKey = null)
     {
         var start = new ProcessStartInfo("dotnet", ["run", Path.Combine(Repo.Root, "tools", "SignUpdateFeed.cs"), "--", _temp.Path, "1.1.0", releaseUrl])
         {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
             WorkingDirectory = Repo.Root
         };
+        if (publicKey is not null) start.ArgumentList.Add(publicKey);
         start.Environment["FEED_SIGNING_KEY"] = privateKey;
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
