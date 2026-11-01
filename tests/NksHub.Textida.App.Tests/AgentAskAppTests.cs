@@ -120,6 +120,7 @@ public class AgentAskAppTests : IDisposable
         var outside = Acp.AskRangeAsync(_w, tab, text, 6, 10, $"write {tab.Path}\nALPHA\nbeta\ngamma");
         await Until(() => outside.IsCompleted, "the turn");
         Assert.True(await outside);
+        await Until(() => _w.AgentPanelText.Contains("WRITE-ERR:-32001:The question was about a range"), "the refused write to appear in the conversation");
         Assert.Contains("WRITE-ERR:-32001:The question was about a range", _w.AgentPanelText);
         Assert.Contains(Loc.Get(K.AgentAskOutside), _w.AgentPanelText);
         Assert.Null(_w.ResultsView);
@@ -131,6 +132,7 @@ public class AgentAskAppTests : IDisposable
         Assert.Equal(text, tab.Editor.Document.Text);
         _w.ApplyPlan();
         await Until(() => inside.IsCompleted, "the turn");
+        await Until(() => _w.AgentPanelText.Contains("WRITE-OK"), "the accepted write to appear in the conversation");
         Assert.Contains("WRITE-OK", _w.AgentPanelText);
         Assert.Equal("alpha\ndelta\ngamma", tab.Editor.Document.Text);
 

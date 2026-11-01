@@ -28,6 +28,7 @@ internal static class TinyDictionary
 }
 
 /// <summary>PZ.3.1: what is checked, which words are words, the diacritics, and the engine (Hunspell through WeCantSpell) over a real dictionary file.</summary>
+[Collection("Latency")] // Hunspell stops a suggestion step after 50 ms; concurrent test work can exhaust that budget.
 public class SpellTextTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "spell-" + Guid.NewGuid().ToString("N")[..8]);
