@@ -413,6 +413,11 @@ internal sealed partial class MainWindow : Window
                 ConfigureAutosave(od);
             }
         ApplyLanguageOptions();
+        if (key.StartsWith("editor.font", StringComparison.Ordinal))
+        {
+            if (_preview is not null) RenderPreview(keepScroll: true);
+            RefreshTabPreviews();
+        }
         UpdateStatus();
         _menuModel = BuildMenuModel();
     }
@@ -423,6 +428,7 @@ internal sealed partial class MainWindow : Window
     {
         Loc.Changed -= OnLanguageChanged;
         _app.Workbench.SettingChanged -= OnSettingChanged;
+        DisposeMarkdownRendering();
         ReleaseToolbar();
         ReleaseNavigation();
         ReleaseOutput();
