@@ -25,11 +25,7 @@ foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64", "lin
 {
     var name = $"Textida-{version}-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip");
     var file = Path.Combine(folder, name);
-    if (!File.Exists(file))
-    {
-        if (rid.StartsWith("linux-")) continue;
-        throw new FileNotFoundException("An update package is missing.", name);
-    }
+    if (!File.Exists(file)) throw new FileNotFoundException("An update package is missing.", name);
     using var stream = File.OpenRead(file);
     releases.Add((JsonNode)new JsonObject { ["version"] = version, ["rid"] = rid, ["url"] = args[2].TrimEnd('/') + "/" + name,
         ["sha256"] = Convert.ToHexString(SHA256.HashData(stream)), ["size"] = stream.Length });

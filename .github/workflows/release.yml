@@ -172,9 +172,8 @@ jobs:
           if-no-files-found: error
 
   release:
-    # Linux is a preview: its packages are published when they built and passed the smoke test, and a failure there does not hold back Windows and macOS
     needs: [windows, macos, linux]
-    if: always() && github.ref_type == 'tag' && needs.windows.result == 'success' && needs.macos.result == 'success'
+    if: always() && github.ref_type == 'tag' && needs.windows.result == 'success' && needs.macos.result == 'success' && needs.linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -210,7 +209,7 @@ jobs:
             echo "- The app is not notarized yet. On the first start, right-click it and choose Open, or allow it in System Settings, Privacy & Security."
             if ls *.deb >/dev/null 2>&1; then
               echo
-              echo "**Linux x64 (preview, not tested on real desktops yet)**"
+              echo "**Linux x64 and ARM64 (preview, automated checks under Xvfb)**"
               for package in textida_*.deb; do
                 echo "- \`$package\` for Debian and Ubuntu: \`sudo apt install ./$package\`."
               done
