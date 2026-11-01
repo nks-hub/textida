@@ -23,7 +23,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     private readonly MainWindow _window;
     private readonly OpenDocument _doc;
     private readonly EditorSurface? _editor;
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.PreviewLiveDebounceMs) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimits.PreviewLiveDebounceMs) };
     private List<PreviewRenderer.Anchor> _anchors = [];
     private long _renderedRevision = -1;
     private bool _settling;
@@ -71,7 +71,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
         _renderedRevision = revision;
         var offset = Offset;
         string text = Text;
-        if (text.Length > PluginLimitsPlaceholders.PreviewLiveMaxChars)
+        if (text.Length > PluginLimits.PreviewLiveMaxChars)
         {
             _anchors = [];
             Content = new TextBlock { Text = Loc.Get(K.PreviewLiveTooLarge), TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 6) };
@@ -146,14 +146,14 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     {
         if (_editor is null || Map() is not { } map) return;
         double target = Math.Clamp(map.OffsetFor(MainWindow.TopLine(_editor)), 0, Math.Max(0, Extent.Height - Viewport.Height));
-        _quietPreviewUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        _quietPreviewUntil = Environment.TickCount64 + PluginLimits.PreviewSyncQuietMs;
         Offset = new Vector(0, target);
     }
 
     private void SyncEditorToPreview()
     {
         if (_editor is null || Map() is not { } map) return;
-        _quietEditorUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        _quietEditorUntil = Environment.TickCount64 + PluginLimits.PreviewSyncQuietMs;
         ScrollEditorTo(_editor, map.LineAt(Offset.Y));
     }
 

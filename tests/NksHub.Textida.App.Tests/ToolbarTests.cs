@@ -342,7 +342,7 @@ public class ToolbarTests : IDisposable
     public void The_toolbar_holds_at_most_the_placeholder_limit_and_the_editor_says_when_it_is_full()
     {
         var editor = Editor();
-        int max = PluginLimitsPlaceholders.ToolbarMaxButtons;
+        int max = PluginLimits.ToolbarMaxButtons;
         foreach (var id in editor.AvailableIds)
         {
             if (editor.Buttons.Count >= max) break;

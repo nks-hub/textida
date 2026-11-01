@@ -122,7 +122,7 @@ public class LintAppTests : IDisposable
         await SaveEditedAsync(tab, "\n");
         await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
 
-        Assert.Equal(TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintTimeoutSeconds), _w.LoadSaveActions(_php).LintTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(PluginLimits.LintTimeoutSeconds), _w.LoadSaveActions(_php).LintTimeout);
     }
 
     [AvaloniaFact]
@@ -166,7 +166,7 @@ public class LintAppTests : IDisposable
         await SaveEditedAsync(tab, "\n");
         await SaveEditedAsync(tab, "\n");
         await Until(() => tab.Surface!.Diagnostics.Count == 1, "the underline");
-        await Task.Delay(PluginLimitsPlaceholders.LintOnSaveDebounceMilliseconds + 300);
+        await Task.Delay(PluginLimits.LintOnSaveDebounceMilliseconds + 300);
 
         Assert.Single(File.ReadAllLines(_tool + ".runs"));
     }

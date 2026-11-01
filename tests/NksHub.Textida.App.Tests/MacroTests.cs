@@ -531,7 +531,7 @@ public class MacroTests : IDisposable
     public void A_macro_file_over_the_limit_is_listed_as_damaged_and_not_read()
     {
         Directory.CreateDirectory(_app.Macros.Directory);
-        File.WriteAllText(Path.Combine(_app.Macros.Directory, "big.json"), "{\"name\":\"Big\",\"steps\":[]}" + new string(' ', PluginLimitsPlaceholders.MacroMaxFileBytes));
+        File.WriteAllText(Path.Combine(_app.Macros.Directory, "big.json"), "{\"name\":\"Big\",\"steps\":[]}" + new string(' ', PluginLimits.MacroMaxFileBytes));
         var problems = new List<(string File, string Reason)>();
         Assert.Empty(_app.Macros.Load(problems));
         Assert.Equal("big.json", Assert.Single(problems).File);

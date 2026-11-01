@@ -112,7 +112,7 @@ public sealed class HugeFileTests : IDisposable
 
     /// <summary>
     /// A view put at random places of a big file (2 GiB, 10 GiB with <c>TEXTIDA_HUGE=1</c>) shows the characters of the reference decoding of the bytes there (here the line number and the
-    /// letters of the generator) and reads at most <see cref="PluginLimitsPlaceholders.PagedViewportMaxBlocks"/> blocks of 1 MiB for it.
+    /// letters of the generator) and reads at most <see cref="PluginLimits.PagedViewportMaxBlocks"/> blocks of 1 MiB for it.
     /// </summary>
     [AvaloniaFact]
     public void A_view_at_a_random_place_of_a_big_file_shows_the_reference_text_and_reads_few_blocks()
@@ -149,8 +149,8 @@ public sealed class HugeFileTests : IDisposable
             for (int i = 0; i < 4; i++)
                 if (paged.DisplayOf(row + i) != HugeText.LineText(row + i)) problems.Add($"row {row + i} shows '{paged.DisplayOf(row + i)}'");
         }
-        _output.WriteLine($"{blocks.Count} views of the {size >> 30} GiB file read {blocks.Min()} to {blocks.Max()} blocks of 1 MiB each (limit {PluginLimitsPlaceholders.PagedViewportMaxBlocks})");
-        Assert.True(blocks.Max() <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"a view read {blocks.Max()} blocks");
+        _output.WriteLine($"{blocks.Count} views of the {size >> 30} GiB file read {blocks.Min()} to {blocks.Max()} blocks of 1 MiB each (limit {PluginLimits.PagedViewportMaxBlocks})");
+        Assert.True(blocks.Max() <= PluginLimits.PagedViewportMaxBlocks, $"a view read {blocks.Max()} blocks");
         Assert.True(problems.Count == 0, string.Join("; ", problems.Take(5)));
     }
 
@@ -202,7 +202,7 @@ public sealed class HugeFileTests : IDisposable
         clock.Restart();
         var snapshot = tab.Doc.Doc.GetSnapshot();
         var counting = new CountingSnapshot(snapshot);
-        var again = LogHeat.Compute(counting, snapshot.Codec, tab.Doc.Doc.BomLength, tab.Doc.LogLevels, PluginLimitsPlaceholders.LogHeatBuckets, PluginLimitsPlaceholders.LogHeat());
+        var again = LogHeat.Compute(counting, snapshot.Codec, tab.Doc.Doc.BomLength, tab.Doc.LogLevels, PluginLimits.LogHeatBuckets, PluginLimits.LogHeat());
         double againSeconds = clock.Elapsed.TotalSeconds;
         long read = Interlocked.Read(ref counting.Bytes);
 
@@ -211,7 +211,7 @@ public sealed class HugeFileTests : IDisposable
         for (int b = 0; b < buckets; b++)
         {
             long from = (size * b / buckets + HugeText.LineBytes - 1) / HugeText.LineBytes * HugeText.LineBytes; // the first line that starts in the bucket
-            long first = from / HugeText.BlockBytes, last = (from + PluginLimitsPlaceholders.LogHeatSampleBytesPerBucket - 1) / HugeText.BlockBytes;
+            long first = from / HugeText.BlockBytes, last = (from + PluginLimits.LogHeatSampleBytesPerBucket - 1) / HugeText.BlockBytes;
             int level = LevelOfBlock(first, blocksInFile);
             if (level != LevelOfBlock(last, blocksInFile)) continue; // the window of this bucket crosses the edge of a cluster
             judged++;
@@ -226,8 +226,8 @@ public sealed class HugeFileTests : IDisposable
         Assert.True(errorBuckets > 0 && warningBuckets > 0, "the test log has no cluster that a bucket falls into");
         Assert.True(problems.Count == 0, string.Join("; ", problems.Take(5)));
         // per bucket: the window, and the two looks (64 KiB each) for the start of the first whole line at its two ends
-        long allowed = (long)buckets * (PluginLimitsPlaceholders.LogHeatSampleBytesPerBucket + 2 * 64 * 1024) * 21 / 20;
-        Assert.True(read <= allowed, $"the count read {read >> 20} MiB, a window of {PluginLimitsPlaceholders.LogHeatSampleBytesPerBucket >> 10} KiB per bucket allows {allowed >> 20} MiB");
+        long allowed = (long)buckets * (PluginLimits.LogHeatSampleBytesPerBucket + 2 * 64 * 1024) * 21 / 20;
+        Assert.True(read <= allowed, $"the count read {read >> 20} MiB, a window of {PluginLimits.LogHeatSampleBytesPerBucket >> 10} KiB per bucket allows {allowed >> 20} MiB");
         Assert.Equal(heat.Errors, again.Errors);
         Assert.Equal(heat.Lines, again.Lines);
     }
@@ -291,7 +291,7 @@ public sealed class HugeFileTests : IDisposable
             }
             PumpUntil(() => window.IsListComplete, "the end of the index", TimeSpan.FromMinutes(2));
             var index = window.Index;
-            _output.WriteLine($"index complete: {index.LineCount} lines, {index.TurnCount} turns, {index.IndexBytes >> 10} KiB of {PluginLimitsPlaceholders.TranscriptIndexMaxBytes >> 10} KiB allowed, truncated {index.IsTruncated}");
+            _output.WriteLine($"index complete: {index.LineCount} lines, {index.TurnCount} turns, {index.IndexBytes >> 10} KiB of {PluginLimits.TranscriptIndexMaxBytes >> 10} KiB allowed, truncated {index.IsTruncated}");
 
             // the turn with the giant line: shown, with the line counted as too long to show whole
             int giantTurn = index.TurnOf(giantLine);
@@ -318,7 +318,7 @@ public sealed class HugeFileTests : IDisposable
             if (index.Error is not null) problems.Add("the index failed: " + index.Error.Message);
             if (index.IsTruncated) problems.Add("the index was cut off");
             if (index.LineCount != lines) problems.Add($"the index counted {index.LineCount} lines of {lines}");
-            if (index.IndexBytes > PluginLimitsPlaceholders.TranscriptIndexMaxBytes) problems.Add($"the index uses {index.IndexBytes} bytes");
+            if (index.IndexBytes > PluginLimits.TranscriptIndexMaxBytes) problems.Add($"the index uses {index.IndexBytes} bytes");
             if (window.Index.ReadTurn(giantTurn).OversizedLines != 1) problems.Add("the giant line was not counted as oversized");
             Assert.True(problems.Count == 0, string.Join("; ", problems));
             window.Close();

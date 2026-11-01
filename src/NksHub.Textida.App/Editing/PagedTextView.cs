@@ -181,9 +181,9 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>
     /// Bytes of selection that Copy and Cut take to the clipboard; a larger one is refused with a message. Default:
-    /// <see cref="PluginLimitsPlaceholders.PagedCopyMaxBytes"/>. A test lowers it.
+    /// <see cref="PluginLimits.PagedCopyMaxBytes"/>. A test lowers it.
     /// </summary>
-    internal long CopyLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedCopyMaxBytes;
+    internal long CopyLimitBytes { get; set; } = PluginLimits.PagedCopyMaxBytes;
 
     /// <summary>A selection up to this size is decoded on the UI thread, a longer one on the pool.</summary>
     private const long InlineCopyBytes = 1 << 20;
@@ -193,15 +193,15 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>
     /// Longest line, in bytes, that typing, deleting and pasting edit; a longer one is refused with a message and the document does not change.
-    /// Default: <see cref="PluginLimitsPlaceholders.PagedEditLineMaxBytes"/>. A test lowers it. Decided: the constant has the reason.
+    /// Default: <see cref="PluginLimits.PagedEditLineMaxBytes"/>. A test lowers it. Decided: the constant has the reason.
     /// </summary>
-    internal long EditLineLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedEditLineMaxBytes;
+    internal long EditLineLimitBytes { get; set; } = PluginLimits.PagedEditLineMaxBytes;
 
     /// <summary>
     /// Characters of clipboard text that Paste takes; a longer text is refused with a message and the document does not change.
-    /// Default: <see cref="PluginLimitsPlaceholders.PagedPasteMaxChars"/>. A test lowers it. Decided: the constant has the reason.
+    /// Default: <see cref="PluginLimits.PagedPasteMaxChars"/>. A test lowers it. Decided: the constant has the reason.
     /// </summary>
-    internal long PasteLimitChars { get; set; } = PluginLimitsPlaceholders.PagedPasteMaxChars;
+    internal long PasteLimitChars { get; set; } = PluginLimits.PagedPasteMaxChars;
 
     /// <summary>
     /// The selected text exactly as the bytes of the current revision decode, line breaks included; empty when nothing is selected or the selection is
@@ -502,8 +502,8 @@ internal sealed partial class PagedTextView : Grid
         public HashSet<long> Cuts { get; } = [];
     }
 
-    /// <summary>Bytes a detour looks at to find the end or the start of one line; a longer line is cut there. Default: <see cref="PluginLimitsPlaceholders.PagedDetourLineScanBytes"/>. A test lowers it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
-    internal long DetourLineScanBytes { get; set; } = PluginLimitsPlaceholders.PagedDetourLineScanBytes;
+    /// <summary>Bytes a detour looks at to find the end or the start of one line; a longer line is cut there. Default: <see cref="PluginLimits.PagedDetourLineScanBytes"/>. A test lowers it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    internal long DetourLineScanBytes { get; set; } = PluginLimits.PagedDetourLineScanBytes;
 
     /// <summary>The offset at or before <paramref name="offset"/> that is the start of a character.</summary>
     private long AlignToCharBoundary(long offset)
@@ -760,7 +760,7 @@ internal sealed partial class PagedTextView : Grid
     }
 
     /// <summary>Bytes the decoded lines may hold before the lines off screen are dropped; a test lowers it.</summary>
-    internal long LineCacheBudget { get; set; } = PagedSpillPlaceholders.LineCacheBytes;
+    internal long LineCacheBudget { get; set; } = PagedSpillLimits.LineCacheBytes;
 
     /// <summary>Bytes the decoded lines hold now (estimate).</summary>
     internal long CachedLineBytes
@@ -1114,9 +1114,9 @@ internal sealed partial class PagedTextView : Grid
 
     /// <summary>
     /// Distance from the nearest known point of a long line, in bytes or columns, up to which a move counts on the UI thread; farther moves wait for a count on the pool.
-    /// Default: <see cref="PluginLimitsPlaceholders.PagedFarMoveBytes"/>. A test lowers it. Decided: the constant has the reason.
+    /// Default: <see cref="PluginLimits.PagedFarMoveBytes"/>. A test lowers it. Decided: the constant has the reason.
     /// </summary>
-    internal long FarMoveBytes { get; set; } = PluginLimitsPlaceholders.PagedFarMoveBytes;
+    internal long FarMoveBytes { get; set; } = PluginLimits.PagedFarMoveBytes;
 
     /// <summary>
     /// The long line a move to <paramref name="caret"/> has to wait for, or null when it can go on now: the line is not long, a point near the caret is known,
@@ -1688,8 +1688,8 @@ internal sealed partial class PagedTextView : Grid
     {
         if (e.Delta.X != 0 || e.KeyModifiers.HasFlag(KeyModifiers.Shift))
             _hBar.Value = Math.Clamp(_hBar.Value - (e.Delta.X != 0 ? e.Delta.X : e.Delta.Y) * 3 * _canvas.WindowColumns / 8, 0, _hBar.Maximum);
-        else if (_options.SmoothScrolling && _bar.Maximum > 0) _glide.Push(-e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
-        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch, 0, _bar.Maximum);
+        else if (_options.SmoothScrolling && _bar.Maximum > 0) _glide.Push(-e.Delta.Y * PluginLimits.WheelLinesPerNotch, 0, _bar.Maximum);
+        else _bar.Value = Math.Clamp(_bar.Value - e.Delta.Y * PluginLimits.WheelLinesPerNotch, 0, _bar.Maximum);
         e.Handled = true;
     }
 

@@ -580,7 +580,7 @@ public class PagedSurfaceTests : IDisposable
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
 
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.True(blocks <= PluginLimits.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
             Assert.Equal(offset, paged.CaretOffset);
             Assert.Equal(((long)row, (long)column), paged.CaretLineColumn());
             for (int i = 0; i < 4; i++) Assert.Equal(ViewRow(row + i), paged.DisplayOf(row + i));
@@ -623,7 +623,7 @@ public class PagedSurfaceTests : IDisposable
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
 
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.True(blocks <= PluginLimits.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
             Assert.Equal(offset, paged.CaretOffset);
             Assert.Equal(((long)row, (long)column), paged.CaretLineColumn());
             for (int i = 0; i < 4; i++) Assert.Equal(ViewRow(row + i), paged.DisplayOf(row + i));
@@ -660,7 +660,7 @@ public class PagedSurfaceTests : IDisposable
             _w.UpdateLayout();
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB ({jumped} before the draw): {string.Join(',', file.BlockNumbersTouched())}");
+            Assert.True(blocks <= PluginLimits.PagedViewportMaxBlocks, $"{blocks} blocks for the jump into a line of {size >> 20} MiB ({jumped} before the draw): {string.Join(',', file.BlockNumbersTouched())}");
             Assert.False(paged.LinesExact);
             Assert.Equal(caret, paged.CaretOffset);
 
@@ -700,7 +700,7 @@ public class PagedSurfaceTests : IDisposable
             _w.CaptureRenderedFrame();
             int blocks = file.BlocksTouched;
 
-            Assert.True(blocks <= PluginLimitsPlaceholders.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
+            Assert.True(blocks <= PluginLimits.PagedViewportMaxBlocks, $"{blocks} blocks at row {row}");
             Assert.Equal((row, 2L), paged.CaretLineColumn());
             Assert.Equal("line " + (row + 1), paged.DisplayOf(row));
         }

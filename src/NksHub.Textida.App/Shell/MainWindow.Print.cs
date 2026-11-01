@@ -23,9 +23,9 @@ internal sealed partial class MainWindow
             SetStatusMessage(source?.Problem ?? Loc.Get(K.ExportNothing));
             return null;
         }
-        if (source.Text.Length > PluginLimitsPlaceholders.HighlightExportMaxChars)
+        if (source.Text.Length > PluginLimits.HighlightExportMaxChars)
         {
-            SetStatusMessage(Loc.Get(K.ExportTooLarge, ("chars", source.Text.Length), ("limit", PluginLimitsPlaceholders.HighlightExportMaxChars)));
+            SetStatusMessage(Loc.Get(K.ExportTooLarge, ("chars", source.Text.Length), ("limit", PluginLimits.HighlightExportMaxChars)));
             return null;
         }
         const int ink = 0x000000;

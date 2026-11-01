@@ -26,7 +26,7 @@ namespace NksHub.Textida.App.Services;
 
 /// <summary>
 /// The plugin side of the app: the host, the document API, the UI API and the built-in plugins. Nothing starts a process until a command needs it.
-/// Limits come from <see cref="PluginLimitsPlaceholders"/> only.
+/// Limits come from <see cref="PluginLimits"/> only.
 /// </summary>
 internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, IDocumentOwnerThread, IEditorTools, IAsyncDisposable
 {
@@ -124,15 +124,15 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             permissions.Grant(JsonPluginId, permission, GrantScope.All);
         // a registry lookup behind a proxy with a login goes through net/request, so the password stays in the editor; the plugin asks nothing before the user allowed the registry
         permissions.Grant(JsonPluginId, PluginPermissionNames.Network, GrantScope.All);
-        Documents = new DocumentApi(PluginLimitsPlaceholders.Documents(this, this, permissions, new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
+        Documents = new DocumentApi(PluginLimits.Documents(this, this, permissions, new PluginCallLog(PluginLimits.CallLogCapacity), id => Mcp?.LogRulesOf(id), WorkspaceEdits(), new PluginPreviewPanel(app), new PluginAgentPanel(this, app)), this, paced, request);
         Mcp = new McpService(this, App.Startup.Channel, app.ProfileDirectory);
         Mcp.ClientAsked += name => _app.ActiveWindow?.AskMcpClient(name);
         Acp = new AcpService(this, app);
-        UiApi = new UiApi(PluginLimitsPlaceholders.Ui(), Ui, send);
+        UiApi = new UiApi(PluginLimits.Ui(), Ui, send);
         Ui.Api = UiApi;
-        var secrets = new PluginSecrets(new CredentialSecretBackend(app.Credentials), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimitsPlaceholders.Network(), new PluginCallLog(PluginLimitsPlaceholders.CallLogCapacity));
-        _host = new Host(PluginLimitsPlaceholders.Host() with
+        var secrets = new PluginSecrets(new CredentialSecretBackend(app.Credentials), new PluginCallLog(PluginLimits.CallLogCapacity));
+        Network = new PluginNetwork(permissions, () => _app.Remote.Policy().CreateHttpHandler(), PluginLimits.Network(), new PluginCallLog(PluginLimits.CallLogCapacity));
+        _host = new Host(PluginLimits.Host() with
             {
                 SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null,
                 HoldsEditorState = id => Documents.HoldsState(id) || UiApi.HoldsState(id),
@@ -160,19 +160,19 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var folder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "json");
         var program = Path.Combine(folder, "NksHub.Textida.Plugins.Json" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(JsonPluginId, "JSON", program,
-            ["--max-bytes", PluginLimitsPlaceholders.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimitsPlaceholders.JsonFormatterIndent.ToString(),
-             "--max-depth", PluginLimitsPlaceholders.JsonFormatterMaxDepth.ToString(),
-             "--schema-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(), "--schema-depth", PluginLimitsPlaceholders.SchemaMaxDepth.ToString(),
-             "--schema-regex-ms", PluginLimitsPlaceholders.SchemaRegexTimeoutMilliseconds.ToString(),
-             "--registry-config", Registries.FilePath, "--registry-timeout-ms", PluginLimitsPlaceholders.RegistryTimeoutMilliseconds.ToString(),
-             "--registry-max-bytes", PluginLimitsPlaceholders.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimitsPlaceholders.RegistryPageSize.ToString(),
-             "--registry-max-lookups", PluginLimitsPlaceholders.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimitsPlaceholders.SchemaMaxBytes.ToString(),
-             "--registry-cache-max-bytes", PluginLimitsPlaceholders.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimitsPlaceholders.RegistryCacheLifetimeSeconds.ToString(),
-             "--registry-max-redirects", PluginLimitsPlaceholders.RegistryMaxRedirects.ToString(),
-             "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimitsPlaceholders.SchemaCacheMaxBytes.ToString(),
-             "--schema-download-max-bytes", PluginLimitsPlaceholders.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimitsPlaceholders.SchemaCacheMaxAgeSeconds.ToString(),
-             "--schema-retry-seconds", PluginLimitsPlaceholders.SchemaRetrySeconds.ToString(),
-             "--schema-ref-depth", PluginLimitsPlaceholders.SchemaRefMaxDepth.ToString(), "--schema-ref-documents", PluginLimitsPlaceholders.SchemaRefMaxDocuments.ToString(),
+            ["--max-bytes", PluginLimits.JsonFormatterMaxBytes.ToString(), "--indent", PluginLimits.JsonFormatterIndent.ToString(),
+             "--max-depth", PluginLimits.JsonFormatterMaxDepth.ToString(),
+             "--schema-max-bytes", PluginLimits.SchemaMaxBytes.ToString(), "--schema-depth", PluginLimits.SchemaMaxDepth.ToString(),
+             "--schema-regex-ms", PluginLimits.SchemaRegexTimeoutMilliseconds.ToString(),
+             "--registry-config", Registries.FilePath, "--registry-timeout-ms", PluginLimits.RegistryTimeoutMilliseconds.ToString(),
+             "--registry-max-bytes", PluginLimits.RegistryMaxResponseBytes.ToString(), "--registry-page-size", PluginLimits.RegistryPageSize.ToString(),
+             "--registry-max-lookups", PluginLimits.RegistryMaxLookups.ToString(), "--registry-manifest-max-bytes", PluginLimits.SchemaMaxBytes.ToString(),
+             "--registry-cache-max-bytes", PluginLimits.RegistryCacheMaxBytes.ToString(), "--registry-cache-seconds", PluginLimits.RegistryCacheLifetimeSeconds.ToString(),
+             "--registry-max-redirects", PluginLimits.RegistryMaxRedirects.ToString(),
+             "--schema-cache", Path.Combine(app.ProfileDirectory, "schema-cache"), "--schema-cache-max-bytes", PluginLimits.SchemaCacheMaxBytes.ToString(),
+             "--schema-download-max-bytes", PluginLimits.SchemaDownloadMaxBytes.ToString(), "--schema-cache-max-age-seconds", PluginLimits.SchemaCacheMaxAgeSeconds.ToString(),
+             "--schema-retry-seconds", PluginLimits.SchemaRetrySeconds.ToString(),
+             "--schema-ref-depth", PluginLimits.SchemaRefMaxDepth.ToString(), "--schema-ref-documents", PluginLimits.SchemaRefMaxDocuments.ToString(),
              "--schema-mappings", SchemaMappingsPath],
             [JsonActivation], folder));
 
@@ -183,9 +183,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var toolsFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "texttools");
         var toolsProgram = Path.Combine(toolsFolder, "NksHub.Textida.Plugins.TextTools" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(TextToolsPluginId, "Text tools", toolsProgram,
-            ["--chunk-bytes", PluginLimitsPlaceholders.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimitsPlaceholders.TextToolsProgressMilliseconds.ToString(),
-             "--frequency-top", PluginLimitsPlaceholders.TextToolsFrequencyTop.ToString(), "--frequency-max-words", PluginLimitsPlaceholders.TextToolsFrequencyMaxWords.ToString(),
-             "--frequency-max-word-length", PluginLimitsPlaceholders.TextToolsFrequencyMaxWordLength.ToString()],
+            ["--chunk-bytes", PluginLimits.TextToolsChunkBytes.ToString(), "--progress-ms", PluginLimits.TextToolsProgressMilliseconds.ToString(),
+             "--frequency-top", PluginLimits.TextToolsFrequencyTop.ToString(), "--frequency-max-words", PluginLimits.TextToolsFrequencyMaxWords.ToString(),
+             "--frequency-max-word-length", PluginLimits.TextToolsFrequencyMaxWordLength.ToString()],
             [TextToolsActivation], toolsFolder));
 
         // colours and key paths read the text; the colour conversion writes the converted values back
@@ -194,8 +194,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var webFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "webdata");
         var webProgram = Path.Combine(webFolder, "NksHub.Textida.Plugins.WebData" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WebDataPluginId, "Web data", webProgram,
-            ["--chunk-bytes", PluginLimitsPlaceholders.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.WebDataMaxBytes.ToString(),
-             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString()],
+            ["--chunk-bytes", PluginLimits.WebDataChunkBytes.ToString(), "--max-bytes", PluginLimits.WebDataMaxBytes.ToString(),
+             "--max-symbols", PluginLimits.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimits.SymbolTextLength.ToString()],
             [WebDataActivation], webFolder));
 
         // the code explorer only reads: it finds the symbols of a text from simple rules of its language
@@ -203,9 +203,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var explorerFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "codeexplorer");
         var explorerProgram = Path.Combine(explorerFolder, "NksHub.Textida.Plugins.CodeExplorer" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(CodeExplorerPluginId, "Code Explorer", explorerProgram,
-            ["--chunk-bytes", PluginLimitsPlaceholders.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimitsPlaceholders.CodeExplorerMaxBytes.ToString(),
-             "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(),
-             "--match-timeout-ms", PluginLimitsPlaceholders.CodeExplorerMatchTimeoutMilliseconds.ToString()],
+            ["--chunk-bytes", PluginLimits.CodeExplorerChunkBytes.ToString(), "--max-bytes", PluginLimits.CodeExplorerMaxBytes.ToString(),
+             "--max-symbols", PluginLimits.SymbolsPerDocument.ToString(), "--max-symbol-chars", PluginLimits.SymbolTextLength.ToString(),
+             "--match-timeout-ms", PluginLimits.CodeExplorerMatchTimeoutMilliseconds.ToString()],
             [CodeExplorerActivation], explorerFolder));
 
         // Emmet reads the text in front of the carets and writes the expansion back as one snippet; it answers the Tab key
@@ -214,8 +214,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var emmetFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "emmet");
         var emmetProgram = Path.Combine(emmetFolder, "NksHub.Textida.Plugins.Emmet" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(EmmetPluginId, "Emmet", emmetProgram,
-            ["--context-bytes", PluginLimitsPlaceholders.EmmetContextBytes.ToString(), "--max-chars", PluginLimitsPlaceholders.SnippetLength.ToString(),
-             "--max-carets", PluginLimitsPlaceholders.SnippetCarets.ToString(), "--preview-chars", PluginLimitsPlaceholders.EmmetPreviewChars.ToString()],
+            ["--context-bytes", PluginLimits.EmmetContextBytes.ToString(), "--max-chars", PluginLimits.SnippetLength.ToString(),
+             "--max-carets", PluginLimits.SnippetCarets.ToString(), "--preview-chars", PluginLimits.EmmetPreviewChars.ToString()],
             [EmmetActivation], emmetFolder));
         // the formatters read the selection and write it back (or propose it)
         foreach (var permission in new[] { DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect })
@@ -224,10 +224,10 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var formattersProgram = Path.Combine(formattersFolder, "NksHub.Textida.Plugins.Formatters" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         var formattersArguments = new List<string>
         {
-            "--max-bytes", PluginLimitsPlaceholders.FormattersMaxBytes.ToString(), "--sql-indent", PluginLimitsPlaceholders.SqlIndent.ToString(),
-            "--sql-case", PluginLimitsPlaceholders.SqlKeywordCase, "--tidy-timeout-ms", PluginLimitsPlaceholders.TidyTimeoutMilliseconds.ToString(),
+            "--max-bytes", PluginLimits.FormattersMaxBytes.ToString(), "--sql-indent", PluginLimits.SqlIndent.ToString(),
+            "--sql-case", PluginLimits.SqlKeywordCase, "--tidy-timeout-ms", PluginLimits.TidyTimeoutMilliseconds.ToString(),
         };
-        foreach (var argument in PluginLimitsPlaceholders.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
+        foreach (var argument in PluginLimits.TidyArguments) formattersArguments.AddRange(["--tidy-arg", argument]);
         _host.Register(new PluginSpec(FormattersPluginId, "Formatters", formattersProgram, formattersArguments, [FormattersActivation], formattersFolder));
 
         // Git reads the working tree document and provides the index and HEAD versions as virtual documents; it writes the repository only when the user stages a hunk,
@@ -237,12 +237,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var gitFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "git");
         var gitProgram = _gitProgram = Path.Combine(gitFolder, "NksHub.Textida.Plugins.Git" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(GitPluginId, "Git", gitProgram,
-            ["--timeout-ms", PluginLimitsPlaceholders.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.VirtualDocumentMaxBytes.ToString(),
-             "--max-entries", PluginLimitsPlaceholders.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimitsPlaceholders.GitChunkBytes.ToString(),
-             "--watch-debounce-ms", PluginLimitsPlaceholders.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimitsPlaceholders.GitTreeEntries.ToString(),
-             "--peek-max-lines", PluginLimitsPlaceholders.GitPeekMaxLines.ToString(), "--network-timeout-ms", PluginLimitsPlaceholders.GitNetworkTimeoutMilliseconds.ToString(),
-             "--log-entries", PluginLimitsPlaceholders.GitLogEntries.ToString(), "--message-history", PluginLimitsPlaceholders.GitMessageHistory.ToString(),
-             "--max-pick-items", PluginLimitsPlaceholders.Ui().MaxPickItems.ToString(), "--max-text-length", PluginLimitsPlaceholders.Ui().MaxTextLength.ToString()],
+            ["--timeout-ms", PluginLimits.GitTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimits.VirtualDocumentMaxBytes.ToString(),
+             "--max-entries", PluginLimits.GitStatusEntries.ToString(), "--chunk-bytes", PluginLimits.GitChunkBytes.ToString(),
+             "--watch-debounce-ms", PluginLimits.GitWatchDebounceMilliseconds.ToString(), "--max-tree-entries", PluginLimits.GitTreeEntries.ToString(),
+             "--peek-max-lines", PluginLimits.GitPeekMaxLines.ToString(), "--network-timeout-ms", PluginLimits.GitNetworkTimeoutMilliseconds.ToString(),
+             "--log-entries", PluginLimits.GitLogEntries.ToString(), "--message-history", PluginLimits.GitMessageHistory.ToString(),
+             "--max-pick-items", PluginLimits.Ui().MaxPickItems.ToString(), "--max-text-length", PluginLimits.Ui().MaxTextLength.ToString()],
             [GitActivation], gitFolder));
 
         // the wiki adapter serves the files of the scheme nksis; the user's token reaches it from the credential store only through secret/get, and it reaches the wiki through net/request
@@ -251,8 +251,8 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var wikiFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "wiki");
         var wikiProgram = Path.Combine(wikiFolder, "NksHub.Textida.Plugins.Wiki" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(WikiPluginId, "NKS IS wiki", wikiProgram,
-            ["--timeout-ms", PluginLimitsPlaceholders.SourceTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimitsPlaceholders.SourceMaxBytes.ToString(),
-             "--max-entries", PluginLimitsPlaceholders.SourceMaxEntries.ToString(), "--language", Loc.Language],
+            ["--timeout-ms", PluginLimits.SourceTimeoutMilliseconds.ToString(), "--max-bytes", PluginLimits.SourceMaxBytes.ToString(),
+             "--max-entries", PluginLimits.SourceMaxEntries.ToString(), "--language", Loc.Language],
             [SourceActivation], wikiFolder));
 
         // the language server client reads the documents it follows and publishes diagnostics; it writes only what a rename proposes, in the change review, and may then touch files below the workspace.
@@ -262,17 +262,17 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "lsp");
         var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
-            ["--network-consent", ToolNetwork.FilePath, "--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
-             "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
-             "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--decoration-refresh-ms", PluginLimitsPlaceholders.LspDecorationRefreshMilliseconds.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
-             "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
-             "--idle-stop-ms", PluginLimitsPlaceholders.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimitsPlaceholders.LspRootSearchLevels.ToString(),
-             "--restart-max-attempts", PluginLimitsPlaceholders.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimitsPlaceholders.LspRestartBaseDelayMilliseconds.ToString(),
-             "--restart-max-delay-ms", PluginLimitsPlaceholders.LspRestartMaxDelayMilliseconds.ToString(), "--restart-stable-ms", PluginLimitsPlaceholders.LspRestartStableMilliseconds.ToString()],
+            ["--network-consent", ToolNetwork.FilePath, "--max-bytes", PluginLimits.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimits.LspStartTimeoutMilliseconds.ToString(),
+             "--request-timeout-ms", PluginLimits.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimits.LspStopTimeoutMilliseconds.ToString(),
+             "--max-locations", PluginLimits.LspMaxLocations.ToString(), "--max-symbols", PluginLimits.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimits.DecorationsPerDocument.ToString(), "--decoration-refresh-ms", PluginLimits.LspDecorationRefreshMilliseconds.ToString(), "--stderr-lines", PluginLimits.LspStderrLines.ToString(),
+             "--max-message-chars", PluginLimits.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimits.DiagnosticsPerDocument.ToString(),
+             "--idle-stop-ms", PluginLimits.LspIdleStopMilliseconds.ToString(), "--root-search-levels", PluginLimits.LspRootSearchLevels.ToString(),
+             "--restart-max-attempts", PluginLimits.LspRestartMaxAttempts.ToString(), "--restart-base-delay-ms", PluginLimits.LspRestartBaseDelayMilliseconds.ToString(),
+             "--restart-max-delay-ms", PluginLimits.LspRestartMaxDelayMilliseconds.ToString(), "--restart-stable-ms", PluginLimits.LspRestartStableMilliseconds.ToString()],
             [LspActivation], lspFolder));
 
-        Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes,
-            PluginLimitsPlaceholders.PluginZip(), BuiltIns.Select(b => b.Id).ToHashSet(StringComparer.Ordinal), permissions, _host);
+        Manager = new PluginManager(Path.Combine(app.ProfileDirectory, "installed-plugins"), PluginLimits.Host().ApiVersion, PluginLimits.GrammarMaxBytes,
+            PluginLimits.PluginZip(), BuiltIns.Select(b => b.Id).ToHashSet(StringComparer.Ordinal), permissions, _host);
         // nothing awaits a process here: registering the enabled plugins completes at once
         var (installed, problems) = Manager.StartAsync().GetAwaiter().GetResult();
         InstalledProblems = [.. problems];
@@ -467,12 +467,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
 
     /// <summary>
     /// The changes of the file of the tab against the index and <c>HEAD</c>, for the gutter, as of <see cref="GitMarks.Revision"/> of the document. Empty for a document the gutter does not look at (no file,
-    /// a secrets file, a file above <see cref="PluginLimitsPlaceholders.GitGutterMaxBytes"/>) and for a file Git has nothing to say about; null when Git could not be asked now (the document is busy with a command, the plugin does not run).
+    /// a secrets file, a file above <see cref="PluginLimits.GitGutterMaxBytes"/>) and for a file Git has nothing to say about; null when Git could not be asked now (the document is busy with a command, the plugin does not run).
     /// </summary>
     public async Task<GitMarks?> GitMarksAsync(MainWindow window, DocTab tab, GitBase gitBase = GitBase.Index)
     {
         var document = tab.Doc.Doc;
-        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file))
+        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimits.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file))
             return new GitMarks(document.Revision, []);
         var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.hunks", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"base\":\"{BaseName(gitBase)}\"", notify: false, background: true);
         if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } answer || !answer.TryGetProperty("hunks", out var hunks) || hunks.ValueKind != JsonValueKind.Array
@@ -513,7 +513,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     public async Task<GitBlame?> GitBlameAsync(MainWindow window, DocTab tab, int line)
     {
         var document = tab.Doc.Doc;
-        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimitsPlaceholders.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file)) return null;
+        if (document.FilePath is not { } file || SecretValues.IsSecretFile(document.SecretsPath) || document.ByteLength > PluginLimits.GitGutterMaxBytes || !File.Exists(_gitProgram) || !InRepository(file)) return null;
         var outcome = await ExecuteAsync(window, tab, GitPluginId, GitActivation, "Git", "git.blame", $",\"path\":\"{JsonEncodedText.Encode(file)}\",\"line\":{line}", notify: false, background: true);
         if (!outcome.Started || outcome.Result is not { ValueKind: JsonValueKind.Object } a || a.GetProperty("status").GetString() is not ("blame" or "uncommitted")) return null;
         return new GitBlame(a.GetProperty("revision").GetInt64(), line, a.GetProperty("sha").GetString() ?? "", a.GetProperty("author").GetString() ?? "",
@@ -695,7 +695,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         Document? OpenDocumentOf(string path) => _app.Windows.SelectMany(w => w.Documents).FirstOrDefault(d => string.Equals(d.Path, path, comparison))?.Doc;
         return new(this, () => [.. _app.Windows.SelectMany(w => w.Files?.Roots ?? [])], path => OpenDocumentOf(path) is not null,
-            PluginLimitsPlaceholders.WorkspaceEditChanges, PluginLimitsPlaceholders.WorkspaceEditFileBytes, PluginLimitsPlaceholders.WorkspaceEditTotalBytes)
+            PluginLimits.WorkspaceEditChanges, PluginLimits.WorkspaceEditFileBytes, PluginLimits.WorkspaceEditTotalBytes)
         { OpenDocument = OpenDocumentOf };
     }
 
@@ -754,7 +754,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// </summary>
     public async Task<bool> RunTableCopyAsync(MainWindow window, DocTab tab, string command) =>
         tab is { Custom: null, TableShown: true } && (await ExecuteAsync(window, tab, TextToolsPluginId, TextToolsActivation, "Text tools", command,
-            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.SecretsHidden, tooLarge: Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)))).Started;
+            $",\"dialect\":\"{tab.Doc.SqlDialect}\"", keepHidden: tab.SecretsHidden, tooLarge: Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimits.ClipboardMaxChars)))).Started;
 
     // ---- web data: colours and key paths ----
 
@@ -790,7 +790,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _keyPathWanted = (window, tab);
         if (_keyPathTimer is null)
         {
-            _keyPathTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.KeyPathDebounceMilliseconds) };
+            _keyPathTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.KeyPathDebounceMilliseconds) };
             _keyPathTimer.Tick += (_, _) =>
             {
                 _keyPathTimer.Stop();
@@ -927,7 +927,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _symbolWanted = tab;
         if (_symbolTimer is null)
         {
-            _symbolTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.KeyPathDebounceMilliseconds) };
+            _symbolTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.KeyPathDebounceMilliseconds) };
             _symbolTimer.Tick += (_, _) =>
             {
                 _symbolTimer.Stop();
@@ -1000,7 +1000,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         {
             while (_outlineWanted.Contains(document))
             {
-                await Task.Delay(PluginLimitsPlaceholders.OutlineRefreshMilliseconds);
+                await Task.Delay(PluginLimits.OutlineRefreshMilliseconds);
                 if (TabOf(document) is not { } found || !_outlineWanted.Contains(document)) break;
                 Documents.SymbolsOf(CodeExplorerPluginId, document, out bool current);
                 if (current) break;
@@ -1417,7 +1417,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _schemaWanted = (window, tab);
         if (_schemaTimer is null)
         {
-            _schemaTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SchemaCheckDebounceMilliseconds) };
+            _schemaTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.SchemaCheckDebounceMilliseconds) };
             _schemaTimer.Tick += (_, _) =>
             {
                 _schemaTimer.Stop();
@@ -1488,13 +1488,13 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     private DateTime _policyStamp;
 
     /// <summary>
-    /// Writes the proxy of the network policy to the file the plugin reads its consent from. With <paramref name="throttle"/> it is not done again within <see cref="PluginLimitsPlaceholders.RegistryProxySyncMilliseconds"/>,
+    /// Writes the proxy of the network policy to the file the plugin reads its consent from. With <paramref name="throttle"/> it is not done again within <see cref="PluginLimits.RegistryProxySyncMilliseconds"/>,
     /// unless the policy file changed since the last time: a proxy the user has just set must not wait for the interval, or the plugin would go around it.
     /// </summary>
     internal void SyncRegistryProxy(bool throttle = false)
     {
         var stamp = File.GetLastWriteTimeUtc(_app.Remote.NetworkPolicyPath);
-        if (throttle && stamp == _policyStamp && _proxySyncedAt != long.MinValue && Environment.TickCount64 - _proxySyncedAt < PluginLimitsPlaceholders.RegistryProxySyncMilliseconds) return;
+        if (throttle && stamp == _policyStamp && _proxySyncedAt != long.MinValue && Environment.TickCount64 - _proxySyncedAt < PluginLimits.RegistryProxySyncMilliseconds) return;
         _policyStamp = stamp;
         _proxySyncedAt = Environment.TickCount64;
         NksHub.Textida.Remote.NetworkPolicy? policy;

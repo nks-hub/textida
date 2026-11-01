@@ -494,7 +494,7 @@ internal sealed partial class MainWindow
         public IRemoteClient? Client { get; set; } = client;
     }
 
-    /// <summary>The log lines and the progress of one transfer: the status bar shows every whole percent, the Remote output a line at each step of the placeholder <see cref="PluginLimitsPlaceholders.RemoteProgressLogStepPercent"/>.</summary>
+    /// <summary>The log lines and the progress of one transfer: the status bar shows every whole percent, the Remote output a line at each step of the placeholder <see cref="PluginLimits.RemoteProgressLogStepPercent"/>.</summary>
     private TransferOptions TransferOptionsFor(RemoteConnection connection, string title, CancellationTokenSource transfer)
     {
         int logged = -1;
@@ -511,7 +511,7 @@ internal sealed partial class MainWindow
             Progress = p =>
             {
                 status.Report(p);
-                int step = p.Percent / PluginLimitsPlaceholders.RemoteProgressLogStepPercent;
+                int step = p.Percent / PluginLimits.RemoteProgressLogStepPercent;
                 if (Interlocked.Exchange(ref logged, step) != step)
                     RemoteLog(connection, Loc.Get(K.RemoteLogProgress, ("path", p.Path), ("percent", p.Percent), ("done", p.Done), ("total", p.Total)));
             },
@@ -531,12 +531,12 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Runs one transfer and repeats it after a lost connection, with growing pauses (the placeholders <see cref="PluginLimitsPlaceholders.RemoteRetryCount"/> and
-    /// <see cref="PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds"/>). A repeat is a new call, so the server version is checked again and a partial file is continued.
+    /// Runs one transfer and repeats it after a lost connection, with growing pauses (the placeholders <see cref="PluginLimits.RemoteRetryCount"/> and
+    /// <see cref="PluginLimits.RemoteRetryBaseDelayMilliseconds"/>). A repeat is a new call, so the server version is checked again and a partial file is continued.
     /// Null when the connection could not be made again; <see cref="ConnectAsync"/> has said so.
     /// </summary>
     private async Task<T?> RepeatAfterLostConnectionAsync<T>(RemoteConnection connection, Link link, Func<IRemoteClient, Task<T>> run, CancellationToken cancellation) where T : class =>
-        await RemoteRetry.RunAsync(() => run(link.Client!), PluginLimitsPlaceholders.RemoteRetryCount, PluginLimitsPlaceholders.RemoteRetryBaseDelayMilliseconds, async info =>
+        await RemoteRetry.RunAsync(() => run(link.Client!), PluginLimits.RemoteRetryCount, PluginLimits.RemoteRetryBaseDelayMilliseconds, async info =>
         {
             RemoteLog(connection, Loc.Get(K.RemoteLogRetrying, ("attempt", info.Attempt), ("max", info.Max), ("seconds", info.Delay.TotalSeconds), ("reason", info.Error.Message)));
             await link.Client!.DisposeAsync();

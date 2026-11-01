@@ -193,7 +193,7 @@ internal sealed class OpenDocument : IDisposable
     private CsvDialect DetectTableDialect()
     {
         var byPath = CsvDialect.ForPath(Path);
-        long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimitsPlaceholders.CsvDetectSampleBytes);
+        long start = Doc.BomLength, end = Math.Min(Doc.ByteLength, start + PluginLimits.CsvDetectSampleBytes);
         while (end > start && end < Doc.ByteLength && !Doc.IsCharBoundary(end)) end--;
         return end <= start ? byPath : CsvDialect.Detect(Doc.ReadText(new ByteRange(start, end)), byPath, truncated: end < Doc.ByteLength);
     }
@@ -351,13 +351,13 @@ internal sealed class OpenDocument : IDisposable
             var info = new FileInfo(path);
             if (!info.Exists) throw new FileNotFoundException(null, path);
             Core.TypingTrace.End("open.document.recover", t);
-            IBackendFactory factory = bytes ? (info.Length <= PluginLimitsPlaceholders.ImageViewMaxBytes ? ResidentBytesFactory.Instance : HexBackend) : info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
+            IBackendFactory factory = bytes ? (info.Length <= PluginLimits.ImageViewMaxBytes ? ResidentBytesFactory.Instance : HexBackend) : info.Length > largeFileBytes ? PagedBackendFactory.Instance : AvaloniaEditBackendFactory.Instance;
             t = Core.TypingTrace.Begin();
             var guess = GuessFile(path, info.Length);
             if (bytes && guess.Codec.Kind is CodecKind.Utf16 or CodecKind.Utf32) guess = guess with { Codec = TextCodec.Cp1252 };
             Core.TypingTrace.End("open.document.guess", t);
             t = Core.TypingTrace.Begin();
-            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes }), guess); }
+            try { return (Document.Open(path, factory, new DocumentOptions { Format = guess.Codec, HashInBackgroundAboveBytes = PluginLimits.OpenHashInBackgroundBytes }), guess); }
             catch (NotSupportedException) when (factory is PagedBackendFactory)
             {
                 throw new IOException(Loc.Get(K.ErrorOpenLargeEncoding, ("path", path), ("encoding", guess.Codec.Name)));

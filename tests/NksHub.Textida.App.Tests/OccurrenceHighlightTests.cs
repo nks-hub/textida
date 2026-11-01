@@ -417,19 +417,19 @@ public class OccurrenceHighlightTests : IDisposable
         var tab = Open("many.txt", string.Concat(Enumerable.Repeat(line, 3000)));
         var scan = await Select(tab, 0, 2);
         var segments = Segments(tab);
-        Assert.Equal(PluginLimitsPlaceholders.OccurrenceMaxDrawn, segments.Count); // 40 lines on screen hold more than that
+        Assert.Equal(PluginLimits.OccurrenceMaxDrawn, segments.Count); // 40 lines on screen hold more than that
         Assert.DoesNotContain(segments, s => s.Start == 0);
         var view = tab.Editor!.TextArea.TextView;
         Assert.All(segments, s => Assert.True(s.Start + s.Length <= view.VisualLines[^1].LastDocumentLine.EndOffset, "a place below the screen was drawn"));
         Assert.True(scan.Limited);
-        Assert.Equal(PluginLimitsPlaceholders.OccurrenceMaxMarks, scan.Count);
-        Assert.Contains(Loc.Get(K.StatusOccurrencesLimit, ("count", PluginLimitsPlaceholders.OccurrenceMaxMarks)), _w.StatusLeftText);
+        Assert.Equal(PluginLimits.OccurrenceMaxMarks, scan.Count);
+        Assert.Contains(Loc.Get(K.StatusOccurrencesLimit, ("count", PluginLimits.OccurrenceMaxMarks)), _w.StatusLeftText);
     }
 
     [AvaloniaFact]
     public async Task A_line_over_the_length_limit_is_left_plain_but_is_still_counted_and_marked()
     {
-        string longLine = string.Concat(Enumerable.Repeat("ab ", PluginLimitsPlaceholders.OccurrenceLineMaxChars / 3 + 10)) + "\n";
+        string longLine = string.Concat(Enumerable.Repeat("ab ", PluginLimits.OccurrenceLineMaxChars / 3 + 10)) + "\n";
         var tab = Open("long.txt", "ab\n" + longLine + "ab\n");
         var scan = await Select(tab, 0, 2);
         int lastLine = 3 + longLine.Length;
@@ -621,8 +621,8 @@ public class OccurrenceHighlightTests : IDisposable
     public void The_settings_exist_with_the_defaults_of_the_placeholders_and_can_be_searched()
     {
         var workbench = _app.Workbench;
-        Assert.Equal(new OccurrenceOptions(Enabled: true, WholeWord: false, MatchCase: true, AtCaret: false, MinLength: PluginLimitsPlaceholders.OccurrenceMinLength), OccurrenceOptions.From(workbench.Settings));
-        Assert.Equal(2, PluginLimitsPlaceholders.OccurrenceMinLength);
+        Assert.Equal(new OccurrenceOptions(Enabled: true, WholeWord: false, MatchCase: true, AtCaret: false, MinLength: PluginLimits.OccurrenceMinLength), OccurrenceOptions.From(workbench.Settings));
+        Assert.Equal(2, PluginLimits.OccurrenceMinLength);
         foreach (string key in new[] { "enabled", "wholeWord", "matchCase", "atCaret", "minLength" })
             Assert.Contains(workbench.Host.Settings.Definitions, d => d.Key == "editor.occurrences." + key);
         // by a word of the tags and by a word of the title, which the Czech interface writes without diacritics
@@ -662,8 +662,8 @@ public class OccurrenceMatcherTests
         var options = new OccurrenceOptions();
         Assert.Null(OccurrenceMatcher.TargetOf("a", 0, false, options));
         Assert.NotNull(OccurrenceMatcher.TargetOf("ab", 0, false, options));
-        Assert.Null(OccurrenceMatcher.TargetOf(new string('x', PluginLimitsPlaceholders.OccurrenceMaxChars + 1), 0, false, options));
-        Assert.NotNull(OccurrenceMatcher.TargetOf(new string('x', PluginLimitsPlaceholders.OccurrenceMaxChars), 0, false, options));
+        Assert.Null(OccurrenceMatcher.TargetOf(new string('x', PluginLimits.OccurrenceMaxChars + 1), 0, false, options));
+        Assert.NotNull(OccurrenceMatcher.TargetOf(new string('x', PluginLimits.OccurrenceMaxChars), 0, false, options));
         Assert.Null(OccurrenceMatcher.TargetOf("ab\ncd", 0, false, options));
         Assert.Null(OccurrenceMatcher.TargetOf("ab\rcd", 0, false, options));
         Assert.Null(OccurrenceMatcher.TargetOf("\t \t", 0, false, options));

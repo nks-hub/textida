@@ -131,7 +131,7 @@ internal sealed class ClipLibrary
         {
             if (!File.Exists(Path.Combine(folder, PluginManifest.FileName))) continue;
             var name = installed.Contains(folder) ? Path.GetFileName(Path.GetDirectoryName(folder)) ?? folder : Path.GetFileName(folder);
-            var result = PluginManifestLoader.Load(folder, PluginLimitsPlaceholders.Host().ApiVersion, PluginLimitsPlaceholders.GrammarMaxBytes, PluginLimitsPlaceholders.IconMaxBytes);
+            var result = PluginManifestLoader.Load(folder, PluginLimits.Host().ApiVersion, PluginLimits.GrammarMaxBytes, PluginLimits.IconMaxBytes);
             if (result.Plugin is not { } plugin) { _problems.Add($"{name}: {string.Join("; ", result.Errors)}"); continue; }
             // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
             if (installed.Contains(folder))
@@ -214,7 +214,7 @@ internal sealed class ClipLibrary
         clip = null;
         detail = "";
         var literal = Variables.Escape(text);
-        if (literal.Length > PluginLimitsPlaceholders.SnippetLength) return SaveClipResult.TooLong;
+        if (literal.Length > PluginLimits.SnippetLength) return SaveClipResult.TooLong;
         try
         {
             PluginManifest manifest;
@@ -227,7 +227,7 @@ internal sealed class ClipLibrary
             }
             else
             {
-                int api = PluginLimitsPlaceholders.Host().ApiVersion;
+                int api = PluginLimits.Host().ApiVersion;
                 manifest = new PluginManifest { Id = UserPluginId, Name = "My clips", Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
             }
 
@@ -265,7 +265,7 @@ internal sealed class ClipLibrary
         {
             string folder = Path.Combine(_directory, source + "-" + id);
             Directory.CreateDirectory(folder);
-            int api = PluginLimitsPlaceholders.Host().ApiVersion;
+            int api = PluginLimits.Host().ApiVersion;
             var manifest = new PluginManifest { Id = source + "." + id, Name = label + ": " + name, Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
             manifest.Contributes.Grammars.Add("grammar.json");
             File.WriteAllText(Path.Combine(folder, "grammar.json"), grammarJson, new UTF8Encoding(false));
@@ -296,7 +296,7 @@ internal sealed class ClipLibrary
             string slug = Slug(stem);
             foreach (string old in Directory.Exists(_directory) ? Directory.EnumerateDirectories(_directory, "pspad-clips-" + slug + "-*") : [])
                 Directory.Delete(old, true);
-            int api = PluginLimitsPlaceholders.Host().ApiVersion;
+            int api = PluginLimits.Host().ApiVersion;
             int chunk = 0, index = 0;
             while (index < clips.Count)
             {

@@ -45,7 +45,7 @@ internal sealed partial class PagedTextView
         if (HasSelection)
         {
             var range = SelectionRange;
-            if (range.Length > PluginLimitsPlaceholders.OccurrenceMaxChars * 4L) return null; // a character is at most 4 bytes
+            if (range.Length > PluginLimits.OccurrenceMaxChars * 4L) return null; // a character is at most 4 bytes
             return OccurrenceMatcher.TargetOf(Doc.Codec.GetString(Doc.ReadBytes(range)), range.Start, wholeWord: false, options);
         }
         if (!options.AtCaret || CaretLine() is not { } caret || caret.View.Truncated) return null;
@@ -64,9 +64,9 @@ internal sealed partial class PagedTextView
         for (int i = 0; i <= _canvas.VisibleLines && !cancel.IsCancellationRequested; i++)
         {
             if (GetLine(top + i) is not { } view) break;
-            if (view.Truncated || view.Map.Text.Length > PluginLimitsPlaceholders.OccurrenceLineMaxChars) continue;
+            if (view.Truncated || view.Map.Text.Length > PluginLimits.OccurrenceLineMaxChars) continue;
             spans.Clear();
-            OccurrenceMatcher.Spans(regex, view.Map.Text, spans, PluginLimitsPlaceholders.OccurrenceMaxMarks);
+            OccurrenceMatcher.Spans(regex, view.Map.Text, spans, PluginLimits.OccurrenceMaxMarks);
             int here = 0;
             foreach (var (start, _) in spans)
                 if (view.Start + view.Map.ByteOffsetOf(start) != target.Own) here++;
@@ -102,7 +102,7 @@ internal sealed partial class PagedTextView
             _occFill = brush("OccurrenceBg", Brushes.Transparent);
             _occLine = brush("OccurrenceBorder", Brushes.Gray);
             _occPen = new Pen(_occLine, 1);
-            _occRoom = PluginLimitsPlaceholders.OccurrenceMaxDrawn;
+            _occRoom = PluginLimits.OccurrenceMaxDrawn;
             return regex;
         }
 
@@ -110,7 +110,7 @@ internal sealed partial class PagedTextView
         private void DrawOccurrences(DrawingContext context, LineView view, double y, Regex regex, long own)
         {
             var text = view.Map.Text;
-            if (view.Truncated || _occRoom <= 0 || text.Length > PluginLimitsPlaceholders.OccurrenceLineMaxChars) return;
+            if (view.Truncated || _occRoom <= 0 || text.Length > PluginLimits.OccurrenceLineMaxChars) return;
             _occSpans.Clear();
             OccurrenceMatcher.Spans(regex, text, _occSpans, _occRoom);
             foreach (var (start, length) in _occSpans)

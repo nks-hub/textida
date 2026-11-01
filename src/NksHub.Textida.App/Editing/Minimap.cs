@@ -604,7 +604,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
                 }
             }
             int columns = key.Width - LaneWidth(key.Width) - TextPad;
-            int stripRows = PluginLimitsPlaceholders.MinimapSampleStripRows;
+            int stripRows = PluginLimits.MinimapSampleStripRows;
             var sampler = wanted.Layout.Sampled ? Sampler() : null;
             while (_nextRow < key.Rows)
             {

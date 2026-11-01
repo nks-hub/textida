@@ -21,7 +21,7 @@ internal static class PreviewPolicy
     /// <summary>Widest an image is decoded and drawn, in pixels.</summary>
     public const int MaxImageWidth = 800;
 
-    /// <summary>The bytes of a <c>data:image/…;base64,…</c> URI of a known raster type that fits <see cref="PluginLimitsPlaceholders.PreviewImageMaxBytes"/>; null for anything else.</summary>
+    /// <summary>The bytes of a <c>data:image/…;base64,…</c> URI of a known raster type that fits <see cref="PluginLimits.PreviewImageMaxBytes"/>; null for anything else.</summary>
     public static byte[]? ImageBytes(string target)
     {
         const string head = "data:image/";
@@ -32,9 +32,9 @@ internal static class PreviewPolicy
         var meta = target[head.Length..comma].Split(';');
         if (meta.Length != 2 || !ImageTypes.Contains(meta[0].ToLowerInvariant()) || !meta[1].Equals("base64", StringComparison.OrdinalIgnoreCase)) return null;
         var data = target.AsSpan(comma + 1);
-        if (data.Length / 4L * 3 > PluginLimitsPlaceholders.PreviewImageMaxBytes) return null;
+        if (data.Length / 4L * 3 > PluginLimits.PreviewImageMaxBytes) return null;
         var bytes = new byte[data.Length / 4 * 3 + 3];
-        return Convert.TryFromBase64Chars(data, bytes, out int written) && written <= PluginLimitsPlaceholders.PreviewImageMaxBytes ? bytes[..written] : null;
+        return Convert.TryFromBase64Chars(data, bytes, out int written) && written <= PluginLimits.PreviewImageMaxBytes ? bytes[..written] : null;
     }
 
     /// <summary>The name of the picture a plugin attached that <c>preview:name</c> refers to; null for any other target.</summary>
@@ -69,7 +69,7 @@ internal static class PreviewPolicy
     /// <summary>Whether the bytes are a raster picture of a kind the preview draws whose size in pixels is known and within the limit.</summary>
     public static bool Drawable(ReadOnlySpan<byte> bytes) =>
         RasterImage.FormatName(bytes) is not (null or "ICO") // an icon is a picture of the viewer, not of a preview
-        && RasterImage.Size(bytes) is { } size && size.Width > 0 && size.Height > 0 && (long)size.Width * size.Height <= PluginLimitsPlaceholders.PreviewImageMaxPixels;
+        && RasterImage.Size(bytes) is { } size && size.Width > 0 && size.Height > 0 && (long)size.Width * size.Height <= PluginLimits.PreviewImageMaxPixels;
 
     /// <summary>The address of a link the user may be asked to open (http, https or mailto); null when the policy never opens it.</summary>
     public static Uri? LinkTarget(string target) =>

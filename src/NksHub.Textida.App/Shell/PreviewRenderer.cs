@@ -51,7 +51,7 @@ internal static partial class PreviewRenderer
                 Blocks(text.ReplaceLineEndings("\n").Split('\n'), body.Children, ctx, top: true);
                 break;
             case PreviewFormats.Html:
-                HtmlBlocks(HtmlSubset.Parse(text.ReplaceLineEndings("\n"), PluginLimitsPlaceholders.PreviewHtmlMaxNodes, PluginLimitsPlaceholders.PreviewHtmlMaxDepth), body.Children, ctx, top: true);
+                HtmlBlocks(HtmlSubset.Parse(text.ReplaceLineEndings("\n"), PluginLimits.PreviewHtmlMaxNodes, PluginLimits.PreviewHtmlMaxDepth), body.Children, ctx, top: true);
                 break;
             default:
                 body.Children.Add(new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap });

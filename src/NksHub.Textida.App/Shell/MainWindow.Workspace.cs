@@ -281,7 +281,7 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// A large tab has no text to put in the session. It keeps the caret as a byte offset and the unsaved work as the edits that turn its file into the document,
-    /// together with the length and write time of the file they were made on. Edits that insert more than <see cref="PluginLimitsPlaceholders.SessionLargeEditsMaxBytes"/>,
+    /// together with the length and write time of the file they were made on. Edits that insert more than <see cref="PluginLimits.SessionLargeEditsMaxBytes"/>,
     /// or that were made on a file that has since changed under the document, are left out and the title of the tab is added to <paramref name="leftOut"/>.
     /// </summary>
     private static void CaptureLargeTab(DocTab tab, PagedTextView paged, SessionTabData entry, List<string>? leftOut)
@@ -295,7 +295,7 @@ internal sealed partial class MainWindow
         {
             var print = doc.Fingerprint;
             var edits = print is not null && print.Size == info.Length && print.LastWriteUtc == info.LastWriteTimeUtc && doc.Backend is PagedBackend backend
-                ? backend.Paged.EditsAgainstFile(PluginLimitsPlaceholders.SessionLargeEditsMaxBytes)
+                ? backend.Paged.EditsAgainstFile(PluginLimits.SessionLargeEditsMaxBytes)
                 : null;
             if (edits is null)
             {

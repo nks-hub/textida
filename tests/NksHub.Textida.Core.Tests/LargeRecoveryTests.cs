@@ -247,7 +247,7 @@ public sealed class LargeRecoveryTests : IDisposable
         var chunk = new byte[512 << 10];
         Random.Shared.NextBytes(chunk);
         for (int i = 0; i < chunk.Length; i++) chunk[i] = (byte)('a' + chunk[i] % 26); // text, so the document stays valid UTF-8
-        int count = (int)(JournalPlaceholders.MaxInlineDocumentBytes / chunk.Length) + 6;
+        int count = (int)(JournalLimits.MaxInlineDocumentBytes / chunk.Length) + 6;
 
         byte[] expected;
         using (var session = JournalSession.Start(Journal, Backends(Paged()), Manual))
@@ -263,7 +263,7 @@ public sealed class LargeRecoveryTests : IDisposable
         var edits = EditRecords(path).SelectMany(e => e.Edits).ToList();
         long inline = edits.Sum(e => (long)e.Inserted.Length);
         Assert.InRange(edits.Count(e => e.External is not null), 1, 8);
-        Assert.True(inline <= JournalPlaceholders.MaxInlineDocumentBytes, $"{inline} bytes stayed inline");
+        Assert.True(inline <= JournalLimits.MaxInlineDocumentBytes, $"{inline} bytes stayed inline");
 
         var back = Assert.Single(JournalRecovery.Recover(path, Backends(Paged())).Documents);
         Assert.Equal(RecoveryStatus.Restored, back.Status);
@@ -385,7 +385,7 @@ public sealed class LargeRecoveryTests : IDisposable
         }
 
         var path = Directory.GetFiles(Journal, "session-*.njl").Single();
-        var back = Assert.Single(JournalRecovery.Recover(path, Backends(Paged()), new RecoveryOptions { DeferAboveBytes = JournalPlaceholders.AskBeforeRecoverBytes }).Documents);
+        var back = Assert.Single(JournalRecovery.Recover(path, Backends(Paged()), new RecoveryOptions { DeferAboveBytes = JournalLimits.AskBeforeRecoverBytes }).Documents);
         Assert.Equal(RecoveryStatus.Pending, back.Status);
         Assert.Null(back.Document);
         Assert.True(back.PendingBytes >= block.Length);
@@ -447,8 +447,8 @@ public sealed class LargeRecoveryTests : IDisposable
         var edits = new List<ByteEdit>((int)lines);
         for (long i = 0; i < lines; i++) edits.Add(new ByteEdit(new ByteRange(i * LargeText.LineBytes + 12, i * LargeText.LineBytes + 13), xy));
 
-        using (var session = JournalSession.Start(Journal, Backends(Paged(PagedSpillPlaceholders.MemoryBudgetBytes)), Manual))
-        using (var doc = Doc.Open(Data, Paged(PagedSpillPlaceholders.MemoryBudgetBytes)))
+        using (var session = JournalSession.Start(Journal, Backends(Paged(PagedSpillLimits.MemoryBudgetBytes)), Manual))
+        using (var doc = Doc.Open(Data, Paged(PagedSpillLimits.MemoryBudgetBytes)))
         {
             session.Track(doc);
             Assert.True(doc.Apply(edits).Applied);
@@ -465,7 +465,7 @@ public sealed class LargeRecoveryTests : IDisposable
         Assert.Equal(lines, list.Count);
 
         GC.Collect();
-        using var next = JournalSession.Start(Journal, Backends(Paged(PagedSpillPlaceholders.MemoryBudgetBytes)));
+        using var next = JournalSession.Start(Journal, Backends(Paged(PagedSpillLimits.MemoryBudgetBytes)));
         var back = Assert.Single(next.Recovery.Documents);
         Assert.Equal(RecoveryStatus.Restored, back.Status);
         Assert.Equal(expected, HashOf(back.Document!));

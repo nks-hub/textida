@@ -76,7 +76,7 @@ public class CompletionTests : IDisposable
     public void The_words_of_the_document_being_edited_are_ranked_by_distance_from_the_caret()
     {
         // "banalx" is the most frequent but stands farther from the caret than the stretch that is ranked by distance
-        string gap = new string('.', PluginLimitsPlaceholders.CompletionNearChars + 1000), frequent = "banalx banalx banalx banalx";
+        string gap = new string('.', PluginLimits.CompletionNearChars + 1000), frequent = "banalx banalx banalx banalx";
         Open("mine.txt", frequent + "\n" + gap + "\nbanner bandit bandit\nban");
         Assert.Equal(["bandit", "banner", "banalx"], _w.GatherCompletion()!.Words);
 

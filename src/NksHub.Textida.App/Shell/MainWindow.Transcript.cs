@@ -46,9 +46,9 @@ internal sealed partial class MainWindow
         TranscriptIndex index;
         try
         {
-            var masker = new TranscriptMasker(PluginLimitsPlaceholders.TranscriptMinSecretLength);
+            var masker = new TranscriptMasker(PluginLimits.TranscriptMinSecretLength);
             LearnWorkspaceSecrets(masker);
-            index = TranscriptIndex.Open(path, PluginLimitsPlaceholders.Transcript(), masker);
+            index = TranscriptIndex.Open(path, PluginLimits.Transcript(), masker);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -88,7 +88,7 @@ internal sealed partial class MainWindow
         int learned = 0;
         foreach (var tab in Tabs.DistinctBy(t => t.Doc))
         {
-            if (learned >= PluginLimitsPlaceholders.TranscriptSeedMaxFiles) return;
+            if (learned >= PluginLimits.TranscriptSeedMaxFiles) return;
             if (tab.Surface is null || !SecretValues.IsSecretFile(tab.Doc.Doc.SecretsPath)) continue;
             masker.LearnFile(tab.Surface.Document.Text);
             learned++;
@@ -98,8 +98,8 @@ internal sealed partial class MainWindow
         {
             foreach (var file in Directory.EnumerateFiles(root))
             {
-                if (learned >= PluginLimitsPlaceholders.TranscriptSeedMaxFiles) return;
-                if (!SecretValues.IsSecretFile(file) || new FileInfo(file).Length > PluginLimitsPlaceholders.TranscriptSeedMaxFileBytes) continue;
+                if (learned >= PluginLimits.TranscriptSeedMaxFiles) return;
+                if (!SecretValues.IsSecretFile(file) || new FileInfo(file).Length > PluginLimits.TranscriptSeedMaxFileBytes) continue;
                 masker.LearnFile(File.ReadAllText(file));
                 learned++;
             }

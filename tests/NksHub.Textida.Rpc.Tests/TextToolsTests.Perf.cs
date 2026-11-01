@@ -13,7 +13,7 @@ public partial class TextToolsTests(ITestOutputHelper output)
     const long GiB = 1L << 30;
     const string Island = "alpha beta\r\n";
 
-    /// <summary>The RPC limits the app gives its plugin host (<c>PluginLimitsPlaceholders.Host</c>): a chunk of 1 MiB is 1.4 MiB of base64 in a message.</summary>
+    /// <summary>The RPC limits the app gives its plugin host (<c>PluginLimits.Host</c>): a chunk of 1 MiB is 1.4 MiB of base64 in a message.</summary>
     static readonly NksHub.Textida.Rpc.RpcLimits AppLimits = new(4 << 20, 8, 64, 100_000, 64L << 20, 64L << 20);
 
     /// <summary>A file of <paramref name="length"/> bytes that is NUL except for <paramref name="lines"/> lines of <see cref="Island"/> at its start, in the middle and at its end.</summary>

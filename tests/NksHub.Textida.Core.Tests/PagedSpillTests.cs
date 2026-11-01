@@ -175,7 +175,7 @@ public sealed class PagedSpillTests : IDisposable
         const int blockSize = 4 << 20;
         int blocks = Math.Max(1, (int)(HugeText.SizePast(2L << 30, 3L << 30) / blockSize)); // 513 blocks, 3 GiB (768 blocks) with TEXTIDA_HUGE=1
         byte[] original = Encoding.ASCII.GetBytes("start\nend\n");
-        var options = Options(PagedSpillPlaceholders.MemoryBudgetBytes);
+        var options = Options(PagedSpillLimits.MemoryBudgetBytes);
         using var doc = PagedDocument.OpenMemory(original, options);
         using var expected = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         expected.AppendData(original);

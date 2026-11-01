@@ -188,7 +188,7 @@ public class PluginPanelsTests : IDisposable
         Assert.Null(PreviewPolicy.ImageBytes("data:image/svg+xml;base64," + OnePixelPng)); // svg can carry script and references
         Assert.Null(PreviewPolicy.ImageBytes("data:image/png,rawtext"));
         Assert.Null(PreviewPolicy.ImageBytes("data:image/png;base64,@@@@"));
-        Assert.Null(PreviewPolicy.ImageBytes("data:image/png;base64," + new string('A', (PluginLimitsPlaceholders.PreviewImageMaxBytes / 3 + 2) * 4)));
+        Assert.Null(PreviewPolicy.ImageBytes("data:image/png;base64," + new string('A', (PluginLimits.PreviewImageMaxBytes / 3 + 2) * 4)));
 
         Assert.NotNull(PreviewPolicy.LinkTarget("https://docs.example.org/a"));
         Assert.NotNull(PreviewPolicy.LinkTarget("mailto:dev@example.org"));
@@ -241,9 +241,9 @@ public class PluginPanelsTests : IDisposable
         Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "{\"logo\":\"not base64!\"}"))));
         Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", $"{{\"a b\":\"{OnePixelPng}\"}}"))));
         Assert.Equal(RpcErrorCodes.InvalidParams, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "[\"logo\"]"))));
-        var many = string.Join(",", Enumerable.Range(0, PluginLimitsPlaceholders.PreviewImagesPerPreview + 1).Select(i => $"\"p{i}\":\"{OnePixelPng}\""));
+        var many = string.Join(",", Enumerable.Range(0, PluginLimits.PreviewImagesPerPreview + 1).Select(i => $"\"p{i}\":\"{OnePixelPng}\""));
         Assert.Equal(RpcErrorCodes.MessageTooLarge, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", "{" + many + "}"))));
-        var huge = Convert.ToBase64String([.. Convert.FromBase64String(OnePixelPng), .. new byte[PluginLimitsPlaceholders.PreviewImageMaxBytes]]);
+        var huge = Convert.ToBase64String([.. Convert.FromBase64String(OnePixelPng), .. new byte[PluginLimits.PreviewImageMaxBytes]]);
         Assert.Equal(RpcErrorCodes.MessageTooLarge, ErrorOf(await Editor(DocumentMethods.PreviewShow, WithImages(tab, "x", $"{{\"big\":\"{huge}\"}}"))));
     }
 

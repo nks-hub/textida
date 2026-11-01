@@ -23,7 +23,7 @@ internal sealed partial class EditorSurface
     private void InitLogFull()
     {
         _ansiHide = new AnsiHideGenerator();
-        _ansi = new AnsiColorizer(TextArea.TextView) { Lookback = PluginLimitsPlaceholders.AnsiCarryLookbackLines };
+        _ansi = new AnsiColorizer(TextArea.TextView) { Lookback = PluginLimits.AnsiCarryLookbackLines };
         TextArea.TextView.ElementGenerators.Insert(0, _ansiHide);
         TextArea.TextView.LineTransformers.Add(_ansi);
         TextArea.AddHandler(PointerPressedEvent, OnLogLinkPressed, RoutingStrategies.Tunnel);

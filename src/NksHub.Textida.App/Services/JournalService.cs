@@ -23,9 +23,9 @@ internal sealed class JournalService : IDisposable
 
     /// <summary>
     /// Changes of one document above which start does not replay it but asks (bytes inserted and removed); read when the next run starts, so a test lowers it before
-    /// <see cref="Start"/>. Default: <see cref="JournalPlaceholders.AskBeforeRecoverBytes"/> (decided there).
+    /// <see cref="Start"/>. Default: <see cref="JournalLimits.AskBeforeRecoverBytes"/> (decided there).
     /// </summary>
-    internal static long AskBeforeRecoverBytes { get; set; } = JournalPlaceholders.AskBeforeRecoverBytes;
+    internal static long AskBeforeRecoverBytes { get; set; } = JournalLimits.AskBeforeRecoverBytes;
 
     public JournalSession Session { get; }
     public JournalLocationResult Location { get; }
@@ -71,7 +71,7 @@ internal sealed class JournalService : IDisposable
             try { File.Delete(flag); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { clean = false; }
         }
-        var session = JournalSession.Start(location.Directory, BackendByName, recovery: new RecoveryOptions { DeferAboveBytes = AskBeforeRecoverBytes, HashInBackgroundAboveBytes = PluginLimitsPlaceholders.OpenHashInBackgroundBytes });
+        var session = JournalSession.Start(location.Directory, BackendByName, recovery: new RecoveryOptions { DeferAboveBytes = AskBeforeRecoverBytes, HashInBackgroundAboveBytes = PluginLimits.OpenHashInBackgroundBytes });
         return new JournalService(session, location, clean, location.Directory);
     }
 

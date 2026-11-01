@@ -98,7 +98,7 @@ public class PluginDocumentEventsAppTests : IDisposable
         // the plugin sits 3 s on its first event, so nothing is acknowledged while the edits are made
         await Pump(Host.CallAsync("p", "setEventDelay", Encoding.UTF8.GetBytes("{\"ms\":3000}")));
 
-        int edits = PluginLimitsPlaceholders.EventQueueCapacity + PluginLimitsPlaceholders.EventWindow + 100;
+        int edits = PluginLimits.EventQueueCapacity + PluginLimits.EventWindow + 100;
         for (int i = 0; i < edits; i++) tab.Editor!.Document.Insert(0, "a");
         long current = tab.Doc.Doc.Revision;
         await Pump(Host.CallAsync("p", "setEventDelay", Encoding.UTF8.GetBytes("{\"ms\":0}")));
@@ -110,7 +110,7 @@ public class PluginDocumentEventsAppTests : IDisposable
 
         var changed = await EventsAsync(DocumentEvents.Changed);
         // nothing is acknowledged while the edits are made: the plugin has EventWindow events, one more waits at the window and the queue holds the rest
-        Assert.InRange(changed.Count, PluginLimitsPlaceholders.EventQueueCapacity, PluginLimitsPlaceholders.EventQueueCapacity + PluginLimitsPlaceholders.EventWindow + 1);
+        Assert.InRange(changed.Count, PluginLimits.EventQueueCapacity, PluginLimits.EventQueueCapacity + PluginLimits.EventWindow + 1);
         Assert.Equal(Enumerable.Range(0, changed.Count).Select(i => current - edits + 1 + i), changed.Select(e => e.GetProperty("payload").GetProperty("revision").GetInt64()));
         Assert.DoesNotContain("\"a\"", string.Concat(changed.Select(e => e.GetRawText())));
     }

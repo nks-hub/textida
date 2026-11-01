@@ -387,9 +387,9 @@ public class PagedTypingScenarioTests : IDisposable
         Assert.True(tab.GoToLine((int)(rows / 2), 11)); // in the middle of a row in the middle of the file
 
         long before = StablePrivateBytes();
-        var builder = new StringBuilder((int)PluginLimitsPlaceholders.PagedPasteMaxChars + 200);
-        for (long n = 0; builder.Length < PluginLimitsPlaceholders.PagedPasteMaxChars; n++) builder.Append($"pasted row {n:D9} with a few words to make the line longer\n");
-        builder.Length = (int)PluginLimitsPlaceholders.PagedPasteMaxChars;
+        var builder = new StringBuilder((int)PluginLimits.PagedPasteMaxChars + 200);
+        for (long n = 0; builder.Length < PluginLimits.PagedPasteMaxChars; n++) builder.Append($"pasted row {n:D9} with a few words to make the line longer\n");
+        builder.Length = (int)PluginLimits.PagedPasteMaxChars;
         string text = builder.ToString();
         builder.Clear();
         int breaks = text.AsSpan().Count('\n');
@@ -397,7 +397,7 @@ public class PagedTypingScenarioTests : IDisposable
         var clock = Stopwatch.StartNew();
         Assert.True(await view.PasteTextAsync(text));
         clock.Stop();
-        Assert.True(clock.ElapsedMilliseconds <= PluginLimitsPlaceholders.PagedPasteMeasureMilliseconds, $"the paste took {clock.ElapsedMilliseconds} ms");
+        Assert.True(clock.ElapsedMilliseconds <= PluginLimits.PagedPasteMeasureMilliseconds, $"the paste took {clock.ElapsedMilliseconds} ms");
         long grown = StablePrivateBytes() - before;
         GC.KeepAlive(text);
         Assert.True(grown <= 350L << 20, $"private commit grew by {grown >> 20} MiB");

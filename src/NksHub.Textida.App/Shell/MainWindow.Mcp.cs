@@ -272,9 +272,9 @@ internal sealed partial class MainWindow
         if (await AskRevealSecretsAsync(tab) is not { } reveal) return;
         var selection = PrimarySelectionOf(tab) ?? first; // read again: the question may have been open for a while
         if (!mcp.Enabled || selection.IsEmpty) return;
-        if (selection.Length > PluginLimitsPlaceholders.McpMaxSelectionShareBytes)
+        if (selection.Length > PluginLimits.McpMaxSelectionShareBytes)
         {
-            SetStatusMessage(Loc.Get(K.McpShareSelectionTooLarge, ("limit", PluginLimitsPlaceholders.McpMaxSelectionShareBytes)));
+            SetStatusMessage(Loc.Get(K.McpShareSelectionTooLarge, ("limit", PluginLimits.McpMaxSelectionShareBytes)));
             return;
         }
         var source = tab.Doc.Doc;

@@ -31,7 +31,7 @@ internal sealed partial class MainWindow
         _gitGutterDirty.Add(tab);
         if (_gitGutterTimer is null)
         {
-            _gitGutterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.GitGutterDebounceMilliseconds) };
+            _gitGutterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.GitGutterDebounceMilliseconds) };
             _gitGutterTimer.Tick += async (_, _) =>
             {
                 _gitGutterTimer.Stop();
@@ -247,7 +247,7 @@ internal sealed partial class MainWindow
     private void ScheduleGitBlame(DocTab tab, int line, long revision)
     {
         _blameAsked = (tab, line, revision);
-        _blameTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.GitBlameDebounceMilliseconds) };
+        _blameTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.GitBlameDebounceMilliseconds) };
         _blameTimer.Stop();
         _blameTimer.Tick -= OnBlameTimer;
         _blameTimer.Tick += OnBlameTimer;
@@ -275,7 +275,7 @@ internal sealed partial class MainWindow
     internal static string BlameText(GitBlame blame)
     {
         if (blame.Uncommitted) return Loc.Get(K.GitBlameUncommitted);
-        string subject = blame.Summary.Length > PluginLimitsPlaceholders.GitBlameSubjectChars ? blame.Summary[..PluginLimitsPlaceholders.GitBlameSubjectChars] + "…" : blame.Summary;
+        string subject = blame.Summary.Length > PluginLimits.GitBlameSubjectChars ? blame.Summary[..PluginLimits.GitBlameSubjectChars] + "…" : blame.Summary;
         return Loc.Get(K.GitBlameStatus, ("author", blame.Author), ("date", blame.Time.LocalDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)), ("subject", subject));
     }
 

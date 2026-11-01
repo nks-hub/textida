@@ -14,7 +14,7 @@ namespace NksHub.Textida.Core.Hex.Ksy;
 /// </summary>
 public static class KsyParser
 {
-    /// <summary>Largest template read. Default: the real limit is an input decision the owner has not made (P8.10.3). Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Largest template read. Decided: 256 K characters, about forty times the largest pinned template (the ELF one is under 7 K), so no real format is cut and a hostile file is.</summary>
     public const int MaxTemplateChars = 256 * 1024;
 
     /// <summary>

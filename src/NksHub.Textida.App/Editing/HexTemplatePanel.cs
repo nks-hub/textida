@@ -372,7 +372,7 @@ internal sealed class HexTemplatePanel : Border
             catch (Exception e) { return (default, e); }
         }, TaskScheduler.Default);
         _tail = task;
-        if (task.Wait(PluginLimitsPlaceholders.StructureReadGraceMilliseconds))
+        if (task.Wait(PluginLimits.StructureReadGraceMilliseconds))
         {
             Done(task.Result);
             return;

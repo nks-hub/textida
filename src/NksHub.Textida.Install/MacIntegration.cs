@@ -126,7 +126,7 @@ public sealed class MacIntegration(MacLocations locations, string executablePath
         try
         {
             using var process = Process.Start(new ProcessStartInfo("/System/Library/CoreServices/pbs", "-update") { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true });
-            process?.WaitForExit(InstallLimitsPlaceholders.RefreshServicesMilliseconds);
+            process?.WaitForExit(InstallLimits.RefreshServicesMilliseconds);
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { /* the action shows after the next sign-in */ }
     }

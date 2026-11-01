@@ -58,11 +58,11 @@ hundred bytes. Unnamed documents carry their initial bytes as seeds.
 
 ## Large edits
 
-An edit whose inserted bytes exceed `JournalPlaceholders.MaxInlineEditBytes` (1 MiB, a placeholder: the owner has not decided the limit) is not copied into the
+An edit whose inserted bytes exceed `JournalLimits.MaxInlineEditBytes` (1 MiB: a pasted file of that size is better kept beside the journal than inside every record) is not copied into the
 record. The record carries a payload reference instead: file name, offset, length, CRC-32 of the first and of the last 4 KiB, and from layout 8 the CRC-32 of every byte of the block. The file lives in the
 `payload` directory next to the journals and is named `<session>-<document>-<kind>.payload`.
 
-The same happens to an edit of more than `SmallEditBytes` (4 KiB, a placeholder) once the records of the document hold more than `MaxInlineDocumentBytes` (32 MiB, a placeholder) of inline text since its last save,
+The same happens to an edit of more than `SmallEditBytes` (4 KiB, a page of typing) once the records of the document hold more than `MaxInlineDocumentBytes` (32 MiB, half of the 64 MiB a paged document keeps in memory) of inline text since its last save,
 so what a recovery has to keep in memory of a document is bounded; typing stays inline whatever the budget.
 
 - `add-N`: the spill file of the add buffer of a paged document. The document makes it a durable file (not delete-on-close) once the journal tracks it
@@ -88,7 +88,7 @@ at compaction, and at start for documents nobody knows, except files of a sessio
 
 ## Edit lists
 
-A change set with more than `JournalPlaceholders.MaxInlineEditCount` edits (Replace All over a large file), or with more than `MaxInlineRecordBytes` of inline text, is not written into
+A change set with more than `JournalLimits.MaxInlineEditCount` edits (Replace All over a large file), or with more than `MaxInlineRecordBytes` of inline text, is not written into
 its record: a record of hundreds of megabytes would have to be built whole in memory and could not pass 2 GiB. The record carries an edit list reference instead
 (file name, offset, length, number of edits, inserted and removed bytes, and a CRC-32 of the whole list) and no edits of its own. The list lives in the `blob-N` file of the document, written
 in 1 MiB steps straight from the document, and is synced before the record reaches the disk. An entry is the start, the removed length and the inserted length as three

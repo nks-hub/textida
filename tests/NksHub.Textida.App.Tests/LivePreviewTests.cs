@@ -71,7 +71,7 @@ public class LivePreviewTests : IDisposable
         Assert.False(_w.PreviewPanelOpen);
         Assert.Null(_w.LivePreviewTab);
         tab.Editor.Document.Insert(0, "x");
-        await Task.Delay(PluginLimitsPlaceholders.PreviewLiveDebounceMs + 200);
+        await Task.Delay(PluginLimits.PreviewLiveDebounceMs + 200);
         Dispatcher.UIThread.RunJobs();
         Assert.False(_w.PreviewPanelOpen);
     }

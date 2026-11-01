@@ -149,7 +149,7 @@ internal sealed partial class MainWindow
         if (string.IsNullOrWhiteSpace(tool))
         {
             // the built-in comparison holds both texts in memory
-            if (tab.Paged is not null || r.Size > PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes)
+            if (tab.Paged is not null || r.Size > PluginLimits.HistoryTextRevisionMaxBytes)
             {
                 SetStatusMessage(Loc.Get(K.HistoryCompareNeedsTool));
                 return;
@@ -197,7 +197,7 @@ internal sealed partial class MainWindow
     private void RestoreRevision(DocTab tab, string path, HistoryRevision r, bool section)
     {
         if (!ReferenceEquals(Active, tab) || ActiveEditor is not { IsReadOnly: false } surface) { SetStatusMessage(Loc.Get(K.HistoryNoEditor)); return; }
-        if (r.Size > PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes)
+        if (r.Size > PluginLimits.HistoryTextRevisionMaxBytes)
         {
             SetStatusMessage(Loc.Get(K.HistoryRevisionTooBig, ("size", OpenDocument.FormatSize(r.Size))));
             return;

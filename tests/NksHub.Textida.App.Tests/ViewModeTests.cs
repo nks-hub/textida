@@ -393,15 +393,15 @@ public class ViewModeTests : IDisposable
         using (var stream = File.Create(path))
         {
             stream.Write(Pictures.Png());
-            stream.SetLength(PluginLimitsPlaceholders.ImageViewMaxBytes + 1024);
+            stream.SetLength(PluginLimits.ImageViewMaxBytes + 1024);
         }
         long before = GC.GetTotalAllocatedBytes();
         _w.OpenFile(path, null);
         var (tab, view) = await Shown();
         long allocated = GC.GetTotalAllocatedBytes() - before;
         Assert.Null(view.Info);
-        Assert.Equal(Loc.Get(K.ImageTooLarge, ("size", OpenDocument.FormatSize(PluginLimitsPlaceholders.ImageViewMaxBytes + 1024)), ("limit", OpenDocument.FormatSize(PluginLimitsPlaceholders.ImageViewMaxBytes))), view.Problem);
-        Assert.True(allocated < PluginLimitsPlaceholders.ImageViewMaxBytes / 2, $"{allocated} bytes were allocated for a file over the limit");
+        Assert.Equal(Loc.Get(K.ImageTooLarge, ("size", OpenDocument.FormatSize(PluginLimits.ImageViewMaxBytes + 1024)), ("limit", OpenDocument.FormatSize(PluginLimits.ImageViewMaxBytes))), view.Problem);
+        Assert.True(allocated < PluginLimits.ImageViewMaxBytes / 2, $"{allocated} bytes were allocated for a file over the limit");
         Click(ButtonOf(tab, Loc.Get(K.ViewModeShowHex)));
         Assert.NotNull(_w.Active!.Hex);
     }
@@ -667,7 +667,7 @@ public class ViewModeTests : IDisposable
         Layout();
         Assert.InRange(tab.SidePreview!.TopLine, 245, 255);
 
-        System.Threading.Thread.Sleep(PluginLimitsPlaceholders.PreviewSyncQuietMs + 50); // the page that just followed the editor must not send it back at once
+        System.Threading.Thread.Sleep(PluginLimits.PreviewSyncQuietMs + 50); // the page that just followed the editor must not send it back at once
         tab.SidePreview.ScrollToLine(100);
         Layout();
         Layout();
@@ -726,10 +726,10 @@ public class ViewModeTests : IDisposable
     [AvaloniaFact]
     public void A_markdown_file_above_the_preview_limit_opens_as_source_with_a_message_and_reading_is_refused()
     {
-        string big = string.Concat(Enumerable.Repeat(new string('a', 99) + "\n", PluginLimitsPlaceholders.PreviewLiveMaxChars / 100 + 200));
-        Assert.True(big.Length > PluginLimitsPlaceholders.PreviewLiveMaxChars);
+        string big = string.Concat(Enumerable.Repeat(new string('a', 99) + "\n", PluginLimits.PreviewLiveMaxChars / 100 + 200));
+        Assert.True(big.Length > PluginLimits.PreviewLiveMaxChars);
         var tab = OpenMarkdown("big.md", big, "read");
-        string message = Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimitsPlaceholders.PreviewLiveMaxChars));
+        string message = Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars));
         Assert.Equal(ViewMode.Text, tab.Doc.Mode);
         Assert.NotNull(tab.Surface);
         Assert.Equal(message, _w.StatusMessageText);
@@ -750,7 +750,7 @@ public class ViewModeTests : IDisposable
         Assert.NotNull(tab.Paged);
         Assert.Equal(ViewMode.Text, tab.Doc.Mode);
         Assert.Null(tab.ModeBar);
-        Assert.Equal(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimitsPlaceholders.PreviewLiveMaxChars)), _w.StatusMessageText);
+        Assert.Equal(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars)), _w.StatusMessageText);
     }
 
     [AvaloniaFact]

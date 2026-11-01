@@ -36,7 +36,7 @@ internal sealed partial class MainWindow
     {
         if (tab.Path is not { } path) return;
         var set = LoadSaveActions(path);
-        var timeout = set.LintTimeout ?? TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintTimeoutSeconds);
+        var timeout = set.LintTimeout ?? TimeSpan.FromSeconds(PluginLimits.LintTimeoutSeconds);
         ToolInvocation tool;
         try { tool = Linters.Prepare(linter, path, timeout, set.ToolPaths?.GetValueOrDefault(linter.Id)); }
         catch (ToolException e)
@@ -59,7 +59,7 @@ internal sealed partial class MainWindow
         }
 
         // asked after the approval: the version request starts the program the user said yes to; the answer is kept per program file
-        var version = await LinterVersions.CheckAsync(linter, tool, TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintVersionTimeoutSeconds));
+        var version = await LinterVersions.CheckAsync(linter, tool, TimeSpan.FromSeconds(PluginLimits.LintVersionTimeoutSeconds));
         if (!Tabs.Contains(tab)) return;
 
         var document = tab.Doc.Doc;
@@ -127,7 +127,7 @@ internal sealed partial class MainWindow
         _lintWaits[key] = wait;
         try
         {
-            await Task.Delay(PluginLimitsPlaceholders.LintOnSaveDebounceMilliseconds, wait.Token);
+            await Task.Delay(PluginLimits.LintOnSaveDebounceMilliseconds, wait.Token);
             return true;
         }
         catch (OperationCanceledException) { return false; }

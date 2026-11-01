@@ -20,12 +20,12 @@ public class EmmetAppTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
 
-    private readonly TimeSpan _tabTimeout = PluginLimitsPlaceholders.TabTimeout;
+    private readonly TimeSpan _tabTimeout = PluginLimits.TabTimeout;
 
     public EmmetAppTests()
     {
         // the first Tab waits for the start of the plugin process, which takes tens of seconds on a machine that is overloaded (the timeout path has its own test in DocumentApiTests.EarlyTools)
-        PluginLimitsPlaceholders.TabTimeout = TimeSpan.FromSeconds(60);
+        PluginLimits.TabTimeout = TimeSpan.FromSeconds(60);
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
         _w.Width = 1000;
@@ -34,7 +34,7 @@ public class EmmetAppTests : IDisposable
 
     public void Dispose()
     {
-        PluginLimitsPlaceholders.TabTimeout = _tabTimeout;
+        PluginLimits.TabTimeout = _tabTimeout;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();

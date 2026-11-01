@@ -25,7 +25,7 @@ internal sealed class ToolbarStore(string directory)
         if (!File.Exists(FilePath)) return ToolbarLayout.Default;
         try
         {
-            if (ToolbarLayout.TryRead(File.ReadAllText(FilePath, Encoding.UTF8), PluginLimitsPlaceholders.ToolbarMaxButtons, out var buttons, out var problem)) return buttons;
+            if (ToolbarLayout.TryRead(File.ReadAllText(FilePath, Encoding.UTF8), PluginLimits.ToolbarMaxButtons, out var buttons, out var problem)) return buttons;
             Problem = problem;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -39,7 +39,7 @@ internal sealed class ToolbarStore(string directory)
     public bool Save(IReadOnlyList<string> buttons, out string detail)
     {
         detail = "";
-        var json = ToolbarLayout.Write(ToolbarLayout.Clean(buttons, PluginLimitsPlaceholders.ToolbarMaxButtons));
+        var json = ToolbarLayout.Write(ToolbarLayout.Clean(buttons, PluginLimits.ToolbarMaxButtons));
         try
         {
             Directory.CreateDirectory(directory);

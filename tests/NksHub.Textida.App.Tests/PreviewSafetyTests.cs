@@ -169,7 +169,7 @@ public class PreviewSafetyTests : IDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var still = System.Diagnostics.Stopwatch.StartNew();
         (double Preview, double Editor) last = (-1, -1);
-        while (still.ElapsedMilliseconds < 2 * PluginLimitsPlaceholders.PreviewSyncQuietMs)
+        while (still.ElapsedMilliseconds < 2 * PluginLimits.PreviewSyncQuietMs)
         {
             Assert.True(sw.ElapsedMilliseconds < 10_000, "The preview and the editor never stood still.");
             _w.UpdateLayout();
@@ -224,7 +224,7 @@ public class PreviewSafetyTests : IDisposable
 
         // drawing the preview again, as typing does, neither asks nor connects
         tab.Editor!.Document.Insert(0, "x");
-        await Settle(PluginLimitsPlaceholders.PreviewLiveDebounceMs + 400);
+        await Settle(PluginLimits.PreviewLiveDebounceMs + 400);
         Assert.Contains("x and ", TextOf(Body()));
         Assert.Equal(2, Tree(Body()).OfType<Image>().Count());
         Assert.Equal(1, server.Connections);

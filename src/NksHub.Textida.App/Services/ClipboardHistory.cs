@@ -8,7 +8,7 @@ namespace NksHub.Textida.App.Services;
 /// </summary>
 internal sealed class ClipboardHistory(Func<int> capacity)
 {
-    /// <summary>A longer text is not kept. shortcut: provisional until the owner decides the largest clipboard text, then it becomes a setting.</summary>
+    /// <summary>A longer text is not kept. Decided: 1 Mi characters, the order of magnitude after which clipboard managers (Windows clipboard history keeps 4 MB per item) and the editor's own large-file mode stop treating a paste as an ordinary text.</summary>
     internal const int MaxItemLength = 1 << 20;
 
     private readonly List<string> _items = [];

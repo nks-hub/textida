@@ -78,7 +78,7 @@ internal sealed class MacroStore(string directory)
         {
             try
             {
-                if (new FileInfo(path).Length > PluginLimitsPlaceholders.MacroMaxFileBytes) throw new JsonException($"larger than {PluginLimitsPlaceholders.MacroMaxFileBytes} bytes");
+                if (new FileInfo(path).Length > PluginLimits.MacroMaxFileBytes) throw new JsonException($"larger than {PluginLimits.MacroMaxFileBytes} bytes");
                 var root = JsonNode.Parse(File.ReadAllText(path, Encoding.UTF8))?.AsObject() ?? throw new JsonException("not an object");
                 var name = root["name"]?.GetValue<string>() is { Length: > 0 } n ? n : throw new JsonException("no name");
                 var steps = new List<MacroStep>();

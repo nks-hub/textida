@@ -45,9 +45,9 @@ internal sealed partial class MainWindow
     private LogSession StartLogSession(OpenDocument od, LogFilter filter, string? levelRules, string? viewName = null, string? highlight = null)
     {
         DropLogSession(od);
-        var session = new LogSession(od, new LogFollower(new FileLogSource(od.Path!), od.Doc.Codec, od.LogLevels, filter, PluginLimitsPlaceholders.LogFollowMaxMatches), levelRules) { ViewName = viewName, Highlight = highlight };
+        var session = new LogSession(od, new LogFollower(new FileLogSource(od.Path!), od.Doc.Codec, od.LogLevels, filter, PluginLimits.LogFollowMaxMatches), levelRules) { ViewName = viewName, Highlight = highlight };
         _logSessions[od] = session;
-        _logTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.LogFollowPollMilliseconds), DispatcherPriority.Background, (_, _) => LogFollowTick());
+        _logTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(PluginLimits.LogFollowPollMilliseconds), DispatcherPriority.Background, (_, _) => LogFollowTick());
         _logTimer.Start();
         LogFollowTick();
         return session;
@@ -288,7 +288,7 @@ internal sealed partial class MainWindow
         }
         od.ChooseLanguage(LanguageModes.ById(LanguageModes.LogId));
         od.SetLogLevels(rules, rulesName);
-        try { od.SetLogHighlight(view.Highlight, TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.LogHighlightMatchTimeoutMilliseconds)); }
+        try { od.SetLogHighlight(view.Highlight, TimeSpan.FromMilliseconds(PluginLimits.LogHighlightMatchTimeoutMilliseconds)); }
         catch (ArgumentException e) { SetStatusMessage(Loc.Get(K.LogViewBadFilter, ("reason", e.Message))); }
         try { StartLogSession(od, view.Filter, view.LevelRules, view.Name, view.Highlight); }
         catch (LogPatternException e)

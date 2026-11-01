@@ -556,7 +556,7 @@ public class PluginManagerAppTests : IDisposable
         var clock = System.Diagnostics.Stopwatch.StartNew();
         _app.Plugins.Shutdown();
 
-        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(PluginLimitsPlaceholders.ExitWaitSeconds / 2.0), $"the end took {clock.Elapsed.TotalSeconds:F1} s");
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(PluginLimits.ExitWaitSeconds / 2.0), $"the end took {clock.Elapsed.TotalSeconds:F1} s");
         Assert.False(Alive(pid));
     }
 

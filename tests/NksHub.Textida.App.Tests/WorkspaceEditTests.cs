@@ -270,12 +270,12 @@ public class WorkspaceEditTests : IDisposable
         Assert.Equal([typeof(SearchResultsView.FileRow), typeof(SearchResultsView.PreviewRow)], rows.Take(2).Select(r => r.GetType()));
         var previews = rows.OfType<SearchResultsView.PreviewRow>().ToList();
         Assert.Equal(3, previews.Count);
-        Assert.Equal((PluginLimitsPlaceholders.NewFilePreviewLines, 40, "line 0"), (previews[0].Preview.Lines.Count, previews[0].Preview.TotalLines, previews[0].Preview.Lines[0]));
+        Assert.Equal((PluginLimits.NewFilePreviewLines, 40, "line 0"), (previews[0].Preview.Lines.Count, previews[0].Preview.TotalLines, previews[0].Preview.Lines[0]));
         Assert.True(previews[1].Preview.IsBinary);
         Assert.Equal(0, previews[2].Preview.TotalLines);
         Assert.False(File.Exists(many));
 
-        string more = Loc.Get(K.WorkspacePreviewMore, ("count", 40 - PluginLimitsPlaceholders.NewFilePreviewLines));
+        string more = Loc.Get(K.WorkspacePreviewMore, ("count", 40 - PluginLimits.NewFilePreviewLines));
         await Until(() =>
         {
             _w.UpdateLayout();

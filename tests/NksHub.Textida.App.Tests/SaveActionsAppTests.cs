@@ -251,7 +251,7 @@ public class SaveActionsAppTests : IDisposable
         var tab = _w.OpenFile(path, null);
         Configure(null, Entry("format", "fake"));
         _w.SaveActionRunner = new SaveActionRunner(_ => Fake("--format"));
-        Assert.Equal(TimeSpan.FromSeconds(PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds), _w.LoadSaveActions(path).FormatTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(PluginLimits.FormatOnSaveTimeoutSeconds), _w.LoadSaveActions(path).FormatTimeout);
         tab.Editor!.Document.Insert(0, "x");
 
         await SaveAsync(tab);

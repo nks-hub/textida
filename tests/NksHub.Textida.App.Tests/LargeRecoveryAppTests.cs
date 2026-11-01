@@ -25,7 +25,7 @@ public class LargeRecoveryAppTests : IDisposable
 
     public void Dispose()
     {
-        JournalService.AskBeforeRecoverBytes = JournalPlaceholders.AskBeforeRecoverBytes;
+        JournalService.AskBeforeRecoverBytes = JournalLimits.AskBeforeRecoverBytes;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();

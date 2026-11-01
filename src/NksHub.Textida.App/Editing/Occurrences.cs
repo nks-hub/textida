@@ -12,7 +12,7 @@ using NksHub.Textida.Workbench.Settings;
 namespace NksHub.Textida.App.Editing;
 
 /// <summary>The settings of the highlight of the other occurrences of the selected text (P3.6.12).</summary>
-internal sealed record OccurrenceOptions(bool Enabled = true, bool WholeWord = false, bool MatchCase = true, bool AtCaret = false, int MinLength = PluginLimitsPlaceholders.OccurrenceMinLength)
+internal sealed record OccurrenceOptions(bool Enabled = true, bool WholeWord = false, bool MatchCase = true, bool AtCaret = false, int MinLength = PluginLimits.OccurrenceMinLength)
 {
     public static OccurrenceOptions Default { get; } = new();
 
@@ -33,7 +33,7 @@ internal readonly record struct OccurrenceTarget(OccurrenceQuery Query, long Own
 
 /// <param name="Lines">Zero-based lines that hold another occurrence, ascending, each once.</param>
 /// <param name="Count">The other occurrences found.</param>
-/// <param name="Limited">The scan stopped at <see cref="PluginLimitsPlaceholders.OccurrenceMaxMarks"/>, so there are more.</param>
+/// <param name="Limited">The scan stopped at <see cref="PluginLimits.OccurrenceMaxMarks"/>, so there are more.</param>
 /// <param name="InView">Only the lines on screen were looked at (a large file in the paged view).</param>
 internal sealed record OccurrenceScan(IReadOnlyList<long> Lines, long Count, bool Limited = false, bool InView = false)
 {
@@ -54,7 +54,7 @@ internal static class OccurrenceMatcher
     /// </summary>
     public static OccurrenceTarget? TargetOf(string text, long own, bool wholeWord, OccurrenceOptions options)
     {
-        if (text.Length < Math.Max(1, options.MinLength) || text.Length > PluginLimitsPlaceholders.OccurrenceMaxChars) return null;
+        if (text.Length < Math.Max(1, options.MinLength) || text.Length > PluginLimits.OccurrenceMaxChars) return null;
         var span = text.AsSpan();
         if (span.IndexOfAny('\r', '\n') >= 0 || span.IsWhiteSpace()) return null;
         return new OccurrenceTarget(new OccurrenceQuery(text, options.MatchCase, options.WholeWord || wholeWord), own);
@@ -157,10 +157,10 @@ internal sealed class OccurrenceTracker : IDisposable
     }
 
     /// <summary>How long nothing may change before the occurrences are looked for; a test shortens it.</summary>
-    public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.OccurrenceDebounceMs);
+    public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(PluginLimits.OccurrenceDebounceMs);
 
     /// <summary>The least time between two announcements to a screen reader; a test shortens it.</summary>
-    public TimeSpan AnnounceInterval { get; set; } = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.OccurrenceAnnounceMs);
+    public TimeSpan AnnounceInterval { get; set; } = TimeSpan.FromMilliseconds(PluginLimits.OccurrenceAnnounceMs);
 
     /// <summary>What is highlighted now; null while nothing is, or until the change of the selection has settled.</summary>
     public OccurrenceTarget? Target => _target;

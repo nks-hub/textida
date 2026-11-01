@@ -72,7 +72,7 @@ internal sealed partial class EditorSurface
         if (!Equals(ToolTip.GetTip(view), tip)) ToolTip.SetTip(view, tip);
         if (_hoverTimer is null)
         {
-            _hoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.HoverDelayMilliseconds) };
+            _hoverTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.HoverDelayMilliseconds) };
             _hoverTimer.Tick += (_, _) => _ = AskHoverAsync();
         }
         _hoverTimer.Stop();

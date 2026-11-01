@@ -129,7 +129,7 @@ internal sealed partial class MainWindow
     /// <summary>Reads the state of the files again: at once, or once the changes of the repository are over (they come in bursts).</summary>
     private void RefreshGitFiles(bool now = false)
     {
-        _gitFilesTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.GitWatchDebounceMilliseconds) };
+        _gitFilesTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.GitWatchDebounceMilliseconds) };
         _gitFilesTimer.Tick -= OnGitFilesTimer;
         _gitFilesTimer.Stop();
         if (now) _ = ReadGitFilesAsync();
@@ -167,7 +167,7 @@ internal sealed partial class MainWindow
                         if (Directory.Exists(root) && await _app.Plugins.GitTreeStatusAsync(root) is { } status) found.Add(status);
                 if (ReferenceEquals(tree, _fileTree)) ApplyGitFiles(found);
                 // files that change all the time (a build) must not keep Git running without a pause
-                if (_gitFilesAgain) await Task.Delay(PluginLimitsPlaceholders.GitWatchDebounceMilliseconds);
+                if (_gitFilesAgain) await Task.Delay(PluginLimits.GitWatchDebounceMilliseconds);
             }
             while (_gitFilesAgain);
         }

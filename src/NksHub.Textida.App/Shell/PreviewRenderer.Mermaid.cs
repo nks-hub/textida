@@ -19,7 +19,7 @@ internal static partial class PreviewRenderer
 {
     private static Control Diagram(string source, Ctx ctx)
     {
-        if (MermaidFlowchart.Parse(source, PluginLimitsPlaceholders.PreviewMermaidMaxNodes, PluginLimitsPlaceholders.PreviewMermaidMaxEdges) is { } chart) return DrawFlowchart(chart);
+        if (MermaidFlowchart.Parse(source, PluginLimits.PreviewMermaidMaxNodes, PluginLimits.PreviewMermaidMaxEdges) is { } chart) return DrawFlowchart(chart);
         var panel = new StackPanel { Spacing = 4 };
         panel.Children.Add(new SelectableTextBlock { Text = Loc.Get(K.PreviewMermaidUnsupported), TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(CodeBlock(source, ctx));

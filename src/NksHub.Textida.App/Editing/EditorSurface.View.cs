@@ -91,7 +91,7 @@ internal sealed partial class EditorSurface : IMinimapHost
         if (!Settings.SmoothScrolling || e.Handled || e.KeyModifiers != Avalonia.Input.KeyModifiers.None || e.Delta.Y == 0 || _glide is null) return;
         double max = Math.Max(0, ExtentHeight - ViewportHeight);
         if (max <= 0) return;
-        _glide.Push(-e.Delta.Y * PluginLimitsPlaceholders.WheelLinesPerNotch * TextArea.TextView.DefaultLineHeight, 0, max);
+        _glide.Push(-e.Delta.Y * PluginLimits.WheelLinesPerNotch * TextArea.TextView.DefaultLineHeight, 0, max);
         e.Handled = true;
     }
 
@@ -210,7 +210,7 @@ internal sealed partial class EditorSurface : IMinimapHost
         }
         try
         {
-            var match = BracketMatcher.Match(new DocumentLines(Document), tokensOf, line.LineNumber - 1, CaretOffset - line.Offset, PluginLimitsPlaceholders.BracketHighlightMaxLines);
+            var match = BracketMatcher.Match(new DocumentLines(Document), tokensOf, line.LineNumber - 1, CaretOffset - line.Offset, PluginLimits.BracketHighlightMaxLines);
             return match is { } m ? (OffsetOf(m.Bracket), OffsetOf(m.Partner)) : null;
         }
         catch (ArgumentOutOfRangeException) { return null; } // the line breaks of the decoded text and of the tokenizer disagree

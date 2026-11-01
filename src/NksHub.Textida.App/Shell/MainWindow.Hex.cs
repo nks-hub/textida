@@ -406,7 +406,7 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>N of the wildcard from the settings; the placeholder default while the setting is 0 (not chosen).</summary>
-    private int? WildcardMax => _app.Workbench.Settings.GetInt("hex.wildcardMaxBytes") is > 0 and var n ? (int)n : PluginLimitsPlaceholders.HexWildcardDefaultMaxBytes;
+    private int? WildcardMax => _app.Workbench.Settings.GetInt("hex.wildcardMaxBytes") is > 0 and var n ? (int)n : PluginLimits.HexWildcardDefaultMaxBytes;
 
     /// <summary>Live line under the query box: the lengths a match may have, or why the query is refused.</summary>
     private string PreviewHexQuery(HexView hex, string text)
@@ -727,11 +727,11 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// The copy of the file that a save replaces, made on a worker because the copy of a large file takes a while. A hex tab copies files up to the large file threshold,
-    /// text in paged mode files up to <see cref="Core.PagedSpillPlaceholders.SaveBackupMaxBytes"/>; a larger file is saved without a copy.
+    /// text in paged mode files up to <see cref="Core.PagedSpillLimits.SaveBackupMaxBytes"/>; a larger file is saved without a copy.
     /// </summary>
     private Task<BackupResult> BackupBeforeSaveAsync(DocTab tab, string target)
     {
-        long limit = tab.Hex is not null ? LargeFileBytes : Core.PagedSpillPlaceholders.SaveBackupMaxBytes;
+        long limit = tab.Hex is not null ? LargeFileBytes : Core.PagedSpillLimits.SaveBackupMaxBytes;
         return new FileInfo(target).Length <= limit
             ? Task.Run(() => _app.Backups.BackupBeforeSave(target))
             : Task.FromResult(new BackupResult(BackupStatus.Skipped, null, null));

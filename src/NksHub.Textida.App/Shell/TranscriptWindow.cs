@@ -41,7 +41,7 @@ internal sealed class TranscriptWindow : Window
         _turnHeader = new() { TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.SemiBold }, _notice = new() { TextWrapping = TextWrapping.Wrap };
     private readonly TextBlock _turnsLabel = new(), _hitsLabel = new(), _filesLabel = new();
     private readonly Button _searchButton = new() { MinWidth = 90, IsDefault = true }, _stopButton = new() { MinWidth = 70 }, _openRaw = new() { MinWidth = 140 }, _openFile = new() { MinWidth = 110 }, _close = new() { MinWidth = 84, IsCancel = true };
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.TranscriptRefreshMilliseconds) };
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimits.TranscriptRefreshMilliseconds) };
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _searchCts;
     private Task _build = Task.CompletedTask, _searchTask = Task.CompletedTask;
