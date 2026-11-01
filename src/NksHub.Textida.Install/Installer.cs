@@ -254,7 +254,7 @@ public sealed class Installer(SystemLocations locations)
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or SecurityException) { throw Fail(e); }
     }
 
-    /// <summary>Fails before anything moved, or ends with the new folder in place; a crash between two moves is repaired by the next call (<c>.aside</c>).</summary>
+    /// <summary>Commits every directory rename in one NTFS transaction; an interrupted helper leaves the old installation in place.</summary>
     private string Switch(string dir, string incoming, bool rollback)
     {
         var previous = dir + ".previous";
@@ -278,11 +278,7 @@ public sealed class Installer(SystemLocations locations)
         if (File.Exists(uninstaller) && !File.Exists(Path.Combine(incoming, SetupFile))) File.Copy(uninstaller, Path.Combine(incoming, SetupFile));
 
         DeleteTree(aside);
-        Directory.Move(dir, aside);
-        try { Directory.Move(incoming, dir); }
-        catch { Directory.Move(aside, dir); throw; }
-        if (!rollback) DeleteTree(previous);
-        Directory.Move(aside, previous);
+        new WindowsDirectorySwap(dir).Apply(incoming, rollback);
 
         var version = InstalledVersion(dir);
         using (var key = Registry.CurrentUser.OpenSubKey(locations.UninstallKeyPath, writable: true))

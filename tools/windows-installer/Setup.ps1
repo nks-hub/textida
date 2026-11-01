@@ -62,7 +62,7 @@ $previous = "$Dir.previous"
 $aside = "$Dir.aside"
 
 if ($ApplyUpdate -or $Rollback) {
-    # Fails before anything moved, or puts the old folder back; the old program is started again in both cases.
+    # TxF commits all renames together; an interrupted helper leaves the installed path intact.
     $code = 0
     $incoming = if ($Rollback) { $previous } else { $ApplyUpdate }
     try {
@@ -80,11 +80,80 @@ if ($ApplyUpdate -or $Rollback) {
                 }
             }
             Remove-Item -LiteralPath $aside -Recurse -Force -ErrorAction SilentlyContinue
-            Move-Item -LiteralPath $Dir -Destination $aside
-            try { Move-Item -LiteralPath $incoming -Destination $Dir }
-            catch { Move-Item -LiteralPath $aside -Destination $Dir; throw }
-            if (-not $Rollback) { Remove-Item -LiteralPath $previous -Recurse -Force -ErrorAction SilentlyContinue }
-            Move-Item -LiteralPath $aside -Destination $previous
+            Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+
+public static class TextidaDirectorySwap
+{
+    public static void Apply(string dir, string incoming, bool rollback, Action<string> checkpoint)
+    {
+        string previous = dir + ".previous", retired = dir + ".retired", aside = dir + ".aside";
+        RemoveRetired(retired);
+        using (SafeFileHandle transaction = CreateTransaction(IntPtr.Zero, IntPtr.Zero, 0, 0, 0, 0, "Textida installation switch"))
+        {
+            if (transaction.IsInvalid) throw Failure("create the directory transaction");
+            bool committed = false;
+            try
+            {
+                if (!rollback && Directory.Exists(previous)) Move(transaction, previous, retired);
+                Move(transaction, dir, aside);
+                if (checkpoint != null) checkpoint("after-current-move");
+                Move(transaction, incoming, dir);
+                if (checkpoint != null) checkpoint("after-incoming-move");
+                Move(transaction, aside, previous);
+                if (checkpoint != null) checkpoint("before-commit");
+                if (!CommitTransaction(transaction)) throw Failure("commit the directory transaction");
+                committed = true;
+            }
+            finally
+            {
+                if (!committed) RollbackTransaction(transaction);
+            }
+        }
+        RemoveRetired(retired);
+    }
+
+    private static void Move(SafeFileHandle transaction, string source, string destination)
+    {
+        if (!MoveFileTransacted(source, destination, IntPtr.Zero, IntPtr.Zero, 0, transaction))
+            throw Failure("move an installation directory atomically");
+    }
+
+    private static IOException Failure(string operation)
+    {
+        return new IOException("Windows could not " + operation + ". The installation was kept; this update requires an NTFS volume with transaction support.",
+            new Win32Exception(Marshal.GetLastWin32Error()));
+    }
+
+    private static void RemoveRetired(string retired)
+    {
+        // A committed switch stays valid; a later update retries removal of locked retired files.
+        try { if (Directory.Exists(retired)) Directory.Delete(retired, true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
+    [DllImport("KtmW32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern SafeFileHandle CreateTransaction(IntPtr attributes, IntPtr unitOfWork, uint options, uint isolationLevel, uint isolationFlags, uint timeout, string description);
+
+    [DllImport("Kernel32.dll", EntryPoint = "MoveFileTransactedW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool MoveFileTransacted(string source, string destination, IntPtr progress, IntPtr data, uint flags, SafeFileHandle transaction);
+
+    [DllImport("KtmW32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CommitTransaction(SafeFileHandle transaction);
+
+    [DllImport("KtmW32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RollbackTransaction(SafeFileHandle transaction);
+}
+'@
+            [TextidaDirectorySwap]::Apply($Dir, $incoming, $Rollback.IsPresent, $null)
             $versionFile = Join-Path $Dir 'version.txt'
             if ((Test-Path -LiteralPath $UninstallKey) -and (Test-Path -LiteralPath $versionFile)) {
                 New-ItemProperty -Path $UninstallKey -Name DisplayVersion -Value (Get-Content -LiteralPath $versionFile -Raw).Trim() -PropertyType String -Force | Out-Null
