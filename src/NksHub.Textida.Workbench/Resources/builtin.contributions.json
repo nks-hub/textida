@@ -1868,6 +1868,70 @@
       "enablement": "true"
     },
     {
+      "id": "nks.tools.importTextMate",
+      "title": "cmd.tools.importTextMate",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.view.toggleTerminal",
+      "title": "cmd.view.toggleTerminal",
+      "category": "cat.view",
+      "icon": "terminal"
+    },
+    {
+      "id": "nks.tools.pickScreenColor",
+      "title": "cmd.tools.pickScreenColor",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.edit.toggleClipboardMonitor",
+      "title": "cmd.edit.toggleClipboardMonitor",
+      "category": "cat.edit",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.format.withReview",
+      "title": "cmd.format.withReview",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.tools.showCallers",
+      "title": "cmd.tools.showCallers",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.hex.pluginHash",
+      "title": "cmd.hex.pluginHash",
+      "category": "cat.hex",
+      "icon": "hash",
+      "when": "hexMode"
+    },
+    {
+      "id": "nks.hex.pluginExport",
+      "title": "cmd.hex.pluginExport",
+      "category": "cat.hex",
+      "icon": "text",
+      "when": "hexMode"
+    },
+    {
+      "id": "nks.hex.pluginTemplates",
+      "title": "cmd.hex.pluginTemplates",
+      "category": "cat.hex",
+      "icon": "text",
+      "when": "hexMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5031,6 +5095,64 @@
       "order": 45
     },
     {
+      "menu": "tools",
+      "command": "nks.tools.importTextMate",
+      "group": "2_run/08",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleTerminal",
+      "group": "5_panels/03",
+      "order": 12
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.pickScreenColor",
+      "group": "2_run/09",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.toggleClipboardMonitor",
+      "group": "2_clip/04.01",
+      "submenu": "clipboard",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.format.withReview",
+      "group": "2_run/03",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.showCallers",
+      "group": "2_run/07",
+      "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.pluginHash",
+      "group": "5_more/04",
+      "submenu": "hex",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.pluginExport",
+      "group": "5_more/04",
+      "submenu": "hex",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.hex.pluginTemplates",
+      "group": "5_more/04",
+      "submenu": "hex",
+      "order": 90
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -6716,6 +6838,10 @@
       "command": "nks.view.toggleOutput"
     },
     {
+      "key": "ctrl+backquote",
+      "command": "nks.view.toggleTerminal"
+    },
+    {
       "key": "mod+k mod+left",
       "command": "nks.panel.dockLeft"
     },
@@ -8221,6 +8347,36 @@
         "assembly",
         "decompile",
         "dll"
+      ]
+    },
+    {
+      "key": "terminal.shell",
+      "type": "string",
+      "default": "",
+      "title": "setting.terminal.shell.title",
+      "description": "setting.terminal.shell.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "terminal",
+        "shell",
+        "powershell",
+        "bash"
+      ]
+    },
+    {
+      "key": "editor.clipboardMonitor",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.clipboardMonitor.title",
+      "description": "setting.editor.clipboardMonitor.description",
+      "category": "cat.editor.typing",
+      "scope": "application",
+      "tags": [
+        "clipboard",
+        "monitor",
+        "history",
+        "copy"
       ]
     },
     {

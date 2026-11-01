@@ -26,6 +26,14 @@ internal static partial class ChildJob
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { return false; }
     }
 
+    /// <summary>The same for a process that was started with CreateProcess and is known by its handle only (a program on a pseudo console).</summary>
+    internal static bool AssignHandle(nint process)
+    {
+        if (Job == 0) return false;
+        using var handle = new SafeProcessHandle(process, ownsHandle: false);
+        return AssignProcessToJobObject(Job, handle);
+    }
+
     private static nint Create()
     {
         var job = CreateJobObjectW(0, 0);

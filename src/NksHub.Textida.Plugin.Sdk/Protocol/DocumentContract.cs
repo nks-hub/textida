@@ -221,6 +221,8 @@ public static class DocumentPermissions
     public const string AgentPanel = "agent.panel";
     /// <summary>Lets the language server client start the programs the plugin names in <c>languageServers</c> and hand them the text of documents it may read.</summary>
     public const string LanguageServer = "language.server";
+    /// <summary>Lets the hex view hand the plugin bytes the user chose (the bytes at the caret, a selection or a file) to decode, hash, export or read templates from. The plugin only reads them: nothing in this permission writes.</summary>
+    public const string HexRead = "hex.read";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32020..-32049; <c>error.data</c> carries details).</summary>

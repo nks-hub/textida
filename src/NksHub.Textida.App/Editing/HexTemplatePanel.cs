@@ -270,10 +270,18 @@ internal sealed class HexTemplatePanel : Border
             ShowNote(Loc.Get(K.KsyOpenFailed, ("file", name), ("reason", e.Message)));
             return;
         }
+        LoadText(name, text);
+    }
+
+    /// <summary>Offers the template in <paramref name="text"/> in the list under <paramref name="name"/> (a file name, or the name a plugin gave it) and selects it; a text the subset does not accept is named in the note. True when it was taken.</summary>
+    internal bool LoadText(string name, string text)
+    {
+        IsVisible = true;
+        Refresh();
         if (!KsyCatalog.TryParseCustom(text, name, out var custom, out var error))
         {
             ShowNote(Loc.Get(K.KsyRefused, ("file", name), ("reason", KsyText.Describe(error!))));
-            return;
+            return false;
         }
         var host = _owner.TemplateHost;
         host.Loaded.RemoveAll(p => p.File == name);
@@ -282,6 +290,7 @@ internal sealed class HexTemplatePanel : Border
         try { _picker.ItemsSource = Entries; }
         finally { _refreshing = false; }
         _picker.SelectedItem = custom;
+        return true;
     }
 
     // ---- the tree ----

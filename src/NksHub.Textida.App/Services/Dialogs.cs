@@ -9,6 +9,7 @@ using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Colors;
 using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Services;
@@ -47,6 +48,8 @@ internal interface IDialogs
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
     Task<TextCodec?> PickEncodingAsync(Window owner, string title, string label, IReadOnlyList<(TextCodec Codec, int Lost)> targets, TextCodec preselected);
     Task ShowAboutAsync(Window owner);
+    /// <summary>The colour of the screen under the pointer, taken when the user presses Enter; <paramref name="read"/> gives the pixel under the pointer now. Null when cancelled.</summary>
+    Task<Rgba?> PickScreenColorAsync(Window owner, Func<(Rgba Color, int X, int Y)?> read) => Task.FromResult<Rgba?>(null);
     /// <summary>The name, colour and comment of a hex bookmark. Null when cancelled.</summary>
     Task<HexBookmarkForm?> HexBookmarkAsync(Window owner, HexBookmarkForm initial);
     /// <summary>The choices of "Insert into Lines"; <paramref name="preview"/> gives the text shown for the current choices. Null when cancelled.</summary>

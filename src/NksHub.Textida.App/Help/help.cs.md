@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Později zvolte Soubor, Projekty a relace, Otevřít relaci a vyberte ji; Smazat relaci jednu odstraní.
 - Uložit relaci uloží otevřené karty pod názvem: skupiny, pořadí, aktivní kartu a výběr každé karty. Karta s neuloženými změnami nebo bez souboru si ponechá text. Relace stejného názvu se přepíše.
 - Otevřít relaci otevře karty vedle těch, které už jsou otevřené. Soubory se načtou z disku a neuložený text relace jejich text nahradí, takže jde vrátit zpět nebo zahodit. Soubor, který zmizel, se uvede ve stavovém řádku; jeho text, pokud ho relace měla, se otevře v nepojmenovaném dokumentu.
+- Relace je celá úloha: kromě karet uchová všechny výběry každé karty (víc kurzorů), lištu hledání s dotazem, náhradou, složkou a přepínači, filtr seznamu dokumentů, poslední recept úprav (takže Opakovat recept ho provede znovu) a náhradu, která čekala v náhledu. Při otevření se tato náhrada naplánuje znovu na soubory, jaké jsou teď, takže náhled vychází z jejich současné revize a soubor, který se mezitím změnil, starý plán nepřepíše.
 - Smazat relaci se nejdřív zeptá, protože relace může obsahovat neuložený text.
 - Soubor relace, který nejde přečíst, se přeskočí a uvede v liště; ostatní relace fungují.
 - Velké soubory otevřené ve stránkovaném režimu se ukládají jen cestou.
@@ -2129,3 +2130,57 @@ Příkaz v nabídce Soubor, Vzdálené odešle změny několika uložených soub
 3. Zvolte Odeslat vybrané soubory. Každý soubor se pošle bezpečně přes dočasný název a až pak nahradí starý.
 - Soubor, který se na serveru změnil nebo zmizel, nejde označit, dokud neukážete jeho rozdíly (u smazaného souboru potvrdíte, že se má vytvořit znovu). Odeslání pak čeká právě na tu verzi, kterou jste viděli; je-li na serveru už další, soubor se neodešle a ohlásí se.
 - Karta s neuloženými změnami se neposílá, protože soubor na disku není to, co vidíte; nejdřív ji uložte. Kontrola verze má i na serveru nepatrnou mezeru mezi kontrolou a nahrazením, protože FTP ani SFTP nemají podmíněný zápis.
+
+## [tools.textMate] Import gramatik TextMate
+commands: nks.tools.importTextMate
+Příkaz v nabídce Nástroje převede gramatiku TextMate na gramatiku editoru, takže jazyk bez vestavěné gramatiky dostane barvy. Barví vlastní engine editoru; nic z TextMate ani Oniguruma neběží.
+1. Zvolte Nástroje a Importovat gramatiku TextMate. Vyberte soubor .tmLanguage, .tmLanguage.json, .plist, zabalený .tmbundle (zip), nebo složku .tmbundle.
+2. Importované gramatiky se uloží jako vlastní doplněk (složka textmate-… ve složce doplňků) a objeví se jako jazyky; vyberete je jako každý jiný jazyk, nebo se zvolí podle přípony souboru.
+- Převádí se: názvy rozsahů na druhy barev podle předpony (keyword, string, comment, constant.numeric a další), pravidla match, oblasti begin a end přes víc řádků, include (#název, $self a jiné gramatiky ze stejného svazku) a regulární výrazy Oniguruma přepsané pro .NET (\h, třídy POSIX, \R, vlastnosti Unicode, přivlastňující kvantifikátory jako běžné).
+- Nepřenáší se a hlásí se jednotlivě v kartě Úlohy: pravidla while, \G a \K, zpětné odkazy ve vzoru match nebo begin (v end se nahradí slovem), barvy dílčích skupin u begin a end, vnořené a protínané třídy znaků, operátor (?~…), include gramatik mimo svazek. Pravidlo, které .NET po přepisu odmítne, se vynechá. Přípony, které už obsluhuje vestavěná gramatika, se nepřebírají.
+
+## [view.terminal] Terminál
+commands: nks.view.toggleTerminal
+Panel Terminál pod editorem spouští shell. Používá pseudoterminál (ConPTY ve Windows, pty v macOS a Linuxu), takže fungují i programy na celou obrazovku, barvy a editace řádku.
+1. Zvolte Zobrazení a Zobrazit nebo skrýt terminál (Ctrl+`). Shell se spustí ve složce panelu souborů, jinak ve složce otevřeného souboru.
+2. Shell se vybírá v nastavení terminal.shell: název programu nebo cesta, případně s argumenty ("C:\Program Files\Git\bin\bash.exe" --login). Prázdné nastavení znamená PowerShell ve Windows a proměnnou $SHELL jinde.
+- Zavření panelu, zavření okna i konec editoru ukončí shell a vše, co spustil. Skončí-li shell sám, zůstane na obrazovce jeho poslední výstup a tlačítko Spustit znovu. Změna velikosti panelu změní velikost terminálu.
+- Klávesy jdou do shellu, kromě Ctrl+` a F6, které patří oknu. Ctrl+Shift+C (⌘C v macOS) kopíruje označený text, Ctrl+Shift+V, Shift+Insert a ⌘V vkládají, Shift+PageUp a PageDown a kolečko myši listují historií výstupu (5000 řádků). Vložený text jde do programu jako vložený, když o to program požádá.
+
+## [tools.screenColor] Kapátko: barva z obrazovky
+commands: nks.tools.pickScreenColor
+Příkaz v nabídce Nástroje otevře malé okno, které ukazuje barvu pixelu pod ukazatelem myši kdekoli na obrazovce. Vybraná barva se vloží do dokumentu jako #rrggbb, nebo jde do schránky.
+1. Zvolte Nástroje a Kapátko. Najeďte myší na barvu v libovolném programu; okno barvu a souřadnice ukazatele průběžně aktualizuje.
+2. Stiskněte Enter (nebo mezerník, nebo tlačítko Vybrat). Barva se vloží na místo kurzoru, a není-li kam, je ve schránce. Esc kapátko zruší.
+- Windows: pixel se čte z obrazovky bez oprávnění. macOS: od verze 10.15 smí obrazovku číst jen program s oprávněním Nahrávání obrazovky (Nastavení systému, Soukromí a zabezpečení); Textida oprávnění požádá při prvním použití a bez něj kapátko neotevře. Čte se jen jeden pixel a nic se neukládá. Linux: funguje v relaci X11 nebo XWayland; okna čistého Waylandu se tam čtou jako černá a bez X11 se kapátko nenabídne.
+
+## [edit.clipboardMonitor] Sledování schránky
+commands: nks.edit.toggleClipboardMonitor
+Seznam schránky normálně obsahuje jen to, co zkopírujete v editoru. Příkaz Sbírat kopie z jiných programů do něj přidává i texty, které zkopírujete jinde.
+1. Zvolte Úpravy, Schránka, Sbírat kopie z jiných programů (nebo zapněte nastavení editor.clipboardMonitor). Stejným příkazem sledování vypnete.
+2. Texty se objeví v seznamu schránky (Úpravy, Schránka, Historie schránky).
+- Ve výchozím stavu je sledování vypnuté a zapíná ho jen uživatel. Po zapnutí se text, který už na schránce byl, nesbírá; sbírají se jen kopie vzniklé od zapnutí. Po vypnutí se vše zapomene, takže to, co jste zkopírovali při vypnutém sledování, se nikdy nesebere dodatečně.
+- Seznam je jen v paměti a nic se neukládá na disk ani neposílá. Zkopírované heslo ale na seznamu zůstane do vytlačení novějšími položkami (počet položek určuje nastavení editor.clipboardHistorySize), proto sledování zapínejte jen, když ho potřebujete.
+
+## [tools.formatReview] Formátování s náhledem (PHP CS Fixer a další)
+commands: nks.format.withReview
+Příkaz v nabídce Nástroje spustí formátovač projektu na kopii souboru a výsledek neuloží, ale ukáže v přehledu změn. Vy zaškrtnete, co se má použít.
+1. Formátovač se nabídne jen tam, kde projekt má jeho konfiguraci: pro PHP soubor .php-cs-fixer.dist.php (nebo .php-cs-fixer.php, .php_cs, .php_cs.dist) ve složce souboru nebo nad ní. Platí to i pro gofmt, Prettier, rustfmt a ostatní formátovače katalogu.
+2. Zvolte Nástroje a Formátovat souborovým formátovačem s náhledem. Změny se objeví v kartě výsledků; použijí se jedním krokem zpět a jen když se dokument mezitím nezměnil.
+- PHP CS Fixer se hledá v projektu (vendor/bin), pak v PATH; není-li tam, spustí php soubor php-cs-fixer.phar z projektu (složka souboru a nadřazené: tools, bin, vendor/bin) nebo z PATH. Nic se nestahuje. Cestu lze zadat i v souboru saveActions.json (toolPaths).
+- Tentýž formátovač může běžet i při uložení jako akce Formátovat (Soubor, Akce při uložení); ta výsledek použije hned, jako jeden krok zpět, bez náhledu.
+
+## [tools.callers] Kdo to volá
+commands: nks.tools.showCallers
+Příkaz v nabídce Nástroje ukáže funkce, které volají symbol pod kurzorem, podle grafu programu CodeGraph. Jen čte, nic neindexuje.
+1. V projektu musí být složka .codegraph (vytvoří ji codegraph init -i). Dejte kurzor na jméno funkce nebo ho označte a zvolte Nástroje a Kdo to volá. Enter na řádku otevře místo volajícího, vedle seznamu je jeho okolí.
+- Příkaz se nabídne jen tam, kde složka .codegraph existuje nad souborem; editor graf nevytváří ani neaktualizuje (to dělají codegraph init a codegraph sync). Program se hledá v node_modules/.bin, .venv a PATH, před prvním během ho potvrdíte a běží za proxy editoru. Graf je stav souborů v době indexování: u karty s neuloženým textem to lišta říká.
+
+## [hex.plugins] Hex: doplňky
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+Nainstalovaný doplněk s oprávněním hex.read může hex pohledu přidat dekodér do inspektoru dat, součet, výpis bajtů jako text a zdroj šablon struktury.
+1. Dekodéry se objeví jako další řádky inspektoru dat pod vestavěnými typy; řádek ukáže tři tečky, dokud doplněk neodpoví.
+2. Úpravy, Hex, Součet doplňkem spočítá součet výběru (bez výběru celého souboru) a ukáže ho stejným oknem jako vestavěné součty.
+3. Vypsat doplňkem jako text otevře výběr jako text v novém dokumentu, který není soubor. Šablony od doplňku přidají jeho šablony .ksy do seznamu panelu Struktura.
+- Doplněk dostane jen kopii bajtů a vrací jen text: nic nezapisuje do souboru ani do dokumentu. Skrytá hodnota souboru s tajemstvím se mu posílá jako hvězdičky. Doplněk, který chce bajty měnit, to udělá přes API dokumentu, kde jeho úprava přijde jako návrh ke schválení v přehledu změn.
+- Doplněk dostane nejvýš 16 MiB, na odpověď má 15 s a text odpovědi je omezený. Nabízí se jen doplňky, kterým jste oprávnění hex.read dali při instalaci.

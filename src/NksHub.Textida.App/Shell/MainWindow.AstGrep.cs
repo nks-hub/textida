@@ -21,6 +21,18 @@ internal sealed partial class MainWindow
     /// <summary>The proposal the last rewrite put in the preview, for tests.</summary>
     internal Task<ProposalDecision>? StructuralDecision { get; private set; }
 
+    /// <summary>Asks once per program whether it may run, showing the command and the folder (the same question as for a linter); true when it was approved before or now.</summary>
+    internal async Task<bool> ApproveToolAsync(ToolInvocation tool, string title)
+    {
+        if (_app.ToolApprovals.IsApproved(tool)) return true;
+        var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(K.ToolConfirmMessage, ("title", title)),
+            [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
+            [Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory))]);
+        if (await _app.Dialogs.ChooseAsync(this, request) != 0) return false;
+        _app.ToolApprovals.Approve(tool);
+        return true;
+    }
+
     internal CommandOutcome StructuralSearch()
     {
         if (Active is null) return CommandOutcome.NotHandled;
@@ -53,14 +65,7 @@ internal sealed partial class MainWindow
         string Relative(string full) => Path.GetRelativePath(folder, full).Replace('\\', '/');
         var folderArgs = AstGrep.Arguments(pattern, rewrite, lang, false, buffers.Select(d => Relative(d.Path!)));
         var tool = AstGrep.Invocation(program, folder, folderArgs);
-        if (!_app.ToolApprovals.IsApproved(tool))
-        {
-            var request = new ChoiceRequest(Loc.Get(K.ToolConfirmTitle), Loc.Get(K.ToolConfirmMessage, ("title", catalog.Title)),
-                [new DialogButton(Loc.Get(K.ToolConfirmRun), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true)],
-                [Loc.Get(K.ToolConfirmCommand, ("command", tool.CommandLine)), Loc.Get(K.ToolConfirmDirectory, ("directory", tool.WorkingDirectory))]);
-            if (await _app.Dialogs.ChooseAsync(this, request) != 0) return;
-            _app.ToolApprovals.Approve(tool);
-        }
+        if (!await ApproveToolAsync(tool, catalog.Title)) return;
 
         SetStatusMessage(Loc.Get(K.AstGrepRunning));
         var notes = new List<string>();

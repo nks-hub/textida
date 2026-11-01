@@ -84,6 +84,7 @@ public static class PluginManifestLoader
         var data = CheckDataItems(root, m, c, errors);
         var spec = CheckMain(root, m, errors);
         CheckLanguageServers(root, m, errors);
+        CheckHex(m, errors);
 
         if (m.Main is null)
         {
@@ -271,6 +272,41 @@ public static class PluginManifestLoader
         return data;
     }
 
+    /// <summary>The events that start a plugin for its hex contributions: one for each kind it has.</summary>
+    private static IEnumerable<string> HexEvents(PluginContributions c)
+    {
+        if (c.HexDecoders.Count > 0) yield return ActivationEvents.Hex("decode");
+        if (c.HexHashes.Count > 0) yield return ActivationEvents.Hex("hash");
+        if (c.HexExporters.Count > 0) yield return ActivationEvents.Hex("export");
+        if (c.HexTemplates.Count > 0) yield return ActivationEvents.Hex("templates");
+    }
+
+    private static void CheckHex(PluginManifest m, List<string> errors)
+    {
+        var c = m.Contributes;
+        if (c.HexDecoders.Count + c.HexHashes.Count + c.HexExporters.Count + c.HexTemplates.Count == 0) return;
+        if (m.Main is null) errors.Add("The hex contributions (hexDecoders, hexHashes, hexExporters, hexTemplates) are answered by the process of the plugin: it needs a main.");
+        if (!m.Permissions.Contains(DocumentPermissions.HexRead)) errors.Add($"The hex contributions need the permission '{DocumentPermissions.HexRead}'.");
+        void Kind<T>(string what, IReadOnlyList<T> items, Func<T, (string Id, string Title)> read)
+        {
+            CheckUnique(what, items.Select(i => read(i).Id), errors);
+            foreach (var item in items)
+            {
+                var (id, title) = read(item);
+                if (!ItemIdPattern.IsMatch(id)) errors.Add($"{what} '{id}': id must be lower case letters, digits and '-'.");
+                if (string.IsNullOrWhiteSpace(title) || title.Length > 64) errors.Add($"{what} '{id}': title must be 1 to 64 characters.");
+            }
+        }
+        Kind("hex decoder", c.HexDecoders, x => (x.Id, x.Title));
+        foreach (var d in c.HexDecoders)
+            if (d.Length is < 1 or > 64) errors.Add($"hex decoder '{d.Id}': length must be 1 to 64 bytes.");
+        Kind("hex hash", c.HexHashes, x => (x.Id, x.Title));
+        Kind("hex exporter", c.HexExporters, x => (x.Id, x.Title));
+        foreach (var e in c.HexExporters)
+            if (e.Extension.Length is < 2 or > 16 || e.Extension[0] != '.' || e.Extension.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch != '.')) errors.Add($"hex exporter '{e.Id}': extension must be a dot and letters or digits, such as .c or .json.");
+        Kind("hex template source", c.HexTemplates, x => (x.Id, x.Title));
+    }
+
     private static void CheckLanguageServers(string root, PluginManifest m, List<string> errors)
     {
         var servers = m.Contributes.LanguageServers;
@@ -343,10 +379,10 @@ public static class PluginManifestLoader
         if (main.Cwd is not null && !TryResolveInside(root, main.Cwd, out cwd, out var cwdWhy)) errors.Add($"main.cwd: {cwdWhy}");
         else if (!Directory.Exists(cwd)) errors.Add($"main.cwd '{main.Cwd}' does not exist.");
 
-        var events = main.ActivationEvents ?? [.. m.Contributes.Commands.Select(c => "onCommand:" + c.Id)];
+        var events = main.ActivationEvents ?? [.. m.Contributes.Commands.Select(c => "onCommand:" + c.Id), .. HexEvents(m.Contributes)];
         if (events.Count == 0) errors.Add("The plugin has a main but nothing that activates it: add activationEvents or a command.");
         foreach (var e in events)
-            if (!ActivationEvents.IsValid(e)) errors.Add($"Activation event '{e}' must be onStartup, or onCommand:, onLanguage:, onFileType:, onPanel: or workspaceContains: followed by a value (a usable glob for workspaceContains).");
+            if (!ActivationEvents.IsValid(e)) errors.Add($"Activation event '{e}' must be onStartup, or onCommand:, onLanguage:, onFileType:, onPanel:, onHex: or workspaceContains: followed by a value (a usable glob for workspaceContains).");
 
         return errors.Count > 0 || exe is null ? null : new PluginSpec(m.Id, m.Name, exe, main.Args, events, cwd);
     }

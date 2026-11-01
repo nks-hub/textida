@@ -6,7 +6,7 @@ namespace NksHub.Textida.Core.Tools;
 /// A formatter that is configured by a file next to the code. <paramref name="Args"/> use <c>${File}</c>, which is a temporary copy of the document that the program rewrites in place.
 /// The formatter is offered for a file only when one of <paramref name="ConfigFiles"/> exists in its folder or above it.
 /// </summary>
-public sealed record FormatterDef(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions);
+public sealed record FormatterDef(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Archive = null, bool ProjectLocal = false);
 
 public enum FormatResult { Formatted, Unchanged, Skipped, Failed, TimedOut, Missing }
 
@@ -20,7 +20,7 @@ public static class ConfigFormatters
 {
     /// <summary>The formatters Save Actions offers: all of <see cref="LanguageCatalog"/>.</summary>
     public static readonly IReadOnlyList<FormatterDef> All =
-        [.. LanguageCatalog.Formatters.Select(f => new FormatterDef(f.Id, f.Title, f.Executable, f.Args, f.ConfigFiles, f.Extensions))];
+        [.. LanguageCatalog.Formatters.Select(f => new FormatterDef(f.Id, f.Title, f.Executable, f.Args, f.ConfigFiles, f.Extensions, f.Archive, f.ProjectLocal))];
 
     public static FormatterDef? Find(string id) => All.FirstOrDefault(f => f.Id == id);
 
@@ -65,6 +65,28 @@ public static class ConfigFormatters
         return result.Applied ? new(FormatResult.Formatted) : new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped.");
     }
 
+    /// <summary>What a formatter would change in a document: the smallest edit (<see cref="Range"/> of bytes replaced by <see cref="NewText"/>) based on <see cref="Revision"/>, or just the outcome when there is nothing to change.</summary>
+    public sealed record FormatPlan(FormatOutcome Outcome, long Revision = 0, ByteRange Range = default, string NewText = "");
+
+    /// <summary>
+    /// The same run as <see cref="FormatAsync"/>, but the document is not changed: the edit is returned, so a caller can show it in the change review and let the user accept it. A document that changed while the program ran gives a skipped outcome.
+    /// </summary>
+    public static async Task<FormatPlan> PlanAsync(Document doc, FormatterDef def, TimeSpan timeout, CancellationToken ct = default, string? toolPath = null)
+    {
+        string? path = doc.FilePath;
+        if (path is null) return new(new(FormatResult.Skipped, "The document has no file name yet."));
+        if (doc.ByteLength > SaveTransforms.MaxBytes) return new(new(FormatResult.Skipped, "The document is too large to format."));
+        long revision = doc.Revision;
+        byte[] before = doc.ReadBytes(new ByteRange(0, doc.ByteLength));
+        var (outcome, after) = await FormatBytesAsync(path, before, def, timeout, ct, toolPath);
+        if (after is null) return new(outcome);
+        if (doc.Revision != revision) return new(new(FormatResult.Skipped, "The document changed while it was formatted, so the result was dropped."));
+        int bom = doc.BomLength;
+        if (after.Length < bom || !after.AsSpan(0, bom).SequenceEqual(before.AsSpan(0, bom))) return new(new(FormatResult.Failed, $"{def.Title} changed the byte order mark."));
+        var (range, insert) = Narrow(before, after, bom, lineSafe: doc.Codec.Encode("\n") is [0x0A]);
+        return new(new(FormatResult.Formatted), revision, range, doc.Codec.GetString(insert));
+    }
+
     /// <summary>
     /// The program half of <see cref="FormatAsync"/> for content that is not an open document (a recipe over many files): <paramref name="before"/> goes to a temporary copy next to
     /// <paramref name="path"/>, the program runs with <paramref name="timeout"/> and the copy is removed. <c>After</c> is the formatted content, or null when nothing changed or the program failed (the outcome says which).
@@ -79,7 +101,9 @@ public static class ConfigFormatters
             try
             {
                 await File.WriteAllBytesAsync(temp, before, ct);
-                tool = ToolRunner.Resolve(new ToolSpec("format:" + def.Id, Program(def, toolPath), def.Args, null, timeout), name => name == "File" ? temp : null, dir);
+                var (program, args) = Launch(def, toolPath, dir);
+                string? config = null;
+                tool = ToolRunner.Resolve(new ToolSpec("format:" + def.Id, program, args, null, timeout), name => name switch { "File" => temp, "Config" => config ??= ConfigFor(def, path)?.Replace("$", "$$", StringComparison.Ordinal), _ => null }, dir);
             }
             catch (ToolException e) { return (new(FormatResult.Missing, e.Message), null); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return (new(FormatResult.Failed, e.Message), null); }
@@ -102,6 +126,42 @@ public static class ConfigFormatters
             try { File.Delete(temp); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the copy is a temporary file; a later format uses another name */ }
         }
+    }
+
+    /// <summary>
+    /// What to start for <paramref name="def"/>. A project-local formatter is looked for in the folders of the project first and then on the PATH; when the program is nowhere, a PHAR of its <see cref="FormatterDef.Archive"/> in the project
+    /// (<c>vendor/bin</c>, <c>tools</c>, <c>bin</c>, the folder itself) or on the PATH is run by <c>php</c>. The path the user set for the formatter wins over all of it (a PHAR there is run by <c>php</c> too).
+    /// </summary>
+    private static (string Program, IReadOnlyList<string> Args) Launch(FormatterDef def, string? toolPath, string dir)
+    {
+        if (!string.IsNullOrWhiteSpace(toolPath) && def.Archive is not null && toolPath.EndsWith(".phar", StringComparison.OrdinalIgnoreCase)) return Archive(def, toolPath, dir);
+        if (!def.ProjectLocal || !string.IsNullOrWhiteSpace(toolPath)) return (Program(def, toolPath), def.Args);
+        if (ToolLocator.Find(def.Executable, dir) is { } local) return (Dollars(local), def.Args);
+        if (def.Archive is not null && FindArchive(def.Archive, dir) is { } phar) return Archive(def, phar, dir);
+        throw new ToolException($"The program '{def.Executable}' was not found.") { Missing = true };
+    }
+
+    private static (string, IReadOnlyList<string>) Archive(FormatterDef def, string phar, string dir)
+    {
+        string php = ToolLocator.Find("php", dir) ?? throw new ToolException($"The program 'php' was not found, which runs {Path.GetFileName(phar)}.") { Missing = true };
+        return (Dollars(php), [Dollars(phar), .. def.Args]);
+    }
+
+    private static string Dollars(string path) => path.Replace("$", "$$", StringComparison.Ordinal);
+
+    private static readonly string[] ArchiveFolders = [".", "tools", "bin", "vendor/bin", "tools/php-cs-fixer/vendor/bin"];
+
+    /// <summary>The PHAR named <paramref name="name"/> in the folders of the project (the folder of the file and every folder above it), else on the PATH.</summary>
+    private static string? FindArchive(string name, string dir)
+    {
+        try
+        {
+            for (var d = new DirectoryInfo(Path.GetFullPath(dir)); d is not null; d = d.Parent)
+                foreach (var folder in ArchiveFolders)
+                    if (Path.Combine(d.FullName, folder, name) is var candidate && File.Exists(candidate)) return Path.GetFullPath(candidate);
+        }
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { /* an unreadable folder has no tool for us */ }
+        return ToolLocator.Find(name);
     }
 
     /// <summary>The program to start: the one at the path the user set (a wrong path is an error, not a search in PATH), else the bare name for the PATH lookup of the runner.</summary>

@@ -45,6 +45,7 @@ internal sealed class ClipLibrary
     private readonly List<RecipeEntry> _recipes = [];
     private readonly List<HelpEntry> _helps = [];
     private readonly List<DeclaredServer> _servers = [];
+    private readonly List<HexOffer> _hex = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<(string PluginId, ToolEntry Tool)> _tools = [];
     private readonly List<string> _problems = [];
@@ -75,6 +76,9 @@ internal sealed class ClipLibrary
     /// <summary>Language servers declared by installed, enabled plugins, in load order. Whether a plugin may start them is the <c>language.server</c> grant, checked where they are used.</summary>
     public IReadOnlyList<DeclaredServer> LanguageServers => _servers;
     public IReadOnlyList<string> Problems => _problems;
+
+    /// <summary>What installed plugins add to the hex view; whether a plugin may be sent bytes is the <c>hex.read</c> grant, checked where they are used.</summary>
+    public IReadOnlyList<HexOffer> HexOffers => _hex;
 
     /// <summary>External tools that data plugins declare, each with the plugin that owns it.</summary>
     public IReadOnlyList<(string PluginId, ToolEntry Tool)> Tools => _tools;
@@ -108,6 +112,7 @@ internal sealed class ClipLibrary
         _recipes.Clear();
         _helps.Clear();
         _servers.Clear();
+        _hex.Clear();
         _targets.Clear();
         _tools.Clear();
         _problems.Clear();
@@ -126,6 +131,15 @@ internal sealed class ClipLibrary
             // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
             if (installed.Contains(folder))
                 foreach (var server in plugin.Manifest.Contributes.LanguageServers) _servers.Add(new DeclaredServer(plugin.Manifest.Id, plugin.Directory, server));
+            if (installed.Contains(folder))
+            {
+                var c = plugin.Manifest.Contributes;
+                string owner = plugin.Manifest.Id, title = plugin.Manifest.Name;
+                _hex.AddRange(c.HexDecoders.Select(d => new HexOffer(owner, title, HexKind.Decoder, d.Id, d.Title, d.Length)));
+                _hex.AddRange(c.HexHashes.Select(d => new HexOffer(owner, title, HexKind.Hash, d.Id, d.Title)));
+                _hex.AddRange(c.HexExporters.Select(d => new HexOffer(owner, title, HexKind.Exporter, d.Id, d.Title, Extension: d.Extension)));
+                _hex.AddRange(c.HexTemplates.Select(d => new HexOffer(owner, title, HexKind.Templates, d.Id, d.Title)));
+            }
             bool process = plugin.Manifest.Main is not null;
             if (process && !installed.Contains(folder))
             {
@@ -231,6 +245,34 @@ internal sealed class ClipLibrary
         }
         Load();
         return SaveClipResult.Saved;
+    }
+
+    /// <summary>
+    /// Keeps a grammar converted from TextMate as a data plugin of its own (<c>textmate-id</c> in the plugins folder, no process), replacing an earlier import of the same id, and reads the library again so the language can be chosen at once.
+    /// False with the reason in <paramref name="detail"/> when it could not be written or the library does not accept it.
+    /// </summary>
+    public bool ImportGrammar(string id, string name, string grammarJson, out string detail)
+    {
+        detail = "";
+        try
+        {
+            string folder = Path.Combine(_directory, "textmate-" + id);
+            Directory.CreateDirectory(folder);
+            int api = PluginLimitsPlaceholders.Host().ApiVersion;
+            var manifest = new PluginManifest { Id = "textmate." + id, Name = "TextMate: " + name, Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
+            manifest.Contributes.Grammars.Add("grammar.json");
+            File.WriteAllText(Path.Combine(folder, "grammar.json"), grammarJson, new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(folder, PluginManifest.FileName), JsonSerializer.Serialize(manifest, PluginManifestJson.Default.PluginManifest), new UTF8Encoding(false));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            detail = e.Message;
+            return false;
+        }
+        Load();
+        if (Grammars.Find(id) is not null) return true;
+        detail = string.Join("; ", _problems.Where(p => p.StartsWith("textmate-" + id, StringComparison.Ordinal)));
+        return false;
     }
 
     /// <summary>Lower-case ASCII letters, digits and hyphens made from a title; accents are dropped. Never empty and always starts with a letter.</summary>

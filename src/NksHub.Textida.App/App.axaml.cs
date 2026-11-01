@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform;
 using Avalonia.Styling;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Profile;
@@ -50,6 +51,11 @@ public sealed partial class App : Application
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
+
+    private IHexPlugins? _hexPlugins;
+
+    /// <summary>What plugins add to the hex view; the plugin services unless a test puts its own.</summary>
+    internal IHexPlugins HexPlugins { get => _hexPlugins ?? Plugins; set => _hexPlugins = value; }
     internal RecentFiles Recent { get; private set; } = null!;
 
     private HexTemplateHost? _hexTemplates;
@@ -63,6 +69,23 @@ public sealed partial class App : Application
     internal WorkspaceStore Workspace { get; private set; } = null!;
     internal RecentEncodings RecentEncodings { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
+
+    /// <summary>The monitor that collects what other programs copy, once the user has switched it on; polled on a timer of the interface thread.</summary>
+    internal ClipboardMonitor ClipboardWatch { get; private set; } = null!;
+
+    private readonly Avalonia.Threading.DispatcherTimer _clipboardTimer = new() { Interval = TimeSpan.FromMilliseconds(700) };
+
+    /// <summary>The text on the system clipboard, read through the first window; tests replace it.</summary>
+    internal Func<Task<string?>>? ReadClipboard { get; set; }
+
+    /// <summary>Reads the clipboard of the first open window (what the monitor uses when <see cref="ReadClipboard"/> is not set).</summary>
+    internal async Task<string?> ReadSystemClipboardAsync() =>
+        _windows.FirstOrDefault()?.Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
+
+    /// <summary>The way the colour picker asks whether the screen can be read and reads a pixel; tests replace them, since the real ones need a desktop.</summary>
+    internal Func<(Core.Colors.ScreenColorSupport Support, string Reason)> ScreenColorCheck { get; set; } = () => (Core.Colors.ScreenColor.Support(out var reason), reason);
+    internal Func<(Core.Colors.Rgba Color, int X, int Y)?> ScreenColorReader { get; set; } = () => Core.Colors.ScreenColor.TryRead(out var color, out int x, out int y) ? (color, x, y) : null;
+    internal Func<bool> ScreenColorPermission { get; set; } = Core.Colors.ScreenColor.RequestPermission;
     /// <summary>Clips and file templates of the data plugins in the <c>plugins</c> folder of the profile.</summary>
     internal ClipLibrary Clips { get; private set; } = null!;
 
@@ -194,6 +217,9 @@ public sealed partial class App : Application
         Recent = RecentFiles.Load(ProfileDirectory, () => (int)Workbench.Settings.GetInt("advanced.recentFilesCount"));
         Workspace = WorkspaceStore.Load(ProfileDirectory);
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));
+        ClipboardWatch = new ClipboardMonitor(() => Workbench.Settings.GetBool("editor.clipboardMonitor"), () => ReadClipboard is { } read ? read() : ReadSystemClipboardAsync(), text => ClipboardHistory.Add(text));
+        _clipboardTimer.Tick += (_, _) => _ = ClipboardWatch.PollAsync();
+        _clipboardTimer.Start();
         LastParameters = new LastParameters();
         Output = new OutputChannels(Path.Combine(ProfileDirectory, "output"));
         Tools = new ToolCatalog(ProfileDirectory);

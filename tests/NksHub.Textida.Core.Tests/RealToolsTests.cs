@@ -166,6 +166,8 @@ public sealed class RealToolsTests(ITestOutputHelper output) : IDisposable
         new("ruff-format", ["ruff", "--version"], [("ruff.toml", "")], "pkg/a.py", "x =  1\n", "x = 1\n", ("pkg/a.py", "x = (\n"), 2, "Failed to parse"),
         new("shfmt", ["shfmt", "--version"], [(".editorconfig", "root = true\n")], "run.sh", "echo  hi\n", "echo hi\n", ("run.sh", "echo \"hi\n"), 1, "reached EOF"),
         new("stylua", ["stylua", "--version"], [("stylua.toml", "")], "a.lua", "local  x=1\n", "local x = 1\n", ("a.lua", "local x = = 1\n"), 2, ""),
+        new("php-cs-fixer", ["php-cs-fixer", "--version"], [(".php-cs-fixer.dist.php", "<?php\nreturn (new PhpCsFixer\\Config())->setRules(['@PSR12' => true]);\n")], "src/a.php", "<?php\nfunction  f( $a ){return $a+1;}\n",
+            "<?php\n\nfunction f($a)\n{\n    return $a + 1;\n}\n", (".php-cs-fixer.dist.php", "<?php\nthrow new RuntimeException(\"bad config here\");\n"), 1, ""),
         new("dart-format", ["dart", "--version"], [("analysis_options.yaml", "formatter:\n  page_width: 80\n")], "lib/a.dart", "void main( ){print(1);}\n", "void main() {\n  print(1);\n}\n",
             ("lib/a.dart", "void main( { print(1);\n"), 65, ""),
     ];
@@ -262,6 +264,7 @@ public sealed class RealToolsTests(ITestOutputHelper output) : IDisposable
     [RealToolFact("ruff")] public Task Formatter_ruff_format() => Formatter("ruff-format");
     [RealToolFact("shfmt")] public Task Formatter_shfmt() => Formatter("shfmt");
     [RealToolFact("stylua")] public Task Formatter_stylua() => Formatter("stylua");
+    [RealToolFact("php-cs-fixer")] public Task Formatter_php_cs_fixer() => Formatter("php-cs-fixer");
     [RealToolFact("dart")] public Task Formatter_dart_format() => Formatter("dart-format");
 
     // ---- linters ----

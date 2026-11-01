@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Later choose File, Projects and Sessions, Open Session and pick it; Delete Session removes one.
 - Save Session stores the open tabs under a name: groups, order, the active tab and the selection of each tab. A tab with unsaved changes, or without a file, keeps its text. A session of the same name is replaced.
 - Open Session opens the tabs next to the ones already open. Files are read from disk, then the unsaved text of the session replaces their text, so you can still undo or discard it. A file that is gone is named in the status bar; its text, if the session had it, opens in an unnamed document.
+- A session is a whole task: besides the tabs it keeps all selections of each tab (several carets), the find strip with its query, replacement, folder and switches, the filter of the document list, the last edit recipe (so Repeat Recipe does it again) and a replacement that was waiting in the preview. Opening it plans that replacement again on the files as they are now, so the preview is based on their present revision and a file that changed since is not overwritten by the old plan.
 - Delete Session asks first, because the session may hold unsaved text.
 - A session file that cannot be read is skipped and named in a bar; the other sessions work.
 - Large files opened in the paged mode are stored by path only.
@@ -2129,3 +2130,57 @@ The command in the File menu, Remote sends the changes of several saved files fr
 3. Choose Send the ticked files. Each file is sent safely under a temporary name and only then replaces the old one.
 - A file that changed on the server or disappeared cannot be ticked until you have shown its differences (for a deleted file you confirm that it is created again). The upload then expects exactly the version you saw; if there is a newer one on the server, the file is not sent and is reported.
 - A tab with unsaved changes is not sent, because the file on disk is not what you see; save it first. The version check has a small gap on the server between the check and the replacement, because neither FTP nor SFTP has a conditional write.
+
+## [tools.textMate] Importing TextMate grammars
+commands: nks.tools.importTextMate
+The command in the Tools menu converts a TextMate grammar to a grammar of the editor, so a language without a built-in grammar gets colours. The editor's own engine colours the text; nothing of TextMate or Oniguruma runs.
+1. Choose Tools and Import TextMate Grammar. Pick a .tmLanguage, .tmLanguage.json or .plist file, a zipped .tmbundle, or a .tmbundle folder.
+2. Imported grammars are kept as a plugin of their own (a textmate-… folder in the plugins folder) and appear as languages; you choose them like any other language, or they are picked by the file extension.
+- Converted: scope names to colour kinds by their prefix (keyword, string, comment, constant.numeric and more), match rules, begin and end regions over several lines, includes (#name, $self and other grammars of the same bundle) and Oniguruma regular expressions rewritten for .NET (\h, POSIX classes, \R, Unicode properties, possessive quantifiers read as greedy).
+- Not carried over, and reported one by one in the Tasks tab: while rules, \G and \K, back-references in a match or begin pattern (in an end pattern they are replaced by a word), colours of single groups of begin and end patterns, nested and intersected character classes, the operator (?~...), includes of grammars outside the bundle. A rule that .NET still refuses after the rewrite is left out. Extensions a built-in grammar already serves are not taken over.
+
+## [view.terminal] Terminal
+commands: nks.view.toggleTerminal
+The Terminal panel below the editor runs a shell. It uses a pseudo terminal (ConPTY on Windows, a pty on macOS and Linux), so full-screen programs, colours and line editing work.
+1. Choose View and Toggle Terminal (Ctrl+`). The shell starts in the folder of the file panel, else in the folder of the open file.
+2. The shell is chosen in the setting terminal.shell: a program name or path, optionally with arguments ("C:\Program Files\Git\bin\bash.exe" --login). Empty means PowerShell on Windows and $SHELL elsewhere.
+- Closing the panel, closing the window and ending the editor end the shell and everything it started. When the shell ends by itself, its last output stays on screen with a Restart button. Resizing the panel resizes the terminal.
+- Keys go to the shell, except Ctrl+` and F6, which belong to the window. Ctrl+Shift+C (⌘C on macOS) copies the selected text, Ctrl+Shift+V, Shift+Insert and ⌘V paste, Shift+PageUp and PageDown and the mouse wheel scroll through the output history (5000 lines). Pasted text reaches the program as pasted when the program asks for it.
+
+## [tools.screenColor] Colour picker from the screen
+commands: nks.tools.pickScreenColor
+The command in the Tools menu opens a small window that shows the colour of the pixel under the mouse pointer anywhere on the screen. The picked colour is inserted into the document as #rrggbb, or goes to the clipboard.
+1. Choose Tools and Colour Picker. Move the mouse over a colour in any program; the window keeps updating the colour and the position of the pointer.
+2. Press Enter (or Space, or the Pick button). The colour is inserted at the caret, or is on the clipboard when there is nowhere to insert it. Esc cancels.
+- Windows: the pixel is read from the screen without a permission. macOS: since 10.15 only a program with the Screen Recording permission may read the screen (System Settings, Privacy & Security); Textida asks for it the first time and does not open the picker without it. Only one pixel is read and nothing is stored. Linux: works in an X11 or XWayland session; windows of plain Wayland read as black there, and without X11 the picker is not offered.
+
+## [edit.clipboardMonitor] Clipboard monitor
+commands: nks.edit.toggleClipboardMonitor
+The clipboard list normally holds only what you copy in the editor. The command Collect Copies from Other Programs adds the texts you copy elsewhere too.
+1. Choose Edit, Clipboard, Collect Copies from Other Programs (or turn on the setting editor.clipboardMonitor). The same command turns it off.
+2. The texts appear in the clipboard list (Edit, Clipboard, Clipboard History).
+- The monitor is off by default and only the user turns it on. When it is switched on, the text that was already on the clipboard is not collected; only copies made since are. When it is switched off everything is forgotten, so what you copied while it was off is never collected later.
+- The list is in memory only and nothing is written to disk or sent anywhere. A copied password stays in the list until newer items push it out (the setting editor.clipboardHistorySize sets how many items there are), so switch the monitor on only while you need it.
+
+## [tools.formatReview] Formatting with a review (PHP CS Fixer and others)
+commands: nks.format.withReview
+The command in the Tools menu runs the formatter of the project on a copy of the file and does not write the result but shows it in the change review. You tick what to apply.
+1. A formatter is offered only where the project has its configuration: for a PHP file .php-cs-fixer.dist.php (or .php-cs-fixer.php, .php_cs, .php_cs.dist) in the folder of the file or above it. The same holds for gofmt, Prettier, rustfmt and the other formatters of the catalog.
+2. Choose Tools and Format with the File Formatter (Review). The changes appear in the results tab; they are applied as one undo step, and only if the document has not changed meanwhile.
+- PHP CS Fixer is looked for in the project (vendor/bin), then on the PATH; when it is not there, php runs a php-cs-fixer.phar from the project (the folder of the file and those above: tools, bin, vendor/bin) or from the PATH. Nothing is downloaded. The path can also be set in saveActions.json (toolPaths).
+- The same formatter can also run on save as the Format action (File, Save Actions); that applies the result at once as one undo step, without a review.
+
+## [tools.callers] Who calls this
+commands: nks.tools.showCallers
+The command in the Tools menu lists the functions that call the symbol under the caret, from the graph of the CodeGraph program. It only reads and indexes nothing.
+1. The project must have a .codegraph folder (codegraph init -i makes it). Put the caret on the name of a function or select it and choose Tools and Who Calls This. Enter on a row opens the place of the caller, and its lines are shown beside the list.
+- The command is offered only where a .codegraph folder exists above the file; the editor neither makes nor updates the graph (codegraph init and codegraph sync do that). The program is looked for in node_modules/.bin, .venv and on the PATH, you confirm it before the first run, and it runs behind the proxy of the editor. The graph is the state of the files when they were indexed: for a tab with unsaved text a bar says so.
+
+## [hex.plugins] Hex: plugins
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+An installed plugin with the permission hex.read can add a decoder to the data inspector, a hash, a way to write bytes out as text and a source of structure templates to the hex view.
+1. Decoders appear as further rows of the data inspector under the built-in types; a row shows an ellipsis until the plugin answers.
+2. Edit, Hex, Hash with Plugin hashes the selection (the whole file without one) and shows it in the same window as the built-in hashes.
+3. Write out with Plugin opens the selection as text in a new document that is not a file. Templates from Plugin adds its .ksy templates to the list of the Structure panel.
+- The plugin gets only a copy of the bytes and returns only text: it writes nothing to a file or to the document. A hidden value of a secrets file is sent to it as stars. A plugin that wants to change bytes does so through the document API, where its edit comes as a proposal to approve in the change review.
+- A plugin is sent at most 16 MiB, has 15 s to answer and the text of its answer is limited. Only the plugins you gave the permission hex.read at install are offered.

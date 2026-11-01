@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using NksHub.Textida.App.Help;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
@@ -32,6 +33,7 @@ internal sealed class HexInspectorPanel : Border
     private InspectorKind? _editing;
     private long _editStart;
     private bool _refreshing;
+    private int _pluginRun;
 
     public HexInspectorPanel(HexView owner)
     {
@@ -186,9 +188,67 @@ internal sealed class HexInspectorPanel : Border
                 AutomationProperties.SetName(item, $"{name}: {shown}");
                 _list.Items.Add(item);
             }
-            _list.SelectedIndex = Math.Min(selected, _kinds.Length - 1);
+            if (!hidden) AddPluginRows(start);
+            _list.SelectedIndex = Math.Min(selected, _list.Items.Count - 1);
         }
         finally { _refreshing = false; }
+    }
+
+    /// <summary>
+    /// One row for each decoder of a plugin that may read bytes (<c>hex.read</c>): it shows an ellipsis at once and the answer when it comes, so a slow plugin never holds the caret. The plugin is asked after a short pause,
+    /// so moving the caret along a row does not send a request for each byte; an answer for a caret that is gone is dropped. The rows are read-only: Enter on one edits nothing.
+    /// </summary>
+    private void AddPluginRows(long start)
+    {
+        int run = ++_pluginRun;
+        var offers = _owner.PluginsFor?.Invoke().Offers(HexKind.Decoder) ?? [];
+        foreach (var offer in offers)
+        {
+            var doc = _owner.Editor.Document;
+            var data = new byte[(int)Math.Max(0, Math.Min(Math.Clamp(offer.Length, 1, 64), doc.ByteLength - start))];
+            try { doc.Read(start, data); }
+            catch (IOException) { return; }
+            _owner.MaskHidden(start, data);
+            var value = new TextBlock { Text = "…", VerticalAlignment = VerticalAlignment.Center, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Opacity = 0.65 };
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("100,*") };
+            row.Children.Add(new TextBlock { Text = offer.Title, Opacity = 0.75, VerticalAlignment = VerticalAlignment.Center, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis });
+            Grid.SetColumn(value, 1);
+            row.Children.Add(value);
+            var item = new ListBoxItem { Content = row, Padding = new Thickness(6, 2) };
+            AutomationProperties.SetName(item, offer.Title);
+            _list.Items.Add(item);
+            _ = AskPluginAsync(run, offer, data, value, item);
+        }
+    }
+
+    private async Task AskPluginAsync(int run, HexOffer offer, byte[] data, TextBlock value, ListBoxItem item)
+    {
+        string shown;
+        bool plain = true;
+        try
+        {
+            await Task.Delay(120);
+            if (run != _pluginRun || _owner.PluginsFor?.Invoke() is not { } plugins) return;
+            var answer = await plugins.DecodeAsync(offer, data, _bigEndian);
+            if (run != _pluginRun) return;
+            plain = answer.Status == InspectorStatus.Ok;
+            shown = answer.Status switch
+            {
+                InspectorStatus.Ok => answer.Text,
+                InspectorStatus.Incomplete => Loc.Get(K.HexInspectorIncomplete, ("need", answer.Length)),
+                _ => Loc.Get(K.HexInspectorInvalid),
+            };
+        }
+        catch (HexPluginException e)
+        {
+            if (run != _pluginRun) return;
+            plain = false;
+            shown = Loc.Get(K.HexPluginFailed, ("reason", e.Message));
+        }
+        value.Text = shown;
+        value.Opacity = plain ? 1 : 0.65;
+        if (plain) value.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
+        AutomationProperties.SetName(item, $"{offer.Title}: {shown}");
     }
 
     public bool FocusList()

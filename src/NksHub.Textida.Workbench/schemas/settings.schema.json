@@ -592,6 +592,18 @@
           "description": "Decompile .NET assemblies on open. A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab. When off, it opens like any binary file.",
           "x-scope": "application"
         },
+        "terminal.shell": {
+          "type": "string",
+          "default": "",
+          "description": "Terminal shell. The program the Terminal panel starts, optionally with arguments (\"C:\\Program Files\\Git\\bin\\bash.exe\" --login). Empty means PowerShell on Windows and the environment variable SHELL elsewhere.",
+          "x-scope": "application"
+        },
+        "editor.clipboardMonitor": {
+          "type": "boolean",
+          "default": false,
+          "description": "Collect copies from other programs. Adds the texts you copy in other programs to the clipboard list too. Off by default; once on, only copies made since are collected. The list is in memory only.",
+          "x-scope": "application"
+        },
         "review.autoKeep": {
           "type": "boolean",
           "default": false,

@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Später wählen Sie Datei, Projekte und Sitzungen, Sitzung öffnen und die Sitzung; Sitzung löschen entfernt eine.
 - Sitzung speichern legt die offenen Tabs unter einem Namen ab: Gruppen, Reihenfolge, aktiven Tab und die Auswahl jedes Tabs. Ein Tab mit ungesicherten Änderungen oder ohne Datei behält seinen Text. Eine Sitzung gleichen Namens wird ersetzt.
 - Sitzung öffnen öffnet die Tabs neben den bereits offenen. Dateien werden von der Platte gelesen, dann ersetzt der ungesicherte Text der Sitzung ihren Text, sodass er sich rückgängig machen oder verwerfen lässt. Eine fehlende Datei wird in der Statusleiste genannt; ihr Text, falls die Sitzung ihn hatte, öffnet sich in einem unbenannten Dokument.
+- Eine Sitzung ist eine ganze Aufgabe: Außer den Tabs speichert sie alle Auswahlen jedes Tabs (mehrere Cursor), die Suchleiste mit Suchtext, Ersetzung, Ordner und Schaltern, den Filter der Dokumentliste, das letzte Bearbeitungsrezept (so führt Rezept wiederholen es erneut aus) und eine Ersetzung, die in der Vorschau wartete. Beim Öffnen wird diese Ersetzung auf die Dateien, wie sie jetzt sind, neu geplant; die Vorschau beruht also auf ihrer aktuellen Revision, und eine inzwischen geänderte Datei wird vom alten Plan nicht überschrieben.
 - Sitzung löschen fragt zuerst nach, weil die Sitzung ungesicherten Text enthalten kann.
 - Eine Sitzungsdatei, die sich nicht lesen lässt, wird übersprungen und in einer Leiste genannt; die anderen Sitzungen funktionieren.
 - Große Dateien im seitenweisen Modus werden nur mit dem Pfad gespeichert.
@@ -2129,3 +2130,57 @@ Der Befehl im Menü Datei, Remote sendet die Änderungen mehrerer gespeicherter 
 3. Wählen Sie Angekreuzte Dateien senden. Jede Datei wird sicher unter einem temporären Namen gesendet und ersetzt erst dann die alte.
 - Eine Datei, die sich auf dem Server geändert hat oder verschwunden ist, lässt sich erst ankreuzen, wenn Sie ihre Unterschiede gezeigt haben (bei einer gelöschten Datei bestätigen Sie, dass sie neu angelegt wird). Der Upload erwartet dann genau die Version, die Sie gesehen haben; ist auf dem Server eine neuere, wird die Datei nicht gesendet und gemeldet.
 - Ein Tab mit ungespeicherten Änderungen wird nicht gesendet, weil die Datei auf der Platte nicht das ist, was Sie sehen; speichern Sie ihn zuerst. Die Versionsprüfung hat auf dem Server eine kleine Lücke zwischen Prüfung und Ersetzen, weil weder FTP noch SFTP ein bedingtes Schreiben kennen.
+
+## [tools.textMate] TextMate-Grammatiken importieren
+commands: nks.tools.importTextMate
+Der Befehl im Menü Extras wandelt eine TextMate-Grammatik in eine Grammatik des Editors um, damit eine Sprache ohne eingebaute Grammatik Farben bekommt. Die Farben kommen vom eigenen Engine des Editors; nichts von TextMate oder Oniguruma läuft.
+1. Wählen Sie Extras und TextMate-Grammatik importieren. Wählen Sie eine .tmLanguage-, .tmLanguage.json- oder .plist-Datei, ein gezipptes .tmbundle oder einen .tmbundle-Ordner.
+2. Importierte Grammatiken werden als eigenes Plugin gespeichert (ein Ordner textmate-… im Plugin-Ordner) und erscheinen als Sprachen; Sie wählen sie wie jede andere Sprache, oder sie werden nach der Dateiendung gewählt.
+- Umgewandelt werden: Scope-Namen in Farbarten nach ihrem Präfix (keyword, string, comment, constant.numeric und mehr), Match-Regeln, Begin/End-Bereiche über mehrere Zeilen, Includes (#name, $self und andere Grammatiken desselben Bundles) und Oniguruma-Ausdrücke, für .NET umgeschrieben (\h, POSIX-Klassen, \R, Unicode-Eigenschaften, possessive Quantifizierer als gierige gelesen).
+- Nicht übernommen und einzeln im Tab Aufgaben gemeldet: while-Regeln, \G und \K, Rückverweise in einem Match- oder Begin-Muster (im End-Muster durch ein Wort ersetzt), Farben einzelner Gruppen von Begin- und End-Mustern, verschachtelte und geschnittene Zeichenklassen, der Operator (?~…), Includes von Grammatiken außerhalb des Bundles. Eine Regel, die .NET nach dem Umschreiben ablehnt, entfällt. Endungen, die eine eingebaute Grammatik schon bedient, werden nicht übernommen.
+
+## [view.terminal] Terminal
+commands: nks.view.toggleTerminal
+Das Terminal-Fenster unter dem Editor startet eine Shell. Es nutzt ein Pseudoterminal (ConPTY unter Windows, ein pty unter macOS und Linux), daher funktionieren Vollbildprogramme, Farben und Zeilenbearbeitung.
+1. Wählen Sie Ansicht und Terminal ein- oder ausblenden (Strg+`). Die Shell startet im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
+2. Die Shell wählen Sie in der Einstellung terminal.shell: ein Programmname oder Pfad, optional mit Argumenten ("C:\Program Files\Git\bin\bash.exe" --login). Leer bedeutet PowerShell unter Windows und $SHELL sonst.
+- Das Schließen des Fensters, des Editors und des Terminals beendet die Shell und alles, was sie gestartet hat. Endet die Shell von selbst, bleibt ihre letzte Ausgabe mit der Schaltfläche Neu starten stehen. Eine Größenänderung des Bereichs ändert die Größe des Terminals.
+- Tasten gehen an die Shell, außer Strg+` und F6, die dem Fenster gehören. Strg+Umschalt+C (⌘C unter macOS) kopiert den markierten Text, Strg+Umschalt+V, Umschalt+Einfg und ⌘V fügen ein, Umschalt+Bild auf/ab und das Mausrad blättern durch den Ausgabeverlauf (5000 Zeilen). Eingefügter Text kommt als eingefügt beim Programm an, wenn es das verlangt.
+
+## [tools.screenColor] Farbwähler vom Bildschirm
+commands: nks.tools.pickScreenColor
+Der Befehl im Menü Extras öffnet ein kleines Fenster, das die Farbe des Pixels unter dem Mauszeiger an beliebiger Stelle des Bildschirms zeigt. Die gewählte Farbe wird als #rrggbb ins Dokument eingefügt oder in die Zwischenablage gelegt.
+1. Wählen Sie Extras und Farbwähler. Bewegen Sie die Maus über eine Farbe in einem beliebigen Programm; das Fenster aktualisiert Farbe und Zeigerposition laufend.
+2. Drücken Sie Enter (oder die Leertaste oder die Schaltfläche Wählen). Die Farbe wird an der Einfügemarke eingefügt oder liegt in der Zwischenablage, wenn es keine Stelle zum Einfügen gibt. Esc bricht ab.
+- Windows: Der Pixel wird ohne Berechtigung vom Bildschirm gelesen. macOS: Seit 10.15 darf nur ein Programm mit der Berechtigung Bildschirmaufnahme den Bildschirm lesen (Systemeinstellungen, Datenschutz & Sicherheit); Textida fragt beim ersten Mal danach und öffnet den Farbwähler ohne sie nicht. Es wird nur ein Pixel gelesen und nichts gespeichert. Linux: funktioniert in einer X11- oder XWayland-Sitzung; Fenster von reinem Wayland erscheinen dort schwarz, und ohne X11 wird der Farbwähler nicht angeboten.
+
+## [edit.clipboardMonitor] Zwischenablage-Überwachung
+commands: nks.edit.toggleClipboardMonitor
+Die Liste der Zwischenablage enthält normalerweise nur, was Sie im Editor kopieren. Der Befehl Kopien aus anderen Programmen sammeln fügt auch Texte hinzu, die Sie anderswo kopieren.
+1. Wählen Sie Bearbeiten, Zwischenablage, Kopien aus anderen Programmen sammeln (oder schalten Sie die Einstellung editor.clipboardMonitor ein). Derselbe Befehl schaltet es aus.
+2. Die Texte erscheinen in der Liste der Zwischenablage (Bearbeiten, Zwischenablage, Zwischenablageverlauf).
+- Die Überwachung ist standardmäßig aus und wird nur vom Benutzer eingeschaltet. Beim Einschalten wird der Text, der schon in der Zwischenablage lag, nicht gesammelt; nur Kopien seither. Beim Ausschalten wird alles vergessen, was Sie bei ausgeschalteter Überwachung kopiert haben, wird also nie nachträglich gesammelt.
+- Die Liste liegt nur im Speicher; nichts wird auf die Platte geschrieben oder gesendet. Ein kopiertes Passwort bleibt in der Liste, bis neuere Einträge es verdrängen (die Einstellung editor.clipboardHistorySize bestimmt die Anzahl), schalten Sie die Überwachung daher nur ein, solange Sie sie brauchen.
+
+## [tools.formatReview] Formatieren mit Vorschau (PHP CS Fixer und andere)
+commands: nks.format.withReview
+Der Befehl im Menü Extras lässt den Formatierer des Projekts auf einer Kopie der Datei laufen und schreibt das Ergebnis nicht, sondern zeigt es in der Änderungsübersicht. Sie haken an, was gelten soll.
+1. Ein Formatierer wird nur angeboten, wo das Projekt seine Konfiguration hat: bei einer PHP-Datei .php-cs-fixer.dist.php (oder .php-cs-fixer.php, .php_cs, .php_cs.dist) im Ordner der Datei oder darüber. Dasselbe gilt für gofmt, Prettier, rustfmt und die anderen Formatierer des Katalogs.
+2. Wählen Sie Extras und Mit dem Datei-Formatierer formatieren (Vorschau). Die Änderungen erscheinen im Ergebnis-Tab; sie werden als ein Rückgängig-Schritt angewendet, und nur wenn sich das Dokument inzwischen nicht geändert hat.
+- PHP CS Fixer wird im Projekt (vendor/bin) gesucht, dann im PATH; ist er dort nicht, führt php eine php-cs-fixer.phar aus dem Projekt (Ordner der Datei und darüber: tools, bin, vendor/bin) oder aus dem PATH aus. Nichts wird heruntergeladen. Der Pfad lässt sich auch in saveActions.json (toolPaths) setzen.
+- Derselbe Formatierer kann auch beim Speichern als Aktion Formatieren laufen (Datei, Aktionen beim Speichern); diese wendet das Ergebnis sofort als einen Rückgängig-Schritt an, ohne Vorschau.
+
+## [tools.callers] Wer ruft das auf
+commands: nks.tools.showCallers
+Der Befehl im Menü Extras listet die Funktionen, die das Symbol unter dem Cursor aufrufen, nach dem Graphen des Programms CodeGraph. Er liest nur und indiziert nichts.
+1. Das Projekt muss einen Ordner .codegraph haben (codegraph init -i legt ihn an). Setzen Sie den Cursor auf den Namen einer Funktion oder markieren Sie ihn und wählen Sie Extras und Wer ruft das auf. Enter auf einer Zeile öffnet die Stelle des Aufrufers, seine Zeilen stehen neben der Liste.
+- Der Befehl wird nur angeboten, wo über der Datei ein Ordner .codegraph existiert; der Editor legt den Graphen weder an noch aktualisiert er ihn (das tun codegraph init und codegraph sync). Das Programm wird in node_modules/.bin, .venv und im PATH gesucht, Sie bestätigen es vor dem ersten Lauf, und es läuft hinter dem Proxy des Editors. Der Graph ist der Stand der Dateien bei der Indizierung: bei einem Tab mit ungespeichertem Text sagt das eine Leiste.
+
+## [hex.plugins] Hex: Plugins
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+Ein installiertes Plugin mit der Berechtigung hex.read kann der Hex-Ansicht einen Decoder für den Dateninspektor, einen Hash, eine Textausgabe der Bytes und eine Quelle für Strukturvorlagen hinzufügen.
+1. Decoder erscheinen als weitere Zeilen des Dateninspektors unter den eingebauten Typen; eine Zeile zeigt drei Punkte, bis das Plugin antwortet.
+2. Bearbeiten, Hex, Hash mit Plugin bildet den Hash der Auswahl (ohne Auswahl der ganzen Datei) und zeigt ihn im selben Fenster wie die eingebauten Hashes.
+3. Mit Plugin als Text ausgeben öffnet die Auswahl als Text in einem neuen Dokument, das keine Datei ist. Vorlagen von Plugin fügt seine .ksy-Vorlagen der Liste des Strukturbereichs hinzu.
+- Das Plugin erhält nur eine Kopie der Bytes und gibt nur Text zurück: es schreibt nichts in eine Datei oder das Dokument. Ein verborgener Wert einer Geheimnisdatei wird ihm als Sterne gesendet. Ein Plugin, das Bytes ändern will, tut das über die Dokument-API, wo seine Änderung als Vorschlag zur Freigabe in der Änderungsübersicht erscheint.
+- Ein Plugin erhält höchstens 16 MiB, hat 15 s für die Antwort und der Text der Antwort ist begrenzt. Angeboten werden nur Plugins, denen Sie die Berechtigung hex.read bei der Installation gegeben haben.

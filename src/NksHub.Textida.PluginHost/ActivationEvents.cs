@@ -4,7 +4,7 @@ using NksHub.Textida.PluginHost.Manifest;
 namespace NksHub.Textida.PluginHost;
 
 /// <summary>
-/// The events that start a plugin: <c>onCommand:id</c>, <c>onLanguage:id</c>, <c>onFileType:.ext</c>, <c>onPanel:id</c>, <c>workspaceContains:glob</c> and <c>onStartup</c>.
+/// The events that start a plugin: <c>onCommand:id</c>, <c>onLanguage:id</c>, <c>onFileType:.ext</c>, <c>onPanel:id</c>, <c>onHex:decode|hash|export|templates</c>, <c>workspaceContains:glob</c> and <c>onStartup</c>.
 /// The editor fires an event with <see cref="PluginHost.ActivateAsync"/> and every inactive plugin that lists it starts.
 /// </summary>
 public static class ActivationEvents
@@ -15,14 +15,18 @@ public static class ActivationEvents
     public const string FileTypePrefix = "onFileType:";
     public const string PanelPrefix = "onPanel:";
     public const string WorkspaceContainsPrefix = "workspaceContains:";
+    public const string HexPrefix = "onHex:";
 
-    private static readonly Regex Pattern = new(@"^(onStartup|(onCommand|onLanguage|onFileType|onPanel|workspaceContains):\S+)$", RegexOptions.CultureInvariant);
+    private static readonly Regex Pattern = new(@"^(onStartup|(onCommand|onLanguage|onFileType|onPanel|onHex|workspaceContains):\S+)$", RegexOptions.CultureInvariant);
 
     public static string Command(string id) => CommandPrefix + id;
 
     public static string Language(string languageId) => LanguagePrefix + languageId;
 
     public static string Panel(string panelId) => PanelPrefix + panelId;
+
+    /// <summary>The event for a use of the hex contributions: <c>decode</c>, <c>hash</c>, <c>export</c> or <c>templates</c>.</summary>
+    public static string Hex(string kind) => HexPrefix + kind;
 
     /// <summary>The event for the extension of a file name (lower case, with the dot); null for a file without one.</summary>
     public static string? FileType(string? path)
