@@ -132,6 +132,19 @@ public class SettingsTreeTests : IDisposable
         Loc.SetLanguage(Loc.DefaultLanguage);
     }
 
+    [AvaloniaFact]
+    public void The_open_list_of_a_choice_setting_shows_the_labels_and_not_the_raw_values()
+    {
+        var view = Open(key: "editor.renderWhitespace");
+        var combo = view.RowOf("editor.renderWhitespace")!.GetVisualDescendants().OfType<ComboBox>().Single();
+        combo.IsDropDownOpen = true;
+        Dispatcher.UIThread.RunJobs();
+        var shown = Enumerable.Range(0, 3).Select(i => string.Concat(combo.ContainerFromIndex(i)!.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))).ToList();
+        Assert.Equal(["Žádné", "Ve výběru", "Všechny"], shown);
+        Assert.Equal("Žádné", string.Concat(combo.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>().Select(p => (p.Child as TextBlock)?.Text)).Trim());
+        combo.IsDropDownOpen = false;
+    }
+
     // ---- the language ----
 
     [AvaloniaFact]
