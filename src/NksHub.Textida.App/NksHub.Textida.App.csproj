@@ -57,6 +57,15 @@
     <InternalsVisibleTo Include="NksHub.Textida.App.Tests" />
   </ItemGroup>
 
+  <Target Name="EmbedSmokeAssembly" BeforeTargets="AssignTargetPaths">
+    <MSBuild Projects="..\NksHub.Textida.SmokeAssembly\NksHub.Textida.SmokeAssembly.csproj" Targets="Build" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="SmokeAssemblyBuilt" />
+    </MSBuild>
+    <ItemGroup>
+      <EmbeddedResource Include="@(SmokeAssemblyBuilt)" LogicalName="smoke/SmokeAssembly.dll" />
+    </ItemGroup>
+  </Target>
+
   <!-- the MIT copyright notice and the notices of the libraries travel with every copy of the program; the About window reads both from the folder of the program -->
   <ItemGroup>
     <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

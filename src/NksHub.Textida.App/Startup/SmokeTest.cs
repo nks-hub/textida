@@ -69,6 +69,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             Check(saved.SequenceEqual(expected), "the saved file differs from the original only in the edited byte");
             Check(!opened.Doc.Doc.IsModified, "the tab is clean after saving");
 
+            await CheckAssemblyViewerAsync(temp);
             await CheckBundledPluginsAsync(temp);
             await CheckDataPackageAsync(temp);
             CheckEncodings();
@@ -139,6 +140,27 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         {
             GC.KeepAlive(watchdog);
         }
+    }
+
+    /// <summary>
+    /// Opens a real .NET assembly (a tiny one that is embedded in the program) through the assembly viewer: the decompiler of a NativeAOT build has to read the metadata, decompile and give the C# of a known type into a read-only tab.
+    /// </summary>
+    private async Task CheckAssemblyViewerAsync(string temp)
+    {
+        string dll = Path.Combine(temp, "SmokeAssembly.dll");
+        await using (var resource = typeof(SmokeTest).Assembly.GetManifestResourceStream("smoke/SmokeAssembly.dll"))
+        {
+            Check(resource is not null, "the smoke assembly is embedded in the program");
+            await using var target = File.Create(dll);
+            await resource!.CopyToAsync(target);
+        }
+        var tab = window.OpenFile(dll, null);
+        Check(tab.Path is null && tab.Doc.ReadOnly, "an assembly opens as a read-only tab, not as a file");
+        await window.AssemblyWork;
+        await NextFrameAsync();
+        string text = tab.Editor!.Document.Text;
+        Check(text.Contains("class SmokeAssemblyMarker", StringComparison.Ordinal) && text.Contains("left * right", StringComparison.Ordinal), $"the decompiled C# contains the known type and its body ({text.Length} characters)");
+        window.CloseTab(tab);
     }
 
     private static string Digits(string text) => new(text.Where(char.IsAsciiDigit).ToArray());
