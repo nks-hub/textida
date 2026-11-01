@@ -1984,7 +1984,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** bez odhadu
   - **Umístění:** vestavěný plugin (textové nástroje)
   - **Stav 27. 10. 2026 (noc):** částečně. Statistika i nad výběrem, nejčastější znaky a slova se stropem tabulky. Chybí měření 10 GiB a paměti.
-  - **Stav 28. 10. 2026 (odpoledne):** částečně. 10GiB statistika na referenční Windows VM 294,9 s, paměť pluginu 42–141 MiB (JIT), zrušení 39 ms. Strop 64 MiB pro AOT build neměřen.
+  - **Ověření 1. 11. 2026:** NativeAOT nad `0a77bc26`, SHA-256 pluginu `6BBA91AE461CB80110CA2B715C420D483AFAEF9371C0450557E77A53FF8B367A`, Windows 11: skutečný 2GiB soubor, správné počty, 46,2 s, špička privátní paměti podle OS 17,14 MiB, zrušení 19 ms; 3/3 testy prošly. Oprava omezuje čtení statistiky na 32 KiB. Vydaný plugin 0.1.1 stejný limit překročil (76,25 MiB, 34,7 s). Podle PR.2.5 se nyní měří jen 1–2 GiB; původní podmínka 10 GiB zůstává neověřená a úkol otevřený.
 - [x] **P4.8.2** Hashe po blocích
   - **Co a proč:** Hashe po blocích nad surovými bajty; společný dialog s hex hashi F242.
   - **Funkce:** F090
@@ -2109,7 +2109,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Závisí na:** P5.1.4, P3b.3.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P5.1.2** Kopírovat tabulku jako…
+- [x] **P5.1.2** Kopírovat tabulku jako…
   - **Co a proč:** Z CSV nebo výběru SQL INSERT, Markdown, JSON, HTML přes API z P5.1.3; vlastní exportér jako převodník F095.
   - **Funkce:** F186
   - **Stav 26. 10. 2026:** částečně: `nks.table.copyAs` – Markdown, SQL INSERT, JSON, HTML v pluginu textových nástrojů; test escapování (apostrof, uvozovky, `|`, `<`, nový řádek, `&`, `\`) se zpětným načtením; Ctrl+A v nedočtené tabulce teď načte zbytek řádků (test). Otevřené: dialekt SQL (dnes dvojité uvozovky), typy hodnot (vše text, bez NULL), limit zápisu do schránky (zástupná hodnota 1 048 576 znaků); vlastní exportér jako převodník chybí.
@@ -2119,11 +2119,11 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** vestavěný plugin
   - **Stav 27. 10. 2026 (noc):** částečně. SQL INSERT se píše v dialektu dokumentu (sql_dialect z .editorconfig nebo nastavení sql.dialect): MySQL zpětné apostrofy a zdvojené zpětné lomítko, T-SQL hranaté závorky…; Vlastní exportér jako převodník F095: převodník datového pluginu s "table": true se objeví v menu Kopírovat tabulku jako, dostane vybrané buňky jako text z Kopírovat…; Nápověda table.copyAs a řetězce stavového řádku doplněné v cs/en/sk/de; Testy: zpětné čtení INSERT pro každý dialekt s escapováním, dialekt přes proces pluginu, dialekt ze složky v aplikaci, převodník v menu a jeho výstup, skrytá hodnota…. Testy prošly (457 v testovací sadě testera). Chybí: Typy hodnot (NULL pro prázdnou buňku, čísla bez uvozovek) jsem nedělal, je to otevřené rozhodnutí majitele a hodnoty dál zůstávají text; Vložení HTML ze skutečné systémové schránky do jiné aplikace na tomto PC neověřuji, protože nesmím spustit okno aplikace; Testy jsem podle zadání nespouštěl, spustí je tester; build řešení má 0 chyb.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Opraveno: hláška nad limitem schránky říká „tabulka je nad limitem“ místo „plugin se nepodařilo spustit“.
-  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** SQL INSERT píše prázdnou buňku jako NULL a čísla v invariantním tvaru bez uvozovek, vše ostatní jako řetězec; „007“, „1,5“ a „ 3“ zůstávají řetězce; JSON beze změny (3a6cef76).
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** SQL INSERT píše prázdnou buňku jako NULL a čísla v invariantním tvaru bez uvozovek, vše ostatní jako řetězec; „007“, „1,5“ a „ 3“ zůstávají řetězce; JSON beze změny (3a6cef76). **Ověřeno 1. 11. 2026:** Windows VM, zdroj `a33d75ce`, cílená sada CSV/diff/historie 209/209 bez přeskočení. Čtyři formáty, escapování a vlastní převodník prošly; externí aplikace se systémovou schránkou nebyla součástí testu.
 
 ### P5.2 Porovnání
 
-- [ ] **P5.2.1** Porovnání textů
+- [x] **P5.2.1** Porovnání textů
   - **Co a proč:** Soubor proti souboru, disku, výběru nebo schránce; prázdný diff pro dva vložené texty; spuštění z příkazové řádky. Diff je společný podklad pro místní historii, vzdálené změny a revizi F178.
   - **Funkce:** F081
   - **Stav 26. 10. 2026:** částečně: řádkový diff v jádru (`Core/Compare`), karta porovnání (`DiffView`) pro schránku, výběr, soubor, disk a dva vložené texty, kontextové menu editoru, `textida --diff levý pravý`; přenos úseku na druhou stranu je jedna editace a jeden krok undo (i ve stránkovaném souboru); porovnání s diskem a s revizí historie otevře vestavěné porovnání, když není nastavený externí nástroj. Velké soubory: čte okno řádků, 8 B hash na řádek, test 3M řádků (~150 MB) s alokacemi pod 120 MB; nad 10 000 změněných řádků výsledek správný, ne minimální (lišta to hlásí). Neověřeno: vzhled, časy (Perf), čtečka obrazovky (DiffView nemá automation peer); ignorování mezer a velikosti písmen chybí.
@@ -2133,7 +2133,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Řádkový diff v jádru umí nerozlišovat mezery (kdekoli v řádku) a velikost písmen (DiffIgnore v LineDiff.Compute), i při různém kódování stran; Nová nastavení compare.ignoreWhitespace a compare.ignoreCase a přepínací příkazy se zaškrtnutím v menu Nástroje > Porovnání; otevřené karty porovnání se po změně hned…; Karta porovnání má automation peer: čtečka dostane číslo rozdílu, řádky na obou stranách a první řádek každé strany a změnu hodnoty při přechodu; Karta porovnání nově přebírá změny písma a velikosti (ApplyOptions se dřív nevolal). Testy prošly (277 v testovací sadě testera). Chybí: Test se skutečnou čtečkou obrazovky (NVDA/Narrator) neproběhl, potřebuje člověka; Vzhled karty porovnání a časy (Perf) nejsou ověřené, na tomhle PC se aplikace nespouští; Testy jsem nespouštěl, podle zadání je spustí tester.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
-  - **Stav 31. 10. 2026:** kód je hotový včetně ignorování mezer a velikosti písmen a čtečky karty porovnání. Chybí zkouška se skutečnou čtečkou obrazovky.
+  - **Ověřeno 1. 11. 2026:** Windows VM, zdroj `a33d75ce`, cílená sada CSV/diff/historie 209/209 bez přeskočení. Kontextové porovnání se schránkou, přenos úseku jako jedno undo a čtení stránkovaných souborů po částech prošly. Kód zahrnuje ignorování mezer a velikosti písmen a rozhraní pro čtečku; zkouška se skutečnou čtečkou obrazovky zbývá.
 - [x] **P5.2.2** Synchronizované posouvání
   - **Co a proč:** Dva pohledy (dva soubory nebo strany diffu) se posouvají spolu.
   - **Funkce:** F133
@@ -2155,7 +2155,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Revize při uložení, diff, obnova jako krok Zpět; nad 32 MiB (placeholder) se revize neukládá se stavem TooLarge. Chybí stránkovaný režim a patche velkých souborů.
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. stránkované karty mají historii; revize velkých souborů jako ověřené záplaty proti celé kopii (formát v2), retence chrání potřebné kopie; testy prošly. Hledání v revizích-záplatách doplňuje další vývojář.
-- [ ] **P5.3.2** Retence historie a připnuté revize
+- [x] **P5.3.2** Retence historie a připnuté revize
   - **Co a proč:** Délka a limit velikosti jsou nastavitelné. Kvóta nesmí zničit možnost vrátit nevyřízenou změnu: revize, která je základem nevyřízené revize změn F178, je připnutá a retence ji nesmaže.
   - **Funkce:** F172 (částečně: retence)
   - **Stav 26. 10. 2026:** částečně: limity počtu, stáří, velikosti na soubor a celkové velikosti; nejnovější a připnutá revize se nesmažou ani při nesplnitelné kvótě; plný disk se ohlásí a starší revize zůstanou. Otevřené: výchozí hodnoty limitů (dnes 0 = bez limitu) a strop velikosti souboru; připnutí jen jako API bez UI.
@@ -2164,7 +2164,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Odhad:** v rámci F172 (viz P5.3.1)
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Připnout/odepnout revizi, štítek Připnuto, úklid na pozadí při startu a změně `history.*`, chyby úložiště ve stavovém řádku. Výchozí limity zůstávají 0.
-  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** výchozí historie 100 revizí na soubor, 90 dní, 50 MiB na soubor, 2 048 MiB celkem; nejnovější a připnuté revize se nemažou nikdy (826c1f72).
+  - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** výchozí historie 100 revizí na soubor, 90 dní, 50 MiB na soubor, 2 048 MiB celkem; nejnovější a připnuté revize se nemažou nikdy (826c1f72). **Ověřeno 1. 11. 2026:** Windows VM, zdroj `a33d75ce`, cílená sada CSV/diff/historie 209/209 bez přeskočení. Úklid podle kvót, připnutý základ nevyřízené změny a chyba plného disku bez poškození revizí prošly.
 - [x] **P5.3.3** Štítky a hledání v revizích
   - **Co a proč:** Štítek u revize a hledání textu ve starších revizích souboru.
   - **Funkce:** F172 (částečně: štítky a hledání)
