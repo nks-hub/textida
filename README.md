@@ -24,7 +24,7 @@ The editor is a new program inspired by PSPad; it does not use PSPad code, data 
 ## Requirements
 
 - Windows 10 22H2 or newer (x64), or macOS 14 or newer (Apple silicon and Intel)
-- Linux preview: Debian 12 or newer, or Ubuntu 22.04 or newer, on x64
+- Linux preview: Debian 12 or newer, or Ubuntu 22.04 or newer, on x64 or ARM64
 - .NET SDK 10.0.402 (pinned in `global.json`) to build from source; downloaded NativeAOT packages do not require an installed .NET runtime
 - [ripgrep](https://github.com/BurntSushi/ripgrep) only for the search comparison benchmark
 
@@ -34,11 +34,11 @@ Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases
 
 - **Windows:** `TextidaSetup-<version>-win-x64.exe` installs for the current user without administrator rights; the ZIP is the portable version.
 - **macOS:** `Textida-<version>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg` (Intel). Drag Textida to Applications, then right-click it and choose Open the first time.
-- **Linux (preview):** `textida_<version>_amd64.deb` for Debian/Ubuntu x64, or the `linux-x64` tar archive with `install.sh` for a per-user installation into `~/.local`. It needs OpenSSL 3 and ICU from the distribution.
+- **Linux (preview):** `textida_<version>_amd64.deb` for x64 or `textida_<version>_arm64.deb` for ARM64. The matching `linux-x64` or `linux-arm64` tar archive includes `install.sh`, which installs into `~/.local` and needs OpenSSL 3 and ICU from the distribution.
 
 ### Debian and Ubuntu (apt)
 
-Release packages are also published in the NKS Hub apt repository, so `apt upgrade` brings new versions. It currently serves x64 (`amd64`) packages:
+Release packages are also published in the NKS Hub apt repository, so `apt upgrade` brings new versions. The repository supports x64 (`amd64`) and ARM64 (`arm64`):
 
 ```bash
 curl -fsSL https://repo.nks-hub.cz/public-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nks-dev.gpg
@@ -48,7 +48,7 @@ Types: deb
 URIs: https://repo.nks-hub.cz/textida/
 Suites: stable
 Components: main
-Architectures: amd64
+Architectures: amd64 arm64
 Signed-By: /usr/share/keyrings/nks-dev.gpg
 EOF
 
@@ -56,7 +56,7 @@ sudo apt update
 sudo apt install textida
 ```
 
-The packages are signed by `NKS Dev <dev@nks-hub.cz>`. `sudo apt remove textida` uninstalls it; the settings under `~/.config` stay.
+The repository metadata is signed by `NKS Dev <dev@nks-hub.cz>`. `sudo apt remove textida` uninstalls it; the settings under `~/.config` stay.
 
 Build from source:
 
