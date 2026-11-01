@@ -181,7 +181,12 @@ public partial class LspPluginTests
                 try { return File.Exists(DumpFile(doc, ".version")) && long.Parse(File.ReadAllText(DumpFile(doc, ".version"))) == doc.Revision; }
                 catch (IOException) { return false; }
             });
-            return File.ReadAllText(DumpFile(doc, ".txt"), new UTF8Encoding(false));
+            // the fake server may be writing the file a moment after it wrote the version: read again until it lets go
+            for (int attempt = 0; ; attempt++)
+            {
+                try { return File.ReadAllText(DumpFile(doc, ".txt"), new UTF8Encoding(false)); }
+                catch (IOException) when (attempt < 50) { await Task.Delay(20); }
+            }
         }
 
         public string Stats(Document doc) => File.ReadAllText(DumpFile(doc, ".stats"));
