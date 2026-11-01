@@ -1,15 +1,17 @@
 # Third-party notices
 
-Libraries that ship with Textida: for remote files (`NksHub.Textida.Remote`), for the XXH3 checksums and for the .NET assembly viewer. Licence identifiers are the SPDX expressions in each package.
+Libraries that ship with Textida: for remote files (`NksHub.Textida.Remote`), for the XXH3 checksums, the .NET assembly viewer and Markdown parsing. Licence identifiers are the SPDX expressions in each package.
 
 | Package | Version | Licence | Used for |
 |---|---|---|---|
+| [Markdig](https://github.com/xoofx/markdig) | 1.4.0 | BSD-2-Clause, Copyright (c) 2016-2026 Alexandre Mutel | Markdown syntax tree |
 | [SSH.NET](https://github.com/sshnet/SSH.NET) | 2026.0.0 | MIT, Copyright (c) Renci 2010-2026 | SFTP client |
 | [BouncyCastle.Cryptography](https://www.bouncycastle.org/) | 2.7.0 | MIT, Copyright (c) Legion of the Bouncy Castle Inc. 2000-2026 | Cryptography used by SSH.NET |
 | [Microsoft.Extensions.Logging.Abstractions](https://github.com/dotnet/runtime) | 8.0.3 | MIT, Copyright (c) Microsoft Corporation | Logging interfaces used by SSH.NET |
 | [Microsoft.Extensions.DependencyInjection.Abstractions](https://github.com/dotnet/runtime) | 8.0.2 | MIT, Copyright (c) Microsoft Corporation | Dependency of the logging interfaces |
 | [FluentFTP](https://github.com/robinrodricks/FluentFTP) | 55.1.0 | MIT, Copyright (c) 2015 Robin Rodricks and FluentFTP Contributors | FTPS client |
-| [System.IO.Hashing](https://github.com/dotnet/runtime) | 10.0.0 | MIT, Copyright (c) .NET Foundation and Contributors | XXH3 checksums |
+| [System.IO.Hashing](https://github.com/dotnet/runtime) | 10.0.0 | MIT, Copyright (c) .NET Foundation and Contributors | XXH3 checksums |
+
 | [ICSharpCode.Decompiler](https://github.com/icsharpcode/ILSpy) | 11.2.0.10050 | MIT, Copyright 2011-2026 AlphaSierraPapa | .NET assembly viewer (decompiled C#) |
 | [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) | 7.0.1 | MIT, Copyright Aaron Dandy | Spelling check (Hunspell dictionaries the user chooses or downloads) |
 | [Jint](https://github.com/sebastienros/jint) | 4.17.0 | BSD-2-Clause, Copyright Sebastien Ros | Scripts in the editor (prototype, off by default) |
@@ -30,3 +32,29 @@ The `.ksy` files in `src/NksHub.Textida.Core/Hex/Ksy/Templates` (BMP, PNG, ZIP, 
 ## Command icons
 
 The icons of the commands (menus, command palette, toolbar) are the SVG files in `src/NksHub.Textida.Workbench/Icons/svg`. They are Textida's own drawings, made for this program on a 16-unit grid as outlines with one marked colour; no shape was copied or traced from an icon library, font or other program, so no third-party licence applies to them. They are MIT, like the rest of this repository. The program converts the files to path data when it is built (`src/NksHub.Textida.IconGenerator`) and takes the colours from the theme, so a file never carries a colour of its own. An icon a plugin brings is the plugin author's work and licence.
+
+## Markdig
+
+Copyright (c) 2016-2026, Alexandre Mutel
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification
+, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

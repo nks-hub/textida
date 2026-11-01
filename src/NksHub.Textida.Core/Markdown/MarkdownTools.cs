@@ -8,39 +8,24 @@ public sealed record MarkdownHeading(int Level, string Title, int Line);
 
 /// <summary>
 /// The text work of the Markdown commands (P9.3.3) on a list of lines: the headings, the table around a line and its alignment, and the table of contents between
-/// <c>&lt;!-- TOC --&gt;</c> and <c>&lt;!-- /TOC --&gt;</c>. Only ATX headings (<c>#</c>) count; the width of a cell is its display width (wide East Asian characters count 2).
+/// <c>&lt;!-- TOC --&gt;</c> and <c>&lt;!-- /TOC --&gt;</c>. Source context comes from the preview's parser; wide East Asian characters take two columns in a table.
 /// </summary>
 public static partial class MarkdownTools
 {
     public const string TocOpen = "<!-- TOC -->";
     public const string TocClose = "<!-- /TOC -->";
 
-    [GeneratedRegex(@"^ {0,3}(#{1,6})\s+(.*?)\s*#*\s*$")]
-    private static partial Regex HeadingLine();
-
     [GeneratedRegex(@"^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)*\|?\s*$")]
     private static partial Regex SeparatorLine();
 
-    private static bool Fence(string line) => line.TrimStart().StartsWith("```", StringComparison.Ordinal) || line.TrimStart().StartsWith("~~~", StringComparison.Ordinal);
-
     /// <summary>The headings outside fenced code, in document order.</summary>
     public static IReadOnlyList<MarkdownHeading> Headings(IReadOnlyList<string> lines)
-    {
-        var found = new List<MarkdownHeading>();
-        bool fenced = false;
-        for (int i = 0; i < lines.Count; i++)
-        {
-            if (Fence(lines[i])) { fenced = !fenced; continue; }
-            if (!fenced && HeadingLine().Match(lines[i]) is { Success: true } m && m.Groups[2].Value.Length > 0)
-                found.Add(new MarkdownHeading(m.Groups[1].Length, m.Groups[2].Value, i));
-        }
-        return found;
-    }
+        => MarkdownSyntax.Headings(MarkdownSyntax.Parse(lines));
 
     // ---- tables ----
 
     /// <summary>True for the row of dashes under the header of a table, such as <c>|:--|--:|</c>.</summary>
-    public static bool IsSeparator(string line) => line.Contains('-') && SeparatorLine().IsMatch(line);
+    public static bool IsSeparator(string line) => line.Contains('-') && SeparatorLine().IsMatch(line[RowPrefix(line).Length..]);
 
     /// <summary>One cell of a table row: its text, where the trimmed text starts in the row (an empty cell starts after one space) and the position after the pipe in front of it.</summary>
     public sealed record CellSpan(string Text, int Start, int Length, int RawStart);
@@ -49,7 +34,7 @@ public static partial class MarkdownTools
     public static List<CellSpan> CellSpans(string row)
     {
         var spans = new List<CellSpan>();
-        int end = row.TrimEnd().Length, i = row.Length - row.TrimStart().Length, cellStart;
+        int end = row.TrimEnd().Length, i = RowPrefix(row).Length, cellStart;
         if (i < end && row[i] == '|') i++;
         cellStart = i;
 
@@ -118,14 +103,8 @@ public static partial class MarkdownTools
     /// <summary>The first and last line of the table that holds <paramref name="line"/> (a header row, a separator row of dashes and the rows after it); null when the line is in none.</summary>
     public static (int First, int Last)? TableAround(IReadOnlyList<string> lines, int line)
     {
-        bool Row(int i) => i >= 0 && i < lines.Count && lines[i].Contains('|') && lines[i].Trim().Length > 0;
-        if (!Row(line)) return null;
-        int first = line, last = line;
-        while (Row(first - 1)) first--;
-        while (Row(last + 1)) last++;
-        for (int head = first; head < last; head++)
-            if (SeparatorLine().IsMatch(lines[head + 1]) && lines[head + 1].Contains('-') && !SeparatorLine().IsMatch(lines[head]) && line >= head) return (head, last);
-        return null;
+        if (line < 0 || line >= lines.Count || !lines[line].Contains('|')) return null;
+        return MarkdownSyntax.TableAt(MarkdownSyntax.Parse(lines), lines, line);
     }
 
     /// <summary>The lines of the table rewritten with every column as wide as its widest cell, the alignment marks kept and short rows filled with empty cells.</summary>
@@ -156,7 +135,7 @@ public static partial class MarkdownTools
                 int w = widths[c];
                 return marks[c] switch { "L" => ":" + new string('-', w - 1), "R" => new string('-', w - 1) + ":", "C" => ":" + new string('-', w - 2) + ":", _ => new string('-', w) };
             });
-            result.Add("| " + string.Join(" | ", cells) + " |");
+            result.Add(RowPrefix(rows[r]) + "| " + string.Join(" | ", cells) + " |");
         }
         return result;
     }
@@ -188,7 +167,7 @@ public static partial class MarkdownTools
         if (forward)
         {
             if (++cell >= columns) { cell = 0; row += row == 0 ? 2 : 1; }
-            if (row >= rows.Count) rows.Add("|");
+            if (row >= rows.Count) rows.Add(ContinuationPrefix(rows[^1]) + "|");
         }
         else if (--cell < 0)
         {
@@ -205,7 +184,7 @@ public static partial class MarkdownTools
         if (TableAround(lines, line) is not { } table) return null;
         var rows = Slice(lines, table.First, table.Last);
         int at = Math.Max(line - table.First + 1, 2);
-        rows.Insert(at, "|");
+        rows.Insert(at, ContinuationPrefix(rows[Math.Min(at - 1, rows.Count - 1)]) + "|");
         return Edit(table.First, table.Last - table.First + 1, rows, at, 0);
     }
 
@@ -214,11 +193,42 @@ public static partial class MarkdownTools
     {
         bool Row(int i) => i >= 0 && i < lines.Count && lines[i].Contains('|') && lines[i].Trim().Length > 0;
         if (!Row(line)) return null;
+        var syntax = MarkdownSyntax.Parse(lines);
+        if (MarkdownSyntax.TableAt(syntax, lines, line) is { } table) return table;
+        var starts = MarkdownSyntax.LineStarts(lines);
+        var paragraph = MarkdownSyntax.Walk(syntax).Select(x => x.Node).OfType<Markdig.Syntax.ParagraphBlock>()
+            .FirstOrDefault(p => line >= p.Line && line <= MarkdownSyntax.LineAt(starts, p.Span.End));
+        if (paragraph is null) return null;
+        int limit = MarkdownSyntax.LineAt(starts, paragraph.Span.End);
         int first = line, last = line;
-        while (Row(first - 1)) first--;
-        while (Row(last + 1)) last++;
+        while (first > paragraph.Line && Row(first - 1)) first--;
+        while (last < limit && Row(last + 1)) last++;
         return (first, last);
     }
+
+    private static string RowPrefix(string row)
+    {
+        int i = 0;
+        while (i < row.Length)
+        {
+            while (i < row.Length && row[i] is ' ' or '\t') i++;
+            if (i < row.Length && row[i] == '>') { i++; continue; }
+            int marker = i;
+            if (i < row.Length && row[i] is '-' or '*' or '+') i++;
+            else
+            {
+                while (i < row.Length && i - marker < 9 && char.IsAsciiDigit(row[i])) i++;
+                if (i > marker && i < row.Length && row[i] is '.' or ')') i++;
+                else i = marker;
+            }
+            if (i > marker && i < row.Length && row[i] is ' ' or '\t') continue;
+            i = marker;
+            break;
+        }
+        return row[..i];
+    }
+
+    private static string ContinuationPrefix(string row) => new(RowPrefix(row).Select(c => c == '>' || char.IsWhiteSpace(c) ? c : ' ').ToArray());
 
     /// <summary>Repairs the table block around the line: adds a missing row of dashes (and an empty header when the block starts with one), drops stray rows of dashes, fills short rows and aligns the columns. Null when the line is in no block.</summary>
     public static TableEdit? Repair(IReadOnlyList<string> lines, int line)
@@ -226,10 +236,10 @@ public static partial class MarkdownTools
         if (TableBlock(lines, line) is not { } block) return null;
         var rows = Slice(lines, block.First, block.Last);
         int row = line - block.First;
-        if (IsSeparator(rows[0])) { rows.Insert(0, "|"); row++; }
+        if (IsSeparator(rows[0])) { rows.Insert(0, RowPrefix(rows[0]) + "|"); row++; }
         else if (rows.Count < 2 || !IsSeparator(rows[1]))
         {
-            rows.Insert(1, "|" + string.Concat(Enumerable.Repeat(" --- |", Math.Max(1, CellSpans(rows[0]).Count))));
+            rows.Insert(1, ContinuationPrefix(rows[0]) + "|" + string.Concat(Enumerable.Repeat(" --- |", Math.Max(1, CellSpans(rows[0]).Count))));
             if (row >= 1) row++;
         }
         for (int i = rows.Count - 1; i > 1; i--)
@@ -250,9 +260,11 @@ public static partial class MarkdownTools
     /// <summary>The lines of the open and close marker of the first table of contents block; null when there is none.</summary>
     public static (int Open, int Close)? TocBlock(IReadOnlyList<string> lines)
     {
+        var code = MarkdownSyntax.CodeRanges(MarkdownSyntax.Parse(lines), lines);
         int open = -1;
         for (int i = 0; i < lines.Count; i++)
         {
+            if (code.Any(r => i >= r.First && i <= r.Last)) continue;
             string t = lines[i].Trim();
             if (open < 0 && t.Equals(TocOpen, StringComparison.OrdinalIgnoreCase)) open = i;
             else if (open >= 0 && t.Equals(TocClose, StringComparison.OrdinalIgnoreCase)) return (open, i);
@@ -268,9 +280,12 @@ public static partial class MarkdownTools
             if (char.IsLetterOrDigit(c) || c is '-' or '_') sb.Append(c);
             else if (c == ' ') sb.Append('-');
         string slug = sb.ToString();
-        seen.TryGetValue(slug, out int n);
-        seen[slug] = n + 1;
-        return n == 0 ? slug : $"{slug}-{n}";
+        string candidate = slug;
+        int n = seen.GetValueOrDefault(slug);
+        while (seen.ContainsKey(candidate)) candidate = $"{slug}-{++n}";
+        seen[slug] = n;
+        seen[candidate] = 0;
+        return candidate;
     }
 
     /// <summary>The list of links to the headings, nested two spaces per level below the highest one; the table of contents block itself is not listed.</summary>
@@ -279,6 +294,7 @@ public static partial class MarkdownTools
         if (headings.Count == 0) return [];
         int top = headings.Min(h => h.Level);
         var seen = new Dictionary<string, int>();
-        return [.. headings.Select(h => $"{new string(' ', (h.Level - top) * 2)}- [{h.Title}](#{Slug(h.Title, seen)})")];
+        static string Label(string title) => title.Replace("\\", "\\\\").Replace("[", "\\[").Replace("]", "\\]");
+        return [.. headings.Select(h => $"{new string(' ', (h.Level - top) * 2)}- [{Label(h.Title)}](#{Slug(h.Title, seen)})")];
     }
 }
