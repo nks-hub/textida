@@ -43,7 +43,7 @@ internal sealed partial class HexView
         private int _hexChars, _digits;
         private int _layoutKey;
         private Typeface _face;
-        private readonly Dictionary<(string Text, Color Color, double Opacity, Typeface Face, double Size), FormattedText> _labels = [];
+        private readonly Dictionary<(string Text, Color Color, double Opacity, Typeface Face, string Family, double Size), FormattedText> _labels = [];
 
         public long RenderedAt { get; private set; }
         public double RenderMs { get; private set; }
@@ -61,7 +61,7 @@ internal sealed partial class HexView
         private FormattedText Label(string text, IBrush brush)
         {
             if (brush is not ISolidColorBrush solid) return Format(text, brush);
-            var key = (text, solid.Color, solid.Opacity, _face, owner._options.FontSize);
+            var key = (text, solid.Color, solid.Opacity, _face, owner._options.FullFontFamily, owner._options.FontSize);
             if (_labels.TryGetValue(key, out var label)) return label;
             if (_labels.Count == 512) _labels.Clear();
             // Byte rows receive mutable style spans; only immutable labels enter this bounded cache.
@@ -72,7 +72,6 @@ internal sealed partial class HexView
 
         protected override Size MeasureOverride(Size availableSize)
         {
-            _labels.Clear();
             _face = new Typeface(new FontFamily(owner._options.FontFamily));
             var sample = Format(new string('0', 32), Brushes.Black);
             _cw = sample.Width / 32;
