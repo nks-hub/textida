@@ -159,7 +159,22 @@ public partial class TextToolsTests(ITestOutputHelper output)
             output.WriteLine($"Statistics of {length / GiB} GiB through the plugin process: {clock.Elapsed.TotalSeconds:0.0} s, {length / (double)(1 << 20) / clock.Elapsed.TotalSeconds:0} MiB/s; " +
                 $"private memory of the plugin process {watch.Baseline >> 20} MiB before, {early >> 20} MiB at most in the first third, {late >> 20} MiB in the last, {watch.Peak() >> 20} MiB at the peak; MiB at each second: {watch.PerSecond()}");
             if (pluginExecutable is not null)
-                Assert.True(watch.Peak() <= WorkingMemory, $"the published NativeAOT process reached {watch.Peak()} bytes of private memory, above {WorkingMemory}");
+            {
+                long sampledPeak = watch.Peak(), enforcedPeak = sampledPeak;
+                string osPeak = "unavailable on this platform; sampled bound only";
+                if (OperatingSystem.IsWindows())
+                {
+                    using var process = Process.GetProcessById(plugin);
+                    process.Refresh();
+                    // Windows PageFileBytesPeak is the lifetime peak private commit, including peaks between the 100 ms samples.
+                    long windowsPeak = process.PeakPagedMemorySize64;
+                    Assert.True(windowsPeak > 0, "Windows did not report the lifetime peak private commit.");
+                    enforcedPeak = Math.Max(sampledPeak, windowsPeak);
+                    osPeak = windowsPeak + " bytes (Windows PeakPagefileUsage)";
+                }
+                output.WriteLine($"Published native memory on {System.Runtime.InteropServices.RuntimeInformation.OSDescription}: sampled private peak {sampledPeak} bytes; OS private commit peak {osPeak}; enforced maximum {enforcedPeak} bytes.");
+                Assert.True(enforcedPeak <= WorkingMemory, $"the published NativeAOT process reached {enforcedPeak} bytes of private memory, above {WorkingMemory}");
+            }
             else
                 Assert.True(late - early <= WorkingMemory, $"the private memory of the plugin process went from {early >> 20} MiB in the first third of the run to {late >> 20} MiB in the last");
         }
