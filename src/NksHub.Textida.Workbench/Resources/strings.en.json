@@ -311,6 +311,7 @@
   "submenu.table": "Table",
   "submenu.text": "Text and Calculations",
   "submenu.theme": "Theme",
+  "submenu.web": "Web and HTTP",
   "submenu.workspace": "Projects and Sessions",
   "submenu.zoom": "Zoom",
   "cmd.edit.newline": "New Line",
