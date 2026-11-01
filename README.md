@@ -8,7 +8,7 @@
 
 > Text editor for Windows and macOS with a paged document core that opens and edits files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Early development; preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
 
-Textida is a working name. The editor is a new program inspired by PSPad; it does not use PSPad code, data or resources.
+The editor is a new program inspired by PSPad; it does not use PSPad code, data or resources.
 
 ## Features
 

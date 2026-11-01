@@ -12,7 +12,6 @@ namespace NksHub.Textida.Install;
 [SupportedOSPlatform("windows")]
 public sealed partial class ShellIntegration(RegistryKey classes, string exePath)
 {
-    /// <summary>Working name (P3.7.6); the final name replaces this one constant and so every key below.</summary>
     public const string ProductName = "Textida";
 
     public const string ProgId = ProductName + ".File";
