@@ -141,7 +141,7 @@ commands: nks.remote.upload
 - Nastavení Kontrola verze na serveru určuje, jak se změna pozná: stat porovnává velikost a čas změny, content vždy stáhne soubor ze serveru a porovná ho; pozná i změnu ve stejné vteřině a se stejnou velikostí.
 - Mez: kontrola a výměna jsou dva kroky, protože FTP ani SFTP nemají podmíněný zápis. Změna, kterou někdo udělá v tom posledním okamžiku, se nepozná. Kontrola běží až po dokončeném nahrání, takže ten okamžik je krátký.
 - Přeruší-li se spojení během nahrávání, program to několikrát zopakuje s rostoucími pauzami. Každý pokus nejdřív znovu zkontroluje verzi na serveru a částečně poslaný dočasný soubor se doplní od místa přerušení, až když se jeho obsah shoduje s vaším souborem. Odmítne-li server přejmenování, kterým se soubor dává na místo, starý soubor se odloží, nový se přesune a při selhání se starý vrátí.
-- Stavový řádek ukazuje procenta nahrávání a výstup Vzdálené řádek za každou desetinu (krok je zatím provizorní). Procenta počítají bajty, které převzalo spojení, takže mohou být o kousek před serverem.
+- Stavový řádek ukazuje procenta nahrávání a výstup Vzdálené řádek za každou desetinu. Procenta počítají bajty, které převzalo spojení, takže mohou být o kousek před serverem.
 
 ## [remote.cancel] Zrušit přenos
 commands: nks.remote.cancel
@@ -204,7 +204,6 @@ Plugin může otevřít vlastní kartu s daty, která si drží: přepis konverz
 4. Když plugin svou kartu zavře, skončí nebo je vypnut, karta se zavře bez ptaní a stavový řádek to řekne. Neuložený text je ztracen.
 - Karta pluginu se neukládá do relace, do žurnálu ani do nedávných souborů.
 - Hodnoty v kartě .env jsou skryté jako v souboru. Plugin na jejich místě vidí hvězdičky, pokud jste mu to nepovolili.
-- Počet takových karet na plugin, jejich velikost a čekání na uložení jsou zatím provizorní.
 
 ## [remote.backup] Záloha připojení
 commands: nks.remote.exportConnections, nks.remote.importConnections
@@ -340,7 +339,7 @@ commands: nks.edit.cut, nks.edit.copy, nks.edit.paste
 - S více kurzory se vybrané texty zkopírují po jednom na řádek a při vložení dostane každý kurzor svůj kus.
 - V blokovém výběru se vkládá po jednom řádku schránky na každý řádek bloku.
 - Vložení do řetězce v programovacím jazyce escapuje uvozovky a zpětná lomítka (nastavení Escapovat při vložení do řetězce).
-- Vyjmout a Vložit nejdou u dokumentu jen pro čtení. Ve stránkovaném režimu fungují všechny tři (téma Velké soubory); výběr větší než tamní limit kopírování (256 MiB, zatím provizorní hodnota) se nezkopíruje a stavový řádek to řekne.
+- Vyjmout a Vložit nejdou u dokumentu jen pro čtení. Ve stránkovaném režimu fungují všechny tři (téma Velké soubory); výběr větší než tamní limit kopírování (256 MiB) se nezkopíruje a stavový řádek to řekne.
 
 ## [edit.select] Výběr
 commands: nks.edit.selectAll, nks.edit.selectLine, nks.edit.expandSelection
@@ -403,7 +402,7 @@ commands: nks.edit.pasteAsHtml, nks.edit.insertFromFile
 - Vložit ze souboru (Úpravy, Vkládání) vloží text vybraného souboru do každého kurzoru jako jeden krok zpět. Kódování souboru se pozná jako při otevření a konce řádků se převedou na konce řádků dokumentu. Soubor větší než 16 MiB se nevloží.
 - Oba příkazy nefungují v dokumentu jen pro čtení ani ve stránkovaném režimu (téma Velké soubory).
 - Ve schránce není HTML. Zkopírujte text z prohlížeče nebo textového editoru, který HTML do schránky ukládá. Nic se nevložilo.
-- Soubor název je větší než mez bajtů a nevložil se. Mez je 16 MiB (zatím provizorní hodnota); nic se nevložilo. Vložte menší soubor, nebo velký otevřete v samostatné kartě.
+- Soubor název je větší než mez bajtů a nevložil se. Mez je 16 MiB; nic se nevložilo. Vložte menší soubor, nebo velký otevřete v samostatné kartě.
 
 ## [edit.insertLines] Vložení do řádků
 commands: nks.edit.insertIntoLines
@@ -442,7 +441,7 @@ Tyto příkazy jsou v menu Formát. Působí na vybrané řádky, nebo na všech
 2. Zvolte Formát a pak Přeformátovat odstavec, Přeformátovat odstavec (konec u krátkého řádku), Zarovnat řádky vlevo, Zarovnat řádky vpravo, Vycentrovat řádky nebo Zarovnat řádky do bloku.
 3. Řádky se změní jedním krokem Zpět; Ctrl+Z ho vrátí.
 - Přeformátovat odstavec zalomí text na sloupci z nastavení Sloupec pravého okraje, spojí řádky odstavce a odstraní nadbytečné mezery. Odstavce odděluje prázdný řádek a každý řádek odstavce dostane odsazení prvního řádku. Když není pravý okraj nastaven, řekne to stavový řádek.
-- Přeformátovat odstavec (konec u krátkého řádku) dělá totéž, ale odstavec končí i za řádkem kratším než polovina pravého okraje (zatím provizorní hodnota), takže se nespojí s dalším řádkem. Hodí se pro text bez prázdných řádků mezi odstavci.
+- Přeformátovat odstavec (konec u krátkého řádku) dělá totéž, ale odstavec končí i za řádkem kratším než polovina pravého okraje, takže se nespojí s dalším řádkem. Hodí se pro text bez prázdných řádků mezi odstavci.
 - Zarovnat řádky vlevo odstraní mezery na začátku a na konci řádků.
 - Zarovnat řádky vpravo a Vycentrovat řádky zarovnají na šířku nejdelšího řádku.
 - Zarovnat řádky do bloku rozšíří mezery mezi slovy, až je každý řádek tak široký jako nejdelší; řádek s jedním slovem zůstane.
@@ -474,8 +473,8 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 - Přehrání je jeden krok Zpět. Když krok neproběhne, makro se tam zastaví a stavový řádek krok pojmenuje; co proběhlo předtím, zůstává jedním krokem Zpět.
 - Při nahrávání se příkaz, který makro nemůže přehrát, odmítne a stavový řádek to řekne: vše s dialogem, příkazy se soubory, otevření lišty hledání. Nahrávání pokračuje. Kliknutí myší se nenahrávají.
 - Přehrání potřebuje upravitelný textový dokument. Import maker PSPadu není k dispozici.
-- Výchozí zkratky jsou zástupné (OPEN, zatím nerozhodnuto): Ctrl+K Ctrl+R nahrává, Ctrl+K Ctrl+Shift+R zastaví, Ctrl+K Ctrl+P přehraje poslední makro; na macOS ⌘ místo Ctrl. Vaše vlastní zkratky v nastavení mají přednost.
-- Soubor uloženého makra větší než 1 MB (zástupný limit, OPEN) se nečte; seznam ho ohlásí jako poškozený.
+- Výchozí zkratky: Ctrl+K Ctrl+R nahrává, Ctrl+K Ctrl+Shift+R zastaví, Ctrl+K Ctrl+P přehraje poslední makro; na macOS ⌘ místo Ctrl. Vaše vlastní zkratky v nastavení mají přednost.
+- Soubor uloženého makra větší než 1 MB se nečte; seznam ho ohlásí jako poškozený.
 
 ## [edit.json] Formátování JSON
 commands: nks.edit.formatJson, nks.edit.previewFormatJson, nks.edit.minifyJson, nks.edit.sortJsonKeys, nks.edit.fixJsonCommas
@@ -718,7 +717,7 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 1. Zvolte Zobrazit a Zobrazit skryté znaky (Ctrl+K, Ctrl+W): vykreslí se mezery, tabulátory a konce řádků CR, LF a CRLF. Dokument se nemění.
 2. Zobrazit čísla řádků (Ctrl+K, Ctrl+N), Zvýraznit aktuální řádek, Zobrazit pravý okraj (svislá čára ve sloupci 80, nastavuje se v nastavení Sloupec pravého okraje) a Klikací odkazy zapínají a vypínají zbytek.
 3. Zobrazit minimapu (Ctrl+K, Ctrl+M) ukáže vpravo zmenšený obraz textu v barvách zvýraznění, log v barvách úrovní. Kliknutím nebo tažením se posouvá. U dlouhého souboru se obraz posouvá s polohou posuvu a obdélník projde celou výšku mapy od prvního řádku k poslednímu jako posuvník. Klik dá kliknutý řádek doprostřed obrazovky a obraz zůstane na místě. Velký soubor ve stránkovaném režimu se ukáže jako vzorky z celého souboru podle bajtové pozice, takže ukazatel se nehýbe, ani když se staví index řádků.
-- U velkého souboru (stránkovaný režim) je obraz vzorkovaný: krátké úseky řádků ze začátků stejně velkých částí celého souboru, takže se nikdy nečte celý. Místo obdélníku ukazuje pozici tenká čára. Při indexování řádků pokrývá obraz zatím spočítané řádky, stejně jako posuvník. Počet řádků v úseku je placeholder, není rozhodnutá hodnota.
+- U velkého souboru (stránkovaný režim) je obraz vzorkovaný: krátké úseky řádků ze začátků stejně velkých částí celého souboru, takže se nikdy nečte celý. Místo obdélníku ukazuje pozici tenká čára. Při indexování řádků pokrývá obraz zatím spočítané řádky, stejně jako posuvník.
 - Shody z lišty hledání jsou označené v úzkém pruhu na pravém okraji minimapy. Řádky, které ponechá filtr živého pohledu na log, jsou v pruhu také: chybové červeně, varování žlutě, ostatní modře.
 - Odkazy se otevřou kliknutím s Ctrl a ve stránkovaném režimu nejsou k dispozici.
 - Řádek delší než 50 000 znaků se nikdy nezalomí: Přepnout zalamování to řekne ve stavovém řádku. Stránkovaný režim nezalamuje nikdy.
@@ -734,7 +733,7 @@ commands: nks.view.toggleSecrets
 - V hexadecimálním zobrazení je skrytá hodnota tečka za každý bajt v obou sloupcích. Kopírovat, Kopírovat jako, Exportovat, inspektor dat, histogram, panel struktury, mapa bajtů a kontrolní součet vidí na místě těch bajtů `*` a stavový řádek říká, že hodnota je skrytá. Náhledy Nahradit a neuložených změn ukazují u rozsahu, který se hodnoty dotýká, hvězdičky.
 - Ve stránkovaném režimu čtečka obrazovky čte za každý znak skryté hodnoty odrážku. Řádek delší než 16 KiB, který hodnotu obsahuje, skryje vše za svou první částí.
 - Plugin čte místo každé skryté hodnoty hvězdičky `*`. Než se na takovém souboru spustí vestavěný příkaz, program se zeptá, jestli smí hodnoty přečíst.
-- Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text). Výchozí seznam je zatím předběžný.
+- Nastavení Tajné soubory obsahuje masky názvů souborů, jejichž hodnoty se skrývají, oddělené středníkem (`*` zastupuje libovolný text).
 
 ## [view.toolbar] Lišta nástrojů
 commands: nks.view.toggleToolbar, nks.view.editToolbar
@@ -745,7 +744,7 @@ Lišta nástrojů je řada tlačítek pod nabídkou pro příkazy, které použ�
 4. Vpravo vyberte tlačítko a stiskněte Odebrat (nebo Delete), aby z lišty zmizelo, Posunout nahoru nebo Posunout dolů (nebo Alt+šipka nahoru a Alt+šipka dolů), aby se přesunulo, nebo Přidat oddělovač pro tenkou čáru mezi dvěma skupinami.
 5. Tlačítkem OK lištu uložíte; změní se ve všech oknech najednou. Zrušit nechá všechno, jak to bylo; Výchozí tlačítka vrátí první sadu.
 - První sada je Nový, Otevřít, Uložit, Uložit vše, Zpět, Znovu, Najít a Nahradit a tlačítka Git commit, pull a push, když příkazy Gitu existují. Tlačítko, jehož příkaz neexistuje, například příkaz odebraného pluginu, se nekreslí; zůstává v seznamu a vrátí se spolu s příkazem.
-- Lišta má nejvýš 40 položek (tlačítek a oddělovačů); mez je provizorní a editor oznámí, že je lišta plná. Příkaz může být na liště jen jednou.
+- Lišta má nejvýš 40 položek (tlačítek a oddělovačů); editor oznámí, že je lišta plná. Příkaz může být na liště jen jednou.
 - Tlačítka se ukládají do souboru toolbar.json ve složce profilu a jsou v záloze konfigurace. Soubor, který nejde přečíst, se přeskočí: ukáže se první sada a důvod stojí ve stavovém řádku a v editoru. Uložením se ze souboru odstraní komentáře.
 - Tlačítko ukazuje ikonu svého příkazu, a když ji příkaz nemá, jeho název. Ikony se řídí motivem i barvami vysokého kontrastu systému.
 
@@ -1006,7 +1005,7 @@ Hex zobrazuje soubor po bajtech: offset, bajty šestnáctkově a znaky. Čte jen
 - F3 a Shift+F3 najdou další a předchozí shodu, s lištou otevřenou i zavřenou. Stavový řádek i počítadlo lišty napíšou Shoda 1 z 4, nebo Aspoň N shod, když hledání došlo na limit.
 - Ctrl+G otevře Přejít na offset. Zápis: 0x1F40, +0x100 (od kurzoru), end-512, 50%, 4K, sel (začátek výběru), val (čtyřbajtová hodnota pod kurzorem).
 - Nenalezeno: shoda není. Neplatný vzor nebo Neplatný výraz: opravte zápis. Offset leží mimo soubor: zadejte menší hodnotu. Soubor se mezitím změnil na disku, výsledek hledání se zahodil: hledání zopakujte.
-- Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů (zatím provizorní hodnota). *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
+- Zástupný znak *: 50 4B * 04 znamená 0 až N bajtů mezi 4B a 04. N je nastavení Nejdelší zástupný znak * v hex hledání; dokud je 0 (nezvoleno), platí vestavěná výchozí hodnota 256 bajtů. *{2,8} zapíše vlastní rozsah a nastavení nepotřebuje.
 - Vzor mezi lomítky je regulární výraz nad bajty, například /\x50\x4B[\x01-\x08]/. Bajt je znak 0 až 255, . je jeden libovolný bajt (i 0A a 0D), \xHH je bajt a [...] množina bajtů. Skupiny, |, ? * + {n,m} a \n \r \t \0 \d \w \s fungují; ^ a $ jsou začátek a konec souboru (při nahrazení výběru); \b, zpětné odkazy a lookaround ne, protože bajty nemají řádky ani slova. Otevřené opakování (.*, +, {n,}) sahá nejvýš na N bajtů. Shoda potřebuje aspoň jeden bajt a shody se smějí překrývat.
 - Ctrl+H nahrazuje bajty: nejdřív vzor (stejné tvary jako Hledat), potom náhradu hexem, textem v uvozovkách nebo číslem; prázdná náhrada shody smaže. Je-li něco vybráno, hledá se jen ve výběru.
 - Náhled vypíše každou shodu s původními a novými bajty a upozorní, když se změní délka souboru. Nahradit vše zapíše všechno jedním krokem zpět. Změnil-li se soubor po náhledu, nenahradí se nic. Shody, které se překrývají s předchozí, se vynechají.
@@ -1211,11 +1210,11 @@ commands: nks.plugins.manage
 4. Po výběru nainstalovaného pluginu ho můžete zapnout nebo vypnout, aktualizovat z novějšího ZIP, vrátit na předchozí verzi, změnit jeho oprávnění nebo odinstalovat. Nová verze se rozbalí vedle staré a aktivní je, až když se načte; stará zůstane pro návrat. Aktualizace se ptá jen na oprávnění, na která jste se dosud nebyli dotázáni; dřívější odpovědi platí dál.
 5. Odebrané oprávnění hned zastaví nové požadavky pluginu a zruší ty, které čekají. Plugin bez oprávnění dostane chybu, ne prázdný výsledek. Vypnutí ukončí proces; odinstalace smaže jen složku daného pluginu.
 6. Příkaz nainstalovaného pluginu, který smí číst nebo upravovat dokumenty, pracuje s aktivní kartou. Plugin ten dokument vidí jen po dobu příkazu. Změnu, kterou navrhne, ukáže kontrola změn a zapíše se, až ji použijete. Přímá úprava (document.edit.direct) je jeden krok zpět. Když plugin skončí dřív, než se rozhodnete, jeho návrh zmizí a nic se nezapíše.
-- Oprávnění jsou záznam toho, co jste povolili, ne izolace: plugin je program, který běží s právy vašeho uživatele. Instalujte jen pluginy, kterým věříte. Podpisy se zatím nekontrolují. Limity velikosti a počtu souborů ve ZIP jsou provizorní. Příkazy, položky nabídek, klávesy a nastavení pluginu se objeví, když ho nainstalujete nebo zapnete, a zmizí, když ho vypnete nebo odeberete; aktualizace je nahradí, restart není potřeba. Plugin s procesem může přinést i klipy, převodníky a externí nástroje; ty běží bez spuštění procesu.
+- Oprávnění jsou záznam toho, co jste povolili, ne izolace: plugin je program, který běží s právy vašeho uživatele. Instalujte jen pluginy, kterým věříte. Podpisy se zatím nekontrolují. Příkazy, položky nabídek, klávesy a nastavení pluginu se objeví, když ho nainstalujete nebo zapnete, a zmizí, když ho vypnete nebo odeberete; aktualizace je nahradí, restart není potřeba. Plugin s procesem může přinést i klipy, převodníky a externí nástroje; ty běží bez spuštění procesu.
 - Změna pracovního prostoru od pluginu (úpravy, nové soubory, přejmenování a mazání ve více souborech) se zkontroluje jako celek dřív, než ji uvidíte, a jako celek se odmítne, když jedna část není povolená. Jmenuje cestu mimo pracovní složky (i když z nich vede ven odkaz v cestě), soubor, jehož obsah nebo revize není to, co plugin viděl, tentýž soubor dvakrát nebo soubor s tajemstvími; nebo dávka obsahuje víc než 200 změn či víc než 67108864 bajtů nového textu a nových souborů dohromady. Obě meze jsou prozatímní hodnoty.
 - Plugin může přinést klávesy a nastavení. Jeho klávesy (contributes.keybindings, volitelně s podmínkou "when") fungují jako klávesy editoru, ale klávesa editoru, profilu nebo vašeho keymap.json vždy vyhraje nad klávesou pluginu; kolize se vypíše u pluginu ve Správci pluginů. Jeho nastavení (contributes.settings, klíče začínají id pluginu) jsou v Nastavení pod názvem pluginu, s výchozí hodnotou z manifestu, a běžící plugin dostane hodnoty při startu a pak znovu jako událost settings.changed. Příkaz, který v manifestu pojmenuje nástroj (contributes.externalTools), ho spustí bez kódu pluginu, až po vašem potvrzení příkazu a adresáře.
-- Příkaz pluginu může mít ikonu: položka "icon" u příkazu v contributes.commands je název vestavěné ikony (například "save"), slovo "text" pro příkaz bez obrázku, nebo cesta k souboru .svg ve složce pluginu (bez .. a bez lomítka na začátku). Soubor smí obsahovat jen tvary (path, circle, ellipse, rect, line, polyline, polygon, g), viewBox čtvercový od 0 0 a nejvýš 64 tvarů; fill a stroke smí být jen none nebo currentColor, barvy bere z motivu a class="accent" označí část barvou zvýraznění. Skript, odkaz na jiný soubor, styl nebo jiná barva plugin odmítne i s názvem souboru. Největší velikost souboru je provizorní (16384 bajtů).
-- Každý plugin běží jako samostatný proces. Když skončí nebo přestane odpovídat, editor ho ukončí, lišta řekne, o který plugin jde a kdy se znovu spustí; po opakovaných pádech zůstane vypnutý. Tlačítko Zobrazit výstup na liště otevře okno výstupu s posledními chybovými řádky pluginu. Plugin, který čeká na vaši odpověď (kontrolu změn, otázku), se kvůli neodpovídání neukončí. Příkaz, který zrovna běžel, se po restartu nezopakuje, takže se nic nezapíše ani nenahraje dvakrát. Počet pádů, prodlevy a časové limity jsou provizorní.
+- Příkaz pluginu může mít ikonu: položka "icon" u příkazu v contributes.commands je název vestavěné ikony (například "save"), slovo "text" pro příkaz bez obrázku, nebo cesta k souboru .svg ve složce pluginu (bez .. a bez lomítka na začátku). Soubor smí obsahovat jen tvary (path, circle, ellipse, rect, line, polyline, polygon, g), viewBox čtvercový od 0 0 a nejvýš 64 tvarů; fill a stroke smí být jen none nebo currentColor, barvy bere z motivu a class="accent" označí část barvou zvýraznění. Skript, odkaz na jiný soubor, styl nebo jiná barva plugin odmítne i s názvem souboru. Největší velikost souboru je 16384 bajtů.
+- Každý plugin běží jako samostatný proces. Když skončí nebo přestane odpovídat, editor ho ukončí, lišta řekne, o který plugin jde a kdy se znovu spustí; po opakovaných pádech zůstane vypnutý. Tlačítko Zobrazit výstup na liště otevře okno výstupu s posledními chybovými řádky pluginu. Plugin, který čeká na vaši odpověď (kontrolu změn, otázku), se kvůli neodpovídání neukončí. Příkaz, který zrovna běžel, se po restartu nezopakuje, takže se nic nezapíše ani nenahraje dvakrát.
 
 ## [plugins.lifecycle] Procesy pluginů: kdy se spouštějí, jak je vidět a jak končí
 1. Plugin s vlastním programem se spustí, až když o to něco požádá. Žádají události aktivace v nkspad-plugin.json (main.activationEvents): onCommand:id (spustí se příkaz), onLanguage:id (zobrazí se dokument v daném jazykovém režimu), onFileType:.přípona (zobrazí se soubor s touto příponou), workspaceContains:vzor (otevřená složka obsahuje soubor odpovídající vzoru), onStartup (editor se spustil) a onPanel:id. Bez activationEvents se plugin spustí při prvním příkazu.
@@ -1223,7 +1222,7 @@ commands: nks.plugins.manage
 3. Zastavit i Restartovat požádají plugin, aby skončil, zavřou mu vstup a proces ukončí, pokud neskončí v časové rezervě. Zastavený plugin není pád: neobjeví se upozornění a spustí se znovu při další události aktivace. Volání, které při zastavení běželo, skončí chybou a nezopakuje se.
 4. Plugin se může v úvodní výměně zpráv přihlásit k ukončení, když nemá práci. Editor pak jeho proces po klidové době ukončí, ledaže plugin ukazuje panel, úlohu, virtuální kartu nebo zdroj, anebo běží volání, a při další události aktivace ho spustí znovu.
 5. Při zavření editoru dostanou všechny pluginy najednou žádost, aby skončily. Co po krátké době stále žije, se ukončí násilně podle čísla procesu, takže žádný program pluginu nezůstane.
-- Vzor workspaceContains bez lomítka odpovídá názvu souboru v libovolné hloubce, vzor s lomítkem konci cesty pod složkou; hledání je omezené počtem položek a hloubkou a přeskakuje .git a node_modules. Časy (restart, klidová doba, zavření) i limity hledání jsou provizorní.
+- Vzor workspaceContains bez lomítka odpovídá názvu souboru v libovolné hloubce, vzor s lomítkem konci cesty pod složkou; hledání je omezené počtem položek a hloubkou a přeskakuje .git a node_modules.
 
 ## [tools.lint] Lintery: podtržení nálezů PHPStanu, Psalmu, golangci-lint, Clippy, clang-tidy, RuboCopu, ESLintu, Ruffu, ShellChecku, SQLFluffu a dart analyze
 commands: nks.tools.lint
@@ -1231,7 +1230,7 @@ commands: nks.tools.lint
 2. Linter kontroluje soubor na disku, takže nejdřív ukládejte: dokument s neuloženými změnami se nekontroluje. Nálezy jsou v textu podtržené (hláška se ukáže po najetí) a vypsané na kartě Úlohy, jeden na řádek; klik nebo Enter otevře místo. Další běh stejného linteru je nahradí, takže opravený problém po něm zmizí. Když soubor během kontroly upravíte, nálezy se posunou s textem a ty, jejichž text jste změnili, zmizí.
 3. Chcete-li kontrolovat po každém uložení, zapněte v Soubor, Akce při uložení položku „Zkontrolovat nástrojem PHPStan“ (nebo jiného linteru), nebo napište do saveActions.json {"kind": "lint", "id": "phpstan"}. Linter se nikdy nespouští při změně. Identifikátory jsou phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff a dart-analyze. Kontrola spuštěná uložením čeká půl vteřiny na další uložení téhož souboru; novější uložení ji nahradí.
 - Program se hledá v cestě, kterou zadáte, pak ve vendor/bin, node_modules/.bin a .venv (od složky souboru směrem nahoru) a v PATH; nic se nestahuje. Cestu zadáte v saveActions.json profilu: "toolPaths": {"phpstan": "C:\\nastroje\\phpstan.phar"} (soubor, nebo složka, kde program je). Platí i pro formátovače a soubor projektu ji nastavit nemůže. Cesta, která neexistuje, se ohlásí a nenahradí se hledáním. První spuštění vás požádá o potvrzení příkazu.
-- Bez lintTimeoutSeconds v saveActions.json má linter provizorní limit 60 sekund; konečná hodnota není rozhodnutá. Linter, který limit překročí, se zastaví a ohlásí; editor mezitím zůstává použitelný a nálezy dřívějšího běhu zůstanou.
+- Bez lintTimeoutSeconds v saveActions.json má linter limit 60 sekund. Linter, který limit překročí, se zastaví a ohlásí; editor mezitím zůstává použitelný a nálezy dřívějšího běhu zůstanou.
 - PHPStan hlásí řádek a žádný sloupec, proto se podtrhne text celého řádku. Program, který je dávkový soubor (phpstan.bat, eslint.cmd), se spustí přes cmd.exe, stejně jako u každého nástroje.
 - Se skutečným programem byl ověřen jen dart analyze (Dart 3.12.2); ostatní lintery se čtou podle zdokumentovaného formátu výstupu.
 - Každý linter kromě Clippy a clang-tidy má rozsah verzí, pro které jsou napsané jeho přepínače a čtení výstupu (například golangci-lint 2.x: starší nezná přepínač, který editor předává). Jednou pro soubor programu, po vašem potvrzení, editor program spustí s --version (nejvýš 10 sekund, prozatímní hodnota) a odpověď porovná. Verze mimo rozsah se uvede vedle výsledku běhu a při selhání běhu i v důvodu; běh se nezastaví. Program, který číslo verze nevypíše, se neporovnává, a řekne se to jen při selhání běhu. Rozsahy vycházejí z dokumentace nástrojů a nejsou rozhodnuté hodnoty.
@@ -1250,7 +1249,7 @@ commands: nks.file.saveActions
 - clang-format naformátuje i kód, který nejde přeložit, a chybu hlásí jen u poškozené konfigurace. dart format u kódu, který nejde přečíst, skončí kódem 65 a soubor se uloží neformátovaný.
 - Po autosave nemá kdo odpovědět: nástroj, který nebyl nikdy potvrzen, se nespustí, a novější verze na serveru se ukáže v liště karty místo dialogu.
 - Přepnutí akce v seznamu změní v saveActions.json v profilu jen tu jednu hodnotu, nebo přidá akci na konec seznamu. Komentáře a zbytek souboru zůstanou. Akce z projektu se vypíšou, ale mění se v souboru projektu.
-- Akce při uložení nabízí také „Zkontrolovat nástrojem ...“ pro lintery, které soubor zpracovávají; je vypnutá, dokud ji nezapnete. Kontrola běží po uložení a neblokuje je; její časový limit je lintTimeoutSeconds (bez něj provizorních 60 sekund).
+- Akce při uložení nabízí také „Zkontrolovat nástrojem ...“ pro lintery, které soubor zpracovávají; je vypnutá, dokud ji nezapnete. Kontrola běží po uložení a neblokuje je; její časový limit je lintTimeoutSeconds (bez něj 60 sekund).
 ## [file.configFiles] Konfigurační soubory souboru
 commands: nks.file.configFiles
 1. Stavový řádek ukazuje konfigurační soubory, které platí pro otevřený soubor: .editorconfig, .clang-format, .clang-tidy, .rubocop.yml, rustfmt.toml, .golangci.yml a konfigurace jazyka (například ruff.toml, stylua.toml, .shellcheckrc). U každé je to nejbližší soubor ve složce souboru nebo nad ní. Klepněte na položku, nebo použijte Nastavení, Konfigurační soubory tohoto souboru.
@@ -1273,15 +1272,15 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 5. Když jiný program log zkrátí nebo ho vymění (rotace: soubor se přejmenuje a pod starým jménem vznikne nový), řekne to stavový řádek, dřívější shody se zahodí a čtení začne znovu od začátku nového obsahu. Chybějící soubor se ohlásí jednou a čeká se na něj.
 - Rotace se pozná podle prvních 4096 bajtů souboru, podle 4096 bajtů těsně před dosud přečteným místem a ve Windows i podle času vzniku. Nový soubor, který začíná stejnými bajty a není kratší než starý, se pozná podle bajtů před přečteným místem, takže to funguje i v macOS a Linuxu. Vyměněný soubor stejné délky se prohlédne znovu jen tehdy, když se změnil čas posledního zápisu. Nový soubor, který má všechny bajty až po přečtené místo stejné, se nepozná.
 - Soubor se kontroluje jednou za sekundu. Tato hodnota ani 4096 bajtů nejsou rozhodnuté hodnoty.
-- V paměti se drží nejvýš 1 000 000 shod pohledu (hodnota je placeholder, není rozhodnutá). Nad ni se nejstarší shody zahodí, až na tři čtvrtiny meze, a stavový řádek řekne kolik; nejnovější zůstanou pro Další a Předchozí shodu.
-- Log: zapamatovat pohled se ptá i na text ke zvýraznění (regulární výraz; prázdné nezvýrazní nic). Po použití pohledu mají shody výrazu v každém řádku pozadí, v editoru i ve stránkovaném režimu. Hledá se jen v prvních 8192 znacích řádku a řádek, jehož hledání trvá příliš dlouho (hodnota je placeholder, není rozhodnutá), zůstane bez značky.
+- V paměti se drží nejvýš 1 000 000 shod pohledu. Nad ni se nejstarší shody zahodí, až na tři čtvrtiny meze, a stavový řádek řekne kolik; nejnovější zůstanou pro Další a Předchozí shodu.
+- Log: zapamatovat pohled se ptá i na text ke zvýraznění (regulární výraz; prázdné nezvýrazní nic). Po použití pohledu mají shody výrazu v každém řádku pozadí, v editoru i ve stránkovaném režimu. Hledá se jen v prvních 8192 znacích řádku a řádek, jehož hledání trvá příliš dlouho, zůstane bez značky.
 
 ## [export.highlight] Export a kopie se zvýrazněním
 commands: nks.file.exportHtml, nks.file.exportRtf, nks.edit.copyFormatted, nks.edit.copyHtmlSource
 1. Soubor, Exportovat, Exportovat jako HTML a Exportovat jako RTF zapíšou výběr, nebo celý dokument, když nic není označené, do souboru, který zvolíte. Barvy jsou barvy editoru ve stávajícím světlém nebo tmavém motivu: stejné tokeny gramatiky dokumentu a v logu barvy úrovní. Barva stránky a textu editoru je v exportu.
 2. Úpravy, Schránka, Kopírovat se zvýrazněním dá do schránky text, HTML a RTF najednou. Vložení do textového procesoru nebo pošty zachová barvy, vložení do editoru dá prostý text. Kopírovat jako zdroj HTML dá do schránky samotné HTML jako text.
 - Obarví se celý dokument a výběr se z něj vyřízne, takže výběr začínající uvnitř komentáře je obarvený jako v editoru. U více kurzorů nebo bloku se bere jen označený text a barví se od svého začátku. U velkého souboru (stránkovaný režim) se výběr obarví jako v celém dokumentu: přečte se text před ním na jeho prvním řádku a barvy na začátku tohoto řádku se zjistí čtením souboru až k němu, což u výběru hluboko ve velmi velkém souboru chvíli trvá (okno zůstává použitelné, stavový řádek ukazuje, kam čtení došlo, a klávesa Esc ho zruší: export se pak neprovede a nic se nezapíše). Číslování řádků musí k výběru dojít, jinak zpráva vyzve k opakování. Část řádku delší než 32 MiB před výběrem se nečte a výběr se barví od svého začátku. Když se barvy na začátku řádku zjistit nedají (před ním leží řádek příliš dlouhý k obarvení, téma Velké soubory (stránkovaný režim)), gramatika se na tom řádku bere jako čerstvě začínající.
-- Text nad 8388608 znaků se odmítne zprávou, označte jeho část. Mez je placeholder, není rozhodnutá hodnota. Práce běží na pozadí, okno zůstává použitelné.
+- Text nad 8388608 znaků se odmítne zprávou, označte jeho část. Práce běží na pozadí, okno zůstává použitelné.
 - HTML je UTF-8. RTF je ASCII: zpětné lomítko, složené závorky a každý znak mimo ASCII (například česká písmena s diakritikou) se zapíšou jako escape.
 
 ## [log.full] Plný režim logu: sbalení, stack trace, heatmapa, barvy ANSI
@@ -1326,7 +1325,7 @@ Program průběžně zapisuje neuložený text do žurnálu, nejdéle do dvou se
 - Použije-li se náhradní složka, lišta napíše, která.
 - Přerušená dávka změn v souborech (nahrazení v souborech i soubory, které úprava pluginu napříč pracovním prostorem vytváří, přejmenovává nebo maže) se po startu nabídne: Dokončit, nebo Vrátit zpět. Soubor, který mezitím změnil někdo jiný, zůstane, jak je.
 ### Velké změny
-- Když jsou neuložené změny jednoho dokumentu větší než limit obnovy (64 MiB, zatím provizorní hodnota), třeba Nahradit vše nebo velké vložení ve velkém souboru, jeho karta se sama nevrátí. Lišta napíše soubor, velikost změn a kdy vznikly a nabídne Obnovit změny a Zahodit změny. Dokud nevyberete, nečte se ze žurnálu nic a soubor se nedotkne.
+- Když jsou neuložené změny jednoho dokumentu větší než limit obnovy (64 MiB), třeba Nahradit vše nebo velké vložení ve velkém souboru, jeho karta se sama nevrátí. Lišta napíše soubor, velikost změn a kdy vznikly a nabídne Obnovit změny a Zahodit změny. Dokud nevyberete, nečte se ze žurnálu nic a soubor se nedotkne.
 - Obnovit změny čte žurnál na pozadí, takže program dál pracuje, a pak otevře kartu s neuloženými změnami jako po každé jiné obnově. Když se to nepodaří (soubor se mezitím změnil, část žurnálu chybí nebo je poškozená, nestačí paměť), lišta řekne proč a změny zůstanou v žurnálu.
 - Zahodit změny se ještě jednou zeptá, protože změny už nic nevrátí; pak se smažou ze žurnálu. Soubor na disku se žádnou z voleb nemění.
 - Zavření lišty nic nerozhoduje: lišta se vrátí při příštím spuštění.
@@ -1339,15 +1338,15 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Co jde
 - Procházet šipkami, PageUp, PageDown, Home, End a Ctrl+Home a Ctrl+End. Přejít na řádek, na procento nebo na bajt (Ctrl+G).
 - Psát, mazat (Backspace a Delete), Enter a Tab na místě kurzoru. Zpět a Znovu. Uložit.
-- Více kurzorů: Ctrl+D, Ctrl+K a potom Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+šipka nahoru a Ctrl+Alt+šipka dolů, Alt+klik a Esc fungují jako v textovém editoru (téma Více kurzorů). Šipky, Home a End posunou všechny kurzory. Psaní, Backspace, Delete, Enter, Tab, Vyjmout, Kopírovat, Vložit a Zpět působí na všechny najednou jako jeden krok. Kreslí se jen kurzory na obrazovce. Velký soubor má nejvýš 1000 kurzorů (zatím provizorní limit); nad ním to stavový řádek řekne.
-- Uložení (Ctrl+S) běží na pozadí: okno zůstává použitelné, stavový řádek ukazuje, kolik procent nového souboru je zapsáno, a Esc uložení zruší dřív, než se data potvrdí (soubor zůstane beze změny). Můžete mezitím psát dál: do souboru se zapíše text, jaký byl ve chvíli stisku Uložit, pozdější úpravy zůstanou neuložené a karta je ukazuje jako neuložené změny. Zpět a Znovu fungují během uložení i po něm. Uložení, které jen přepisuje bajty stejné délky, zapíše jen tyto bajty a po svou krátkou dobu úpravy nepřijímá. Soubor větší než 1 GiB (zatím provizorní limit) se uloží bez kopie staré verze ve složce záloh; starý soubor zůstane nedotčený, dokud není nový celý.
+- Více kurzorů: Ctrl+D, Ctrl+K a potom Ctrl+D, Ctrl+Shift+L, Ctrl+Alt+šipka nahoru a Ctrl+Alt+šipka dolů, Alt+klik a Esc fungují jako v textovém editoru (téma Více kurzorů). Šipky, Home a End posunou všechny kurzory. Psaní, Backspace, Delete, Enter, Tab, Vyjmout, Kopírovat, Vložit a Zpět působí na všechny najednou jako jeden krok. Kreslí se jen kurzory na obrazovce. Velký soubor má nejvýš 1000 kurzorů; nad ním to stavový řádek řekne.
+- Uložení (Ctrl+S) běží na pozadí: okno zůstává použitelné, stavový řádek ukazuje, kolik procent nového souboru je zapsáno, a Esc uložení zruší dřív, než se data potvrdí (soubor zůstane beze změny). Můžete mezitím psát dál: do souboru se zapíše text, jaký byl ve chvíli stisku Uložit, pozdější úpravy zůstanou neuložené a karta je ukazuje jako neuložené změny. Zpět a Znovu fungují během uložení i po něm. Uložení, které jen přepisuje bajty stejné délky, zapíše jen tyto bajty a po svou krátkou dobu úpravy nepřijímá. Soubor větší než 1 GiB se uloží bez kopie staré verze ve složce záloh; starý soubor zůstane nedotčený, dokud není nový celý.
 
 - Zpět a Znovu fungují i po uložení: kroky provedené před uložením jdou dál vrátit a další uložení zapíše stav po vrácení. Napsané slovo bez přesunu kurzoru je jeden krok.
 - Hledat (Ctrl+F). Hledání v souborech.
-- Výběr (Shift se šipkami, myš, Ctrl+A), Kopírovat, Vyjmout a Vložit. Výběr větší než limit kopírování (256 MiB, zatím provizorní hodnota) se nezkopíruje a stavový řádek to řekne. Dlouhý výběr se čte na pozadí a vyjmutí smaže jen tehdy, když se text mezitím nezměnil.
-- Vložit přijme nejvýš 32 Mi znaků (zatím provizorní hodnota); delší text se nevloží a stavový řádek to řekne. Text nad 1 Mi znaků se připraví na pozadí a vloží se tam, kde je kurzor, až bude hotovo.
+- Výběr (Shift se šipkami, myš, Ctrl+A), Kopírovat, Vyjmout a Vložit. Výběr větší než limit kopírování (256 MiB) se nezkopíruje a stavový řádek to řekne. Dlouhý výběr se čte na pozadí a vyjmutí smaže jen tehdy, když se text mezitím nezměnil.
+- Vložit přijme nejvýš 32 Mi znaků; delší text se nevloží a stavový řádek to řekne. Text nad 1 Mi znaků se připraví na pozadí a vloží se tam, kde je kurzor, až bude hotovo.
 - Řádek delší než 16 KiB posunete do stran posuvníkem pod textem. Vzdálená část řádku se na chvíli ukáže jako …, dokud se nenačte. Barvy v ní přibudou, jakmile program přečte řádek až k ní.
-- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny. Řádek delší než 1 GiB (zatím provizorní hodnota) se neupravuje; stavový řádek to řekne a dokument se nezmění.
+- Řádek o desítkách či stovkách MiB se upravuje na místě: psaní, Backspace, Delete, Enter, Tab, vložení, výběr i Zpět čtou jen text kolem kurzoru, nikdy celý řádek, takže paměť neroste s délkou řádku. První přesun kurzoru do vzdálené části takového řádku musí napočítat znaky až k ní, což chvíli trvá; počet si program pamatuje pro další přesuny. Řádek delší než 1 GiB se neupravuje; stavový řádek to řekne a dokument se nezmění.
 ### Co nejde
 - Blokový výběr a Alt+tažení.
 - Příkazy nad řádky, odsazením, velikostí písmen, nahrazení.
@@ -1357,13 +1356,13 @@ Stavový řádek pak ukazuje Velký soubor, jeho velikost a revizi.
 ### Hlášení
 - Číslování řádků ještě běží, úpravy půjdou za chvíli: počkejte, až se soubor dočte.
 - Znak se nedá zapsat v kódování souboru: napište jiný znak.
-- Výběr (velikost) je větší než limit kopírování (mez). Schránka se nezměnila. Vyberte méně. Mez je 256 MiB, zatím provizorní hodnota.
+- Výběr (velikost) je větší než limit kopírování (mez). Schránka se nezměnila. Vyberte méně. Mez je 256 MiB.
 - Úprava je příliš velká, než aby šla vrátit zpět; dokument se nezměnil. Odeberte nebo vložte najednou méně textu.
-- Řádek L má N, což je víc než M, které se ve stránkovaném režimu upravují. Dokument se nezměnil. Upravte ho v hexu. Mez je 1 GiB, zatím provizorní hodnota.
-- Text ve schránce (velikost znaků) je větší než limit vložení (mez znaků). Dokument se nezměnil. Vložte ho po částech. Mez je 32 Mi znaků, zatím provizorní hodnota.
+- Řádek L má N, což je víc než M, které se ve stránkovaném režimu upravují. Dokument se nezměnil. Upravte ho v hexu. Mez je 1 GiB.
+- Text ve schránce (velikost znaků) je větší než limit vložení (mez znaků). Dokument se nezměnil. Vložte ho po částech. Mez je 32 Mi znaků.
 - Kódování dokumentu se změnilo, zatímco se text připravoval; vložte ho znovu. Dokument se nezměnil.
 - Velký soubor má nejvýš 1000 kurzorů, další se nepřidaly: vyberte méně míst; kurzory zůstaly, jak byly.
-- Výběr je příliš dlouhý na hledání dalších výskytů: vyberte kratší text (limit je zatím provizorních 64 KiB).
+- Výběr je příliš dlouhý na hledání dalších výskytů: vyberte kratší text (limit je 64 KiB).
 - Text pro všechny kurzory by byl přes limit: vložte méně textu nebo použijte méně kurzorů; dokument se nezměnil.
 - Velký soubor v kódování ... se zatím nedá otevřít: soubor se neotevře; jiné kódování ve velkém souboru program zatím nepřečte.
 - Soubor se právě ukládá, zkuste to po skončení uložení: zkusili jste něco během uložení, které přepisuje bajty na místě, nebo jste soubor načetli znovu během jakéhokoli uložení.
@@ -1465,7 +1464,7 @@ Hlášení o vzdáleném souboru nebo zdroji se objeví ve stavovém řádku, v 
 Plugin, který nejde nainstalovat nebo neběží, se ohlásí v dialogu, v liště nad textem nebo ve stavovém řádku. Každý řádek cituje hlášení a říká, co dělat.
 - Soubor není čitelný ZIP. Nic se nenainstalovalo. Stáhněte ZIP pluginu znovu nebo požádejte autora o nový.
 - ZIP obsahuje cestu, která by se zapsala mimo složku pluginu. Nic se nenainstalovalo. Autor musí plugin zabalit znovu.
-- ZIP se rozbalí na víc, než je povoleno (zatím provizorní limit). Nic se nenainstalovalo. Požádejte autora o menší balíček; limit je provizorní.
+- ZIP se rozbalí na víc, než je povoleno. Nic se nenainstalovalo. Požádejte autora o menší balíček.
 - ZIP nemá v kořeni soubor nkspad-plugin.json. Soubor musí ležet přímo v kořeni ZIPu, ne v podsložce.
 - Manifest je odmítnut: Řádky za ním říkají, která položka je špatně; autor musí opravit nkspad-plugin.json.
 - ID pluginu patří vestavěnému pluginu. Id vestavěného pluginu nejde použít; autor musí zvolit jiné id.
@@ -1477,7 +1476,7 @@ Plugin, který nejde nainstalovat nebo neběží, se ohlásí v dialogu, v lišt
 - Zásuvný modul název přestal běžet (důvod). Po opakovaných pádech je vypnutý. Zůstane vypnutý. Zobrazit výstup v liště řekne proč; plugin aktualizujte nebo nainstalujte znovu a zapněte ho ve Správci pluginů.
 - Karta název se zavřela: její zásuvný modul ji zavřel nebo skončil. Neuložené změny jsou ztraceny. Kartu uložte dřív, než se plugin zastaví: Uložit pošle text pluginu (téma Karty, které dodá plugin).
 - ZIP obsahuje symbolický odkaz. Nic se nenainstalovalo. Autor musí plugin zabalit znovu bez symbolických odkazů.
-- ZIP má víc souborů, než je povoleno (zatím provizorní limit). Nic se nenainstalovalo. Požádejte autora o balíček s méně soubory.
+- ZIP má víc souborů, než je povoleno. Nic se nenainstalovalo. Požádejte autora o balíček s méně soubory.
 - ZIP obsahuje stejný soubor dvakrát. Nic se nenainstalovalo. Autor musí plugin zabalit znovu, každý soubor jednou.
 - Plugin název se nespustil: důvod. Přečtěte si důvod; poslední řádky pluginu jsou ve výstupu Úlohy. Zvolte ve správci pluginů znovu Spustit nebo Restartovat (téma Procesy pluginů: kdy se spouštějí, jak je vidět a jak končí).
 - klávesy pro příkaz nic nedělá: stejné klávesy má příkaz (původ). Vestavěná vazba, vazba profilu nebo uživatele na stejných klávesách má přednost před pluginem. Dejte příkazu pluginu jiné klávesy v souboru klávesových zkratek, nebo změňte druhou vazbu.
@@ -1547,7 +1546,7 @@ Tato hlášení pocházejí z programů, které editor spouští za vás. Objevu
 - Otevřený soubor není package.json ani composer.json. Otevřete package.json nebo composer.json a příkaz zvolte znovu (téma Skripty balíčku: npm a Composer).
 - V souboru soubor nejsou žádné skripty. Přidejte do souboru sekci scripts, nebo otevřete jiný soubor.
 - registr nedal použitelnou odpověď: důvod. Nic se nezměnilo. Zkuste to později; chyba může být v registru nebo v síťové proxy (téma Síťová proxy).
-- Manifest je příliš velký ke kontrole. Zkontrolujte menší manifest; limit je zatím provizorní.
+- Manifest je příliš velký ke kontrole. Zkontrolujte menší manifest.
 - Dokument právě používá jiný příkaz. Zkuste to znovu. Počkejte, až druhý příkaz skončí.
 - Otevřený soubor se podle schématu nekontroluje. Povolit stažení schématu působí na soubor, který se kontroluje podle schématu (téma Schémata pro JSON, YAML a TOML: kontrola, doplňování a popisy).
 - Žádné stažení schématu tohoto souboru nečeká na váš souhlas. Povolit stažení schématu se ptá jen tehdy, když kontrola souboru potřebuje schéma ze serveru, který jste ještě nepovolili.
@@ -1565,7 +1564,6 @@ Nápověda popisuje jen to, co tato verze umí. Tyto věci v ní nejsou a tady j
 - Programy, které editor jen spouští (git, lintery, formátovače, jazykové servery, make, npm, Composer, HTML Tidy): musí být nainstalované a nalezené v PATH. Editor žádný z nich nestahuje.
 - Nabídka Průzkumníka a přiřazení souborů: jen Windows.
 - Jazyky rozhraní: čeština, angličtina, slovenština a němčina. Staré překlady PSPadu se převzít nedají.
-- Čísla: velikosti, počty a čekací doby za limity pluginů, přenosů, exportů, velkých souborů a schránky jsou provizorní hodnoty. Konečná hodnota zatím není určená, takže číslo v této nápovědě se v další verzi může změnit.
 
 ## [edit.clips] Klipy
 commands: nks.edit.insertClip, nks.edit.clipFromSelection, nks.clips.editVariables, nks.clips.editProjectVariables, nks.snippet.next, nks.snippet.previous, nks.snippet.end
@@ -1823,7 +1821,7 @@ Označte buňky v tabulkovém pohledu a zvolte Zobrazit, Tabulka, Kopírovat tab
 - Skrytá hodnota souboru .env se zkopíruje jako hvězdičky, ne jako její text. Kopírování a vyjmutí klávesami Ctrl+C a Ctrl+X dá na její místo také zástupný znak a vyjmutí, které se jí dotkne, nic nesmaže.
 - Změní-li se soubor během příkazu, nic se nezkopíruje a oznámení vyzve k novému spuštění.
 - Vlastní podoba je převodník datového pluginu s "table": true (téma Převod textu). Objeví se pod vestavěnými podobami. Dostane označené buňky tak, jak je zapíše Kopírovat: oddělené tabulátorem, řádek tabulky na řádek textu, řádek záhlaví, když je označený, a hodnota s tabulátorem, uvozovkou nebo koncem řádku ve dvojitých uvozovkách. Výsledek jde do schránky; když převod selže, schránka se nezmění.
-- Tabulka je nad limitem: do schránky se vejde nejvýš N znaků jedné podoby. Nic se nezkopírovalo, schránka zůstala beze změny. Mez je 1 Mi znaků (zatím provizorní hodnota). Označte méně řádků.
+- Tabulka je nad limitem: do schránky se vejde nejvýš N znaků jedné podoby. Nic se nezkopírovalo, schránka zůstala beze změny. Mez je 1 Mi znaků. Označte méně řádků.
 - Převodník název neproběhl: důvod. Schránka zůstala beze změny. Selhala vlastní podoba, převodník datového pluginu. Opravte převodník nebo použijte vestavěnou podobu.
 
 ## [table.region] Úprava vybraného textu jako tabulky
@@ -1877,7 +1875,7 @@ Asistent s umělou inteligencí, kterého na tomto počítači spustíte (např�
 - Změna je návrh pro jednu revizi textu. Když se text mezitím změnil, návrh se odmítne a asistent si musí text přečíst znovu. Návrh uvidíte jako jiné změny celého dokumentu a zvolíte, jestli ho použít; asistent se může zeptat, jak dopadl.
 - Hodnoty v souborech .env vidí asistent jako *. Při sdílení takové karty se zeptáme, jestli smí vidět skutečné hodnoty; odpověď platí jen pro tu kartu.
 - Odvolání karty nebo vypnutí serveru zastaví požadavky, které právě běží, a návrh, který ještě čeká na vaše rozhodnutí, se stáhne a počítá se jako zamítnutý. Odvolá ji i znovunačtení souboru.
-- Na vaše rozhodnutí může čekat jen omezený počet návrhů najednou (limit je zatím provizorní); další se odmítne, dokud nerozhodnete. Výsledek větší než limit velikosti se odmítne a asistent se dozví, že má chtít méně.
+- Na vaše rozhodnutí může čekat jen omezený počet návrhů najednou; další se odmítne, dokud nerozhodnete. Výsledek větší než limit velikosti se odmítne a asistent se dozví, že má chtít méně.
 - Program pro asistenta mluví aktuální verzí MCP (2026-07-28) a pro asistenty, kteří ještě začínají příkazem initialize, verzí 2025-11-25.
 - Klienti MCP (Nástroje, MCP, Klienti MCP...) určují, který program smí server MCP používat. Klient se pozná podle názvu, který uvede při připojení. Nový klient nesmí nic, dokud to nepovolíte v dotazu, který se ukáže při jeho prvním připojení; do té doby nevidí žádný nástroj a každé jeho volání je odmítnuto. V seznamu klientů lze oprávnění jednomu klientovi odebrat (je odpojen) nebo vrátit, nebo rozhodnutí zapomenout, aby se editor příště zeptal znovu. Název si klient volí sám, takže není důkazem totožnosti: oprávnění brání jen tomu, aby se neznámý program sám dostal ke sdíleným kartám.
 
@@ -1906,7 +1904,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 6. Když se oprávnění týká změny sdíleného souboru (agent pošle změnu spolu s dotazem), změna se ukáže v kontrole změn, dokud dialog čeká. Rozhoduje dialog, ne kontrola: když změnu povolíte, agent soubor zapíše sám, a pokud soubor pak obsahuje přesně tuto změnu, karta soubor převezme a kontrola se zavře, bez kontroly změn zvenčí. Když změnu odmítnete nebo zrušíte, kontrola se zavře a nic se nezapíše. Změna, kterou nejde ukázat po úsecích, nebo soubor, který není sdílený, dostane jen dialog.
 - Kde záruka končí: editor řídí jen to, co jde přes něj. Vlastní nástroje agenta mohou měnit soubory, spouštět programy a používat síť bez editoru a editor žádnému agentovi nenastavuje režim oprávnění (každý si ponechá vlastní výchozí). Co smí agent dělat, nastavte v nastavení samotného agenta. Panel to ukazuje pod nadpisem: režim oprávnění, který editor nastavuje (žádný), co smějí vlastní nástroje agenta, a průběžné počty. „Přes editor“ je to, co editor sám obsloužil: čtení, návrhy, o kterých jste rozhodli, a ty, které jste použili. „Mimo editor“ je jen to, co agent o svých nástrojích ohlásil (příkazy, smazání, přesuny, stahování), skutečný počet tedy může být vyšší; takové řádky nástrojů jsou v konverzaci označené.
 - Textida pro agenty neukládá žádné klíče ani hesla a tabulka agentů obsahuje jen názvy programů a přepínače. Přihlaste se programem samotného agenta; agent dostane prostředí, ve kterém Textida běží. Verze v tabulce je ta, kterou uvádí veřejný registr ACP, ne vyzkoušená.
-- Každý agent je v seznamu jako „neověřeno“: žádný běh se skutečným programem zatím neprošel zkušebními scénáři. Tah, ve kterém agent příliš dlouho nic neřekne ani nezeptá, skončí jako vypršelý. Časové limity a velikost souboru předaného agentovi jsou zatím provizorní.
+- Každý agent je v seznamu jako „neověřeno“: žádný běh se skutečným programem zatím neprošel zkušebními scénáři. Tah, ve kterém agent příliš dlouho nic neřekne ani nezeptá, skončí jako vypršelý.
 - Plugin může ve stejném panelu vést vlastní konverzaci (oprávnění agent.panel). Panel jde ovládat klávesnicí: otevře se s kurzorem v poli zprávy, Enter odešle, Tab prochází tlačítka Odeslat, Zrušit tah, Zastavit agenta a Zavřít, mezerník nebo Enter tlačítko stiskne a Esc panel zavře a vrátí do editoru. Zrušit tah agenta a Zastavit agenta jsou i příkazy v nabídce a v paletě. Čtečka obrazovky dostane jméno panelu, konverzace, pole zprávy, stavu a každého tlačítka a změna stavu (startuje, připraven, pracuje, skončil) se ohlásí. Ověřeno stromem přístupnosti programu, zatím ne skutečnou čtečkou obrazovky.
 
 ## [tools.hooks] Editor hooků agenta
@@ -1929,7 +1927,7 @@ Otevře přepis relace agenta (soubor .jsonl, u Claude Code ve složce ~/.claude
 4. Soubory v tomto tahu uvádí soubory, které agent četl, zapsal nebo upravil; Otevřít soubor otevře vybraný v editoru. Otevřít surový řádek otevře řádek za vybranou řádkou jako dokument, který nejde uložit.
 - Záznamy, které nejsou zpráva uživatele, odpověď ani volání nástroje, a bloky, které čtečka nezná, se ukážou jako surový JSON. Soubor Claude Code se čte jen podle toho, co definuje veřejná dokumentace Messages API a Agent SDK, protože Claude Code uvádí, že formát jeho souboru je interní a mezi verzemi se mění. Formát souboru Codexu nemá žádnou textovou dokumentaci; jeho řádky se čtou podle open-source definic protokolu Codexu, a to jen řádky typu response_item: zprávy (bloky input_text a output_text), shrnutí uvažování, volání funkcí, volání shellu a volání vlastních nástrojů jako apply_patch a jejich výstupy. Události, údaje o relaci a kontexty tahů v souboru Codexu se ukážou jako surový JSON. Tah začíná zprávou uživatele, takže pokyny, které Codex sám přidává jako zprávy uživatele, tvoří tahy samy o sobě, a soubory tahu jsou ty, které jmenují značky volání apply_patch.
 - Hodnoty souborů .env jsou skryté (téma Skryté hodnoty) v řádcích, v surových řádcích, v názvech tahů i v nálezech. Editor se je učí z tajných souborů otevřených karet a otevřené složky a z přepisu samotného, když agent takový soubor čte. Hodnotu, kterou přepis ukáže dřív, než ji poprvé přečte, už v tom, co se ukázalo, skrýt nejde. V souboru Codexu se volání počítá za čtení nebo zápis tajného souboru, když ho jmenuje kterýkoli text jeho argumentů, a hodnota se skryje i v argumentech pozdějšího volání, kde je JSON zapsaný uvnitř JSONu.
-- Řádek delší než limit se určí podle začátku a ukáže se zkrácený. Index nikdy nedrží víc než svůj limit paměti: řádek, který by se nevešel, se nezapíše a stavový řádek řekne, že seznam je useknutý. Limity velikosti a paměť indexu jsou předběžné.
+- Řádek delší než limit se určí podle začátku a ukáže se zkrácený. Index nikdy nedrží víc než svůj limit paměti: řádek, který by se nevešel, se nezapíše a stavový řádek řekne, že seznam je useknutý.
 
 ## [tools.tokens] Odhad tokenů
 commands: nks.agent.tokens
@@ -1950,7 +1948,7 @@ Jeden seznam serverů MCP, se kterými jsou nastavení vaši programovací agent
 5. Volba Převést záznam pro jiného agenta otevře záznam ve formátu toho agenta v nové kartě. Úryvek se nejdřív zkontroluje podle toho formátu. Hodnoty proměnných a hlaviček jsou nahrazené ***, doplňte je, než úryvek vložíte do souboru toho agenta.
 - ${NAME} v příkazu, argumentu, proměnné, adrese nebo hlavičce se nahradí z prostředí Textidy, ${NAME:-text} dá výchozí hodnotu. Jméno, které tam není, se hledá ve Správci pověření Windows pod textida:mcp:env:NAME. Jméno, které není ani tam, se vyžádá (psaní je skryté) a uloží se do Správce pověření a nikam jinam; když úložiště pověření není dostupné, hodnota se použije jen pro toto spojení. Zrušení otázky nic nespustí.
 - Server s adresou dostává klíče v hlavičkách, proto musí mít adresu https://, pokud není na tomto počítači. Textida mluví Streamable HTTP (MCP 2025-11-25). Záznam typu sse se připojí starším přenosem s odděleným kanálem událostí (MCP 2024-11-05): Textida otevře adresu jako proud událostí a zprávy posílá na adresu, kterou tam server uvede a která musí být na stejném počítači jako proud. Stejně se zkusí adresa bez typu, jejíž server odmítne první zprávu stavem HTTP 4xx jiným než 401 a 403. Platí síťový proxy programu. Klíč, který server odmítne (HTTP 401 nebo 403), se zapomene ve Správci pověření a jednou se zeptá znovu; klíč z prostředí nebo zapsaný přímo v konfiguračním souboru Textida nemění a zpráva to řekne. npx a npm se spouštějí jako node se skriptem zástupce Node.js, takže mezi editorem a serverem nestojí cmd.exe. Jiný dávkový soubor se spouští přes cmd.exe.
-- Meze (zatím provizorní): odpověď nebo zdroj dat delší než 262144 znaků se ořízne a stavový řádek řekne, jak dlouhý byl. Seznam, volání nebo čtení, které trvá déle než 120 sekund, skončí zprávou a server se vyzve, aby požadavek zastavil. Program, který skončí nebo je zastaven, se ohlásí s kódem ukončení a posledními řádky chybového výstupu a seznam se zavře.
+- Meze: odpověď nebo zdroj dat delší než 262144 znaků se ořízne a stavový řádek řekne, jak dlouhý byl. Seznam, volání nebo čtení, které trvá déle než 120 sekund, skončí zprávou a server se vyzve, aby požadavek zastavil. Program, který skončí nebo je zastaven, se ohlásí s kódem ukončení a posledními řádky chybového výstupu a seznam se zavře.
 - Tajné hodnoty jsou skryté v seznamu, v okně, ve výstupu i v úryvcích, také když se objeví uvnitř argumentu nebo v chybovém výstupu programu. Hodnoty kratší než 4 znaky se v textu nehledají.
 
 ## [tools.shell] Nabídka Průzkumníka a asociace souborů
