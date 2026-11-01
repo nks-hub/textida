@@ -616,6 +616,24 @@
           "description": "Autocorrect diacritics. While you type, completes the diacritics of a word the dictionary knows in one form with diacritics. Works only with spell checking on; Undo gives the word back.",
           "x-scope": "application"
         },
+        "scripting.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Scripts in the editor (prototype). Allows the command Run Script on Selection, which runs JavaScript (Jint) in the editor with limited time and memory and no access to the system. A prototype, off by default.",
+          "x-scope": "application"
+        },
+        "appearance.iconSkin": {
+          "type": "string",
+          "default": "",
+          "description": "Bitmap icon skin. A folder of icon pictures (see the help Bitmap icon skin). Empty means the vector icons. The command View, Bitmap Icon Skin sets it.",
+          "x-scope": "application"
+        },
+        "plugins.sandbox": {
+          "type": "boolean",
+          "default": false,
+          "description": "Restrict plugin processes. Starts plugin processes under an operating system limit: on Windows without the clipboard and display changes and, for most plugins, without starting other programs; on macOS through sandbox-exec. Git, language servers and formatters may still start programs. It does not limit the files a plugin reads. Takes effect when a plugin starts next.",
+          "x-scope": "application"
+        },
         "terminal.shell": {
           "type": "string",
           "default": "",

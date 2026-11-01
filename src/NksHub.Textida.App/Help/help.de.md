@@ -2231,3 +2231,46 @@ Extras, Rechtschreibung prüft die Kommentare und Zeichenketten von Quelldateien
 3. Diakritika ergänzen findet die Wörter ohne Diakritika (in der Auswahl, sonst im ganzen Dokument), die das Wörterbuch nur auf genau eine Weise mit Diakritika kennt, und zeigt die Änderungen in der Änderungsübersicht. Angewendet wird nur, was Sie bestätigen.
 - In einer Quelldatei werden nur Kommentare und Zeichenketten geprüft; Namen, Wörter in Großbuchstaben, Wörter mit Großbuchstaben innen (camelCase) und Wörter neben Ziffern, Unterstrichen, Schrägstrichen und Adressen nicht. In Markdown werden Code und Links nicht geprüft. Der Editor liefert kein Wörterbuch mit, jedes hat eine eigene Lizenz. Ihre eigenen Wörter stehen in der Datei spell-words.txt im Profil.
 - Die Einstellung spell.autocorrect (standardmäßig aus) ergänzt die Diakritika des Wortes, das Sie gerade getippt haben, wenn Sie es mit einem Zeichen beenden, das kein Buchstabe ist, und das Wörterbuch genau eine Form mit Diakritika kennt. Rückgängig gibt das Wort wie getippt zurück.
+
+## [converters] Dateityp-Konverter
+commands: nks.file.openConverted
+Datei, Über Konverter öffnen zeigt eine Datei eines anderen Typs als Text und konvertiert beim Speichern zurück. Der eingebaute Konverter zeigt CSV als TSV; ein Word-Dokument (.docx) wird über das Programm pandoc als Text gelesen, wenn es auf dem Rechner ist.
+1. CSV wird mit Tabulatoren zwischen den Feldern gezeigt; Trennzeichen (Komma oder Semikolon), Kodierung und Zeilenenden der Datei bleiben beim Speichern erhalten. Ein Tabulator, ein Zeilenende und ein Backslash in einem Feld werden im Text als \t, \n, \r und \\ geschrieben.
+2. Vor dem Schreiben werden die gespeicherten Bytes zurückgelesen und müssen denselben Text ergeben. Tun sie das nicht, oder meldet der Konverter einen Verlust (etwa ein Zeichen, das die Kodierung der Datei nicht hat), wird die Datei erst nach Ihrer ausdrücklichen Zustimmung zu diesem Speichern überschrieben. Ein Konverter nur zum Lesen öffnet einen schreibgeschützten Tab.
+- Ein Konverter ist ein Programm mit klarer Ein- und Ausgabe: Er liest Bytes und gibt Text, und wo er schreibt, aus dem Text Bytes; er greift weder auf Datenträger, Netz noch Editor zu. Ein externer Konverter erhält eine Kopie der Datei in einem privaten temporären Ordner und wird nach 30 s beendet.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Extras, Mit Windows Script Host ausführen führt das gespeicherte Skript .js (JScript), .vbs (VBScript), .wsf oder .wsh mit cscript.exe von Windows aus und zeigt die Ausgabe im Ausgabefenster auf der Registerkarte Aufgaben. Nur unter Windows.
+1. Bevor ein Skript zum ersten Mal läuft (und nach jeder Änderung seines Inhalts), fragt der Editor, weil ein Skript alles darf, was Sie dürfen. Ein Lauf wird nach 60 s beendet.
+- Das ist eine Brücke zum Host, der in Windows schon vorhanden ist, kein Interpreter des Editors: Die Sprache des Skripts ist das, was der Windows Script Host auf dem Rechner ausführt. Der Editor behauptet keine Kompatibilität mit JavaScript oder VBScript anderswo, und Skripte für den Editor (Plugins) gehen nicht diesen Weg.
+
+## [tools.script] Skripte im Editor (Prototyp)
+commands: nks.tools.runScript
+Ein Prototyp: Eine JavaScript-Datei mit einer Funktion transform(text) läuft im Editor (Jint) auf der Auswahl, das Ergebnis ist eine Änderung in der Änderungsübersicht. Aus, bis Sie die Einstellung scripting.enabled einschalten.
+1. Das Skript sieht nur den Text, den es erhält, und die Funktion log(text), die ins Ausgabefenster schreibt. Es hat keinen Zugriff auf .NET, Dateien oder das Netz, und ein Lauf ist in Zeit (3 s), Speicher (32 MiB), Anzahl der Anweisungen und Rekursionstiefe begrenzt.
+- Als Prototyp gekennzeichnet: Es dient zum Messen und Ausprobieren, nicht als Schnittstelle für Plugins. Plugins in einem eigenen Prozess bleiben der Weg, den Editor zu erweitern.
+
+## [view.iconSkin] Bitmap-Symbolsatz
+commands: nks.view.iconSkin, nks.view.iconSkinOff
+Ansicht, Bitmap-Symbolsatz ersetzt die Vektorsymbole der Befehle durch Bilder aus einem Ordner, den Sie wählen. Ein Symbol, für das der Satz kein Bild hat, bleibt Vektor. Optional; standardmäßig werden die Vektorsymbole gezeichnet.
+1. Ein nach dem Symbol benanntes Bild (save.png; auch .bmp, .gif, .jpg) ist das Bitmap dieses Symbols. Die Datei skin.json kann map (einen anderen Dateinamen für ein Symbol) und strips hinzufügen: einen waagerechten Streifen quadratischer Zellen, dessen Höhe die Größe einer Zelle ist, und die Namen der Symbole in der Reihenfolge der Zellen. Mit transparent: corner ist die Farbe des Pixels unten links die transparente, wie in den Streifen von PSPad.
+- Ein Streifen trägt keine Symbolnamen, die Reihenfolge bestimmt also der Satz; der Editor übernimmt von PSPad keine Zuordnung. Ein unbekannter Name wird übersprungen und bei den Warnungen mitgezählt. Der Satz gilt für Symbole, die nach der Wahl entstehen (die Symbolleiste wird sofort neu aufgebaut, Menüs beim nächsten Öffnen).
+
+## [lsp.textResults] Textergebnisse des Sprachservers
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Extras, Code und Sprache, Sprachserver: Makro expandieren und Syntaxbaum senden dem Server die Anfragen von rust-analyzer (rust-analyzer/expandMacro und rust-analyzer/viewSyntaxTree) und zeigen die Antwort als Text in einem schreibgeschützten Tab.
+1. Ein Server, der die Anfrage nicht kennt, antwortet, dass die Methode unbekannt ist, und der Editor sagt, dass sie nicht angeboten wird. Das Ergebnis ist eine Kopie: Der Tab hat keine Datei und nichts wird daraus gespeichert.
+- Die Namen der Anfragen sind Erweiterungen von rust-analyzer; mit einem anderen Server tut der Befehl nichts. Gegen rust-analyzer wurde das auf diesem Rechner nicht geprüft (nicht installiert), nur gegen einen Ersatzserver, der dieselben Anfragen beantwortet.
+
+## [plugins.mcpTools] Plugin-Befehle als MCP-Werkzeuge
+Ein Plugin kann im Manifest im Teil mcpTools einen Befehl als Werkzeug des MCP-Servers anbieten. Das Werkzeug heißt plugin_ plus die id aus dem Manifest. Es wird nur den Clients angeboten, die Sie unter Extras, MCP, Clients erlaubt haben, und nur solange das Plugin die Berechtigung mcp.tool hat, die Sie in der Plugin-Verwaltung erteilen.
+1. Ein Aufruf trägt ein Objekt arguments, das zum Schema aus dem Manifest passt. Das optionale Feld document muss die id eines Dokuments sein, das Sie dem Assistenten freigegeben haben; der Befehl arbeitet dann mit diesem Dokument und darf es nur im Rahmen der Berechtigungen des Plugins lesen und Änderungen vorschlagen.
+2. Wenn Sie die Berechtigung mcp.tool entziehen, verschwindet das Werkzeug aus der Liste und ein Aufruf wird sofort abgelehnt, ohne den Server neu zu starten.
+- Ein Manifest ohne die Berechtigung mcp.tool, ohne Prozess (main) oder mit einem Befehl, den das Plugin nicht hat, wird bei der Installation abgelehnt.
+
+## [plugins.sandbox] Plugin-Prozesse einschränken
+Die Einstellung Plugins, Plugin-Prozesse einschränken startet Plugins unter einer Einschränkung des Betriebssystems. Sie ist standardmäßig aus und gilt beim nächsten Start eines Plugins.
+1. Windows: Der Prozess des Plugins kommt in ein Job-Objekt ohne Zwischenablage, ohne Änderungen von Anzeige und Systemparametern, ohne Wechsel des Desktops und ohne Fenster anderer Prozesse. Plugins außer Git, Sprachservern, Formatierern, JSON und dem Wiki dürfen außerdem keine anderen Programme starten.
+2. macOS: Der Prozess startet über sandbox-exec; die Stufe Contained verbietet lauschende Sockets, die Stufe Strict auch ausgehende Verbindungen und das Erzeugen von Prozessen.
+- Die Einschränkung schützt keine Dateien: Das Lesen von Dateien wird nicht begrenzt. Dafür wäre ein AppContainer oder eine App Sandbox mit Berechtigungen nötig, die ein per Pfad gestartetes Programm nicht bekommt.

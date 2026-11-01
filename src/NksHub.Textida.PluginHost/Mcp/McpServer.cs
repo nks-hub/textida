@@ -34,7 +34,15 @@ public sealed record McpServerOptions
     public Func<string, bool>? ClientGate { get; init; }
     /// <summary>Makes sure an outline of the live text exists before it is read (indexes the tab).</summary>
     public Func<Guid, CancellationToken, Task>? EnsureOutline { get; init; }
+    /// <summary>The tools plugins offer now; asked at every list and every call, so a permission the user took back is gone at once.</summary>
+    public Func<IReadOnlyList<McpPluginTool>>? PluginTools { get; init; }
 }
+
+/// <summary>A command of a plugin offered as a tool. <paramref name="Run"/> gets the arguments the assistant gave and answers with the text of the result; it throws <see cref="McpToolRefusedException"/> to tell the assistant why it cannot.</summary>
+public sealed record McpPluginTool(string Name, string Title, string Description, string InputSchema, bool ReadOnly, Func<JsonElement, CancellationToken, Task<string>> Run);
+
+/// <summary>A plugin tool cannot do what was asked; the assistant reads the message in the result.</summary>
+public sealed class McpToolRefusedException(string message) : Exception(message);
 
 /// <summary>What a tool is, for the list the user sees when the server is switched on.</summary>
 public sealed record McpToolInfo(string Name, string Title, string Description, bool ReadOnly);
@@ -147,13 +155,21 @@ public sealed class McpServer
 
     internal IReadOnlyList<McpToolDefinition> EnabledTools()
     {
-        lock (_gate) return [.. McpTools.All.Where(t => !_disabled.Contains(t.Name))];
+        lock (_gate) return [.. McpTools.All.Where(t => !_disabled.Contains(t.Name)).Concat(PluginDefinitions())];
     }
 
     internal McpToolDefinition? FindEnabled(string name)
     {
-        lock (_gate) return McpTools.Find(name) is { } tool && !_disabled.Contains(name) ? tool : null;
+        lock (_gate) return McpTools.Find(name) is { } tool ? (!_disabled.Contains(name) ? tool : null) : PluginDefinitions().FirstOrDefault(t => t.Name == name);
     }
+
+    /// <summary>The tools of plugins as definitions of the server; a name that a built-in tool has is not offered.</summary>
+    private IEnumerable<McpToolDefinition> PluginDefinitions() =>
+        (Options.PluginTools?.Invoke() ?? []).Where(t => McpTools.Find(t.Name) is null).Select(t => new McpToolDefinition(t.Name, t.Title, t.Description, t.InputSchema, t.ReadOnly, async (context, args) =>
+        {
+            try { return await t.Run(args, context.Cancellation).ConfigureAwait(false); }
+            catch (McpToolRefusedException e) { throw new ToolFailure(e.Message); }
+        }));
 
     internal static string Instructions =>
         "Textida is a text editor. Only the tabs the user shared with you are visible; editor_list_documents lists them, editor_get_selection tells where the user's cursor and selection are. " +

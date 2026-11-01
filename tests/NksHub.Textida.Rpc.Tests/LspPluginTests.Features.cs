@@ -135,6 +135,29 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task The_expansion_of_a_macro_and_the_syntax_tree_come_back_as_text_and_a_server_without_them_is_told_not_offered()
+    {
+        await using (var plain = await Rig.CreateAsync())
+        {
+            var doc = plain.Add("plain.fake", "vec![1]\n");
+            await plain.RunAsync(doc, LspPlugin.StartCommand);
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.ExpandMacroCommand, 2)).GetProperty("status").GetString());
+            Assert.Equal("notSupported", (await plain.RunAsync(doc, LspPlugin.SyntaxTreeCommand)).GetProperty("status").GetString());
+        }
+
+        await using var rig = await Rig.CreateAsync(["--features", "rustext"]);
+        var file = rig.Add("macro.fake", "é😀 vec![1]\n");
+        await rig.RunAsync(file, LspPlugin.StartCommand);
+
+        var macro = await rig.RunAsync(file, LspPlugin.ExpandMacroCommand, Bytes("é😀 ve"));
+        Assert.Equal(("ok", "macro vec"), (macro.GetProperty("status").GetString(), macro.GetProperty("title").GetString()));
+        Assert.Equal("<[_]>::into_vec(\"line\" 6)\nsecond", macro.GetProperty("text").GetString()); // the server got the position in its own units (é and the emoji: 1 + 2 units, a space, "ve" = 6)
+        var tree = await rig.RunAsync(file, LspPlugin.SyntaxTreeCommand);
+        Assert.Equal(("ok", "syntax tree", "SOURCE_FILE@0..9\n  FN@0..9\n"), (tree.GetProperty("status").GetString(), tree.GetProperty("title").GetString(), tree.GetProperty("text").GetString()));
+        Assert.Equal("é😀 vec![1]\n", Rig.TextOf(file)); // nothing is written to the document
+    }
+
+    [Fact]
     public async Task The_symbols_of_the_document_are_published_on_the_bytes_of_their_names_for_the_revision_asked()
     {
         await using var rig = await Rig.CreateAsync(["--features", "symbols"]);

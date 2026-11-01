@@ -75,15 +75,29 @@ internal interface IMinimapHost
         add { }
         remove { }
     }
+
+    /// <summary>Zero-based lines edited since the file was opened or saved, ascending; empty when the view does not track them.</summary>
+    IReadOnlyList<long> EditedLines => [];
+
+    /// <summary>Raised when <see cref="EditedLines"/> changed.</summary>
+    event Action? EditedLinesChanged
+    {
+        add { }
+        remove { }
+    }
 }
 
 /// <summary>What a mark in the strip stands for; in a row of the strip the higher value wins.</summary>
 internal enum MinimapMarkKind : byte
 {
-    Occurrence = 1,
-    Match = 2,
-    Warning = 3,
-    Error = 4,
+    GitAdded = 1,
+    GitModified = 2,
+    GitRemoved = 3,
+    Edited = 4,
+    Occurrence = 5,
+    Match = 6,
+    Warning = 7,
+    Error = 8,
 }
 
 /// <summary>A line to mark in the narrow strip at the right edge of the minimap, which covers the whole file.</summary>
@@ -325,6 +339,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     public void SetChangeMarks(IReadOnlyList<GitMark> marks)
     {
         _changes = [.. marks];
+        _marksStamp++;
         InvalidateVisual();
     }
 
@@ -368,6 +383,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.MapChanged += OnMapChanged;
         _host.ContentChanged += Invalidate;
         _host.OccurrencesChanged += OnOccurrencesChanged;
+        _host.EditedLinesChanged += OnOccurrencesChanged;
         _doc.Doc.Changed += OnDocumentChanged;
         _doc.Replaced += OnReplaced;
         _doc.LanguageChanged += Invalidate;
@@ -390,6 +406,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _host.MapChanged -= OnMapChanged;
         _host.ContentChanged -= Invalidate;
         _host.OccurrencesChanged -= OnOccurrencesChanged;
+        _host.EditedLinesChanged -= OnOccurrencesChanged;
         _doc.Doc.Changed -= OnDocumentChanged;
         _doc.Replaced -= OnReplaced;
         _doc.LanguageChanged -= Invalidate;
@@ -751,21 +768,10 @@ internal sealed unsafe class Minimap : Control, IDisposable
         int laneWidth = LaneWidth(width);
         double x = width - laneWidth;
         DrawHeat(context, x, laneWidth, height);
-        var occurrences = _host.OccurrenceLines;
-        if (_marks.Length == 0 && _filterMarks.Length == 0 && occurrences.Count == 0) return;
         if (_laneKey != (height, lines, _marksStamp, layout.Sampled))
         {
             _laneKey = (height, lines, _marksStamp, layout.Sampled);
-            _lane = new byte[height];
-            void Put(long line, MinimapMarkKind kind)
-            {
-                if (line < 0 || line >= lines) return;
-                double share = layout.Sampled ? _host.ShareOfLine(line) : double.NaN;
-                int row = (int)Math.Min(height - 1, double.IsNaN(share) ? line * height / lines : (long)(share * height));
-                if ((byte)kind > _lane[row]) _lane[row] = (byte)kind;
-            }
-            foreach (long line in occurrences) Put(line, MinimapMarkKind.Occurrence);
-            foreach (var mark in _marks.Concat(_filterMarks)) Put(mark.Line, mark.Kind);
+            _lane = BuildLane(lines, height, layout.Sampled);
         }
         var occurrenceBrush = new ImmutableSolidColorBrush(Resource("OccurrenceBorder", Color.Parse("#3B82F6")));
         for (int y = 0; y < height;)
@@ -773,10 +779,37 @@ internal sealed unsafe class Minimap : Control, IDisposable
             byte kind = _lane[y];
             int end = y + 1;
             while (end < height && _lane[end] == kind) end++;
-            if (kind != 0) context.FillRectangle(kind == (byte)MinimapMarkKind.Occurrence ? occurrenceBrush : MarkBrush((MinimapMarkKind)kind), new Rect(x, Math.Max(0, y - 1), laneWidth, end - y + 2));
+            if (kind != 0) context.FillRectangle(kind == (byte)MinimapMarkKind.Occurrence ? occurrenceBrush : LaneBrush((MinimapMarkKind)kind), new Rect(x, Math.Max(0, y - 1), laneWidth, end - y + 2));
             y = end;
         }
     }
+
+    /// <summary>The kind of mark in each row of the strip (0 for none): the changes of Git, the lines edited and not saved, the other occurrences, and the marks of search and log; the higher kind wins a row.</summary>
+    private byte[] BuildLane(long lines, int height, bool sampled)
+    {
+        var lane = new byte[height];
+        void Put(long line, MinimapMarkKind kind)
+        {
+            if (line < 0 || line >= lines) return;
+            double share = sampled ? _host.ShareOfLine(line) : double.NaN;
+            int row = (int)Math.Min(height - 1, double.IsNaN(share) ? line * height / lines : (long)(share * height));
+            if ((byte)kind > lane[row]) lane[row] = (byte)kind;
+        }
+        foreach (var change in _changes)
+        {
+            var kind = change.Kind switch { GitMarkKind.Added => MinimapMarkKind.GitAdded, GitMarkKind.Removed => MinimapMarkKind.GitRemoved, _ => MinimapMarkKind.GitModified };
+            long end = change.Line + Math.Max(1, change.Lines) - 1, step = sampled ? end - change.Line + 1 : Math.Max(1, lines / height);
+            for (long line = change.Line; line < end; line += step) Put(line, kind);
+            Put(end, kind);
+        }
+        foreach (long line in _host.EditedLines) Put(line, MinimapMarkKind.Edited);
+        foreach (long line in _host.OccurrenceLines) Put(line, MinimapMarkKind.Occurrence);
+        foreach (var mark in _marks.Concat(_filterMarks)) Put(mark.Line, mark.Kind);
+        return lane;
+    }
+
+    /// <summary>The strip for a minimap <paramref name="height"/> pixels high, for tests.</summary>
+    internal IReadOnlyList<MinimapMarkKind> LaneKinds(int height) => [.. BuildLane(_host.LineCount, height, sampled: false).Select(k => (MinimapMarkKind)k)];
 
     private const int HeatSteps = 8;
     private static readonly IBrush[] HeatErrorBrushes = HeatBrushes(Color.Parse("#E5484D"));
@@ -816,12 +849,21 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private static readonly IBrush WarningBrush = new ImmutableSolidColorBrush(Color.Parse("#E2A400"));
     private static readonly IBrush ErrorBrush = new ImmutableSolidColorBrush(Color.Parse("#E5484D"));
 
-    private static IBrush MarkBrush(MinimapMarkKind kind) => kind switch
+    private static readonly IBrush EditedBrush = new ImmutableSolidColorBrush(Color.Parse("#E08A1E"));
+
+    /// <summary>The colour of a kind of mark in the strip: the editor's own colours for the changes of Git, orange for the lines edited and not yet saved.</summary>
+    private IBrush LaneBrush(MinimapMarkKind kind)
     {
-        MinimapMarkKind.Error => ErrorBrush,
-        MinimapMarkKind.Warning => WarningBrush,
-        _ => MatchBrush,
-    };
+        string? key = kind switch { MinimapMarkKind.GitAdded => "GitGutterAdded", MinimapMarkKind.GitModified => "GitGutterModified", MinimapMarkKind.GitRemoved => "GitGutterRemoved", _ => null };
+        if (key is not null) return this.TryFindResource(key, ActualThemeVariant, out var found) && found is IBrush themed ? themed : MatchBrush;
+        return kind switch
+        {
+            MinimapMarkKind.Error => ErrorBrush,
+            MinimapMarkKind.Warning => WarningBrush,
+            MinimapMarkKind.Edited => EditedBrush,
+            _ => MatchBrush,
+        };
+    }
 
     // ---- mouse ----
 

@@ -2020,6 +2020,55 @@
       "enablement": "!largeFileMode"
     },
     {
+      "id": "nks.file.openConverted",
+      "title": "cmd.file.openConverted",
+      "category": "cat.file",
+      "icon": "file-text"
+    },
+    {
+      "id": "nks.tools.runWsh",
+      "title": "cmd.tools.runWsh",
+      "category": "cat.tools",
+      "icon": "play",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.tools.runScript",
+      "title": "cmd.tools.runScript",
+      "category": "cat.tools",
+      "icon": "play",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.view.iconSkin",
+      "title": "cmd.view.iconSkin",
+      "category": "cat.view",
+      "icon": "text"
+    },
+    {
+      "id": "nks.view.iconSkinOff",
+      "title": "cmd.view.iconSkinOff",
+      "category": "cat.view",
+      "icon": "text"
+    },
+    {
+      "id": "nks.lsp.expandMacro",
+      "title": "cmd.lsp.expandMacro",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.syntaxTree",
+      "title": "cmd.lsp.syntaxTree",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5342,6 +5391,50 @@
       "order": 60
     },
     {
+      "menu": "file",
+      "command": "nks.file.openConverted",
+      "group": "1_new/10",
+      "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.runWsh",
+      "group": "2_run/08",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.runScript",
+      "group": "2_run/09",
+      "order": 40
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.iconSkin",
+      "group": "7_skin/01",
+      "order": 10
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.iconSkinOff",
+      "group": "7_skin/01",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.expandMacro",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 104
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.syntaxTree",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 105
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8593,6 +8686,48 @@
         "spelling",
         "autocorrect",
         "diacritics"
+      ]
+    },
+    {
+      "key": "scripting.enabled",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.scripting.enabled.title",
+      "description": "setting.scripting.enabled.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "scripting",
+        "javascript",
+        "prototype"
+      ]
+    },
+    {
+      "key": "appearance.iconSkin",
+      "type": "string",
+      "default": "",
+      "title": "setting.appearance.iconSkin.title",
+      "description": "setting.appearance.iconSkin.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "tags": [
+        "icons",
+        "skin",
+        "bitmap"
+      ]
+    },
+    {
+      "key": "plugins.sandbox",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.plugins.sandbox.title",
+      "description": "setting.plugins.sandbox.description",
+      "category": "cat.plugins",
+      "scope": "application",
+      "tags": [
+        "plugins",
+        "sandbox",
+        "security"
       ]
     },
     {

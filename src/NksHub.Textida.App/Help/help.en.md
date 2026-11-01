@@ -2231,3 +2231,46 @@ Tools, Spelling checks the comments and strings of source files, Markdown and pl
 3. Complete Diacritics finds the words without diacritics (in the selection, else the whole document) that the dictionary knows only with diacritics in exactly one way, and shows the changes in the change review. Only what you confirm is applied.
 - In a source file only comments and strings are checked; names, words in capitals, words with a capital inside (camelCase) and words next to digits, underscores, slashes and addresses are not. In Markdown code and links are not checked. The editor ships no dictionary, and each has a licence of its own. Your own words are in the file spell-words.txt in the profile.
 - The setting spell.autocorrect (off by default) completes the diacritics of the word you have just typed when you end it with a character that is not a letter and the dictionary knows one form with diacritics. Undo gives the word back as typed.
+
+## [converters] File type converters
+commands: nks.file.openConverted
+File, Open Through Converter shows a file of another type as text and converts it back when you save. The built-in converter shows CSV as TSV; a Word document (.docx) is read as text through the program pandoc when it is on the machine.
+1. CSV is shown with tabs between the fields; the separator (comma or semicolon), the encoding and the line ends of the file are kept when you save. A tab, a line end and a backslash inside a field are written \t, \n, \r and \\ in the text.
+2. Before anything is written the saved bytes are read back and must give the same text. If they do not, or if the converter names a loss (for instance a character the encoding of the file lacks), the file is overwritten only after your explicit consent to that save. A read only converter opens a read only tab.
+- A converter is a program with a clear input and output: it reads bytes and gives text, and where it writes, gives bytes from the text; it has no access to the disk, the network or the editor. An external converter gets a copy of the file in a private temporary folder and is ended after 30 s.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Tools, Run with Windows Script Host runs the saved script .js (JScript), .vbs (VBScript), .wsf or .wsh with cscript.exe of Windows and shows its output in the output window on the Tasks tab. Windows only.
+1. Before a script runs the first time (and after every change of its content) the editor asks, because a script may do everything you may. A run is ended after 60 s.
+- This is a bridge to the host that is already in Windows, not an interpreter of the editor: the language of the script is what the Windows Script Host on the machine runs. The editor claims no compatibility with JavaScript or VBScript elsewhere, and scripts for the editor (plugins) do not go this way.
+
+## [tools.script] Scripts in the editor (prototype)
+commands: nks.tools.runScript
+A prototype: a JavaScript file with a function transform(text) runs in the editor (Jint) on the selection and the result is a change in the change review. Off until you switch on the setting scripting.enabled.
+1. The script sees only the text it is given and the function log(text), which writes to the output window. It has no access to .NET, files or the network, and a run is limited in time (3 s), memory (32 MiB), number of statements and depth of recursion.
+- Marked as a prototype: it is for measuring and trying, not an interface for plugins. Plugins in a process of their own remain the way to extend the editor.
+
+## [view.iconSkin] Bitmap icon skin
+commands: nks.view.iconSkin, nks.view.iconSkinOff
+View, Bitmap Icon Skin replaces the vector icons of the commands with pictures from a folder you choose. An icon the skin has no picture for stays vector. Optional; by default the vector icons are drawn.
+1. A picture named like the icon (save.png; also .bmp, .gif, .jpg) is the bitmap of that icon. The file skin.json may add map (another file name for an icon) and strips: a horizontal strip of square cells whose height is the size of a cell, and the names of the icons in the order of the cells. With transparent: corner the colour of the pixel at the bottom left is the transparent one, as in the strips of PSPad.
+- A strip carries no names of the icons, so their order is stated by the skin; the editor takes no mapping from PSPad. An unknown name is skipped and counted among the warnings. The skin applies to icons made after you choose it (the toolbar is rebuilt at once, menus when next opened).
+
+## [lsp.textResults] Textual results of the language server
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Tools, Code and Language, Language Server: Expand Macro and Syntax Tree send the server the requests of rust-analyzer (rust-analyzer/expandMacro and rust-analyzer/viewSyntaxTree) and show the answer as text in a read only tab.
+1. A server that does not know the request answers that the method is unknown and the editor says it is not offered. The result is a copy: the tab has no file and nothing is saved from it.
+- The names of the requests are extensions of rust-analyzer; with another server the command does nothing. I did not verify it against rust-analyzer on this machine (it is not installed), only against a stand-in server that answers the same requests.
+
+## [plugins.mcpTools] Plugin commands as MCP tools
+A plugin can offer a command as a tool of the MCP server in the mcpTools part of its manifest. The tool is named plugin_ plus the id from the manifest. It is offered only to the clients you allowed in Tools, MCP, Clients, and only while the plugin holds the mcp.tool permission, which you grant in the plugin manager.
+1. A call carries an arguments object that fits the schema from the manifest. The optional field document must be the id of a document you shared with the assistant; the command then works on that document and may read it and propose changes only as far as the permissions of the plugin allow.
+2. When you take the mcp.tool permission back, the tool leaves the list and a call is refused at once, without restarting the server.
+- A manifest without the mcp.tool permission, without a process (main) or with a command the plugin does not have is refused when it is installed.
+
+## [plugins.sandbox] Restricting plugin processes
+The setting Plugins, Restrict plugin processes starts plugins under an operating system limit. It is off by default and takes effect when a plugin starts next.
+1. Windows: the process of the plugin joins a job object without the clipboard, without changes of the display and the system parameters, without switching desktops and without the windows of other processes. Plugins other than Git, language servers, formatters, JSON and the wiki may also not start other programs.
+2. macOS: the process starts through sandbox-exec; the level Contained forbids listening sockets, the level Strict also outgoing connections and creating processes.
+- The limit does not protect files: reading files is not restricted. That would need an AppContainer or an App Sandbox with entitlements, which a program started by its path cannot get.

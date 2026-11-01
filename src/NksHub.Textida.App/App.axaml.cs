@@ -244,6 +244,7 @@ public sealed partial class App : Application
         LogViews = new NksHub.Textida.Core.Tools.LogViewStore(Path.Combine(ProfileDirectory, "logviews.json"));
         RecipeFiles = new RecipeStore(Path.Combine(ProfileDirectory, "recipes"));
         Clips = new ClipLibrary(Path.Combine(ProfileDirectory, "plugins"), Workbench.Commands, Plugins.Manager.ContributingFolders, Plugins.DeclarePlugin, Plugins.UndeclarePlugin);
+        IconSkin.Use(Workbench.Settings.GetString("appearance.iconSkin")); // the optional bitmap skin of the icons (PZ.4.3)
         ReloadClips();
         Backups = new BackupService(new BackupPolicy { Enabled = true, Placement = BackupPlacement.Directory, Directory = Path.Combine(ProfileDirectory, "backups"), KeepVersions = 5 });
         History = new FileHistory(Path.Combine(ProfileDirectory, "history"), ReadHistoryPolicy());

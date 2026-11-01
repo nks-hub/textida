@@ -343,6 +343,37 @@ public class GitPeekTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_strip_of_the_minimap_shows_the_changes_of_Git_over_the_whole_file_and_the_lines_edited_since_the_save()
+    {
+        var tab = Open(Lines(1000));
+        var map = tab.Minimap!;
+        var surface = tab.Surface!;
+        Assert.DoesNotContain(map.LaneKinds(100), k => k is MinimapMarkKind.GitAdded or MinimapMarkKind.GitModified or MinimapMarkKind.GitRemoved or MinimapMarkKind.Edited);
+
+        map.SetChangeMarks([Mark(500, 100), Mark(900, 0, GitMarkKind.Removed), Mark(0, 1, GitMarkKind.Added, oldLines: 0)]); // far below what the picture of the minimap shows
+        var lane = map.LaneKinds(100);
+        Assert.Equal(MinimapMarkKind.GitAdded, lane[0]);
+        Assert.All(lane.Skip(50).Take(9), k => Assert.Equal(MinimapMarkKind.GitModified, k));
+        Assert.Equal(MinimapMarkKind.GitRemoved, lane[89]);
+        Assert.Equal(MinimapMarkKind.GitModified, lane[50]);
+
+        surface.Document.Insert(surface.Document.GetLineByNumber(701).Offset, "edited ");
+        surface.Document.Insert(surface.Document.GetLineByNumber(702).Offset, "x\ny\n");
+        Assert.Equal([700L, 701, 702], surface.EditedLines);
+        lane = map.LaneKinds(100);
+        Assert.Equal(MinimapMarkKind.Edited, lane[69]);
+        map.SetMarks([new MinimapMark(700, MinimapMarkKind.Match)]);
+        Assert.Equal(MinimapMarkKind.Match, map.LaneKinds(100)[69]); // a hit of the search wins the row
+
+        surface.Document.Insert(0, "top\n"); // the marks follow their lines
+        Assert.Equal([0L, 701, 702, 703], surface.EditedLines);
+
+        await _w.SaveAsync(tab);
+        Assert.Empty(surface.EditedLines);
+        Assert.DoesNotContain(MinimapMarkKind.Edited, map.LaneKinds(100));
+    }
+
+    [AvaloniaFact]
     public void The_changes_are_in_the_gutter_the_minimap_and_the_strip_beside_the_scroll_bar_at_once()
     {
         var tab = Open(Lines(80));

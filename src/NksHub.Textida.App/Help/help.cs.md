@@ -2231,3 +2231,46 @@ Nástroje, Pravopis kontroluje komentáře a řetězce ve zdrojových souborech,
 3. Doplnit diakritiku najde slova bez diakritiky (výběr, jinak celý dokument), která slovník zná jen s diakritikou právě jedním způsobem, a ukáže změny v přehledu změn. Použije se jen to, co potvrdíte.
 - Ve zdrojovém souboru se kontrolují jen komentáře a řetězce; názvy, zkratky ve velkých písmenech, slova s velkým písmenem uvnitř (camelCase), slova u číslic, podtržítek, lomítek a adres se nekontrolují. V Markdownu se nekontroluje kód a odkazy. Editor žádný slovník nedodává, každý má vlastní licenci. Vlastní slova jsou v souboru spell-words.txt v profilu.
 - Nastavení spell.autocorrect (ve výchozím stavu vypnuté) doplní diakritiku slova, které jste právě dopsali, když ho ukončíte znakem, který není písmeno, a slovník zná jedinou podobu s diakritikou. Zpět vrátí slovo, jak bylo napsáno.
+
+## [converters] Převodníky typů souborů
+commands: nks.file.openConverted
+Soubor, Otevřít přes převodník ukáže soubor jiného typu jako text a při uložení ho převede zpět. Vestavěný převodník ukáže CSV jako TSV; dokument Word (.docx) se čte jako text přes program pandoc, je-li na počítači.
+1. CSV se zobrazí s tabulátory mezi poli; oddělovač (čárka nebo středník), kódování a konce řádků souboru se při uložení zachovají. Tabulátor, konec řádku a zpětné lomítko uvnitř pole se v textu píší \t, \n, \r a \\.
+2. Před zápisem se uložené bajty přečtou zpět; musí dát stejný text. Pokud ne, nebo když převodník ohlásí ztrátu (například znak, který kódování souboru nemá), soubor se přepíše až po vašem výslovném souhlasu s tímto uložením. Převodník jen pro čtení otevře kartu jen ke čtení.
+- Převodník je program s jasným vstupem a výstupem: čte bajty a vrací text, případně z textu vrací bajty; na disk, síť ani do editoru nesahá. Externí převodník dostane kopii souboru v soukromé dočasné složce a po 30 s se ukončí.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Nástroje, Spustit ve Windows Script Host spustí uložený skript .js (JScript), .vbs (VBScript), .wsf nebo .wsh pomocí cscript.exe z Windows a jeho výstup ukáže v okně výstupu na kartě Úlohy. Jen ve Windows.
+1. Před prvním spuštěním skriptu (a po každé změně jeho obsahu) se editor zeptá, protože skript smí všechno, co smíte vy. Běh se ukončí po 60 s.
+- Je to most k hostiteli, který už ve Windows je, ne interpret editoru: jazykem skriptu je to, co Windows Script Host na počítači umí. Editor netvrdí žádnou shodu s JavaScriptem ani VBScriptem jinde a skripty pro editor (pluginy) tudy nejdou.
+
+## [tools.script] Skripty v editoru (prototyp)
+commands: nks.tools.runScript
+Prototyp: soubor JavaScriptu s funkcí transform(text) se spustí v editoru (Jint) na výběru a výsledek je změna v přehledu změn. Vypnuto, dokud nezapnete nastavení scripting.enabled.
+1. Skript vidí jen text, který dostane, a funkci log(text), která píše do okna výstupu. Nemá přístup k .NET, souborům ani síti a běh je omezený časem (3 s), pamětí (32 MiB), počtem příkazů a hloubkou rekurze.
+- Zvýrazněné jako prototyp: slouží k měření a zkoušení, ne jako rozhraní pro pluginy. Pluginy ve vlastním procesu zůstávají cestou, jak editor rozšiřovat.
+
+## [view.iconSkin] Sada bitmapových ikon
+commands: nks.view.iconSkin, nks.view.iconSkinOff
+Zobrazení, Sada bitmapových ikon nahradí vektorové ikony příkazů obrázky ze složky, kterou zvolíte. Ikona, pro kterou sada obrázek nemá, zůstane vektorová. Volitelné; ve výchozím stavu se kreslí vektorové ikony.
+1. Obrázek pojmenovaný podle ikony (save.png; také .bmp, .gif, .jpg) je bitmapa té ikony. Soubor skin.json může přidat map (jiný název souboru pro ikonu) a strips: vodorovný pás čtvercových buněk, jehož výška je velikost buňky, a jména ikon v pořadí buněk. S transparent: corner je průhledná barva pixelu vlevo dole, jako v pásech PSPadu.
+- Pás nenese jména ikon, takže jejich pořadí určuje sada; editor nepřebírá z PSPadu žádné mapování. Neznámé jméno se přeskočí a započítá do upozornění. Sada se použije u ikon vytvořených po zvolení (panel nástrojů se obnoví hned, nabídky při příštím otevření).
+
+## [lsp.textResults] Textové výsledky jazykového serveru
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Nástroje, Kód a jazyk, Jazykový server: rozbalit makro a syntaktický strom pošlou serveru požadavky rust-analyzeru (rust-analyzer/expandMacro a rust-analyzer/viewSyntaxTree) a ukážou odpověď jako text v kartě jen ke čtení.
+1. Server, který požadavek nezná, odpoví, že metodu nezná, a editor řekne, že to nenabízí. Výsledek je kopie: karta nemá soubor a nic se z ní neuloží.
+- Jména požadavků jsou rozšíření rust-analyzeru; s jiným serverem příkaz nic neudělá. S rust-analyzerem jsem to na tomto počítači neověřil (není nainstalovaný), jen na zkušebním serveru, který odpovídá stejnými požadavky.
+
+## [plugins.mcpTools] Příkazy modulů jako nástroje MCP
+Modul může ve svém manifestu v části mcpTools nabídnout příkaz jako nástroj serveru MCP. Nástroj se jmenuje plugin_ a id z manifestu. Nabízí se jen klientům, které jste povolili v Nástroje, MCP, Klienti, a jen dokud modul má oprávnění mcp.tool, které udělujete ve správci modulů.
+1. Volání nese objekt arguments podle schématu z manifestu. Volitelné pole document musí být id dokumentu, který jste asistentovi sdíleli; příkaz pak pracuje s tímto dokumentem a smí ho číst a navrhovat změny jen podle oprávnění, která modul má.
+2. Když oprávnění mcp.tool odeberete, nástroj zmizí ze seznamu a volání se odmítne hned, bez restartu serveru.
+- Manifest bez oprávnění mcp.tool, bez procesu (main) nebo s příkazem, který modul nemá, se při instalaci odmítne.
+
+## [plugins.sandbox] Omezení procesů zásuvných modulů
+Nastavení Moduly, Omezit procesy zásuvných modulů spouští moduly pod omezením operačního systému. Je ve výchozím stavu vypnuté a projeví se při příštím startu modulu.
+1. Windows: proces modulu přijde do objektu úlohy bez práce se schránkou, se změnami obrazovky a systémových parametrů, bez přepínání ploch a bez oken jiných procesů. Moduly mimo Git, jazykové servery, formátovače, JSON a wiki k tomu nesmějí spouštět další programy.
+2. macOS: proces se spouští přes sandbox-exec; úroveň Contained zakazuje naslouchající sokety, úroveň Strict také odchozí spojení a vytváření procesů.
+- Omezení nechrání soubory: čtení souborů se nijak neomezuje. K tomu by byl potřeba AppContainer nebo App Sandbox s právy, která program spouštěný cestou nedostane.

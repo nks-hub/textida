@@ -84,6 +84,7 @@ public static class PluginManifestLoader
         var data = CheckDataItems(root, m, c, errors);
         var spec = CheckMain(root, m, errors);
         CheckLanguageServers(root, m, errors);
+        CheckMcpTools(m, errors);
         CheckHex(m, errors);
 
         if (m.Main is null)
@@ -305,6 +306,30 @@ public static class PluginManifestLoader
         foreach (var e in c.HexExporters)
             if (e.Extension.Length is < 2 or > 16 || e.Extension[0] != '.' || e.Extension.Any(ch => !char.IsAsciiLetterOrDigit(ch) && ch != '.')) errors.Add($"hex exporter '{e.Id}': extension must be a dot and letters or digits, such as .c or .json.");
         Kind("hex template source", c.HexTemplates, x => (x.Id, x.Title));
+    }
+
+    private static readonly Regex McpToolIdPattern = new(@"^[a-z][a-z0-9_]{0,39}$", RegexOptions.CultureInvariant);
+
+    /// <summary>Most characters of the JSON Schema of the arguments of an MCP tool.</summary>
+    public const int McpSchemaMaxChars = 8000;
+
+    private static void CheckMcpTools(PluginManifest m, List<string> errors)
+    {
+        var tools = m.Contributes.McpTools;
+        if (tools.Count == 0) return;
+        if (!m.Permissions.Contains(DocumentPermissions.McpTool)) errors.Add($"mcpTools need the permission '{DocumentPermissions.McpTool}'.");
+        if (m.Main is null) errors.Add("mcpTools need a process: the plugin has no main.");
+        CheckUnique("MCP tool", tools.Select(x => x.Id), errors);
+        foreach (var t in tools)
+        {
+            var what = $"MCP tool '{t.Id}'";
+            if (!McpToolIdPattern.IsMatch(t.Id)) errors.Add($"{what}: id must be lower case letters, digits and '_', starting with a letter, at most 40 characters.");
+            if (t.Title.Length is < 1 or > 100) errors.Add($"{what}: title must be 1 to 100 characters.");
+            if (t.Description.Length is < 1 or > 1000) errors.Add($"{what}: description must be 1 to 1000 characters.");
+            if (!m.Contributes.Commands.Any(c => c.Id == t.Command)) errors.Add($"{what}: command '{t.Command}' is not a command of this plugin.");
+            if (t.InputSchema is { } schema && (schema.ValueKind != JsonValueKind.Object || !schema.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || type.GetString() != "object" || schema.GetRawText().Length > McpSchemaMaxChars))
+                errors.Add($"{what}: inputSchema must be a JSON Schema object with type object of at most {McpSchemaMaxChars} characters.");
+        }
     }
 
     private static void CheckLanguageServers(string root, PluginManifest m, List<string> errors)

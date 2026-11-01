@@ -37,7 +37,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         Ledger = new ProposalLedger(PluginLimitsPlaceholders.McpTrackedProposals);
         Proposals = new McpProposals(Ledger, this);
         Clients = new McpClients(Path.Combine(profileDirectory, "mcp-clients.json"));
-        Server = new McpServer(PluginLimitsPlaceholders.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed });
+        Server = new McpServer(PluginLimitsPlaceholders.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed, PluginTools = plugins.McpPluginTools });
         Clients.Asked += name => Dispatcher.UIThread.Post(() => ClientAsked?.Invoke(name));
     }
 

@@ -211,6 +211,7 @@ internal sealed partial class MainWindow
     public async Task<bool> SaveAsync(DocTab tab, SaveOrigin origin = SaveOrigin.Manual)
     {
         var od = tab.Doc;
+        if (od.Converted is { } converted) return await SaveConvertedAsync(tab, converted);
         if (od.IsVirtual) return await SaveVirtualAsync(tab);
         if (od.Source is not null) return await SaveSourceAsync(tab);
         if (od.Path is null) return await SaveAsAsync(tab);
