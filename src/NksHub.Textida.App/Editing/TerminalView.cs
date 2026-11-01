@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Terminal;
 
 namespace NksHub.Textida.App.Editing;
@@ -44,7 +45,7 @@ internal sealed class TerminalView : Control
         MeasureCell();
         GotFocus += (_, _) => InvalidateVisual();
         LostFocus += (_, _) => InvalidateVisual();
-        AutomationProperties.SetName(this, "Terminal");
+        AutomationProperties.SetName(this, Loc.Get(K.TerminalPanel));
     }
 
     public TerminalSession? Session => _session;
