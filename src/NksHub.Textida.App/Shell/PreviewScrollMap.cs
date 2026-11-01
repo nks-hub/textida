@@ -1,13 +1,24 @@
+using Avalonia;
+using Avalonia.Controls;
+
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
 /// Ties the lines of the source to the places of the drawn preview (P9.3.1): the editor and the preview scroll together by moving along this map. Every block of the preview knows the
-/// line where it starts and where it was drawn; between two blocks the map is a straight line, so a long paragraph scrolls in step with the lines it came from. The text before the first block
+/// line where it starts and where it was drawn; between anchors the map is a straight line. Nested blocks and block ends add their own anchors. The text before the first block
 /// maps to the top and the end of the text to the end of the preview.
 /// </summary>
 internal sealed class PreviewScrollMap
 {
     private readonly List<(double Line, double Top)> _points = [];
+
+    public static PreviewScrollMap FromAnchors(IEnumerable<PreviewRenderer.Anchor> anchors, Control body, int lineCount, double height)
+    {
+        var points = anchors.Select(a => (a, point: a.Control.TranslatePoint(default, body)))
+            .Where(x => x.point is not null)
+            .Select(x => (x.a.Line, body.Margin.Top + x.point!.Value.Y + (x.a.End ? x.a.Control.Bounds.Height : 0)));
+        return new PreviewScrollMap(points, lineCount, height);
+    }
 
     /// <param name="anchors">The first line and the top (in pixels from the start of the preview) of each top-level block.</param>
     /// <param name="lineCount">Lines of the source.</param>

@@ -141,7 +141,11 @@ public static partial class MarkdownTools
     }
 
     /// <summary>A rewrite of the table lines <see cref="First"/> to <see cref="First"/> + <see cref="Count"/> - 1 by <see cref="Lines"/>, and the text to select afterwards (<see cref="CaretRow"/> is an index into <see cref="Lines"/>).</summary>
-    public sealed record TableEdit(int First, int Count, IReadOnlyList<string> Lines, int CaretRow, int CaretStart, int CaretLength);
+    public sealed record TableEdit(int First, int Count, IReadOnlyList<string> Lines, int CaretRow, int CaretStart, int CaretLength)
+    {
+        /// <summary>The zero-based source line of each output row; -1 marks an inserted row. Keeps mixed line endings with their rows.</summary>
+        public IReadOnlyList<int>? SourceRows { get; init; }
+    }
 
     private static List<string> Slice(IReadOnlyList<string> lines, int first, int last)
     {
@@ -150,11 +154,11 @@ public static partial class MarkdownTools
         return rows;
     }
 
-    private static TableEdit Edit(int first, int count, List<string> rows, int caretRow, int caretCell)
+    private static TableEdit Edit(int first, int count, List<string> rows, int caretRow, int caretCell, IReadOnlyList<int> sourceRows)
     {
         var formatted = FormatTable(rows);
         var cell = CellSpans(formatted[caretRow])[caretCell];
-        return new TableEdit(first, count, formatted, caretRow, cell.Start, cell.Length);
+        return new TableEdit(first, count, formatted, caretRow, cell.Start, cell.Length) { SourceRows = sourceRows };
     }
 
     /// <summary>Tab (forward) or Shift+Tab: realigns the table and selects the next or previous cell, skipping the row of dashes; Tab in the last cell adds a row. Null when the line is in no table.</summary>
@@ -162,12 +166,13 @@ public static partial class MarkdownTools
     {
         if (TableAround(lines, line) is not { } table) return null;
         var rows = Slice(lines, table.First, table.Last);
+        var sources = Enumerable.Range(table.First, rows.Count).ToList();
         int row = line - table.First, columns = rows.Max(r => CellSpans(r).Count);
         int cell = row == 1 ? (forward ? columns - 1 : 0) : CellAt(CellSpans(rows[row]), column);
         if (forward)
         {
             if (++cell >= columns) { cell = 0; row += row == 0 ? 2 : 1; }
-            if (row >= rows.Count) rows.Add(ContinuationPrefix(rows[^1]) + "|");
+            if (row >= rows.Count) { rows.Add(ContinuationPrefix(rows[^1]) + "|"); sources.Add(-1); }
         }
         else if (--cell < 0)
         {
@@ -175,7 +180,7 @@ public static partial class MarkdownTools
             row -= row == 2 ? 2 : 1;
             if (row < 0) (row, cell) = (0, 0);
         }
-        return Edit(table.First, table.Last - table.First + 1, rows, row, cell);
+        return Edit(table.First, table.Last - table.First + 1, rows, row, cell, sources);
     }
 
     /// <summary>Shift+Enter: an empty row below the line (below the row of dashes when the line is the header), the first cell selected. Null when the line is in no table.</summary>
@@ -183,9 +188,11 @@ public static partial class MarkdownTools
     {
         if (TableAround(lines, line) is not { } table) return null;
         var rows = Slice(lines, table.First, table.Last);
+        var sources = Enumerable.Range(table.First, rows.Count).ToList();
         int at = Math.Max(line - table.First + 1, 2);
         rows.Insert(at, ContinuationPrefix(rows[Math.Min(at - 1, rows.Count - 1)]) + "|");
-        return Edit(table.First, table.Last - table.First + 1, rows, at, 0);
+        sources.Insert(at, -1);
+        return Edit(table.First, table.Last - table.First + 1, rows, at, 0, sources);
     }
 
     /// <summary>The block of lines with pipes around the line, whether or not it is a complete table; null when the line has no pipe.</summary>
@@ -235,16 +242,18 @@ public static partial class MarkdownTools
     {
         if (TableBlock(lines, line) is not { } block) return null;
         var rows = Slice(lines, block.First, block.Last);
+        var sources = Enumerable.Range(block.First, rows.Count).ToList();
         int row = line - block.First;
-        if (IsSeparator(rows[0])) { rows.Insert(0, RowPrefix(rows[0]) + "|"); row++; }
+        if (IsSeparator(rows[0])) { rows.Insert(0, RowPrefix(rows[0]) + "|"); sources.Insert(0, -1); row++; }
         else if (rows.Count < 2 || !IsSeparator(rows[1]))
         {
             rows.Insert(1, ContinuationPrefix(rows[0]) + "|" + string.Concat(Enumerable.Repeat(" --- |", Math.Max(1, CellSpans(rows[0]).Count))));
+            sources.Insert(1, -1);
             if (row >= 1) row++;
         }
         for (int i = rows.Count - 1; i > 1; i--)
-            if (IsSeparator(rows[i])) { rows.RemoveAt(i); if (row >= i) row--; }
-        return Edit(block.First, block.Last - block.First + 1, rows, Math.Clamp(row, 0, rows.Count - 1), 0);
+            if (IsSeparator(rows[i])) { rows.RemoveAt(i); sources.RemoveAt(i); if (row >= i) row--; }
+        return Edit(block.First, block.Last - block.First + 1, rows, Math.Clamp(row, 0, rows.Count - 1), 0, sources);
     }
 
     private static int CellAt(List<CellSpan> spans, int column)

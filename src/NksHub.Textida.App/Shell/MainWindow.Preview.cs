@@ -28,6 +28,9 @@ internal sealed partial class MainWindow
     private readonly TextBlock _previewStatus = new() { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
     private readonly Button _previewClose = new();
     private readonly ScrollViewer _previewScroll = new() { Focusable = true, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    private readonly MarkdownRenderQueue _previewRenders = new();
+    private long _previewLayoutGeneration;
+    private string? _previewRenderedSource;
     private PreviewContent? _preview;
     private long? _previewOutdatedBy;
     private DocTab? _liveTab;
@@ -45,6 +48,7 @@ internal sealed partial class MainWindow
     internal Control? PreviewBody => _previewScroll.Content as Control;
     internal Control PreviewPanelControl => _previewPanel;
     internal ScrollViewer PreviewScroller => _previewScroll;
+    internal Task PreviewRenderTask { get; private set; } = Task.CompletedTask;
 
     /// <summary>The pictures of the previews of this window: local files, web pictures the user allowed, and what has been decoded already.</summary>
     internal PreviewImages PreviewPictures => _previewImages ??= new PreviewImages(() => _app.Remote.Policy().CreateHttpHandler(), ConfirmImageHostAsync, () => { if (_preview is not null) RenderPreview(keepScroll: true); RefreshTabPreviews(); });
@@ -127,19 +131,55 @@ internal sealed partial class MainWindow
         var offset = _previewScroll.Offset;
         var mono = new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily"));
         bool follow = _liveTab is not null && !_liveOutline;
-        _previewAnchors = follow ? [] : null;
-        _previewSettling = follow;
+        var live = _liveTab;
+        long revision = live?.Doc.Doc.Revision ?? -1;
         string? folder = _liveTab?.Doc.Doc.FilePath is { Length: > 0 } path && Path.IsPathRooted(path) ? Path.GetDirectoryName(path) : null;
-        var ctx = new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, content.Images, _previewAnchors);
-        _previewScroll.Content = _liveOutline && _liveTab is { } outlined
-            ? PreviewRenderer.Outline(MarkdownTools.Headings(content.Text.ReplaceLineEndings("\n").Split('\n')), h => { outlined.GoToLine(h.Line + 1); FocusView(outlined); })
-            : PreviewRenderer.Render(content.Format, content.Text, ctx);
-        if (follow) Dispatcher.UIThread.Post(() => { _previewSettling = false; SyncPreviewToEditor(); }, DispatcherPriority.Background);
-        else if (keepScroll) Dispatcher.UIThread.Post(() => _previewScroll.Offset = offset, DispatcherPriority.Background);
-        var title = content.Title ?? Loc.Get(K.PreviewPanelTitle);
-        _previewStatus.Text = _previewOutdatedBy is { } current
-            ? Loc.Get(K.PreviewPanelOutdated, ("title", title), ("revision", content.Revision), ("current", current))
-            : Loc.Get(K.PreviewPanelStatus,("title", title), ("revision", content.Revision));
+        void Apply(PreviewRenderer.MarkdownPlan? plan)
+        {
+            long generation = ++_previewLayoutGeneration;
+            var selection = plan is not null ? PreviewRenderer.KeepSelection(PreviewBody, _previewRenderedSource, plan.Source) : null;
+            _previewRenderedSource = plan?.Source;
+            _previewAnchors = content.Format == PreviewFormats.Markdown || follow ? [] : null;
+            _previewSettling = follow;
+            var ctx = new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, content.Images, _previewAnchors, JumpPreviewToLine);
+            _previewScroll.Content = _liveOutline && live is { } outlined && plan?.Document is { } document
+                ? PreviewRenderer.Outline(MarkdownSyntax.Headings(document), h => { outlined.GoToLine(h.Line + 1); FocusView(outlined); })
+                : plan is not null ? PreviewRenderer.RenderMarkdown(plan, ctx) : PreviewRenderer.Render(content.Format, content.Text, ctx);
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (generation != _previewLayoutGeneration) return;
+                if (PreviewBody is { } body) PreviewRenderer.RestoreSelection(body, selection);
+                if (follow) { _previewSettling = false; SyncPreviewToEditor(); }
+                else if (keepScroll) _previewScroll.Offset = offset;
+            }, DispatcherPriority.Background);
+            var title = content.Title ?? Loc.Get(K.PreviewPanelTitle);
+            _previewStatus.Text = _previewOutdatedBy is { } current
+                ? Loc.Get(K.PreviewPanelOutdated, ("title", title), ("revision", content.Revision), ("current", current))
+                : Loc.Get(K.PreviewPanelStatus, ("title", title), ("revision", content.Revision));
+        }
+        if (content.Format == PreviewFormats.Markdown)
+            PreviewRenderTask = _previewRenders.RunAsync(content.Text,
+                () => ReferenceEquals(_preview, content) && (live is null || live.Doc.Doc.Revision == revision), plan => Apply(plan));
+        else
+        {
+            _previewRenders.Cancel();
+            Apply(null);
+            PreviewRenderTask = Task.CompletedTask;
+        }
+    }
+
+    private void JumpPreviewToLine(int line)
+    {
+        if (_previewAnchors is not { Count: > 0 } anchors || _previewScroll.Content is not Control body || _preview is not { } content) return;
+        var map = PreviewScrollMap.FromAnchors(anchors, body, MarkdownSyntax.LineStarts(content.Text).Length, _previewScroll.Extent.Height);
+        _previewScroll.Offset = new Vector(0, Math.Clamp(map.OffsetFor(line), 0, Math.Max(0, _previewScroll.Extent.Height - _previewScroll.Viewport.Height)));
+        if (_liveTab?.Surface is { } editor) MarkdownPreview.ScrollEditorTo(editor, line);
+    }
+
+    private void DisposeMarkdownRendering()
+    {
+        _previewLayoutGeneration++;
+        _previewRenders.Dispose();
     }
 
     /// <summary>Opens a link of a preview after the user confirmed it; the policy has already limited the target to the web and mail.</summary>
@@ -199,6 +239,7 @@ internal sealed partial class MainWindow
 
     private void OnLiveEdited()
     {
+        _previewRenders.Cancel();
         _liveTimer?.Stop();
         _liveTimer?.Start();
     }
@@ -207,6 +248,8 @@ internal sealed partial class MainWindow
 
     private void StopLive()
     {
+        _previewLayoutGeneration++;
+        _previewRenders.Cancel();
         if (_liveTab is { } tab)
         {
             tab.Doc.Changed -= OnLiveEdited;
@@ -247,7 +290,7 @@ internal sealed partial class MainWindow
 
     private PreviewScrollMap? ScrollMap(EditorSurface editor) =>
         _previewAnchors is { Count: > 0 } anchors && _previewScroll.Content is Control body
-            ? new PreviewScrollMap(anchors.Select(a => (a.Line, body.Margin.Top + a.Control.Bounds.Y)), editor.Document.LineCount, _previewScroll.Extent.Height)
+            ? PreviewScrollMap.FromAnchors(anchors, body, editor.Document.LineCount, _previewScroll.Extent.Height)
             : null;
 
     /// <summary>Scrolls the preview to where the top of the editor is.</summary>

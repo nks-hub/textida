@@ -23,9 +23,14 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     private readonly MainWindow _window;
     private readonly OpenDocument _doc;
     private readonly EditorSurface? _editor;
+    private readonly MarkdownRenderQueue _renders = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimits.PreviewLiveDebounceMs) };
     private List<PreviewRenderer.Anchor> _anchors = [];
     private long _renderedRevision = -1;
+    private long _pendingRevision = -1;
+    private long _layoutGeneration;
+    private string? _renderedSource;
+    private bool _disposed;
     private bool _settling;
     private long _quietPreviewUntil, _quietEditorUntil;
     private double? _pendingLine;
@@ -52,6 +57,8 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     /// <summary>Where the selection of the editor was when this page took its place, as byte offsets; the editor gets the selection back when the user returns to it.</summary>
     public (long Anchor, long Caret) Selection { get; set; }
 
+    internal Task RenderTask { get; private set; } = Task.CompletedTask;
+
     private string Text => _editor?.Document.Text ?? _doc.TextBackend?.TextDocument.Text ?? "";
 
     private int LineCount => _editor?.Document.LineCount ?? _doc.TextBackend?.TextDocument.LineCount ?? 1;
@@ -65,25 +72,44 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     /// <summary>Draws the page again from the text as it is now; nothing is done when the document is still at the revision that was drawn.</summary>
     public void Refresh(bool force = false)
     {
+        if (_disposed) return;
         _timer.Stop();
         long revision = _doc.Doc.Revision;
-        if (!force && revision == _renderedRevision) return;
-        _renderedRevision = revision;
+        if (!force && (revision == _renderedRevision || revision == _pendingRevision)) return;
         var offset = Offset;
         string text = Text;
         if (text.Length > PluginLimits.PreviewLiveMaxChars)
         {
+            _renders.Cancel();
+            _renderedRevision = revision;
+            _pendingRevision = -1;
             _anchors = [];
             Content = new TextBlock { Text = Loc.Get(K.PreviewLiveTooLarge), TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 6) };
+            UpdateName();
             return;
         }
-        var anchors = _anchors = [];
-        _settling = _editor is not null;
-        Content = PreviewRenderer.Render(PreviewFormats.Markdown, text, _window.PreviewContext(_doc, anchors));
-        UpdateName();
-        if (_editor is not null) Dispatcher.UIThread.Post(() => { _settling = false; SyncPreviewToEditor(); }, DispatcherPriority.Background);
-        else Dispatcher.UIThread.Post(() => Offset = offset, DispatcherPriority.Background);
-        if (_pendingLine is not null) ApplyPendingLine();
+        _pendingRevision = revision;
+        RenderTask = _renders.RunAsync(text, () => _doc.Doc.Revision == revision, plan =>
+        {
+            var selection = PreviewRenderer.KeepSelection(Content as Control, _renderedSource, plan.Source);
+            long generation = ++_layoutGeneration;
+            _renderedSource = plan.Source;
+            _renderedRevision = revision;
+            _pendingRevision = -1;
+            var anchors = _anchors = [];
+            _settling = _editor is not null;
+            Content = PreviewRenderer.RenderMarkdown(plan, _window.PreviewContext(_doc, anchors) with { JumpToLine = line => ScrollToLine(line) });
+            UpdateName();
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_disposed || generation != _layoutGeneration) return;
+                _settling = false;
+                if (Content is Control body) PreviewRenderer.RestoreSelection(body, selection);
+                if (_editor is not null) SyncPreviewToEditor();
+                else Offset = offset;
+                ApplyPendingLine();
+            }, DispatcherPriority.Background);
+        });
     }
 
     /// <summary>The names follow the interface language.</summary>
@@ -95,7 +121,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     private PreviewScrollMap? Map() =>
         _anchors is { Count: > 0 } anchors && Content is Control body
-            ? new PreviewScrollMap(anchors.Select(a => (a.Line, body.Margin.Top + a.Control.Bounds.Y)), LineCount, Extent.Height)
+            ? PreviewScrollMap.FromAnchors(anchors, body, LineCount, Extent.Height)
             : null;
 
     /// <summary>The (fractional, zero-based) line of the source at the top of the page; 0 while nothing is laid out.</summary>
@@ -110,6 +136,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     private void ApplyPendingLine()
     {
+        if (_disposed) return;
         if (_pendingLine is not { } line) return;
         if (Extent.Height <= 0 || Viewport.Height <= 0)
         {
@@ -189,7 +216,10 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
+        _layoutGeneration++;
         _timer.Stop();
+        _renders.Dispose();
         LayoutUpdated -= OnLayoutForPending;
         _doc.Changed -= OnDocumentChanged;
         if (_editor is not null) _editor.TextArea.TextView.ScrollOffsetChanged -= OnEditorScrolled;
