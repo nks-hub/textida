@@ -42,5 +42,8 @@ public interface IRemoteClient : IAsyncDisposable
 
     Task DeleteAsync(string path, CancellationToken cancellation);
 
+    /// <summary>Makes the folder <paramref name="path"/> (FTP MKD, SFTP mkdir). One level only: its parent must exist. Does nothing when the folder is already there.</summary>
+    Task CreateDirectoryAsync(string path, CancellationToken cancellation);
+
     Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellation);
 }

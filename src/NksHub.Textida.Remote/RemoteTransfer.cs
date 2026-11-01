@@ -45,6 +45,19 @@ public sealed class TransferOptions
 /// </summary>
 public static class RemoteTransfer
 {
+    /// <summary>Makes <paramref name="directory"/> and the folders above it that are missing, from the top down.</summary>
+    public static async Task EnsureDirectoryAsync(IRemoteClient client, string directory, CancellationToken cancellation)
+    {
+        var parts = directory.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        string path = directory.StartsWith('/') ? "" : ".";
+        foreach (var part in parts)
+        {
+            path = path.Length == 0 ? "/" + part : path + "/" + part;
+            if (await client.StatAsync(path, cancellation).ConfigureAwait(false) is { IsDirectory: true }) continue;
+            await client.CreateDirectoryAsync(path, cancellation).ConfigureAwait(false);
+        }
+    }
+
     private const string Marker = ".textida-";
 
     /// <summary>The temporary name of a target for a given content.</summary>

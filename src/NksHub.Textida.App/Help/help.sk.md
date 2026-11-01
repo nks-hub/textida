@@ -2071,7 +2071,7 @@ Príkaz v ponuke Nástroje porovná dva priečinky aj s podpriečinkami a výsle
 2. Vyberte, podľa čoho sa súbory porovnajú: veľkosť, čas zmeny, alebo obsah.
 3. Ak chcete jednu stranu skopírovať na druhú, zvoľte smer. Uvidíte zoznam súborov, ktoré sa zapíšu, a kopírovanie začne až po vašom potvrdení.
 - Čas zmeny: rozdiel do 2 sekúnd sa nepočíta (FAT a FTP ukladajú čas nepresne); strana, ktorá čas nepozná, sa porovná podľa veľkosti. Obsah: súbory rovnakej veľkosti sa porovnajú podľa odtlačku, na serveri sa preto celé stiahnu.
-- Kopírovanie nič nemaže: súbory, ktoré má len cieľová strana, zostanú. Skopírovaný súbor dostane čas zmeny zdroja. Klient servera nevie vytvárať priečinky, súbor do chýbajúceho priečinka na serveri sa preto nezapíše a chyba sa vypíše vo Výstupe.
+- Kopírovanie nič nemaže: súbory, ktoré má len cieľová strana, zostanú. Skopírovaný súbor dostane čas zmeny zdroja. Priečinok, ktorý na serveri chýba, sa pred zápisom súboru vytvorí (FTP MKD, SFTP mkdir); súbor, ktorý sa nepodarí zapísať, sa vypíše vo Výstupe.
 
 ## [hex.templateJson] Hex: strom šablóny do JSON
 commands: nks.hex.template.exportJson

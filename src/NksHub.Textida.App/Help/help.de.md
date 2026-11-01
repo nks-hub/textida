@@ -2071,7 +2071,7 @@ Der Befehl im Menü Extras vergleicht zwei Ordner mit ihren Unterordnern und öf
 2. Wählen Sie, wonach die Dateien verglichen werden: Größe, Änderungszeit oder Inhalt.
 3. Um eine Seite auf die andere zu kopieren, wählen Sie die Richtung. Sie sehen die Liste der Dateien, die geschrieben würden, und das Kopieren beginnt erst nach Ihrer Bestätigung.
 - Zeit: ein Unterschied unter 2 Sekunden zählt nicht (FAT und FTP speichern die Zeit grob); eine Seite ohne Zeitangabe wird nach Größe verglichen. Inhalt: Dateien gleicher Größe werden per Hash verglichen, auf einem Server also vollständig heruntergeladen.
-- Kopieren löscht nichts: Dateien, die nur das Ziel hat, bleiben. Eine kopierte Datei erhält die Änderungszeit der Quelle. Der Server-Client kann keine Ordner anlegen, eine Datei für einen fehlenden Ordner auf dem Server wird daher nicht geschrieben und der Fehler steht in der Ausgabe.
+- Kopieren löscht nichts: Dateien, die nur das Ziel hat, bleiben. Eine kopierte Datei erhält die Änderungszeit der Quelle. Ein Ordner, der auf dem Server fehlt, wird vor dem Schreiben der Datei angelegt (FTP MKD, SFTP mkdir); eine Datei, die sich nicht schreiben lässt, steht in der Ausgabe.
 
 ## [hex.templateJson] Hex: Strukturbaum als JSON
 commands: nks.hex.template.exportJson

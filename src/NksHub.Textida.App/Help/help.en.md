@@ -2071,7 +2071,7 @@ The command in the Tools menu compares two folders with their subfolders and ope
 2. Choose what the files are compared by: size, modification time or content.
 3. To copy one side to the other, choose the direction. You see the list of files that would be written, and the copy starts only after you confirm it.
 - Time: a difference under 2 seconds does not count (FAT and FTP store the time coarsely); a side that does not know the time is compared by size. Content: files of the same size are compared by a hash, so on a server they are downloaded in full.
-- Copying deletes nothing: files that only the target has stay. A copied file gets the modification time of the source. The server client cannot make folders, so a file for a missing folder on the server is not written and the error is listed in the Output.
+- Copying deletes nothing: files that only the target has stay. A copied file gets the modification time of the source. A folder that is missing on the server is made before the file is written (FTP MKD, SFTP mkdir); a file that cannot be written is listed in the Output.
 
 ## [hex.templateJson] Hex: structure tree as JSON
 commands: nks.hex.template.exportJson

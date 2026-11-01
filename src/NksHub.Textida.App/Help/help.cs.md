@@ -2071,7 +2071,7 @@ Příkaz v nabídce Nástroje porovná dvě složky i s podsložkami a výsledek
 2. Vyberte, podle čeho se soubory porovnají: velikost, čas změny, nebo obsah.
 3. Chcete-li jednu stranu zkopírovat na druhou, zvolte směr. Uvidíte seznam souborů, které se zapíšou, a kopírování začne až po vašem potvrzení.
 - Čas změny: rozdíl do 2 sekund se nepočítá (FAT a FTP ukládají čas nepřesně); strana, která čas nezná, se porovná podle velikosti. Obsah: soubory stejné velikosti se porovnají podle otisku, na serveru se proto celé stáhnou.
-- Kopírování nic nemaže: soubory, které má jen cílová strana, zůstanou. Zkopírovaný soubor dostane čas změny zdroje. Klient serveru neumí vytvářet složky, soubor do chybějící složky na serveru se proto nezapíše a chyba se vypíše ve Výstupu.
+- Kopírování nic nemaže: soubory, které má jen cílová strana, zůstanou. Zkopírovaný soubor dostane čas změny zdroje. Složka, která na serveru chybí, se před zápisem souboru vytvoří (FTP MKD, SFTP mkdir); soubor, který se nepodaří zapsat, se vypíše ve Výstupu.
 
 ## [hex.templateJson] Hex: strom šablony do JSON
 commands: nks.hex.template.exportJson

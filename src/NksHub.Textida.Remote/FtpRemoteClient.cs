@@ -158,6 +158,13 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
 
     public Task DeleteAsync(string path, CancellationToken cancellation) => Guard(() => Client.DeleteFile(path, cancellation));
 
+    public Task CreateDirectoryAsync(string path, CancellationToken cancellation) => Guard(async () =>
+    {
+        if (await Client.DirectoryExists(path, cancellation).ConfigureAwait(false)) return;
+        if (!await Client.CreateDirectory(path, false, cancellation).ConfigureAwait(false) && !await Client.DirectoryExists(path, cancellation).ConfigureAwait(false))
+            throw new RemoteException(RemoteError.Failed, $"Cannot create the folder '{path}'.");
+    }, cancellation);
+
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellation) => Guard(async () =>
     {
         var items = await Client.GetListing(directory, cancellation).ConfigureAwait(false);

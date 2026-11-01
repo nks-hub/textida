@@ -182,6 +182,12 @@ public sealed class SftpRemoteClient(RemoteConnection connection, string? secret
 
     public Task DeleteAsync(string path, CancellationToken cancellation) => Guard(() => Client.DeleteFileAsync(path, cancellation));
 
+    public Task CreateDirectoryAsync(string path, CancellationToken cancellation) => Guard(async () =>
+    {
+        if (await Client.ExistsAsync(path, cancellation).ConfigureAwait(false)) return;
+        await Client.CreateDirectoryAsync(path, cancellation).ConfigureAwait(false);
+    }, cancellation);
+
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellation) => Guard(async () =>
     {
         var list = new List<RemoteEntry>();

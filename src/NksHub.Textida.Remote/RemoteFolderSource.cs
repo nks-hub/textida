@@ -4,7 +4,7 @@ namespace NksHub.Textida.Remote;
 
 /// <summary>
 /// A folder on an FTP, FTPS or SFTP server as a side of a comparison, through the client the editor already uses. The folders below it are read one list at a time (at most <see cref="MaxEntries"/> files, <see cref="MaxDepth"/> levels);
-/// a file is written with the safe upload of <see cref="RemoteTransfer"/>. The client cannot make folders, so a file whose folder does not exist on the server is not written and says so.
+/// a file is written with the safe upload of <see cref="RemoteTransfer"/>, after the folders above it have been made when they are missing.
 /// </summary>
 public sealed class RemoteFolderSource(IRemoteClient client, string root, string label) : IFolderSource
 {
@@ -51,9 +51,10 @@ public sealed class RemoteFolderSource(IRemoteClient client, string root, string
             stream.Position = 0;
             return stream;
         }
-        catch
+        catch (Exception e)
         {
             await stream.DisposeAsync().ConfigureAwait(false);
+            if (e is RemoteException) throw new IOException(e.Message, e); // the copy records an IOException per file and goes on
             throw;
         }
     }
@@ -63,8 +64,14 @@ public sealed class RemoteFolderSource(IRemoteClient client, string root, string
         string full = Join(path);
         int slash = full.LastIndexOf('/');
         string folder = slash > 0 ? full[..slash] : "/";
-        if (await client.StatAsync(folder, ct).ConfigureAwait(false) is not { IsDirectory: true })
-            throw new IOException($"The folder {folder} does not exist on the server and this client cannot make it.");
-        await RemoteTransfer.UploadAtomicAsync(client, full, source, null, ct).ConfigureAwait(false);
+        try
+        {
+            await RemoteTransfer.EnsureDirectoryAsync(client, folder, ct).ConfigureAwait(false);
+            await RemoteTransfer.UploadAtomicAsync(client, full, source, null, ct).ConfigureAwait(false);
+        }
+        catch (RemoteException e)
+        {
+            throw new IOException(e.Message, e);
+        }
     }
 }
