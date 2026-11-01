@@ -1964,6 +1964,14 @@
       "icon": "file-text"
     },
     {
+      "id": "nks.agent.askSelection",
+      "title": "cmd.agent.askSelection",
+      "category": "cat.tools",
+      "icon": "upload",
+      "when": "editorFocus && textView",
+      "enablement": "hasSelection"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5214,6 +5222,13 @@
       "command": "nks.file.importPspad",
       "group": "1_new/08",
       "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.askSelection",
+      "group": "3_ai/01",
+      "submenu": "ai/agent",
+      "order": 35
     },
     {
       "menu": "edit",

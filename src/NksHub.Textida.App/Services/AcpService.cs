@@ -71,6 +71,11 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     private bool _stopping;
     private int _reads, _proposals, _applied;
 
+    /// <summary>The text on both sides of the range a question was about: a write of the agent must leave both as they are (UI thread).</summary>
+    private sealed record RangeGuard(string Prefix, string Suffix);
+
+    private readonly Dictionary<Guid, RangeGuard> _guards = [];
+
     public AcpService(PluginServices plugins, App app)
     {
         _plugins = plugins;
@@ -456,6 +461,21 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         return true;
     }
 
+    /// <summary>
+    /// A question about the range <paramref name="start"/>..<paramref name="end"/> of the text of the tab (PZ.2.5). The tab is shared for reading and proposing, and until the turn ends a whole-file write of the agent
+    /// is accepted only when the text in front of the range and behind it is unchanged, so the answer can only change the range; the change still goes through the change review. False when no agent is ready.
+    /// Call on the UI thread.
+    /// </summary>
+    public async Task<bool> AskRangeAsync(MainWindow window, DocTab tab, string text, int start, int end, string message)
+    {
+        if (State != AgentState.Ready || _hostPlugin is not null) return false;
+        if (!IsShared(tab)) Share(window, tab);
+        var id = tab.Doc.Doc.Id;
+        lock (_gate) _guards[id] = new RangeGuard(text[..start], text[end..]);
+        try { return await SendAsync(message); }
+        finally { lock (_gate) _guards.Remove(id); }
+    }
+
     private void UnshareAll()
     {
         Guid[] ids;
@@ -587,6 +607,13 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     private (byte[] Bytes, FileChange Change)? Prepare(Shared shared, string content)
     {
         var doc = shared.Document;
+        RangeGuard? guard;
+        lock (_gate) _guards.TryGetValue(doc.Id, out guard);
+        if (guard is not null && !(content.Length >= guard.Prefix.Length + guard.Suffix.Length && content.StartsWith(guard.Prefix, StringComparison.Ordinal) && content.EndsWith(guard.Suffix, StringComparison.Ordinal)))
+        {
+            Add(AgentRole.Note, () => Loc.Get(K.AgentAskOutside));
+            throw new AcpRefusedException(AcpRefusedException.Declined, "The question was about a range of the file. Leave the text outside the range exactly as it is and change only the range.");
+        }
         if (SecretValues.IsSecretFile(doc.SecretsPath)) throw new AcpRefusedException(AcpRefusedException.Declined, "This file holds secret values that were hidden from the agent; it cannot be written through the editor.");
         var codec = doc.Codec;
         byte[] bytes;

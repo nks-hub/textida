@@ -567,6 +567,7 @@
   "cmd.edit.justifyBlock": "Zeilen im Blocksatz",
   "cmd.edit.insertDateTime": "Datum und Uhrzeit einfügen",
   "cmd.edit.insertGuid": "GUID einfügen",
+  "cmd.agent.askSelection": "Agenten zur Auswahl fragen...",
   "cmd.file.importPspad": "Aus PSPad importieren...",
   "cmd.plugins.catalog": "Plugin-Katalog...",
   "cmd.plugins.catalogRefresh": "Plugin-Katalog neu laden",

@@ -502,6 +502,17 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string AgentAskNeedAgent = "agent.ask.needAgent";
+    public const string AgentAskNoSelection = "agent.ask.noSelection";
+    public const string AgentAskTooLarge = "agent.ask.tooLarge";
+    public const string AgentAskTitle = "agent.ask.title";
+    public const string AgentAskLabel = "agent.ask.label";
+    public const string AgentAskConfirm = "agent.ask.confirm";
+    public const string AgentAskSend = "agent.ask.send";
+    public const string AgentAskDetailRange = "agent.ask.detail.range";
+    public const string AgentAskDetailReview = "agent.ask.detail.review";
+    public const string AgentAskDetailSecrets = "agent.ask.detail.secrets";
+    public const string AgentAskOutside = "agent.ask.outside";
     public const string PspadTitle = "pspad.title";
     public const string PspadMessage = "pspad.message";
     public const string PspadImport = "pspad.import";

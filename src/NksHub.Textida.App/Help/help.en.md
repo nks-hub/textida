@@ -2208,3 +2208,10 @@ File, Import from PSPad takes your own data from a PSPad installation folder you
 2. The passwords of FTP connections are not read unless you answer the second question with yes: PSPad stores them only scrambled, and on your confirmation the editor puts them into the credential store of the system. A plain FTP connection is taken over but stays refused until you allow it explicitly in its settings.
 - Highlighters and clips PSPad was delivered with are not taken: only a file newer than PSPad.exe is, that is, one that is yours or that you changed. A highlighter becomes a grammar of the editor (words, comments, strings, preprocessor); settings the grammar does not have are listed in the preview. A clip with an interactive macro and a macro with a command the editor does not know are not carried over.
 - Keys are carried over only for editor commands that have an equal in the editor (moving the cursor, selecting, deleting, copying); other names in KeyMap.ini are listed as not carried over. A key from PSPad overrides a built-in key on the same chord.
+
+## [tools.agentAsk] Ask the agent about the selection
+commands: nks.agent.askSelection
+Tools, AI, Ask Agent About Selection sends the selected range and your task to the agent you started over ACP. Normal editing never needs it.
+1. Start an agent (Tools, AI, Start Agent), select a range in a file, run the command and write the task. Before anything is sent the editor shows exactly what goes to the agent and asks you to confirm.
+2. The agent answers in the panel. If it wants to change the range it writes the file through the editor and the change shows in the change review; it is applied only after you confirm. A change to text outside the selected range is refused.
+- The range may be at most 24,000 characters and the file must be saved on disk (an agent names files by path). Hidden secret values are not sent. What the agent does with its own tools outside the editor is not watched by the editor; the boundary is shown in the agent panel.

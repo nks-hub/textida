@@ -2208,3 +2208,10 @@ Soubor, Importovat z PSPadu převezme vaše vlastní data ze složky instalace P
 2. Hesla spojení FTP se nečtou, pokud se na to výslovně nezeptáte a nepotvrdíte: PSPad je ukládá jen zakódovaná a editor je při potvrzení uloží do úložiště přihlašovacích údajů systému. Prosté spojení FTP se převezme jako vypnuté, dokud ho v nastavení spojení výslovně nepovolíte.
 - Zvýrazňovače a klipy dodané s PSPadem se nepřebírají: bere se jen soubor, který je novější než PSPad.exe, tedy váš nebo vámi změněný. Zvýrazňovač se převede na gramatiku editoru (slova, komentáře, řetězce, předprocesor); nastavení, které gramatika nemá, preview vypíše. Klip s interaktivním makrem a makro s příkazem, který editor nezná, se nepřevedou.
 - Klávesy se přenášejí jen pro příkazy editoru, které mají v editoru protějšek (pohyb kurzoru, výběr, mazání, kopírování); ostatní jména z KeyMap.ini se vypíšou jako nepřevedená. Klávesa z PSPadu přebíjí vestavěnou klávesu na stejném akordu.
+
+## [tools.agentAsk] Zeptat se agenta na výběr
+commands: nks.agent.askSelection
+Nástroje, AI, Zeptat se agenta na výběr pošle označený úsek a vaše zadání agentovi, kterého jste spustili přes ACP. Běžná úprava textu to nikdy nepotřebuje.
+1. Spusťte agenta (Nástroje, AI, Spustit agenta), označte úsek v souboru, zvolte příkaz a napište zadání. Editor před odesláním ukáže, co přesně se pošle, a ptá se na potvrzení.
+2. Agent odpovídá v panelu. Chce-li úsek změnit, zapíše soubor přes editor a změna se ukáže v přehledu změn; teprve po vašem potvrzení se použije. Změna textu mimo označený úsek se odmítne.
+- Úsek nesmí být delší než 24 000 znaků a soubor musí být uložený na disku (agent soubory jmenuje cestou). Skryté tajné hodnoty se neposílají. Co agent dělá svými vlastními nástroji mimo editor, editor nehlídá; hranice jsou v panelu agenta.
