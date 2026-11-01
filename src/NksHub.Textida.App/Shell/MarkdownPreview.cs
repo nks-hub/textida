@@ -97,7 +97,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             _renderedRevision = revision;
             _pendingRevision = -1;
             var anchors = _anchors = [];
-            _settling = _editor is not null;
+            _settling = true;
             Content = PreviewRenderer.RenderMarkdown(plan, _window.PreviewContext(_doc, anchors) with { JumpToLine = line => ScrollToLine(line) });
             UpdateName();
             Dispatcher.UIThread.Post(() =>
@@ -136,7 +136,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     private void ApplyPendingLine()
     {
-        if (_disposed) return;
+        if (_disposed || _settling) return;
         if (_pendingLine is not { } line) return;
         if (Extent.Height <= 0 || Viewport.Height <= 0)
         {
