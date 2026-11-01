@@ -3,30 +3,29 @@
 [![Release build](https://github.com/nks-hub/textida/actions/workflows/release.yml/badge.svg)](https://github.com/nks-hub/textida/actions/workflows/release.yml)
 [![Release](https://img.shields.io/github/v/release/nks-hub/textida?include_prereleases)](https://github.com/nks-hub/textida/releases)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B%20%7C%20macOS%2014%2B-lightgrey)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2B%20%7C%20macOS%2014%2B%20%7C%20Linux-lightgrey)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> Text editor for Windows and macOS with a paged document core that opens and edits files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Early development; preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
+> Text editor for Windows, macOS and Linux with a paged document core for files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
+
+[Product page and screenshots](https://nks-hub.cz/reference/repo-textida)
 
 The editor is a new program inspired by PSPad; it does not use PSPad code, data or resources.
 
 ## Features
 
-What exists in the repository today:
-
-- 📄 **Paged document core** - `NksHub.Textida.Core` maps the file into memory and keeps edits in a piece tree with undo. On the reference Windows VM (4 cores, 16 GiB RAM, virtual disk) the first screen of a 50 GiB file renders in 1.8 ms warm and 19.5 ms cold, with about 110 MiB private memory.
-- ✏️ **Editing large files** - line counts stay correct after edits without a rescan. A 100 MiB file takes its first edit in under 40 ms (p95, warm) and adds at most 1.2 MiB of memory; inserting a character costs about 1 µs.
-- 💾 **Byte-exact saving** - untouched ranges are written back byte for byte; saved files are checked against SHA-256 of an independently built expected file.
-- 🔍 **Search** - literal and regex search over the paged document with cancellation. On 4 cores it takes 0.01-0.6 of the time of `rg --json` on the same data, with identical match counts.
-- 🔤 **Encoding detection** - BOM, UTF-8 validation (parallel, 15 GB/s on 4 cores of the reference VM), UTF-16 without BOM and a single-byte fallback to CP1250.
-- 📊 **Benchmarks** - `bench/NksHub.Textida.Bench` generates its own corpus and reproduces every number above.
-
-The application itself (window, tabs, menus) is being built in stage P1.
+- 📄 **Paged documents** - reads visible ranges from disk and keeps edits separately, with undo and byte-preserving saves.
+- 🔍 **Search and navigation** - literal and regular-expression search, cancellation, line and byte-offset navigation.
+- 🔤 **Text and hex** - encoding detection, explicit encoding conversion, text editing and a hex view over the same document.
+- 📝 **Markdown** - reading, editing and source modes, native preview, table editing and a generated table of contents.
+- 🧩 **Bundled tools** - separate plugin processes for formatting, text statistics, hashes and language tools, plus an MCP server.
+- 📦 **Desktop packages** - Windows installer and portable ZIP, macOS DMG and ZIP, and Linux packages. Published NativeAOT builds include their runtime.
 
 ## Requirements
 
-- .NET SDK 10.0.402 (pinned in `global.json`)
-- Windows 10 22H2 or newer, or macOS 14 or newer (target systems of the editor; the SDK runs on its own supported systems)
+- Windows 10 22H2 or newer (x64), or macOS 14 or newer (Apple silicon and Intel)
+- Linux preview: Debian 12 or newer, or Ubuntu 22.04 or newer, on x64
+- .NET SDK 10.0.402 (pinned in `global.json`) to build from source; downloaded NativeAOT packages do not require an installed .NET runtime
 - [ripgrep](https://github.com/BurntSushi/ripgrep) only for the search comparison benchmark
 
 ## Installation
@@ -35,11 +34,11 @@ Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases
 
 - **Windows:** `TextidaSetup-<version>-win-x64.exe` installs for the current user without administrator rights; the ZIP is the portable version.
 - **macOS:** `Textida-<version>-osx-arm64.dmg` (Apple silicon) or `-osx-x64.dmg` (Intel). Drag Textida to Applications, then right-click it and choose Open the first time.
-- **Linux (preview):** `textida_<version>_amd64.deb` (`sudo apt install ./textida_<version>_amd64.deb`), or the `.tar.gz` with `./install.sh`, which installs into `~/.local` and needs OpenSSL 3 and ICU from the distribution.
+- **Linux (preview):** `textida_<version>_amd64.deb` for Debian/Ubuntu x64, or the `linux-x64` tar archive with `install.sh` for a per-user installation into `~/.local`. It needs OpenSSL 3 and ICU from the distribution.
 
 ### Debian and Ubuntu (apt)
 
-The `.deb` of every release is also in the NKS Hub apt repository, so `apt upgrade` brings new versions. It runs on Debian 12 or newer and Ubuntu 22.04 or newer, x64:
+Release packages are also published in the NKS Hub apt repository, so `apt upgrade` brings new versions. It currently serves x64 (`amd64`) packages:
 
 ```bash
 curl -fsSL https://repo.nks-hub.cz/public-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nks-dev.gpg
@@ -69,6 +68,10 @@ dotnet test
 ```
 
 ## Usage
+
+Run `Textida.exe` on Windows, open Textida from Applications on macOS, or run `textida` on Linux. Open a file through the menu, drag it into the window, or pass its path on the command line. Markdown documents have reading, editing and source modes.
+
+### Benchmarks
 
 Generate the benchmark corpus and run a scenario:
 
@@ -123,9 +126,12 @@ The macOS package (`Textida.app` as a ZIP and a DMG, one per architecture, signe
 ```bash
 dotnet run tools/BuildMacPackage.cs -- --version <version> --rid osx-arm64 --output ./artifacts
 dotnet run tools/BuildLinuxPackage.cs -- --version <version> --output ./artifacts
+dotnet run tools/BuildLinuxPackage.cs -- --version <version> --rid linux-arm64 --output ./artifacts
 ```
 
-Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and attaches them with `SHA256SUMS.txt` and the signed `feed.json` to a draft release. Publish the draft after checking the installer, then commit its `feed.json` to the `update-feed` branch. Linux is a preview: its packages are added when they built and passed the smoke test.
+Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and attaches them with `SHA256SUMS.txt` and the signed `feed.json` to a draft release. All five platform builds must pass. Publish the draft after checking the installer, then commit its `feed.json` to the `update-feed` branch. Linux remains a preview; its automated GUI checks run under Xvfb.
+
+Before publishing, verify the actual packages for Windows x64, macOS arm64 and x64, and Linux x64 and arm64. After publishing, check the public download and signed feed, then update the [NKS Hub product page](https://nks-hub.cz/reference/repo-textida), this README and the repository description with the same verified version and platform information. Product screenshots must come from the running application with sample documents.
 
 Updates are checked only when you choose Help, Check for Updates, or at start if `updates.checkOnStart` is on (off by default). The check is one GET of the [signed feed](https://raw.githubusercontent.com/nks-hub/textida/update-feed/feed.json), which also covers preview releases. Each package must match the signed SHA-256 and size. Windows uses the installer to switch folders after Textida closes; macOS and unpacked Linux installations use an atomic directory exchange. The old version stays in `Textida.previous` for rollback. Linux installations managed by apt update through apt. macOS accepts only signed and notarized bundles, so the current ad-hoc signed previews require manual installation.
 
