@@ -864,14 +864,17 @@ public class PluginUiTests : IDisposable
 
         tab.Editor.Select(2, 0);
         await RunAsync("nks.tools.insertExpression");
+        await Until(() => HasNotice("Chyba ve výrazu na pozici"), "the notice about the error position");
         Assert.True(HasNotice("Chyba ve výrazu na pozici"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
 
         tab.Editor.Select(original.IndexOf("System", StringComparison.Ordinal) + 2, 0);
         await RunAsync("nks.tools.insertExpression");
+        await Until(() => HasNotice("Neznámý název 'System'"), "the notice about the unknown name");
         Assert.True(HasNotice("Neznámý název 'System'"), string.Join(" | ", _w.Notices.Select(n => n.Message)));
 
         tab.Editor.Select(original.Length, 0); // the empty line behind the last break
         await RunAsync("nks.tools.insertExpression");
+        await Until(() => HasNotice("Označte výraz, nebo dejte kurzor na řádek s výrazem."), "the notice about no expression");
         Assert.True(HasNotice("Označte výraz, nebo dejte kurzor na řádek s výrazem."), string.Join(" | ", _w.Notices.Select(n => n.Message)));
 
         Assert.Equal(original, Utf8(tab));
