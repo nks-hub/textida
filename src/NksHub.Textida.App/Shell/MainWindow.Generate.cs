@@ -50,6 +50,42 @@ internal sealed partial class MainWindow
         RunEdit((s, sels) => AvaloniaEditAdapter.LineOperations.ReplaceSelections(s.Document, sels, _ => text));
     }
 
+    /// <summary>The text key of a Unicode general category code; the constants are listed here so that every one of them is used.</summary>
+    private static string CategoryKey(string code) => code switch
+    {
+        "Lu" => K.UnicodeCategoryLu,
+        "Ll" => K.UnicodeCategoryLl,
+        "Lt" => K.UnicodeCategoryLt,
+        "Lm" => K.UnicodeCategoryLm,
+        "Lo" => K.UnicodeCategoryLo,
+        "Mn" => K.UnicodeCategoryMn,
+        "Mc" => K.UnicodeCategoryMc,
+        "Me" => K.UnicodeCategoryMe,
+        "Nd" => K.UnicodeCategoryNd,
+        "Nl" => K.UnicodeCategoryNl,
+        "No" => K.UnicodeCategoryNo,
+        "Zs" => K.UnicodeCategoryZs,
+        "Zl" => K.UnicodeCategoryZl,
+        "Zp" => K.UnicodeCategoryZp,
+        "Cc" => K.UnicodeCategoryCc,
+        "Cf" => K.UnicodeCategoryCf,
+        "Cs" => K.UnicodeCategoryCs,
+        "Co" => K.UnicodeCategoryCo,
+        "Cn" => K.UnicodeCategoryCn,
+        "Pc" => K.UnicodeCategoryPc,
+        "Pd" => K.UnicodeCategoryPd,
+        "Ps" => K.UnicodeCategoryPs,
+        "Pe" => K.UnicodeCategoryPe,
+        "Pi" => K.UnicodeCategoryPi,
+        "Pf" => K.UnicodeCategoryPf,
+        "Po" => K.UnicodeCategoryPo,
+        "Sm" => K.UnicodeCategorySm,
+        "Sc" => K.UnicodeCategorySc,
+        "Sk" => K.UnicodeCategorySk,
+        "So" => K.UnicodeCategorySo,
+        _ => K.UnicodeCategoryCn,
+    };
+
     /// <summary>Says what the character after the caret (the one before it at the end of the text) is: code point, name, category and its bytes in UTF-8, UTF-16 and the encoding of the file.</summary>
     internal CommandOutcome InspectCharacter()
     {
@@ -66,7 +102,7 @@ internal sealed partial class MainWindow
         try { inFile = CharacterInfo.Hex(tab.Doc.Doc.Codec.Encode(char.ConvertFromUtf32(info.CodePoint))); }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or EncoderFallbackException) { inFile = Loc.Get(K.CharInspectNotInFile); }
         string message = Loc.Get(K.CharInspectText, ("codepoint", info.CodePointText), ("name", info.Name ?? Loc.Get(K.CharInspectNoName)),
-            ("category", info.CategoryCode + " " + Loc.Get("unicode.category." + info.CategoryCode)), ("utf8", info.Utf8.Length == 0 ? Loc.Get(K.CharInspectNoUtf8) : CharacterInfo.Hex(info.Utf8)), ("utf16", CharacterInfo.Hex(info.Utf16)),
+            ("category", info.CategoryCode + " " + Loc.Get(CategoryKey(info.CategoryCode))), ("utf8", info.Utf8.Length == 0 ? Loc.Get(K.CharInspectNoUtf8) : CharacterInfo.Hex(info.Utf8)), ("utf16", CharacterInfo.Hex(info.Utf16)),
             ("encoding", tab.Doc.Doc.Codec.Name), ("file", inFile));
         _ = _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.CharInspectTitle), message, [new DialogButton(Loc.Get(K.DialogClose), IsDefault: true, IsCancel: true)]));
         return CommandOutcome.Handled;

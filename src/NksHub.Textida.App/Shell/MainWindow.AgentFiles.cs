@@ -37,7 +37,7 @@ internal sealed partial class MainWindow
         long tokens = files.Where(f => f.Applies).Sum(f => f.Tokens), bytes = files.Where(f => f.Applies).Sum(f => f.Bytes);
         if (files.Count > 0)
         {
-            string summary = Loc.Get(K.AgentFilesSummary, ("count", files.Count(f => f.Applies)), ("size", FormatSize(bytes)), ("tokens", FormatTokens(tokens)), ("rule", TokenRuleName(_tokenRule)));
+            string summary = Loc.Plural(K.AgentFilesSummary, files.Count(f => f.Applies), ("size", FormatSize(bytes)), ("tokens", FormatTokens(tokens)), ("rule", TokenRuleName(_tokenRule)));
             rows.Add(new QuickRow(summary, null, null, null, false, null, summary, () => { }));
         }
         foreach (var file in files)

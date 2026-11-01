@@ -97,7 +97,7 @@ internal sealed partial class MainWindow
         var preview = steps.Take(FolderPreviewLines).Select(s => Loc.Get(s.Overwrites ? K.FoldersPreviewReplace : K.FoldersPreviewNew, ("path", s.Path))).ToList();
         if (steps.Count > FolderPreviewLines) preview.Add(Loc.Get(K.FoldersPreviewMore, ("count", steps.Count - FolderPreviewLines)));
         int confirmed = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(title,
-            Loc.Get(K.FoldersPreview, ("count", steps.Count), ("replaced", steps.Count(s => s.Overwrites)), ("from", from.Label), ("to", to.Label)),
+            Loc.Plural(K.FoldersPreview, steps.Count, ("replaced", steps.Count(s => s.Overwrites)), ("from", from.Label), ("to", to.Label)),
             [new DialogButton(Loc.Get(K.FoldersCopyDo)), new DialogButton(Loc.Get(K.DialogCancel), IsDefault: true, IsCancel: true)], preview));
         if (confirmed != 0) return;
 
