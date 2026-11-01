@@ -43,6 +43,7 @@ internal sealed partial class HexView
         private int _hexChars, _digits;
         private int _layoutKey;
         private Typeface _face;
+        private readonly Dictionary<(string Text, Color Color, double Opacity, Typeface Face, double Size), FormattedText> _labels = [];
 
         public long RenderedAt { get; private set; }
         public double RenderMs { get; private set; }
@@ -56,6 +57,18 @@ internal sealed partial class HexView
         public int VisibleRows => Math.Max(1, (int)Math.Floor(Math.Max(0, Bounds.Height) / _rh));
 
         private FormattedText Format(string text, IBrush brush) => new(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, _face, owner._options.FontSize, brush);
+
+        private FormattedText Label(string text, IBrush brush)
+        {
+            if (brush is not ISolidColorBrush solid) return Format(text, brush);
+            var key = (text, solid.Color, solid.Opacity, _face, owner._options.FontSize);
+            if (_labels.TryGetValue(key, out var label)) return label;
+            if (_labels.Count == 512) _labels.Clear();
+            // Byte rows receive mutable style spans; only immutable labels enter this bounded cache.
+            label = Format(text, new SolidColorBrush(solid.Color, solid.Opacity));
+            _labels.Add(key, label);
+            return label;
+        }
 
         protected override Size MeasureOverride(Size availableSize)
         {
@@ -256,7 +269,7 @@ internal sealed partial class HexView
                 if (caretRow) context.FillRectangle(currentRow, new Rect(0, y, Bounds.Width, _rh));
 
                 string offsetText = owner._decimalOffsets ? rowOffset.ToString("D" + _digits, CultureInfo.InvariantCulture) : rowOffset.ToString("X" + _digits, CultureInfo.InvariantCulture);
-                context.DrawText(Format(offsetText, dim), new Point(Pad, y + 1));
+                context.DrawText(Label(offsetText, dim), new Point(Pad, y + 1));
 
                 // bookmarks: a tint in the colour of the region and a bar on top of it, so the mark does not rest on colour alone
                 foreach (var b in marks)
@@ -399,7 +412,7 @@ internal sealed partial class HexView
             IBrush? runBrush = null;
             void Flush()
             {
-                if (run.Length > 0) context.DrawText(Format(run.ToString(), runBrush!), new Point(_charLeft + runStart * _cw, y + 1));
+                if (run.Length > 0) context.DrawText(Label(run.ToString(), runBrush!), new Point(_charLeft + runStart * _cw, y + 1));
                 run.Clear();
             }
             for (int i = 0; i < n; i++)
@@ -417,7 +430,7 @@ internal sealed partial class HexView
                 }
                 Flush();
                 var brush = cell.Kind switch { HexCellKind.Invalid => danger, HexCellKind.Normal => fore, _ => dim };
-                context.DrawText(Format(cell.Glyph, brush), new Point(_charLeft + i * _cw, y + 1));
+                context.DrawText(Label(cell.Glyph, brush), new Point(_charLeft + i * _cw, y + 1));
             }
             Flush();
         }
