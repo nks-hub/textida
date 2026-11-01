@@ -337,10 +337,11 @@ public class WebDataAppTests : IDisposable
         Assert.Equal(key, tab.Editor.ByteSelections()!.Items[0].ToRange());
 
         // the outline was not opened by Go to Anything, and the document stays visible to the plugin until its tab closes
-        Assert.False(_w.PluginPanelOpen);
+        Assert.False(_w.PluginPanelOpen, "the plugin panel was opened by Go to Anything or the click in the outline");
         Assert.True(_app.Plugins.Documents.IsExposed(tab.Doc.Doc.Id));
         var document = tab.Doc.Doc.Id;
         _w.CloseTab(tab);
+        await Until(() => !_app.Plugins.Documents.IsExposed(document), "the document to stop being exposed after its tab closed");
         Assert.False(_app.Plugins.Documents.IsExposed(document));
     }
 
