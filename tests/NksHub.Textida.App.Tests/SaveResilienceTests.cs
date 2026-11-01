@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -42,7 +43,7 @@ public sealed class SaveResilienceTests(ITestOutputHelper output)
                 Dispatcher.UIThread.RunJobs();
             }
             var baseline = MeasureNavigation(window);
-            output.WriteLine($"navigation before save: n=30, p95 {baseline.P95:F3} ms, max {baseline.Max:F3} ms");
+            output.WriteLine($"navigation before save: n=30, input-to-render p95 {baseline.P95:F3} ms, max {baseline.Max:F3} ms; draw p95 {baseline.RenderP95:F3} ms, max {baseline.RenderMax:F3} ms");
             int confirmed = 0;
             document.Saved += (_, _) => confirmed++;
             var delay = new Stopwatch();
@@ -58,7 +59,7 @@ public sealed class SaveResilienceTests(ITestOutputHelper output)
 
             long before = tab.Hex.Caret;
             var during = MeasureNavigation(window);
-            output.WriteLine($"navigation during flush: n=30, p95 {during.P95:F3} ms, max {during.Max:F3} ms");
+            output.WriteLine($"navigation during flush: n=30, input-to-render p95 {during.P95:F3} ms, max {during.Max:F3} ms; draw p95 {during.RenderP95:F3} ms, max {during.RenderMax:F3} ms");
             Assert.True(tab.Hex.Caret > before);
             Assert.True(document.IsSaving);
             Assert.Equal(0, confirmed);
@@ -85,19 +86,29 @@ public sealed class SaveResilienceTests(ITestOutputHelper output)
         }
     }
 
-    private static (double P95, double Max) MeasureNavigation(MainWindow window)
+    private static (double P95, double Max, double RenderP95, double RenderMax) MeasureNavigation(MainWindow window)
     {
         var samples = new List<double>();
+        var renders = new List<double>();
+        var hex = window.Active!.Hex!;
         for (int i = 0; i < 30; i++)
         {
+            long caret = hex.Caret, previousFrame = hex.RenderedAt;
             long start = Stopwatch.GetTimestamp();
             TestApp.Press(window, Key.Right);
             window.UpdateLayout();
-            Dispatcher.UIThread.RunJobs();
-            samples.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+            using var frame = window.CaptureRenderedFrame();
+            Assert.NotNull(frame);
+            Assert.Equal(caret + 1, hex.Caret);
+            long renderedAt = hex.RenderedAt;
+            Assert.True(renderedAt > previousFrame && renderedAt >= start, "The moved caret did not produce a new hex frame.");
+            // RenderedAt marks the changed caret's drawing, before the headless helper drains further frames and reads the bitmap back.
+            samples.Add(Stopwatch.GetElapsedTime(start, renderedAt).TotalMilliseconds);
+            renders.Add(hex.RenderMs);
         }
         samples.Sort();
-        return (samples[(int)(samples.Count * 0.95)], samples[^1]);
+        renders.Sort();
+        return (samples[(int)(samples.Count * 0.95)], samples[^1], renders[(int)(renders.Count * 0.95)], renders[^1]);
     }
 
     private static void PumpUntil(Func<bool> condition)
