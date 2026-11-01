@@ -2111,3 +2111,12 @@ Eine .dll-, .exe- oder .winmd-Datei mit .NET-Code öffnet sich als dekompilierte
 1. Öffnen Sie die Assembly mit Öffnen oder durch Ablegen. Der Tab sagt zuerst, dass er dekompiliert, und erhält den Text, sobald er fertig ist.
 - Der Code wird nur gelesen, nichts von der Assembly wird ausgeführt oder geladen. Verweise auf andere Assemblies werden neben der Datei und im Laufzeitordner gesucht, nicht im Netz. Der Tab lässt sich nicht über die Assembly speichern.
 - Eine große Assembly (über 300 Typen) wird Typ für Typ geschrieben und bei 8 Millionen Zeichen oder nach 60 Sekunden gekürzt; das Ende der Ausgabe sagt es. Dateien über 256 MB werden nicht dekompiliert. Die Einstellung files.decompileAssemblies schaltet das ab, die Datei öffnet sich dann wie jede Binärdatei.
+
+## [tools.astGrep] Strukturelle Suche und Ersetzung
+commands: nks.tools.structuralSearch
+Der Befehl im Menü Extras sucht Code nach seinem Syntaxbaum statt nach Zeichen und kann das Gefundene umschreiben. Er nutzt das Programm ast-grep, das installiert sein muss.
+1. Öffnen Sie eine Datei in einer Sprache, die ast-grep kennt (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart), und wählen Sie Extras und Strukturelle Suche.
+2. Geben Sie ein Muster an, in dem $A eine Variable ist, zum Beispiel console.log($A), und eine Ersetzung, zum Beispiel logger.info($A). Eine leere Ersetzung sucht nur und listet die Treffer im Tab Aufgaben.
+3. Die Ersetzung erscheint in der Änderungsvorschau als Vorschlag. Haken Sie ab, was Sie nicht wollen, und übernehmen Sie. Eine Datei, die sich inzwischen geändert hat, bleibt unberührt und wird als Konflikt gemeldet.
+- Das Programm wird in node_modules/.bin, .venv und im PATH gesucht (nichts wird heruntergeladen), und Sie bestätigen es vor dem ersten Lauf. Es läuft hinter dem Proxy des Editors und erreicht kein Netz, das der Proxy nicht erlaubt. Gesucht wird im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
+- Die offenen Tabs des Ordners werden nicht von der Platte gelesen: ihr Text, auch ungespeichert, geht über die Standardeingabe an das Programm. Geplant werden nur UTF-8-Dateien und -Tabs (ast-grep zählt UTF-8-Bytes); eine andere Kodierung wird mit dem Grund im Tab Aufgaben übersprungen. Die Suche endet nach 5000 Treffern oder 120 Sekunden.

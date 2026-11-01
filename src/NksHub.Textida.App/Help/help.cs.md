@@ -2111,3 +2111,12 @@ Soubor .dll, .exe nebo .winmd s kódem .NET se otevře jako dekompilovaný C# v 
 1. Otevřete sestavení příkazem Otevřít nebo přetažením. Karta nejdřív napíše, že dekompiluje, a text se doplní, až je hotový.
 - Kód se jen čte, nic ze sestavení se nespouští ani nenačítá. Odkazy na jiná sestavení se hledají vedle souboru a ve složce běhového prostředí, ne v síti. Karta nejde uložit přes sestavení.
 - Velké sestavení (přes 300 typů) se vypíše typ po typu a zkrátí se na 8 milionů znaků nebo po 60 sekundách; konec výpisu to řekne. Soubory přes 256 MB se nedekompilují. Nastavení files.decompileAssemblies to vypne, soubor se pak otevře jako každý binární.
+
+## [tools.astGrep] Strukturální hledání a přepis
+commands: nks.tools.structuralSearch
+Příkaz v nabídce Nástroje hledá kód podle jeho stromu, ne podle znaků, a umí nalezené přepsat. Používá program ast-grep, který musíte mít nainstalovaný.
+1. Otevřete soubor v jazyce, který ast-grep zná (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart), a zvolte Nástroje a Strukturální hledání.
+2. Zadejte vzor, kde $A je proměnná, například console.log($A), a přepis, například logger.info($A). Prázdný přepis jen hledá a shody vypíše do karty Úlohy.
+3. Přepis se objeví v přehledu změn jako návrh. Odškrtněte, co nechcete, a použijte. Soubor, který se mezitím změnil, se neupraví a hlásí se jako konflikt.
+- Program se hledá v node_modules/.bin, .venv a v PATH (nic se nestahuje) a před prvním během ho musíte potvrdit. Běží za proxy editoru, takže na síť nedosáhne, dokud ji proxy nepustí. Hledá se ve složce panelu souborů, jinak ve složce otevřeného souboru.
+- Otevřené karty složky se nečtou z disku: jejich text, i neuložený, jde programu na standardní vstup. Jako text se plánují jen soubory a karty v UTF-8 (ast-grep počítá bajty UTF-8); jiné kódování se přeskočí s důvodem v kartě Úlohy. Hledání se zastaví po 5000 shodách nebo po 120 sekundách.

@@ -561,6 +561,7 @@
   "cmd.edit.justifyBlock": "Zarovnať riadky do bloku",
   "cmd.edit.insertDateTime": "Vložiť dátum a čas",
   "cmd.edit.insertGuid": "Vložiť GUID",
+  "cmd.tools.structuralSearch": "Štrukturálne hľadanie a prepis (ast-grep)…",
   "cmd.tools.searchWeb": "Hľadať výber na webe",
   "cmd.tools.openMappedUrl": "Otvoriť súbor na jeho adrese",
   "cmd.file.openUrl": "Otvoriť z internetu…",

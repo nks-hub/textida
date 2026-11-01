@@ -1854,6 +1854,13 @@
       "enablement": "true"
     },
     {
+      "id": "nks.tools.structuralSearch",
+      "title": "cmd.tools.structuralSearch",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5002,6 +5009,12 @@
       "command": "nks.tools.openMappedUrl",
       "group": "2_run/06",
       "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.structuralSearch",
+      "group": "2_run/07",
+      "order": 10
     },
     {
       "menu": "edit",

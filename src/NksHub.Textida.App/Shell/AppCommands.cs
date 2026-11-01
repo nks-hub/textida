@@ -164,6 +164,7 @@ internal static class AppCommands
         On("nks.file.openUrl", w => w.OpenFromInternet());
         On("nks.tools.searchWeb", w => w.SearchSelectionOnWeb());
         On("nks.tools.openMappedUrl", w => w.OpenFileAtMappedUrl());
+        On("nks.tools.structuralSearch", w => w.StructuralSearch());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

@@ -2111,3 +2111,12 @@ A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only
 1. Open the assembly with Open or by dropping it. The tab first says that it is decompiling and gets the text when it is done.
 - The code is only read; nothing of the assembly is run or loaded. References to other assemblies are looked up next to the file and in the runtime folder, not on the network. The tab cannot be saved over the assembly.
 - A large assembly (over 300 types) is written type by type and cut at 8 million characters or after 60 seconds; the end of the listing says so. Files over 256 MB are not decompiled. The setting files.decompileAssemblies turns this off, and the file then opens like any binary.
+
+## [tools.astGrep] Structural search and rewrite
+commands: nks.tools.structuralSearch
+The command in the Tools menu searches code by its syntax tree instead of its characters and can rewrite what it finds. It uses the program ast-grep, which you must have installed.
+1. Open a file in a language ast-grep knows (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart) and choose Tools and Structural Search.
+2. Enter a pattern where $A is a variable, for example console.log($A), and a rewrite, for example logger.info($A). An empty rewrite only searches and lists the matches in the Tasks tab.
+3. The rewrite appears in the change preview as a proposal. Untick what you do not want and apply. A file that changed meanwhile is left alone and reported as a conflict.
+- The program is looked for in node_modules/.bin, .venv and on the PATH (nothing is downloaded) and you confirm it before the first run. It runs behind the proxy of the editor, so it reaches no network the proxy does not allow. The search covers the folder of the file panel, else the folder of the open file.
+- The open tabs of the folder are not read from disk: their text, even unsaved, goes to the program on standard input. Only UTF-8 files and tabs are planned (ast-grep counts UTF-8 bytes); another encoding is skipped with the reason in the Tasks tab. The search stops after 5000 matches or 120 seconds.
