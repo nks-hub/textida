@@ -1459,6 +1459,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Umístění:** jádro (`builtin.contributions.json`, nápověda)
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
   - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (e7c90ac7). Celé menu přeorganizované s klávesami pro přístup a zanořenými podnabídkami, jazyk rozhraní přesunut z menu do nastavení. Mapa staré → nové je v `docs/menu-map.md`. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
+  - Stav 1. 11. 2026: Nástroje měly po PZ dávkách 21 položek. HTTP a web jsou v novém podmenu „Web a HTTP“, interpret je v Spouštění, porovnání složek v Porovnání, soubory agentů v Agenti a AI, strukturální hledání a volající v Kód a jazyk, kapátko v Barvy. Nahoře jich zbylo 18.
 
 ### P3.7 První distribuce
 
@@ -3351,6 +3352,8 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** verze 1.0
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** import z PSPadu jen z uživatelem zvolené složky s náhledem: spojení FTP (hesla až po druhém potvrzení), projekty, klipy, makra, zvýrazňovače a klávesy. Formát KeyMap.ini a kódování hesel podle dokumentace, na skutečné instalaci neověřené (1430679e).
+  - **Ověření 1. 11. 2026 (tester):** PspadImportTests 23/23; test se skutečnou instalací PSPadu se bez `TEXTIDA_PSPAD_DIR` přeskočí (5dd7d938).
+  - Stav 1. 11. 2026: import z PSPadu přesunut z menu Soubor do Nastavení > záloha (menu Soubor mělo 22 položek nad limitem 20).
 
 ### PZ.2 Síť, výstup a AI
 
@@ -3368,6 +3371,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P9.3.2
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** tisk přes dialog Windows (PrintDlgEx, GDI) s barvami zvýraznění, čísly řádků a záhlavím; na macOS a Linuxu tisk do PDF, protože Avalonia tiskové API nemá; tisk na Microsoft Print to PDF vyzkoušen. PDF používá Courier, znaky mimo Windows-1252 a střední Evropu se nahradí otazníkem (79d28135).
+  - **Ověření 1. 11. 2026 (tester):** PDF export (2 strany, čeština, €) přečtený pypdf i PyMuPDF beze ztráty textu; skutečný tisk na Microsoft Print to PDF prošel.
 - [ ] **PZ.2.3** Hledání výběru na webu
   - **Co a proč:** Obecné hledání výběru přes uživatelskou URL, ne starý Google dialog.
   - **Funkce:** F062
@@ -3399,6 +3403,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** pravopis přes Hunspell (WeCantSpell, MIT) jen v komentářích, řetězcích, Markdownu a textu; slovník vybere uživatel nebo se po souhlasu stáhne z LibreOffice (cs, sk, en, de, pl), nic se nepřibaluje; doplnění diakritiky přes revizi změn; ověřeno se skutečným cs_CZ; NativeAOT bez varování (25b67dda).
+  - **Ověření 1. 11. 2026 (tester):** skutečný cs_CZ z LibreOffice: načtení 220 ms, správná slova přijata, návrhy chiba → chyba, zlutoucky → žluťoučký, kone → koně; 2 000 kontrol za 23 ms.
 - [ ] **PZ.3.2** Změna velikosti klíčových slov
   - **Co a proč:** Jen jazykově bezpečná změna velikosti klíčových slov, nezávislá na barvě tokenu.
   - **Funkce:** F072
@@ -3432,6 +3437,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P1.4.4
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** otevření a uložení chráněné cesty přes pomocníka s právy (UAC na Windows, osascript na macOS), bez pevného seznamu souborů; samotná výzva UAC a macOS neklikána, na Linuxu chybí (fcef8a09).
+  - Stav 1. 11. 2026: chráněné otevření přesunuto do podmenu Soubor > Otevřít zvláštně (limit menu).
 - [ ] **PZ.4.3** Sady ikon
   - **Co a proč:** Vlastní vektorové ikony; import bitmapového skinu jen volitelně.
   - **Funkce:** F137
@@ -3568,6 +3574,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P8b.2.1
   - **Odhad:** F207 2–4 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** SDK pro JS/TS a Python: typy generované ze schématu API, tenká knihovna a ukázkový plugin pro každý jazyk; oba prošly validátorem se skutečným Node a Pythonem (5bb82ef0).
+  - **Ověření 1. 11. 2026 (tester):** ukázkové pluginy JS i Python prošly validátorem s Node 24 a Pythonem 3.12 (SdkTypesTests 5/5).
 - [ ] **PZ.8.3** Kód pluginu uvnitř editoru
   - **Co a proč:** WASM nebo Jint jen po měření a rozhodnutí o velikosti a entitlementech pro macOS.
   - **Funkce:** F209
