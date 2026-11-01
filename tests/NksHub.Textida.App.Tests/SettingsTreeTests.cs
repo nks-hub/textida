@@ -112,6 +112,26 @@ public class SettingsTreeTests : IDisposable
         Assert.Empty(view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settingsection")));
     }
 
+    [AvaloniaFact]
+    public void Every_value_of_every_choice_setting_has_a_label_in_each_language_and_none_shows_the_raw_value()
+    {
+        var wb = _app.Workbench;
+        var choices = wb.Host.Settings.Definitions.Where(d => d.Values is { Count: > 0 }).ToList();
+        Assert.True(choices.Count >= 17);
+        foreach (var language in Loc.Languages)
+        {
+            Loc.SetLanguage(language);
+            foreach (var definition in choices)
+                foreach (var value in definition.Values!)
+                {
+                    string label = SettingsWindow.ValueLabel(definition.Key, value);
+                    Assert.NotEqual(value, label); // a raw "none" or "afterDelay" would be what the user sees otherwise
+                    Assert.False(label.StartsWith("settings.value.", StringComparison.Ordinal), $"{language} {definition.Key} {value}");
+                }
+        }
+        Loc.SetLanguage(Loc.DefaultLanguage);
+    }
+
     // ---- the language ----
 
     [AvaloniaFact]

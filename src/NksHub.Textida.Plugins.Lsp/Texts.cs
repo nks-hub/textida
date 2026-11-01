@@ -45,6 +45,9 @@ public static class Texts
         ["symbolsTitle"] = ["Symboly: {count}", "Symbols: {count}", "Symboly: {count}", "Symbole: {count}"],
         ["workspaceSymbolTitle"] = ["Symbol v projektu", "Symbol in the workspace", "Symbol v projekte", "Symbol im Projekt"],
         ["workspaceSymbolLabel"] = ["Hledaný název", "Name to search for", "Hľadaný názov", "Gesuchter Name"],
+        ["networkTitle"] = ["Síť pro jazykový server", "Network for a language server", "Sieť pre jazykový server", "Netzwerk für einen Sprachserver"],
+        ["networkMessage"] = ["Server {tool} smí pomocí proxy editoru oslovit tyto servery: {hosts}. Stahuje z nich balíčky, které projekt potřebuje. Telemetrie zůstává zakázaná. Souhlas lze vzít zpět v příkazu pro zrušení souhlasů se sítí.", "{tool} may reach these hosts through the proxy of the editor: {hosts}. It downloads the packages the project needs from them. Telemetry stays blocked. You can take the consent back with the command that revokes network consents.", "Server {tool} smie cez proxy editora osloviť tieto servery: {hosts}. Sťahuje z nich balíky, ktoré projekt potrebuje. Telemetria zostáva zakázaná. Súhlas možno vziať späť v príkaze na zrušenie súhlasov so sieťou.", "{tool} darf über den Proxy des Editors diese Server erreichen: {hosts}. Von dort lädt es die Pakete, die das Projekt braucht. Telemetrie bleibt gesperrt. Die Zustimmung lässt sich mit dem Befehl zum Widerrufen der Netzwerkzustimmungen zurücknehmen."],
+        ["networkAnyHost"] = ["libovolný server kromě telemetrie", "any host except telemetry", "ľubovoľný server okrem telemetrie", "jeder Server außer Telemetrie"],
         ["noMessage"] = ["(bez popisu)", "(no message)", "(bez popisu)", "(ohne Beschreibung)"],
     };
 

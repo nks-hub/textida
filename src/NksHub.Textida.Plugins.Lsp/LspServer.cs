@@ -85,6 +85,18 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         _ = WatchAsync();
     }
 
+    /// <summary>The name the consent and the proxy know the server by: its program without folder and extension.</summary>
+    public static string ToolName(ServerLaunch launch) => Path.GetFileNameWithoutExtension(launch.Program);
+
+    /// <summary>The hosts the server may be allowed to reach: the ones of its entry, for C# also the feeds of the nuget.config files that apply to the project, <c>*</c> for a declared server whose author asked for the network.</summary>
+    public static IReadOnlyList<string> HostsOf(ServerLaunch launch, string root)
+    {
+        var hosts = new List<string>(launch.Hosts ?? []);
+        if (launch.Language == "csharp") hosts.AddRange(NuGetSources.Hosts(root));
+        if (launch.NeedsNetwork) hosts.Add("*");
+        return hosts;
+    }
+
     /// <summary>Starts the program and performs the <c>initialize</c> handshake. The process is ended when the handshake fails.</summary>
     public static async Task<LspServer> StartAsync(ServerLaunch launch, string root, LspSettings settings, Func<string, JsonElement, ValueTask> onNotification, CancellationToken ct)
     {
@@ -92,7 +104,10 @@ public sealed class LspServer : IRpcHandler, IAsyncDisposable
         try { info = ProcessLaunch.CreateStartInfo(launch.Program, launch.Arguments); }
         catch (ToolException e) { throw new ServerStartException(e.Message); }
         (info.RedirectStandardInput, info.RedirectStandardOutput, info.RedirectStandardError, info.UseShellExecute, info.CreateNoWindow, info.WorkingDirectory) = (true, true, true, false, true, root);
-        if (!launch.NeedsNetwork) ToolProxy.Shared.Apply(info); // a server that does not need the network reaches nothing outside the machine; its entry's own environment still wins
+        // every server goes through the proxy of the editor, which lets it reach only the hosts of its entry (and, for C#, of the user's nuget.config) once the user has agreed
+        string tool = ToolName(launch);
+        ToolProxy.Shared.Register(tool, HostsOf(launch, root));
+        ToolProxy.Shared.Apply(info, tool); // the entry's own environment still wins
         foreach (var (name, value) in launch.Environment) info.Environment[name] = value;
         Process process;
         try { process = Process.Start(info) ?? throw new ServerStartException("The process did not start."); }

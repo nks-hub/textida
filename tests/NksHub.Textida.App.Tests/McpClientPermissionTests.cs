@@ -12,6 +12,21 @@ public class McpClientPermissionTests : IDisposable
     private string File_ => Path.Combine(_temp.Path, "mcp-clients.json");
 
     [Fact]
+    public void A_client_that_gave_no_name_is_shown_in_the_language_of_the_interface_and_stored_under_the_fixed_name()
+    {
+        try
+        {
+            foreach (var (language, expected) in new[] { ("cs", "(neznámý)"), ("en", "(unknown)"), ("sk", "(neznámy)"), ("de", "(unbekannt)") })
+            {
+                NksHub.Textida.App.Text.Loc.SetLanguage(language);
+                Assert.Equal(expected, NksHub.Textida.App.Shell.MainWindow.McpClientLabel(NksHub.Textida.PluginHost.Mcp.McpServer.UnknownClient));
+            }
+            Assert.Equal("claude-code", NksHub.Textida.App.Shell.MainWindow.McpClientLabel("claude-code"));
+        }
+        finally { NksHub.Textida.App.Text.Loc.SetLanguage(NksHub.Textida.App.Text.Loc.DefaultLanguage); }
+    }
+
+    [Fact]
     public void A_new_client_is_refused_and_the_user_is_asked_once_until_the_user_decides()
     {
         var clients = new McpClients(File_);

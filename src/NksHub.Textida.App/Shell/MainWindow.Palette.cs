@@ -261,16 +261,19 @@ internal sealed partial class MainWindow
     private void RenderRows(string highlight)
     {
         _paletteList.Items.Clear();
+        // a column is only there when some row fills it: a list of names alone starts at the left edge, not after 130 px of nothing
+        string categoryWidth = _quickRows.Any(r => !string.IsNullOrEmpty(r.Category)) ? "110" : "0", iconWidth = _quickRows.Any(r => r.Icon is not null) ? "24" : "0";
+        bool plain = categoryWidth == "0" && iconWidth == "0";
         foreach (var row in _quickRows)
         {
             var category = new TextBlock { Text = row.Category ?? "", Opacity = 0.6, Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
-            var title = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+            var title = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(plain ? 12 : 0, 0, 0, 0) };
             foreach (var run in Highlighted(row.Title, highlight)) title.Inlines!.Add(run);
             string? note = row.Detail is null ? row.Reason : row.Reason is null ? row.Detail : row.Detail + " · " + row.Reason;
             if (note is not null) title.Inlines!.Add(new Run("  " + note) { FontSize = 12, Foreground = Brushes.Gray });
             var keys = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
             foreach (var key in KeyCaps(row.Shortcut)) keys.Children.Add(key.Length == 0 ? new Border { Width = 6 } : KeyCap(key));
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("110,24,*,Auto"), Opacity = row.Enabled ? 1 : 0.5 };
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions($"{categoryWidth},{iconWidth},*,Auto"), Opacity = row.Enabled ? 1 : 0.5 };
             Grid.SetColumn(title, 2);
             Grid.SetColumn(keys, 3);
             grid.Children.Add(category);

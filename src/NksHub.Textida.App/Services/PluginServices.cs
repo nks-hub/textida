@@ -102,12 +102,17 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     /// <summary>The package registries the user allowed (P8.7.3); the JSON plugin reads the same file.</summary>
     internal PackageRegistryConsent Registries { get; }
 
+    /// <summary>What the user allowed language servers to reach through the proxy of the editor (tool-network.json of the profile); the language server plugin reads the same file.</summary>
+    internal NksHub.Textida.Remote.ToolNetworkConsent ToolNetwork { get; }
+
     /// <param name="app">The app whose window shows the plugin UI.</param>
     /// <param name="pluginDirectory">Folder with the built-in plugin programs; by default <c>plugins</c> next to the app.</param>
     public PluginServices(App app, string? pluginDirectory = null)
     {
         _app = app;
         Registries = new PackageRegistryConsent(Path.Combine(app.ProfileDirectory, "package-registries.json"));
+        ToolNetwork = new NksHub.Textida.Remote.ToolNetworkConsent(Path.Combine(app.ProfileDirectory, "tool-network.json"));
+        NksHub.Textida.Remote.ToolProxy.Shared.Consent = ToolNetwork;
         Ui = new PluginUiHost(app);
         PluginEventSender send = (plugin, name, payload) => _host!.SendEventAsync(plugin, name, payload);
         // document events wait for a slow plugin, so its backlog stays in the bounded queue of the document API; UI events (a cancelled task) do not wait
@@ -256,7 +261,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         var lspFolder = Path.Combine(pluginDirectory ?? Path.Combine(ProgramFolders.Files, "plugins"), "lsp");
         var lspProgram = Path.Combine(lspFolder, "NksHub.Textida.Plugins.Lsp" + (OperatingSystem.IsWindows() ? ".exe" : ""));
         _host.Register(new PluginSpec(LspPluginId, "Language server", lspProgram,
-            ["--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
+            ["--network-consent", ToolNetwork.FilePath, "--max-bytes", PluginLimitsPlaceholders.LspMaxBytes.ToString(), "--start-timeout-ms", PluginLimitsPlaceholders.LspStartTimeoutMilliseconds.ToString(),
              "--request-timeout-ms", PluginLimitsPlaceholders.LspRequestTimeoutMilliseconds.ToString(), "--stop-timeout-ms", PluginLimitsPlaceholders.LspStopTimeoutMilliseconds.ToString(),
              "--max-locations", PluginLimitsPlaceholders.LspMaxLocations.ToString(), "--max-symbols", PluginLimitsPlaceholders.SymbolsPerDocument.ToString(), "--max-decorations", PluginLimitsPlaceholders.DecorationsPerDocument.ToString(), "--decoration-refresh-ms", PluginLimitsPlaceholders.LspDecorationRefreshMilliseconds.ToString(), "--stderr-lines", PluginLimitsPlaceholders.LspStderrLines.ToString(),
              "--max-message-chars", PluginLimitsPlaceholders.SymbolTextLength.ToString(), "--max-diagnostics", PluginLimitsPlaceholders.DiagnosticsPerDocument.ToString(),
@@ -1486,6 +1491,26 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         try { policy = _app.Remote.Policy(); }
         catch (NksHub.Textida.Remote.RemoteException) { policy = null; }
         Registries.Sync(policy);
+        SyncToolNetwork(policy);
+    }
+
+    /// <summary>
+    /// Hands the proxy of the network policy to the proxy of the tools. Only an HTTP proxy without a login can be honoured there; a policy that cannot be read, a SOCKS proxy or a login stop the tools from reaching
+    /// anything rather than go around the proxy that was meant.
+    /// </summary>
+    internal void SyncToolNetwork()
+    {
+        try { SyncToolNetwork(_app.Remote.Policy()); }
+        catch (NksHub.Textida.Remote.RemoteException) { SyncToolNetwork(null); }
+    }
+
+    internal void SyncToolNetwork(NksHub.Textida.Remote.NetworkPolicy? policy)
+    {
+        if (policy is null) { ToolNetwork.SetProxy(null, blocked: true); return; }
+        var p = policy.Proxy;
+        if (p.Type == NksHub.Textida.Remote.ProxyType.None) ToolNetwork.SetProxy(null, blocked: false);
+        else if (p.Type == NksHub.Textida.Remote.ProxyType.Http && p.UserName is null) ToolNetwork.SetProxy($"http://{p.Host}:{p.Port}", blocked: false);
+        else ToolNetwork.SetProxy(null, blocked: true);
     }
 
     /// <summary>Whether Ctrl+J should ask plugins: the tab has a text surface (a paged tab never does) and a plugin answers, or the JSON plugin can be started for the file.</summary>

@@ -77,6 +77,30 @@ public class DecorationsSurfaceTests : IDisposable
         Assert.Null(surface.Signature);
     }
 
+    [AvaloniaFact]
+    public void The_signature_popup_is_put_above_the_line_of_the_caret_when_there_is_room_and_below_it_when_there_is_not()
+    {
+        var w = _app.CreateWindow(null);
+        w.Width = 800;
+        w.Height = 500;
+        var tab = w.OpenFile(_temp.File("place.txt", string.Concat(Enumerable.Range(1, 12).Select(i => $"line {i}\n")) + "x = run(1, 2)\n"), null);
+        var surface = tab.Editor!;
+        w.UpdateLayout();
+        surface.TextArea.Focus();
+        surface.TextArea.TextView.EnsureVisualLines();
+        var info = new SignatureInfo("run(a: int, b: int)", [(4, 10), (12, 18)], 0, null);
+
+        surface.CaretOffset = surface.Document.GetLineByNumber(13).Offset + "x = run(1".Length;
+        Assert.True(surface.ShowSignature(info));
+        Assert.Equal(Avalonia.Controls.PlacementMode.Top, surface.SignaturePopup!.Placement); // the next line stays readable
+
+        surface.CloseSignature();
+        surface.Document.Insert(0, "y = run(1\n");
+        surface.CaretOffset = "y = run(1".Length;
+        Assert.True(surface.ShowSignature(info));
+        Assert.Equal(Avalonia.Controls.PlacementMode.Bottom, surface.SignaturePopup!.Placement); // the first line has nothing above it
+    }
+
     [AvaloniaTheory]
     [InlineData("f(a, (b, c), d", 1, 2)]
     [InlineData("f(a, b)", -1, -1)]

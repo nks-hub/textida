@@ -19,6 +19,7 @@
     <Compile Include="..\NksHub.Textida.Core\Tools\LanguageCatalog.cs" Link="LanguageCatalog.cs" />
     <Compile Include="..\NksHub.Textida.Core\Tools\ToolLocator.cs" Link="ToolLocator.cs" />
     <Compile Include="..\NksHub.Textida.Remote\ToolProxy.cs" Link="ToolProxy.cs" />
+    <Compile Include="..\NksHub.Textida.Remote\ToolNetworkConsent.cs" Link="ToolNetworkConsent.cs" />
   </ItemGroup>
 
 </Project>

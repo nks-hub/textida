@@ -25,6 +25,7 @@ for (var i = 0; i < args.Length - 1; i++)
     else if (args[i] == "--max-message-chars") messageChars = int.Parse(args[i + 1]);
     else if (args[i] == "--max-diagnostics") maxDiagnostics = int.Parse(args[i + 1]);
     else if (args[i] == "--catalog") catalogFile = args[i + 1];
+    else if (args[i] == "--network-consent") NksHub.Textida.Remote.ToolProxy.Shared.Consent = new NksHub.Textida.Remote.ToolNetworkConsent(args[i + 1]); // the file of the profile with the network consents of the tools; absent: nothing passes
     else if (args[i] == "--idle-stop-ms") idleStopMs = int.Parse(args[i + 1]);
     else if (args[i] == "--root-search-levels") rootSearchLevels = int.Parse(args[i + 1]);
     else if (args[i] == "--restart-max-attempts") restartAttempts = int.Parse(args[i + 1]);

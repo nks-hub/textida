@@ -15,7 +15,7 @@ public sealed record CatalogMode(string Id, IReadOnlyList<string> Extensions, IR
 /// A language server for one mode; the language server plugin starts the first entry of a language whose program is found. <paramref name="Version"/> null means the version to pin is still open.
 /// <paramref name="Verified"/> is true only after the launch line was run against the real program.
 /// </summary>
-public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false, bool NeedsNetwork = false);
+public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false, IReadOnlyList<string>? Hosts = null);
 
 /// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
 public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
@@ -92,6 +92,9 @@ public static class LanguageCatalog
     private static CatalogMode M(string id, string[] extensions, string? grammar, string[]? fileNames = null) => new(id, extensions, fileNames ?? [], grammar);
     private static CatalogConfig C(string[] names, string? template = null) => new(names, template);
 
+    /// <summary>The hosts of the public NuGet feed; the plugin adds the feeds of the user's nuget.config for C# servers. Hosts of telemetry are never allowed, whatever a list says. Declared before <see cref="Groups"/>, which uses it while it is built.</summary>
+    private static readonly string[] NuGetHosts = ["api.nuget.org", "globalcdn.nuget.org"];
+
     public static IReadOnlyList<LanguageGroup> Groups { get; } =
     [
         new("js-ts", "JavaScript, TypeScript",
@@ -133,7 +136,7 @@ public static class LanguageCatalog
             []),
         new("java", "Java",
             [M("java", [".java"], "java")],
-            [new("java", "jdtls", [], NeedsNetwork: true)],
+            [new("java", "jdtls", [], Hosts: ["repo.maven.apache.org", "repo1.maven.org"])],
             [], [], [], [new("pom.xml", "Maven Central"), new("build.gradle", "Maven Central")]),
         new("csharp", "C#",
             [M("csharp", [".cs"], "csharp"), M("vb", [".vb", ".vbs", ".bas"], "vb")],
@@ -143,7 +146,7 @@ public static class LanguageCatalog
             // --telemetryLevel off, crash and absent, --sessionId, DOTNET_CLI_TELEMETRY_OPTOUT, VSTELEMETRY_OPTOUT, VS_TELEMETRY_OPTOUT, VSTEL_OPTOUT, DOTNET_TELEMETRY_OPTOUT, HKCU VSCommon\<ver>\SQM OptIn=0,
             // HKCU VisualStudio\Telemetry TurnOffSwitch=1. The libraries read no environment variable for it. Only HKCU\Software\Microsoft\VisualStudio\RemoteControl TurnOffSwitch=1 gives 0 connections;
             // it is Windows only and also switches off the remote settings of an installed Visual Studio, so an entry cannot set it.
-            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"]), new("csharp", "csharp-ls", [])],
+            [new("csharp", "Microsoft.CodeAnalysis.LanguageServer", ["--stdio", "--telemetryLevel", "off"], Hosts: NuGetHosts), new("csharp", "roslyn-language-server", ["--stdio", "--telemetryLevel", "off"], Hosts: NuGetHosts), new("csharp", "csharp-ls", [], Hosts: NuGetHosts)],
             [], [], [],
             [new("*.csproj", "NuGet")]),
         new("c-cpp", "C, C++",
@@ -168,7 +171,7 @@ public static class LanguageCatalog
             [new("composer.json", "Packagist")]),
         new("go", "Go",
             [M("go", [".go"], "go"), M("gomod", [], "gomod", ["go.mod", "go.work"]), M("gotmpl", [".gohtml", ".gotmpl"], "gotmpl")],
-            [new("go", "gopls", [], NeedsNetwork: true)],
+            [new("go", "gopls", [], Hosts: ["proxy.golang.org", "sum.golang.org"])],
             [new("gofmt", "gofmt", "gofmt", ["-w", "${File}"], ["go.mod"], [".go"], Verified: true)],
             [new("golangci-lint", "golangci-lint", "golangci-lint", ["run", "--output.json.path=stdout", "${File}"], "golangci-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("info", ToolSeverity.Info), AnyWarning], [".golangci.yml", ".golangci.yaml", ".golangci.toml", ".golangci.json"], [".go"],
@@ -177,7 +180,7 @@ public static class LanguageCatalog
             [new("go.mod", "Go module proxy")]),
         new("rust", "Rust",
             [M("rust", [".rs"], "rust"), M("toml", [".toml"], "toml", ["Cargo.lock", "Pipfile", "poetry.lock", "uv.lock"])],
-            [new("rust", "rust-analyzer", [], NeedsNetwork: true)],
+            [new("rust", "rust-analyzer", [], Hosts: ["crates.io", "index.crates.io", "static.crates.io"])],
             [new("rustfmt", "rustfmt", "rustfmt", ["${File}"], ["rustfmt.toml", ".rustfmt.toml"], [".rs"], Verified: true)],
             [new("clippy", "Clippy", "cargo", ["clippy", "--message-format=json", "--quiet"], "cargo-json",
                 [new("error", ToolSeverity.Error), new("warning", ToolSeverity.Warning), new("note", ToolSeverity.Info), new("help", ToolSeverity.Hint), AnyWarning], ["clippy.toml", ".clippy.toml"], [".rs"],

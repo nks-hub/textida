@@ -315,7 +315,7 @@ internal sealed partial class MainWindow
     private async Task AskMcpClientAsync(string name)
     {
         var buttons = new List<DialogButton> { new(Loc.Get(K.McpClientAllow)), new(Loc.Get(K.McpClientDeny), IsDefault: true, IsCancel: true) };
-        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpClientTitle), Loc.Get(K.McpClientMessage, ("name", name)), buttons));
+        int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpClientTitle), Loc.Get(K.McpClientMessage, ("name", McpClientLabel(name))), buttons));
         _app.Plugins.Mcp.ClientDecided(name, answer == 0);
     }
 
@@ -338,16 +338,19 @@ internal sealed partial class MainWindow
                 SetStatusMessage(Loc.Get(K.McpClientsNone));
                 return;
             }
-            var items = names.Select(n => new PickItem(n, n, Loc.Get(decisions.TryGetValue(n, out var allowed) && allowed ? K.McpClientsAllowed : K.McpClientsDenied))).ToList();
+            var items = names.Select(n => new PickItem(n, McpClientLabel(n), Loc.Get(decisions.TryGetValue(n, out var allowed) && allowed ? K.McpClientsAllowed : K.McpClientsDenied))).ToList();
             var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.McpClientsTitle), Loc.Get(K.McpClientsWatermark), items), CancellationToken.None);
             if (chosen is null) return;
             bool allowedNow = decisions.TryGetValue(chosen, out var was) && was;
             var actions = new List<PickItem> { new("toggle", Loc.Get(allowedNow ? K.McpClientsRevoke : K.McpClientsGrant), null), new("forget", Loc.Get(K.McpClientsForget), null) };
-            var action = await PluginPickAsync(new QuickPickRequest(chosen, Loc.Get(K.McpClientsWatermark), actions), CancellationToken.None);
+            var action = await PluginPickAsync(new QuickPickRequest(McpClientLabel(chosen), Loc.Get(K.McpClientsWatermark), actions), CancellationToken.None);
             if (action == "toggle") mcp.ClientDecided(chosen, !allowedNow);
             else if (action == "forget") mcp.ClientForgotten(chosen);
         }
     }
+
+    /// <summary>The name of a client as the user reads it; a client that gave none is stored under a fixed name, which is shown in the language of the interface.</summary>
+    internal static string McpClientLabel(string name) => name == McpServer.UnknownClient ? Loc.Get(K.McpClientUnknown) : name;
 
     internal static string McpToolLabel(string tool) => Loc.Get(tool switch
     {
