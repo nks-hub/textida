@@ -30,6 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- ILC reports four IL2026 in Jint (CLR interop, JsonNode conversion) that the script prototype never reaches: its engine has no CLR access and gets no JsonNode. Own code keeps IL2026 as an error in the compiler analyzer; ILC does not report it. -->
+    <IlcArg Include="--nowarn:IL2026" />
+  </ItemGroup>
+
+  <ItemGroup>
     <AvaloniaResource Include="Assets\textida.ico" />
     <AvaloniaResource Include="Assets\textida-256.png" />
     <EmbeddedResource Include="Strings\*.json" />
