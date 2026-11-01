@@ -132,7 +132,7 @@ internal sealed partial class MainWindow
     /// Unpacks and checks a ZIP, shows the permissions it asks for and installs it when the user agrees. <paramref name="zip"/> is asked for when it is null.
     /// Returns whether the plugin was installed or updated. With <paramref name="updateOf"/> the ZIP has to hold that plugin.
     /// </summary>
-    internal async Task<bool> InstallPluginAsync(string? zip = null, string? updateOf = null)
+    internal async Task<bool> InstallPluginAsync(string? zip = null, string? updateOf = null, CatalogEntry? expected = null)
     {
         var manager = _app.Plugins.Manager;
         zip ??= (await _app.Dialogs.PickFilesAsync(this)).FirstOrDefault();
@@ -151,6 +151,13 @@ internal sealed partial class MainWindow
             return false;
         }
 
+        // a ZIP from the catalog has to be what the signed entry says: the same plugin and version, asking for nothing the entry did not list
+        if (expected is not null && (package.Id != expected.Id || package.Version != expected.Version || package.Requested.Except(expected.Permissions).Any()))
+        {
+            manager.Discard(package);
+            await ShowCatalogMessageAsync(Loc.Get(K.CatalogMismatch, ("name", expected.Name)), $"{package.Id} {package.Version}", string.Join(", ", package.Requested.Except(expected.Permissions)));
+            return false;
+        }
         bool update = package.InstalledVersion is not null;
         var lines = package.Requested.Select(p => Loc.Get(package.NewPermissions.Contains(p) ? K.PluginsConsentNew : K.PluginsConsentKnown, ("permission", p), ("meaning", PermissionMeaning(p)))).ToList();
         if (lines.Count == 0) lines.Add(Loc.Get(K.PluginsConsentNone));

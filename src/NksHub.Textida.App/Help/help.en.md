@@ -2184,3 +2184,50 @@ An installed plugin with the permission hex.read can add a decoder to the data i
 3. Write out with Plugin opens the selection as text in a new document that is not a file. Templates from Plugin adds its .ksy templates to the list of the Structure panel.
 - The plugin gets only a copy of the bytes and returns only text: it writes nothing to a file or to the document. A hidden value of a secrets file is sent to it as stars. A plugin that wants to change bytes does so through the document API, where its edit comes as a proposal to approve in the change review.
 - A plugin is sent at most 16 MiB, has 15 s to answer and the text of its answer is limited. Only the plugins you gave the permission hex.read at install are offered.
+
+## [file.print] Printing and PDF
+commands: nks.file.print, nks.file.exportPdf
+File, Print prints the selection or the whole document with the syntax colours, line numbers and a header with the name and the page number.
+1. On Windows the print dialog of the system opens: you choose the printer, its settings and the number of copies. The pages fit the printer you chose.
+2. File, Export, As PDF saves the same pages to a PDF file. On macOS and Linux this is the way to print: Avalonia has no print API, so Print there saves a PDF and you print it from a viewer.
+- The paper is white, so the colours of the light theme are printed even when the editor is dark. The selection is printed, or the whole document without one; a hidden secret prints as its placeholder.
+- The PDF uses the Courier font that every reader has and covers the Windows-1252 characters and the usual Central European letters (č, ě, ř, ů, ł and the like); other characters print as a question mark. Printing on Windows uses the Consolas font and has no limit of this kind.
+
+## [plugins.catalog] Plugin catalog
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Tools, Plugin Catalog lists the plugins of the Git repository you name in the setting plugins.catalogUrl. It installs only a plugin whose ZIP and publisher signature match the catalog.
+1. Enter the https address of the repository (or a folder) in plugins.catalogUrl. The catalog is fetched with the git program (a shallow clone); you confirm the program and the server. Refresh Plugin Catalog loads the latest state.
+2. Pick a plugin. For the first plugin of a new publisher you compare the fingerprint of its key and confirm trust. Then the SHA-256 of the package and the signature are checked and the usual install confirmation with the permissions opens.
+- The catalog is an index.json file with publishers (id, name, ECDSA P-256 public key) and plugins (id, version, package, SHA-256, permissions, signature). The signature covers the id, version, hash and permissions, so changing any of them breaks it. The package is a path in the repository or an https address.
+- An update that asks for more permissions than the installed release shows them as new and needs a new consent. A ZIP that asks for more than the signed entry lists is refused. If a publisher changes its key, nothing from it is installed until you remove the old key.
+
+## [import.pspad] Import from PSPad
+commands: nks.file.importPspad
+File, Import from PSPad takes your own data from a PSPad installation folder you point to: FTP connections, projects, clips, macros, custom highlighters and keys. The folder is only read.
+1. Choose the folder with PSPad.exe (a portable install) or the folder with the settings of PSPad. The editor first shows what it found and what cannot be carried over; only after you confirm is anything written to the profile.
+2. The passwords of FTP connections are not read unless you answer the second question with yes: PSPad stores them only scrambled, and on your confirmation the editor puts them into the credential store of the system. A plain FTP connection is taken over but stays refused until you allow it explicitly in its settings.
+- Highlighters and clips PSPad was delivered with are not taken: only a file newer than PSPad.exe is, that is, one that is yours or that you changed. A highlighter becomes a grammar of the editor (words, comments, strings, preprocessor); settings the grammar does not have are listed in the preview. A clip with an interactive macro and a macro with a command the editor does not know are not carried over.
+- Keys are carried over only for editor commands that have an equal in the editor (moving the cursor, selecting, deleting, copying); other names in KeyMap.ini are listed as not carried over. A key from PSPad overrides a built-in key on the same chord.
+
+## [tools.agentAsk] Ask the agent about the selection
+commands: nks.agent.askSelection
+Tools, AI, Ask Agent About Selection sends the selected range and your task to the agent you started over ACP. Normal editing never needs it.
+1. Start an agent (Tools, AI, Start Agent), select a range in a file, run the command and write the task. Before anything is sent the editor shows exactly what goes to the agent and asks you to confirm.
+2. The agent answers in the panel. If it wants to change the range it writes the file through the editor and the change shows in the change review; it is applied only after you confirm. A change to text outside the selected range is refused.
+- The range may be at most 24,000 characters and the file must be saved on disk (an agent names files by path). Hidden secret values are not sent. What the agent does with its own tools outside the editor is not watched by the editor; the boundary is shown in the agent panel.
+
+## [elevate] Protected paths and administrator rights
+commands: nks.file.openProtected
+The editor runs with the rights of your account. A file this account may not write or read can still be saved or opened by a small helper that you allow in the system.
+1. Saving: when the system refuses a save (a file in a protected folder), the editor asks whether a helper with administrator rights may write it. After you agree the system shows its own prompt (UAC on Windows, the authorization window on macOS) and the helper writes the file.
+2. Opening: File, Open Protected File (or a yes after a failed open) lets the helper copy the file into the temporary folder of your account. The editor reads the copy, deletes it and opens a document with the path of the original file; saving asks again.
+- There is no list of protected files: ordinary access is always tried first and the helper comes in only when the system said no. The helper is the same program with a single job; it checks the SHA-256 of the file the editor handed it and writes it straight over the target, so the target keeps its owner and rights. The write is not atomic. A file over 64 MiB is not opened this way, and large documents and hex are not saved this way.
+
+## [spelling] Spelling
+commands: nks.spell.toggle, nks.spell.chooseDictionary, nks.spell.download, nks.spell.suggest, nks.spell.next, nks.spell.diacritics
+Tools, Spelling checks the comments and strings of source files, Markdown and plain text against a Hunspell dictionary. Nothing is on in advance: you switch the check on and choose the dictionary.
+1. Choose Dictionary takes a .dic file (the .aff file of the same name lies beside it). To download one, Download a LibreOffice Dictionary shows where from and asks for your consent; the dictionary is kept in the profile. With the check on, mistakes get a dotted underline.
+2. Spelling Suggestions lists replacements for the word at the caret and offers to add the word to your own words; Next Mistake jumps to the next underlined word.
+3. Complete Diacritics finds the words without diacritics (in the selection, else the whole document) that the dictionary knows only with diacritics in exactly one way, and shows the changes in the change review. Only what you confirm is applied.
+- In a source file only comments and strings are checked; names, words in capitals, words with a capital inside (camelCase) and words next to digits, underscores, slashes and addresses are not. In Markdown code and links are not checked. The editor ships no dictionary, and each has a licence of its own. Your own words are in the file spell-words.txt in the profile.
+- The setting spell.autocorrect (off by default) completes the diacritics of the word you have just typed when you end it with a character that is not a letter and the dictionary knows one form with diacritics. Undo gives the word back as typed.

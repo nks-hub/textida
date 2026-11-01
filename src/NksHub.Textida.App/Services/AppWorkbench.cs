@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using NksHub.Textida.Workbench;
@@ -89,6 +90,34 @@ internal sealed class AppWorkbench
     {
         BehaviourProfiles.ApplySettings(Settings, Profile);
         RebuildKeymap();
+    }
+
+    /// <summary>
+    /// Adds bindings to the keymap file of the user (a binding with the same keys and command is not added twice) and builds the keymap again. Returns how many were added, or why the file could not be changed.
+    /// A binding of the user wins over the same keys in the built-in layer, so this changes what those keys do.
+    /// </summary>
+    public int AddUserBindings(IReadOnlyList<KeybindingContribution> bindings, out string? problem)
+    {
+        problem = null;
+        var path = Path.Combine(_profileDirectory, UserKeymapFile);
+        try
+        {
+            var file = File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), ContributionJson.Default.KeymapFile) ?? new KeymapFile() : new KeymapFile();
+            int added = 0;
+            foreach (var binding in bindings)
+                if (!file.Bindings.Any(b => string.Equals(b.Key, binding.Key, StringComparison.OrdinalIgnoreCase) && b.Command == binding.Command)) { file.Bindings.Add(binding); added++; }
+            Directory.CreateDirectory(_profileDirectory);
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(file, ContributionJson.Default.KeymapFile), new UTF8Encoding(false));
+            File.Move(temp, path, overwrite: true);
+            RebuildKeymap();
+            return added;
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            problem = e.Message;
+            return 0;
+        }
     }
 
     private void RebuildKeymap()

@@ -2184,3 +2184,50 @@ Nainstalovaný doplněk s oprávněním hex.read může hex pohledu přidat deko
 3. Vypsat doplňkem jako text otevře výběr jako text v novém dokumentu, který není soubor. Šablony od doplňku přidají jeho šablony .ksy do seznamu panelu Struktura.
 - Doplněk dostane jen kopii bajtů a vrací jen text: nic nezapisuje do souboru ani do dokumentu. Skrytá hodnota souboru s tajemstvím se mu posílá jako hvězdičky. Doplněk, který chce bajty měnit, to udělá přes API dokumentu, kde jeho úprava přijde jako návrh ke schválení v přehledu změn.
 - Doplněk dostane nejvýš 16 MiB, na odpověď má 15 s a text odpovědi je omezený. Nabízí se jen doplňky, kterým jste oprávnění hex.read dali při instalaci.
+
+## [file.print] Tisk a PDF
+commands: nks.file.print, nks.file.exportPdf
+Soubor, Tisk vytiskne výběr nebo celý dokument se barvami zvýraznění, čísly řádků a záhlavím se jménem a číslem stránky.
+1. Na Windows se otevře tiskový dialog systému: zvolíte tiskárnu, její nastavení a počet kopií. Stránky se přizpůsobí zvolené tiskárně.
+2. Soubor, Exportovat, Jako PDF uloží stejné stránky do souboru PDF. Na macOS a Linuxu je to cesta k tisku: Avalonia nemá tiskové API, takže Tisk tam uloží PDF a vytisknete ho v prohlížeči.
+- Papír je bílý, proto se tisknou barvy světlého motivu, i když editor běží v tmavém. Vytiskne se výběr, bez výběru celý dokument; skrytá tajná hodnota se tiskne jako zástupný text.
+- PDF používá písmo Courier, které má každá čtečka, a umí jen znaky Windows-1252 a běžná střední evropská písmena (č, ě, ř, ů, ł a podobně); jiné znaky se vytisknou jako otazník. Tisk na Windows používá písmo Consolas a znaky bez omezení tohoto druhu.
+
+## [plugins.catalog] Katalog doplňků
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Nástroje, Katalog doplňků ukáže doplňky z repozitáře Git, který určíte v nastavení plugins.catalogUrl. Nainstaluje jen doplněk, jehož ZIP a podpis vydavatele odpovídají katalogu.
+1. Zadejte adresu https repozitáře (nebo složku) do plugins.catalogUrl. Katalog se stáhne programem git (mělký klon); potvrdíte program i server. Znovu stáhnout katalog načte nejnovější stav.
+2. Vyberte doplněk. Při prvním doplňku od nového vydavatele porovnáte otisk jeho klíče a potvrdíte důvěru. Pak se ověří SHA-256 balíčku a podpis a otevře se běžné potvrzení instalace s oprávněními.
+- Katalog je soubor index.json s vydavateli (id, jméno, veřejný klíč ECDSA P-256) a doplňky (id, verze, balíček, SHA-256, oprávnění, podpis). Podpis kryje id, verzi, hash a oprávnění, takže změna kterékoli z nich ho zneplatní. Balíček je cesta v repozitáři nebo adresa https.
+- Aktualizace, která chce víc oprávnění, než mělo nainstalované vydání, je ukáže jako nová a vyžaduje nový souhlas. ZIP, který žádá víc, než podepsaná položka uvádí, se odmítne. Změní-li vydavatel klíč, nic od něj se neinstaluje, dokud starý klíč neodstraníte.
+
+## [import.pspad] Import z PSPadu
+commands: nks.file.importPspad
+Soubor, Importovat z PSPadu převezme vaše vlastní data ze složky instalace PSPadu, na kterou ukážete: spojení FTP, projekty, klipy, makra, vlastní zvýrazňovače a klávesy. Složka se jen čte.
+1. Zvolte složku s PSPad.exe (přenosná instalace) nebo složku s nastavením PSPadu. Editor nejdřív ukáže, co našel a co se nepřevede; teprve po potvrzení se do profilu zapíše.
+2. Hesla spojení FTP se nečtou, pokud se na to výslovně nezeptáte a nepotvrdíte: PSPad je ukládá jen zakódovaná a editor je při potvrzení uloží do úložiště přihlašovacích údajů systému. Prosté spojení FTP se převezme jako vypnuté, dokud ho v nastavení spojení výslovně nepovolíte.
+- Zvýrazňovače a klipy dodané s PSPadem se nepřebírají: bere se jen soubor, který je novější než PSPad.exe, tedy váš nebo vámi změněný. Zvýrazňovač se převede na gramatiku editoru (slova, komentáře, řetězce, předprocesor); nastavení, které gramatika nemá, preview vypíše. Klip s interaktivním makrem a makro s příkazem, který editor nezná, se nepřevedou.
+- Klávesy se přenášejí jen pro příkazy editoru, které mají v editoru protějšek (pohyb kurzoru, výběr, mazání, kopírování); ostatní jména z KeyMap.ini se vypíšou jako nepřevedená. Klávesa z PSPadu přebíjí vestavěnou klávesu na stejném akordu.
+
+## [tools.agentAsk] Zeptat se agenta na výběr
+commands: nks.agent.askSelection
+Nástroje, AI, Zeptat se agenta na výběr pošle označený úsek a vaše zadání agentovi, kterého jste spustili přes ACP. Běžná úprava textu to nikdy nepotřebuje.
+1. Spusťte agenta (Nástroje, AI, Spustit agenta), označte úsek v souboru, zvolte příkaz a napište zadání. Editor před odesláním ukáže, co přesně se pošle, a ptá se na potvrzení.
+2. Agent odpovídá v panelu. Chce-li úsek změnit, zapíše soubor přes editor a změna se ukáže v přehledu změn; teprve po vašem potvrzení se použije. Změna textu mimo označený úsek se odmítne.
+- Úsek nesmí být delší než 24 000 znaků a soubor musí být uložený na disku (agent soubory jmenuje cestou). Skryté tajné hodnoty se neposílají. Co agent dělá svými vlastními nástroji mimo editor, editor nehlídá; hranice jsou v panelu agenta.
+
+## [elevate] Chráněné cesty a práva správce
+commands: nks.file.openProtected
+Editor běží s právy vašeho účtu. Soubor, který tento účet nesmí zapsat nebo přečíst, lze přesto uložit či otevřít pomocí malého pomocníka, kterého povolíte systému.
+1. Uložení: když systém uložení odmítne (soubor v chráněné složce), editor se zeptá, zda ho smí zapsat pomocník s právy správce. Po vašem souhlasu systém zobrazí svou výzvu (UAC na Windows, okno ověření na macOS) a pomocník zapíše soubor.
+2. Otevření: Soubor, Otevřít chráněný soubor (nebo odpověď ano po neúspěšném otevření) nechá pomocníka soubor zkopírovat do dočasné složky vašeho účtu. Editor kopii přečte, smaže ji a otevře dokument s cestou původního souboru; uložení se zeptá znovu.
+- Žádný seznam chráněných souborů neexistuje: vždy se nejdřív zkusí běžný přístup a pomocník přijde na řadu, jen když systém řekl ne. Pomocník je tentýž program s jediným úkolem; zkontroluje SHA-256 souboru, který mu editor předal, a zapíše ho přímo přes cíl, takže si cíl ponechá vlastníka a práva. Zápis není atomický. Soubor větší než 64 MiB se tak neotevře a velké dokumenty a hex se takto neukládají.
+
+## [spelling] Pravopis
+commands: nks.spell.toggle, nks.spell.chooseDictionary, nks.spell.download, nks.spell.suggest, nks.spell.next, nks.spell.diacritics
+Nástroje, Pravopis kontroluje komentáře a řetězce ve zdrojových souborech, Markdown a prostý text podle slovníku Hunspell. Nic není zapnuté předem: kontrolu zapnete a slovník zvolíte sami.
+1. Zvolit slovník vezme soubor .dic (soubor .aff stejného jména leží vedle něj). Chcete-li slovník stáhnout, Stáhnout slovník LibreOffice ukáže odkud a ptá se na souhlas; slovník se uloží do profilu. Zapnutá kontrola podtrhne chyby tečkovanou čarou.
+2. Návrhy pravopisu ukážou náhrady pro slovo u kurzoru a nabídnou přidat slovo do vlastních slov; Další chyba skočí na následující podtržené slovo.
+3. Doplnit diakritiku najde slova bez diakritiky (výběr, jinak celý dokument), která slovník zná jen s diakritikou právě jedním způsobem, a ukáže změny v přehledu změn. Použije se jen to, co potvrdíte.
+- Ve zdrojovém souboru se kontrolují jen komentáře a řetězce; názvy, zkratky ve velkých písmenech, slova s velkým písmenem uvnitř (camelCase), slova u číslic, podtržítek, lomítek a adres se nekontrolují. V Markdownu se nekontroluje kód a odkazy. Editor žádný slovník nedodává, každý má vlastní licenci. Vlastní slova jsou v souboru spell-words.txt v profilu.
+- Nastavení spell.autocorrect (ve výchozím stavu vypnuté) doplní diakritiku slova, které jste právě dopsali, když ho ukončíte znakem, který není písmeno, a slovník zná jedinou podobu s diakritikou. Zpět vrátí slovo, jak bylo napsáno.

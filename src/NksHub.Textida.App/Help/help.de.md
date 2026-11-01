@@ -2184,3 +2184,50 @@ Ein installiertes Plugin mit der Berechtigung hex.read kann der Hex-Ansicht eine
 3. Mit Plugin als Text ausgeben öffnet die Auswahl als Text in einem neuen Dokument, das keine Datei ist. Vorlagen von Plugin fügt seine .ksy-Vorlagen der Liste des Strukturbereichs hinzu.
 - Das Plugin erhält nur eine Kopie der Bytes und gibt nur Text zurück: es schreibt nichts in eine Datei oder das Dokument. Ein verborgener Wert einer Geheimnisdatei wird ihm als Sterne gesendet. Ein Plugin, das Bytes ändern will, tut das über die Dokument-API, wo seine Änderung als Vorschlag zur Freigabe in der Änderungsübersicht erscheint.
 - Ein Plugin erhält höchstens 16 MiB, hat 15 s für die Antwort und der Text der Antwort ist begrenzt. Angeboten werden nur Plugins, denen Sie die Berechtigung hex.read bei der Installation gegeben haben.
+
+## [file.print] Drucken und PDF
+commands: nks.file.print, nks.file.exportPdf
+Datei, Drucken druckt die Auswahl oder das ganze Dokument mit den Syntaxfarben, Zeilennummern und einer Kopfzeile mit Name und Seitenzahl.
+1. Unter Windows öffnet sich der Druckdialog des Systems: Sie wählen Drucker, seine Einstellungen und die Zahl der Kopien. Die Seiten passen sich dem gewählten Drucker an.
+2. Datei, Exportieren, Als PDF speichert dieselben Seiten in eine PDF-Datei. Unter macOS und Linux ist das der Weg zum Drucken: Avalonia hat keine Druck-API, also speichert Drucken dort ein PDF, das Sie im Viewer drucken.
+- Das Papier ist weiß, darum werden die Farben des hellen Themas gedruckt, auch wenn der Editor dunkel ist. Gedruckt wird die Auswahl, ohne sie das ganze Dokument; ein verborgenes Geheimnis wird als Platzhalter gedruckt.
+- Das PDF verwendet die Schrift Courier, die jeder Viewer hat, und deckt die Zeichen von Windows-1252 und die üblichen mitteleuropäischen Buchstaben ab (č, ě, ř, ů, ł und ähnliche); andere Zeichen werden als Fragezeichen gedruckt. Das Drucken unter Windows verwendet die Schrift Consolas und hat keine Grenze dieser Art.
+
+## [plugins.catalog] Plugin-Katalog
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Extras, Plugin-Katalog listet die Plugins des Git-Repositorys, das Sie in der Einstellung plugins.catalogUrl nennen. Installiert wird nur ein Plugin, dessen ZIP und Herausgeber-Signatur zum Katalog passen.
+1. Tragen Sie die https-Adresse des Repositorys (oder einen Ordner) in plugins.catalogUrl ein. Der Katalog wird mit dem Programm git geladen (flacher Klon); Sie bestätigen Programm und Server. Plugin-Katalog neu laden holt den neuesten Stand.
+2. Wählen Sie ein Plugin. Beim ersten Plugin eines neuen Herausgebers vergleichen Sie den Fingerabdruck seines Schlüssels und bestätigen das Vertrauen. Danach werden SHA-256 des Pakets und Signatur geprüft und die übliche Installationsbestätigung mit den Berechtigungen öffnet sich.
+- Der Katalog ist eine Datei index.json mit Herausgebern (ID, Name, öffentlicher ECDSA-P-256-Schlüssel) und Plugins (ID, Version, Paket, SHA-256, Berechtigungen, Signatur). Die Signatur deckt ID, Version, Hash und Berechtigungen ab, jede Änderung bricht sie. Das Paket ist ein Pfad im Repository oder eine https-Adresse.
+- Ein Update, das mehr Berechtigungen will als die installierte Version, zeigt sie als neu und braucht eine neue Zustimmung. Ein ZIP, das mehr verlangt, als der signierte Eintrag nennt, wird abgelehnt. Ändert ein Herausgeber seinen Schlüssel, wird nichts von ihm installiert, bis Sie den alten Schlüssel entfernen.
+
+## [import.pspad] Import aus PSPad
+commands: nks.file.importPspad
+Datei, Aus PSPad importieren übernimmt Ihre eigenen Daten aus einem PSPad-Ordner, auf den Sie zeigen: FTP-Verbindungen, Projekte, Clips, Makros, eigene Hervorhebungen und Tasten. Der Ordner wird nur gelesen.
+1. Wählen Sie den Ordner mit PSPad.exe (portable Installation) oder den Ordner mit den Einstellungen von PSPad. Der Editor zeigt zuerst, was er gefunden hat und was sich nicht übernehmen lässt; erst nach Ihrer Bestätigung wird etwas ins Profil geschrieben.
+2. Die Passwörter von FTP-Verbindungen werden nur gelesen, wenn Sie die zweite Frage mit Ja beantworten: PSPad speichert sie nur verschleiert, und nach Ihrer Bestätigung legt der Editor sie im Anmeldedatenspeicher des Systems ab. Eine einfache FTP-Verbindung wird übernommen, bleibt aber abgelehnt, bis Sie sie in ihren Einstellungen ausdrücklich erlauben.
+- Hervorhebungen und Clips, mit denen PSPad geliefert wurde, werden nicht übernommen: nur eine Datei, die neuer als PSPad.exe ist, also Ihre oder von Ihnen geänderte. Eine Hervorhebung wird zu einer Grammatik des Editors (Wörter, Kommentare, Zeichenketten, Präprozessor); Einstellungen, die die Grammatik nicht kennt, listet die Vorschau auf. Ein Clip mit interaktivem Makro und ein Makro mit einem unbekannten Befehl werden nicht übernommen.
+- Tasten werden nur für Editorbefehle übernommen, die im Editor eine Entsprechung haben (Cursor bewegen, Auswählen, Löschen, Kopieren); andere Namen in KeyMap.ini werden als nicht übernommen aufgelistet. Eine Taste aus PSPad überschreibt eine eingebaute Taste auf demselben Akkord.
+
+## [tools.agentAsk] Den Agenten zur Auswahl fragen
+commands: nks.agent.askSelection
+Extras, KI, Den Agenten zur Auswahl fragen sendet den markierten Bereich und Ihre Aufgabe an den Agenten, den Sie über ACP gestartet haben. Normales Bearbeiten braucht das nie.
+1. Starten Sie einen Agenten (Extras, KI, Agent starten), markieren Sie einen Bereich in einer Datei, führen Sie den Befehl aus und schreiben Sie die Aufgabe. Vor dem Senden zeigt der Editor genau, was an den Agenten geht, und fragt nach Bestätigung.
+2. Der Agent antwortet im Bereich. Will er den Bereich ändern, schreibt er die Datei über den Editor und die Änderung erscheint in der Änderungsübersicht; sie wird erst nach Ihrer Bestätigung angewendet. Eine Änderung von Text außerhalb des markierten Bereichs wird abgelehnt.
+- Der Bereich darf höchstens 24.000 Zeichen lang sein und die Datei muss auf dem Datenträger gespeichert sein (ein Agent benennt Dateien mit Pfad). Verborgene Geheimnisse werden nicht gesendet. Was der Agent mit eigenen Werkzeugen außerhalb des Editors tut, überwacht der Editor nicht; die Grenze zeigt der Agentenbereich.
+
+## [elevate] Geschützte Pfade und Administratorrechte
+commands: nks.file.openProtected
+Der Editor läuft mit den Rechten Ihres Kontos. Eine Datei, die dieses Konto nicht schreiben oder lesen darf, lässt sich trotzdem mit einem kleinen Helfer speichern oder öffnen, den Sie im System erlauben.
+1. Speichern: lehnt das System das Speichern ab (eine Datei in einem geschützten Ordner), fragt der Editor, ob ein Helfer mit Administratorrechten sie schreiben darf. Nach Ihrer Zustimmung zeigt das System seine eigene Abfrage (UAC unter Windows, das Autorisierungsfenster unter macOS) und der Helfer schreibt die Datei.
+2. Öffnen: Datei, Geschützte Datei öffnen (oder ein Ja nach einem fehlgeschlagenen Öffnen) lässt den Helfer die Datei in den temporären Ordner Ihres Kontos kopieren. Der Editor liest die Kopie, löscht sie und öffnet ein Dokument mit dem Pfad der Originaldatei; beim Speichern wird erneut gefragt.
+- Eine Liste geschützter Dateien gibt es nicht: zuerst wird immer der normale Zugriff versucht, und der Helfer kommt erst dran, wenn das System Nein gesagt hat. Der Helfer ist dasselbe Programm mit einer einzigen Aufgabe; er prüft den SHA-256 der Datei, die ihm der Editor übergeben hat, und schreibt sie direkt über das Ziel, sodass das Ziel Besitzer und Rechte behält. Das Schreiben ist nicht atomar. Eine Datei über 64 MiB wird so nicht geöffnet, große Dokumente und Hex werden so nicht gespeichert.
+
+## [spelling] Rechtschreibung
+commands: nks.spell.toggle, nks.spell.chooseDictionary, nks.spell.download, nks.spell.suggest, nks.spell.next, nks.spell.diacritics
+Extras, Rechtschreibung prüft die Kommentare und Zeichenketten von Quelldateien, Markdown und reinen Text mit einem Hunspell-Wörterbuch. Nichts ist vorab eingeschaltet: Sie schalten die Prüfung ein und wählen das Wörterbuch.
+1. Wörterbuch wählen nimmt eine .dic-Datei (die .aff-Datei desselben Namens liegt daneben). Zum Herunterladen zeigt LibreOffice-Wörterbuch herunterladen, woher es kommt, und fragt nach Ihrer Zustimmung; das Wörterbuch wird im Profil abgelegt. Bei eingeschalteter Prüfung werden Fehler gepunktet unterstrichen.
+2. Rechtschreibvorschläge listet Ersetzungen für das Wort am Cursor auf und bietet an, das Wort zu Ihren eigenen Wörtern hinzuzufügen; Nächster Fehler springt zum nächsten unterstrichenen Wort.
+3. Diakritika ergänzen findet die Wörter ohne Diakritika (in der Auswahl, sonst im ganzen Dokument), die das Wörterbuch nur auf genau eine Weise mit Diakritika kennt, und zeigt die Änderungen in der Änderungsübersicht. Angewendet wird nur, was Sie bestätigen.
+- In einer Quelldatei werden nur Kommentare und Zeichenketten geprüft; Namen, Wörter in Großbuchstaben, Wörter mit Großbuchstaben innen (camelCase) und Wörter neben Ziffern, Unterstrichen, Schrägstrichen und Adressen nicht. In Markdown werden Code und Links nicht geprüft. Der Editor liefert kein Wörterbuch mit, jedes hat eine eigene Lizenz. Ihre eigenen Wörter stehen in der Datei spell-words.txt im Profil.
+- Die Einstellung spell.autocorrect (standardmäßig aus) ergänzt die Diakritika des Wortes, das Sie gerade getippt haben, wenn Sie es mit einem Zeichen beenden, das kein Buchstabe ist, und das Wörterbuch genau eine Form mit Diakritika kennt. Rückgängig gibt das Wort wie getippt zurück.

@@ -1932,6 +1932,94 @@
       "when": "hexMode"
     },
     {
+      "id": "nks.file.print",
+      "title": "cmd.file.print",
+      "category": "cat.file",
+      "icon": "file-text",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.exportPdf",
+      "title": "cmd.file.exportPdf",
+      "category": "cat.file",
+      "icon": "file-text",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.plugins.catalog",
+      "title": "cmd.plugins.catalog",
+      "category": "cat.tools",
+      "icon": "plug"
+    },
+    {
+      "id": "nks.plugins.catalogRefresh",
+      "title": "cmd.plugins.catalogRefresh",
+      "category": "cat.tools",
+      "icon": "plug"
+    },
+    {
+      "id": "nks.file.importPspad",
+      "title": "cmd.file.importPspad",
+      "category": "cat.file",
+      "icon": "file-text"
+    },
+    {
+      "id": "nks.agent.askSelection",
+      "title": "cmd.agent.askSelection",
+      "category": "cat.tools",
+      "icon": "upload",
+      "when": "editorFocus && textView",
+      "enablement": "hasSelection"
+    },
+    {
+      "id": "nks.file.openProtected",
+      "title": "cmd.file.openProtected",
+      "category": "cat.file",
+      "icon": "file-text"
+    },
+    {
+      "id": "nks.spell.toggle",
+      "title": "cmd.spell.toggle",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.chooseDictionary",
+      "title": "cmd.spell.chooseDictionary",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.download",
+      "title": "cmd.spell.download",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.suggest",
+      "title": "cmd.spell.suggest",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.spell.next",
+      "title": "cmd.spell.next",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.spell.diacritics",
+      "title": "cmd.spell.diacritics",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5153,6 +5241,92 @@
       "order": 90
     },
     {
+      "menu": "file",
+      "command": "nks.file.print",
+      "group": "2_save/06",
+      "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportPdf",
+      "group": "5_remote/02",
+      "submenu": "export",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.catalog",
+      "group": "4_other/02",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.catalogRefresh",
+      "group": "4_other/02",
+      "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.importPspad",
+      "group": "1_new/08",
+      "order": 80
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.askSelection",
+      "group": "3_ai/01",
+      "submenu": "ai/agent",
+      "order": 35
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openProtected",
+      "group": "1_new/09",
+      "order": 90
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.toggle",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.chooseDictionary",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.download",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.suggest",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.next",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.diacritics",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 60
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8347,6 +8521,63 @@
         "assembly",
         "decompile",
         "dll"
+      ]
+    },
+    {
+      "key": "plugins.catalogUrl",
+      "type": "string",
+      "default": "",
+      "title": "setting.plugins.catalogUrl.title",
+      "description": "setting.plugins.catalogUrl.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "plugins",
+        "catalog",
+        "git",
+        "repository"
+      ]
+    },
+    {
+      "key": "spell.enabled",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.spell.enabled.title",
+      "description": "setting.spell.enabled.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "spell",
+        "hunspell"
+      ]
+    },
+    {
+      "key": "spell.dictionary",
+      "type": "string",
+      "default": "",
+      "title": "setting.spell.dictionary.title",
+      "description": "setting.spell.dictionary.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "dictionary",
+        "hunspell"
+      ]
+    },
+    {
+      "key": "spell.autocorrect",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.spell.autocorrect.title",
+      "description": "setting.spell.autocorrect.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "autocorrect",
+        "diacritics"
       ]
     },
     {

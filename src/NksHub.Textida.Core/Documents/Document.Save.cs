@@ -365,7 +365,7 @@ public sealed partial class Document
         try
         {
             var transcode = _pendingTranscode;
-            var plan = inPlace && transcode is null ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
+            var plan = inPlace && transcode is null && ProtectedWriter is null ? PlanSave() : new SavePlan(SaveMode.Stream, [], 0);
             // the snapshot is taken before the first await, so the document takes edits (when it can) from the moment the save is called;
             // a file that is rewritten in another encoding takes none: the bytes the edits point to are not the ones that are written
             streaming = plan.Mode == SaveMode.Stream && _backend.EditsDuringStreamingSave && transcode is null;
@@ -407,7 +407,7 @@ public sealed partial class Document
             }
             else
             {
-                temp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+                temp = ProtectedWriter is null ? target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp" : Path.Combine(Path.GetTempPath(), "textida-" + Guid.NewGuid().ToString("N") + ".tmp");
                 string tempPath = temp;
                 var fromCodec = _codec;
                 long oldLength = snapshot!.ByteLength;
@@ -434,7 +434,8 @@ public sealed partial class Document
                 snapshot = null;
                 Saving?.Invoke(this, new SavingEventArgs(target, mark.Length, hash, mark.Revision));
                 StreamSaveStep?.Invoke("before-swap", tempPath);
-                if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(tempPath, target);
+                if (ProtectedWriter is { } writer) await Task.Run(() => writer.Install(tempPath, target, hash), CancellationToken.None);
+                else if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(tempPath, target);
                 else FileSwap.Replace(tempPath, target);
                 StreamSaveStep?.Invoke("after-swap", tempPath);
                 if (transcode is not null) ResetAfterTranscode(fromCodec, transcode, oldLength);

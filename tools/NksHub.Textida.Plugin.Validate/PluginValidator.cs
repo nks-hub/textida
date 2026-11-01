@@ -17,6 +17,7 @@ namespace NksHub.Textida.Plugin.Validate;
 public static class PluginValidator
 {
     private static readonly string[] ScriptExtensions = [".py", ".js", ".mjs", ".cjs", ".ts", ".lua", ".rb", ".pl", ".php", ".ps1", ".sh"];
+    private static readonly HashSet<string> LibraryFolders = new(["node_modules", "site-packages", "textida_plugin", "__pycache__", ".git"], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Permissions a manifest asks for that no single method of the API needs; they are not reported as unused.</summary>
     private static readonly string[] NoMethod = [DocumentPermissions.WorkspaceFiles, DocumentPermissions.LanguageServer];
@@ -118,7 +119,8 @@ public static class PluginValidator
             foreach (var argument in spec.Arguments) AddIfInside(argument);
         }
         foreach (var file in Directory.EnumerateFiles(root, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint, IgnoreInaccessible = true }))
-            if (ScriptExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase)) files.Add(file);
+            // the libraries a plugin carries (node_modules, the SDK folder of Python) name every method of the API; what the plugin itself calls is what is looked for
+            if (ScriptExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase) && !Path.GetRelativePath(root, file).Split(Path.DirectorySeparatorChar).SkipLast(1).Any(LibraryFolders.Contains)) files.Add(file);
         return [.. files];
     }
 
