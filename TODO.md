@@ -3350,6 +3350,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** průvodce rozliší převedeno, s odchylkou, nepodporováno, chybí zdroj, neověřeno; opakovaný import nezdvojí klipy; hesla jdou rovnou do klíčenky.
   - **Závisí na:** verze 1.0
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** import z PSPadu jen z uživatelem zvolené složky s náhledem: spojení FTP (hesla až po druhém potvrzení), projekty, klipy, makra, zvýrazňovače a klávesy. Formát KeyMap.ini a kódování hesel podle dokumentace, na skutečné instalaci neověřené (1430679e).
 
 ### PZ.2 Síť, výstup a AI
 
@@ -3366,6 +3367,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** tisk zvýrazněného textu projde na Windows i macOS.
   - **Závisí na:** P9.3.2
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** tisk přes dialog Windows (PrintDlgEx, GDI) s barvami zvýraznění, čísly řádků a záhlavím; na macOS a Linuxu tisk do PDF, protože Avalonia tiskové API nemá; tisk na Microsoft Print to PDF vyzkoušen. PDF používá Courier, znaky mimo Windows-1252 a střední Evropu se nahradí otazníkem (79d28135).
 - [ ] **PZ.2.3** Hledání výběru na webu
   - **Co a proč:** Obecné hledání výběru přes uživatelskou URL, ne starý Google dialog.
   - **Funkce:** F062
@@ -3386,6 +3388,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** dotaz pošle jen vybraný rozsah po potvrzení a odpověď přijde jako návrh do revize F178.
   - **Závisí na:** P6.1.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** dotaz spuštěnému agentovi nad vybraným úsekem po potvrzení obsahu, změna jen uvnitř úseku přes revizi změn; ověřeno na testovacím agentovi (8bd56e78).
 
 ### PZ.3 Jazyk a text
 
@@ -3395,6 +3398,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** český slovník Hunspell podtrhne chybu v komentáři, ne v identifikátoru; doplnění diakritiky ukáže náhled.
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** pravopis přes Hunspell (WeCantSpell, MIT) jen v komentářích, řetězcích, Markdownu a textu; slovník vybere uživatel nebo se po souhlasu stáhne z LibreOffice (cs, sk, en, de, pl), nic se nepřibaluje; doplnění diakritiky přes revizi změn; ověřeno se skutečným cs_CZ; NativeAOT bez varování (25b67dda).
 - [ ] **PZ.3.2** Změna velikosti klíčových slov
   - **Co a proč:** Jen jazykově bezpečná změna velikosti klíčových slov, nezávislá na barvě tokenu.
   - **Funkce:** F072
@@ -3427,6 +3431,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** chráněnou cestu jde otevřít příkazem bez pevného seznamu systémových souborů a při chybějících právech editor řekne proč.
   - **Závisí na:** P1.4.4
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** otevření a uložení chráněné cesty přes pomocníka s právy (UAC na Windows, osascript na macOS), bez pevného seznamu souborů; samotná výzva UAC a macOS neklikána, na Linuxu chybí (fcef8a09).
 - [ ] **PZ.4.3** Sady ikon
   - **Co a proč:** Vlastní vektorové ikony; import bitmapového skinu jen volitelně.
   - **Funkce:** F137
@@ -3555,12 +3560,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** editor odmítne balíček se špatným hashem nebo podpisem.
   - **Závisí na:** P8b.2.2
   - **Odhad:** F206 3–5 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** katalog pluginů z Git repozitáře se SHA-256 a podpisy vydavatelů (ECDSA P-256), důvěra v klíč po potvrzení otisku, rozšíření oprávnění při aktualizaci vyžádá nový souhlas; ověřeno na lokálním git repozitáři (9c6db09a).
 - [ ] **PZ.8.2** SDK pro JS/TS a Python
   - **Co a proč:** Generované typy z JSON Schema API a tenká knihovna; runtime si plugin přinese.
   - **Funkce:** F207
   - **Hotovo, když:** ukázkový plugin v TypeScriptu a v Pythonu projde ověřovačem a kontraktovými testy.
   - **Závisí na:** P8b.2.1
   - **Odhad:** F207 2–4 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** SDK pro JS/TS a Python: typy generované ze schématu API, tenká knihovna a ukázkový plugin pro každý jazyk; oba prošly validátorem se skutečným Node a Pythonem (5bb82ef0).
 - [ ] **PZ.8.3** Kód pluginu uvnitř editoru
   - **Co a proč:** WASM nebo Jint jen po měření a rozhodnutí o velikosti a entitlementech pro macOS.
   - **Funkce:** F209
