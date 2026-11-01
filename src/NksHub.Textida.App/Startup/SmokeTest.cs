@@ -407,6 +407,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
     private async Task CheckMacAccessibilityAsync(DocTab tab)
     {
         var editor = tab.Editor!;
+        string FocusDetails() => $"managed {window.FocusManager?.GetFocusedElement()?.GetType().Name ?? "none"}, AX {MacAccessibilitySmoke.FocusedRole()}";
         nint root = window.TryGetPlatformHandle()!.Handle;
         editor.TextArea.Focus();
         await NextFrameAsync();
@@ -425,15 +426,22 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
         editor.Select(2, 3);
         await NextFrameAsync();
         Check(MacAccessibilitySmoke.SelectedRange(element) == (2, 3) && MacAccessibilitySmoke.SelectedText(element) == editor.SelectedText, "AXSelectedTextRange and AXSelectedText follow the selection");
-        Check(MacAccessibilitySmoke.FocusedRole() == "AXTextArea", "the editor text element is the focused element");
+        // Render frames can run before the Input and Background focus callbacks queued by IPC.
+        await Dispatcher.UIThread.InvokeAsync(() =>
+            Check(ReferenceEquals(window.FocusManager?.GetFocusedElement(), editor.TextArea) && MacAccessibilitySmoke.FocusedRole() == "AXTextArea",
+                $"the editor text element is the focused element ({FocusDetails()})"), DispatcherPriority.ContextIdle);
         var strip = window.Groups[0].Strip;
-        Check(strip.ContainerFromIndex(strip.SelectedIndex)?.Focus() == true, "the tab strip item takes the keyboard focus");
+        var item = strip.ContainerFromIndex(strip.SelectedIndex);
+        Check(item?.Focus() == true && ReferenceEquals(window.FocusManager?.GetFocusedElement(), item),
+            $"the tab strip item takes the keyboard focus ({FocusDetails()})");
         await NextFrameAsync();
         string focusedRole = MacAccessibilitySmoke.FocusedRole();
-        Check(focusedRole != "AXTextArea", $"the focused element leaves the editor for the tab strip (role {focusedRole})");
+        Check(ReferenceEquals(window.FocusManager?.GetFocusedElement(), item) && !string.IsNullOrEmpty(focusedRole) && focusedRole != "AXTextArea",
+            $"the focused element leaves the editor for the tab strip ({FocusDetails()})");
         editor.TextArea.Focus();
         await NextFrameAsync();
-        Check(MacAccessibilitySmoke.FocusedRole() == "AXTextArea", "the focus returns to the editor text element");
+        Check(ReferenceEquals(window.FocusManager?.GetFocusedElement(), editor.TextArea) && MacAccessibilitySmoke.FocusedRole() == "AXTextArea",
+            $"the focus returns to the editor text element ({FocusDetails()})");
     }
 
     private static void RemoveTemp(string? dir)
