@@ -48,6 +48,7 @@ internal static class LanguageModes
         Catalog("sql", "SQL", new("--", false)),
         new("markdown", "Markdown", [".md", ".markdown"], CommentStyle.None),
         new("yaml", "YAML", [".yml", ".yaml"], Hash),
+        new("http", "HTTP", [".http", ".rest"], Hash),
         new("ini", "INI", [".ini", ".cfg", ".conf"], new(";", false)),
         Catalog("shell", "Shell", Hash),
         Catalog("powershell", "PowerShell", Hash),
