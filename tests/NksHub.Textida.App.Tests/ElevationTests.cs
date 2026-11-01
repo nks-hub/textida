@@ -32,6 +32,17 @@ public class ElevatedHelperTests : IDisposable
     }
 
     [Fact]
+    public void On_Linux_pkexec_starts_the_same_helper_with_the_same_arguments_and_a_missing_pkexec_is_said_in_words()
+    {
+        Assert.Equal(["/opt/textida/Textida", "--elevated-read", "/etc/shadow", "/tmp/x", "100", "/tmp/r"],
+            SystemElevation.LinuxArguments("/opt/textida/Textida", "/opt/textida/Textida", "--elevated-read", ["/etc/shadow", "/tmp/x", "100"], "/tmp/r"));
+        Assert.Equal(["/usr/bin/dotnet", "/app/Textida.dll", "--elevated-install", "a", "b", "c", "/tmp/r"],
+            SystemElevation.LinuxArguments("/usr/bin/dotnet", "/app/Textida.dll", "--elevated-install", ["a", "b", "c"], "/tmp/r"));
+        if (!OperatingSystem.IsLinux() || SystemElevation.FindPkexec() is not null) return;
+        Assert.Contains("pkexec", Assert.Throws<ElevationException>(() => new SystemElevation().Read("/etc/shadow", Path.Combine(_dir, "d"), 10)).Message);
+    }
+
+    [Fact]
     public void An_install_writes_the_staged_bytes_over_an_existing_file_and_creates_a_missing_one()
     {
         string target = Path.Combine(_dir, "hosts");
