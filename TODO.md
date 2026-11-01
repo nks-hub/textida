@@ -1531,7 +1531,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Návrh:**
     - Builder `tools/BuildMacPackage.cs` ve stylu Windows builderu: `--version V --rid osx-arm64|osx-x64 --output DIR`.
       - AOT publikace aplikace a pluginů a struktura `Textida.app` (`Contents/MacOS`, `Contents/Resources`).
-      - `Info.plist`: bundle ID z P3.7.6 (do rozhodnutí pracovní), `LSMinimumSystemVersion` 14.0, typy dokumentů pro přidružení, `NSHighResolutionCapable`.
+      - `Info.plist`: konečné bundle ID `cz.nks-hub.textida` (P3.7.6), `LSMinimumSystemVersion` 14.0, typy dokumentů pro přidružení, `NSHighResolutionCapable`.
       - Ikona `.icns` z `tools/MakeIcon.cs` (velikosti 16–1024 včetně @2x).
       - Podpis ad-hoc (`codesign -s -`), aby balík na Apple Silicon vůbec běžel.
       - Výstup DMG s přetažením do Aplikací a ZIP.
