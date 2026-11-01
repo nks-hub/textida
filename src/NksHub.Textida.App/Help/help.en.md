@@ -2129,3 +2129,11 @@ The command in the File menu, Remote sends the changes of several saved files fr
 3. Choose Send the ticked files. Each file is sent safely under a temporary name and only then replaces the old one.
 - A file that changed on the server or disappeared cannot be ticked until you have shown its differences (for a deleted file you confirm that it is created again). The upload then expects exactly the version you saw; if there is a newer one on the server, the file is not sent and is reported.
 - A tab with unsaved changes is not sent, because the file on disk is not what you see; save it first. The version check has a small gap on the server between the check and the replacement, because neither FTP nor SFTP has a conditional write.
+
+## [tools.textMate] Importing TextMate grammars
+commands: nks.tools.importTextMate
+The command in the Tools menu converts a TextMate grammar to a grammar of the editor, so a language without a built-in grammar gets colours. The editor's own engine colours the text; nothing of TextMate or Oniguruma runs.
+1. Choose Tools and Import TextMate Grammar. Pick a .tmLanguage, .tmLanguage.json or .plist file, a zipped .tmbundle, or a .tmbundle folder.
+2. Imported grammars are kept as a plugin of their own (a textmate-… folder in the plugins folder) and appear as languages; you choose them like any other language, or they are picked by the file extension.
+- Converted: scope names to colour kinds by their prefix (keyword, string, comment, constant.numeric and more), match rules, begin and end regions over several lines, includes (#name, $self and other grammars of the same bundle) and Oniguruma regular expressions rewritten for .NET (\h, POSIX classes, \R, Unicode properties, possessive quantifiers read as greedy).
+- Not carried over, and reported one by one in the Tasks tab: while rules, \G and \K, back-references in a match or begin pattern (in an end pattern they are replaced by a word), colours of single groups of begin and end patterns, nested and intersected character classes, the operator (?~...), includes of grammars outside the bundle. A rule that .NET still refuses after the rewrite is left out. Extensions a built-in grammar already serves are not taken over.

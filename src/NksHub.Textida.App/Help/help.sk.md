@@ -2129,3 +2129,11 @@ Príkaz v ponuke Súbor, Vzdialené odošle zmeny viacerých uložených súboro
 3. Zvoľte Odoslať vybrané súbory. Každý súbor sa pošle bezpečne cez dočasný názov a až potom nahradí starý.
 - Súbor, ktorý sa na serveri zmenil alebo zmizol, nejde označiť, kým neukážete jeho rozdiely (pri zmazanom súbore potvrdíte, že sa má vytvoriť znova). Odoslanie potom čaká práve na tú verziu, ktorú ste videli; ak je na serveri už ďalšia, súbor sa neodošle a ohlási sa.
 - Karta s neuloženými zmenami sa neposiela, pretože súbor na disku nie je to, čo vidíte; najprv ju uložte. Kontrola verzie má aj na serveri nepatrnú medzeru medzi kontrolou a nahradením, pretože FTP ani SFTP nemajú podmienený zápis.
+
+## [tools.textMate] Import gramatík TextMate
+commands: nks.tools.importTextMate
+Príkaz v ponuke Nástroje prevedie gramatiku TextMate na gramatiku editora, takže jazyk bez vstavanej gramatiky dostane farby. Farbí vlastný engine editora; nič z TextMate ani Oniguruma nebeží.
+1. Zvoľte Nástroje a Importovať gramatiku TextMate. Vyberte súbor .tmLanguage, .tmLanguage.json, .plist, zabalený .tmbundle (zip), alebo priečinok .tmbundle.
+2. Importované gramatiky sa uložia ako vlastný doplnok (priečinok textmate-… v priečinku doplnkov) a objavia sa ako jazyky; vyberiete ich ako každý iný jazyk, alebo sa zvolia podľa prípony súboru.
+- Prevádza sa: názvy rozsahov na druhy farieb podľa predpony (keyword, string, comment, constant.numeric a ďalšie), pravidlá match, oblasti begin a end cez viac riadkov, include (#názov, $self a iné gramatiky zo rovnakého zväzku) a regulárne výrazy Oniguruma prepísané pre .NET (\h, triedy POSIX, \R, vlastnosti Unicode, privlastňujúce kvantifikátory ako bežné).
+- Neprenáša sa a hlási sa jednotlivo v karte Úlohy: pravidlá while, \G a \K, spätné odkazy vo vzore match alebo begin (v end sa nahradia slovom), farby dielčích skupín pri begin a end, vnorené a pretínané triedy znakov, operátor (?~…), include gramatík mimo zväzku. Pravidlo, ktoré .NET po prepise odmietne, sa vynechá. Prípony, ktoré už obsluhuje vstavaná gramatika, sa nepreberajú.

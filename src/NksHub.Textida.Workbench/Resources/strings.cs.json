@@ -561,6 +561,7 @@
   "cmd.edit.justifyBlock": "Zarovnat řádky do bloku",
   "cmd.edit.insertDateTime": "Vložit datum a čas",
   "cmd.edit.insertGuid": "Vložit GUID",
+  "cmd.tools.importTextMate": "Importovat gramatiku TextMate…",
   "cmd.remote.sendChanges": "Odeslat změny více souborů na server…",
   "cmd.tools.structuralSearch": "Strukturální hledání a přepis (ast-grep)…",
   "cmd.tools.searchWeb": "Hledat výběr na webu",

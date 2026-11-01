@@ -233,6 +233,34 @@ internal sealed class ClipLibrary
         return SaveClipResult.Saved;
     }
 
+    /// <summary>
+    /// Keeps a grammar converted from TextMate as a data plugin of its own (<c>textmate-id</c> in the plugins folder, no process), replacing an earlier import of the same id, and reads the library again so the language can be chosen at once.
+    /// False with the reason in <paramref name="detail"/> when it could not be written or the library does not accept it.
+    /// </summary>
+    public bool ImportGrammar(string id, string name, string grammarJson, out string detail)
+    {
+        detail = "";
+        try
+        {
+            string folder = Path.Combine(_directory, "textmate-" + id);
+            Directory.CreateDirectory(folder);
+            int api = PluginLimitsPlaceholders.Host().ApiVersion;
+            var manifest = new PluginManifest { Id = "textmate." + id, Name = "TextMate: " + name, Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
+            manifest.Contributes.Grammars.Add("grammar.json");
+            File.WriteAllText(Path.Combine(folder, "grammar.json"), grammarJson, new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(folder, PluginManifest.FileName), JsonSerializer.Serialize(manifest, PluginManifestJson.Default.PluginManifest), new UTF8Encoding(false));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            detail = e.Message;
+            return false;
+        }
+        Load();
+        if (Grammars.Find(id) is not null) return true;
+        detail = string.Join("; ", _problems.Where(p => p.StartsWith("textmate-" + id, StringComparison.Ordinal)));
+        return false;
+    }
+
     /// <summary>Lower-case ASCII letters, digits and hyphens made from a title; accents are dropped. Never empty and always starts with a letter.</summary>
     internal static string Slug(string title)
     {

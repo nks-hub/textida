@@ -502,6 +502,15 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string TextMateTitle = "textMate.title";
+    public const string TextMateChoose = "textMate.choose";
+    public const string TextMateFile = "textMate.file";
+    public const string TextMateFolder = "textMate.folder";
+    public const string TextMateFilter = "textMate.filter";
+    public const string TextMateFailed = "textMate.failed";
+    public const string TextMateNotKept = "textMate.notKept";
+    public const string TextMateImported = "textMate.imported";
+    public const string TextMateDone = "textMate.done";
     public const string RemoteChangesWatermark = "remoteChanges.watermark";
     public const string RemoteChangesA11y = "remoteChanges.a11y";
     public const string RemoteChangesSend = "remoteChanges.send";

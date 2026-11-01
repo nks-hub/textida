@@ -2129,3 +2129,11 @@ Příkaz v nabídce Soubor, Vzdálené odešle změny několika uložených soub
 3. Zvolte Odeslat vybrané soubory. Každý soubor se pošle bezpečně přes dočasný název a až pak nahradí starý.
 - Soubor, který se na serveru změnil nebo zmizel, nejde označit, dokud neukážete jeho rozdíly (u smazaného souboru potvrdíte, že se má vytvořit znovu). Odeslání pak čeká právě na tu verzi, kterou jste viděli; je-li na serveru už další, soubor se neodešle a ohlásí se.
 - Karta s neuloženými změnami se neposílá, protože soubor na disku není to, co vidíte; nejdřív ji uložte. Kontrola verze má i na serveru nepatrnou mezeru mezi kontrolou a nahrazením, protože FTP ani SFTP nemají podmíněný zápis.
+
+## [tools.textMate] Import gramatik TextMate
+commands: nks.tools.importTextMate
+Příkaz v nabídce Nástroje převede gramatiku TextMate na gramatiku editoru, takže jazyk bez vestavěné gramatiky dostane barvy. Barví vlastní engine editoru; nic z TextMate ani Oniguruma neběží.
+1. Zvolte Nástroje a Importovat gramatiku TextMate. Vyberte soubor .tmLanguage, .tmLanguage.json, .plist, zabalený .tmbundle (zip), nebo složku .tmbundle.
+2. Importované gramatiky se uloží jako vlastní doplněk (složka textmate-… ve složce doplňků) a objeví se jako jazyky; vyberete je jako každý jiný jazyk, nebo se zvolí podle přípony souboru.
+- Převádí se: názvy rozsahů na druhy barev podle předpony (keyword, string, comment, constant.numeric a další), pravidla match, oblasti begin a end přes víc řádků, include (#název, $self a jiné gramatiky ze stejného svazku) a regulární výrazy Oniguruma přepsané pro .NET (\h, třídy POSIX, \R, vlastnosti Unicode, přivlastňující kvantifikátory jako běžné).
+- Nepřenáší se a hlásí se jednotlivě v kartě Úlohy: pravidla while, \G a \K, zpětné odkazy ve vzoru match nebo begin (v end se nahradí slovem), barvy dílčích skupin u begin a end, vnořené a protínané třídy znaků, operátor (?~…), include gramatik mimo svazek. Pravidlo, které .NET po přepisu odmítne, se vynechá. Přípony, které už obsluhuje vestavěná gramatika, se nepřebírají.
