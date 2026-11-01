@@ -1958,6 +1958,12 @@
       "icon": "plug"
     },
     {
+      "id": "nks.file.importPspad",
+      "title": "cmd.file.importPspad",
+      "category": "cat.file",
+      "icon": "file-text"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5202,6 +5208,12 @@
       "command": "nks.plugins.catalogRefresh",
       "group": "4_other/02",
       "order": 30
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.importPspad",
+      "group": "1_new/08",
+      "order": 80
     },
     {
       "menu": "edit",

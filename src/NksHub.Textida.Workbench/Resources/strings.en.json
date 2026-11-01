@@ -567,6 +567,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.file.importPspad": "Import from PSPad...",
   "cmd.plugins.catalog": "Plugin Catalog...",
   "cmd.plugins.catalogRefresh": "Refresh Plugin Catalog",
   "cmd.file.print": "Print...",

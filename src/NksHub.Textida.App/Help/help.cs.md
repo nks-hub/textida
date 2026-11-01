@@ -2200,3 +2200,11 @@ Nástroje, Katalog doplňků ukáže doplňky z repozitáře Git, který určít
 2. Vyberte doplněk. Při prvním doplňku od nového vydavatele porovnáte otisk jeho klíče a potvrdíte důvěru. Pak se ověří SHA-256 balíčku a podpis a otevře se běžné potvrzení instalace s oprávněními.
 - Katalog je soubor index.json s vydavateli (id, jméno, veřejný klíč ECDSA P-256) a doplňky (id, verze, balíček, SHA-256, oprávnění, podpis). Podpis kryje id, verzi, hash a oprávnění, takže změna kterékoli z nich ho zneplatní. Balíček je cesta v repozitáři nebo adresa https.
 - Aktualizace, která chce víc oprávnění, než mělo nainstalované vydání, je ukáže jako nová a vyžaduje nový souhlas. ZIP, který žádá víc, než podepsaná položka uvádí, se odmítne. Změní-li vydavatel klíč, nic od něj se neinstaluje, dokud starý klíč neodstraníte.
+
+## [import.pspad] Import z PSPadu
+commands: nks.file.importPspad
+Soubor, Importovat z PSPadu převezme vaše vlastní data ze složky instalace PSPadu, na kterou ukážete: spojení FTP, projekty, klipy, makra, vlastní zvýrazňovače a klávesy. Složka se jen čte.
+1. Zvolte složku s PSPad.exe (přenosná instalace) nebo složku s nastavením PSPadu. Editor nejdřív ukáže, co našel a co se nepřevede; teprve po potvrzení se do profilu zapíše.
+2. Hesla spojení FTP se nečtou, pokud se na to výslovně nezeptáte a nepotvrdíte: PSPad je ukládá jen zakódovaná a editor je při potvrzení uloží do úložiště přihlašovacích údajů systému. Prosté spojení FTP se převezme jako vypnuté, dokud ho v nastavení spojení výslovně nepovolíte.
+- Zvýrazňovače a klipy dodané s PSPadem se nepřebírají: bere se jen soubor, který je novější než PSPad.exe, tedy váš nebo vámi změněný. Zvýrazňovač se převede na gramatiku editoru (slova, komentáře, řetězce, předprocesor); nastavení, které gramatika nemá, preview vypíše. Klip s interaktivním makrem a makro s příkazem, který editor nezná, se nepřevedou.
+- Klávesy se přenášejí jen pro příkazy editoru, které mají v editoru protějšek (pohyb kurzoru, výběr, mazání, kopírování); ostatní jména z KeyMap.ini se vypíšou jako nepřevedená. Klávesa z PSPadu přebíjí vestavěnou klávesu na stejném akordu.

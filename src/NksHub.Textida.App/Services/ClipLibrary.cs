@@ -251,15 +251,15 @@ internal sealed class ClipLibrary
     /// Keeps a grammar converted from TextMate as a data plugin of its own (<c>textmate-id</c> in the plugins folder, no process), replacing an earlier import of the same id, and reads the library again so the language can be chosen at once.
     /// False with the reason in <paramref name="detail"/> when it could not be written or the library does not accept it.
     /// </summary>
-    public bool ImportGrammar(string id, string name, string grammarJson, out string detail)
+    public bool ImportGrammar(string id, string name, string grammarJson, out string detail, string source = "textmate", string label = "TextMate")
     {
         detail = "";
         try
         {
-            string folder = Path.Combine(_directory, "textmate-" + id);
+            string folder = Path.Combine(_directory, source + "-" + id);
             Directory.CreateDirectory(folder);
             int api = PluginLimitsPlaceholders.Host().ApiVersion;
-            var manifest = new PluginManifest { Id = "textmate." + id, Name = "TextMate: " + name, Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
+            var manifest = new PluginManifest { Id = source + "." + id, Name = label + ": " + name, Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
             manifest.Contributes.Grammars.Add("grammar.json");
             File.WriteAllText(Path.Combine(folder, "grammar.json"), grammarJson, new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(folder, PluginManifest.FileName), JsonSerializer.Serialize(manifest, PluginManifestJson.Default.PluginManifest), new UTF8Encoding(false));
@@ -271,11 +271,59 @@ internal sealed class ClipLibrary
         }
         Load();
         if (Grammars.Find(id) is not null) return true;
-        detail = string.Join("; ", _problems.Where(p => p.StartsWith("textmate-" + id, StringComparison.Ordinal)));
+        detail = string.Join("; ", _problems.Where(p => p.StartsWith(source + "-" + id, StringComparison.Ordinal)));
         return false;
     }
 
     /// <summary>Lower-case ASCII letters, digits and hyphens made from a title; accents are dropped. Never empty and always starts with a letter.</summary>
+    /// <summary>
+    /// Keeps clips imported from another editor as data plugins of their own (<c>pspad-clips-name-1</c>, and so on: the manifest of a plugin has a size limit, so a long list is cut into several), replacing an earlier import of the same name.
+    /// Returns how many clips were kept; false in <paramref name="detail"/> when nothing could be written.
+    /// </summary>
+    public int ImportClips(string stem, string label, IReadOnlyList<ClipContribution> clips, out string detail)
+    {
+        detail = "";
+        int kept = 0;
+        try
+        {
+            string slug = Slug(stem);
+            foreach (string old in Directory.Exists(_directory) ? Directory.EnumerateDirectories(_directory, "pspad-clips-" + slug + "-*") : [])
+                Directory.Delete(old, true);
+            int api = PluginLimitsPlaceholders.Host().ApiVersion;
+            int chunk = 0, index = 0;
+            while (index < clips.Count)
+            {
+                var manifest = new PluginManifest { Id = $"pspad.clips.{slug}-{++chunk}", Name = $"PSPad clips: {label} ({chunk})", Version = "1.0.0", Api = new ApiRange { Min = api, Max = api } };
+                var ids = new HashSet<string>(StringComparer.Ordinal);
+                int size = 512;
+                while (index < clips.Count)
+                {
+                    var clip = clips[index];
+                    string baseId = Slug(clip.Title) is { Length: > 0 } s ? s : "clip", id = baseId;
+                    for (int n = 2; !ids.Add(id); n++) id = baseId + "-" + n.ToString(CultureInfo.InvariantCulture);
+                    var item = new ClipContribution { Id = id, Title = clip.Title, Text = clip.Text, Language = clip.Language };
+                    int cost = Encoding.UTF8.GetByteCount(item.Title) + Encoding.UTF8.GetByteCount(item.Text) + id.Length + 80;
+                    if (manifest.Contributes.Clips.Count > 0 && size + cost > ManifestLoader.MaxBytes * 3 / 4) { ids.Remove(id); break; }
+                    if (cost > ManifestLoader.MaxBytes / 2) { ids.Remove(id); index++; continue; } // one clip larger than half a manifest is left out
+                    manifest.Contributes.Clips.Add(item);
+                    size += cost;
+                    index++;
+                }
+                if (manifest.Contributes.Clips.Count == 0) continue;
+                string folder = Path.Combine(_directory, $"pspad-clips-{slug}-{chunk}");
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, PluginManifest.FileName), JsonSerializer.Serialize(manifest, PluginManifestJson.Default.PluginManifest), new UTF8Encoding(false));
+                kept += manifest.Contributes.Clips.Count;
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            detail = e.Message;
+        }
+        Load();
+        return kept;
+    }
+
     internal static string Slug(string title)
     {
         var sb = new StringBuilder();

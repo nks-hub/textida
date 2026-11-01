@@ -662,7 +662,7 @@ commands: nks.search.gotoBracket
 1. Dajte kurzor k zátvorke.
 2. Stlačte Ctrl+Shift+spätná lomka, alebo zvoľte Hľadať a Prejsť na párovú zátvorku.
 3. Kurzor skočí na protiľahlú zátvorku.
-- Ak zátvorka nemá protějšok, stavový riadok napíše Zátvorka nemá protějšok.
+- Ak zátvorka nemá ekvivalent, stavový riadok napíše Zátvorka nemá ekvivalent.
 - Keď kurzor stojí pri zátvorke a nič nie je vybrané, podfarbí sa zátvorka aj jej náprotivok. Zátvorky v reťazcoch a komentároch sa nepočítajú. Vypne to voľba Zvýrazniť párové zátvorky v nastaveniach.
 - Vo veľkom súbore v stránkovanom režime príkaz nie je.
 
@@ -2200,3 +2200,11 @@ Nástroje, Katalóg doplnkov ukáže doplnky z repozitára Git, ktorý určíte 
 2. Vyberte doplnok. Pri prvom doplnku od nového vydavateľa porovnáte odtlačok jeho kľúča a potvrdíte dôveru. Potom sa overí SHA-256 balíka a podpis a otvorí sa bežné potvrdenie inštalácie s oprávneniami.
 - Katalóg je súbor index.json s vydavateľmi (id, meno, verejný kľúč ECDSA P-256) a doplnkami (id, verzia, balík, SHA-256, oprávnenia, podpis). Podpis kryje id, verziu, hash a oprávnenia, takže zmena ktoréhokoľvek z nich ho zneplatní. Balík je cesta v repozitári alebo adresa https.
 - Aktualizácia, ktorá chce viac oprávnení, než malo nainštalované vydanie, ich ukáže ako nové a vyžaduje nový súhlas. ZIP, ktorý žiada viac, než podpísaná položka uvádza, sa odmietne. Ak vydavateľ zmení kľúč, nič od neho sa neinštaluje, kým starý kľúč neodstránite.
+
+## [import.pspad] Import z PSPadu
+commands: nks.file.importPspad
+Súbor, Importovať z PSPadu prevezme vaše vlastné dáta z priečinka inštalácie PSPadu, na ktorý ukážete: spojenia FTP, projekty, klipy, makrá, vlastné zvýrazňovače a klávesy. Priečinok sa len číta.
+1. Zvoľte priečinok s PSPad.exe (prenosná inštalácia) alebo priečinok s nastaveniami PSPadu. Editor najprv ukáže, čo našiel a čo sa nepreberie; až po potvrdení sa zapíše do profilu.
+2. Heslá spojení FTP sa nečítajú, ak na druhú otázku neodpoviete áno: PSPad ich ukladá len zakódované a editor ich po potvrdení uloží do úložiska prihlasovacích údajov systému. Obyčajné spojenie FTP sa prevezme, ale zostane odmietnuté, kým ho v jeho nastaveniach výslovne nepovolíte.
+- Zvýrazňovače a klipy dodané s PSPadom sa neprebierajú: berie sa len súbor, ktorý je novší než PSPad.exe, teda váš alebo vami zmenený. Zvýrazňovač sa prevedie na gramatiku editora (slová, komentáre, reťazce, predprocesor); nastavenia, ktoré gramatika nemá, preview vypíše. Klip s interaktívnym makrom a makro s príkazom, ktorý editor nepozná, sa nepreberú.
+- Klávesy sa prenášajú len pre príkazy editora, ktoré majú v editore ekvivalent (pohyb kurzora, výber, mazanie, kopírovanie); ostatné mená z KeyMap.ini sa vypíšu ako nepreberané. Kláves z PSPadu prebíja zabudovaný kláves na rovnakom akorde.

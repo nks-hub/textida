@@ -2200,3 +2200,11 @@ Tools, Plugin Catalog lists the plugins of the Git repository you name in the se
 2. Pick a plugin. For the first plugin of a new publisher you compare the fingerprint of its key and confirm trust. Then the SHA-256 of the package and the signature are checked and the usual install confirmation with the permissions opens.
 - The catalog is an index.json file with publishers (id, name, ECDSA P-256 public key) and plugins (id, version, package, SHA-256, permissions, signature). The signature covers the id, version, hash and permissions, so changing any of them breaks it. The package is a path in the repository or an https address.
 - An update that asks for more permissions than the installed release shows them as new and needs a new consent. A ZIP that asks for more than the signed entry lists is refused. If a publisher changes its key, nothing from it is installed until you remove the old key.
+
+## [import.pspad] Import from PSPad
+commands: nks.file.importPspad
+File, Import from PSPad takes your own data from a PSPad installation folder you point to: FTP connections, projects, clips, macros, custom highlighters and keys. The folder is only read.
+1. Choose the folder with PSPad.exe (a portable install) or the folder with the settings of PSPad. The editor first shows what it found and what cannot be carried over; only after you confirm is anything written to the profile.
+2. The passwords of FTP connections are not read unless you answer the second question with yes: PSPad stores them only scrambled, and on your confirmation the editor puts them into the credential store of the system. A plain FTP connection is taken over but stays refused until you allow it explicitly in its settings.
+- Highlighters and clips PSPad was delivered with are not taken: only a file newer than PSPad.exe is, that is, one that is yours or that you changed. A highlighter becomes a grammar of the editor (words, comments, strings, preprocessor); settings the grammar does not have are listed in the preview. A clip with an interactive macro and a macro with a command the editor does not know are not carried over.
+- Keys are carried over only for editor commands that have an equal in the editor (moving the cursor, selecting, deleting, copying); other names in KeyMap.ini are listed as not carried over. A key from PSPad overrides a built-in key on the same chord.

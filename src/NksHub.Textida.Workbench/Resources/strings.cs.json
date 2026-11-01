@@ -567,6 +567,7 @@
   "cmd.edit.justifyBlock": "Zarovnat řádky do bloku",
   "cmd.edit.insertDateTime": "Vložit datum a čas",
   "cmd.edit.insertGuid": "Vložit GUID",
+  "cmd.file.importPspad": "Importovat z PSPadu...",
   "cmd.plugins.catalog": "Katalog doplňků...",
   "cmd.plugins.catalogRefresh": "Znovu stáhnout katalog doplňků",
   "cmd.file.print": "Tisk...",
