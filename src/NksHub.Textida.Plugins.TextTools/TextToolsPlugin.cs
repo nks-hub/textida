@@ -12,8 +12,8 @@ using NksHub.Textida.Rpc;
 
 namespace NksHub.Textida.Plugins.TextTools;
 
-/// <summary>Limits of the text tools; the editor passes both on the command line, so no number is fixed in the plugin.</summary>
-/// <param name="ChunkBytes">Bytes read from the document per request; must not exceed what the document API returns in one read.</param>
+/// <summary>Limits passed by the editor on the command line.</summary>
+/// <param name="ChunkBytes">Maximum bytes per document request; statistics also cap reads at 32 KiB to bound memory.</param>
 /// <param name="ProgressInterval">Time between two progress reports of a running task.</param>
 /// <param name="FrequencyTop">How many entries the frequency lists of the statistics show.</param>
 /// <param name="FrequencyMaxWords">Most distinct words the statistics keep for their frequency list; zero switches the frequency lists off.</param>
