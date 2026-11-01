@@ -42,7 +42,10 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         try
         {
             using var stream = new MemoryStream(bytes);
-            return Bitmap.DecodeToWidth(stream, Math.Min(size.Width, PreviewPolicy.MaxImageWidth));
+            double widthScale = Math.Min(1, PreviewPolicy.MaxImageWidth / (double)size.Width);
+            return size.Height * widthScale > PreviewPolicy.MaxImageHeight
+                ? Bitmap.DecodeToHeight(stream, PreviewPolicy.MaxImageHeight)
+                : Bitmap.DecodeToWidth(stream, Math.Min(size.Width, PreviewPolicy.MaxImageWidth));
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -55,19 +58,19 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
     // ---- local files ----
 
     /// <summary>A stand-in for the picture in <paramref name="path"/> (already checked by the policy); it shows the picture when it is read, or a note when it is not.</summary>
-    public Control Local(string path, string alt)
+    public Control Local(string path, string alt, string? baseDirectory = null)
     {
-        string key = "file:" + path;
+        string key = "file:" + (baseDirectory ?? Path.GetDirectoryName(path)) + "\n" + path;
         var host = new ContentControl { Content = Note(K.PreviewImageLoading, alt) };
         _cache.TryGetValue(key, out var known);
         if (known?.Bitmap is { } shown) host.Content = Picture(shown, alt);
-        _ = LoadLocalAsync(host, key, path, alt, known?.Stamp);
+        _ = LoadLocalAsync(host, key, path, alt, known?.Stamp, baseDirectory);
         return host;
     }
 
-    private async Task LoadLocalAsync(ContentControl host, string key, string path, string alt, string? knownStamp)
+    private async Task LoadLocalAsync(ContentControl host, string key, string path, string alt, string? knownStamp, string? baseDirectory)
     {
-        var (stamp, bitmap, unchanged) = await Task.Run(() => ReadLocal(path, knownStamp));
+        var (stamp, bitmap, unchanged) = await Task.Run(() => ReadLocal(path, knownStamp, baseDirectory));
         if (unchanged) return;
         if (bitmap is null)
         {
@@ -79,10 +82,11 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         host.Content = Picture(bitmap, alt);
     }
 
-    private static (string Stamp, Bitmap? Bitmap, bool Unchanged) ReadLocal(string path, string? knownStamp)
+    private static (string Stamp, Bitmap? Bitmap, bool Unchanged) ReadLocal(string path, string? knownStamp, string? baseDirectory)
     {
         try
         {
+            if (!PreviewPolicy.CanReadLocalImage(path, baseDirectory)) return ("", null, false);
             var info = new FileInfo(path);
             if (!info.Exists || info.Length > PluginLimits.PreviewFileImageMaxBytes) return ("", null, false);
             string stamp = $"{info.Length}:{info.LastWriteTimeUtc.Ticks}";

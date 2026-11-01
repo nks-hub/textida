@@ -50,7 +50,12 @@ public static class RasterImage
         if (!IsSupported(b)) return null;
         if (b.StartsWith(Png)) return b.Length >= 24 ? (BigEndian(b[16..]), BigEndian(b[20..])) : null;
         if (b.StartsWith("GIF"u8)) return b.Length >= 10 ? (b[6] | b[7] << 8, b[8] | b[9] << 8) : null;
-        if (b.StartsWith("BM"u8)) return b.Length >= 26 && b[14] >= 40 ? (LittleEndian(b[18..]), Math.Abs(LittleEndian(b[22..]))) : null;
+        if (b.StartsWith("BM"u8))
+        {
+            if (b.Length < 26 || b[14] < 40) return null;
+            int height = LittleEndian(b[22..]);
+            return height == int.MinValue ? null : (LittleEndian(b[18..]), Math.Abs(height));
+        }
         if (b.StartsWith(Jpeg)) return JpegSize(b);
         if (b.StartsWith(Ico)) return IconSize(b);
         return WebpSize(b);

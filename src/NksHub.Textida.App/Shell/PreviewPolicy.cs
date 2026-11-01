@@ -20,6 +20,8 @@ internal static class PreviewPolicy
 
     /// <summary>Widest an image is decoded and drawn, in pixels.</summary>
     public const int MaxImageWidth = 800;
+    /// <summary>Largest decoded height in pixels; a width limit alone does not bound a narrow picture.</summary>
+    public const int MaxImageHeight = 4096;
 
     /// <summary>The bytes of a <c>data:image/…;base64,…</c> URI of a known raster type that fits <see cref="PluginLimits.PreviewImageMaxBytes"/>; null for anything else.</summary>
     public static byte[]? ImageBytes(string target)
@@ -43,7 +45,7 @@ internal static class PreviewPolicy
 
     /// <summary>
     /// The full path of a picture named by a relative path, or null. Only a path that is relative to <paramref name="baseDirectory"/> and stays inside it is taken: no scheme or drive (so no
-    /// <c>file:</c> address and no alternate data stream), no network or rooted path, and no <c>..</c> that leaves the folder. A query or fragment is dropped.
+    /// <c>file:</c> address and no alternate data stream), no network or rooted path, and no <c>..</c> that leaves the folder. A query or fragment is dropped; filesystem checks run off the UI thread before reading.
     /// </summary>
     public static string? LocalImagePath(string? baseDirectory, string target)
     {
@@ -54,9 +56,42 @@ internal static class PreviewPolicy
         try { target = Uri.UnescapeDataString(target); }
         catch (UriFormatException) { return null; }
         if (target.Length == 0 || target.Contains(':') || target[0] is '/' or '\\' || target.Any(char.IsControl)) return null;
-        string root = Path.GetFullPath(baseDirectory), full = Path.GetFullPath(Path.Combine(root, target));
-        var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return full.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, comparison) ? full : null;
+        try
+        {
+            string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(baseDirectory));
+            string full = Path.GetFullPath(Path.Combine(root, target));
+            string prefix = Path.EndsInDirectorySeparator(root) ? root : root + Path.DirectorySeparatorChar;
+            if (!full.StartsWith(prefix, StringComparison.Ordinal)) return null;
+            return full;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Checks the external filesystem immediately before a background read. Links below the trusted base folder are refused.</summary>
+    internal static bool CanReadLocalImage(string path, string? baseDirectory)
+    {
+        try
+        {
+            string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(baseDirectory ?? Path.GetDirectoryName(path)!));
+            string? full = LocalImagePath(root, Path.GetRelativePath(root, path));
+            if (full is null) return false;
+            for (string? current = full; current is not null && current != root; current = Path.GetDirectoryName(current))
+            {
+                try
+                {
+                    if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return false;
+                }
+                catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException) { }
+            }
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>The web address of a picture (http or https, no user name); null for anything else. Nothing is contacted until the user allowed its host.</summary>
