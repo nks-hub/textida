@@ -14,6 +14,8 @@ namespace NksHub.Textida.App.Editing;
 internal sealed partial class EditorSurface
 {
     private GitPeekView? _peek;
+    private readonly PeekSpace _peekSpace = new();
+    private bool _peekPlacePending;
     private OverlayLayer? _peekLayer;
 
     /// <summary>The changes Git reports for this file, in file order; empty when there are none.</summary>
@@ -75,9 +77,21 @@ internal sealed partial class EditorSurface
         _peek = new GitPeekView(data, GitNewLines(data.Mark), FontFamily, FontSize, index, total, actions with { Close = () => { actions.Close(); CloseGitPeek(); } }, canRevert: !IsReadOnly);
         layer.Children.Add(_peek);
         var view = TextArea.TextView;
+        view.ElementGenerators.Add(_peekSpace);
         view.ScrollOffsetChanged += OnPeekAnchorMoved;
         view.VisualLinesChanged += OnPeekAnchorMoved;
         view.LayoutUpdated += OnPeekAnchorMoved;
+        // the peek is a view zone: the line under the change gets room for it, so the lines below move down instead of being covered. At the end of the document there is no such line and the peek lies over the empty space.
+        // shortcut: the room is measured once, at the width of the view now; a resize that changes the height of the peek leaves the room as it was until the peek is opened again.
+        int below = data.Mark.Line + data.Mark.Lines + 1;
+        _peek.Width = Math.Max(240, view.Bounds.Width - 24);
+        _peek.Measure(new Size(_peek.Width, double.PositiveInfinity));
+        if (below <= Document.LineCount && _peek.DesiredSize.Height > 0)
+        {
+            (_peekSpace.Offset, _peekSpace.Height) = (Document.GetLineByNumber(below).Offset, _peek.DesiredSize.Height);
+            view.Redraw();
+            if (view.Bounds.Height > 0) view.EnsureVisualLines(); // the peek is placed on built lines, not hidden until the next layout
+        }
         PlaceGitPeek();
         if (focus) Dispatcher.UIThread.Post(() => _peek?.FocusFirst(), DispatcherPriority.Input);
     }
@@ -91,6 +105,10 @@ internal sealed partial class EditorSurface
         view.ScrollOffsetChanged -= OnPeekAnchorMoved;
         view.VisualLinesChanged -= OnPeekAnchorMoved;
         view.LayoutUpdated -= OnPeekAnchorMoved;
+        view.ElementGenerators.Remove(_peekSpace);
+        if (_peekSpace.Offset >= 0) view.Redraw(); // the lines come back up
+        _peekSpace.Offset = -1;
+        _peekSpace.Height = 0;
         bool hadFocus = peek.IsKeyboardFocusWithin;
         _peekLayer?.Children.Remove(peek);
         _peekLayer = null;
@@ -110,6 +128,17 @@ internal sealed partial class EditorSurface
         if (!view.VisualLinesValid || view.Bounds.Height <= 0)
         {
             peek.IsVisible = false;
+            // the lines are built by the next layout, which may raise no event of its own for a view that scrolled back to where the zone is: place the peek once they are
+            if (view.Bounds.Height > 0 && !_peekPlacePending)
+            {
+                _peekPlacePending = true;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _peekPlacePending = false;
+                    if (_peek is not null && !view.VisualLinesValid && view.Bounds.Height > 0) view.EnsureVisualLines(); // outside a layout pass: the lines are built now
+                    PlaceGitPeek();
+                }, DispatcherPriority.Background);
+            }
             return;
         }
         var mark = peek.Data.Mark;
@@ -129,6 +158,18 @@ internal sealed partial class EditorSurface
         if (view.TranslatePoint(new Point(8, top), layer) is not { } at) return;
         if (Canvas.GetLeft(peek) != at.X) Canvas.SetLeft(peek, at.X);
         if (Canvas.GetTop(peek) != at.Y) Canvas.SetTop(peek, at.Y);
+    }
+
+    /// <summary>Puts an invisible object of the peek's height at the start of the line under the change; the line grows by it and the text of the lines below moves down.</summary>
+    private sealed class PeekSpace : VisualLineElementGenerator
+    {
+        public int Offset = -1;
+        public double Height;
+
+        public override int GetFirstInterestedOffset(int startOffset) => Offset >= startOffset ? Offset : -1;
+
+        public override VisualLineElement? ConstructElement(int offset) =>
+            offset == Offset && Height > 0 ? new InlineObjectElement(0, new Border { Width = 1, Height = Height, IsHitTestVisible = false }) : null;
     }
 
     /// <summary>The line break the lines around a change use, for putting back lines of the old text.</summary>

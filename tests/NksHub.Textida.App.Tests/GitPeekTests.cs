@@ -50,6 +50,10 @@ public class GitPeekTests : IDisposable
     private DocTab Open(string text, string name = "g.cs")
     {
         var tab = _w.OpenFile(_temp.File(name, text), null);
+        // the first look at the changes of a new tab (a timer, then another process) would answer "no changes" some time later and close a peek that is open by then; these tests set the marks themselves
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        (typeof(MainWindow).GetField("_gitGutterTimer", flags)!.GetValue(_w) as DispatcherTimer)?.Stop();
+        ((HashSet<DocTab>)typeof(MainWindow).GetField("_gitGutterDirty", flags)!.GetValue(_w)!).Clear();
         _w.UpdateLayout();
         Settle();
         return tab;
@@ -98,6 +102,28 @@ public class GitPeekTests : IDisposable
         Assert.True(peek.IsVisible);
         Assert.InRange(peek.TranslatePoint(default, view)!.Value.Y, under - 1, under + 1);
         Assert.Equal(0, surface.CaretOffset); // the peek never moves the caret
+    }
+
+    [AvaloniaFact]
+    public void The_peek_pushes_the_lines_below_it_down_instead_of_covering_them_and_they_come_back_when_it_closes()
+    {
+        var tab = Open(Lines(120));
+        var surface = tab.Surface!;
+        var view = surface.TextArea.TextView;
+        view.EnsureVisualLines();
+        double before = view.GetVisualTopByDocumentLine(15) - view.GetVisualTopByDocumentLine(13);
+        var mark = Mark(10, 2);
+        surface.SetGitMarks([mark]);
+        surface.ShowGitPeek(PeekOf(tab, mark, true, false, "old a", "old b"), 0, 1, Actions([]), focus: false);
+        view.EnsureVisualLines();
+
+        var peek = surface.PeekView!;
+        double textBelow = view.GetVisualTopByDocumentLine(13) + peek.DesiredSize.Height; // the lines under the change start after the peek
+        Assert.True(view.GetVisualTopByDocumentLine(14) >= textBelow - 2, $"line 14 starts at {view.GetVisualTopByDocumentLine(14)}, the peek ends at {textBelow}");
+
+        surface.CloseGitPeek();
+        view.EnsureVisualLines();
+        Assert.Equal(before, view.GetVisualTopByDocumentLine(15) - view.GetVisualTopByDocumentLine(13), 1);
     }
 
     private static string[] PeekRows(GitPeekView peek) => [.. peek.RowControls.Select(g => string.Concat(g.Children.OfType<TextBlock>().Last().Inlines!.OfType<Avalonia.Controls.Documents.Run>().Select(r => r.Text)))];
