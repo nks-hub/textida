@@ -5393,7 +5393,8 @@
     {
       "menu": "file",
       "command": "nks.file.openConverted",
-      "group": "1_new/10",
+      "group": "1_new/06",
+      "submenu": "special",
       "order": 100
     },
     {
