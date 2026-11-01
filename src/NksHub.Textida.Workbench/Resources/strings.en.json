@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.hex.template.exportJson": "Hex: Export Structure Tree to JSON",
   "cmd.tools.compareFolders": "Compare Folders",
   "cmd.tools.sendToInterpreter": "Send to Interpreter",
   "cmd.tools.stopInterpreters": "Stop Interpreters",

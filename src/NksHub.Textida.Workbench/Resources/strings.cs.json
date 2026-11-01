@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Zarovnat řádky do bloku",
   "cmd.edit.insertDateTime": "Vložit datum a čas",
   "cmd.edit.insertGuid": "Vložit GUID",
+  "cmd.hex.template.exportJson": "Hex: exportovat strom šablony do JSON",
   "cmd.tools.compareFolders": "Porovnat složky",
   "cmd.tools.sendToInterpreter": "Poslat do interpretu",
   "cmd.tools.stopInterpreters": "Ukončit interprety",

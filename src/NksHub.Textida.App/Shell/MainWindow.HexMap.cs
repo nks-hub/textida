@@ -1,3 +1,4 @@
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Workbench.Commands;
@@ -48,6 +49,32 @@ internal sealed partial class MainWindow
         if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;
         _ = hex.Structure.OpenFileAsync();
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>Hex: Export Structure Tree to JSON: the tree of the chosen template opens as a JSON document in a new tab.</summary>
+    internal CommandOutcome ExportHexTemplateJson()
+    {
+        if (ActiveHex is not { } hex) return CommandOutcome.NotHandled;
+        _ = ExportHexTemplateJsonAsync(hex);
+        return CommandOutcome.Handled;
+    }
+
+    internal async Task ExportHexTemplateJsonAsync(HexView hex)
+    {
+        (string Json, bool Truncated)? result;
+        try { result = await hex.Structure.ExportJsonAsync(); }
+        catch (IOException e)
+        {
+            SetStatusMessage(Loc.Get(K.KsyExportFailed, ("reason", e.Message)));
+            return;
+        }
+        if (result is not { } tree)
+        {
+            SetStatusMessage(Loc.Get(K.KsyExportNone));
+            return;
+        }
+        OpenGeneratedText(tree.Json.ReplaceLineEndings(Environment.NewLine), "json");
+        if (tree.Truncated) SetStatusMessage(Loc.Get(K.KsyExportTruncated, ("nodes", Core.Hex.Ksy.KsyJson.MaxNodes)));
     }
 
     internal CommandOutcome ToggleHexStatistics()

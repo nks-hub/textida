@@ -502,6 +502,9 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string KsyExportNone = "ksy.exportNone";
+    public const string KsyExportFailed = "ksy.exportFailed";
+    public const string KsyExportTruncated = "ksy.exportTruncated";
     public const string FoldersTitle = "folders.title";
     public const string FoldersSide = "folders.side";
     public const string FoldersLocal = "folders.local";

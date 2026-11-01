@@ -190,7 +190,8 @@ public class KsyConstructTests
     // ---- what the subset does not have ----
 
     [Theory]
-    [InlineData("size: 4\n    process: zlib", "process zlib")]
+    [InlineData("size: 4\n    process: zlib(9)", "process zlib")]
+    [InlineData("contents: [1, 2]\n    process: zlib", "process zlib with contents")]
     [InlineData("size: 4\n    process: custom(my.Module, 1)", "process custom")]
     [InlineData("size: 4\n    process: xor([1, 2])", "expression array literal")]
     [InlineData("size: 4\n    terminator: 0", "terminator")]
@@ -205,8 +206,8 @@ public class KsyConstructTests
     [Fact]
     public void A_process_the_subset_does_not_have_names_its_line_exactly()
     {
-        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: zlib\n");
-        Assert.Equal((KsyErrorKind.Unsupported, "process zlib", 6), (e.Kind, e.Subject, e.Line));
+        var e = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: custom(a)\n");
+        Assert.Equal((KsyErrorKind.Unsupported, "process custom", 6), (e.Kind, e.Subject, e.Line));
     }
 
     // ---- process: xor, rol, ror ----

@@ -154,12 +154,12 @@ public class HexTemplateAppTests : IDisposable
         var hex = OpenHex("pic.png", Png(Chunk("IEND", [])));
         _w.ToggleHexTemplate();
         var panel = hex.Structure;
-        string path = _temp.File("zlib.ksy", "meta:\n  id: zlib_demo\nseq:\n  - id: a\n    size: 4\n    process: zlib\n");
+        string path = _temp.File("zlib.ksy", "meta:\n  id: zlib_demo\nseq:\n  - id: a\n    size: 4\n    process: custom(a)\n");
 
         panel.LoadFile(path);
 
-        Assert.Equal("nepodporováno: process zlib", Loc.Get(K.KsyErrUnsupported, ("subject", "process zlib")));
-        Assert.Contains("nepodporováno: process zlib", panel.NoteShown);
+        Assert.Equal("nepodporováno: process custom", Loc.Get(K.KsyErrUnsupported, ("subject", "process custom")));
+        Assert.Contains("nepodporováno: process custom", panel.NoteShown);
         Assert.Contains("zlib.ksy", panel.NoteShown);
         Assert.Contains(Loc.Get(K.KsyErrLine, ("line", 6)), panel.NoteShown);
         Assert.Equal("png_chunks", panel.Current!.Id);
@@ -305,5 +305,27 @@ public class HexTemplateAppTests : IDisposable
 
         panel.IsVisible = false;
         Assert.False(panel.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task The_tree_of_the_template_opens_as_JSON_in_a_new_tab_and_a_file_without_a_template_says_so()
+    {
+        var hex = OpenHex("pic.png", Png(Chunk("IHDR", new byte[13]), Chunk("IEND", [])));
+        var source = _w.Active!;
+
+        await _w.ExportHexTemplateJsonAsync(hex);
+
+        var tab = _w.Active!;
+        Assert.NotSame(source, tab);
+        Assert.Equal("json", tab.Doc.Language.Id);
+        using var json = System.Text.Json.JsonDocument.Parse(tab.Editor!.Document.Text);
+        Assert.Equal("png_chunks", json.RootElement.GetProperty("name").GetString());
+        Assert.True(json.RootElement.GetProperty("children").GetArrayLength() > 0);
+
+        _w.SelectTab(source);
+        var plain = OpenHex("data.bin", [1, 2, 3, 4, 5, 6, 7, 8]);
+        int tabs = _w.Tabs.Count();
+        await _w.ExportHexTemplateJsonAsync(plain);
+        Assert.Equal(tabs, _w.Tabs.Count());
     }
 }
