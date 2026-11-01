@@ -7,13 +7,14 @@ using Markdig.Syntax.Inlines;
 
 namespace NksHub.Textida.Core.Markdown;
 
-public sealed class MarkdownSyntaxException(string message, Exception inner) : FormatException(message, inner);
+public sealed class MarkdownSyntaxException(string message, Exception? inner = null) : FormatException(message, inner);
 
 public static class MarkdownSyntax
 {
     public static MarkdownDocument Parse(string source, int? maximumDepth = null)
     {
         var builder = new MarkdownPipelineBuilder().UsePipeTables().UseTaskLists().UsePreciseSourceLocation();
+        builder.Extensions.Add(new TableExpansionLimit());
         if (maximumDepth is { } depth) builder.MaximumNestingDepth = depth;
         try { return Markdig.Markdown.Parse(source, builder.Build()); }
         catch (ArgumentException e) { throw new MarkdownSyntaxException("Markdown nesting exceeds the parser limit.", e); }
