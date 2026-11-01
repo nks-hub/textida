@@ -11,6 +11,25 @@ public sealed partial class Document
 
     /// <summary>File the document was opened from or last saved to; null for an unnamed document.</summary>
     public string? FilePath { get; private set; }
+
+    /// <summary>
+    /// When set, a save writes the new bytes to a file in the temporary folder of the user and hands that file to the writer, which puts it at the target (a folder or file the user cannot write; PZ.4.2).
+    /// It replaces the swap next to the target, so it is meant for one confirmed save and set back to null afterwards. A document backed by a mapped file cannot use it.
+    /// </summary>
+    public IProtectedWriter? ProtectedWriter { get; set; }
+
+    /// <summary>
+    /// Makes this document the one of the file at <paramref name="path"/>, for a document built from bytes that were read some other way (a file only an administrator can read). There is no fingerprint of the file,
+    /// so a save does not look for changes of it; the document counts as saved.
+    /// </summary>
+    public void BindPath(string path)
+    {
+        ThrowIfDisposed();
+        FilePath = Path.GetFullPath(path);
+        _fileId = null;
+        Fingerprint = null;
+        MarkSaved();
+    }
     private FileFingerprint? _fingerprint;
     private string? _fileId;
     private CancellationTokenSource? _hashCancel;
@@ -131,14 +150,14 @@ public sealed partial class Document
         string target = Path.GetFullPath(path ?? FilePath ?? throw new InvalidOperationException("An unnamed document needs a path."));
         bool inPlace = FilePath is not null && SamePath(target, FilePath);
         bool guard = inPlace && !overwriteExternalChanges;
-        if (inPlace && PlanSave() is { Mode: SaveMode.InPlace } plan)
+        if (inPlace && ProtectedWriter is null && PlanSave() is { Mode: SaveMode.InPlace } plan)
         {
             try { return SaveInPlace(target, plan, guard); }
             catch (SnapshotInvalidatedException) { } // the file was touched (same content, new write time): the whole file is written below instead
         }
         if (guard && (BaseConflict(CancellationToken.None) ?? CheckExternalChange()) is { } early) return AdoptOrConflict(early);
 
-        string temp =target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        string temp = ProtectedWriter is null ? target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp" : Path.Combine(Path.GetTempPath(), "textida-" + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
             string hash;
@@ -162,7 +181,8 @@ public sealed partial class Document
             if (guard && CheckExternalChange() is { } late) return AdoptOrConflict(late);
 
             Saving?.Invoke(this, new SavingEventArgs(target, ByteLength, hash, _revision));
-            if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
+            if (ProtectedWriter is { } writer) writer.Install(temp, target, hash);
+            else if (_backend.BackingPath is { } mapped && SamePath(mapped, target)) _backend.ReplaceBackingFile(temp, target);
             else FileSwap.Replace(temp, target);
 
             CancelHashing();

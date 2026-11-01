@@ -379,7 +379,11 @@ internal sealed partial class MainWindow
         foreach (var path in paths)
         {
             try { OpenFile(path, null); }
-            catch (IOException ex) { SetStatusMessage(ex.Message); }
+            catch (IOException ex)
+            {
+                SetStatusMessage(ex.Message);
+                if (ex.InnerException is UnauthorizedAccessException) _ = OfferElevatedOpenAsync(path);
+            }
         }
     }
 
@@ -388,7 +392,11 @@ internal sealed partial class MainWindow
         foreach (var path in await _app.Dialogs.PickFilesAsync(this))
         {
             try { OpenFile(path, null); }
-            catch (IOException e) { SetStatusMessage(e.Message); }
+            catch (IOException e)
+            {
+                SetStatusMessage(e.Message);
+                if (e.InnerException is UnauthorizedAccessException) _ = OfferElevatedOpenAsync(path);
+            }
         }
     }
 }

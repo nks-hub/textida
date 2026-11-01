@@ -181,6 +181,7 @@ internal static class AppCommands
         On("nks.plugins.catalogRefresh", w => w.OpenPluginCatalog(true));
         On("nks.file.importPspad", w => w.ImportPspad());
         On("nks.agent.askSelection", w => w.AskAgentAboutSelection());
+        On("nks.file.openProtected", w => w.OpenProtected());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

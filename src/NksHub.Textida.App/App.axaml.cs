@@ -52,6 +52,9 @@ public sealed partial class App : Application
     internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
 
+    /// <summary>How the editor reaches a place it has no right to; the system's own unless a test puts its own (PZ.4.2).</summary>
+    internal IElevation Elevation { get; set; } = new SystemElevation();
+
     private IHexPlugins? _hexPlugins;
 
     /// <summary>What plugins add to the hex view; the plugin services unless a test puts its own.</summary>

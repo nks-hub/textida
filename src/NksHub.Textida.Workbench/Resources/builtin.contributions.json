@@ -1972,6 +1972,12 @@
       "enablement": "hasSelection"
     },
     {
+      "id": "nks.file.openProtected",
+      "title": "cmd.file.openProtected",
+      "category": "cat.file",
+      "icon": "file-text"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5229,6 +5235,12 @@
       "group": "3_ai/01",
       "submenu": "ai/agent",
       "order": 35
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openProtected",
+      "group": "1_new/09",
+      "order": 90
     },
     {
       "menu": "edit",

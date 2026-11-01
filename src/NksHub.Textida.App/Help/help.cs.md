@@ -2215,3 +2215,10 @@ Nástroje, AI, Zeptat se agenta na výběr pošle označený úsek a vaše zadá
 1. Spusťte agenta (Nástroje, AI, Spustit agenta), označte úsek v souboru, zvolte příkaz a napište zadání. Editor před odesláním ukáže, co přesně se pošle, a ptá se na potvrzení.
 2. Agent odpovídá v panelu. Chce-li úsek změnit, zapíše soubor přes editor a změna se ukáže v přehledu změn; teprve po vašem potvrzení se použije. Změna textu mimo označený úsek se odmítne.
 - Úsek nesmí být delší než 24 000 znaků a soubor musí být uložený na disku (agent soubory jmenuje cestou). Skryté tajné hodnoty se neposílají. Co agent dělá svými vlastními nástroji mimo editor, editor nehlídá; hranice jsou v panelu agenta.
+
+## [elevate] Chráněné cesty a práva správce
+commands: nks.file.openProtected
+Editor běží s právy vašeho účtu. Soubor, který tento účet nesmí zapsat nebo přečíst, lze přesto uložit či otevřít pomocí malého pomocníka, kterého povolíte systému.
+1. Uložení: když systém uložení odmítne (soubor v chráněné složce), editor se zeptá, zda ho smí zapsat pomocník s právy správce. Po vašem souhlasu systém zobrazí svou výzvu (UAC na Windows, okno ověření na macOS) a pomocník zapíše soubor.
+2. Otevření: Soubor, Otevřít chráněný soubor (nebo odpověď ano po neúspěšném otevření) nechá pomocníka soubor zkopírovat do dočasné složky vašeho účtu. Editor kopii přečte, smaže ji a otevře dokument s cestou původního souboru; uložení se zeptá znovu.
+- Žádný seznam chráněných souborů neexistuje: vždy se nejdřív zkusí běžný přístup a pomocník přijde na řadu, jen když systém řekl ne. Pomocník je tentýž program s jediným úkolem; zkontroluje SHA-256 souboru, který mu editor předal, a zapíše ho přímo přes cíl, takže si cíl ponechá vlastníka a práva. Zápis není atomický. Soubor větší než 64 MiB se tak neotevře a velké dokumenty a hex se takto neukládají.

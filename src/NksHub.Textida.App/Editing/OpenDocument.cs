@@ -311,6 +311,16 @@ internal sealed class OpenDocument : IDisposable
         if (Language.Id == "sql") LanguageChanged?.Invoke();
     }
 
+    /// <summary>A document of the file at <paramref name="path"/> whose bytes were read some other way (a file only an administrator can read): the text is in memory, the path is the file's, and a save goes where the path says.</summary>
+    public static OpenDocument FromProtectedBytes(string path, byte[] bytes)
+    {
+        path = System.IO.Path.GetFullPath(path);
+        var guess = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, SampleBytes)), bytes.Length <= SampleBytes);
+        var doc = Document.FromBytes(bytes, AvaloniaEditBackendFactory.Instance, new DocumentOptions { Format = guess.Codec });
+        doc.BindPath(path);
+        return new OpenDocument(doc, 0, guess, LanguageModes.ForPath(path));
+    }
+
     /// <summary>Opens a file; above <paramref name="largeFileBytes"/> (the <c>files.largeFileThreshold</c> setting) it maps the file in the paged backend. Throws <see cref="IOException"/> with a localised message.</summary>
     public static OpenDocument Open(string path, long largeFileBytes, ViewMode mode = ViewMode.Text)
     {
@@ -412,7 +422,9 @@ internal sealed class OpenDocument : IDisposable
     public void EnsureWatching()
     {
         if (_doc.FilePath is not { } path || string.Equals(_watching, path, StringComparison.Ordinal)) return;
-        _doc.StartWatching();
+        // a folder the account cannot list (the file of a protected path was read by a helper) is not watched; the next save still looks at the file
+        try { _doc.StartWatching(); }
+        catch (Exception e) when (e is ArgumentException or UnauthorizedAccessException or IOException) { return; }
         _watching = path;
     }
 

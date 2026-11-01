@@ -252,6 +252,11 @@ internal sealed partial class MainWindow
             if (outcome.Save.Conflict is { } change) return await ResolveSaveConflictAsync(tab, change);
             return false;
         }
+        catch (UnauthorizedAccessException e) when (CanSaveElevated(tab) && od.Doc.ProtectedWriter is null)
+        {
+            SetStatusMessage(Loc.Get(K.StatusSaveFailed, ("reason", e.Message)));
+            return await OfferElevatedSaveAsync(tab, overwrite, e.Message);
+        }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             SetStatusMessage(Loc.Get(K.StatusSaveFailed, ("reason", e.Message)));

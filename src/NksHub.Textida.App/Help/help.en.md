@@ -2215,3 +2215,10 @@ Tools, AI, Ask Agent About Selection sends the selected range and your task to t
 1. Start an agent (Tools, AI, Start Agent), select a range in a file, run the command and write the task. Before anything is sent the editor shows exactly what goes to the agent and asks you to confirm.
 2. The agent answers in the panel. If it wants to change the range it writes the file through the editor and the change shows in the change review; it is applied only after you confirm. A change to text outside the selected range is refused.
 - The range may be at most 24,000 characters and the file must be saved on disk (an agent names files by path). Hidden secret values are not sent. What the agent does with its own tools outside the editor is not watched by the editor; the boundary is shown in the agent panel.
+
+## [elevate] Protected paths and administrator rights
+commands: nks.file.openProtected
+The editor runs with the rights of your account. A file this account may not write or read can still be saved or opened by a small helper that you allow in the system.
+1. Saving: when the system refuses a save (a file in a protected folder), the editor asks whether a helper with administrator rights may write it. After you agree the system shows its own prompt (UAC on Windows, the authorization window on macOS) and the helper writes the file.
+2. Opening: File, Open Protected File (or a yes after a failed open) lets the helper copy the file into the temporary folder of your account. The editor reads the copy, deletes it and opens a document with the path of the original file; saving asks again.
+- There is no list of protected files: ordinary access is always tried first and the helper comes in only when the system said no. The helper is the same program with a single job; it checks the SHA-256 of the file the editor handed it and writes it straight over the target, so the target keeps its owner and rights. The write is not atomic. A file over 64 MiB is not opened this way, and large documents and hex are not saved this way.

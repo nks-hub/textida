@@ -567,6 +567,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.file.openProtected": "Open Protected File...",
   "cmd.agent.askSelection": "Ask Agent About Selection...",
   "cmd.file.importPspad": "Import from PSPad...",
   "cmd.plugins.catalog": "Plugin Catalog...",

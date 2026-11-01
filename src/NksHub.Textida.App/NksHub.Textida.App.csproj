@@ -120,8 +120,7 @@
       <BuiltInProgram Include="..\NksHub.Textida.Plugins.Wiki\NksHub.Textida.Plugins.Wiki.csproj" Folder="plugins\wiki" />
       <BuiltInProgram Include="..\NksHub.Textida.Mcp\NksHub.Textida.Mcp.csproj" Folder="mcp" />
     </ItemGroup>
-    <MSBuild Projects="%(BuiltInProgram.Identity)" Targets="Publish" BuildInParallel="false"
-             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true;PublishDir=$([MSBuild]::EnsureTrailingSlash('$(PublishDir)'))%(BuiltInProgram.Folder)\" />
+    <MSBuild Projects="%(BuiltInProgram.Identity)" Targets="Publish" BuildInParallel="false" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true;PublishDir=$([MSBuild]::EnsureTrailingSlash('$(PublishDir)'))%(BuiltInProgram.Folder)\" />
     <!-- the referenced programs leave their runtimeconfig.json next to the app; the AOT programs have no use for it -->
     <ItemGroup>
       <StrayRuntimeConfig Include="$(PublishDir)NksHub.Textida.Plugins.*.runtimeconfig.json;$(PublishDir)textida-mcp.runtimeconfig.json" />
