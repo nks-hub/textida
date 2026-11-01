@@ -47,7 +47,7 @@ public partial class TextToolsTests
             await CreateAsync(Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec }), selections, chunk, holdReads: holdReads);
 
         /// <summary>The rig over a document the test opened itself (a file); <paramref name="maxRead"/> is what one read of the document API may return, the chunk must not exceed it.</summary>
-        public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null, TimeSpan? callTimeout = null, Func<Task>? holdReads = null)
+        public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null, TimeSpan? callTimeout = null, Func<Task>? holdReads = null, string? pluginExecutable = null)
         {
             var recorded = new UiApiTests.RecordingUi();
             PluginHost.PluginHost? host = null;
@@ -75,8 +75,11 @@ public partial class TextToolsTests
             }
             host = new PluginHost.PluginHost(PluginHostTests.Options(limits is null && callTimeout is null ? null : o => o with { Limits = limits ?? o.Limits, DefaultCallTimeout = callTimeout ?? o.DefaultCallTimeout }), PluginApiRouter.Create(documents, ("ui/", ui.HandleAsync)), docs);
             var dll = Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.TextTools.dll");
-            Assert.True(File.Exists(dll), dll);
-            host.Register(new PluginSpec("tools", "Tools", T.DotnetHost, [dll, "--chunk-bytes", chunk.ToString(), "--progress-ms", "0"], ["onCommand:tools"]));
+            Assert.True(File.Exists(pluginExecutable ?? dll), pluginExecutable ?? dll);
+            string[] arguments = pluginExecutable is null ? [dll, "--chunk-bytes", chunk.ToString(), "--progress-ms", "0"]
+                // The published process receives the production frequency limits from App/Services/PluginLimits.cs.
+                : ["--chunk-bytes", chunk.ToString(), "--progress-ms", "250", "--frequency-top", "10", "--frequency-max-words", "100000", "--frequency-max-word-length", "64"];
+            host.Register(new PluginSpec("tools", "Tools", pluginExecutable ?? T.DotnetHost, arguments, ["onCommand:tools"]));
             await host.ActivateAsync("onCommand:tools");
             Func<SelectionSet?>? selector = selections is null ? null : () => SelectionSet.Create([.. selections.Select(s => new TextSelection(s.Anchor, s.Caret))], 0);
             docs.Expose(doc, selector);

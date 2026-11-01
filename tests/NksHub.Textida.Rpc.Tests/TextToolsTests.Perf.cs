@@ -12,6 +12,16 @@ public partial class TextToolsTests(ITestOutputHelper output)
 {
     const long GiB = 1L << 30;
     const string Island = "alpha beta\r\n";
+    const string PublishedPluginVariable = "TEXTIDA_TEXTTOOLS_EXECUTABLE";
+
+    sealed class PublishedTextToolsFactAttribute : FactAttribute
+    {
+        public PublishedTextToolsFactAttribute()
+        {
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PublishedPluginVariable)))
+                Skip = "Set " + PublishedPluginVariable + " to the published NativeAOT text-tools executable.";
+        }
+    }
 
     /// <summary>The RPC limits the app gives its plugin host (<c>PluginLimits.Host</c>): a chunk of 1 MiB is 1.4 MiB of base64 in a message.</summary>
     static readonly NksHub.Textida.Rpc.RpcLimits AppLimits = new(4 << 20, 8, 64, 100_000, 64L << 20, 64L << 20);
@@ -117,15 +127,20 @@ public partial class TextToolsTests(ITestOutputHelper output)
         }
     }
 
-    async Task StatisticsOfARealFileAsync(long length)
+    async Task StatisticsOfARealFileAsync(long length, string? pluginExecutable = null)
     {
         const int lines = 1000;
         string path = SparseFileWithIslands(length, lines, out long gapBefore, out long gapAfter);
         try
         {
             using var doc = Document.Open(path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
-            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30));
+            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30), pluginExecutable: pluginExecutable);
             int plugin = rig.Host.ProcessIds().Single();
+            if (pluginExecutable is not null && OperatingSystem.IsWindows())
+            {
+                using var process = Process.GetProcessById(plugin);
+                Assert.DoesNotContain(process.Modules.Cast<ProcessModule>(), module => module.ModuleName.Equals("coreclr.dll", StringComparison.OrdinalIgnoreCase));
+            }
 
             using var watch = new MemoryWatch(plugin);
             var clock = Stopwatch.StartNew();
@@ -143,7 +158,10 @@ public partial class TextToolsTests(ITestOutputHelper output)
             long early = watch.Peak(0, 1.0 / 3), late = watch.Peak(2.0 / 3, 1);
             output.WriteLine($"Statistics of {length / GiB} GiB through the plugin process: {clock.Elapsed.TotalSeconds:0.0} s, {length / (double)(1 << 20) / clock.Elapsed.TotalSeconds:0} MiB/s; " +
                 $"private memory of the plugin process {watch.Baseline >> 20} MiB before, {early >> 20} MiB at most in the first third, {late >> 20} MiB in the last, {watch.Peak() >> 20} MiB at the peak; MiB at each second: {watch.PerSecond()}");
-            Assert.True(late - early <= WorkingMemory, $"the private memory of the plugin process went from {early >> 20} MiB in the first third of the run to {late >> 20} MiB in the last");
+            if (pluginExecutable is not null)
+                Assert.True(watch.Peak() <= WorkingMemory, $"the published NativeAOT process reached {watch.Peak()} bytes of private memory, above {WorkingMemory}");
+            else
+                Assert.True(late - early <= WorkingMemory, $"the private memory of the plugin process went from {early >> 20} MiB in the first third of the run to {late >> 20} MiB in the last");
         }
         finally
         {
@@ -159,13 +177,31 @@ public partial class TextToolsTests(ITestOutputHelper output)
     [Trait("Category", "Perf")]
     public Task Statistics_of_a_real_ten_gibibyte_file_run_in_the_plugin_process_with_a_bounded_memory() => StatisticsOfARealFileAsync(10 * GiB);
 
-    async Task CancellingAsync(long length)
+    private string PublishedExecutable()
+    {
+        var executable = Environment.GetEnvironmentVariable(PublishedPluginVariable)!;
+        Assert.True(Path.IsPathFullyQualified(executable) && File.Exists(executable), "The published executable must be an existing absolute path.");
+        using (var file = File.OpenRead(executable))
+            output.WriteLine($"Published text-tools SHA256: {Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file))}");
+        return executable;
+    }
+
+    // PR.2.5 temporarily limits verification to 1-2 GiB; these are not evidence for the deferred 10 GiB gates.
+    [PublishedTextToolsFact]
+    [Trait("Category", "Perf")]
+    public Task Published_native_statistics_of_two_gibibytes_stay_within_64_mib() => StatisticsOfARealFileAsync(2 * GiB, PublishedExecutable());
+
+    [PublishedTextToolsFact]
+    [Trait("Category", "Perf")]
+    public Task Cancelling_the_published_native_statistics_of_two_gibibytes_ends_the_run_in_seconds() => CancellingAsync(2 * GiB, PublishedExecutable());
+
+    async Task CancellingAsync(long length, string? pluginExecutable = null)
     {
         string path = SparseFileWithIslands(length, 1000, out _, out _);
         try
         {
             using var doc = Document.Open(path, new PagedBackendFactory(startIndexing: false), new DocumentOptions { Format = TextCodec.Utf8 });
-            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30));
+            await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 1 << 20, limits: AppLimits, callTimeout: TimeSpan.FromMinutes(30), pluginExecutable: pluginExecutable);
 
             var run = rig.RunAsync(TextToolsPlugin.Statistics, "en");
             await Task.Delay(TimeSpan.FromSeconds(3));
