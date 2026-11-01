@@ -33,6 +33,9 @@ public sealed partial class Document
     /// <summary>Test seam of the streamed save: called with the step (<c>temp-writing</c> on the worker before the first byte, <c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
     internal Action<string, string>? StreamSaveStep;
 
+    /// <summary>Test seam before a streamed file's durable flush, on the save worker.</summary>
+    internal Action<CancellationToken>? BeforeStreamFlush;
+
     /// <summary>The state a save writes: what the document was when its snapshot was taken, which may be older than the document is when the save ends.</summary>
     private readonly record struct SaveMark(UndoEntry? Top, long Revision, long Length);
 
@@ -418,9 +421,9 @@ public sealed partial class Document
                         // the loss is known before a byte is written: a character the target cannot hold, and no replacement the user confirmed, ends the save here
                         var (loss, blocked) = await Task.Run(() => Transcode(snapshot!, fromCodec, transcode, _transcodeReplacement, ct, null, null, 0), CancellationToken.None);
                         if (blocked) return new(false, null, loss);
-                        (hash, baseline) = await Task.Run(() => WriteTranscoded(snapshot!, fromCodec, transcode, _transcodeReplacement, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
+                        (hash, baseline) = await Task.Run(() => WriteTranscoded(snapshot!, fromCodec, transcode, _transcodeReplacement, tempPath, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
                     }
-                    else (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, progress, ProgressIntervalMs), CancellationToken.None);
+                    else (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
                     StreamSaveStep?.Invoke("temp-written", tempPath);
                 }
                 catch (SnapshotInvalidatedException) when (guard)
@@ -466,7 +469,7 @@ public sealed partial class Document
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/>; the new baseline is taken from the bytes written, not from the target afterwards.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step, IProgress<SaveProgress>? progress, int intervalMs)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
     {
         using var fs = new FileStream(temp, new FileStreamOptions
         {
@@ -478,12 +481,14 @@ public sealed partial class Document
         });
         step?.Invoke("temp-writing", temp);
         var written = CopyHashed(snapshot, fs, ct, progress, intervalMs);
+        beforeFlush?.Invoke(ct);
+        ct.ThrowIfCancellationRequested();
         fs.Flush(true);
         return written;
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/> converted from <paramref name="from"/> to <paramref name="to"/>, block by block; the hash and block digests are those of the bytes written.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTranscoded(IByteSnapshot snapshot, Encodings.TextCodec from, Encodings.TextCodec to, string? replacement, string temp, CancellationToken ct, Action<string, string>? step, IProgress<SaveProgress>? progress, int intervalMs)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTranscoded(IByteSnapshot snapshot, Encodings.TextCodec from, Encodings.TextCodec to, string? replacement, string temp, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
     {
         using var fs = new FileStream(temp, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 0 });
         step?.Invoke("temp-writing", temp);
@@ -491,6 +496,8 @@ public sealed partial class Document
         var hashing = new HashingStream(fs, blocks);
         Transcode(snapshot, from, to, replacement, ct, hashing, progress, intervalMs);
         var hash = hashing.Finish();
+        beforeFlush?.Invoke(ct);
+        ct.ThrowIfCancellationRequested();
         fs.Flush(true);
         return (hash, blocks);
     }

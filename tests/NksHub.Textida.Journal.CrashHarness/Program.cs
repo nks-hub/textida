@@ -21,6 +21,7 @@ public static class Program
         if (args is ["guard-watch", var goneFile]) return GuardWatch(goneFile);
         if (args.Length >= 3 && args[0] == "child") return Child(args[1], int.Parse(args[2]));
         if (args.Length >= 3 && args[0] == "inplace-child") return InPlaceChild(args[1], args[2]);
+        if (args is ["stream-flush-child", var streamDir, var streamPoint]) return StreamFlushScenario.Child(streamDir, streamPoint);
         if (args.Length >= 4 && args[0] == "batch-child") return BatchScenario.Child(args[1], int.Parse(args[2]), args[3]);
         if (args.Length >= 6 && args[0] == "large-child") return LargeScenario.Child(args[1], int.Parse(args[2]), args[3], long.Parse(args[4]), int.Parse(args[5]));
         if (args.Length >= 8 && args[0] == "huge-child") return HugeScenario.Child(args[1], args[2], int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), int.Parse(args[6]), int.Parse(args[7]));
