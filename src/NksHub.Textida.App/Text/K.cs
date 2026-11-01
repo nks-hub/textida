@@ -502,6 +502,12 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string PrintNoDialog = "print.noDialog";
+    public const string PrintDone = "print.done";
+    public const string PrintCancelled = "print.cancelled";
+    public const string PrintFailed = "print.failed";
+    public const string PrintPdfTitle = "print.pdfTitle";
+    public const string PrintPdfDone = "print.pdfDone";
     public const string HexPluginFailed = "hex.plugin.failed";
     public const string HexPluginNone = "hex.plugin.none";
     public const string HexPluginTooLarge = "hex.plugin.tooLarge";

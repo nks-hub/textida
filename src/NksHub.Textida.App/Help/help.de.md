@@ -2184,3 +2184,11 @@ Ein installiertes Plugin mit der Berechtigung hex.read kann der Hex-Ansicht eine
 3. Mit Plugin als Text ausgeben öffnet die Auswahl als Text in einem neuen Dokument, das keine Datei ist. Vorlagen von Plugin fügt seine .ksy-Vorlagen der Liste des Strukturbereichs hinzu.
 - Das Plugin erhält nur eine Kopie der Bytes und gibt nur Text zurück: es schreibt nichts in eine Datei oder das Dokument. Ein verborgener Wert einer Geheimnisdatei wird ihm als Sterne gesendet. Ein Plugin, das Bytes ändern will, tut das über die Dokument-API, wo seine Änderung als Vorschlag zur Freigabe in der Änderungsübersicht erscheint.
 - Ein Plugin erhält höchstens 16 MiB, hat 15 s für die Antwort und der Text der Antwort ist begrenzt. Angeboten werden nur Plugins, denen Sie die Berechtigung hex.read bei der Installation gegeben haben.
+
+## [file.print] Drucken und PDF
+commands: nks.file.print, nks.file.exportPdf
+Datei, Drucken druckt die Auswahl oder das ganze Dokument mit den Syntaxfarben, Zeilennummern und einer Kopfzeile mit Name und Seitenzahl.
+1. Unter Windows öffnet sich der Druckdialog des Systems: Sie wählen Drucker, seine Einstellungen und die Zahl der Kopien. Die Seiten passen sich dem gewählten Drucker an.
+2. Datei, Exportieren, Als PDF speichert dieselben Seiten in eine PDF-Datei. Unter macOS und Linux ist das der Weg zum Drucken: Avalonia hat keine Druck-API, also speichert Drucken dort ein PDF, das Sie im Viewer drucken.
+- Das Papier ist weiß, darum werden die Farben des hellen Themas gedruckt, auch wenn der Editor dunkel ist. Gedruckt wird die Auswahl, ohne sie das ganze Dokument; ein verborgenes Geheimnis wird als Platzhalter gedruckt.
+- Das PDF verwendet die Schrift Courier, die jeder Viewer hat, und deckt die Zeichen von Windows-1252 und die üblichen mitteleuropäischen Buchstaben ab (č, ě, ř, ů, ł und ähnliche); andere Zeichen werden als Fragezeichen gedruckt. Das Drucken unter Windows verwendet die Schrift Consolas und hat keine Grenze dieser Art.

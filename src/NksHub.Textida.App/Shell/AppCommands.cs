@@ -175,6 +175,8 @@ internal static class AppCommands
         On("nks.hex.pluginHash", w => w.HexToolMenu(w.HexPluginHashItems));
         On("nks.hex.pluginExport", w => w.HexToolMenu(w.HexPluginExportItems));
         On("nks.hex.pluginTemplates", w => w.HexToolMenu(w.HexPluginTemplateItems));
+        On("nks.file.print", w => w.PrintDocument());
+        On("nks.file.exportPdf", w => w.ExportPdf());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

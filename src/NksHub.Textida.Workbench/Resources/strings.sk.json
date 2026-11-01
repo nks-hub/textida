@@ -565,6 +565,8 @@
   "cmd.edit.justifyBlock": "Zarovnať riadky do bloku",
   "cmd.edit.insertDateTime": "Vložiť dátum a čas",
   "cmd.edit.insertGuid": "Vložiť GUID",
+  "cmd.file.print": "Tlač...",
+  "cmd.file.exportPdf": "Exportovať ako PDF...",
   "cmd.hex.pluginHash": "Súčet doplnkom…",
   "cmd.hex.pluginExport": "Vypísať doplnkom ako text…",
   "cmd.hex.pluginTemplates": "Šablóny od doplnku…",

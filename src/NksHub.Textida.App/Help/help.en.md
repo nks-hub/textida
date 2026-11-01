@@ -2184,3 +2184,11 @@ An installed plugin with the permission hex.read can add a decoder to the data i
 3. Write out with Plugin opens the selection as text in a new document that is not a file. Templates from Plugin adds its .ksy templates to the list of the Structure panel.
 - The plugin gets only a copy of the bytes and returns only text: it writes nothing to a file or to the document. A hidden value of a secrets file is sent to it as stars. A plugin that wants to change bytes does so through the document API, where its edit comes as a proposal to approve in the change review.
 - A plugin is sent at most 16 MiB, has 15 s to answer and the text of its answer is limited. Only the plugins you gave the permission hex.read at install are offered.
+
+## [file.print] Printing and PDF
+commands: nks.file.print, nks.file.exportPdf
+File, Print prints the selection or the whole document with the syntax colours, line numbers and a header with the name and the page number.
+1. On Windows the print dialog of the system opens: you choose the printer, its settings and the number of copies. The pages fit the printer you chose.
+2. File, Export, As PDF saves the same pages to a PDF file. On macOS and Linux this is the way to print: Avalonia has no print API, so Print there saves a PDF and you print it from a viewer.
+- The paper is white, so the colours of the light theme are printed even when the editor is dark. The selection is printed, or the whole document without one; a hidden secret prints as its placeholder.
+- The PDF uses the Courier font that every reader has and covers the Windows-1252 characters and the usual Central European letters (č, ě, ř, ů, ł and the like); other characters print as a question mark. Printing on Windows uses the Consolas font and has no limit of this kind.

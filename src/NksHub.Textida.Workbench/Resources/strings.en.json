@@ -565,6 +565,8 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.file.print": "Print...",
+  "cmd.file.exportPdf": "Export as PDF...",
   "cmd.hex.pluginHash": "Hash with Plugin…",
   "cmd.hex.pluginExport": "Write out with Plugin…",
   "cmd.hex.pluginTemplates": "Templates from Plugin…",

@@ -2184,3 +2184,11 @@ Nainstalovaný doplněk s oprávněním hex.read může hex pohledu přidat deko
 3. Vypsat doplňkem jako text otevře výběr jako text v novém dokumentu, který není soubor. Šablony od doplňku přidají jeho šablony .ksy do seznamu panelu Struktura.
 - Doplněk dostane jen kopii bajtů a vrací jen text: nic nezapisuje do souboru ani do dokumentu. Skrytá hodnota souboru s tajemstvím se mu posílá jako hvězdičky. Doplněk, který chce bajty měnit, to udělá přes API dokumentu, kde jeho úprava přijde jako návrh ke schválení v přehledu změn.
 - Doplněk dostane nejvýš 16 MiB, na odpověď má 15 s a text odpovědi je omezený. Nabízí se jen doplňky, kterým jste oprávnění hex.read dali při instalaci.
+
+## [file.print] Tisk a PDF
+commands: nks.file.print, nks.file.exportPdf
+Soubor, Tisk vytiskne výběr nebo celý dokument se barvami zvýraznění, čísly řádků a záhlavím se jménem a číslem stránky.
+1. Na Windows se otevře tiskový dialog systému: zvolíte tiskárnu, její nastavení a počet kopií. Stránky se přizpůsobí zvolené tiskárně.
+2. Soubor, Exportovat, Jako PDF uloží stejné stránky do souboru PDF. Na macOS a Linuxu je to cesta k tisku: Avalonia nemá tiskové API, takže Tisk tam uloží PDF a vytisknete ho v prohlížeči.
+- Papír je bílý, proto se tisknou barvy světlého motivu, i když editor běží v tmavém. Vytiskne se výběr, bez výběru celý dokument; skrytá tajná hodnota se tiskne jako zástupný text.
+- PDF používá písmo Courier, které má každá čtečka, a umí jen znaky Windows-1252 a běžná střední evropská písmena (č, ě, ř, ů, ł a podobně); jiné znaky se vytisknou jako otazník. Tisk na Windows používá písmo Consolas a znaky bez omezení tohoto druhu.

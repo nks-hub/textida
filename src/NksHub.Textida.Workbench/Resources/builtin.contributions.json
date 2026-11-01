@@ -1932,6 +1932,20 @@
       "when": "hexMode"
     },
     {
+      "id": "nks.file.print",
+      "title": "cmd.file.print",
+      "category": "cat.file",
+      "icon": "file-text",
+      "enablement": "hasDocument"
+    },
+    {
+      "id": "nks.file.exportPdf",
+      "title": "cmd.file.exportPdf",
+      "category": "cat.file",
+      "icon": "file-text",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5151,6 +5165,19 @@
       "group": "5_more/04",
       "submenu": "hex",
       "order": 90
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.print",
+      "group": "2_save/06",
+      "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportPdf",
+      "group": "5_remote/02",
+      "submenu": "export",
+      "order": 30
     },
     {
       "menu": "edit",
