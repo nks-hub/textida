@@ -148,6 +148,7 @@ public class TerminalTests
         Assert.True(session.Running);
         session.Send("exit 3" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
         Assert.True(await Until(() => !session.Running), "the shell ends on exit");
+        Assert.True(await Until(() => session.ExitCode is not null), "the exit code is reported after the shell ended");
         Assert.Equal(3, session.ExitCode);
 
         using var again = TerminalSession.Start("/bin/sh", [], Path.GetTempPath(), null, 80, 20);
@@ -178,6 +179,7 @@ public class TerminalTests
         Assert.True(session.Running);
         session.Send("exit" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
         Assert.True(await Until(() => !session.Running), "the shell ends on exit");
+        Assert.True(await Until(() => session.ExitCode is not null), "the exit code is reported after the shell ended");
         Assert.Equal(0, session.ExitCode);
 
         using var again = TerminalSession.Start(cmd, ["/q"], Path.GetTempPath(), null, 80, 20);

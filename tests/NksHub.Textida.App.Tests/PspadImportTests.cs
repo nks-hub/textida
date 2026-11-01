@@ -347,7 +347,8 @@ public class PspadRealFolderTests
     public void A_real_pspad_folder_is_read_and_its_highlighters_become_valid_grammars()
     {
         string? folder = Environment.GetEnvironmentVariable("TEXTIDA_PSPAD_DIR");
-        if (folder is null || !Directory.Exists(folder)) return;
+        Assert.SkipWhen(folder is null || !Directory.Exists(folder), "TEXTIDA_PSPAD_DIR does not name a PSPad folder");
+        if (folder is null) return;
         var plan = PspadImport.Build(folder, TimeSpan.FromDays(-10000)); // every file counts as the user's
         Assert.NotEmpty(plan.Highlighters);
         var registry = new GrammarRegistry(BuiltinGrammars.Registry);
