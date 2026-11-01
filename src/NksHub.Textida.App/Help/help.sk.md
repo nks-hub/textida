@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Neskôr zvoľte Súbor, Projekty a relácie, Otvoriť reláciu a vyberte ju; Zmazať reláciu jednu odstráni.
 - Uložiť reláciu uloží otvorené karty pod názvom: skupiny, poradie, aktívnu kartu a výber každej karty. Karta s neuloženými zmenami alebo bez súboru si ponechá text. Relácia rovnakého názvu sa prepíše.
 - Otvoriť reláciu otvorí karty vedľa tých, ktoré už sú otvorené. Súbory sa načítajú z disku a neuložený text relácie ich text nahradí, takže ho možno vrátiť späť alebo zahodiť. Súbor, ktorý zmizol, sa uvedie v stavovom riadku; jeho text, ak ho relácia mala, sa otvorí v nepomenovanom dokumente.
+- Relácia je celá úloha: okrem kariet uchová všetky výbery každej karty (viac kurzorov), lištu hľadania s dotazom, náhradou, priečinkom a prepínačmi, filter zoznamu dokumentov, posledný recept úprav (takže Opakovať recept ho vykoná znova) a náhradu, ktorá čakala v náhľade. Pri otvorení sa táto náhrada naplánuje znova na súbory, aké sú teraz, takže náhľad vychádza z ich súčasnej revízie a súbor, ktorý sa medzitým zmenil, starý plán neprepíše.
 - Zmazať reláciu sa najprv opýta, pretože relácia môže obsahovať neuložený text.
 - Súbor relácie, ktorý sa nedá prečítať, sa preskočí a uvedie v lište; ostatné relácie fungujú.
 - Veľké súbory otvorené v stránkovanom režime sa ukladajú len cestou.

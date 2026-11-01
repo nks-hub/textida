@@ -4,6 +4,7 @@ using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Shell;
@@ -215,6 +216,10 @@ internal sealed partial class MainWindow
                     var anchor = text.GetLocation(sel.Anchor);
                     var caret = text.GetLocation(sel.Caret);
                     (entry.AnchorLine, entry.AnchorColumn, entry.CaretLine, entry.CaretColumn) = (anchor.Line, anchor.Column, caret.Line, caret.Column);
+                    var all = surface.GetSelections();
+                    if (all.Count > 1)
+                        entry.Selections = [.. all.Select(s => (Anchor: text.GetLocation(s.Anchor), Caret: text.GetLocation(s.Caret)))
+                            .Select(s => new SessionSelectionData { AnchorLine = s.Anchor.Line, AnchorColumn = s.Anchor.Column, CaretLine = s.Caret.Line, CaretColumn = s.Caret.Column })];
                     if (tab.Path is null || tab.Doc.HasUnsavedWork) entry.Text = text.Text;
                 }
                 else if (tab.Paged is { } paged && tab.Path is not null) CaptureLargeTab(tab, paged, entry, leftOut);
@@ -225,7 +230,23 @@ internal sealed partial class MainWindow
             if (group == _activeGroup) session.ActiveGroup = session.Groups.Count;
             session.Groups.Add(data);
         }
+        CaptureWorkState(session);
         return session;
+    }
+
+    /// <summary>The find strip, the filter of the document list, the last recipe and the replacement that waits in the preview.</summary>
+    private void CaptureWorkState(SessionData session)
+    {
+        if (_find.IsVisible && !_find.HexMode && (!string.IsNullOrEmpty(_find.FindBox.Text) || _find.FilesMode))
+            session.Find = new SessionFindData
+            {
+                Query = _find.FindBox.Text ?? "", Replacement = _find.ReplaceBox.Text ?? "", Folder = _find.FolderBox.Text ?? "", Regex = _find.RegexToggle.IsChecked == true, CaseSensitive = _find.CaseToggle.IsChecked == true,
+                WholeWord = _find.WordToggle.IsChecked == true, InSelection = _find.SelectionToggle.IsChecked == true, Files = _find.FilesMode, Replace = _find.ReplaceShown,
+            };
+        if (_plan is not null && _planPattern is { } pattern && ResultsTab is not null)
+            session.Plan = new SessionPlanData { Query = pattern.Text, Replacement = _planReplacement, Folder = _planFolder, Regex = pattern.IsRegex, CaseSensitive = pattern.CaseSensitive, WholeWord = pattern.WholeWord };
+        if (!string.IsNullOrEmpty(_docFilter.Text)) session.DocumentFilter = _docFilter.Text;
+        session.Recipe = _app.LastParameters.Recipe;
     }
 
     /// <summary>
@@ -335,12 +356,42 @@ internal sealed partial class MainWindow
         _activeGroup = wantActive ?? _activeGroup;
         OnActiveTabChanged();
         if (Active is { } shown) FocusView(shown);
+        RestoreWorkState(session);
         SetStatusMessage(missing.Count == 0
             ? Loc.Get(K.SessionOpened, ("name", session.Name))
             : Loc.Get(K.SessionOpenedMissing, ("name", session.Name), ("missing", string.Join(", ", missing))));
         if (changed.Count > 0) ShowNotice("session", Loc.Get(K.SessionEditsNotRestored, ("name", session.Name), ("files", string.Join(", ", changed))), warning: true);
         return missing;
     }
+
+    /// <summary>
+    /// The rest of the task: the filter of the document list, the last recipe (so Repeat Recipe does it again), the find strip with its query, and the replacement that waited in the preview, which is planned again on the files as they are now,
+    /// so what the preview shows is based on their present revision and a file that changed since is not overwritten by an old plan.
+    /// </summary>
+    private void RestoreWorkState(SessionData session)
+    {
+        if (session.DocumentFilter is { Length: > 0 } filter) _docFilter.Text = filter;
+        if (session.Recipe is { Length: > 0 } recipe) _app.LastParameters.Recipe = recipe;
+        if (session.Find is { } find)
+        {
+            _find.Open(find.Files, find.Replace);
+            _find.RegexToggle.IsChecked = find.Regex;
+            _find.CaseToggle.IsChecked = find.CaseSensitive;
+            _find.WordToggle.IsChecked = find.WholeWord;
+            _find.SelectionToggle.IsChecked = find.InSelection;
+            _find.ReplaceBox.Text = find.Replacement;
+            _find.FolderBox.Text = find.Folder;
+            SetFindText(find.Query);
+        }
+        if (session.Plan is { } plan && Directory.Exists(plan.Folder))
+        {
+            var pattern = new SearchPattern(plan.Query, plan.Regex, plan.CaseSensitive, plan.WholeWord);
+            PlanTask = StartResults(pattern, plan.Folder, true, plan.Replacement);
+        }
+    }
+
+    /// <summary>The preview that opening a task started, for tests.</summary>
+    internal Task PlanTask { get; private set; } = Task.CompletedTask;
 
     /// <summary>
     /// Puts the unsaved edits of a large file back, as one undo step, and the caret where it was. Both are good only for the file as it was when the session was saved: for a file
@@ -391,7 +442,8 @@ internal sealed partial class MainWindow
             var l = text.GetLineByNumber(Math.Clamp(line, 1, text.LineCount));
             return l.Offset + Math.Clamp(column - 1, 0, l.Length);
         }
-        surface.SetSelections([new Sel(Offset(saved.AnchorLine, saved.AnchorColumn), Offset(saved.CaretLine, saved.CaretColumn))]);
+        if (saved.Selections is { Count: > 1 } many) surface.SetSelections([.. many.Select(s => new Sel(Offset(s.AnchorLine, s.AnchorColumn), Offset(s.CaretLine, s.CaretColumn)))]);
+        else surface.SetSelections([new Sel(Offset(saved.AnchorLine, saved.AnchorColumn), Offset(saved.CaretLine, saved.CaretColumn))]);
     }
 
     internal void ShowSessions(bool delete = false)

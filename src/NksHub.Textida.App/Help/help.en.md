@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Later choose File, Projects and Sessions, Open Session and pick it; Delete Session removes one.
 - Save Session stores the open tabs under a name: groups, order, the active tab and the selection of each tab. A tab with unsaved changes, or without a file, keeps its text. A session of the same name is replaced.
 - Open Session opens the tabs next to the ones already open. Files are read from disk, then the unsaved text of the session replaces their text, so you can still undo or discard it. A file that is gone is named in the status bar; its text, if the session had it, opens in an unnamed document.
+- A session is a whole task: besides the tabs it keeps all selections of each tab (several carets), the find strip with its query, replacement, folder and switches, the filter of the document list, the last edit recipe (so Repeat Recipe does it again) and a replacement that was waiting in the preview. Opening it plans that replacement again on the files as they are now, so the preview is based on their present revision and a file that changed since is not overwritten by the old plan.
 - Delete Session asks first, because the session may hold unsaved text.
 - A session file that cannot be read is skipped and named in a bar; the other sessions work.
 - Large files opened in the paged mode are stored by path only.

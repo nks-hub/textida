@@ -850,6 +850,7 @@ commands: nks.session.save, nks.session.open, nks.session.delete
 3. Později zvolte Soubor, Projekty a relace, Otevřít relaci a vyberte ji; Smazat relaci jednu odstraní.
 - Uložit relaci uloží otevřené karty pod názvem: skupiny, pořadí, aktivní kartu a výběr každé karty. Karta s neuloženými změnami nebo bez souboru si ponechá text. Relace stejného názvu se přepíše.
 - Otevřít relaci otevře karty vedle těch, které už jsou otevřené. Soubory se načtou z disku a neuložený text relace jejich text nahradí, takže jde vrátit zpět nebo zahodit. Soubor, který zmizel, se uvede ve stavovém řádku; jeho text, pokud ho relace měla, se otevře v nepojmenovaném dokumentu.
+- Relace je celá úloha: kromě karet uchová všechny výběry každé karty (víc kurzorů), lištu hledání s dotazem, náhradou, složkou a přepínači, filtr seznamu dokumentů, poslední recept úprav (takže Opakovat recept ho provede znovu) a náhradu, která čekala v náhledu. Při otevření se tato náhrada naplánuje znovu na soubory, jaké jsou teď, takže náhled vychází z jejich současné revize a soubor, který se mezitím změnil, starý plán nepřepíše.
 - Smazat relaci se nejdřív zeptá, protože relace může obsahovat neuložený text.
 - Soubor relace, který nejde přečíst, se přeskočí a uvede v liště; ostatní relace fungují.
 - Velké soubory otevřené ve stránkovaném režimu se ukládají jen cestou.

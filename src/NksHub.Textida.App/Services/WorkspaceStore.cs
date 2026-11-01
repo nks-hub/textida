@@ -47,6 +47,43 @@ public sealed class SessionTabData
     public List<SessionEditData>? Edits { get; set; }
     public long FileLength { get; set; }
     public long FileWriteTicks { get; set; }
+
+    /// <summary>Every selection of the tab when there is more than one (several carets); the primary one is in the line and column fields above.</summary>
+    public List<SessionSelectionData>? Selections { get; set; }
+}
+
+/// <summary>A selection of a tab by line and column (1-based): where it was started and where the caret is.</summary>
+public sealed class SessionSelectionData
+{
+    public int AnchorLine { get; set; } = 1;
+    public int AnchorColumn { get; set; } = 1;
+    public int CaretLine { get; set; } = 1;
+    public int CaretColumn { get; set; } = 1;
+}
+
+/// <summary>The find strip as it was left: the query, the replacement, the folder and the switches, and whether it searched the files.</summary>
+public sealed class SessionFindData
+{
+    public string Query { get; set; } = "";
+    public string Replacement { get; set; } = "";
+    public string Folder { get; set; } = "";
+    public bool Regex { get; set; }
+    public bool CaseSensitive { get; set; }
+    public bool WholeWord { get; set; }
+    public bool InSelection { get; set; }
+    public bool Files { get; set; }
+    public bool Replace { get; set; }
+}
+
+/// <summary>A change that waited for a decision in the preview: Replace in Files over a folder. Opening the task plans it again on the files as they are now.</summary>
+public sealed class SessionPlanData
+{
+    public string Query { get; set; } = "";
+    public string Replacement { get; set; } = "";
+    public string Folder { get; set; } = "";
+    public bool Regex { get; set; }
+    public bool CaseSensitive { get; set; }
+    public bool WholeWord { get; set; }
 }
 
 public sealed class SessionGroupData
@@ -61,6 +98,12 @@ public sealed class SessionData
     public DateTimeOffset Saved { get; set; }
     public List<SessionGroupData> Groups { get; set; } = [];
     public int ActiveGroup { get; set; }
+
+    /// <summary>The find strip, the filter of the document list, the last edit recipe and the replacement that waited in the preview; null or empty when there was none.</summary>
+    public SessionFindData? Find { get; set; }
+    public SessionPlanData? Plan { get; set; }
+    public string? DocumentFilter { get; set; }
+    public string? Recipe { get; set; }
 }
 
 [JsonSerializable(typeof(WorkspaceData))]
