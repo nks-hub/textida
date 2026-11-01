@@ -43,6 +43,14 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         {
             using var stream = new MemoryStream(bytes);
             double widthScale = Math.Min(1, PreviewPolicy.MaxImageWidth / (double)size.Width);
+            double scale = Math.Min(widthScale, PreviewPolicy.MaxImageHeight / (double)size.Height);
+            if (size.Width * scale < 1 || size.Height * scale < 1)
+            {
+                // The convenience decoders round the other dimension to zero for a very narrow picture.
+                using var original = new Bitmap(stream);
+                return original.CreateScaledBitmap(new Avalonia.PixelSize(
+                    Math.Max(1, (int)(size.Width * scale)), Math.Max(1, (int)(size.Height * scale))));
+            }
             return size.Height * widthScale > PreviewPolicy.MaxImageHeight
                 ? Bitmap.DecodeToHeight(stream, PreviewPolicy.MaxImageHeight)
                 : Bitmap.DecodeToWidth(stream, Math.Min(size.Width, PreviewPolicy.MaxImageWidth));
@@ -139,7 +147,11 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         var button = new Button { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap } };
         button.Classes.Add("previewlink");
         AutomationProperties.SetName(button, text);
-        button.Click += (_, _) => _ = AskAsync(site);
+        button.Click += (_, e) =>
+        {
+            e.Handled = true;
+            _ = AskAsync(site);
+        };
         return button;
     }
 

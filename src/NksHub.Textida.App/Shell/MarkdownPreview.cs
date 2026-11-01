@@ -144,8 +144,12 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             LayoutUpdated += OnLayoutForPending;
             return;
         }
+        if (Map() is not { } map)
+        {
+            if (_pendingRevision < 0) _pendingLine = null;
+            return;
+        }
         _pendingLine = null;
-        if (Map() is not { } map) return; // a page without blocks has nowhere to scroll to
         Offset = new Vector(0, Math.Clamp(map.OffsetFor(line), 0, Math.Max(0, Extent.Height - Viewport.Height)));
     }
 

@@ -25,7 +25,7 @@ internal static partial class PreviewRenderer
         MarkdownPlan Refused(string reason) => new(source, null, reason, new Dictionary<CodeBlock, Flowchart?>(), new Dictionary<string, int>(), lines);
         MarkdownDocument document;
         try { document = MarkdownSyntax.Parse(source, PluginLimits.PreviewMarkdownMaxDepth); }
-        catch (MarkdownSyntaxException) { return Refused($"Markdown could not be parsed within nesting depth {PluginLimits.PreviewMarkdownMaxDepth}"); }
+        catch (MarkdownSyntaxException e) { return Refused(e.Message); }
         int nodes = 0, controls = 1;
         foreach (var (node, depth) in MarkdownSyntax.Walk(document))
         {
@@ -60,7 +60,10 @@ internal static partial class PreviewRenderer
         {
             ctx.Anchors?.Clear();
             body.Children.Add(new TextBlock { Text = Loc.Get(K.PreviewMarkdownLimit, ("reason", plan.Problem ?? "")), TextWrapping = TextWrapping.Wrap });
-            body.Children.Add(new SelectableTextBlock { Text = plan.Source, TextWrapping = TextWrapping.Wrap, FontFamily = ctx.Mono });
+            var source = new SelectableTextBlock { Text = plan.Source, TextWrapping = TextWrapping.Wrap, FontFamily = ctx.Mono };
+            body.Children.Add(source);
+            ctx.Anchors?.Add(new Anchor(0, source));
+            ctx.Anchors?.Add(new Anchor(plan.Lines.Length, source, End: true));
         }
         else
             foreach (var block in plan.Document) body.Children.Add(MarkdownBlock(block, plan, ctx));
