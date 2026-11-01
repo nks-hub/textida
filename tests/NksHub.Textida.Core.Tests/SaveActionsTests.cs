@@ -348,6 +348,24 @@ public sealed class SaveActionsTests : IDisposable
         Assert.Equal([target], Directory.GetFiles(_dir));
     }
 
+    [Fact]
+    public async Task The_php_formatter_runs_as_a_save_action_of_the_default_runner_with_the_program_the_user_set_and_the_formatted_text_is_what_is_saved()
+    {
+        var s = PrepareFormatter("php-cs-fixer", "#format");
+        using var doc = s.Doc;
+        string profile = Path.Combine(_dir, "php-actions.json");
+        File.WriteAllText(profile, "{ \"formatTimeoutSeconds\": 60, \"toolPaths\": { \"php-cs-fixer\": " + System.Text.Json.JsonSerializer.Serialize(Path.GetDirectoryName(s.Tool)) + " }, \"actions\": [ { \"kind\": \"format\", \"id\": \"php-cs-fixer\", \"enabled\": true } ] }");
+        var set = SaveActionConfig.Load(profile, null);
+        Assert.Empty(set.Errors);
+        Assert.Equal((SaveActionKind.Format, "php-cs-fixer", true), (set.Actions[0].Kind, set.Actions[0].Id, set.Actions[0].Enabled));
+
+        var report = await new SaveActionRunner().RunAsync(doc, set, SaveOrigin.Manual, () => Save(doc), _ => Task.FromResult<string?>(null));
+
+        Assert.True(report.Saved);
+        Assert.Equal(SaveActionState.Done, Assert.Single(report.Notes).State);
+        Assert.Equal(s.Unchanged.ToUpperInvariant(), File.ReadAllText(s.Path)); // the formatter ran before the save, so the file holds its result
+    }
+
     // ---- which formatter is offered ----
 
     [Fact]
