@@ -159,6 +159,8 @@ internal static class AppCommands
         On("nks.tools.stopInterpreters", w => w.StopInterpreters());
         On("nks.tools.compareFolders", w => w.CompareFolders());
         On("nks.hex.template.exportJson", w => w.ExportHexTemplateJson());
+        On("nks.tools.agentFiles", w => w.ShowAgentFiles());
+        On("nks.tools.agentPlans", w => w.ShowAgentPlans());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

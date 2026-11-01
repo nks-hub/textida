@@ -2080,3 +2080,11 @@ The command opens a JSON document with the tree of fields the template found in 
 2. Choose View, Hex, Export Structure Tree to JSON.
 - Each node has name, type, start and length (bytes in the file), value as text, and when present error and children. Values hidden in the hex view are exported as stars.
 - The whole tree is read in one go, up to 50,000 nodes, 64 levels and 10 seconds. Nodes that did not fit have "truncated": true and the status bar says so.
+
+## [tools.agentFiles] What an agent loads in this folder
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+The command in the Tools menu lists the files an agent loads for the active file: instructions, rules and skills, each with its size and a token estimate.
+1. Choose Tools and What an Agent Loads in This Folder. Enter opens the chosen file; its first lines are shown beside the list.
+2. Agent Plans (Tools) or + in Go to Anything lists the plans agents left behind, newest first.
+- Instructions are AGENTS.md, CLAUDE.md, CLAUDE.local.md and GEMINI.md from every folder between the root and the folder of the active file, and ~/.claude/CLAUDE.md. Rules are .claude/rules, .cursor/rules and .github/copilot-instructions.md, skills are .claude/skills/*/SKILL.md. Each product decides what it reads; the list shows what files of these names would bring in.
+- A rule with paths or globs in its header applies only to files that match the pattern; for others it is dimmed with the reason and left out of the sum. Tokens are an estimate by the rule of the status bar, nothing goes over the network.

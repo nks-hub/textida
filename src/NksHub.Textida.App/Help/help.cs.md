@@ -2080,3 +2080,11 @@ Příkaz otevře v nové záložce JSON se stromem polí, které šablona v soub
 2. Zvolte Zobrazení, Hex, Exportovat strom šablony do JSON.
 - Každý uzel má name, type, start a length (bajty v souboru), value jako text, případně error a children. Hodnoty skryté v hexu se vyexportují jako hvězdičky.
 - Strom se čte celý najednou, nejvýše do 50 000 uzlů, 64 úrovní a 10 sekund. Uzly, které se do limitu nevešly, mají "truncated": true a stavový řádek to řekne.
+
+## [tools.agentFiles] Co agent načte v této složce
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+Příkaz v nabídce Nástroje ukáže soubory, které agent pro aktivní soubor načte: pokyny, pravidla a skills, každý s velikostí a odhadem tokenů.
+1. Zvolte Nástroje a Co agent načte v této složce. Enter otevře vybraný soubor, vedle seznamu je jeho začátek.
+2. Plány agentů (Nástroje) nebo + v poli Přejít na cokoli ukážou plány, které agenti zanechali, od nejnovějšího.
+- Pokyny jsou AGENTS.md, CLAUDE.md, CLAUDE.local.md a GEMINI.md z každé složky od kořene po složku aktivního souboru, a ~/.claude/CLAUDE.md. Pravidla jsou .claude/rules, .cursor/rules a .github/copilot-instructions.md, skills jsou .claude/skills/*/SKILL.md. Který agent co čte, určuje každý produkt sám; seznam ukazuje, co by soubory těchto jmen přinesly.
+- Pravidlo, které má v hlavičce paths nebo globs, platí jen pro soubory, které vzoru odpovídají; pro ostatní je v seznamu šedé s důvodem a do součtu se nepočítá. Tokeny jsou odhad podle pravidla ze stavového řádku, nic se neposílá do sítě.

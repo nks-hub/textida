@@ -555,6 +555,8 @@
   "cmd.edit.justifyBlock": "Zarovnať riadky do bloku",
   "cmd.edit.insertDateTime": "Vložiť dátum a čas",
   "cmd.edit.insertGuid": "Vložiť GUID",
+  "cmd.tools.agentFiles": "Čo agent načíta v tomto priečinku",
+  "cmd.tools.agentPlans": "Plány agentov",
   "cmd.hex.template.exportJson": "Hex: exportovať strom šablóny do JSON",
   "cmd.tools.compareFolders": "Porovnať priečinky",
   "cmd.tools.sendToInterpreter": "Poslať do interpretu",

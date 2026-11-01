@@ -2080,3 +2080,11 @@ Der Befehl öffnet in einem neuen Tab ein JSON-Dokument mit dem Baum der Felder,
 2. Wählen Sie Ansicht, Hex, Strukturbaum als JSON exportieren.
 - Jeder Knoten hat name, type, start und length (Bytes in der Datei), value als Text und, falls vorhanden, error und children. In der Hex-Ansicht verborgene Werte werden als Sterne exportiert.
 - Der ganze Baum wird auf einmal gelesen, höchstens 50.000 Knoten, 64 Ebenen und 10 Sekunden. Knoten, die nicht mehr hineinpassten, haben "truncated": true und die Statusleiste sagt es.
+
+## [tools.agentFiles] Was ein Agent in diesem Ordner lädt
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+Der Befehl im Menü Extras listet die Dateien, die ein Agent für die aktive Datei lädt: Anweisungen, Regeln und Skills, jeweils mit Größe und Token-Schätzung.
+1. Wählen Sie Extras und Was ein Agent in diesem Ordner lädt. Enter öffnet die gewählte Datei; ihr Anfang steht neben der Liste.
+2. Agentenpläne (Extras) oder + in Gehe zu allem listen die Pläne, die Agenten hinterlassen haben, den neuesten zuerst.
+- Anweisungen sind AGENTS.md, CLAUDE.md, CLAUDE.local.md und GEMINI.md aus jedem Ordner zwischen Wurzel und Ordner der aktiven Datei sowie ~/.claude/CLAUDE.md. Regeln sind .claude/rules, .cursor/rules und .github/copilot-instructions.md, Skills sind .claude/skills/*/SKILL.md. Jedes Produkt entscheidet selbst, was es liest; die Liste zeigt, was Dateien dieser Namen mitbringen würden.
+- Eine Regel mit paths oder globs im Kopf gilt nur für Dateien, die zum Muster passen; für andere ist sie abgeblendet mit dem Grund und zählt nicht zur Summe. Tokens sind eine Schätzung nach der Regel der Statusleiste, nichts geht ins Netz.

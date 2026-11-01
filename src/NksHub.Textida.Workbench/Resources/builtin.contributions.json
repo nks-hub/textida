@@ -1819,6 +1819,20 @@
       "when": "hexMode"
     },
     {
+      "id": "nks.tools.agentFiles",
+      "title": "cmd.tools.agentFiles",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.tools.agentPlans",
+      "title": "cmd.tools.agentPlans",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4937,6 +4951,18 @@
       "group": "4_special/01",
       "submenu": "hex",
       "order": 130
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.agentFiles",
+      "group": "2_run/05",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.agentPlans",
+      "group": "2_run/05",
+      "order": 20
     },
     {
       "menu": "edit",

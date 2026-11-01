@@ -78,6 +78,7 @@ internal sealed partial class MainWindow
     private List<QuickRow> FileRows(string query, out string highlight, out string? emptyText)
     {
         if (query.StartsWith('@')) return KeyRows(query[1..].Trim(), out highlight, out emptyText);
+        if (query.StartsWith('+')) return PlanRows(query[1..].Trim(), out highlight, out emptyText);
         emptyText = Loc.Get(FileRootFolder is null ? K.PaletteNoFolder : K.PaletteFilesNoResults);
         string name = query.Trim();
         int? line = null;
