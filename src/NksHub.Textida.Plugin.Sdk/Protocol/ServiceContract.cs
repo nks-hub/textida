@@ -55,7 +55,7 @@ public static class PluginPermissionNames
         DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
         DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles, DocumentPermissions.Source,
         DocumentPermissions.Preview, DocumentPermissions.AgentPanel,
-        DocumentPermissions.LanguageServer, DocumentPermissions.HexRead, Network,
+        DocumentPermissions.LanguageServer, DocumentPermissions.HexRead, DocumentPermissions.McpTool, Network,
     ];
 }
 

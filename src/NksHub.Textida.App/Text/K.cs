@@ -502,6 +502,8 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string LspTextTitle = "lsp.textTitle";
+    public const string LspTextOpened = "lsp.textOpened";
     public const string IconSkinEmpty = "iconSkin.empty";
     public const string IconSkinNoPictures = "iconSkin.noPictures";
     public const string IconSkinUsed = "iconSkin.used";
@@ -2415,6 +2417,7 @@ public static class K
     public const string PluginsPermAgentPanel = "plugins.perm.agent.panel";
     public const string PluginsPermWorkspaceFiles = "plugins.perm.workspace.files";
     public const string PluginsPermLanguageServer = "plugins.perm.language.server";
+    public const string PluginsPermMcpTool = "plugins.perm.mcp.tool";
     public const string PluginsPermNetwork = "plugins.perm.network";
     public const string PluginsErrorTitle = "plugins.error.title";
     public const string PluginsErrorNotAZip = "plugins.error.notAZip";

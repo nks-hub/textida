@@ -28,6 +28,25 @@ internal sealed partial class MainWindow
         return tab;
     }
 
+    /// <summary>Shows text a tool made (for instance an answer of a language server) in a new read only tab titled after <paramref name="source"/>; nothing of it is saved to a file.</summary>
+    internal DocTab ShowReadOnlyText(string text, string title, string languageId, DocTab source)
+    {
+        var tab = OpenGeneratedText(text.ReplaceLineEndings(Environment.NewLine), languageId);
+        string file = source.Doc.Path is { } path ? System.IO.Path.GetFileName(path) : source.Doc.Title;
+        tab.Doc.TitleOverride = () => Loc.Get(K.LspTextTitle, ("title", title), ("file", file));
+        tab.Doc.UserReadOnly = true;
+        ApplyLock(tab.Doc);
+        SetStatusMessage(Loc.Get(K.LspTextOpened));
+        return tab;
+    }
+
+    internal CommandOutcome RunLspText(string command)
+    {
+        if (Active is not { } tab) return CommandOutcome.NotHandled;
+        _ = _app.Plugins.RunLspAsync(this, tab, command);
+        return CommandOutcome.Handled;
+    }
+
     /// <summary>Asks how many paragraphs, sentences or words, and writes that much placeholder text at every caret (a selection is replaced); one Undo step.</summary>
     internal CommandOutcome InsertLorem(LoremUnit unit)
     {

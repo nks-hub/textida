@@ -61,6 +61,7 @@ internal sealed partial class MainWindow
         tab.Doc.Converted = new ConvertedFile(converter, Path.GetFullPath(path), bytes);
         tab.Doc.TitleOverride = () => Loc.Get(K.ConverterTitle, ("name", Path.GetFileName(path)), ("converter", converter.Name));
         tab.Doc.UserReadOnly = !converter.CanWrite;
+        ApplyLock(tab.Doc);
         tab.Doc.Doc.MarkClean();
         SetStatusMessage(Loc.Get(converter.CanWrite ? K.ConverterOpened : K.ConverterOpenedReadOnly, ("file", Path.GetFileName(path)), ("converter", converter.Name)));
         return tab;

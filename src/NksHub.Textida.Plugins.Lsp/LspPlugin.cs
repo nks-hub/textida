@@ -35,6 +35,9 @@ public sealed class LspPlugin : PluginBase
     public const string WorkspaceSymbolsCommand = "lsp.workspaceSymbols";
     public const string InlayHintsCommand = "lsp.inlayHints";
     public const string SemanticTokensCommand = "lsp.semanticTokens";
+    /// <summary>A textual result of a request of the server that is not part of the standard (rust-analyzer: the expansion of the macro at the caret and the syntax tree of the file); the editor shows it in a read only tab.</summary>
+    public const string ExpandMacroCommand = "lsp.expandMacro";
+    public const string SyntaxTreeCommand = "lsp.syntaxTree";
     public const string Source = "lsp";
     public const string LocationsPanel = "lsp:locations";
 
@@ -171,7 +174,7 @@ public sealed class LspPlugin : PluginBase
     {
         var r = new Request(p.GetProperty("command").GetString()!, p.GetProperty("document").GetString()!, p.GetProperty("revision").GetInt64(),
             p.TryGetProperty("offset", out var o) && o.ValueKind == JsonValueKind.Number ? o.GetInt64() : 0, Text(p, "lspLanguage") ?? "");
-        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand or DocumentSymbolsCommand or WorkspaceSymbolsCommand or InlayHintsCommand or SemanticTokensCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
+        if (r.Command is not (StartCommand or DefinitionCommand or ReferencesCommand or RestartCommand or StopCommand or RenameCommand or FormatCommand or CodeActionsCommand or SignatureHelpCommand or DocumentSymbolsCommand or WorkspaceSymbolsCommand or InlayHintsCommand or SemanticTokensCommand or ExpandMacroCommand or SyntaxTreeCommand)) throw new RpcException(RpcErrorCodes.InvalidParams, "Unknown command.");
         _ui = Text(p, "language") ?? "en";
         if (r.Language.Length == 0) return await TellAsync("noLanguage", NoticeLevel.Warning, "noLanguage").ConfigureAwait(false);
         try
@@ -208,6 +211,7 @@ public sealed class LspPlugin : PluginBase
                 WorkspaceSymbolsCommand => await WorkspaceSymbolsAsync(server, doc, r, ct).ConfigureAwait(false),
                 InlayHintsCommand => await InlayHintsAsync(server, doc, r, ct).ConfigureAwait(false),
                 SemanticTokensCommand => await SemanticTokensAsync(server, doc, r, ct).ConfigureAwait(false),
+                ExpandMacroCommand or SyntaxTreeCommand => await TextResultAsync(server, doc, r, r.Command == ExpandMacroCommand, ct).ConfigureAwait(false),
                 RestartCommand => await TellAsync("restarted", NoticeLevel.Info, "restarted", ("language", slot.Language), ("count", slot.Docs.Count.ToString())).ConfigureAwait(false),
                 _ => Status("ok"),
             };
@@ -1431,6 +1435,31 @@ public sealed class LspPlugin : PluginBase
         var ranges = string.Join(',', signature.Parameters.Select(x => $"{{\"start\":{x.Start},\"end\":{x.End}}}"));
         var documentation = signature.Documentation is null ? "" : $",\"documentation\":\"{Quote(signature.Documentation)}\"";
         return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"label\":\"{Quote(signature.Label)}\",\"parameters\":[{ranges}],\"active\":{signature.Active}{documentation}}}");
+    }
+
+    /// <summary>
+    /// A request of the server whose answer is text (<c>rust-analyzer/expandMacro</c> at the caret, <c>rust-analyzer/viewSyntaxTree</c> for the file). The text goes to the editor, which shows it in a read only tab. A server that does not know
+    /// the request answers "method not found", which is told as "not offered".
+    /// </summary>
+    private async Task<byte[]> TextResultAsync(LspServer server, Doc d, Request r, bool macro, CancellationToken ct)
+    {
+        JsonElement answer;
+        try
+        {
+            if (macro)
+            {
+                var (position, _) = await PositionAtAsync(d, r.Revision, r.Offset, ct).ConfigureAwait(false);
+                answer = await server.RequestAsync("rust-analyzer/expandMacro", $"{{{position}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+            }
+            else answer = await server.RequestAsync("rust-analyzer/viewSyntaxTree", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\"}}}}", _settings.RequestTimeoutMs, ct).ConfigureAwait(false);
+        }
+        catch (RpcException e) when (e.Code == RpcErrorCodes.MethodNotFound) { return await TellAsync("notSupported", NoticeLevel.Info, "notSupported").ConfigureAwait(false); }
+        var now = await CallAsync(DocumentMethods.Info, $"{{\"document\":\"{d.Id}\"}}", ct).ConfigureAwait(false);
+        if (now.GetProperty("revision").GetInt64() != r.Revision || d.Revision != r.Revision) return await TellAsync("stale", NoticeLevel.Warning, "stale").ConfigureAwait(false);
+        string? text = macro ? (answer.ValueKind == JsonValueKind.Object ? Text(answer, "expansion") : null) : (answer.ValueKind == JsonValueKind.String ? answer.GetString() : null);
+        if (string.IsNullOrWhiteSpace(text)) return await TellAsync("none", NoticeLevel.Info, macro ? "noMacro" : "noTree").ConfigureAwait(false);
+        string title = macro ? "macro " + (answer.ValueKind == JsonValueKind.Object ? Text(answer, "name") : null) : "syntax tree";
+        return Encoding.UTF8.GetBytes($"{{\"status\":\"ok\",\"title\":\"{Quote(title.Trim())}\",\"text\":\"{Quote(text!)}\"}}");
     }
 
     // ---- formatting ----

@@ -126,6 +126,17 @@ sealed class Handler(int api, string? onCommand, int resyncDelay, bool eventAcks
                 return Raw(p.GetRawText());
             case "pid":
                 return Raw(Environment.ProcessId.ToString());
+            case "spawn": // starts a program and waits for it; the answer says whether the system let it start
+                try
+                {
+                    using var child = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Str(p, "program"), Str(p, "args")) { UseShellExecute = false, CreateNoWindow = true })!;
+                    child.WaitForExit();
+                    return Raw(Q("started"));
+                }
+                catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+                {
+                    return Raw(Q("refused: " + e.Message));
+                }
             case "write":
                 File.AppendAllText(Str(p, "file"), Str(p, "text") + "\n");
                 return Raw("\"ok\"");

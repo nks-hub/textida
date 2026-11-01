@@ -2256,3 +2256,21 @@ commands: nks.view.iconSkin, nks.view.iconSkinOff
 Ansicht, Bitmap-Symbolsatz ersetzt die Vektorsymbole der Befehle durch Bilder aus einem Ordner, den Sie wählen. Ein Symbol, für das der Satz kein Bild hat, bleibt Vektor. Optional; standardmäßig werden die Vektorsymbole gezeichnet.
 1. Ein nach dem Symbol benanntes Bild (save.png; auch .bmp, .gif, .jpg) ist das Bitmap dieses Symbols. Die Datei skin.json kann map (einen anderen Dateinamen für ein Symbol) und strips hinzufügen: einen waagerechten Streifen quadratischer Zellen, dessen Höhe die Größe einer Zelle ist, und die Namen der Symbole in der Reihenfolge der Zellen. Mit transparent: corner ist die Farbe des Pixels unten links die transparente, wie in den Streifen von PSPad.
 - Ein Streifen trägt keine Symbolnamen, die Reihenfolge bestimmt also der Satz; der Editor übernimmt von PSPad keine Zuordnung. Ein unbekannter Name wird übersprungen und bei den Warnungen mitgezählt. Der Satz gilt für Symbole, die nach der Wahl entstehen (die Symbolleiste wird sofort neu aufgebaut, Menüs beim nächsten Öffnen).
+
+## [lsp.textResults] Textergebnisse des Sprachservers
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Extras, Code und Sprache, Sprachserver: Makro expandieren und Syntaxbaum senden dem Server die Anfragen von rust-analyzer (rust-analyzer/expandMacro und rust-analyzer/viewSyntaxTree) und zeigen die Antwort als Text in einem schreibgeschützten Tab.
+1. Ein Server, der die Anfrage nicht kennt, antwortet, dass die Methode unbekannt ist, und der Editor sagt, dass sie nicht angeboten wird. Das Ergebnis ist eine Kopie: Der Tab hat keine Datei und nichts wird daraus gespeichert.
+- Die Namen der Anfragen sind Erweiterungen von rust-analyzer; mit einem anderen Server tut der Befehl nichts. Gegen rust-analyzer wurde das auf diesem Rechner nicht geprüft (nicht installiert), nur gegen einen Ersatzserver, der dieselben Anfragen beantwortet.
+
+## [plugins.mcpTools] Plugin-Befehle als MCP-Werkzeuge
+Ein Plugin kann im Manifest im Teil mcpTools einen Befehl als Werkzeug des MCP-Servers anbieten. Das Werkzeug heißt plugin_ plus die id aus dem Manifest. Es wird nur den Clients angeboten, die Sie unter Extras, MCP, Clients erlaubt haben, und nur solange das Plugin die Berechtigung mcp.tool hat, die Sie in der Plugin-Verwaltung erteilen.
+1. Ein Aufruf trägt ein Objekt arguments, das zum Schema aus dem Manifest passt. Das optionale Feld document muss die id eines Dokuments sein, das Sie dem Assistenten freigegeben haben; der Befehl arbeitet dann mit diesem Dokument und darf es nur im Rahmen der Berechtigungen des Plugins lesen und Änderungen vorschlagen.
+2. Wenn Sie die Berechtigung mcp.tool entziehen, verschwindet das Werkzeug aus der Liste und ein Aufruf wird sofort abgelehnt, ohne den Server neu zu starten.
+- Ein Manifest ohne die Berechtigung mcp.tool, ohne Prozess (main) oder mit einem Befehl, den das Plugin nicht hat, wird bei der Installation abgelehnt.
+
+## [plugins.sandbox] Plugin-Prozesse einschränken
+Die Einstellung Plugins, Plugin-Prozesse einschränken startet Plugins unter einer Einschränkung des Betriebssystems. Sie ist standardmäßig aus und gilt beim nächsten Start eines Plugins.
+1. Windows: Der Prozess des Plugins kommt in ein Job-Objekt ohne Zwischenablage, ohne Änderungen von Anzeige und Systemparametern, ohne Wechsel des Desktops und ohne Fenster anderer Prozesse. Plugins außer Git, Sprachservern, Formatierern, JSON und dem Wiki dürfen außerdem keine anderen Programme starten.
+2. macOS: Der Prozess startet über sandbox-exec; die Stufe Contained verbietet lauschende Sockets, die Stufe Strict auch ausgehende Verbindungen und das Erzeugen von Prozessen.
+- Die Einschränkung schützt keine Dateien: Das Lesen von Dateien wird nicht begrenzt. Dafür wäre ein AppContainer oder eine App Sandbox mit Berechtigungen nötig, die ein per Pfad gestartetes Programm nicht bekommt.

@@ -76,6 +76,9 @@ public sealed class PluginContributions
     /// <summary>Language servers the built-in language server client may start for this plugin; needs the <c>language.server</c> permission.</summary>
     public List<LanguageServerContribution> LanguageServers { get; set; } = [];
 
+    /// <summary>Commands the MCP server offers to the assistants the user allowed; needs the <c>mcp.tool</c> permission and a process (<c>main</c>).</summary>
+    public List<McpToolContribution> McpTools { get; set; } = [];
+
     /// <summary>What the plugin adds to the hex view; all of it needs a process (<c>main</c>) and the permission <c>hex.read</c>.</summary>
     public List<HexDecoderContribution> HexDecoders { get; set; } = [];
     public List<HexHashContribution> HexHashes { get; set; } = [];
@@ -112,6 +115,28 @@ public sealed class HexTemplateSourceContribution
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
 }
+
+/// <summary>
+/// A command of the plugin offered as an MCP tool named <c>plugin_</c> plus <see cref="Id"/>. An assistant that calls it gets the answer of the command; the call carries <c>arguments</c>
+/// (an object that fits <see cref="InputSchema"/>, <c>{"type":"object"}</c> when absent) and, when the assistant names a document the user shared with it, that document.
+/// </summary>
+public sealed class McpToolContribution
+{
+    /// <summary>Lower case letters, digits and <c>_</c>, starting with a letter; at most 40 characters.</summary>
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    /// <summary>What the tool does and when to use it, as the assistant reads it (English).</summary>
+    public string Description { get; set; } = "";
+    /// <summary>Id of a command of this plugin that the tool runs.</summary>
+    public string Command { get; set; } = "";
+    /// <summary>True when the command changes nothing (it only reads or computes); the assistant is told so.</summary>
+    public bool ReadOnly { get; set; }
+    /// <summary>JSON Schema of the arguments; an object schema.</summary>
+    public System.Text.Json.JsonElement? InputSchema { get; set; }
+}
+
+/// <summary>An MCP tool a plugin declares, with the id and the name of the plugin.</summary>
+public sealed record DeclaredMcpTool(string PluginId, string PluginName, McpToolContribution Tool);
 
 /// <summary>
 /// A language server the plugin offers. The server serves the documents whose language mode id is in <see cref="Languages"/> or whose file name matches one of <see cref="Globs"/>

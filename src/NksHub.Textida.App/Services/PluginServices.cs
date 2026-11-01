@@ -136,6 +136,7 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             {
                 SettingsOf = id => _pluginSettings.TryGetValue(id, out var values) ? values : null,
                 HoldsEditorState = id => Documents.HoldsState(id) || UiApi.HoldsState(id),
+                Sandbox = SandboxOf,
             },
             PluginApiRouter.Create(Documents.HandleAsync, ("ui/", UiApi.HandleAsync), ("secret/", secrets.HandleAsync), ("net/", Network.HandleAsync)), Documents);
         // whatever way the process ends, no plugin process is left behind
@@ -401,6 +402,9 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
             window.GoToPlace(place.GetProperty("path").GetString()!, place.GetProperty("line").GetInt32(), place.GetProperty("character").GetInt32(),
                 place.GetProperty("endLine").GetInt32(), place.GetProperty("endCharacter").GetInt32());
         }
+        else if (command is "lsp.expandMacro" or "lsp.syntaxTree" && outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } text } && text.TryGetProperty("status", out var textStatus) && textStatus.GetString() == "ok"
+            && text.TryGetProperty("text", out var shown))
+            window.ShowReadOnlyText(shown.GetString()!, text.GetProperty("title").GetString()!, command == "lsp.expandMacro" ? language : "plaintext", tab);
         else if (command == "lsp.signatureHelp" && outcome is { Started: true, Result: { ValueKind: JsonValueKind.Object } sig } && sig.TryGetProperty("status", out var sigStatus) && sigStatus.GetString() == "ok"
             && sig.TryGetProperty("label", out var label))
         {

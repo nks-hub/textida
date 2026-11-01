@@ -2256,3 +2256,21 @@ commands: nks.view.iconSkin, nks.view.iconSkinOff
 View, Bitmap Icon Skin replaces the vector icons of the commands with pictures from a folder you choose. An icon the skin has no picture for stays vector. Optional; by default the vector icons are drawn.
 1. A picture named like the icon (save.png; also .bmp, .gif, .jpg) is the bitmap of that icon. The file skin.json may add map (another file name for an icon) and strips: a horizontal strip of square cells whose height is the size of a cell, and the names of the icons in the order of the cells. With transparent: corner the colour of the pixel at the bottom left is the transparent one, as in the strips of PSPad.
 - A strip carries no names of the icons, so their order is stated by the skin; the editor takes no mapping from PSPad. An unknown name is skipped and counted among the warnings. The skin applies to icons made after you choose it (the toolbar is rebuilt at once, menus when next opened).
+
+## [lsp.textResults] Textual results of the language server
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Tools, Code and Language, Language Server: Expand Macro and Syntax Tree send the server the requests of rust-analyzer (rust-analyzer/expandMacro and rust-analyzer/viewSyntaxTree) and show the answer as text in a read only tab.
+1. A server that does not know the request answers that the method is unknown and the editor says it is not offered. The result is a copy: the tab has no file and nothing is saved from it.
+- The names of the requests are extensions of rust-analyzer; with another server the command does nothing. I did not verify it against rust-analyzer on this machine (it is not installed), only against a stand-in server that answers the same requests.
+
+## [plugins.mcpTools] Plugin commands as MCP tools
+A plugin can offer a command as a tool of the MCP server in the mcpTools part of its manifest. The tool is named plugin_ plus the id from the manifest. It is offered only to the clients you allowed in Tools, MCP, Clients, and only while the plugin holds the mcp.tool permission, which you grant in the plugin manager.
+1. A call carries an arguments object that fits the schema from the manifest. The optional field document must be the id of a document you shared with the assistant; the command then works on that document and may read it and propose changes only as far as the permissions of the plugin allow.
+2. When you take the mcp.tool permission back, the tool leaves the list and a call is refused at once, without restarting the server.
+- A manifest without the mcp.tool permission, without a process (main) or with a command the plugin does not have is refused when it is installed.
+
+## [plugins.sandbox] Restricting plugin processes
+The setting Plugins, Restrict plugin processes starts plugins under an operating system limit. It is off by default and takes effect when a plugin starts next.
+1. Windows: the process of the plugin joins a job object without the clipboard, without changes of the display and the system parameters, without switching desktops and without the windows of other processes. Plugins other than Git, language servers, formatters, JSON and the wiki may also not start other programs.
+2. macOS: the process starts through sandbox-exec; the level Contained forbids listening sockets, the level Strict also outgoing connections and creating processes.
+- The limit does not protect files: reading files is not restricted. That would need an AppContainer or an App Sandbox with entitlements, which a program started by its path cannot get.

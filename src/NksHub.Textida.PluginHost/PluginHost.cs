@@ -596,6 +596,8 @@ public sealed class PluginHost : IAsyncDisposable
         foreach (var a in spec.Arguments) psi.ArgumentList.Add(a);
         ChildProcessGuard.PassTo(psi);
         if (_options.ParentCheck is { } check) ParentWatch.Apply(psi, check.Interval, check.StartTolerance);
+        var sandbox = _options.Sandbox?.Invoke(spec) ?? ProcessSandboxLevel.Off;
+        if (sandbox != ProcessSandboxLevel.Off && !ProcessSandbox.Wrap(psi, sandbox) && !OperatingSystem.IsWindows()) Log?.Invoke($"Plugin '{spec.DisplayName}' starts without the sandbox: this system has none the editor can use.");
 
         Process process;
         try { process = Process.Start(psi) ?? throw new InvalidOperationException("The process did not start."); }
@@ -604,6 +606,7 @@ public sealed class PluginHost : IAsyncDisposable
             throw new PluginCrashedException(new PluginCrashInfo(spec.Id, spec.DisplayName, PluginEndReason.HandshakeFailed, null, $"Cannot start '{spec.Executable}': {e.Message}", [], null));
         }
         ProcessLaunch.Track(process);
+        if (sandbox != ProcessSandboxLevel.Off && OperatingSystem.IsWindows() && !ProcessSandbox.Apply(process, sandbox)) Log?.Invoke($"Plugin '{spec.DisplayName}' runs without the sandbox: the system refused the job object.");
 
         var run = new Run(process);
         DateTime startedAt;

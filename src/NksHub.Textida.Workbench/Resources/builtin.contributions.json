@@ -2053,6 +2053,22 @@
       "icon": "text"
     },
     {
+      "id": "nks.lsp.expandMacro",
+      "title": "cmd.lsp.expandMacro",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
+      "id": "nks.lsp.syntaxTree",
+      "title": "cmd.lsp.syntaxTree",
+      "category": "cat.tools",
+      "icon": "search",
+      "when": "editorFocus && textView",
+      "enablement": "hasDocument && !largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5390,6 +5406,20 @@
       "order": 20
     },
     {
+      "menu": "tools",
+      "command": "nks.lsp.expandMacro",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 104
+    },
+    {
+      "menu": "tools",
+      "command": "nks.lsp.syntaxTree",
+      "group": "1_text/04",
+      "submenu": "code/lsp",
+      "order": 105
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8669,6 +8699,20 @@
         "icons",
         "skin",
         "bitmap"
+      ]
+    },
+    {
+      "key": "plugins.sandbox",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.plugins.sandbox.title",
+      "description": "setting.plugins.sandbox.description",
+      "category": "cat.plugins",
+      "scope": "application",
+      "tags": [
+        "plugins",
+        "sandbox",
+        "security"
       ]
     },
     {

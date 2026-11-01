@@ -738,6 +738,34 @@
             "additionalProperties": false
           }
         },
+        "mcpTools": {
+          "type": "array",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "readOnly": {
+                "type": "boolean"
+              },
+              "inputSchema": true
+            },
+            "additionalProperties": false
+          }
+        },
         "hexDecoders": {
           "type": "array",
           "items": {

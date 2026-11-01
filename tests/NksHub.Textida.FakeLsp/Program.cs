@@ -570,6 +570,12 @@ while (ReadMessage() is { } body)
         case "workspace/symbol":
             Send(Reply(WorkspaceSymbols(p)));
             break;
+        case "rust-analyzer/expandMacro" when Feature("rustext"):
+            Send(Reply("{\"name\":\"vec\",\"expansion\":\"<[_]>::into_vec(\\\"line\\\" " + p.GetProperty("position").GetProperty("character").GetInt32() + ")\\nsecond\"}"));
+            break;
+        case "rust-analyzer/viewSyntaxTree" when Feature("rustext"):
+            Send(Reply("\"SOURCE_FILE@0..9\\n  FN@0..9\\n\""));
+            break;
         case "textDocument/signatureHelp":
             Send(Reply(SignatureHelp(p) ?? "null"));
             break;

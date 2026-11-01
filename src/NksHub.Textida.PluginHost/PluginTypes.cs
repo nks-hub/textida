@@ -21,6 +21,8 @@ public sealed record PluginHostOptions
     public required RestartPolicy Restart { get; init; }
     public required int ApiVersion { get; init; }
     public required TimeSpan HandshakeTimeout { get; init; }
+    /// <summary>The operating system limit a plugin process is started under; null or <see cref="NksHub.Textida.Core.Tools.ProcessSandboxLevel.Off"/> starts it without one.</summary>
+    public Func<PluginSpec, NksHub.Textida.Core.Tools.ProcessSandboxLevel>? Sandbox { get; init; }
     public required TimeSpan PingInterval { get; init; }
     public required TimeSpan PingTimeout { get; init; }
     public required int MissedPingsBeforeKill { get; init; }

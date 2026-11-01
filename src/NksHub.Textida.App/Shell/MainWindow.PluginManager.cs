@@ -92,6 +92,7 @@ internal sealed partial class MainWindow
         DocumentPermissions.Preview => K.PluginsPermDocumentPreview,
         DocumentPermissions.AgentPanel => K.PluginsPermAgentPanel,
         DocumentPermissions.LanguageServer => K.PluginsPermLanguageServer,
+        DocumentPermissions.McpTool => K.PluginsPermMcpTool,
         DocumentPermissions.HexRead => K.PluginsPermHexRead,
         PluginPermissionNames.Network => K.PluginsPermNetwork,
         _ => K.PluginsPermWorkspaceFiles,

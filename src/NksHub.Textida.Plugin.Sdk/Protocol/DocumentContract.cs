@@ -223,6 +223,8 @@ public static class DocumentPermissions
     public const string LanguageServer = "language.server";
     /// <summary>Lets the hex view hand the plugin bytes the user chose (the bytes at the caret, a selection or a file) to decode, hash, export or read templates from. The plugin only reads them: nothing in this permission writes.</summary>
     public const string HexRead = "hex.read";
+    /// <summary>Lets the MCP server offer the commands the plugin names in <c>mcpTools</c> to the assistants the user allowed. A call runs the command with the arguments the assistant gave; nothing else of the editor is opened to it.</summary>
+    public const string McpTool = "mcp.tool";
 }
 
 /// <summary>JSON-RPC error codes of the document API (implementation-defined range -32020..-32049; <c>error.data</c> carries details).</summary>

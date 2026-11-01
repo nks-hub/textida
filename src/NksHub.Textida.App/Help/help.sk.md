@@ -2256,3 +2256,21 @@ commands: nks.view.iconSkin, nks.view.iconSkinOff
 Zobrazenie, Sada bitmapových ikon nahradí vektorové ikony príkazov obrázkami z priečinka, ktorý zvolíte. Ikona, pre ktorú sada obrázok nemá, zostane vektorová. Voliteľné; predvolene sa kreslia vektorové ikony.
 1. Obrázok pomenovaný podľa ikony (save.png; aj .bmp, .gif, .jpg) je bitmapa tej ikony. Súbor skin.json môže pridať map (iný názov súboru pre ikonu) a strips: vodorovný pás štvorcových buniek, ktorého výška je veľkosť bunky, a mená ikon v poradí buniek. S transparent: corner je priehľadná farba pixelu vľavo dole, ako v pásoch PSPadu.
 - Pás nenesie mená ikon, takže ich poradie určuje sada; editor neprebiera z PSPadu žiadne mapovanie. Neznáme meno sa preskočí a započíta do upozornení. Sada sa použije pri ikonách vytvorených po zvolení (panel nástrojov sa obnoví hneď, ponuky pri ďalšom otvorení).
+
+## [lsp.textResults] Textové výsledky jazykového servera
+commands: nks.lsp.expandMacro, nks.lsp.syntaxTree
+Nástroje, Kód a jazyk, Jazykový server: rozbaliť makro a syntaktický strom pošlú serveru požiadavky rust-analyzera (rust-analyzer/expandMacro a rust-analyzer/viewSyntaxTree) a ukážu odpoveď ako text v karte len na čítanie.
+1. Server, ktorý požiadavku nepozná, odpovie, že metódu nepozná, a editor povie, že to neponúka. Výsledok je kópia: karta nemá súbor a nič sa z nej neuloží.
+- Mená požiadaviek sú rozšírenia rust-analyzera; s iným serverom príkaz nič neurobí. S rust-analyzerom som to na tomto počítači neoveril (nie je nainštalovaný), len na skúšobnom serveri, ktorý odpovedá rovnakými požiadavkami.
+
+## [plugins.mcpTools] Príkazy modulov ako nástroje MCP
+Modul môže vo svojom manifeste v časti mcpTools ponúknuť príkaz ako nástroj servera MCP. Nástroj sa volá plugin_ a id z manifestu. Ponúka sa len klientom, ktorých ste povolili v Nástroje, MCP, Klienti, a len kým modul má oprávnenie mcp.tool, ktoré udeľujete v správcovi modulov.
+1. Volanie nesie objekt arguments podľa schémy z manifestu. Voliteľné pole document musí byť id dokumentu, ktorý ste asistentovi zdieľali; príkaz potom pracuje s týmto dokumentom a smie ho čítať a navrhovať zmeny len podľa oprávnení, ktoré modul má.
+2. Keď oprávnenie mcp.tool odoberiete, nástroj zmizne zo zoznamu a volanie sa odmietne hneď, bez reštartu servera.
+- Manifest bez oprávnenia mcp.tool, bez procesu (main) alebo s príkazom, ktorý modul nemá, sa pri inštalácii odmietne.
+
+## [plugins.sandbox] Obmedzenie procesov zásuvných modulov
+Nastavenie Moduly, Obmedziť procesy zásuvných modulov spúšťa moduly pod obmedzením operačného systému. Je predvolene vypnuté a prejaví sa pri ďalšom štarte modulu.
+1. Windows: proces modulu príde do objektu úlohy bez práce so schránkou, so zmenami obrazovky a systémových parametrov, bez prepínania plôch a bez okien iných procesov. Moduly mimo Git, jazykových serverov, formátovačov, JSON a wiki k tomu nesmú spúšťať ďalšie programy.
+2. macOS: proces sa spúšťa cez sandbox-exec; úroveň Contained zakazuje počúvajúce sokety, úroveň Strict aj odchádzajúce spojenia a vytváranie procesov.
+- Obmedzenie nechráni súbory: čítanie súborov sa nijako neobmedzuje. Na to by bol potrebný AppContainer alebo App Sandbox s právami, ktoré program spúšťaný cestou nedostane.

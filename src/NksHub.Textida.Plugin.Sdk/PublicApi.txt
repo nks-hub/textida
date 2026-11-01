@@ -91,6 +91,7 @@ type NksHub.Textida.PluginHost.Documents.DocumentPermissions : static class
   const EditPropose : string = "document.edit.propose"
   const HexRead : string = "hex.read"
   const LanguageServer : string = "language.server"
+  const McpTool : string = "mcp.tool"
   const Preview : string = "document.preview"
   const Read : string = "document.read"
   const SecretsReveal : string = "document.secrets.reveal"
