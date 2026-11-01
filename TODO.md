@@ -3345,7 +3345,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.1 Import dat PSPadu
 
-- [ ] **PZ.1.1** Modul `PSPadImport`
+- [x] **PZ.1.1** Modul `PSPadImport`
   - **Co a proč:** Rozhodnutí majitele 25. 10. 2026: až po 1.0. Jen data, která si uživatel v PSPadu sám vytvořil (FTP spojení, projekty, zkratky, makra, vlastní klipy a zvýrazňovače). Běží nad kopií profilu, originál se nezapisuje, nic se nespouští automaticky. Týká se importních částí F007, F010, F019, F023, F095, F104, F119, F122, F128 a dalších. Formáty jsou v rozboru PSPadu.
   - **Funkce:** žádná
   - **Hotovo, když:** průvodce rozliší převedeno, s odchylkou, nepodporováno, chybí zdroj, neověřeno; opakovaný import nezdvojí klipy; hesla jdou rovnou do klíčenky.
@@ -3357,7 +3357,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.2 Síť, výstup a AI
 
-- [ ] **PZ.2.1** Otevření z internetu
+- [x] **PZ.2.1** Otevření z internetu
   - **Co a proč:** Stažení URL do lokálního dokumentu, bez automatického spuštění obsahu.
   - **Funkce:** F033
   - **Hotovo, když:** URL se stáhne do nové karty a nic z obsahu se nespustí.
@@ -3372,21 +3372,21 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** tisk přes dialog Windows (PrintDlgEx, GDI) s barvami zvýraznění, čísly řádků a záhlavím; na macOS a Linuxu tisk do PDF, protože Avalonia tiskové API nemá; tisk na Microsoft Print to PDF vyzkoušen. PDF používá Courier, znaky mimo Windows-1252 a střední Evropu se nahradí otazníkem (79d28135).
   - **Ověření 1. 11. 2026 (tester):** PDF export (2 strany, čeština, €) přečtený pypdf i PyMuPDF beze ztráty textu; skutečný tisk na Microsoft Print to PDF prošel.
-- [ ] **PZ.2.3** Hledání výběru na webu
+- [x] **PZ.2.3** Hledání výběru na webu
   - **Co a proč:** Obecné hledání výběru přes uživatelskou URL, ne starý Google dialog.
   - **Funkce:** F062
   - **Hotovo, když:** výběr se otevře v prohlížeči přes nastavenou šablonu URL.
   - **Závisí na:** P1.6.1
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** hledání výběru na webu přes uživatelskou adresu `web.searchUrl` (13c6e7d0).
-- [ ] **PZ.2.4** Mapování cesty na URL
+- [x] **PZ.2.4** Mapování cesty na URL
   - **Co a proč:** Mapování lokální cesty na URL, nikoli vlastní webový server.
   - **Funkce:** F118
   - **Hotovo, když:** příkaz otevře URL odpovídající souboru podle nastaveného mapování.
   - **Závisí na:** P9.5.1
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** mapování lokální cesty na URL podle pravidel `web.pathMap` (13c6e7d0).
-- [ ] **PZ.2.5** Dotazy nad textem přes AI
+- [x] **PZ.2.5** Dotazy nad textem přes AI
   - **Co a proč:** Volitelný AI nástroj nad vybraným rozsahem s náhledem změny; ne podmínka běžné editace.
   - **Funkce:** F144
   - **Hotovo, když:** dotaz pošle jen vybraný rozsah po potvrzení a odpověď přijde jako návrh do revize F178.
@@ -3396,7 +3396,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.3 Jazyk a text
 
-- [ ] **PZ.3.1** Pravopis, diakritika a automatické opravy
+- [x] **PZ.3.1** Pravopis, diakritika a automatické opravy
   - **Co a proč:** Hunspell včetně češtiny, kontrola jen v komentářích, řetězcích, Markdownu a textu; doplnění diakritiky s náhledem; automatické opravy volitelně; nastavení.
   - **Funkce:** F078, F079, F080, F129
   - **Hotovo, když:** český slovník Hunspell podtrhne chybu v komentáři, ne v identifikátoru; doplnění diakritiky ukáže náhled.
@@ -3404,7 +3404,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** pravopis přes Hunspell (WeCantSpell, MIT) jen v komentářích, řetězcích, Markdownu a textu; slovník vybere uživatel nebo se po souhlasu stáhne z LibreOffice (cs, sk, en, de, pl), nic se nepřibaluje; doplnění diakritiky přes revizi změn; ověřeno se skutečným cs_CZ; NativeAOT bez varování (25b67dda).
   - **Ověření 1. 11. 2026 (tester):** skutečný cs_CZ z LibreOffice: načtení 220 ms, správná slova přijata, návrhy chiba → chyba, zlutoucky → žluťoučký, kone → koně; 2 000 kontrol za 23 ms.
-- [ ] **PZ.3.2** Změna velikosti klíčových slov
+- [x] **PZ.3.2** Změna velikosti klíčových slov
   - **Co a proč:** Jen jazykově bezpečná změna velikosti klíčových slov, nezávislá na barvě tokenu.
   - **Funkce:** F072
   - **Hotovo, když:** změna nezasáhne řetězce ani komentáře.
@@ -3412,7 +3412,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** změna velikosti klíčových slov jen u tokenů gramatiky a jen v jazycích bez rozlišení velikosti písmen (efbf4769).
-- [ ] **PZ.3.3** Lorem ipsum a inspektor znaku
+- [x] **PZ.3.3** Lorem ipsum a inspektor znaku
   - **Co a proč:** Generátor ukázkového textu; inspektor znaku místo samostatné ASCII tabulky.
   - **Funkce:** F091, F084
   - **Hotovo, když:** inspektor ukáže kód, jméno a bajty znaku pod kurzorem v kódování souboru.
@@ -3423,7 +3423,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.4 Systém a vzhled
 
-- [ ] **PZ.4.1** Kapátko a monitor schránky
+- [x] **PZ.4.1** Kapátko a monitor schránky
   - **Co a proč:** Kapátko po ověření platformního chování; monitor schránky jen výslovně zapnutý.
   - **Funkce:** F087, F088
   - **Hotovo, když:** monitor schránky je ve výchozím stavu vypnutý a zapnutý sbírá jen kopie od zapnutí.
@@ -3438,18 +3438,20 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** otevření a uložení chráněné cesty přes pomocníka s právy (UAC na Windows, osascript na macOS), bez pevného seznamu souborů; samotná výzva UAC a macOS neklikána, na Linuxu chybí (fcef8a09).
   - Stav 1. 11. 2026: chráněné otevření přesunuto do podmenu Soubor > Otevřít zvláštně (limit menu).
-- [ ] **PZ.4.3** Sady ikon
+- [x] **PZ.4.3** Sady ikon
   - **Co a proč:** Vlastní vektorové ikony; import bitmapového skinu jen volitelně.
   - **Funkce:** F137
   - **Hotovo, když:** výměna sady ikon nezmění rozvržení D5.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu
-- [ ] **PZ.4.4** Most pro WSH skripty
+  - **Stav 1. 11. 2026 (sloučeno):** volitelná bitmapová sada ikon namapovaná na jména SVG ikon, rozvržení se nemění (0805d694).
+- [x] **PZ.4.4** Most pro WSH skripty
   - **Co a proč:** Volitelný oddělený WSH most jen pro Windows; nedeklarovat kompatibilitu JS a VBS přes Jint.
   - **Funkce:** F097
   - **Hotovo, když:** skript WSH běží v odděleném procesu a editor ho nespustí bez potvrzení.
   - **Závisí na:** P3b.1.2
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** skripty WSH přes `cscript` v odděleném procesu, výstup v okně výstupu, spuštění jen po schválení podle cesty a obsahu souboru (62fa0aaa).
 
 ### PZ.5 Formátovače a typy souborů
 
@@ -3460,12 +3462,13 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P8.3.1
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** formátovač PHP přes katalog nástrojů (php-cs-fixer nalezený lokálně, nic se nestahuje) přes revizi změn; ověřeno s php-cs-fixer 3.95.27 a PHP 8.4 (935fd8da).
-- [ ] **PZ.5.2** Převodníky typů souborů
+- [x] **PZ.5.2** Převodníky typů souborů
   - **Co a proč:** Externí převodník s jasným vstupem a výstupem; kontrakt otevření a uložení přes převod zatím není navržený.
   - **Funkce:** F138
   - **Hotovo, když:** kontrakt import/export s velikostními mezemi a transakčním uložením je navržený a ověřený jedním pluginem.
   - **Závisí na:** P8b.2.2
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** kontrakt převodníků s kontrolou zpětného převodu, ztrátové uložení jen se souhlasem, převodník CSV ⇄ TSV; cesta přes pandoc pro .docx neběžela, pandoc na stroji není (ccec8f2d).
 - [ ] **PZ.5.3** Import gramatik TextMate
   - **Co a proč:** `.tmLanguage` a `.tmbundle` jako zdroj pravidel pro jazyky bez vestavěné gramatiky; tokenizace dál vlastním enginem.
   - **Funkce:** F192
@@ -3473,7 +3476,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P3.2.1
   - **Odhad:** F192 3–5 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** import gramatik TextMate (`.tmLanguage`, `.tmLanguage.json`, `.tmbundle`) jako zdroj pravidel, tokenizace vlastním enginem; nepodporované konstrukce se hlásí, část výrazů Oniguruma je převedená jen přibližně (ed856f13).
-- [ ] **PZ.5.4** Prohlížeč .NET sestavení
+- [x] **PZ.5.4** Prohlížeč .NET sestavení
   - **Co a proč:** `.dll` jen pro čtení jako dekompilovaný C# přes `ICSharpCode.Decompiler` (MIT).
   - **Funkce:** F193
   - **Hotovo, když:** otevření `.dll` ukáže dekompilovaný C# v kartě jen pro čtení.
@@ -3492,7 +3495,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P8.2.1
   - **Odhad:** F159 3–5 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** integrovaný terminál (ConPTY na Windows, pty na macOS a Linuxu, shell v `terminal.shell`); ověřeno se skutečným cmd.exe, pty na macOS a Linuxu nespuštěno (2363cb4c).
-- [ ] **PZ.6.2** Poslat výběr do interpretu
+- [x] **PZ.6.2** Poslat výběr do interpretu
   - **Co a proč:** Řádek nebo výběr do `python`, `php -a`, `node`, `psql` v okně výstupu; `.venv` ve složce se použije.
   - **Funkce:** F191
   - **Hotovo, když:** výběr se vykoná v interpretu a výstup je v panelu.
@@ -3500,7 +3503,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F191 2–3 ČT (matice)
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** řádek nebo výběr do Pythonu, `php -a`, Node a psql v okně výstupu, `.venv` ze složky; psql bere připojení z proměnných `PG*` (14fa9c34).
-- [ ] **PZ.6.3** HTTP požadavky z textu
+- [x] **PZ.6.3** HTTP požadavky z textu
   - **Co a proč:** Soubory `.http` a `.rest`, proměnné, prostředí a soukromý soubor s hesly, odpověď v nové kartě, převod z a na cURL; bez skriptů odpovědí.
   - **Funkce:** F194
   - **Hotovo, když:** požadavek ze souboru `.http` vrátí odpověď do nové karty a heslo ze soukromého souboru se neuloží do sdíleného.
@@ -3516,14 +3519,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P3b.2.2
   - **Odhad:** F258 1–2 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** panel „Kdo to volá“ přes `codegraph callers --json` jen při existujícím `.codegraph/`; ověřeno se skutečným codegraph (c78394f6).
-- [ ] **PZ.6.5** Strukturální hledání přes ast-grep
+- [x] **PZ.6.5** Strukturální hledání přes ast-grep
   - **Co a proč:** Vzor a přepis přes `ast-grep run --json=stream` do náhledu F152, neuložené karty přes `--stdin`.
   - **Funkce:** F259
   - **Hotovo, když:** shody přijdou do náhledu jako návrh s revizí a konflikt revize se odmítne.
   - **Závisí na:** P2.5.2
   - **Odhad:** F259 1,5–2,5 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** strukturální hledání přes `ast-grep run --json=stream` do náhledu změn, neuložené karty přes `--stdin`; ověřeno se skutečným ast-grep 0.51 (aa76b517).
-- [ ] **PZ.6.6** Co agent v této složce načte
+- [x] **PZ.6.6** Co agent v této složce načte
   - **Co a proč:** Panel souborů agenta (`AGENTS.md`, `CLAUDE.md`, pravidla, skills) s velikostí a odhadem tokenů; zdroj „Plány agentů“ v Goto Anything.
   - **Funkce:** F260
   - **Hotovo, když:** pro aktivní soubor panel ukáže řetěz uplatněných souborů agenta.
@@ -3533,7 +3536,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.7 Pracovní postupy
 
-- [ ] **PZ.7.1** Sada vzdálených změn
+- [x] **PZ.7.1** Sada vzdálených změn
   - **Co a proč:** Změny ve více souborech na FTP/SFTP odeslané najednou s diffem a kontrolou novější verze.
   - **Funkce:** F167
   - **Hotovo, když:** vybrané změny se odešlou s náhledem a soubor změněný na serveru se neodešle bez diffu.
@@ -3548,7 +3551,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P9.4.1, P1.5.1
   - **Odhad:** F168 3–5 ČT navíc (matice)
   - **Stav 1. 11. 2026 (sloučeno):** uložení a obnova pojmenované pracovní úlohy: dokumenty, výběry, dotazy hledání, filtry a recepty (4c820c87).
-- [ ] **PZ.7.3** Porovnání složek
+- [x] **PZ.7.3** Porovnání složek
   - **Co a proč:** Dvě složky nebo lokální složka proti FTP podle velikosti, času nebo obsahu, kopie jedním směrem s náhledem.
   - **Funkce:** F177
   - **Hotovo, když:** porovnání ukáže shodné, rozdílné a chybějící soubory a kopie proběhne až po náhledu.
@@ -3560,14 +3563,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.8 Pluginy
 
-- [ ] **PZ.8.1** Katalog pluginů
+- [x] **PZ.8.1** Katalog pluginů
   - **Co a proč:** Index v Git repozitáři s review, SHA-256 a podpisy vydavatele, aktualizace bez rozšíření oprávnění bez nového souhlasu.
   - **Funkce:** F206
   - **Hotovo, když:** editor odmítne balíček se špatným hashem nebo podpisem.
   - **Závisí na:** P8b.2.2
   - **Odhad:** F206 3–5 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** katalog pluginů z Git repozitáře se SHA-256 a podpisy vydavatelů (ECDSA P-256), důvěra v klíč po potvrzení otisku, rozšíření oprávnění při aktualizaci vyžádá nový souhlas; ověřeno na lokálním git repozitáři (9c6db09a).
-- [ ] **PZ.8.2** SDK pro JS/TS a Python
+- [x] **PZ.8.2** SDK pro JS/TS a Python
   - **Co a proč:** Generované typy z JSON Schema API a tenká knihovna; runtime si plugin přinese.
   - **Funkce:** F207
   - **Hotovo, když:** ukázkový plugin v TypeScriptu a v Pythonu projde ověřovačem a kontraktovými testy.
@@ -3575,13 +3578,15 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F207 2–4 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** SDK pro JS/TS a Python: typy generované ze schématu API, tenká knihovna a ukázkový plugin pro každý jazyk; oba prošly validátorem se skutečným Node a Pythonem (5bb82ef0).
   - **Ověření 1. 11. 2026 (tester):** ukázkové pluginy JS i Python prošly validátorem s Node 24 a Pythonem 3.12 (SdkTypesTests 5/5).
-- [ ] **PZ.8.3** Kód pluginu uvnitř editoru
+- [x] **PZ.8.3** Kód pluginu uvnitř editoru
   - **Co a proč:** WASM nebo Jint jen po měření a rozhodnutí o velikosti a entitlementech pro macOS.
   - **Funkce:** F209
   - **Hotovo, když:** existuje měření a rozhodnutí majitele.
   - **Závisí na:** verze 1.0
   - **Odhad:** F209 3–5 ČT (matice)
-- [ ] **PZ.8.4** Místa pro pluginy v hexu
+  - **Stav 1. 11. 2026 (sloučeno):** prototyp skriptů na Jintu, ve výchozím stavu vypnutý (de99caae). Měření: Jint AOT exe 11,1 MB, první běh 7–8 ms, další 0,45 ms, 15 MB paměti; wasmtime .NET exe 1,9 MB + nativní knihovna 22,1 MB, první volání 684 ms, další ~3 ms, 17–18 MB.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** skripty v editoru zůstanou na Jintu (menší, rychlejší start, bez nativní knihovny), dál vypnuté ve výchozím stavu; WASM se nedělá.
+- [x] **PZ.8.4** Místa pro pluginy v hexu
   - **Co a proč:** Dekodér inspektoru, zdroj šablon, exportér, hash; jen čtou bajty a zápis vrací jako návrh.
   - **Funkce:** F249
   - **Hotovo, když:** ukázkový plugin přidá typ do inspektoru dat bez přístupu k zápisu.
@@ -3591,7 +3596,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.9 Hex
 
-- [ ] **PZ.9.1** Šablony struktur: rozšíření
+- [x] **PZ.9.1** Šablony struktur: rozšíření
   - **Co a proč:** `process` (zlib, xor, rotate), `imports`, bitová pole a `bit-endian`, úplný výrazový jazyk, export stromu do JSON, zápis hodnot ze stromu.
   - **Funkce:** F246
   - **Hotovo, když:** šablona s `process: zlib` se otevře a strom jde exportovat do JSON.
@@ -3602,7 +3607,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.10 Další body bez F-ID
 
-- [ ] **PZ.10.1** Rozšíření, která plán zmiňuje bez vlastního ID
+- [x] **PZ.10.1** Rozšíření, která plán zmiňuje bez vlastního ID
   - **Co a proč:** Linux jako samostatný rozsah; textové výsledky příkazů LSP (rozbalení makra, AST); převodník JSON → Go struct, C# třída, TypeScript interface (F095); značky změn v minimapě (F161); sandbox pluginů na úrovni OS; nabídka příkazu pluginu jako MCP nástroje.
   - **Funkce:** žádná (rozšíření existujících funkcí)
   - **Hotovo, když:** každý bod dostane F-ID nebo rozhodnutí majitele, že se nedělá.
@@ -3611,6 +3616,8 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Stav 29. 10. 2026:** Linux: na žádost majitele vzniklo předběžné sestavení (`tools/BuildLinuxPackage.cs`, `.deb` a `.tar.gz` s `install.sh`) a apt repozitář; kouřový test prošel v CI (Ubuntu 22.04 s Xvfb) i v kontejnerech Debian 12, Ubuntu 22.04 a 24.04. Plná podpora Linuxu (desktopová prostředí, přístupnost, IME, integrace se systémem) zůstává mimo R10.
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** převodník JSON → Go struct, C# třída a TypeScript interface z výběru nebo dokumentu do nové karty (a9134af7).
+  - **Stav 1. 11. 2026 (sloučeno, d02b53b5):** textové výsledky LSP (rozbalení makra, syntaktický strom) v kartě jen ke čtení; v pruhu minimapy změny z Gitu a neuložené řádky; příkaz pluginu jako nástroj MCP (`mcpTools`, oprávnění `mcp.tool`, kontrola při každém výpisu i volání); omezení procesů pluginů `plugins.sandbox` (vypnuto, Windows job object, přísná úroveň zakáže spouštění programů; 108 testů pluginů se všemi úrovněmi stejně). macOS profily `sandbox-exec` nespuštěné; AppContainer se nedělá.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** AppContainer se nedělá, job object stačí jako volitelné omezení; každý bod seznamu má teď hotovou implementaci nebo toto rozhodnutí.
 
 ## Souhrn
 
