@@ -132,9 +132,35 @@ public class TerminalTests
     }
 
     [Fact]
+    public async Task A_real_unix_shell_runs_takes_input_follows_a_resize_and_ends_with_the_session()
+    {
+        if (OperatingSystem.IsWindows()) return; // the pty of macOS and Linux
+        using var session = TerminalSession.Start("/bin/sh", [], Path.GetTempPath(), null, 80, 20);
+        session.Send("echo hello-$((6*7))" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
+        Assert.True(await Until(() => session.Screen.ScreenText().Contains("hello-42")), "the echo: " + session.Screen.ScreenText());
+
+        session.Resize(100, 30);
+        Assert.Equal((100, 30), (session.Screen.Columns, session.Screen.Rows));
+        session.Send("stty size" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
+        Assert.True(await Until(() => session.Screen.ScreenText().Contains("30 100")), "the pty follows the resize: " + session.Screen.ScreenText());
+
+        int id = session.ProcessId;
+        Assert.True(session.Running);
+        session.Send("exit 3" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
+        Assert.True(await Until(() => !session.Running), "the shell ends on exit");
+        Assert.Equal(3, session.ExitCode);
+
+        using var again = TerminalSession.Start("/bin/sh", [], Path.GetTempPath(), null, 80, 20);
+        int second = again.ProcessId;
+        again.Dispose();
+        Assert.True(await Until(() => !Process.GetProcesses().Any(p => p.Id == second)), "the process is gone after Dispose");
+        Assert.NotEqual(id, second);
+    }
+
+    [Fact]
     public async Task A_real_shell_runs_takes_input_follows_a_resize_and_ends_with_the_session()
     {
-        if (!OperatingSystem.IsWindows()) return; // the pty of macOS and Linux is checked on those systems
+        if (!OperatingSystem.IsWindows()) return; // ConPTY
         string cmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
         using var session = TerminalSession.Start(cmd, ["/q"], Path.GetTempPath(), null, 80, 20);
         Assert.True(await Until(() => session.Screen.ScreenText().Contains('>')), "the prompt: " + session.Screen.ScreenText());
