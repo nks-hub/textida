@@ -171,7 +171,8 @@ public class TerminalTests
         session.Resize(100, 30);
         Assert.Equal((100, 30), (session.Screen.Columns, session.Screen.Rows));
         session.Send("mode con" + TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
-        Assert.True(await Until(() => session.Screen.ScreenText().Contains("Columns:") && session.Screen.ScreenText().Contains("100")), "the console follows the resize: " + session.Screen.ScreenText());
+        // "mode con" names its lines in the language of Windows ("Columns:" or "Sloupce:"), so the line is found by its number
+        Assert.True(await Until(() => System.Text.RegularExpressions.Regex.IsMatch(session.Screen.ScreenText(), @":\s+100\s*$", System.Text.RegularExpressions.RegexOptions.Multiline)), "the console follows the resize: " + session.Screen.ScreenText());
 
         int id = session.ProcessId;
         Assert.True(session.Running);
