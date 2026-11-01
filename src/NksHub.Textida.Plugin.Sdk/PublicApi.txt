@@ -89,6 +89,7 @@ type NksHub.Textida.PluginHost.Documents.DocumentPermissions : static class
   const ClipboardWrite : string = "clipboard.write"
   const EditDirect : string = "document.edit.direct"
   const EditPropose : string = "document.edit.propose"
+  const HexRead : string = "hex.read"
   const LanguageServer : string = "language.server"
   const Preview : string = "document.preview"
   const Read : string = "document.read"
@@ -118,6 +119,11 @@ type NksHub.Textida.PluginHost.InitializeResult : sealed class , System.IEquatab
   property public EventAcks : bool { get; init; }
   property public IdleStop : bool { get; init; }
   property public Name : string { get; init; }
+type NksHub.Textida.PluginHost.Permissions.HexMethods : static class
+  const Decode : string = "hex/decode"
+  const Export : string = "hex/export"
+  const Hash : string = "hex/hash"
+  const Templates : string = "hex/templates"
 type NksHub.Textida.PluginHost.Permissions.PluginMethodPermissions : static class
   method public static For(string method) : string
   method public static ForDocumentApi(string method) : string

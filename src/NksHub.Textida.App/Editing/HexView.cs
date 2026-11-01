@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Help;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core;
@@ -97,6 +98,9 @@ internal sealed partial class HexView : Grid
 
     /// <summary>What the structure panels of the app share: the templates opened from files and the template per file type. The window sets the app's one; a view made alone has its own.</summary>
     internal HexTemplateHost TemplateHost { get; set; } = new();
+
+    /// <summary>The plugins that add rows to the inspector; null where there are none (a view outside a window).</summary>
+    internal Func<IHexPlugins>? PluginsFor { get; set; }
 
     /// <summary>Asks the user for a template file and returns its path, or null when cancelled; set by the window.</summary>
     internal Func<Task<string?>>? PickTemplateFile { get; set; }

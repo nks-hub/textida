@@ -20,6 +20,23 @@ public static class PluginServiceMethods
     public const string CommandExecute = "command/execute";
 }
 
+/// <summary>
+/// The requests the editor sends to a plugin that contributes to the hex view (permission <see cref="DocumentPermissions.HexRead"/>): the plugin answers with data and cannot change a file by answering.
+/// <c>hex/decode</c> <c>{decoder, data, bigEndian}</c> gives <c>{status: ok|incomplete|invalid, text, length}</c>; <c>hex/hash</c> <c>{hash, data}</c> gives <c>{value}</c>; <c>hex/export</c> <c>{exporter, data, offset}</c> gives
+/// <c>{name, text}</c>, which opens as a new unsaved document; <c>hex/templates</c> <c>{source}</c> gives <c>{templates: [{name, ksy}]}</c>. <c>data</c> is Base64.
+/// </summary>
+public static class HexMethods
+{
+    /// <summary>The request hex/decode.</summary>
+    public const string Decode = "hex/decode";
+    /// <summary>The request hex/hash.</summary>
+    public const string Hash = "hex/hash";
+    /// <summary>The request hex/export.</summary>
+    public const string Export = "hex/export";
+    /// <summary>The request hex/templates.</summary>
+    public const string Templates = "hex/templates";
+}
+
 /// <summary>Permissions outside the document API.</summary>
 public static class PluginPermissionNames
 {
@@ -38,7 +55,7 @@ public static class PluginPermissionNames
         DocumentPermissions.Read, DocumentPermissions.EditPropose, DocumentPermissions.EditDirect,
         DocumentPermissions.ClipboardWrite, DocumentPermissions.Virtual, DocumentPermissions.WorkspaceFiles, DocumentPermissions.Source,
         DocumentPermissions.Preview, DocumentPermissions.AgentPanel,
-        DocumentPermissions.LanguageServer, Network,
+        DocumentPermissions.LanguageServer, DocumentPermissions.HexRead, Network,
     ];
 }
 

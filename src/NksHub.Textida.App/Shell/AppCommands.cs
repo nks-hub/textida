@@ -172,6 +172,9 @@ internal static class AppCommands
         On("nks.edit.toggleClipboardMonitor", w => w.ToggleClipboardMonitor());
         On("nks.format.withReview", w => w.FormatWithReview());
         On("nks.tools.showCallers", w => w.ShowCallers());
+        On("nks.hex.pluginHash", w => w.HexToolMenu(w.HexPluginHashItems));
+        On("nks.hex.pluginExport", w => w.HexToolMenu(w.HexPluginExportItems));
+        On("nks.hex.pluginTemplates", w => w.HexToolMenu(w.HexPluginTemplateItems));
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

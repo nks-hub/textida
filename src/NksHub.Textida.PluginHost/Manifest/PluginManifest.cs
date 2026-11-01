@@ -75,6 +75,42 @@ public sealed class PluginContributions
 
     /// <summary>Language servers the built-in language server client may start for this plugin; needs the <c>language.server</c> permission.</summary>
     public List<LanguageServerContribution> LanguageServers { get; set; } = [];
+
+    /// <summary>What the plugin adds to the hex view; all of it needs a process (<c>main</c>) and the permission <c>hex.read</c>.</summary>
+    public List<HexDecoderContribution> HexDecoders { get; set; } = [];
+    public List<HexHashContribution> HexHashes { get; set; } = [];
+    public List<HexExporterContribution> HexExporters { get; set; } = [];
+    public List<HexTemplateSourceContribution> HexTemplates { get; set; } = [];
+}
+
+/// <summary>A type of the data inspector. <see cref="Length"/> is how many bytes at the caret the plugin is sent (1 to 64).</summary>
+public sealed class HexDecoderContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public int Length { get; set; } = 16;
+}
+
+/// <summary>A hash or checksum of the selected bytes (the whole file when nothing is selected).</summary>
+public sealed class HexHashContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+}
+
+/// <summary>A way to write the selected bytes as text (a C array, a hex dump, a Base64 form); the result opens as a new unsaved document, the file is never written. <see cref="Extension"/> is the extension of its name (with the dot).</summary>
+public sealed class HexExporterContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Extension { get; set; } = ".txt";
+}
+
+/// <summary>A source of structure templates (Kaitai Struct .ksy text) for the structure panel of the hex view.</summary>
+public sealed class HexTemplateSourceContribution
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
 }
 
 /// <summary>

@@ -45,6 +45,7 @@ internal sealed class ClipLibrary
     private readonly List<RecipeEntry> _recipes = [];
     private readonly List<HelpEntry> _helps = [];
     private readonly List<DeclaredServer> _servers = [];
+    private readonly List<HexOffer> _hex = [];
     private readonly List<(string Command, string PluginId, DataAction Action)> _targets = [];
     private readonly List<(string PluginId, ToolEntry Tool)> _tools = [];
     private readonly List<string> _problems = [];
@@ -75,6 +76,9 @@ internal sealed class ClipLibrary
     /// <summary>Language servers declared by installed, enabled plugins, in load order. Whether a plugin may start them is the <c>language.server</c> grant, checked where they are used.</summary>
     public IReadOnlyList<DeclaredServer> LanguageServers => _servers;
     public IReadOnlyList<string> Problems => _problems;
+
+    /// <summary>What installed plugins add to the hex view; whether a plugin may be sent bytes is the <c>hex.read</c> grant, checked where they are used.</summary>
+    public IReadOnlyList<HexOffer> HexOffers => _hex;
 
     /// <summary>External tools that data plugins declare, each with the plugin that owns it.</summary>
     public IReadOnlyList<(string PluginId, ToolEntry Tool)> Tools => _tools;
@@ -108,6 +112,7 @@ internal sealed class ClipLibrary
         _recipes.Clear();
         _helps.Clear();
         _servers.Clear();
+        _hex.Clear();
         _targets.Clear();
         _tools.Clear();
         _problems.Clear();
@@ -126,6 +131,15 @@ internal sealed class ClipLibrary
             // a server is started only for a plugin the plugin manager installed: the folders next to the profile were never put before the user
             if (installed.Contains(folder))
                 foreach (var server in plugin.Manifest.Contributes.LanguageServers) _servers.Add(new DeclaredServer(plugin.Manifest.Id, plugin.Directory, server));
+            if (installed.Contains(folder))
+            {
+                var c = plugin.Manifest.Contributes;
+                string owner = plugin.Manifest.Id, title = plugin.Manifest.Name;
+                _hex.AddRange(c.HexDecoders.Select(d => new HexOffer(owner, title, HexKind.Decoder, d.Id, d.Title, d.Length)));
+                _hex.AddRange(c.HexHashes.Select(d => new HexOffer(owner, title, HexKind.Hash, d.Id, d.Title)));
+                _hex.AddRange(c.HexExporters.Select(d => new HexOffer(owner, title, HexKind.Exporter, d.Id, d.Title, Extension: d.Extension)));
+                _hex.AddRange(c.HexTemplates.Select(d => new HexOffer(owner, title, HexKind.Templates, d.Id, d.Title)));
+            }
             bool process = plugin.Manifest.Main is not null;
             if (process && !installed.Contains(folder))
             {

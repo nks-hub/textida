@@ -2175,3 +2175,12 @@ commands: nks.tools.showCallers
 Der Befehl im Menü Extras listet die Funktionen, die das Symbol unter dem Cursor aufrufen, nach dem Graphen des Programms CodeGraph. Er liest nur und indiziert nichts.
 1. Das Projekt muss einen Ordner .codegraph haben (codegraph init -i legt ihn an). Setzen Sie den Cursor auf den Namen einer Funktion oder markieren Sie ihn und wählen Sie Extras und Wer ruft das auf. Enter auf einer Zeile öffnet die Stelle des Aufrufers, seine Zeilen stehen neben der Liste.
 - Der Befehl wird nur angeboten, wo über der Datei ein Ordner .codegraph existiert; der Editor legt den Graphen weder an noch aktualisiert er ihn (das tun codegraph init und codegraph sync). Das Programm wird in node_modules/.bin, .venv und im PATH gesucht, Sie bestätigen es vor dem ersten Lauf, und es läuft hinter dem Proxy des Editors. Der Graph ist der Stand der Dateien bei der Indizierung: bei einem Tab mit ungespeichertem Text sagt das eine Leiste.
+
+## [hex.plugins] Hex: Plugins
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+Ein installiertes Plugin mit der Berechtigung hex.read kann der Hex-Ansicht einen Decoder für den Dateninspektor, einen Hash, eine Textausgabe der Bytes und eine Quelle für Strukturvorlagen hinzufügen.
+1. Decoder erscheinen als weitere Zeilen des Dateninspektors unter den eingebauten Typen; eine Zeile zeigt drei Punkte, bis das Plugin antwortet.
+2. Bearbeiten, Hex, Hash mit Plugin bildet den Hash der Auswahl (ohne Auswahl der ganzen Datei) und zeigt ihn im selben Fenster wie die eingebauten Hashes.
+3. Mit Plugin als Text ausgeben öffnet die Auswahl als Text in einem neuen Dokument, das keine Datei ist. Vorlagen von Plugin fügt seine .ksy-Vorlagen der Liste des Strukturbereichs hinzu.
+- Das Plugin erhält nur eine Kopie der Bytes und gibt nur Text zurück: es schreibt nichts in eine Datei oder das Dokument. Ein verborgener Wert einer Geheimnisdatei wird ihm als Sterne gesendet. Ein Plugin, das Bytes ändern will, tut das über die Dokument-API, wo seine Änderung als Vorschlag zur Freigabe in der Änderungsübersicht erscheint.
+- Ein Plugin erhält höchstens 16 MiB, hat 15 s für die Antwort und der Text der Antwort ist begrenzt. Angeboten werden nur Plugins, denen Sie die Berechtigung hex.read bei der Installation gegeben haben.

@@ -51,6 +51,11 @@ public sealed partial class App : Application
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;
     internal PluginServices Plugins { get; private set; } = null!;
+
+    private IHexPlugins? _hexPlugins;
+
+    /// <summary>What plugins add to the hex view; the plugin services unless a test puts its own.</summary>
+    internal IHexPlugins HexPlugins { get => _hexPlugins ?? Plugins; set => _hexPlugins = value; }
     internal RecentFiles Recent { get; private set; } = null!;
 
     private HexTemplateHost? _hexTemplates;

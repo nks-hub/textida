@@ -2175,3 +2175,12 @@ commands: nks.tools.showCallers
 The command in the Tools menu lists the functions that call the symbol under the caret, from the graph of the CodeGraph program. It only reads and indexes nothing.
 1. The project must have a .codegraph folder (codegraph init -i makes it). Put the caret on the name of a function or select it and choose Tools and Who Calls This. Enter on a row opens the place of the caller, and its lines are shown beside the list.
 - The command is offered only where a .codegraph folder exists above the file; the editor neither makes nor updates the graph (codegraph init and codegraph sync do that). The program is looked for in node_modules/.bin, .venv and on the PATH, you confirm it before the first run, and it runs behind the proxy of the editor. The graph is the state of the files when they were indexed: for a tab with unsaved text a bar says so.
+
+## [hex.plugins] Hex: plugins
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+An installed plugin with the permission hex.read can add a decoder to the data inspector, a hash, a way to write bytes out as text and a source of structure templates to the hex view.
+1. Decoders appear as further rows of the data inspector under the built-in types; a row shows an ellipsis until the plugin answers.
+2. Edit, Hex, Hash with Plugin hashes the selection (the whole file without one) and shows it in the same window as the built-in hashes.
+3. Write out with Plugin opens the selection as text in a new document that is not a file. Templates from Plugin adds its .ksy templates to the list of the Structure panel.
+- The plugin gets only a copy of the bytes and returns only text: it writes nothing to a file or to the document. A hidden value of a secrets file is sent to it as stars. A plugin that wants to change bytes does so through the document API, where its edit comes as a proposal to approve in the change review.
+- A plugin is sent at most 16 MiB, has 15 s to answer and the text of its answer is limited. Only the plugins you gave the permission hex.read at install are offered.

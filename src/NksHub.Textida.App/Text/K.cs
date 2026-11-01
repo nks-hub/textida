@@ -502,6 +502,13 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string HexPluginFailed = "hex.plugin.failed";
+    public const string HexPluginNone = "hex.plugin.none";
+    public const string HexPluginTooLarge = "hex.plugin.tooLarge";
+    public const string HexPluginExported = "hex.plugin.exported";
+    public const string HexPluginTemplates = "hex.plugin.templates";
+    public const string HexPluginNoTemplates = "hex.plugin.noTemplates";
+    public const string PluginsPermHexRead = "plugins.perm.hex.read";
     public const string CallersNoGraph = "callers.noGraph";
     public const string CallersNoSymbol = "callers.noSymbol";
     public const string CallersMissing = "callers.missing";

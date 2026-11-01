@@ -2175,3 +2175,12 @@ commands: nks.tools.showCallers
 Příkaz v nabídce Nástroje ukáže funkce, které volají symbol pod kurzorem, podle grafu programu CodeGraph. Jen čte, nic neindexuje.
 1. V projektu musí být složka .codegraph (vytvoří ji codegraph init -i). Dejte kurzor na jméno funkce nebo ho označte a zvolte Nástroje a Kdo to volá. Enter na řádku otevře místo volajícího, vedle seznamu je jeho okolí.
 - Příkaz se nabídne jen tam, kde složka .codegraph existuje nad souborem; editor graf nevytváří ani neaktualizuje (to dělají codegraph init a codegraph sync). Program se hledá v node_modules/.bin, .venv a PATH, před prvním během ho potvrdíte a běží za proxy editoru. Graf je stav souborů v době indexování: u karty s neuloženým textem to lišta říká.
+
+## [hex.plugins] Hex: doplňky
+commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
+Nainstalovaný doplněk s oprávněním hex.read může hex pohledu přidat dekodér do inspektoru dat, součet, výpis bajtů jako text a zdroj šablon struktury.
+1. Dekodéry se objeví jako další řádky inspektoru dat pod vestavěnými typy; řádek ukáže tři tečky, dokud doplněk neodpoví.
+2. Úpravy, Hex, Součet doplňkem spočítá součet výběru (bez výběru celého souboru) a ukáže ho stejným oknem jako vestavěné součty.
+3. Vypsat doplňkem jako text otevře výběr jako text v novém dokumentu, který není soubor. Šablony od doplňku přidají jeho šablony .ksy do seznamu panelu Struktura.
+- Doplněk dostane jen kopii bajtů a vrací jen text: nic nezapisuje do souboru ani do dokumentu. Skrytá hodnota souboru s tajemstvím se mu posílá jako hvězdičky. Doplněk, který chce bajty měnit, to udělá přes API dokumentu, kde jeho úprava přijde jako návrh ke schválení v přehledu změn.
+- Doplněk dostane nejvýš 16 MiB, na odpověď má 15 s a text odpovědi je omezený. Nabízí se jen doplňky, kterým jste oprávnění hex.read dali při instalaci.
