@@ -50,7 +50,7 @@ public class MarkdownRendererRegressionTests
         Assert.Equal("visible", Text(Assert.Single(headings)));
         var heading = Assert.Single(MarkdownTools.Headings(source.Split('\n')));
         Assert.Equal(("visible", line), (heading.Title, heading.Line));
-        Assert.Equal(line, Assert.Single(anchors, a => a.Control.Classes.Contains("previewhead1")).Line);
+        Assert.Equal(line, Assert.Single(anchors, a => !a.End && a.Control.Classes.Contains("previewhead1")).Line);
     }
 
     [AvaloniaFact]

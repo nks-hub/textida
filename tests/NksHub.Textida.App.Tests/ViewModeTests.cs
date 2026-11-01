@@ -93,9 +93,11 @@ public class ViewModeTests : IDisposable
     private readonly App _app;
     private readonly MainWindow _w;
     private readonly ScriptedDialogs _dialogs = new();
+    private readonly ITestOutputHelper output;
 
-    public ViewModeTests()
+    public ViewModeTests(ITestOutputHelper output)
     {
+        this.output = output;
         _app = TestApp.Prepare(_temp, _dialogs);
         _w = _app.CreateWindow(null);
     }
@@ -652,6 +654,7 @@ public class ViewModeTests : IDisposable
         Layout();
         Layout();
         var page = Assert.IsType<MarkdownPreview>(_w.Active!.Custom);
+        output.WriteLine($"Read transition: beforeLine={before:R}, topLine={page.TopLine:R}, offset={page.Offset}, extent={page.Extent}, viewport={page.Viewport}, content={page.Content?.GetType().Name}, renderComplete={page.RenderTask.IsCompleted}");
         Assert.InRange(page.TopLine, 296, 304);
 
         page.ScrollToLine(120);
