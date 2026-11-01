@@ -134,10 +134,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Sign update feed
+        env:
+          FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
+        run: dotnet run tools/SignUpdateFeed.cs -- dist "${GITHUB_REF_NAME#v}" "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

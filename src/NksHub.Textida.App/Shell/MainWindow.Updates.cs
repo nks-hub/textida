@@ -51,8 +51,9 @@ internal sealed partial class MainWindow
 
     private AppUpdater? OpenUpdater(bool interactive)
     {
-        var updater = UpdaterOverride ?? new AppUpdater(CreateUpdateHttpClient(), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, AppContext.BaseDirectory);
-        if (!OperatingSystem.IsWindows() || !updater.IsInstalled) { if (interactive) SetStatusMessage(Loc.Get(K.UpdateUnavailable)); return null; }
+        var updater = UpdaterOverride ?? new AppUpdater(CreateUpdateHttpClient(), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, AppUpdater.InstallationFolder(AppContext.BaseDirectory));
+        if (updater.UsesSystemPackageManager) { if (interactive) SetStatusMessage(Loc.Get(K.UpdatePackageManager)); return null; }
+        if (!updater.IsInstalled) { if (interactive) SetStatusMessage(Loc.Get(K.UpdateUnavailable)); return null; }
         if (!updater.IsConfigured) { if (interactive) SetStatusMessage(Loc.Get(K.UpdateNotConfigured)); return null; }
         return updater;
     }
@@ -96,7 +97,7 @@ internal sealed partial class MainWindow
         {
             SetStatusMessage(Loc.Get(K.UpdateDownloading, ("version", release.Version)));
             var zip = await updater.DownloadAsync(release, download, CancellationToken.None);
-            var staged = updater.Stage(zip, release);
+            var staged = await Task.Run(() => updater.Stage(zip, release));
             if (!DocumentsAreSafe()) return;
             updater.Switch(staged, restart: true);
         }

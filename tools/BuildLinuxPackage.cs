@@ -74,6 +74,7 @@ try
         var opt = Path.Combine(deb, "opt", "textida");
         CopyTree(publish, opt);
         File.WriteAllText(Path.Combine(opt, "version.txt"), version);
+        File.WriteAllText(Path.Combine(opt, ".deb-managed"), "apt\n");
         Directory.CreateDirectory(Path.Combine(deb, "usr", "bin"));
         File.CreateSymbolicLink(Path.Combine(deb, "usr", "bin", "textida"), "/opt/textida/Textida");
         Directory.CreateDirectory(Path.Combine(deb, "usr", "share", "applications"));

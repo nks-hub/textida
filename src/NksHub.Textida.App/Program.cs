@@ -16,6 +16,7 @@ public static partial class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args is ["--update-helper", ..]) return Services.AppUpdater.RunUnixHelper(args);
         // The executable is a GUI program on Windows; reattach to the launching console so errors and --wait output are visible there.
         if (OperatingSystem.IsWindows()) AttachConsole(-1);
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -36,6 +37,17 @@ public static partial class Program
         {
             instanceLock = IpcEndpoint.TryAcquire(MainChannel);
             if (instanceLock is null) return ForwardToRunningInstance(parsed);
+        }
+
+        try
+        {
+            Services.AppUpdater.RecoverAtStartup(Services.AppUpdater.InstallationFolder(AppContext.BaseDirectory));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            Console.Error.WriteLine("textida update: " + e.Message);
+            instanceLock?.Dispose();
+            return 1;
         }
 
         // the textida command starts the editor from a terminal, and closing that terminal sends SIGHUP: the editor stays, so nothing in it is lost

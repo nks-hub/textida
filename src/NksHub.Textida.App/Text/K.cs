@@ -5,7 +5,7 @@ namespace NksHub.Textida.App.Text;
 /// and tests check that each constant exists in every language and that each key in the catalogue is used here.
 /// Plural keys are listed without the category suffix (the catalogue holds <c>.one</c>, <c>.few</c>, <c>.other</c>).
 /// </summary>
-public static class K
+public static partial class K
 {
     public const string AppName = "app.name";
     public const string TabUntitled = "tab.untitled";

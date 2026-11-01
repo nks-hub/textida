@@ -23,10 +23,9 @@ internal sealed class UpdateException(UpdateError error, string message, Excepti
 /// (made by the setup program), else by Setup.ps1 (made by Install.cmd).
 /// The old folder stays as <c>Textida.previous</c> and <see cref="Rollback"/> swaps back.
 /// </summary>
-internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicKeyBase64, string installDir)
+internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string publicKeyBase64, string installDir)
 {
-    /// <summary>OPEN DECISION: the address of the feed is not decided; empty means the build cannot check for updates.</summary>
-    public const string DefaultFeedUrl = "";
+    public const string DefaultFeedUrl = "https://github.com/nks-hub/textida/releases/latest/download/feed.json";
 
     /// <summary>OPEN DECISION: the update signing key does not exist yet. Base64 of the SubjectPublicKeyInfo of the ECDSA P-256 public key; empty means the build cannot verify, so it does not check.</summary>
     public const string DefaultPublicKey = "";
@@ -37,6 +36,7 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     public string InstallDir { get; } = installDir.TrimEnd('\\', '/');
     public string StagingDir => InstallDir + ".new";
     public string PreviousDir => InstallDir + ".previous";
+    internal UpdatePlatform Platform { get; init; } = CurrentPlatform;
 
     /// <summary>The registry key of Apps &amp; features that the setup keeps in step; null is the real one. Tests point it elsewhere.</summary>
     public string? UninstallKey { get; init; }
@@ -47,19 +47,25 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     public bool IsConfigured => feedUrl.Length > 0 && publicKeyBase64.Length > 0;
 
     /// <summary>Update and return need the setup program or the installer script next to the program.</summary>
-    public bool IsInstalled => File.Exists(Path.Combine(InstallDir, "Textida.exe")) && (File.Exists(SetupProgram) || File.Exists(Path.Combine(InstallDir, "Setup.ps1")));
+    public bool IsInstalled => Platform == UpdatePlatform.Windows
+        ? File.Exists(Path.Combine(InstallDir, "Textida.exe")) && (File.Exists(SetupProgram) || File.Exists(Path.Combine(InstallDir, "Setup.ps1")))
+        : File.Exists(Executable(InstallDir, Platform)) && File.Exists(VersionFile(InstallDir));
+
+    public bool UsesSystemPackageManager => Platform == UpdatePlatform.Linux &&
+        (File.Exists(Path.Combine(InstallDir, ".deb-managed")) || InstallDir == "/opt/textida");
 
     private string SetupProgram => Path.Combine(InstallDir, "TextidaSetup.exe");
 
-    public bool HasPrevious => File.Exists(Path.Combine(PreviousDir, "Textida.exe"));
+    public bool HasPrevious => File.Exists(Executable(PreviousDir, Platform));
 
     /// <summary>The identifier of this system in the feed and in the package name, like <c>win-x64</c>.</summary>
-    public static string CurrentRid => (OperatingSystem.IsWindows() ? "win-" : "other-") + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+    public static string CurrentRid => (CurrentPlatform switch { UpdatePlatform.Windows => "win-", UpdatePlatform.MacOS => "osx-", _ => "linux-" })
+        + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
 
     /// <summary>The version of the installed package: <c>version.txt</c> next to the program, else the assembly.</summary>
     public static string InstalledVersion(string dir)
     {
-        try { if (File.ReadAllText(Path.Combine(dir, "version.txt")).Trim() is { Length: > 0 } v) return v; }
+        try { if (File.ReadAllText(VersionFile(dir)).Trim() is { Length: > 0 } v) return v; }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* a portable copy without the file */ }
         return typeof(AppUpdater).Assembly.GetName().Version?.ToString(3) ?? "0";
     }
@@ -68,6 +74,19 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     public static string CreateFeed(ECDsa key, UpdateRelease release)
     {
         var payload = new JsonObject { ["version"] = release.Version, ["rid"] = release.Rid, ["url"] = release.Url, ["sha256"] = release.Sha256, ["size"] = release.Size }.ToJsonString();
+        return SignFeed(key, payload);
+    }
+
+    public static string CreateFeed(ECDsa key, IEnumerable<UpdateRelease> releases)
+    {
+        var items = new JsonArray();
+        foreach (var release in releases)
+            items.Add((JsonNode)new JsonObject { ["version"] = release.Version, ["rid"] = release.Rid, ["url"] = release.Url, ["sha256"] = release.Sha256, ["size"] = release.Size });
+        return SignFeed(key, new JsonObject { ["releases"] = items }.ToJsonString());
+    }
+
+    private static string SignFeed(ECDsa key, string payload)
+    {
         var signature = key.SignData(Encoding.UTF8.GetBytes(payload), HashAlgorithmName.SHA256);
         return new JsonObject { ["format"] = FeedFormat, ["payload"] = payload, ["signature"] = Convert.ToBase64String(signature) }.ToJsonString();
     }
@@ -78,12 +97,12 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
         if (!IsConfigured) throw new UpdateException(UpdateError.NotConfigured, "No update address or signing key is set in this build.");
         var feedUri = RequireSecure(new Uri(feedUrl));
         var text = Encoding.UTF8.GetString(await GetBytesAsync(feedUri, MaxFeedBytes, cancel));
-        var release = Verify(text);
+        var release = Verify(text, rid);
         if (release.Rid != rid) throw new UpdateException(UpdateError.WrongSystem, $"The feed offers {release.Rid}, this system is {rid}.");
         return Compare(release.Version, currentVersion) > 0 ? release with { Url = new Uri(feedUri, release.Url).AbsoluteUri } : null;
     }
 
-    private UpdateRelease Verify(string text)
+    private UpdateRelease Verify(string text, string rid)
     {
         JsonObject root;
         try { root = JsonNode.Parse(text) as JsonObject ?? throw new FormatException(); }
@@ -102,6 +121,12 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
         try
         {
             var p = (JsonNode.Parse(payload) as JsonObject)!;
+            if (p["releases"] is JsonArray releases)
+            {
+                var matches = releases.OfType<JsonObject>().Where(r => r["rid"]?.GetValue<string>() == rid).ToArray();
+                if (matches.Length != 1) throw new UpdateException(UpdateError.WrongSystem, "The feed must offer exactly one package for this system.");
+                p = matches[0];
+            }
             var release = new UpdateRelease(p["version"]!.GetValue<string>(), p["rid"]!.GetValue<string>(), p["url"]!.GetValue<string>(), p["sha256"]!.GetValue<string>(), p["size"]!.GetValue<long>());
             if (release.Size <= 0 || release.Sha256.Length != 64 || release.Version.Length == 0) throw new FormatException();
             _ = Compare(release.Version, "0");
@@ -117,7 +142,7 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     public async Task<string> DownloadAsync(UpdateRelease release, string folder, CancellationToken cancel)
     {
         Directory.CreateDirectory(folder);
-        var zip = Path.Combine(folder, "Textida-" + release.Version + ".zip");
+        var zip = Path.Combine(folder, "Textida-" + release.Version + (Platform == UpdatePlatform.Linux ? ".tar.gz" : ".zip"));
         try
         {
             using var file = new FileStream(zip, FileMode.Create, FileAccess.ReadWrite);
@@ -134,6 +159,8 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     /// <summary>Unpacks the verified ZIP next to the installed folder and checks that it is a whole package of <paramref name="release"/>. The running version is not touched.</summary>
     public string Stage(string zip, UpdateRelease release)
     {
+        if (UsesSystemPackageManager) throw new UpdateException(UpdateError.WrongSystem, "Update this installation through apt.");
+        if (Platform != UpdatePlatform.Windows) return StageUnix(zip, release);
         ClearStaging();
         try
         {
@@ -174,6 +201,7 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     /// <summary>The switch to <paramref name="staged"/>, or the return to the previous version when it is null.</summary>
     private Process StartHelper(string? staged, bool restart)
     {
+        if (Platform != UpdatePlatform.Windows) return StartUnixHelper(staged, restart);
         var folder = Path.Combine(Path.GetTempPath(), "textida-update-" + Guid.NewGuid().ToString("N")[..12]);
         Directory.CreateDirectory(folder);
         ProcessStartInfo start;
@@ -238,7 +266,7 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
     {
         try
         {
-            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancel);
+            using var response = await FetchResponseAsync(uri, cancel);
             response.EnsureSuccessStatusCode();
             if (response.Content.Headers.ContentLength > limit) throw new UpdateException(UpdateError.BadPackage, "The server sent more than the signed size.");
             await using var body = await response.Content.ReadAsStreamAsync(cancel);
@@ -253,5 +281,19 @@ internal sealed class AppUpdater(HttpClient http, string feedUrl, string publicK
             }
         }
         catch (Exception e) when (e is HttpRequestException or IOException) { throw new UpdateException(UpdateError.Network, e.Message, e); }
+    }
+
+    private async Task<HttpResponseMessage> FetchResponseAsync(Uri uri, CancellationToken cancel)
+    {
+        var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancel);
+        // GitHub serves release assets from a separate host; other redirects keep the network policy's same-host rule.
+        if (uri.Host == "github.com" && response.StatusCode is System.Net.HttpStatusCode.Found or System.Net.HttpStatusCode.SeeOther &&
+            response.Headers.Location is { IsAbsoluteUri: true } next && next.Scheme == "https" &&
+            next.Host is "release-assets.githubusercontent.com" or "objects.githubusercontent.com")
+        {
+            response.Dispose();
+            return await http.GetAsync(next, HttpCompletionOption.ResponseHeadersRead, cancel);
+        }
+        return response;
     }
 }
