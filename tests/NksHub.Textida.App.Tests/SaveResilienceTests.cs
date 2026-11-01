@@ -4,14 +4,16 @@ using System.Text.Json.Nodes;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Tests;
 
 [Collection("Latency")]
-public sealed class SaveResilienceTests
+public sealed class SaveResilienceTests(ITestOutputHelper output)
 {
     [AvaloniaTheory]
+    [Trait("Category", "Perf")]
     [InlineData(false)]
     [InlineData(true)]
     public void A_stream_flush_delayed_by_1600_ms_keeps_keyboard_navigation_responsive_and_only_confirms_after_flush(bool cancel)
@@ -39,6 +41,8 @@ public sealed class SaveResilienceTests
                 TestApp.Press(window, Key.Right);
                 Dispatcher.UIThread.RunJobs();
             }
+            var baseline = MeasureNavigation(window);
+            output.WriteLine($"navigation before save: n=30, p95 {baseline.P95:F3} ms, max {baseline.Max:F3} ms");
             int confirmed = 0;
             document.Saved += (_, _) => confirmed++;
             var delay = new Stopwatch();
@@ -52,18 +56,10 @@ public sealed class SaveResilienceTests
             TestApp.Press(window, Key.S, TestApp.Mod);
             PumpUntil(() => entered.IsSet);
 
-            var samples = new List<double>();
             long before = tab.Hex.Caret;
-            for (int i = 0; i < 30; i++)
-            {
-                var sample = Stopwatch.StartNew();
-                TestApp.Press(window, Key.Right);
-                samples.Add(sample.Elapsed.TotalMilliseconds);
-                Dispatcher.UIThread.RunJobs();
-            }
+            var during = MeasureNavigation(window);
+            output.WriteLine($"navigation during flush: n=30, p95 {during.P95:F3} ms, max {during.Max:F3} ms");
             Assert.True(tab.Hex.Caret > before);
-            samples.Sort();
-            Assert.True(samples[28] < 33, $"Keyboard p95 during flush: {samples[28]:F1} ms (limit 33 ms)");
             Assert.True(document.IsSaving);
             Assert.Equal(0, confirmed);
             Assert.Equal(Hash(original), Hash(File.ReadAllBytes(tab.Path!)));
@@ -79,6 +75,7 @@ public sealed class SaveResilienceTests
             Assert.Equal(cancel, document.IsModified);
             Assert.Equal(Hash(cancel ? original : expected), Hash(File.ReadAllBytes(tab.Path!)));
             Assert.Equal(Hash(expected), Hash(document.ReadBytes(new(0, document.ByteLength))));
+            Assert.True(during.P95 < 33, $"Keyboard p95 during flush: {during.P95:F1} ms (limit 33 ms); before save {baseline.P95:F1} ms");
         }
         finally
         {
@@ -86,6 +83,21 @@ public sealed class SaveResilienceTests
             TestApp.Cleanup(app);
             Loc.SetLanguage(Loc.DefaultLanguage);
         }
+    }
+
+    private static (double P95, double Max) MeasureNavigation(MainWindow window)
+    {
+        var samples = new List<double>();
+        for (int i = 0; i < 30; i++)
+        {
+            long start = Stopwatch.GetTimestamp();
+            TestApp.Press(window, Key.Right);
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            samples.Add(Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+        }
+        samples.Sort();
+        return (samples[(int)(samples.Count * 0.95)], samples[^1]);
     }
 
     private static void PumpUntil(Func<bool> condition)
