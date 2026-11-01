@@ -8,6 +8,8 @@
 
 > Text editor for Windows, macOS and Linux with a paged document core for files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
 
+![Markdown source beside its preview in Textida 0.1.4](assets/screenshots/markdown-editing.png)
+
 [Product page and screenshots](https://nks-hub.cz/reference/repo-textida)
 
 The editor is a new program inspired by PSPad; it does not use PSPad code, data or resources.
