@@ -148,6 +148,9 @@ internal static class AppCommands
         On("nks.edit.insertLoremSentences", w => w.InsertLorem(Core.Data.LoremUnit.Sentences));
         On("nks.edit.insertLoremWords", w => w.InsertLorem(Core.Data.LoremUnit.Words));
         On("nks.edit.inspectCharacter", w => w.InspectCharacter());
+        On("nks.edit.keywordsUpper", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Upper));
+        On("nks.edit.keywordsLower", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Lower));
+        On("nks.edit.keywordsAsDefined", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.AsDefined));
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

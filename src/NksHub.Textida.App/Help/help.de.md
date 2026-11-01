@@ -2037,3 +2037,11 @@ Die Befehle im Menü Bearbeiten fügen Platzhaltertext ein und sagen, was das Ze
 2. Für das Zeichen am Cursor wählen Sie Bearbeiten und Zeicheninspektor.
 - Der Text ist immer derselbe und beginnt mit dem klassischen „Lorem ipsum dolor sit amet“; ein Absatz hat vier bis sechs Sätze, die Anzahl ist 1 bis 10.000. Er wird an jedem Cursor eingefügt, eine Auswahl wird ersetzt, es ist ein Rückgängig-Schritt.
 - Der Inspektor zeigt Codepunkt, Name, Kategorie und die Bytes des Zeichens in UTF-8, in UTF-16 und in der Kodierung der Datei. Am Textende wird das Zeichen vor dem Cursor untersucht. Die Namen stammen aus Unicode 15.
+
+## [edit.keywordCase] Groß-/Kleinschreibung von Schlüsselwörtern
+commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
+Die Befehle im Menü Bearbeiten, Umwandeln, ändern die Schreibung nur bei den Schlüsselwörtern der Sprache.
+1. Markieren Sie einen Teil des Textes oder lassen Sie nichts markiert für das ganze Dokument.
+2. Wählen Sie Bearbeiten, Umwandeln und Schlüsselwörter groß, klein oder wie definiert.
+- Es ändern sich nur die Wörter aus den Schlüsselwortlisten der Grammatik, nicht Zeichenketten, Kommentare oder Bezeichner. Es funktioniert nur bei Sprachen ohne Unterscheidung von Groß- und Kleinschreibung (zum Beispiel SQL, Visual Basic, Batchdateien); bei den anderen ändert der Editor nichts und sagt warum.
+- „Wie definiert“ verwendet die Schreibweise aus der Liste der Grammatik. Es ist ein Rückgängig-Schritt.

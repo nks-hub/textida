@@ -83,6 +83,21 @@ public class GeneratedTextTests : IDisposable
         Assert.Contains("00 E9", asked.Message); // UTF-16
     }
 
+    [AvaloniaFact]
+    public void Keywords_change_case_in_one_undo_step_in_a_language_that_allows_it_and_not_in_one_that_does_not()
+    {
+        var w = _app.CreateWindow(null);
+        var sql = w.OpenFile(_temp.File("q.sql", "select a from t -- where x\nwhere 'from' = a\n"), null);
+        w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Upper);
+        Assert.Equal("SELECT a FROM t -- where x\nWHERE 'from' = a\n", sql.Editor!.Document.Text);
+        sql.Doc.Doc.Undo();
+        Assert.Equal("select a from t -- where x\nwhere 'from' = a\n", sql.Editor.Document.Text);
+
+        var cs = w.OpenFile(_temp.File("a.cs", "class A { void F() { if (x) return; } }\n"), null);
+        w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Upper);
+        Assert.Equal("class A { void F() { if (x) return; } }\n", cs.Editor!.Document.Text);
+    }
+
     private static async Task Until(Func<bool> done)
     {
         for (var clock = System.Diagnostics.Stopwatch.StartNew(); !done() && clock.ElapsedMilliseconds < 5000;)

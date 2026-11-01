@@ -2037,3 +2037,11 @@ The commands in the Edit menu insert placeholder text and say what the character
 2. For the character at the caret choose Edit and Character Inspector.
 - The text is always the same and begins with the classic “Lorem ipsum dolor sit amet”; a paragraph has four to six sentences, the count is 1 to 10,000. It goes in at every caret, a selection is replaced, it is one Undo step.
 - The inspector shows the code point, the name, the category and the bytes of the character in UTF-8, in UTF-16 and in the encoding of the file. At the end of the text the character before the caret is examined. The names are from Unicode 15.
+
+## [edit.keywordCase] Case of keywords
+commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
+The commands in the Edit menu, Convert, change the case of the keywords of the language only.
+1. Select part of the text, or leave nothing selected for the whole document.
+2. Choose Edit, Convert and Keywords to Upper Case, Lower Case or as Defined.
+- Only the words of the keyword lists of the grammar change, not strings, comments or identifiers. It works only for languages that are not case sensitive (SQL, Visual Basic and batch files, for example); for the others the editor changes nothing and says why.
+- “As Defined” uses the spelling of the grammar's list. It is one Undo step.

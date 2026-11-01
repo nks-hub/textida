@@ -2037,3 +2037,11 @@ Příkazy v nabídce Úpravy vloží ukázkový text a řeknou, co je znak pod k
 2. Pro znak pod kurzorem zvolte Úpravy a Inspektor znaku.
 - Text je pokaždé stejný a začíná klasickým „Lorem ipsum dolor sit amet“; odstavec má čtyři až šest vět, počet je 1 až 10 000. Vloží se na každý kurzor, výběr se nahradí, je to jeden krok Zpět.
 - Inspektor ukáže kódový bod, jméno, kategorii a bajty znaku v UTF-8, v UTF-16 a v kódování souboru. Na konci textu se zkoumá znak před kurzorem. Jména jsou z Unicode 15.
+
+## [edit.keywordCase] Velikost klíčových slov
+commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
+Příkazy v nabídce Úpravy, Převést změní velikost písmen jen u klíčových slov jazyka.
+1. Označte část textu, nebo nechte výběr prázdný pro celý dokument.
+2. Zvolte Úpravy, Převést a Klíčová slova velkými, malými nebo podle gramatiky.
+- Mění se jen slova ze seznamů klíčových slov gramatiky, ne řetězce, komentáře ani identifikátory. Funguje to jen u jazyků, které velikost písmen nerozlišují (například SQL, Visual Basic, dávky); u ostatních editor nic nezmění a řekne proč.
+- „Podle gramatiky“ použije pravopis ze seznamu gramatiky. Je to jeden krok Zpět.

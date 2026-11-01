@@ -72,6 +72,43 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>
+    /// Changes the case of the keywords the grammar of the document lists, in the selections (the whole document when nothing is selected), as one Undo step. A language whose grammar is case sensitive,
+    /// and a document without a grammar, are refused with the reason in the status bar.
+    /// </summary>
+    internal CommandOutcome ChangeKeywordCase(Core.Syntax.KeywordCaseMode mode)
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface || Active is not { } tab) return CommandOutcome.NotHandled;
+        if (LanguageModes.GrammarId(tab.Doc) is not { } grammarId)
+        {
+            SetStatusMessage(Loc.Get(K.KeywordCaseNoGrammar));
+            return CommandOutcome.Handled;
+        }
+        var tokenizer = LanguageModes.Tokenizer(grammarId);
+        if (!Core.Syntax.KeywordCaseChange.IsSafe(tokenizer.Grammar))
+        {
+            SetStatusMessage(Loc.Get(K.KeywordCaseSensitive, ("language", tokenizer.Grammar.Name)));
+            return CommandOutcome.Handled;
+        }
+        string text = surface.Document.Text;
+        var ranges = surface.GetSelections().Where(s => !s.IsEmpty).Select(s => (s.Start, s.End)).ToList();
+        if (ranges.Count == 0) ranges.Add((0, text.Length));
+        var edits = ranges.SelectMany(r => Core.Syntax.KeywordCaseChange.Edits(text, tokenizer, mode, r.Item1, r.Item2)).Distinct().OrderByDescending(e => e.Start).ToList();
+        if (edits.Count == 0)
+        {
+            SetStatusMessage(Loc.Get(K.KeywordCaseNothing));
+            return CommandOutcome.Handled;
+        }
+        RunEdit((s, sels) =>
+        {
+            using (s.Document.RunUpdate())
+                foreach (var (start, length, replacement) in edits) s.Document.Replace(start, length, replacement); // from the end, so the offsets that are left stay right; the lengths do not change
+            return sels;
+        });
+        SetStatusMessage(Loc.Get(K.KeywordCaseDone, ("count", edits.Count)));
+        return CommandOutcome.Handled;
+    }
+
     /// <summary>Turns the selected JSON (or the whole document) into types of <paramref name="language"/> in a new tab; the name of the root type is the one of the file.</summary>
     internal CommandOutcome JsonToTypes(TypeLanguage language)
     {

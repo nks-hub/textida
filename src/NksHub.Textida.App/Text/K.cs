@@ -502,6 +502,10 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string KeywordCaseNoGrammar = "keywordCase.noGrammar";
+    public const string KeywordCaseSensitive = "keywordCase.sensitive";
+    public const string KeywordCaseDone = "keywordCase.done";
+    public const string KeywordCaseNothing = "keywordCase.nothing";
     public const string UnicodeCategoryLu = "unicode.category.Lu";
     public const string UnicodeCategoryLl = "unicode.category.Ll";
     public const string UnicodeCategoryLt = "unicode.category.Lt";
