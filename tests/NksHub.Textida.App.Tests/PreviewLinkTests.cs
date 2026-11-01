@@ -25,10 +25,11 @@ public class PreviewLinkTests
         Assert.Equal(sentence.FontSize, button.FontSize);
         Assert.Equal(sentence.FontFamily, button.FontFamily);
         var container = Assert.Single(sentence.Inlines!.OfType<InlineUIContainer>());
-        Assert.Equal(BaselineAlignment.Baseline, container.BaselineAlignment);
-        // the text inside the button starts on the line of the sentence: its top is not above the top of the sentence
+        Assert.Equal(BaselineAlignment.Center, container.BaselineAlignment);
         var inner = button.GetVisualDescendants().OfType<TextBlock>().First();
-        Assert.True(inner.TranslatePoint(default, sentence)!.Value.Y >= -1);
+        window.UpdateLayout();
+        double linkBaseline = inner.TranslatePoint(default, sentence)!.Value.Y + inner.TextLayout.TextLines[0].Baseline;
+        Assert.Equal(sentence.TextLayout.TextLines[0].Baseline, linkBaseline, 0.5); // the text of the link is on the baseline of the words around it
         window.Close();
     }
 }

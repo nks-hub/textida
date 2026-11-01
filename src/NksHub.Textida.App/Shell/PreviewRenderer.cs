@@ -287,7 +287,7 @@ internal static partial class PreviewRenderer
     private static void AddLink(InlineCollection into, string label, string target, Ctx ctx, FontWeight weight, FontStyle style)
     {
         var text = Loc.Get(K.PreviewPanelLink, ("text", label), ("url", target));
-        if (ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)) { BaselineAlignment = BaselineAlignment.Baseline });
+        if (ctx.Open is { } open && PreviewPolicy.LinkTarget(target) is { } uri) into.Add(new InlineUIContainer(LinkButton(text, uri, open)) { BaselineAlignment = BaselineAlignment.Center });
         else into.Add(new Run(text) { FontWeight = weight, FontStyle = style });
     }
 
@@ -296,9 +296,38 @@ internal static partial class PreviewRenderer
     {
         var button = new Button { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap } };
         button.Classes.Add("previewlink");
+        // a button does not inherit the font of the sentence it stands in (the theme gives it its own), which left the link smaller and higher than the words around it
+        button.AttachedToVisualTree += (_, _) =>
+        {
+            if (button.GetVisualAncestors().OfType<TextBlock>().FirstOrDefault() is { } sentence)
+            {
+                button.Bind(Avalonia.Controls.Primitives.TemplatedControl.FontSizeProperty, sentence.GetObservable(TextBlock.FontSizeProperty));
+                button.Bind(Avalonia.Controls.Primitives.TemplatedControl.FontFamilyProperty, sentence.GetObservable(TextBlock.FontFamilyProperty));
+                // the object of an inline sits by its middle on the line, so its text lands a little off the baseline of the words around it: move it by the difference (a drawing offset, the line does not change)
+                var shift = new TranslateTransform();
+                ((TextBlock)button.Content!).RenderTransform = shift; // on the text, not on the button, whose theme sets a transform of its own
+                sentence.LayoutUpdated += (_, _) => AlignOnBaseline(button, sentence, shift);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => AlignOnBaseline(button, sentence, shift), Avalonia.Threading.DispatcherPriority.Loaded);
+            }
+        };
         AutomationProperties.SetName(button, text);
         button.Click += (_, _) => open(uri);
         return button;
+    }
+
+    /// <summary>Puts the text of an inline button on the baseline of the line of <paramref name="sentence"/> it stands in.</summary>
+    internal static void AlignOnBaseline(Button button, TextBlock sentence, TranslateTransform shift)
+    {
+        if (button.Content is not TextBlock inner || inner.TextLayout.TextLines.Count == 0 || sentence.TextLayout.TextLines.Count == 0) return;
+        if (inner.TranslatePoint(default, sentence) is not { } at) return;
+        double mine = at.Y - shift.Y + inner.TextLayout.TextLines[0].Baseline, top = 0, baseline = sentence.TextLayout.TextLines[^1].Baseline;
+        foreach (var line in sentence.TextLayout.TextLines) // the line the button is on, by its text's position
+        {
+            if (mine < top + line.Height) { baseline = top + line.Baseline; break; }
+            top += line.Height;
+        }
+        double wanted = baseline - mine;
+        if (Math.Abs(wanted - shift.Y) > 0.25) shift.Y = wanted;
     }
 
     /// <summary>A <c>[label](target)</c> or <c>![label](target)</c> at <paramref name="at"/>; Length 0 when there is none. A title after the address (<c>(a.png "title")</c>) is not part of the target.</summary>
