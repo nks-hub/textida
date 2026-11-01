@@ -8,7 +8,7 @@ using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Tests;
 
-[Collection("LocState")]
+[Collection("Latency")]
 public sealed class SaveResilienceTests
 {
     [AvaloniaTheory]
@@ -34,6 +34,11 @@ public sealed class SaveResilienceTests
             var document = tab.Doc.Doc;
             Assert.True(document.Insert(100, "pending revision"u8.ToArray(), new() { RawBytes = true }).Applied);
             byte[] expected = [.. original[..100], .. "pending revision"u8.ToArray(), .. original[100..]];
+            for (int i = 0; i < 5; i++)
+            {
+                TestApp.Press(window, Key.Right);
+                Dispatcher.UIThread.RunJobs();
+            }
             int confirmed = 0;
             document.Saved += (_, _) => confirmed++;
             var delay = new Stopwatch();
