@@ -1,7 +1,7 @@
-// Builds the Linux packages: Textida-<version>-linux-x64.tar.gz (the NativeAOT publish output with install.sh, which installs for one user into ~/.local, and uninstall.sh)
-// and textida_<version>_amd64.deb (the same program in /opt/textida with /usr/bin/textida, a desktop entry and the icon).
+// Builds a linux-x64 or linux-arm64 NativeAOT tar.gz with per-user install.sh/uninstall.sh,
+// and the matching amd64 or arm64 .deb with /opt/textida, /usr/bin/textida, a desktop entry and the icon.
 //
-//   dotnet run tools/BuildLinuxPackage.cs -- [--version V] [--rid linux-x64] [--output DIR] [--publish-dir DIR] [--dotnet PATH] [--no-deb]
+//   dotnet run tools/BuildLinuxPackage.cs -- [--version V] [--rid linux-x64|linux-arm64] [--output DIR] [--publish-dir DIR] [--dotnet PATH] [--no-deb]
 //
 // It runs only on Linux (it needs tar, dpkg-deb and the NativeAOT tool chain: clang and zlib). It publishes the app unless --publish-dir names an existing output and runs the AOT check on it,
 // which starts every built-in plugin. Linux is not a supported system yet (R10 names Windows and macOS), so these packages are a preview.

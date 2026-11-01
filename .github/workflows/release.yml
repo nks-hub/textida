@@ -104,7 +104,15 @@ jobs:
   linux:
     if: inputs.signing_only != true
     # the oldest supported runner, so the program needs no newer glibc than Ubuntu 22.04 has
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-22.04
+          - rid: linux-arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -118,17 +126,19 @@ jobs:
       - name: Tools
         run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev xvfb xauth libice6 libsm6 libfontconfig1
       - name: Build
-        run: dotnet run tools/BuildLinuxPackage.cs -- --version "$VERSION" --output artifacts
+        run: |
+          uname -m
+          dotnet run tools/BuildLinuxPackage.cs -- --version "$VERSION" --rid ${{ matrix.rid }} --output artifacts
       - name: Smoke test
         run: |
           mkdir smoke
-          tar -xzf "artifacts/Textida-$VERSION-linux-x64.tar.gz" -C smoke
-          TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-linux-x64/Textida" --smoke
+          tar -xzf "artifacts/Textida-$VERSION-${{ matrix.rid }}.tar.gz" -C smoke
+          TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-${{ matrix.rid }}/Textida" --smoke
       - name: Sample plugin
-        run: dotnet run tools/CheckSamplePlugin.cs -- --rid linux-x64
+        run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: ${{ matrix.rid }}
           path: |
             artifacts/*.tar.gz
             artifacts/*.deb
@@ -149,9 +159,9 @@ jobs:
         run: |
           folder="$RUNNER_TEMP/update-signing"
           mkdir "$folder"
-          for rid in win-x64 osx-arm64 osx-x64 linux-x64; do
+          for rid in win-x64 osx-arm64 osx-x64 linux-x64 linux-arm64; do
             ext=zip
-            if [ "$rid" = linux-x64 ]; then ext=tar.gz; fi
+            case "$rid" in linux-*) ext=tar.gz ;; esac
             printf 'Signing verification fixture\n' > "$folder/Textida-0.0.0-keycheck-$rid.$ext"
           done
           dotnet run tools/SignUpdateFeed.cs -- "$folder" 0.0.0-keycheck https://example.test/updates
@@ -201,8 +211,10 @@ jobs:
             if ls *.deb >/dev/null 2>&1; then
               echo
               echo "**Linux x64 (preview, not tested on real desktops yet)**"
-              echo "- \`textida_*_amd64.deb\` for Debian and Ubuntu: \`sudo apt install ./textida_*_amd64.deb\`."
-              echo "- \`Textida-$v-linux-x64.tar.gz\` for other distributions: unpack and run \`./install.sh\` (installs into ~/.local)."
+              for package in textida_*.deb; do
+                echo "- \`$package\` for Debian and Ubuntu: \`sudo apt install ./$package\`."
+              done
+              echo "- \`Textida-$v-linux-*.tar.gz\` archives contain \`install.sh\` for a per-user installation into ~/.local. Choose the archive for your architecture."
             fi
             echo
             echo "Checksums: \`SHA256SUMS.txt\`."

@@ -21,7 +21,7 @@ if (!key.ExportSubjectPublicKeyInfo().AsSpan().SequenceEqual(verifier.ExportSubj
 var folder = Path.GetFullPath(args[0]);
 var version = args[1];
 var releases = new JsonArray();
-foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
+foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64", "linux-arm64" })
 {
     var name = $"Textida-{version}-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip");
     var file = Path.Combine(folder, name);
