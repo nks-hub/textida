@@ -27,9 +27,7 @@ public sealed class SaveResilienceTests
             var original = new byte[64 << 10];
             new Random(71).NextBytes(original);
             original[0] = 0;
-            var tab = window.OpenFile(temporary.Bytes("save.bin", original), null);
-            TestApp.Press(window, Key.K, TestApp.Mod);
-            TestApp.Press(window, Key.H, TestApp.Mod);
+            var tab = window.OpenHex(temporary.Bytes("save.bin", original), null);
             Dispatcher.UIThread.RunJobs();
             Assert.NotNull(tab.Hex);
             tab.Hex.Focus();
