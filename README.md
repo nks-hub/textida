@@ -84,10 +84,10 @@ The corpus with the 10 GiB and 50 GiB files needs about 130 GB of free disk spac
 ```bash
 dotnet build NksHub.Textida.sln
 dotnet test NksHub.Textida.sln --filter "Category!=Perf"
-dotnet test tests/NksHub.Textida.App.Tests --filter "Category=Perf"
+DOTNET_TieredCompilation=0 dotnet test tests/NksHub.Textida.App.Tests -c Release --filter "Category=Perf"
 ```
 
-Tests marked `Perf` measure latency against a limit (typing p95 33 ms), so they run alone, not next to the other test assemblies. `Large` tests use a sparse 4.5 GiB file and take about a minute.
+Tests marked `Perf` use Release with tiered compilation disabled and run one test assembly at a time (typing p95 33 ms). In PowerShell, set `$env:DOTNET_TieredCompilation = "0"` and omit the Bash assignment prefix. `Large` tests use a sparse 4.5 GiB file and take about a minute.
 
 A NativeAOT distribution comes from one command; it holds the editor, the built-in plugins in `plugins/<name>/` and `textida-mcp` in `mcp/`, without symbols (`-p:PublishSymbols=true` keeps the `.pdb` files). The AOT check verifies the layout and starts every program:
 
