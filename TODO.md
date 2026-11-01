@@ -482,6 +482,7 @@ Společný model, na kterém stojí hledání, náhrady, recepty, MCP i pluginy.
   - **Hotovo, když:** na prototypu zvolené cesty s UI v přihlášené relaci na referenční Windows VM i referenční Mac se čistý ASCII fixture 100 MiB i UTF-8 log 100 MiB otevře a první úprava z klávesnice je vykreslená do 2 s warm / 4 s cold; přírůstek private commit proti stabilizované prázdné aplikaci je u ASCII ≤ 350 MiB; skládaný znak ze scénáře IME v P1.8.2 se dopíše bez zdvojení i ztráty a NVDA na referenční Windows VM i VoiceOver na referenční Mac přečtou upravený řádek; po zabití procesu se úprava vrátí podle P1.5.1 a soubor jde uložit. Když cesta některý z těchto cílů nesplní, bod zůstává **otevřený** a P1 neprojde bránou. Předložení rozporu majiteli je eskalace, ne splnění; příslib 100 MiB platí, dokud ho majitel výslovně nezmění v zadání.
   - **Závisí na:** P1.2.7, P1.2.8, PR.2.1, P1.5.1, P1.8.2
   - **Odhad:** bez odhadu; cenu pokusu určí PR.8.1
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** všechny limity dřív označené jako zástupné mají hodnotu a důvod v kódu (`PluginLimits`, `PagedSpillLimits`, `JournalLimits`, `InstallLimits`): schránka 1 Mi znaků na položku, šablona 256 K znaků, žurnál 1 MiB na úpravu a 32 MiB na dokument (07a4e86c).
 - [x] **P1.2.3** Identita, revize a otisk podkladu
   - **Co a proč:** Každý dokument má revizi (číslo, které roste s každou změnou) a otisk podkladu na disku (velikost, čas, otisk). Změna souboru jiným programem se pozná a nikdy se tiše nepřepíše. Tady vzniká služba detekce; nabídku v UI (porovnat, znovu načíst, ponechat) přijímá P1.4.8, aby kritéria nebyla kruhová.
   - **Funkce:** F140, F006, F032
@@ -1657,6 +1658,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Odhad:** v rámci F198 (viz P3b.3.1)
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. `document/mapPositions`, rozpočet snapshotů v bajtech, uvolnění při konci pluginu, strop hledání s `next`.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** kvóta snapshotů 64 MiB na plugin (řádově hranice, nad kterou VS Code soubor rozšířením nepředá), nejvýš 4 snapshoty, doba života 30 s (doba, po které hostitel plugin považuje za ztracený); test `DecidedLimitsTests` (07a4e86c).
 - [ ] **P3b.3.4** Události dokumentů a jejich obnova
   - **Co a proč:** Události s rozsahy a revizemi, ne s textem. Plugin, který události nestíhá nebo je ztratil po restartu, dostane signál k nové synchronizaci.
   - **Funkce:** F198 (částečně: události)
@@ -2409,6 +2411,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P3b.2.2, P6.1.1
   - **Odhad:** 3–6 ČT za P6.2.2, P6.2.4 a P6.2.5
   - **Umístění:** jádro
+  - **Stav 1. 11. 2026 (sloučeno):** `GitStageRealTests` připraví přes příkaz aplikace a skutečný proces pluginu Git jen úsek u kurzoru do skutečného indexu, pracovní soubor zůstane beze změny (4866d3e3).
 - [ ] **P6.2.7** Renderer náhledu: volba, AOT prototyp a bezpečnostní politika
   - **Co a proč:** Řízený náhled (P6.2.4) i HTML a Markdown náhled (P9.3.1) potřebují renderer, který dnes vybraný není. Náhled může záviset na runtime mimo přibalený .NET: Avalonia.Controls.WebView používá na Windows WebView2 a na macOS WKWebView a Windows 10 může potřebovat instalaci WebView2 Runtime. Bezpečnostní politika náhledu vzniká tady, před API náhledu; P9.3.1 ji jen rozšíří a zopakuje s Mermaid. Tím zmizí kruh P6.2.4 → P9.3.1 → P6.2.4. R10 nedovoluje náhled na starších systémech vypnout.
   - **Funkce:** žádná (infrastruktura)
@@ -2439,6 +2442,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P3b.2.2
   - **Odhad:** v rámci odhadu P6.2.2
   - **Umístění:** jádro
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** jedna aktualizace panelu agenta nejvýš 64 Ki znaků; test (07a4e86c).
 - [ ] **P6.2.6** Virtuální dokumenty v API
   - **Co a proč:** Dokument, který plugin dodá jako pohled na data (přepisy agentů F257, výsledky), jen pro čtení, s identitou a revizí, nad bajtovým API P3b.3.1. Maskování tajemství (P4.6.2) platí i tady.
   - **Funkce:** žádná (infrastruktura API)
@@ -2563,6 +2567,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Závisí na:** P3b.1.1, P6.2.5
   - **Odhad:** v rámci F180 (viz P6.6.1)
   - **Umístění:** vestavěný plugin
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** `initialize` a `session/new` 30 s (agent přes npx se může nejdřív stahovat), nečinnost tahu 300 s, strop čteného souboru 512 KiB (asi 128 tisíc tokenů); test `DecidedLimitsTests` (07a4e86c).
 - [ ] **P6.6.3** Soubory, návrhy, oprávnění a hranice záruky
   - **Co a proč:** `fs/read_text_file` vrací kartu i s neuloženými změnami; `fs/write_text_file` jde jako návrh do F178. `session/request_permission` se ukáže jako dialog s volbami agenta. Brána API není sandbox: editor hlídá jen zápis, který jde přes něj. Agent jako podproces může zapisovat vlastními nástroji mimo editor. Úkol určí a v UI řekne režim oprávnění každého podporovaného adaptéru a ověří zákaz přímého zápisu jen v rozsahu, který editor skutečně řídí.
   - **Funkce:** F180 (částečně: soubory a oprávnění)
@@ -2721,6 +2726,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P3b.3.1, P2.5.2
   - **Odhad:** 3–5 ČT za P8.4.1–P8.4.3
   - **Umístění:** jádro
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** debounce diagnostiky 300 ms, nejvýš 1000 diagnostik na dokument a zdroj (výchozí `maxNumberOfProblems` ukázkového LSP serveru); test (07a4e86c).
 - [ ] **P8.4.2** Doplňování v API
   - **Co a proč:** Nabídka doplnění od pluginu s revizí, dodatečnými úpravami (import, `use`) a zrušením zastaralé odpovědi.
   - **Funkce:** žádná (infrastruktura API)
@@ -2729,6 +2735,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Závisí na:** P8.4.1
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** čekání na doplňování 1000 ms (hranice, po které se přeruší tok myšlenek), nejvýš 200 položek na plugin (07a4e86c).
 - [x] **P8.4.3** Workspace edit v API
   - **Co a proč:** Dávka úprav ve více souborech včetně vytvoření, přejmenování a smazání souboru, přes službu náhledu P2.5.2.
   - **Funkce:** žádná (infrastruktura API)
@@ -2799,6 +2806,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin LSP
   - **Stav 31. 10. 2026 (sloučeno):** hotovo v kódu: hover (2dc91bba), formátování přes revizi změn (9019445d), code actions a rychlé opravy přes revizi (22911d4a; akce, které jen spouštějí příkaz serveru, se nenabízejí), nápověda k parametrům jako oznámení s aktivním parametrem (780ef358; plovoucí okno ne), symboly dokumentu a projektu v osnově a `@` (290c003d), vložené nápovědy a sémantické barvy přes nové API `decorations/publish` (a5074922). Vše jen podle capabilities serveru, s převodem UTF-16 na bajty a zahozením staré revize; testy proti FakeLsp. Neověřeno: vzhled v aplikaci, skutečné servery (P8.5.7); nápovědy a barvy se načítají příkazem, po úpravě se jen posouvají.
   - **Stav 31. 10. 2026 (večer, sloučeno):** vložené nápovědy a sémantické barvy se po úpravě obnoví samy (debounce 600 ms, placeholder OPEN) a na požadavky `workspace/inlayHint/refresh` a `workspace/semanticTokens/refresh` (def38916); nápověda k parametrům je okno u kurzoru ve vzhledu D5 s tučným aktivním parametrem, zavře se Esc, odchodem z volání nebo ztrátou fokusu, má přístupný název (99c99b89). Neověřeno vykreslení v aplikaci a čtečka.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** obnova vložených nápověd a sémantických barev 300 ms po úpravě (07a4e86c).
 - [ ] **P8.5.7** Ověření se skutečnými jazykovými servery
   - **Co a proč:** Všechny testy LSP běží jen proti FakeLsp; skutečné servery katalogu nikdo neověřil. Audit 27. 10. 2026 doporučil pilot: Roslyn LSP a csharp-ls (C#), rust-analyzer (Rust), Dart Analysis Server, clangd (C/C++ s `compile_commands.json`), bash-language-server se ShellCheckem a pro PHP porovnání DEVSENSE, Intelephense a PHPantom. Test RealTools našel, že Roslyn posílá telemetrii i s `--telemetryLevel off` (otevřené, porušuje PR.6.4).
   - **Funkce:** F157, F213
@@ -3197,6 +3205,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Umístění:** jádro
   - **Stav 27. 10. 2026:** částečně. Živý náhled Markdownu a HTML v panelu (aktualizace při psaní po 300 ms, hodnota je placeholder), tabulky jako mřížka, osnova nadpisů se skokem. Chybí: synchronizace posunu, místní obrázky, ověření politiky (skript, vzdálené zdroje) na Windows 10 a macOS 14, čtečka.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Synchronizace posunu, místní obrázky ve složce dokumentu, politika ověřená testy. Zbývá Windows 10, macOS 14 a čtečka.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** náhled se obnoví 300 ms po poslední změně (07a4e86c).
 - [ ] **P9.3.2** Export se zvýrazněním
   - **Co a proč:** Základní HTML a RTF export a schránka se stejnými tokeny a barvami jako zobrazení; TeX a PDF později.
   - **Funkce:** F039
