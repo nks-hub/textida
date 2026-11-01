@@ -71,7 +71,7 @@ public partial class LspPluginTests
         /// <param name="builtInCatalog">The plugin uses the catalog of the editor (a real server found in PATH) and not the file with the fake server; <paramref name="language"/> is then the language of that catalog.</param>
         public static async Task<Rig> CreateAsync(string[]? serverArgs = null, long maxBytes = 1 << 16, string? externalName = null, string? externalContent = null, string? program = null,
             bool declared = false, int idleStopMs = 0, string? initializationOptions = null, (int Attempts, int BaseMs, int MaxMs, int StableMs)? restart = null, TextCodec? externalCodec = null,
-            string language = "fake", bool builtInCatalog = false, int startTimeoutMs = 20000, int requestTimeoutMs = 10000, string[]? realArguments = null)
+            string language = "fake", bool builtInCatalog = false, int startTimeoutMs = 20000, int requestTimeoutMs = 10000, string[]? realArguments = null, string? networkConsent = null)
         {
             var folder = Path.Combine(Path.GetTempPath(), "textida-lsp-" + Guid.NewGuid().ToString("N"));
             var dump = Path.Combine(folder, "dump");
@@ -129,6 +129,7 @@ public partial class LspPluginTests
                 [dll, "--max-bytes", maxBytes.ToString(), "--start-timeout-ms", startTimeoutMs.ToString(), "--request-timeout-ms", requestTimeoutMs.ToString(), "--stop-timeout-ms", "3000", "--max-locations", "50", "--max-symbols", "10", "--max-decorations", "50", "--decoration-refresh-ms", "150",
                  "--stderr-lines", "5", "--max-message-chars", "100", "--max-diagnostics", "50", "--idle-stop-ms", idleStopMs.ToString(), "--root-search-levels", "8"];
             if (!builtInCatalog) pluginArguments.AddRange(["--catalog", catalog]);
+            if (networkConsent is not null) pluginArguments.AddRange(["--network-consent", networkConsent]);
             if (restart is { } r)
                 pluginArguments.AddRange(["--restart-max-attempts", r.Attempts.ToString(), "--restart-base-delay-ms", r.BaseMs.ToString(), "--restart-max-delay-ms", r.MaxMs.ToString(), "--restart-stable-ms", r.StableMs.ToString()]);
             host.Register(new PluginSpec("lsp", "LSP", T.DotnetHost, pluginArguments, ["onCommand:lsp"]));
