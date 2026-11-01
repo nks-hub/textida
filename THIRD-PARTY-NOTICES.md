@@ -12,6 +12,8 @@ Libraries that ship with Textida: for remote files (`NksHub.Textida.Remote`), fo
 | [System.IO.Hashing](https://github.com/dotnet/runtime) | 10.0.0 | MIT, Copyright (c) .NET Foundation and Contributors | XXH3 checksums |
 | [ICSharpCode.Decompiler](https://github.com/icsharpcode/ILSpy) | 11.2.0.10050 | MIT, Copyright 2011-2026 AlphaSierraPapa | .NET assembly viewer (decompiled C#) |
 | [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) | 7.0.1 | MIT, Copyright Aaron Dandy | Spelling check (Hunspell dictionaries the user chooses or downloads) |
+| [Jint](https://github.com/sebastienros/jint) | 4.17.0 | BSD-2-Clause, Copyright Sebastien Ros | Scripts in the editor (prototype, off by default) |
+| [Acornima](https://github.com/adams85/acornima) | 1.7.0 | BSD-3-Clause | JavaScript parser used by Jint |
 
 Test-only (not shipped): FubarDev.FtpServer 3.1.2 (MIT), the in-process FTPS server of the remote tests; paramiko (LGPL-2.1), started as a separate process by the SFTP tests and never linked or distributed.
 

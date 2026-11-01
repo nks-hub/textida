@@ -2244,3 +2244,9 @@ commands: nks.tools.runWsh
 Tools, Run with Windows Script Host runs the saved script .js (JScript), .vbs (VBScript), .wsf or .wsh with cscript.exe of Windows and shows its output in the output window on the Tasks tab. Windows only.
 1. Before a script runs the first time (and after every change of its content) the editor asks, because a script may do everything you may. A run is ended after 60 s.
 - This is a bridge to the host that is already in Windows, not an interpreter of the editor: the language of the script is what the Windows Script Host on the machine runs. The editor claims no compatibility with JavaScript or VBScript elsewhere, and scripts for the editor (plugins) do not go this way.
+
+## [tools.script] Scripts in the editor (prototype)
+commands: nks.tools.runScript
+A prototype: a JavaScript file with a function transform(text) runs in the editor (Jint) on the selection and the result is a change in the change review. Off until you switch on the setting scripting.enabled.
+1. The script sees only the text it is given and the function log(text), which writes to the output window. It has no access to .NET, files or the network, and a run is limited in time (3 s), memory (32 MiB), number of statements and depth of recursion.
+- Marked as a prototype: it is for measuring and trying, not an interface for plugins. Plugins in a process of their own remain the way to extend the editor.

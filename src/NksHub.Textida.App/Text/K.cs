@@ -502,6 +502,11 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string ScriptingOff = "scripting.off";
+    public const string ScriptingTooLarge = "scripting.tooLarge";
+    public const string ScriptingFailed = "scripting.failed";
+    public const string ScriptingNoChange = "scripting.noChange";
+    public const string ScriptingTitle = "scripting.title";
     public const string WshWindowsOnly = "wsh.windowsOnly";
     public const string WshNotScript = "wsh.notScript";
     public const string WshNoHost = "wsh.noHost";

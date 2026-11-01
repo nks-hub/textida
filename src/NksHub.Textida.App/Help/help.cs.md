@@ -2244,3 +2244,9 @@ commands: nks.tools.runWsh
 Nástroje, Spustit ve Windows Script Host spustí uložený skript .js (JScript), .vbs (VBScript), .wsf nebo .wsh pomocí cscript.exe z Windows a jeho výstup ukáže v okně výstupu na kartě Úlohy. Jen ve Windows.
 1. Před prvním spuštěním skriptu (a po každé změně jeho obsahu) se editor zeptá, protože skript smí všechno, co smíte vy. Běh se ukončí po 60 s.
 - Je to most k hostiteli, který už ve Windows je, ne interpret editoru: jazykem skriptu je to, co Windows Script Host na počítači umí. Editor netvrdí žádnou shodu s JavaScriptem ani VBScriptem jinde a skripty pro editor (pluginy) tudy nejdou.
+
+## [tools.script] Skripty v editoru (prototyp)
+commands: nks.tools.runScript
+Prototyp: soubor JavaScriptu s funkcí transform(text) se spustí v editoru (Jint) na výběru a výsledek je změna v přehledu změn. Vypnuto, dokud nezapnete nastavení scripting.enabled.
+1. Skript vidí jen text, který dostane, a funkci log(text), která píše do okna výstupu. Nemá přístup k .NET, souborům ani síti a běh je omezený časem (3 s), pamětí (32 MiB), počtem příkazů a hloubkou rekurze.
+- Zvýrazněné jako prototyp: slouží k měření a zkoušení, ne jako rozhraní pro pluginy. Pluginy ve vlastním procesu zůstávají cestou, jak editor rozšiřovat.

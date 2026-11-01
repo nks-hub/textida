@@ -2033,6 +2033,14 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.tools.runScript",
+      "title": "cmd.tools.runScript",
+      "category": "cat.tools",
+      "icon": "play",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5352,6 +5360,12 @@
       "order": 30
     },
     {
+      "menu": "tools",
+      "command": "nks.tools.runScript",
+      "group": "2_run/09",
+      "order": 40
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8603,6 +8617,20 @@
         "spelling",
         "autocorrect",
         "diacritics"
+      ]
+    },
+    {
+      "key": "scripting.enabled",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.scripting.enabled.title",
+      "description": "setting.scripting.enabled.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "scripting",
+        "javascript",
+        "prototype"
       ]
     },
     {

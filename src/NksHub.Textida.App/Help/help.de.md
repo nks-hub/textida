@@ -2244,3 +2244,9 @@ commands: nks.tools.runWsh
 Extras, Mit Windows Script Host ausführen führt das gespeicherte Skript .js (JScript), .vbs (VBScript), .wsf oder .wsh mit cscript.exe von Windows aus und zeigt die Ausgabe im Ausgabefenster auf der Registerkarte Aufgaben. Nur unter Windows.
 1. Bevor ein Skript zum ersten Mal läuft (und nach jeder Änderung seines Inhalts), fragt der Editor, weil ein Skript alles darf, was Sie dürfen. Ein Lauf wird nach 60 s beendet.
 - Das ist eine Brücke zum Host, der in Windows schon vorhanden ist, kein Interpreter des Editors: Die Sprache des Skripts ist das, was der Windows Script Host auf dem Rechner ausführt. Der Editor behauptet keine Kompatibilität mit JavaScript oder VBScript anderswo, und Skripte für den Editor (Plugins) gehen nicht diesen Weg.
+
+## [tools.script] Skripte im Editor (Prototyp)
+commands: nks.tools.runScript
+Ein Prototyp: Eine JavaScript-Datei mit einer Funktion transform(text) läuft im Editor (Jint) auf der Auswahl, das Ergebnis ist eine Änderung in der Änderungsübersicht. Aus, bis Sie die Einstellung scripting.enabled einschalten.
+1. Das Skript sieht nur den Text, den es erhält, und die Funktion log(text), die ins Ausgabefenster schreibt. Es hat keinen Zugriff auf .NET, Dateien oder das Netz, und ein Lauf ist in Zeit (3 s), Speicher (32 MiB), Anzahl der Anweisungen und Rekursionstiefe begrenzt.
+- Als Prototyp gekennzeichnet: Es dient zum Messen und Ausprobieren, nicht als Schnittstelle für Plugins. Plugins in einem eigenen Prozess bleiben der Weg, den Editor zu erweitern.
