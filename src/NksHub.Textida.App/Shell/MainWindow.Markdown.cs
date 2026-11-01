@@ -17,7 +17,7 @@ internal sealed partial class MainWindow
         try { return action(); }
         catch (MarkdownSyntaxException e)
         {
-            SetStatusMessage(Loc.Get(K.MarkdownParseFailed, ("reason", e.Message)));
+            SetStatusMessage(Loc.Get(K.MarkdownParseFailed, ("reason", MarkdownMessages.Reason(e))));
             return CommandOutcome.Handled;
         }
     }

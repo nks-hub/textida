@@ -25,12 +25,12 @@ internal static partial class PreviewRenderer
         MarkdownPlan Refused(string reason) => new(source, null, reason, new Dictionary<CodeBlock, Flowchart?>(), new Dictionary<string, int>(), lines);
         MarkdownDocument document;
         try { document = MarkdownSyntax.Parse(source, PluginLimits.PreviewMarkdownMaxDepth); }
-        catch (MarkdownSyntaxException e) { return Refused(e.Message); }
+        catch (MarkdownSyntaxException e) { return Refused(MarkdownMessages.Reason(e)); }
         int nodes = 0, controls = 1;
         foreach (var (node, depth) in MarkdownSyntax.Walk(document))
         {
-            if (++nodes > PluginLimits.PreviewMarkdownMaxNodes) return Refused($"more than {PluginLimits.PreviewMarkdownMaxNodes} Markdown elements");
-            if (depth > PluginLimits.PreviewMarkdownMaxDepth) return Refused($"nesting depth exceeds {PluginLimits.PreviewMarkdownMaxDepth}");
+            if (++nodes > PluginLimits.PreviewMarkdownMaxNodes) return Refused(Loc.Get(K.PreviewMarkdownNodeLimit, ("limit", PluginLimits.PreviewMarkdownMaxNodes)));
+            if (depth > PluginLimits.PreviewMarkdownMaxDepth) return Refused(Loc.Get(K.MarkdownNestingLimit, ("limit", PluginLimits.PreviewMarkdownMaxDepth)));
             controls += node switch
             {
                 ListItemBlock => 4,
@@ -48,7 +48,7 @@ internal static partial class PreviewRenderer
                 diagrams[code] = diagram;
                 controls += diagram is null ? 3 : 2 + diagram.Nodes.Count * 3 + diagram.Edges.Count * 3;
             }
-            if (controls > PluginLimits.PreviewMarkdownMaxControls) return Refused($"more than {PluginLimits.PreviewMarkdownMaxControls} preview controls");
+            if (controls > PluginLimits.PreviewMarkdownMaxControls) return Refused(Loc.Get(K.PreviewMarkdownControlLimit, ("limit", PluginLimits.PreviewMarkdownMaxControls)));
         }
         return new(source, document, null, diagrams, MarkdownSyntax.HeadingTargets(document), lines);
     }
