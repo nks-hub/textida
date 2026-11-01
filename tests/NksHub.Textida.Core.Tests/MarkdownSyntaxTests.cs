@@ -19,7 +19,9 @@ public class MarkdownSyntaxTests
         string source = Sparse(columns, 100);
         if (!allowed)
         {
-            Assert.Throws<MarkdownSyntaxException>(() => MarkdownSyntax.Parse(source));
+            var error = Assert.Throws<MarkdownSyntaxException>(() => MarkdownSyntax.Parse(source));
+            Assert.Equal(MarkdownSyntaxFailure.GeneratedTableCells, error.Failure);
+            Assert.Equal(20_000, error.Limit);
             return;
         }
         var table = Assert.Single(Tables(MarkdownSyntax.Parse(source)));
@@ -67,8 +69,12 @@ public class MarkdownSyntaxTests
     public void Direct_formatting_and_repair_without_a_separator_refuse_expansion_before_creating_output()
     {
         string[] rows = Sparse(500, 100).TrimEnd('\n').Split('\n');
-        Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.FormatTable(rows));
+        var format = Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.FormatTable(rows));
+        Assert.Equal(MarkdownSyntaxFailure.GeneratedTableCells, format.Failure);
+        Assert.Equal(20_000, format.Limit);
         string[] withoutSeparator = [rows[0], .. rows.Skip(2)];
-        Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.Repair(withoutSeparator, 1));
+        var repair = Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.Repair(withoutSeparator, 1));
+        Assert.Equal(MarkdownSyntaxFailure.GeneratedTableCells, repair.Failure);
+        Assert.Equal(20_000, repair.Limit);
     }
 }

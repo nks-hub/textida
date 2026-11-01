@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -52,6 +53,39 @@ public class PreviewImageSecurityTests
         Assert.NotNull(bitmap);
         Assert.Equal(1, bitmap.PixelSize.Width);
         Assert.InRange(bitmap.PixelSize.Height, 1, 4096);
+    }
+
+    [AvaloniaFact]
+    public void Clicking_image_consent_inside_a_link_does_not_open_the_enclosing_link()
+    {
+        var asked = new List<string>();
+        var opened = new List<Uri>();
+        int requests = 0;
+        var images = new PreviewImages(() => { requests++; return new HttpClientHandler(); }, host =>
+        {
+            asked.Add(host);
+            return Task.FromResult(false);
+        }, () => { });
+        var body = PreviewRenderer.Render(PreviewFormats.Markdown,
+            "[![chart](https://image.example/chart.png)](https://docs.example/)",
+            new PreviewRenderer.Ctx(new Avalonia.Media.FontFamily("Consolas"), Open: opened.Add, Images: images));
+        var window = new Window { Width = 600, Height = 300, Content = body };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var buttons = Tree(body).OfType<Button>().ToArray();
+            var consent = Assert.Single(buttons, button => AutomationProperties.GetName(button) == Loc.Get(K.PreviewImageRemote, ("host", "image.example"), ("alt", "chart")));
+            var outer = Assert.Single(buttons, button => !ReferenceEquals(button, consent));
+            Assert.Contains(outer, consent.GetLogicalAncestors());
+            var click = new RoutedEventArgs(Button.ClickEvent);
+            consent.RaiseEvent(click);
+            Assert.True(click.Handled);
+            Assert.Equal(["image.example"], asked);
+            Assert.Empty(opened);
+            Assert.Equal(0, requests);
+        }
+        finally { window.Close(); }
     }
 
     [AvaloniaFact]

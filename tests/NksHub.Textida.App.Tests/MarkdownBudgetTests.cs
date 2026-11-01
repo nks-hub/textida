@@ -15,19 +15,20 @@ public class MarkdownBudgetTests(ITestOutputHelper output)
 {
     public static IEnumerable<object[]> Documents()
     {
-        yield return [new string('>', 100) + " start\n\nend", "depth"];
-        yield return ["start " + string.Concat(Enumerable.Repeat("`word` ", 11_000)) + " end", "elements"];
-        yield return ["start\n\n" + string.Concat(Enumerable.Repeat("[link](#target)\n\n", 2_000)) + "end", "controls"];
+        yield return [new string('>', 100) + " start\n\nend", PluginLimits.PreviewMarkdownMaxDepth];
+        yield return ["start " + string.Concat(Enumerable.Repeat("`word` ", 11_000)) + " end", PluginLimits.PreviewMarkdownMaxNodes];
+        yield return ["start\n\n" + string.Concat(Enumerable.Repeat("[link](#target)\n\n", 2_000)) + "end", PluginLimits.PreviewMarkdownMaxControls];
     }
 
     [AvaloniaTheory]
     [MemberData(nameof(Documents))]
-    public void Exceeding_a_markdown_budget_shows_the_entire_source_and_a_visible_reason(string source, string budget)
+    public void Exceeding_a_markdown_budget_shows_the_entire_source_and_a_visible_reason(string source, int limit)
     {
         Assert.True(source.Length < PluginLimits.PreviewLiveMaxChars);
         var plan = PreviewRenderer.PrepareMarkdown(source);
         Assert.Null(plan.Document);
-        Assert.Contains(budget, plan.Problem);
+        Assert.NotEmpty(plan.Problem!);
+        Assert.Contains(limit.ToString(System.Globalization.CultureInfo.InvariantCulture), string.Concat(plan.Problem!.Where(char.IsDigit)));
         Assert.Equal(source, plan.Source);
 
         var body = PreviewRenderer.RenderMarkdown(plan, new PreviewRenderer.Ctx(new FontFamily("Consolas")));
