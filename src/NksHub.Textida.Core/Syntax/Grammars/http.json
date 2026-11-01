@@ -1,0 +1,21 @@
+{
+  "$schema": "grammar.schema.json",
+  "formatVersion": 1,
+  "id": "http",
+  "name": "HTTP requests",
+  "comments": {"line": "#"},
+  "version": "1.0.0",
+  "extensions": [".http", ".rest"],
+  "caseSensitive": true,
+  "rules": [
+    {"match": "(?<=^[ \\t]*)###[^\\r\\n]*", "token": "heading"},
+    {"name": "comment-line", "begin": "(?<=^[ \\t]*)(?:#|//)", "end": "$", "token": "comment"},
+    {"match": "(?<=^[ \\t]*)(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE|CONNECT)(?=[ \\t])", "token": "keyword"},
+    {"match": "(?<=^[ \\t]*)@[\\w.-]+(?=[ \\t]*=)", "token": "variable"},
+    {"match": "(?<=^[ \\t]*)[A-Za-z][\\w-]*(?=[ \\t]*:(?!//))", "token": "property"},
+    {"match": "\\{\\{[^}\\r\\n]*\\}\\}", "token": "variable"},
+    {"match": "https?://[^\\s\"'<>]+", "token": "link"},
+    {"name": "dq-string", "begin": "(?<!\\w)\"(?=[^\"\\r\\n]*\")", "end": "\"", "token": "string"},
+    {"match": "(?<![\\w.])[-+]?\\d+(?:\\.\\d+)?(?![\\w.])", "token": "number"}
+  ]
+}

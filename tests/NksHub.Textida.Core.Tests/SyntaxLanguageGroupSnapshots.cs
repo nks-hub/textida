@@ -10,6 +10,14 @@ internal static class SyntaxLanguageGroupSnapshots
 {
     public static readonly (string Grammar, Line[] Lines)[] All =
     [
+        ("http", [
+            new("", "### list", "heading=### list"),
+            new("", "# note", "comment=# note"),
+            new("", "@host = api.test", "variable=@host"),
+            new("", "GET https://x.test/a?b=1 HTTP/1.1", "keyword=GET", "link=https://x.test/a?b=1", "number=1.1"),
+            new("", "Authorization: Bearer {{token}}", "property=Authorization", "variable={{token}}"),
+            new("", "{\"id\": 12, \"name\": \"a\"}", "string=\"id\"", "number=12", "string=\"name\"", "string=\"a\""),
+            new("", "")]),
         ("c", [
             new("", "#include <stdio.h>", "preprocessor=#include ", "string=<stdio.h>"),
             new("", "#define MAX(a, b) \\", "preprocessor=#define MAX(a, b) \\"),

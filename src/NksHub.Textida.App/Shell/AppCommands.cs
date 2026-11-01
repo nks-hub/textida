@@ -159,6 +159,13 @@ internal static class AppCommands
         On("nks.tools.stopInterpreters", w => w.StopInterpreters());
         On("nks.tools.compareFolders", w => w.CompareFolders());
         On("nks.hex.template.exportJson", w => w.ExportHexTemplateJson());
+        On("nks.tools.agentFiles", w => w.ShowAgentFiles());
+        On("nks.tools.agentPlans", w => w.ShowAgentPlans());
+        On("nks.file.openUrl", w => w.OpenFromInternet());
+        On("nks.tools.searchWeb", w => w.SearchSelectionOnWeb());
+        On("nks.tools.openMappedUrl", w => w.OpenFileAtMappedUrl());
+        On("nks.tools.structuralSearch", w => w.StructuralSearch());
+        On("nks.remote.sendChanges", w => w.SendRemoteChanges());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

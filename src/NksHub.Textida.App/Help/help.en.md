@@ -2071,7 +2071,7 @@ The command in the Tools menu compares two folders with their subfolders and ope
 2. Choose what the files are compared by: size, modification time or content.
 3. To copy one side to the other, choose the direction. You see the list of files that would be written, and the copy starts only after you confirm it.
 - Time: a difference under 2 seconds does not count (FAT and FTP store the time coarsely); a side that does not know the time is compared by size. Content: files of the same size are compared by a hash, so on a server they are downloaded in full.
-- Copying deletes nothing: files that only the target has stay. A copied file gets the modification time of the source. The server client cannot make folders, so a file for a missing folder on the server is not written and the error is listed in the Output.
+- Copying deletes nothing: files that only the target has stay. A copied file gets the modification time of the source. A folder that is missing on the server is made before the file is written (FTP MKD, SFTP mkdir); a file that cannot be written is listed in the Output.
 
 ## [hex.templateJson] Hex: structure tree as JSON
 commands: nks.hex.template.exportJson
@@ -2080,3 +2080,52 @@ The command opens a JSON document with the tree of fields the template found in 
 2. Choose View, Hex, Export Structure Tree to JSON.
 - Each node has name, type, start and length (bytes in the file), value as text, and when present error and children. Values hidden in the hex view are exported as stars.
 - The whole tree is read in one go, up to 50,000 nodes, 64 levels and 10 seconds. Nodes that did not fit have "truncated": true and the status bar says so.
+
+## [tools.agentFiles] What an agent loads in this folder
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+The command in the Tools menu lists the files an agent loads for the active file: instructions, rules and skills, each with its size and a token estimate.
+1. Choose Tools and What an Agent Loads in This Folder. Enter opens the chosen file; its first lines are shown beside the list.
+2. Agent Plans (Tools) or + in Go to Anything lists the plans agents left behind, newest first.
+- Instructions are AGENTS.md, CLAUDE.md, CLAUDE.local.md and GEMINI.md from every folder between the root and the folder of the active file, and ~/.claude/CLAUDE.md. Rules are .claude/rules, .cursor/rules and .github/copilot-instructions.md, skills are .claude/skills/*/SKILL.md. Each product decides what it reads; the list shows what files of these names would bring in.
+- A rule with paths or globs in its header applies only to files that match the pattern; for others it is dimmed with the reason and left out of the sum. Tokens are an estimate by the rule of the status bar, nothing goes over the network.
+
+## [file.openUrl] Open from the Internet
+commands: nks.file.openUrl
+The command Open from the Internet in the File menu downloads the text of an http or https address into a new tab.
+1. Choose File and Open from the Internet. A selected address is filled in for you.
+2. The first time you use a server, confirm that the editor may contact it. The consent covers the server for .http requests too and can be revoked where the consents of tools are managed.
+- The content is shown as text in a new, unsaved tab only. Nothing is run, rendered or saved; an HTML page appears as source. The language of the tab comes from the extension of the address, else from the content type.
+- An answer with an error status, an answer larger than 16 MB and content that is not text are not opened; the reason is in the status bar. The request goes through the network settings of the editor (proxy).
+
+## [tools.webLinks] Web search and the address of a file
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Two commands in the Tools menu open the browser: a search for the selected text through your own address, and the address at which the active file is served.
+1. In the setting web.searchUrl write the search address, where {query} stands for the text, for example the address of the search engine you use. Then select text (or put the caret on a word) and choose Tools and Search Selection on the Web.
+2. In the setting web.pathMap write rules like folder=>address separated by semicolons, for example the web folder on disk and the address of its local server. Then choose Tools and Open File at Its Address.
+- Text goes to the web only through the command and only to the address you wrote; the editor has no default address. Nothing is searched from a file with secret values. The text may have at most 1000 characters.
+- The rule with the longest folder that holds the file wins; the rest of the path is appended to the address. The editor starts no web server, it only opens the address. Addresses must be http or https.
+
+## [files.assembly] .NET assemblies as C#
+commands: nks.file.open
+A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab.
+1. Open the assembly with Open or by dropping it. The tab first says that it is decompiling and gets the text when it is done.
+- The code is only read; nothing of the assembly is run or loaded. References to other assemblies are looked up next to the file and in the runtime folder, not on the network. The tab cannot be saved over the assembly.
+- A large assembly (over 300 types) is written type by type and cut at 8 million characters or after 60 seconds; the end of the listing says so. Files over 256 MB are not decompiled. The setting files.decompileAssemblies turns this off, and the file then opens like any binary.
+
+## [tools.astGrep] Structural search and rewrite
+commands: nks.tools.structuralSearch
+The command in the Tools menu searches code by its syntax tree instead of its characters and can rewrite what it finds. It uses the program ast-grep, which you must have installed.
+1. Open a file in a language ast-grep knows (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart) and choose Tools and Structural Search.
+2. Enter a pattern where $A is a variable, for example console.log($A), and a rewrite, for example logger.info($A). An empty rewrite only searches and lists the matches in the Tasks tab.
+3. The rewrite appears in the change preview as a proposal. Untick what you do not want and apply. A file that changed meanwhile is left alone and reported as a conflict.
+- The program is looked for in node_modules/.bin, .venv and on the PATH (nothing is downloaded) and you confirm it before the first run. It runs behind the proxy of the editor, so it reaches no network the proxy does not allow. The search covers the folder of the file panel, else the folder of the open file.
+- The open tabs of the folder are not read from disk: their text, even unsaved, goes to the program on standard input. Only UTF-8 files and tabs are planned (ast-grep counts UTF-8 bytes); another encoding is skipped with the reason in the Tasks tab. The search stops after 5000 matches or 120 seconds.
+
+## [remote.sendChanges] Sending the changes of several files
+commands: nks.remote.sendChanges
+The command in the File menu, Remote sends the changes of several saved files from FTP, FTPS or SFTP at once, with a preview of the differences and a check that the server has no newer version.
+1. Choose File, Remote and Send Changes of Several Files. If unsent files belong to more than one connection, pick the connection.
+2. Each row is one file with the state of its version on the server. A row ticks or unticks the file. Show the differences opens a comparison of the file with the server.
+3. Choose Send the ticked files. Each file is sent safely under a temporary name and only then replaces the old one.
+- A file that changed on the server or disappeared cannot be ticked until you have shown its differences (for a deleted file you confirm that it is created again). The upload then expects exactly the version you saw; if there is a newer one on the server, the file is not sent and is reported.
+- A tab with unsaved changes is not sent, because the file on disk is not what you see; save it first. The version check has a small gap on the server between the check and the replacement, because neither FTP nor SFTP has a conditional write.

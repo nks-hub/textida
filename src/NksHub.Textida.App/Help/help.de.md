@@ -2071,7 +2071,7 @@ Der Befehl im Menü Extras vergleicht zwei Ordner mit ihren Unterordnern und öf
 2. Wählen Sie, wonach die Dateien verglichen werden: Größe, Änderungszeit oder Inhalt.
 3. Um eine Seite auf die andere zu kopieren, wählen Sie die Richtung. Sie sehen die Liste der Dateien, die geschrieben würden, und das Kopieren beginnt erst nach Ihrer Bestätigung.
 - Zeit: ein Unterschied unter 2 Sekunden zählt nicht (FAT und FTP speichern die Zeit grob); eine Seite ohne Zeitangabe wird nach Größe verglichen. Inhalt: Dateien gleicher Größe werden per Hash verglichen, auf einem Server also vollständig heruntergeladen.
-- Kopieren löscht nichts: Dateien, die nur das Ziel hat, bleiben. Eine kopierte Datei erhält die Änderungszeit der Quelle. Der Server-Client kann keine Ordner anlegen, eine Datei für einen fehlenden Ordner auf dem Server wird daher nicht geschrieben und der Fehler steht in der Ausgabe.
+- Kopieren löscht nichts: Dateien, die nur das Ziel hat, bleiben. Eine kopierte Datei erhält die Änderungszeit der Quelle. Ein Ordner, der auf dem Server fehlt, wird vor dem Schreiben der Datei angelegt (FTP MKD, SFTP mkdir); eine Datei, die sich nicht schreiben lässt, steht in der Ausgabe.
 
 ## [hex.templateJson] Hex: Strukturbaum als JSON
 commands: nks.hex.template.exportJson
@@ -2080,3 +2080,52 @@ Der Befehl öffnet in einem neuen Tab ein JSON-Dokument mit dem Baum der Felder,
 2. Wählen Sie Ansicht, Hex, Strukturbaum als JSON exportieren.
 - Jeder Knoten hat name, type, start und length (Bytes in der Datei), value als Text und, falls vorhanden, error und children. In der Hex-Ansicht verborgene Werte werden als Sterne exportiert.
 - Der ganze Baum wird auf einmal gelesen, höchstens 50.000 Knoten, 64 Ebenen und 10 Sekunden. Knoten, die nicht mehr hineinpassten, haben "truncated": true und die Statusleiste sagt es.
+
+## [tools.agentFiles] Was ein Agent in diesem Ordner lädt
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+Der Befehl im Menü Extras listet die Dateien, die ein Agent für die aktive Datei lädt: Anweisungen, Regeln und Skills, jeweils mit Größe und Token-Schätzung.
+1. Wählen Sie Extras und Was ein Agent in diesem Ordner lädt. Enter öffnet die gewählte Datei; ihr Anfang steht neben der Liste.
+2. Agentenpläne (Extras) oder + in Gehe zu allem listen die Pläne, die Agenten hinterlassen haben, den neuesten zuerst.
+- Anweisungen sind AGENTS.md, CLAUDE.md, CLAUDE.local.md und GEMINI.md aus jedem Ordner zwischen Wurzel und Ordner der aktiven Datei sowie ~/.claude/CLAUDE.md. Regeln sind .claude/rules, .cursor/rules und .github/copilot-instructions.md, Skills sind .claude/skills/*/SKILL.md. Jedes Produkt entscheidet selbst, was es liest; die Liste zeigt, was Dateien dieser Namen mitbringen würden.
+- Eine Regel mit paths oder globs im Kopf gilt nur für Dateien, die zum Muster passen; für andere ist sie abgeblendet mit dem Grund und zählt nicht zur Summe. Tokens sind eine Schätzung nach der Regel der Statusleiste, nichts geht ins Netz.
+
+## [file.openUrl] Aus dem Internet öffnen
+commands: nks.file.openUrl
+Der Befehl Aus dem Internet öffnen im Menü Datei lädt den Text einer http- oder https-Adresse in einen neuen Tab.
+1. Wählen Sie Datei und Aus dem Internet öffnen. Eine markierte Adresse wird eingetragen.
+2. Bestätigen Sie bei der ersten Nutzung eines Servers, dass der Editor ihn kontaktieren darf. Die Zustimmung gilt für den Server auch für .http-Anfragen und lässt sich dort widerrufen, wo die Zustimmungen der Werkzeuge verwaltet werden.
+- Der Inhalt erscheint nur als Text in einem neuen, ungespeicherten Tab. Nichts wird ausgeführt, dargestellt oder gespeichert; eine HTML-Seite erscheint als Quelltext. Die Sprache des Tabs richtet sich nach der Endung der Adresse, sonst nach dem Inhaltstyp.
+- Eine Antwort mit Fehlerstatus, eine Antwort über 16 MB und Inhalt, der kein Text ist, werden nicht geöffnet; der Grund steht in der Statusleiste. Die Anfrage läuft über die Netzwerkeinstellungen des Editors (Proxy).
+
+## [tools.webLinks] Websuche und Adresse einer Datei
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Zwei Befehle im Menü Extras öffnen den Browser: eine Suche nach dem markierten Text über Ihre eigene Adresse und die Adresse, unter der die aktive Datei ausgeliefert wird.
+1. Tragen Sie in der Einstellung web.searchUrl die Suchadresse ein, wobei {query} für den Text steht, zum Beispiel die Adresse der Suchmaschine, die Sie nutzen. Markieren Sie dann Text (oder setzen Sie den Cursor auf ein Wort) und wählen Sie Extras und Auswahl im Web suchen.
+2. Tragen Sie in der Einstellung web.pathMap Regeln der Form Ordner=>Adresse ein, durch Semikolons getrennt, zum Beispiel den Webordner auf der Platte und die Adresse seines lokalen Servers. Wählen Sie dann Extras und Datei unter ihrer Adresse öffnen.
+- Text geht nur über den Befehl und nur an die Adresse, die Sie eingetragen haben, ins Web; der Editor hat keine Standardadresse. Aus einer Datei mit geheimen Werten wird nichts gesucht. Der Text darf höchstens 1000 Zeichen haben.
+- Die Regel mit dem längsten Ordner, der die Datei enthält, gewinnt; der Rest des Pfads wird an die Adresse angehängt. Der Editor startet keinen Webserver, er öffnet nur die Adresse. Adressen müssen http oder https sein.
+
+## [files.assembly] .NET-Assemblies als C#
+commands: nks.file.open
+Eine .dll-, .exe- oder .winmd-Datei mit .NET-Code öffnet sich als dekompilierter C#-Code in einem schreibgeschützten Tab.
+1. Öffnen Sie die Assembly mit Öffnen oder durch Ablegen. Der Tab sagt zuerst, dass er dekompiliert, und erhält den Text, sobald er fertig ist.
+- Der Code wird nur gelesen, nichts von der Assembly wird ausgeführt oder geladen. Verweise auf andere Assemblies werden neben der Datei und im Laufzeitordner gesucht, nicht im Netz. Der Tab lässt sich nicht über die Assembly speichern.
+- Eine große Assembly (über 300 Typen) wird Typ für Typ geschrieben und bei 8 Millionen Zeichen oder nach 60 Sekunden gekürzt; das Ende der Ausgabe sagt es. Dateien über 256 MB werden nicht dekompiliert. Die Einstellung files.decompileAssemblies schaltet das ab, die Datei öffnet sich dann wie jede Binärdatei.
+
+## [tools.astGrep] Strukturelle Suche und Ersetzung
+commands: nks.tools.structuralSearch
+Der Befehl im Menü Extras sucht Code nach seinem Syntaxbaum statt nach Zeichen und kann das Gefundene umschreiben. Er nutzt das Programm ast-grep, das installiert sein muss.
+1. Öffnen Sie eine Datei in einer Sprache, die ast-grep kennt (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart), und wählen Sie Extras und Strukturelle Suche.
+2. Geben Sie ein Muster an, in dem $A eine Variable ist, zum Beispiel console.log($A), und eine Ersetzung, zum Beispiel logger.info($A). Eine leere Ersetzung sucht nur und listet die Treffer im Tab Aufgaben.
+3. Die Ersetzung erscheint in der Änderungsvorschau als Vorschlag. Haken Sie ab, was Sie nicht wollen, und übernehmen Sie. Eine Datei, die sich inzwischen geändert hat, bleibt unberührt und wird als Konflikt gemeldet.
+- Das Programm wird in node_modules/.bin, .venv und im PATH gesucht (nichts wird heruntergeladen), und Sie bestätigen es vor dem ersten Lauf. Es läuft hinter dem Proxy des Editors und erreicht kein Netz, das der Proxy nicht erlaubt. Gesucht wird im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
+- Die offenen Tabs des Ordners werden nicht von der Platte gelesen: ihr Text, auch ungespeichert, geht über die Standardeingabe an das Programm. Geplant werden nur UTF-8-Dateien und -Tabs (ast-grep zählt UTF-8-Bytes); eine andere Kodierung wird mit dem Grund im Tab Aufgaben übersprungen. Die Suche endet nach 5000 Treffern oder 120 Sekunden.
+
+## [remote.sendChanges] Änderungen mehrerer Dateien senden
+commands: nks.remote.sendChanges
+Der Befehl im Menü Datei, Remote sendet die Änderungen mehrerer gespeicherter Dateien von FTP, FTPS oder SFTP auf einmal, mit Vorschau der Unterschiede und der Prüfung, dass der Server keine neuere Version hat.
+1. Wählen Sie Datei, Remote und Änderungen mehrerer Dateien senden. Gehören ungesendete Dateien zu mehreren Verbindungen, wählen Sie die Verbindung.
+2. Jede Zeile ist eine Datei mit dem Stand ihrer Version auf dem Server. Eine Zeile kreuzt die Datei an oder ab. Unterschiede zeigen öffnet den Vergleich der Datei mit dem Server.
+3. Wählen Sie Angekreuzte Dateien senden. Jede Datei wird sicher unter einem temporären Namen gesendet und ersetzt erst dann die alte.
+- Eine Datei, die sich auf dem Server geändert hat oder verschwunden ist, lässt sich erst ankreuzen, wenn Sie ihre Unterschiede gezeigt haben (bei einer gelöschten Datei bestätigen Sie, dass sie neu angelegt wird). Der Upload erwartet dann genau die Version, die Sie gesehen haben; ist auf dem Server eine neuere, wird die Datei nicht gesendet und gemeldet.
+- Ein Tab mit ungespeicherten Änderungen wird nicht gesendet, weil die Datei auf der Platte nicht das ist, was Sie sehen; speichern Sie ihn zuerst. Die Versionsprüfung hat auf dem Server eine kleine Lücke zwischen Prüfung und Ersetzen, weil weder FTP noch SFTP ein bedingtes Schreiben kennen.

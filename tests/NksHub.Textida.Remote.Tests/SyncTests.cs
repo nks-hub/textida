@@ -28,6 +28,7 @@ internal sealed class FaultyClient(IRemoteClient inner) : IRemoteClient
 
     public Task ResumeDownloadAsync(string path, Stream d, long offset, CancellationToken c) => inner.ResumeDownloadAsync(path, d, offset, c);
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string dir, CancellationToken c) => inner.ListAsync(dir, c);
+    public Task CreateDirectoryAsync(string path, CancellationToken c) => inner.CreateDirectoryAsync(path, c);
 
     public async Task UploadAsync(string path, Stream source, CancellationToken c)
     {

@@ -35,6 +35,9 @@ public sealed record CatalogVersionRange(string Min, string? Below);
 public sealed record CatalogLinter(string Id, string Title, string Executable, IReadOnlyList<string> Args, string OutputFormat, IReadOnlyList<CatalogSeverity> Severities, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions,
     string? Version = null, bool Verified = false, IReadOnlyDictionary<string, string>? Environment = null, CatalogVersionRange? Supported = null, IReadOnlyList<string>? VersionArgs = null);
 
+/// <summary>A tool that searches code by its syntax tree and can rewrite what it finds (structural search); not tied to one group of languages. <paramref name="Verified"/>: the command line and the output were run against the real program.</summary>
+public sealed record CatalogSearchTool(string Id, string Title, string Executable, bool Verified = false);
+
 /// <summary>A configuration file of a group: <paramref name="Names"/> are the accepted names (the first one is created), <paramref name="Template"/> the minimal content of a new one, or null where no neutral content exists.</summary>
 public sealed record CatalogConfig(IReadOnlyList<string> Names, string? Template);
 
@@ -80,6 +83,9 @@ public static class LanguageCatalog
 {
     /// <summary>Version of the table layout and content; raised when an entry changes in a way a consumer can see.</summary>
     public const int Version = 4;
+
+    /// <summary>ast-grep, run by <see cref="AstGrep"/>; the command line and the JSON stream were run against ast-grep 0.51 on Windows 11.</summary>
+    public static readonly CatalogSearchTool StructuralSearch = new("ast-grep", "ast-grep", "ast-grep", Verified: true);
 
     /// <summary>The configuration that applies to every file.</summary>
     public static readonly CatalogConfig EditorConfig = new([".editorconfig"], "root = true\n\n[*]\n");

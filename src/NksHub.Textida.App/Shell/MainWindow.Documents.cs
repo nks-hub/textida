@@ -36,6 +36,7 @@ internal sealed partial class MainWindow
         path = Path.GetFullPath(path);
         var tab = Tabs.FirstOrDefault(t => string.Equals(t.Path, path, PathComparison));
         _app.Recent.Add(path);
+        if (tab is null && OpenAssembly(path) is { } assembly) return assembly;
         if (tab is null)
         {
             long t = Core.TypingTrace.Begin();

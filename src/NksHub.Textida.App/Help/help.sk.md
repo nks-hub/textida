@@ -2071,7 +2071,7 @@ Príkaz v ponuke Nástroje porovná dva priečinky aj s podpriečinkami a výsle
 2. Vyberte, podľa čoho sa súbory porovnajú: veľkosť, čas zmeny, alebo obsah.
 3. Ak chcete jednu stranu skopírovať na druhú, zvoľte smer. Uvidíte zoznam súborov, ktoré sa zapíšu, a kopírovanie začne až po vašom potvrdení.
 - Čas zmeny: rozdiel do 2 sekúnd sa nepočíta (FAT a FTP ukladajú čas nepresne); strana, ktorá čas nepozná, sa porovná podľa veľkosti. Obsah: súbory rovnakej veľkosti sa porovnajú podľa odtlačku, na serveri sa preto celé stiahnu.
-- Kopírovanie nič nemaže: súbory, ktoré má len cieľová strana, zostanú. Skopírovaný súbor dostane čas zmeny zdroja. Klient servera nevie vytvárať priečinky, súbor do chýbajúceho priečinka na serveri sa preto nezapíše a chyba sa vypíše vo Výstupe.
+- Kopírovanie nič nemaže: súbory, ktoré má len cieľová strana, zostanú. Skopírovaný súbor dostane čas zmeny zdroja. Priečinok, ktorý na serveri chýba, sa pred zápisom súboru vytvorí (FTP MKD, SFTP mkdir); súbor, ktorý sa nepodarí zapísať, sa vypíše vo Výstupe.
 
 ## [hex.templateJson] Hex: strom šablóny do JSON
 commands: nks.hex.template.exportJson
@@ -2080,3 +2080,52 @@ Príkaz otvorí v novej záložke JSON so stromom polí, ktoré šablóna v súb
 2. Zvoľte Zobrazenie, Hex, Exportovať strom šablóny do JSON.
 - Každý uzol má name, type, start a length (bajty v súbore), value ako text, prípadne error a children. Hodnoty skryté v hexe sa vyexportujú ako hviezdičky.
 - Strom sa číta celý naraz, najviac do 50 000 uzlov, 64 úrovní a 10 sekúnd. Uzly, ktoré sa do limitu nezmestili, majú "truncated": true a stavový riadok to povie.
+
+## [tools.agentFiles] Čo agent načíta v tomto priečinku
+commands: nks.tools.agentFiles, nks.tools.agentPlans
+Príkaz v ponuke Nástroje ukáže súbory, ktoré agent pre aktívny súbor načíta: pokyny, pravidlá a skills, každý s veľkosťou a odhadom tokenov.
+1. Zvoľte Nástroje a Čo agent načíta v tomto priečinku. Enter otvorí vybraný súbor, vedľa zoznamu je jeho začiatok.
+2. Plány agentov (Nástroje) alebo + v poli Prejsť na čokoľvek ukážu plány, ktoré agenti zanechali, od najnovšieho.
+- Pokyny sú AGENTS.md, CLAUDE.md, CLAUDE.local.md a GEMINI.md z každého priečinka od koreňa po priečinok aktívneho súboru, a ~/.claude/CLAUDE.md. Pravidlá sú .claude/rules, .cursor/rules a .github/copilot-instructions.md, skills sú .claude/skills/*/SKILL.md. Ktorý agent čo číta, určuje každý produkt sám; zoznam ukazuje, čo by súbory týchto mien priniesli.
+- Pravidlo, ktoré má v hlavičke paths alebo globs, platí len pre súbory, ktoré vzoru zodpovedajú; pre ostatné je v zozname sivé s dôvodom a do súčtu sa nepočíta. Tokeny sú odhad podľa pravidla zo stavového riadka, nič sa neposiela do siete.
+
+## [file.openUrl] Otvoriť z internetu
+commands: nks.file.openUrl
+Príkaz Otvoriť z internetu v ponuke Súbor stiahne text z adresy http alebo https do novej záložky.
+1. Zvoľte Súbor a Otvoriť z internetu. Ak je označená adresa, je predvyplnená.
+2. Pri prvom použití servera potvrďte, že sa s ním editor smie spojiť. Súhlas platí pre server aj pre požiadavky súborov .http a dá sa odvolať tam, kde sa spravujú súhlasy nástrojov.
+- Obsah sa zobrazí len ako text v novej, neuloženej záložke. Nič sa nespustí, nevykreslí ani neuloží; stránka HTML sa ukáže ako zdrojový kód. Jazyk záložky sa určí podľa prípony adresy, inak podľa typu obsahu.
+- Neotvorí sa odpoveď s chybovým stavom, odpoveď väčšia ako 16 MB ani obsah, ktorý nie je text; dôvod je v stavovom riadku. Požiadavka ide cez nastavenia siete editora (proxy).
+
+## [tools.webLinks] Hľadanie na webe a adresa súboru
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Dva príkazy v ponuke Nástroje otvoria prehliadač: hľadanie označeného textu cez vašu adresu a adresu, na ktorej sa aktívny súbor obsluhuje.
+1. V nastavení web.searchUrl zapíšte adresu hľadania, kde {query} znamená hľadaný text, napríklad adresu vyhľadávača, ktorý používate. Potom označte text (alebo dajte kurzor na slovo) a zvoľte Nástroje a Hľadať výber na webe.
+2. V nastavení web.pathMap zapíšte pravidlá v tvare priečinok=>adresa, oddelené bodkočiarkami, napríklad priečinok webu na disku a adresa jeho lokálneho servera. Potom zvoľte Nástroje a Otvoriť súbor na jeho adrese.
+- Text sa na web pošle len príkazom a len na adresu, ktorú ste zapísali; editor žiadnu predvolenú adresu nemá. Zo súboru s tajnými hodnotami sa nič nehľadá. Hľadaný text má najviac 1000 znakov.
+- Pravidlo s najdlhším priečinkom, ktorý súbor obsahuje, vyhráva; zvyšok cesty sa pripojí k adrese. Editor žiadny webový server nespúšťa, len otvorí adresu. Adresy musia byť http alebo https.
+
+## [files.assembly] Zostavenia .NET ako C#
+commands: nks.file.open
+Súbor .dll, .exe alebo .winmd s kódom .NET sa otvorí ako dekompilovaný C# v záložke len na čítanie.
+1. Otvorte zostavenie príkazom Otvoriť alebo pretiahnutím. Záložka najprv napíše, že dekompiluje, a text sa doplní, keď je hotový.
+- Kód sa len číta, nič zo zostavenia sa nespúšťa ani nenačítava. Odkazy na iné zostavenia sa hľadajú vedľa súboru a v priečinku bežiaceho prostredia, nie v sieti. Záložku nejde uložiť cez zostavenie.
+- Veľké zostavenie (nad 300 typov) sa vypíše typ po type a skráti sa na 8 miliónov znakov alebo po 60 sekundách; koniec výpisu to povie. Súbory nad 256 MB sa nedekompilujú. Nastavenie files.decompileAssemblies to vypne, súbor sa potom otvorí ako každý binárny.
+
+## [tools.astGrep] Štrukturálne hľadanie a prepis
+commands: nks.tools.structuralSearch
+Príkaz v ponuke Nástroje hľadá kód podľa jeho stromu, nie podľa znakov, a vie nájdené prepísať. Používa program ast-grep, ktorý musíte mať nainštalovaný.
+1. Otvorte súbor v jazyku, ktorý ast-grep pozná (JavaScript, TypeScript, Python, Go, Rust, Java, C#, C, C++, Kotlin, Lua, PHP, Ruby, Swift, HTML, CSS, JSON, YAML, Shell, Dart), a zvoľte Nástroje a Štrukturálne hľadanie.
+2. Zadajte vzor, kde $A je premenná, napríklad console.log($A), a prepis, napríklad logger.info($A). Prázdny prepis len hľadá a zhody vypíše do karty Úlohy.
+3. Prepis sa objaví v prehľade zmien ako návrh. Odškrtnite, čo nechcete, a použite. Súbor, ktorý sa medzitým zmenil, sa neupraví a hlási sa ako konflikt.
+- Program sa hľadá v node_modules/.bin, .venv a v PATH (nič sa nesťahuje) a pred prvým behom ho musíte potvrdiť. Beží za proxy editora, takže na sieť nedosiahne, kým ju proxy nepustí. Hľadá sa v priečinku panela súborov, inak v priečinku otvoreného súboru.
+- Otvorené karty priečinka sa nečítajú z disku: ich text, aj neuložený, ide programu na štandardný vstup. Plánujú sa len súbory a karty v UTF-8 (ast-grep počíta bajty UTF-8); iné kódovanie sa preskočí s dôvodom v karte Úlohy. Hľadanie sa zastaví po 5000 zhodách alebo po 120 sekundách.
+
+## [remote.sendChanges] Odoslanie zmien viacerých súborov
+commands: nks.remote.sendChanges
+Príkaz v ponuke Súbor, Vzdialené odošle zmeny viacerých uložených súborov z FTP, FTPS alebo SFTP naraz, s náhľadom rozdielov a kontrolou, že na serveri nie je novšia verzia.
+1. Zvoľte Súbor, Vzdialené a Odoslať zmeny viacerých súborov. Ak sú neodoslané súbory z viacerých pripojení, vyberte pripojenie.
+2. Každý riadok je jeden súbor so stavom jeho verzie na serveri. Riadok označí alebo odznačí súbor. Ukázať rozdiely otvorí porovnanie súboru so serverom.
+3. Zvoľte Odoslať vybrané súbory. Každý súbor sa pošle bezpečne cez dočasný názov a až potom nahradí starý.
+- Súbor, ktorý sa na serveri zmenil alebo zmizol, nejde označiť, kým neukážete jeho rozdiely (pri zmazanom súbore potvrdíte, že sa má vytvoriť znova). Odoslanie potom čaká práve na tú verziu, ktorú ste videli; ak je na serveri už ďalšia, súbor sa neodošle a ohlási sa.
+- Karta s neuloženými zmenami sa neposiela, pretože súbor na disku nie je to, čo vidíte; najprv ju uložte. Kontrola verzie má aj na serveri nepatrnú medzeru medzi kontrolou a nahradením, pretože FTP ani SFTP nemajú podmienený zápis.

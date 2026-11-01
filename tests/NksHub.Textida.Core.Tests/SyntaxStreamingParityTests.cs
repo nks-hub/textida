@@ -26,7 +26,7 @@ public class SyntaxStreamingParityTests
         "c-string", "cpp-comment", "go-string", "gomod-comment", "gotmpl-action", "rust-comment", "toml-key", "toml-heading", "makefile-target",
         "cmake-comment", "meson-string", "ruby-comment", "erb-comment", "haml-tag", "slim-comment", "rbs-comment", "java-string",
         "kotlin-string", "lua-comment", "swift-string", "dart-string", "r-string", "powershell-string",
-        "twig-comment", "blade-comment", "batch-comment", "vb-comment",
+        "http-header", "twig-comment", "blade-comment", "batch-comment", "vb-comment",
     };
 
     [Theory]
@@ -151,6 +151,7 @@ public class SyntaxStreamingParityTests
             "css-selector" => At("css", "a:" + spaces + "hover {color:red;}", "a:", null, "b {height:2px;}"),
             "csharp-line-start" => At("csharp", spaces + "#define FLAG", "#define", "preprocessor"),
             "csharp-not-line-start" => At("csharp", "x" + spaces + "#define FLAG", "#define", null),
+            "http-header" => InRun("http", "", ": value", "property", "X-Next: 2"),
             "ini-key" => InRun("ini", "", "=value", "property", "next=2"),
             "ini-string" => InRun("ini", "key=\"", "\"", "string", "next=2"),
             "yaml-key" => InRun("yaml", "", ": value", "property", "next: 2"),
