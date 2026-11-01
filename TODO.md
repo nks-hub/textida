@@ -3466,6 +3466,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P3b.2.2
   - **Odhad:** F193 1–2 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** .dll jako dekompilovaný C# jen pro čtení přes ICSharpCode.Decompiler 11.2 přímo v aplikaci; NativeAOT publikace bez varování ověřená na Windows; vypíná `files.decompileAssemblies` (9a54d7dd).
+  - **Ověření 1. 11. 2026 na Macu:** NativeAOT publikace osx-arm64 s dekompilátorem prošla; samostatný AOT program dekompiloval malou .dll i System.Collections.dll (33/33 typů, 965 ms). Kontrola do kouřového testu zadána.
 
 ### PZ.6 Vývojářské doplňky
 
@@ -3522,6 +3523,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** P5.4.2
   - **Odhad:** F167 4–6 ČT navíc (matice)
   - **Stav 1. 11. 2026 (sloučeno):** odeslání změn ve více souborech na server najednou s diffem; soubor změněný na serveru nejde odeslat bez zobrazeného diffu a novější verze se nepřepíše; ověřeno proti skutečnému FTPS (29933885), SFTP jen testy.
+  - **Ověření 1. 11. 2026:** `RemoteChangesAppTests` proti skutečnému FTPS i SFTP serveru 4/4.
 - [ ] **PZ.7.2** Obnova celé pracovní úlohy
   - **Co a proč:** Dokumenty, výběry, dotazy, filtry a recepty uložené jako úloha s návratem.
   - **Funkce:** F168
