@@ -18,6 +18,24 @@ public class TranslationGateTests
     {
         ["app.name"] = "cs sk de",
         ["encoding.group.Unicode"] = "cs sk de", // the name of a standard
+        ["settings.value.files.encoding.utf-8"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.encoding.utf-16le"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.encoding.utf-16be"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.encoding.windows-1250"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.encoding.windows-1252"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.encoding.iso-8859-2"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.eol.lf"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.files.eol.crlf"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.git.gutterBase.index"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.git.gutterBase.head"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.git.pullMode.rebase"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.editor.profile.pspad"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.editor.altDragMode.block"] = "de", // the name of a standard or a product
+        ["settings.value.editor.pairStyle.pspad"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.sql.dialect.mysql"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.sql.dialect.postgres"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.sql.dialect.sqlite"] = "cs sk de", // the name of a standard or a product
+        ["settings.value.sql.dialect.tsql"] = "cs sk de", // the name of a standard or a product
         ["encoding.group.Dos"] = "cs sk de", // the name of an operating system
         ["a11y.minimap"] = "de",
         ["dialog.about.version"] = "de",
