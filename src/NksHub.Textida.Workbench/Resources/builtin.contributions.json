@@ -8186,7 +8186,7 @@
       "default": "",
       "title": "setting.web.searchUrl.title",
       "description": "setting.web.searchUrl.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "web",
@@ -8200,7 +8200,7 @@
       "default": "",
       "title": "setting.web.pathMap.title",
       "description": "setting.web.pathMap.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "web",
