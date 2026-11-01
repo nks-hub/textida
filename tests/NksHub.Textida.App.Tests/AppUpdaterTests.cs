@@ -37,7 +37,7 @@ internal sealed class FeedServer : IDisposable
             {
                 HttpListenerContext context;
                 try { context = await _listener.GetContextAsync(); }
-                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
+                catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or InvalidOperationException or ArgumentException) { return; } // Close() while a request is being accepted
                 try
                 {
                     lock (Requests) Requests.Add(context.Request.Url!.AbsolutePath);
@@ -45,7 +45,7 @@ internal sealed class FeedServer : IDisposable
                     else context.Response.StatusCode = 404;
                     context.Response.Close();
                 }
-                catch (Exception e) when (e is HttpListenerException or IOException or ObjectDisposedException) { } // the client hung up: an updater cuts off a download that passes its signed size
+                catch (Exception e) when (e is HttpListenerException or IOException or ObjectDisposedException or ArgumentException) { } // the client hung up: an updater cuts off a download that passes its signed size
             }
         });
     }
