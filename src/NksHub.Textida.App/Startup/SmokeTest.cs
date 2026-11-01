@@ -18,7 +18,7 @@ namespace NksHub.Textida.App.Startup;
 /// uses the command palette, the settings view and a split, round-trips a request through the real IPC transport,
 /// switches the language and the theme, then exits with 0. Any failure prints the reason and exits with 1.
 /// </summary>
-internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyleApplicationLifetime desktop)
+internal sealed partial class SmokeTest(App app, MainWindow window, IClassicDesktopStyleApplicationLifetime desktop)
 {
     private const string Sample = "smoke";
     private const string Lines = "a\nb\nc";
@@ -72,6 +72,7 @@ internal sealed class SmokeTest(App app, MainWindow window, IClassicDesktopStyle
             await CheckAssemblyViewerAsync(temp);
             await CheckBundledPluginsAsync(temp);
             await CheckDataPackageAsync(temp);
+            await CheckMarkdownAsync(temp);
             CheckEncodings();
 
             // a file above the switch size opens in the paged mode and takes a typed character, undo and save
