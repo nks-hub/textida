@@ -46,7 +46,7 @@ public partial class TextToolsTests
         public static async Task<Rig> CreateAsync(byte[] content, TextCodec codec, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, Func<Task>? holdReads = null) =>
             await CreateAsync(Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = codec }), selections, chunk, holdReads: holdReads);
 
-        /// <summary>The rig over a document the test opened itself (a file); <paramref name="maxRead"/> is what one read of the document API may return, the chunk must not exceed it.</summary>
+        /// <summary>The rig over a document the test opened itself (a file); <paramref name="maxRead"/> is what one read of the document API may return.</summary>
         public static async Task<Rig> CreateAsync(Document doc, IReadOnlyList<(long Anchor, long Caret)>? selections = null, int chunk = 1 << 12, int maxRead = 1 << 16, NksHub.Textida.Rpc.RpcLimits? limits = null, TimeSpan? callTimeout = null, Func<Task>? holdReads = null, string? pluginExecutable = null)
         {
             var recorded = new UiApiTests.RecordingUi();
@@ -214,6 +214,18 @@ public partial class TextToolsTests
         Assert.Equal(revision, rig.Doc.Revision);
         Assert.True(rig.Recorded.Started[0].Cancellable);
         Assert.Equal(2, rig.Recorded.Ended.Count);
+    }
+
+    [Fact]
+    public async Task Statistics_bound_the_rpc_reads_even_when_the_configured_chunk_is_a_megabyte()
+    {
+        const int lines = 10_000;
+        byte[] content = Utf8(string.Concat(Enumerable.Repeat("alpha 😀\r\n", lines)));
+        using var doc = Document.FromBytes(content, PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        await using var rig = await Rig.CreateAsync(doc, chunk: 1 << 20, maxRead: 32 * 1024);
+
+        Assert.Equal("completed", await rig.RunAsync(TextToolsPlugin.Statistics, "en"));
+        Assert.Equal((content.LongLength, 9L * lines, lines, lines + 1, 7L), ParseEnglishStatistics(rig.LastNotice));
     }
 
     [Fact]

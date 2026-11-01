@@ -195,12 +195,14 @@ public sealed class TextToolsPlugin : PluginBase
         using var __ = cancel;
         var statistics = new TextStatistics(info.Codec, _settings.FrequencyMaxWords, _settings.FrequencyMaxWordLength);
         var progress = scan.Progress(total, "");
+        // 32 KiB keeps the base64 RPC frame and decoded UTF-16 text below the 85,000-byte large-object threshold.
+        int chunkBytes = Math.Min(_settings.ChunkBytes, 32 * 1024);
         long done = 0;
         bool completed = true;
         foreach (var r in ranges)
         {
             var before = done;
-            var outcome = await ByteScan.RunAsync(r.Start, r.End, _settings.ChunkBytes, scan.Reader, statistics.Add, d => progress(before + d), cancel.Token);
+            var outcome = await ByteScan.RunAsync(r.Start, r.End, chunkBytes, scan.Reader, statistics.Add, d => progress(before + d), cancel.Token);
             done += outcome.Done;
             statistics.Break();
             if (!(completed = outcome.Completed)) break;
