@@ -27,6 +27,9 @@ internal sealed partial class EditorSurface
     /// <summary>The signature shown now, or null.</summary>
     public SignatureInfo? Signature => _signature;
 
+    /// <summary>The popup that is open now, or null; a test reads where it was put.</summary>
+    internal Popup? SignaturePopup => _signaturePopup;
+
     /// <summary>The offset of the bracket the caret is inside, looking back over the text before it; -1 when the caret is not inside a pair of brackets.</summary>
     internal static int OpenBracketBefore(string text, int caret)
     {
@@ -77,12 +80,17 @@ internal sealed partial class EditorSurface
         _signatureText.Bind(TextBlock.ForegroundProperty, _signatureText.GetResourceObservable("Fg"));
         AutomationProperties.SetLiveSetting(body, AutomationLiveSetting.Polite);
         AutomationProperties.SetName(body, SignatureSpoken(info, ArgumentAt(text, open, CaretOffset)));
+        // above the line of the caret when there is room, as VS Code does, so the popup does not cover the line the user types the next argument on; else below it
+        var caretRect = CaretRectangle();
+        RenderSignature(ArgumentAt(text, open, CaretOffset));
+        body.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        bool above = caretRect.Top >= body.DesiredSize.Height + 4;
         _signaturePopup = new Popup
         {
             Child = body,
             PlacementTarget = TextArea.TextView,
-            Placement = PlacementMode.Bottom,
-            PlacementRect = CaretRectangle(),
+            Placement = above ? PlacementMode.Top : PlacementMode.Bottom,
+            PlacementRect = caretRect,
             IsLightDismissEnabled = false,
             Focusable = false,
         };
