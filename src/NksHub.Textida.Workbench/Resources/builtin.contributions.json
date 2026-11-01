@@ -5142,43 +5142,50 @@
     {
       "menu": "tools",
       "command": "nks.tools.httpSend",
-      "group": "2_run/03",
+      "group": "2_run/06.01",
+      "submenu": "web",
       "order": 10
     },
     {
       "menu": "tools",
       "command": "nks.tools.httpEnvironment",
-      "group": "2_run/03",
+      "group": "2_run/06.01",
+      "submenu": "web",
       "order": 20
     },
     {
       "menu": "tools",
       "command": "nks.tools.httpCopyCurl",
-      "group": "2_run/03",
+      "group": "2_run/06.01",
+      "submenu": "web",
       "order": 30
     },
     {
       "menu": "tools",
       "command": "nks.tools.curlToHttp",
-      "group": "2_run/03",
+      "group": "2_run/06.01",
+      "submenu": "web",
       "order": 40
     },
     {
       "menu": "tools",
       "command": "nks.tools.sendToInterpreter",
-      "group": "2_run/04",
+      "group": "2_run/01.03",
+      "submenu": "run",
       "order": 10
     },
     {
       "menu": "tools",
       "command": "nks.tools.stopInterpreters",
-      "group": "2_run/04",
+      "group": "2_run/01.03",
+      "submenu": "run",
       "order": 20
     },
     {
       "menu": "tools",
       "command": "nks.tools.compareFolders",
-      "group": "2_run/04",
+      "group": "2_run/03.03",
+      "submenu": "compare",
       "order": 30
     },
     {
@@ -5191,13 +5198,15 @@
     {
       "menu": "tools",
       "command": "nks.tools.agentFiles",
-      "group": "2_run/05",
+      "group": "3_ai/02",
+      "submenu": "ai",
       "order": 10
     },
     {
       "menu": "tools",
       "command": "nks.tools.agentPlans",
-      "group": "2_run/05",
+      "group": "3_ai/02",
+      "submenu": "ai",
       "order": 20
     },
     {
@@ -5209,19 +5218,22 @@
     {
       "menu": "tools",
       "command": "nks.tools.searchWeb",
-      "group": "2_run/06",
+      "group": "2_run/06.02",
+      "submenu": "web",
       "order": 10
     },
     {
       "menu": "tools",
       "command": "nks.tools.openMappedUrl",
-      "group": "2_run/06",
+      "group": "2_run/06.02",
+      "submenu": "web",
       "order": 20
     },
     {
       "menu": "tools",
       "command": "nks.tools.structuralSearch",
-      "group": "2_run/07",
+      "group": "1_text/04",
+      "submenu": "code",
       "order": 10
     },
     {
@@ -5246,7 +5258,8 @@
     {
       "menu": "tools",
       "command": "nks.tools.pickScreenColor",
-      "group": "2_run/09",
+      "group": "1_text/03",
+      "submenu": "colors",
       "order": 10
     },
     {
@@ -5265,7 +5278,8 @@
     {
       "menu": "tools",
       "command": "nks.tools.showCallers",
-      "group": "2_run/07",
+      "group": "1_text/04",
+      "submenu": "code",
       "order": 20
     },
     {
@@ -5315,10 +5329,10 @@
       "order": 30
     },
     {
-      "menu": "file",
+      "menu": "settings",
       "command": "nks.file.importPspad",
-      "group": "1_new/08",
-      "order": 80
+      "group": "4_backup/03",
+      "order": 10
     },
     {
       "menu": "tools",
@@ -5330,7 +5344,8 @@
     {
       "menu": "file",
       "command": "nks.file.openProtected",
-      "group": "1_new/09",
+      "group": "1_new/06",
+      "submenu": "special",
       "order": 90
     },
     {
