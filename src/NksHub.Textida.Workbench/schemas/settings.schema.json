@@ -598,6 +598,24 @@
           "description": "Plugin catalog source. The https address of the Git repository (or a folder) that holds the plugin catalog the command Tools, Plugin Catalog opens. Empty turns the catalog off.",
           "x-scope": "application"
         },
+        "spell.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Spell checking. Underlines mistakes in comments and strings, Markdown and plain text against the dictionary of the setting spell.dictionary. Off until you switch it on.",
+          "x-scope": "application"
+        },
+        "spell.dictionary": {
+          "type": "string",
+          "default": "",
+          "description": "Spelling dictionary. The path of the .dic file of a Hunspell dictionary; the .aff file of the same name must lie beside it. The command Choose Dictionary or the download of a dictionary sets it.",
+          "x-scope": "application"
+        },
+        "spell.autocorrect": {
+          "type": "boolean",
+          "default": false,
+          "description": "Autocorrect diacritics. While you type, completes the diacritics of a word the dictionary knows in one form with diacritics. Works only with spell checking on; Undo gives the word back.",
+          "x-scope": "application"
+        },
         "terminal.shell": {
           "type": "string",
           "default": "",

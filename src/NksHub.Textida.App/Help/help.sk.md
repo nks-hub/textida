@@ -2222,3 +2222,12 @@ Editor beží s právami vášho účtu. Súbor, ktorý tento účet nesmie zap�
 1. Uloženie: keď systém uloženie odmietne (súbor v chránenom priečinku), editor sa opýta, či ho smie zapísať pomocník s právami správcu. Po vašom súhlase systém zobrazí svoju výzvu (UAC na Windows, okno overenia na macOS) a pomocník zapíše súbor.
 2. Otvorenie: Súbor, Otvoriť chránený súbor (alebo odpoveď áno po neúspešnom otvorení) nechá pomocníka súbor skopírovať do dočasného priečinka vášho účtu. Editor kópiu prečíta, zmaže ju a otvorí dokument s cestou pôvodného súboru; uloženie sa opýta znova.
 - Žiadny zoznam chránených súborov neexistuje: vždy sa najprv skúsi bežný prístup a pomocník príde na rad, len keď systém povedal nie. Pomocník je ten istý program s jedinou úlohou; skontroluje SHA-256 súboru, ktorý mu editor odovzdal, a zapíše ho priamo cez cieľ, takže si cieľ ponechá vlastníka a práva. Zápis nie je atomický. Súbor väčší než 64 MiB sa tak neotvorí a veľké dokumenty a hex sa takto neukladajú.
+
+## [spelling] Pravopis
+commands: nks.spell.toggle, nks.spell.chooseDictionary, nks.spell.download, nks.spell.suggest, nks.spell.next, nks.spell.diacritics
+Nástroje, Pravopis kontroluje komentáre a reťazce vo zdrojových súboroch, Markdown a čistý text podľa slovníka Hunspell. Nič nie je zapnuté vopred: kontrolu zapnete a slovník zvolíte sami.
+1. Zvoliť slovník vezme súbor .dic (súbor .aff rovnakého mena leží vedľa neho). Ak chcete slovník stiahnuť, Stiahnuť slovník LibreOffice ukáže odkiaľ a pýta sa na súhlas; slovník sa uloží do profilu. Zapnutá kontrola podčiarkne chyby bodkovanou čiarou.
+2. Návrhy pravopisu ukážu náhrady pre slovo pri kurzore a ponúknu pridať slovo do vlastných slov; Ďalšia chyba skočí na nasledujúce podčiarknuté slovo.
+3. Doplniť diakritiku nájde slová bez diakritiky (výber, inak celý dokument), ktoré slovník pozná len s diakritikou práve jedným spôsobom, a ukáže zmeny v prehľade zmien. Použije sa len to, čo potvrdíte.
+- V zdrojovom súbore sa kontrolujú len komentáre a reťazce; názvy, skratky vo veľkých písmenách, slová s veľkým písmenom vnútri (camelCase), slová pri číslicach, podčiarkovníkoch, lomkách a adresách sa nekontrolujú. V Markdown sa nekontroluje kód a odkazy. Editor žiadny slovník nedodáva, každý má vlastnú licenciu. Vlastné slová sú v súbore spell-words.txt v profile.
+- Nastavenie spell.autocorrect (predvolene vypnuté) doplní diakritiku slova, ktoré ste práve dopísali, keď ho ukončíte znakom, ktorý nie je písmeno, a slovník pozná jedinú podobu s diakritikou. Späť vráti slovo tak, ako bolo napísané.

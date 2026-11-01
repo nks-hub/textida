@@ -1978,6 +1978,48 @@
       "icon": "file-text"
     },
     {
+      "id": "nks.spell.toggle",
+      "title": "cmd.spell.toggle",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.chooseDictionary",
+      "title": "cmd.spell.chooseDictionary",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.download",
+      "title": "cmd.spell.download",
+      "category": "cat.tools",
+      "icon": "text"
+    },
+    {
+      "id": "nks.spell.suggest",
+      "title": "cmd.spell.suggest",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.spell.next",
+      "title": "cmd.spell.next",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.spell.diacritics",
+      "title": "cmd.spell.diacritics",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5243,6 +5285,48 @@
       "order": 90
     },
     {
+      "menu": "tools",
+      "command": "nks.spell.toggle",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.chooseDictionary",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.download",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.suggest",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.next",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 50
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.diacritics",
+      "group": "3_ai/05",
+      "submenu": "spelling",
+      "order": 60
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8452,6 +8536,48 @@
         "catalog",
         "git",
         "repository"
+      ]
+    },
+    {
+      "key": "spell.enabled",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.spell.enabled.title",
+      "description": "setting.spell.enabled.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "spell",
+        "hunspell"
+      ]
+    },
+    {
+      "key": "spell.dictionary",
+      "type": "string",
+      "default": "",
+      "title": "setting.spell.dictionary.title",
+      "description": "setting.spell.dictionary.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "dictionary",
+        "hunspell"
+      ]
+    },
+    {
+      "key": "spell.autocorrect",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.spell.autocorrect.title",
+      "description": "setting.spell.autocorrect.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "spelling",
+        "autocorrect",
+        "diacritics"
       ]
     },
     {

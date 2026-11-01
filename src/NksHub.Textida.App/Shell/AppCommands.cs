@@ -182,6 +182,12 @@ internal static class AppCommands
         On("nks.file.importPspad", w => w.ImportPspad());
         On("nks.agent.askSelection", w => w.AskAgentAboutSelection());
         On("nks.file.openProtected", w => w.OpenProtected());
+        On("nks.spell.toggle", w => w.ToggleSpelling());
+        On("nks.spell.chooseDictionary", w => w.ChooseSpellDictionary());
+        On("nks.spell.download", w => w.DownloadSpellDictionary());
+        On("nks.spell.suggest", w => w.SpellSuggestions());
+        On("nks.spell.next", w => w.NextSpellingMistake());
+        On("nks.spell.diacritics", w => w.CompleteDiacritics());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

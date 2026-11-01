@@ -85,6 +85,7 @@ internal sealed partial class MainWindow
         _docs.Add(od);
         od.Doc.UndoLimit = UndoLimit;
         od.Changed += () => OnDocChanged(od);
+        od.Changed += () => ScheduleSpelling(od);
         od.Replaced += () => OnDocReplaced(od);
         od.ExternalChangeDetected += change => OnExternalChange(od, change);
         od.LanguageChanged += () => OnLanguageChangedForModes(od);
@@ -150,6 +151,8 @@ internal sealed partial class MainWindow
             surface.TextArea.Caret.PositionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.TextArea.SelectionChanged += (_, _) => { if (tab == Active) { UpdateStatus(); _app.Plugins.Mcp.SelectionChanged(tab); } };
             surface.CaretsChanged += () => { if (tab == Active) UpdateStatus(); };
+            surface.TextArea.TextEntered += (_, e) => AutoCorrectTyped(tab, e.Text ?? "");
+            if (SpellOn) _ = RefreshSpellingAsync(tab);
             surface.OccurrencesChanged += () => { if (tab == Active) UpdateStatus(); };
             surface.Occurrences.Announce += scan => { if (tab == Active && scan.Describe() is { } text) Announce(text); };
             surface.TextTyped += _app.Workbench.Commands.RecordText;

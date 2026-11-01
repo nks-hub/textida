@@ -11,6 +11,7 @@ Libraries that ship with Textida: for remote files (`NksHub.Textida.Remote`), fo
 | [FluentFTP](https://github.com/robinrodricks/FluentFTP) | 55.1.0 | MIT, Copyright (c) 2015 Robin Rodricks and FluentFTP Contributors | FTPS client |
 | [System.IO.Hashing](https://github.com/dotnet/runtime) | 10.0.0 | MIT, Copyright (c) .NET Foundation and Contributors | XXH3 checksums |
 | [ICSharpCode.Decompiler](https://github.com/icsharpcode/ILSpy) | 11.2.0.10050 | MIT, Copyright 2011-2026 AlphaSierraPapa | .NET assembly viewer (decompiled C#) |
+| [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) | 7.0.1 | MIT, Copyright Aaron Dandy | Spelling check (Hunspell dictionaries the user chooses or downloads) |
 
 Test-only (not shipped): FubarDev.FtpServer 3.1.2 (MIT), the in-process FTPS server of the remote tests; paramiko (LGPL-2.1), started as a separate process by the SFTP tests and never linked or distributed.
 
