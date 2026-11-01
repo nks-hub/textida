@@ -474,31 +474,33 @@ public class ViewModeTests : IDisposable
     public async Task The_picture_its_message_and_the_markdown_tabs_pass_the_accessibility_gate_in_the_four_languages()
     {
         var run = new GateRun(_temp.Path, "pic.png", "cut.png", "page.md");
-        void Walk(string scenario)
+        async Task Walk(string scenario)
         {
             foreach (var lang in A11yAudit.Languages)
             {
                 _app.SetLanguage(lang);
+                await ReadyMarkdown();
                 Layout();
                 run.Audit(scenario, lang, _w);
             }
             _app.SetLanguage(Loc.DefaultLanguage);
+            await ReadyMarkdown();
             Layout();
         }
 
         await OpenPicture("pic.png", Pictures.Png(120, 80));
-        Walk("main:picture");
+        await Walk("main:picture");
         await OpenPicture("cut.png", Pictures.Png()[..45]);
-        Walk("main:picture-message");
+        await Walk("main:picture-message");
 
         var page = OpenMarkdown("page.md", "# Title\n\ntext\n", "read");
         await ((MarkdownPreview)page.Custom!).RenderTask;
         Layout();
-        Walk("main:markdown-reading");
+        await Walk("main:markdown-reading");
         Click(ButtonOf(page, Loc.Get(K.ViewModeEdit)));
         await _w.Active!.SidePreview!.RenderTask;
         Layout();
-        Walk("main:markdown-editing");
+        await Walk("main:markdown-editing");
         run.AssertClean();
     }
 

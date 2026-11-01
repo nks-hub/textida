@@ -291,4 +291,35 @@ public class LivePreviewTests : IDisposable
         _w.Redo();
         Assert.Equal(withRow, tab.Editor.Document.Text);
     }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_refused_table_format_or_missing_separator_repair_keeps_bytes_selection_and_undo(bool repair)
+    {
+        string header = "|" + string.Concat(Enumerable.Repeat("header|", 500)) + "\n";
+        string source = header + (repair ? "" : "|" + string.Concat(Enumerable.Repeat("---|", 500)) + "\n")
+            + string.Concat(Enumerable.Repeat("|one|\n", 100));
+        var tab = Open(source, "markdown");
+        tab.Editor!.Select(source.IndexOf("one", StringComparison.Ordinal), 3);
+        byte[] original = Encoding.UTF8.GetBytes(source);
+        string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(original));
+        long revision = tab.Doc.Doc.Revision;
+        int undo = tab.Doc.Doc.UndoDepth;
+        var selection = tab.Surface!.GetSelections()[0];
+        bool modified = tab.Doc.Doc.IsModified;
+
+        if (repair) _w.RepairMarkdownTable();
+        else _w.FormatMarkdownTable();
+
+        byte[] bytes = tab.Doc.Doc.ReadBytes(new NksHub.Textida.Core.Documents.ByteRange(0, tab.Doc.Doc.ByteLength));
+        Assert.Equal(source, tab.Editor.Document.Text);
+        Assert.Equal(original, bytes);
+        Assert.Equal(hash, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.Equal(undo, tab.Doc.Doc.UndoDepth);
+        Assert.Equal(modified, tab.Doc.Doc.IsModified);
+        Assert.Equal(selection, tab.Surface.GetSelections()[0]);
+        Assert.NotEmpty(_w.StatusMessageText);
+    }
 }

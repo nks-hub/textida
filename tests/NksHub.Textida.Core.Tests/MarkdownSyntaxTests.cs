@@ -62,4 +62,13 @@ public class MarkdownSyntaxTests
         Assert.Equal(rows * columns, MarkdownSyntax.Walk(table).Select(entry => entry.Node).OfType<TableCell>()
             .Count(cell => cell.OfType<ParagraphBlock>().Any(block => MarkdownSyntax.Text(block.Inline) == "value")));
     }
+
+    [Fact]
+    public void Direct_formatting_and_repair_without_a_separator_refuse_expansion_before_creating_output()
+    {
+        string[] rows = Sparse(500, 100).TrimEnd('\n').Split('\n');
+        Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.FormatTable(rows));
+        string[] withoutSeparator = [rows[0], .. rows.Skip(2)];
+        Assert.Throws<MarkdownSyntaxException>(() => MarkdownTools.Repair(withoutSeparator, 1));
+    }
 }
