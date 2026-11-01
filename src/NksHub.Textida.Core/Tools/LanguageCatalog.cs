@@ -17,8 +17,12 @@ public sealed record CatalogMode(string Id, IReadOnlyList<string> Extensions, IR
 /// </summary>
 public sealed record CatalogLsp(string Language, string Program, IReadOnlyList<string> Arguments, string? Version = null, bool Verified = false, IReadOnlyList<string>? Hosts = null);
 
-/// <summary>A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists.</summary>
-public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false);
+/// <summary>
+/// A formatter that rewrites <c>${File}</c> in place. Save Actions offers it for a file only where one of <paramref name="ConfigFiles"/> exists. <paramref name="ProjectLocal"/>: the program is looked for in the folders of the project
+/// first (<c>vendor/bin</c> of Composer); <paramref name="Archive"/> is a PHAR that <c>php</c> runs when the program itself is not there. Nothing is downloaded either way. <c>${Config}</c> in the arguments is the configuration file found for the file.
+/// </summary>
+public sealed record CatalogFormatter(string Id, string Title, string Executable, IReadOnlyList<string> Args, IReadOnlyList<string> ConfigFiles, IReadOnlyList<string> Extensions, string? Version = null, bool Verified = false,
+    string? Archive = null, bool ProjectLocal = false);
 
 /// <summary>
 /// The versions of a tool whose command line and output its parser was written for: <paramref name="Min"/> up to <paramref name="Below"/>, not including it (null: no upper end known).
@@ -168,12 +172,15 @@ public static class LanguageCatalog
             [M("php", [".php"], "php"), M("latte", [".latte"], "latte"), M("neon", [".neon"], "neon"), M("blade", [".blade.php"], "blade"), M("twig", [".twig"], "twig")],
             // Intelephense is first where installed; its rename is a paid feature, and the plugin reports a refused rename as "not supported". Phpactor stays as the free fallback.
             [new("php", "intelephense", ["--stdio"]), new("php", "phpactor", ["language-server"])],
-            [],
+            // PHP CS Fixer is the maintained formatter (not an emulation of PhpCB): found in vendor/bin of the project, on the PATH, or as php-cs-fixer.phar run by php; never downloaded. Run against php-cs-fixer 3.95 and PHP 8.4 on Windows 11.
+            [new("php-cs-fixer", "PHP CS Fixer", "php-cs-fixer", ["fix", "--config=${Config}", "--no-interaction", "--using-cache=no", "--quiet", "${File}"],
+                [".php-cs-fixer.php", ".php-cs-fixer.dist.php", ".php_cs", ".php_cs.dist"], [".php"], Verified: true, Archive: "php-cs-fixer.phar", ProjectLocal: true)],
             [
                 new("phpstan", "PHPStan", "phpstan", ["analyse", "--error-format=json", "--no-progress", "--no-interaction", "${File}"], "phpstan-json", [new("*", ToolSeverity.Error)], ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"], [".php"], Supported: new("1.0.0", "3.0.0"), Verified: true),
                 new("psalm", "Psalm", "psalm", ["--output-format=json", "--no-progress", "${File}"], "psalm-json", [new("error", ToolSeverity.Error), new("info", ToolSeverity.Info)], ["psalm.xml", "psalm.xml.dist"], [".php"], Supported: new("4.0.0", "7.0.0"), Verified: true),
             ],
-            [C(["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"]), C(["psalm.xml", "psalm.xml.dist"])],
+            [C(["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"]), C(["psalm.xml", "psalm.xml.dist"]),
+                C([".php-cs-fixer.dist.php", ".php-cs-fixer.php", ".php_cs.dist", ".php_cs"], "<?php\n\nreturn (new PhpCsFixer\\Config())->setRules(['@PSR12' => true]);\n")],
             [new("composer.json", "Packagist")]),
         new("go", "Go",
             [M("go", [".go"], "go"), M("gomod", [], "gomod", ["go.mod", "go.work"]), M("gotmpl", [".gohtml", ".gotmpl"], "gotmpl")],

@@ -1895,6 +1895,14 @@
       "enablement": "true"
     },
     {
+      "id": "nks.format.withReview",
+      "title": "cmd.format.withReview",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5081,6 +5089,12 @@
       "group": "2_clip/04.01",
       "submenu": "clipboard",
       "order": 40
+    },
+    {
+      "menu": "tools",
+      "command": "nks.format.withReview",
+      "group": "2_run/03",
+      "order": 10
     },
     {
       "menu": "edit",

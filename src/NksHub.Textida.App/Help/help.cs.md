@@ -2161,3 +2161,11 @@ Seznam schránky normálně obsahuje jen to, co zkopírujete v editoru. Příkaz
 2. Texty se objeví v seznamu schránky (Úpravy, Schránka, Historie schránky).
 - Ve výchozím stavu je sledování vypnuté a zapíná ho jen uživatel. Po zapnutí se text, který už na schránce byl, nesbírá; sbírají se jen kopie vzniklé od zapnutí. Po vypnutí se vše zapomene, takže to, co jste zkopírovali při vypnutém sledování, se nikdy nesebere dodatečně.
 - Seznam je jen v paměti a nic se neukládá na disk ani neposílá. Zkopírované heslo ale na seznamu zůstane do vytlačení novějšími položkami (počet položek určuje nastavení editor.clipboardHistorySize), proto sledování zapínejte jen, když ho potřebujete.
+
+## [tools.formatReview] Formátování s náhledem (PHP CS Fixer a další)
+commands: nks.format.withReview
+Příkaz v nabídce Nástroje spustí formátovač projektu na kopii souboru a výsledek neuloží, ale ukáže v přehledu změn. Vy zaškrtnete, co se má použít.
+1. Formátovač se nabídne jen tam, kde projekt má jeho konfiguraci: pro PHP soubor .php-cs-fixer.dist.php (nebo .php-cs-fixer.php, .php_cs, .php_cs.dist) ve složce souboru nebo nad ní. Platí to i pro gofmt, Prettier, rustfmt a ostatní formátovače katalogu.
+2. Zvolte Nástroje a Formátovat souborovým formátovačem s náhledem. Změny se objeví v kartě výsledků; použijí se jedním krokem zpět a jen když se dokument mezitím nezměnil.
+- PHP CS Fixer se hledá v projektu (vendor/bin), pak v PATH; není-li tam, spustí php soubor php-cs-fixer.phar z projektu (složka souboru a nadřazené: tools, bin, vendor/bin) nebo z PATH. Nic se nestahuje. Cestu lze zadat i v souboru saveActions.json (toolPaths).
+- Tentýž formátovač může běžet i při uložení jako akce Formátovat (Soubor, Akce při uložení); ta výsledek použije hned, jako jeden krok zpět, bez náhledu.

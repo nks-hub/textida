@@ -565,6 +565,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.format.withReview": "Format with the File Formatter (Review)",
   "cmd.edit.toggleClipboardMonitor": "Collect Copies from Other Programs",
   "cmd.tools.pickScreenColor": "Colour Picker from the Screen",
   "cmd.view.toggleTerminal": "Toggle Terminal",

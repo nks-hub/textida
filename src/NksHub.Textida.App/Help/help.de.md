@@ -2161,3 +2161,11 @@ Die Liste der Zwischenablage enthält normalerweise nur, was Sie im Editor kopie
 2. Die Texte erscheinen in der Liste der Zwischenablage (Bearbeiten, Zwischenablage, Zwischenablageverlauf).
 - Die Überwachung ist standardmäßig aus und wird nur vom Benutzer eingeschaltet. Beim Einschalten wird der Text, der schon in der Zwischenablage lag, nicht gesammelt; nur Kopien seither. Beim Ausschalten wird alles vergessen, was Sie bei ausgeschalteter Überwachung kopiert haben, wird also nie nachträglich gesammelt.
 - Die Liste liegt nur im Speicher; nichts wird auf die Platte geschrieben oder gesendet. Ein kopiertes Passwort bleibt in der Liste, bis neuere Einträge es verdrängen (die Einstellung editor.clipboardHistorySize bestimmt die Anzahl), schalten Sie die Überwachung daher nur ein, solange Sie sie brauchen.
+
+## [tools.formatReview] Formatieren mit Vorschau (PHP CS Fixer und andere)
+commands: nks.format.withReview
+Der Befehl im Menü Extras lässt den Formatierer des Projekts auf einer Kopie der Datei laufen und schreibt das Ergebnis nicht, sondern zeigt es in der Änderungsübersicht. Sie haken an, was gelten soll.
+1. Ein Formatierer wird nur angeboten, wo das Projekt seine Konfiguration hat: bei einer PHP-Datei .php-cs-fixer.dist.php (oder .php-cs-fixer.php, .php_cs, .php_cs.dist) im Ordner der Datei oder darüber. Dasselbe gilt für gofmt, Prettier, rustfmt und die anderen Formatierer des Katalogs.
+2. Wählen Sie Extras und Mit dem Datei-Formatierer formatieren (Vorschau). Die Änderungen erscheinen im Ergebnis-Tab; sie werden als ein Rückgängig-Schritt angewendet, und nur wenn sich das Dokument inzwischen nicht geändert hat.
+- PHP CS Fixer wird im Projekt (vendor/bin) gesucht, dann im PATH; ist er dort nicht, führt php eine php-cs-fixer.phar aus dem Projekt (Ordner der Datei und darüber: tools, bin, vendor/bin) oder aus dem PATH aus. Nichts wird heruntergeladen. Der Pfad lässt sich auch in saveActions.json (toolPaths) setzen.
+- Derselbe Formatierer kann auch beim Speichern als Aktion Formatieren laufen (Datei, Aktionen beim Speichern); diese wendet das Ergebnis sofort als einen Rückgängig-Schritt an, ohne Vorschau.

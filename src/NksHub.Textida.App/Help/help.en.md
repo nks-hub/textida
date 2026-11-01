@@ -2161,3 +2161,11 @@ The clipboard list normally holds only what you copy in the editor. The command 
 2. The texts appear in the clipboard list (Edit, Clipboard, Clipboard History).
 - The monitor is off by default and only the user turns it on. When it is switched on, the text that was already on the clipboard is not collected; only copies made since are. When it is switched off everything is forgotten, so what you copied while it was off is never collected later.
 - The list is in memory only and nothing is written to disk or sent anywhere. A copied password stays in the list until newer items push it out (the setting editor.clipboardHistorySize sets how many items there are), so switch the monitor on only while you need it.
+
+## [tools.formatReview] Formatting with a review (PHP CS Fixer and others)
+commands: nks.format.withReview
+The command in the Tools menu runs the formatter of the project on a copy of the file and does not write the result but shows it in the change review. You tick what to apply.
+1. A formatter is offered only where the project has its configuration: for a PHP file .php-cs-fixer.dist.php (or .php-cs-fixer.php, .php_cs, .php_cs.dist) in the folder of the file or above it. The same holds for gofmt, Prettier, rustfmt and the other formatters of the catalog.
+2. Choose Tools and Format with the File Formatter (Review). The changes appear in the results tab; they are applied as one undo step, and only if the document has not changed meanwhile.
+- PHP CS Fixer is looked for in the project (vendor/bin), then on the PATH; when it is not there, php runs a php-cs-fixer.phar from the project (the folder of the file and those above: tools, bin, vendor/bin) or from the PATH. Nothing is downloaded. The path can also be set in saveActions.json (toolPaths).
+- The same formatter can also run on save as the Format action (File, Save Actions); that applies the result at once as one undo step, without a review.

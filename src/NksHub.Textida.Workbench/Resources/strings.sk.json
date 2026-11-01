@@ -565,6 +565,7 @@
   "cmd.edit.justifyBlock": "Zarovnať riadky do bloku",
   "cmd.edit.insertDateTime": "Vložiť dátum a čas",
   "cmd.edit.insertGuid": "Vložiť GUID",
+  "cmd.format.withReview": "Formátovať súborovým formátovačom s náhľadom",
   "cmd.edit.toggleClipboardMonitor": "Zbierať kópie z iných programov",
   "cmd.tools.pickScreenColor": "Kvapkadlo: farba z obrazovky",
   "cmd.view.toggleTerminal": "Zobraziť alebo skryť terminál",

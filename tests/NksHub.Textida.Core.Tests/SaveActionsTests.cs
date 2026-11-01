@@ -195,6 +195,7 @@ public sealed class SaveActionsTests : IDisposable
         new("shfmt", "run.sh", "echo  hi\n", "run.sh:2:1: reached EOF without closing quote '", 1),
         new("stylua", "a.lua", "local  x=1\n", "error: could not format file a.lua: failed to parse", 1),
         new("dart-format", "lib/a.dart", "void main( ){}\n", "line 1, column 13 of a.dart: Expected to find '}'.", 65),
+        new("php-cs-fixer", "src/a.php", "<?php\nfunction  f(){}\n", "In .php-cs-fixer.dist.php line 2: bad config here", 1),
     ];
 
     /// <summary>The formatters these cases cover; the matrix of the catalog is checked against it.</summary>
@@ -268,8 +269,11 @@ public sealed class SaveActionsTests : IDisposable
         Assert.Equal(s.Unchanged.ToUpperInvariant(), Text(doc));
         var args = File.ReadAllLines(s.Tool + ".args");
         int file = s.Def.Args.ToList().IndexOf("${File}");
+        int config = s.Def.Args.ToList().FindIndex(a => a.Contains("${Config}", StringComparison.Ordinal));
         Assert.Equal(s.Def.Args.Count, args.Length);
-        Assert.Equal(s.Def.Args.Where((_, i) => i != file), args.Where((_, i) => i != file));
+        Assert.Equal(s.Def.Args.Where((_, i) => i != file && i != config), args.Where((_, i) => i != file && i != config));
+        // ${Config} is the configuration file found for the file
+        if (config >= 0) Assert.Equal(s.Def.Args[config].Replace("${Config}", ConfigFormatters.ConfigFor(s.Def, s.Path), StringComparison.Ordinal), args[config], ignoreCase: OperatingSystem.IsWindows());
         // the program rewrote a copy next to the file, with its extension, so it found the configuration of the project
         Assert.Equal(Path.GetDirectoryName(s.Path), Path.GetDirectoryName(args[file]), ignoreCase: OperatingSystem.IsWindows());
         Assert.Equal(Path.GetExtension(s.Path), Path.GetExtension(args[file]));

@@ -502,6 +502,14 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string FormatReviewNoFile = "formatReview.noFile";
+    public const string FormatReviewNone = "formatReview.none";
+    public const string FormatReviewWatermark = "formatReview.watermark";
+    public const string FormatReviewA11y = "formatReview.a11y";
+    public const string FormatReviewRunning = "formatReview.running";
+    public const string FormatReviewUnchanged = "formatReview.unchanged";
+    public const string FormatReviewFailed = "formatReview.failed";
+    public const string FormatReviewProposal = "formatReview.proposal";
     public const string ClipboardMonitorOn = "clipboardMonitor.on";
     public const string ClipboardMonitorOff = "clipboardMonitor.off";
     public const string ScreenColorTitle = "screenColor.title";
