@@ -83,14 +83,28 @@ internal sealed partial class EditorSurface
         view.LayoutUpdated += OnPeekAnchorMoved;
         // the peek is a view zone: the line under the change gets room for it, so the lines below move down instead of being covered. At the end of the document there is no such line and the peek lies over the empty space.
         // shortcut: the room is measured once, at the width of the view now; a resize that changes the height of the peek leaves the room as it was until the peek is opened again.
-        int below = data.Mark.Line + data.Mark.Lines + 1;
+        int last = LastLineOfChange(data.Mark);
         _peek.Width = Math.Max(240, view.Bounds.Width - 24);
         _peek.Measure(new Size(_peek.Width, double.PositiveInfinity));
-        if (below <= Document.LineCount && _peek.DesiredSize.Height > 0)
+        if (_peek.DesiredSize.Height > 0)
         {
-            (_peekSpace.Offset, _peekSpace.Height) = (Document.GetLineByNumber(below).Offset, _peek.DesiredSize.Height);
+            (_peekSpace.Offset, _peekSpace.Height) = (Document.GetLineByNumber(last).EndOffset, _peek.DesiredSize.Height);
             view.Redraw();
-            if (view.Bounds.Height > 0) view.EnsureVisualLines(); // the peek is placed on built lines, not hidden until the next layout
+            if (view.Bounds.Height > 0)
+            {
+                view.EnsureVisualLines(); // the peek is placed on built lines, not hidden until the next layout
+                // the line is as tall as its object sits on the baseline plus the descent of the text, not as the text and the object together: make it exactly one line of text and the room
+                if (last < Document.LineCount)
+                {
+                    double made = view.GetVisualTopByDocumentLine(last + 1) - view.GetVisualTopByDocumentLine(last), wanted = view.DefaultLineHeight + _peek.DesiredSize.Height;
+                    if (Math.Abs(made - wanted) > 0.5)
+                    {
+                        _peekSpace.Height += wanted - made;
+                        view.Redraw();
+                        view.EnsureVisualLines();
+                    }
+                }
+            }
         }
         PlaceGitPeek();
         if (focus) Dispatcher.UIThread.Post(() => _peek?.FocusFirst(), DispatcherPriority.Input);
@@ -142,10 +156,8 @@ internal sealed partial class EditorSurface
             return;
         }
         var mark = peek.Data.Mark;
-        int below = mark.Line + mark.Lines + 1; // the 1-based line under the change
-        double y = below <= Document.LineCount
-            ? view.GetVisualTopByDocumentLine(below)
-            : view.GetVisualTopByDocumentLine(Document.LineCount) + view.DefaultLineHeight;
+        // the room is at the end of the last line of the change, so the card is drawn at the top of that room: right under the text of that line, where the lines that follow have been moved down
+        double y = view.GetVisualTopByDocumentLine(LastLineOfChange(mark)) + view.DefaultLineHeight;
         double top = y - view.VerticalOffset;
         double width = Math.Max(240, view.Bounds.Width - 24);
         peek.Width = width;
@@ -160,7 +172,10 @@ internal sealed partial class EditorSurface
         if (Canvas.GetTop(peek) != at.Y) Canvas.SetTop(peek, at.Y);
     }
 
-    /// <summary>Puts an invisible object of the peek's height at the start of the line under the change; the line grows by it and the text of the lines below moves down.</summary>
+    /// <summary>The 1-based last line of a change; for a removal, the line above the place the lines were removed from (the first line when there is none).</summary>
+    private int LastLineOfChange(GitMark mark) => Math.Clamp(mark.Lines == 0 ? mark.Line : mark.Line + mark.Lines, 1, Document.LineCount);
+
+    /// <summary>Puts an invisible object of the peek's height at the end of the last line of the change; the line grows by it below its text and the lines that follow move down.</summary>
     private sealed class PeekSpace : VisualLineElementGenerator
     {
         public int Offset = -1;

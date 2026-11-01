@@ -88,7 +88,7 @@ public class GitPeekTests : IDisposable
         view.EnsureVisualLines();
         Assert.True(peek.IsVisible);
         Assert.IsType<OverlayLayer>(peek.GetVisualParent());
-        double under = view.GetVisualTopByDocumentLine(13) - view.VerticalOffset; // the 1-based line under the change (lines 11 and 12 changed)
+        double under = view.GetVisualTopByDocumentLine(12) + view.DefaultLineHeight - view.VerticalOffset; // right under the text of the last changed line (lines 11 and 12 changed)
         Assert.InRange(peek.TranslatePoint(default, view)!.Value.Y, under - 1, under + 1);
         Assert.Equal(PeekRows(peek), peek.Rows.Select(r => r.Text).ToArray());
 
@@ -118,9 +118,8 @@ public class GitPeekTests : IDisposable
         view.EnsureVisualLines();
 
         var peek = surface.PeekView!;
-        double textBelow = view.GetVisualTopByDocumentLine(13) + peek.DesiredSize.Height; // the lines under the change start after the peek
-        Assert.True(view.GetVisualTopByDocumentLine(14) >= textBelow - 2, $"line 14 starts at {view.GetVisualTopByDocumentLine(14)}, the peek ends at {textBelow}");
-
+        double textBelow = view.GetVisualTopByDocumentLine(12) + view.DefaultLineHeight + peek.DesiredSize.Height; // the lines under the change start after the peek
+        Assert.True(view.GetVisualTopByDocumentLine(13) >= textBelow - 2, $"line 13 starts at {view.GetVisualTopByDocumentLine(13)}, the peek ends at {textBelow}");
         surface.CloseGitPeek();
         view.EnsureVisualLines();
         Assert.Equal(before, view.GetVisualTopByDocumentLine(15) - view.GetVisualTopByDocumentLine(13), 1);
