@@ -1,0 +1,4 @@
+{
+  "preview.markdownLimit": "Markdown je pro náhled příliš složitý. Zobrazuji celý zdroj. Důvod: {reason}",
+  "markdown.parseFailed": "Markdown se nepodařilo zpracovat. Dokument zůstal beze změny. Důvod: {reason}"
+}

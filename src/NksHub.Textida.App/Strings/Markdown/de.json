@@ -1,0 +1,4 @@
+{
+  "preview.markdownLimit": "Dieses Markdown ist für die Vorschau zu komplex. Der vollständige Quelltext wird angezeigt. Grund: {reason}",
+  "markdown.parseFailed": "Das Markdown konnte nicht verarbeitet werden. Das Dokument wurde nicht geändert. Grund: {reason}"
+}

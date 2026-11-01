@@ -123,12 +123,22 @@ public static class Loc
         var asm = typeof(Loc).Assembly;
         const string prefix = "NksHub.Textida.App.Strings.", suffix = ".json";
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        var resources = asm.GetManifestResourceNames();
         foreach (var tag in StringTable.UiLanguages)
         {
             var name = prefix + tag + suffix;
             using var stream = asm.GetManifestResourceStream(name) ?? throw new InvalidDataException($"string catalogue {name} is not embedded");
-            result[tag] = JsonSerializer.Deserialize(stream, StringsJson.Default.DictionaryStringString)
+            var catalogue = JsonSerializer.Deserialize(stream, StringsJson.Default.DictionaryStringString)
                 ?? throw new InvalidDataException($"empty string catalogue {name}");
+            foreach (var part in resources.Where(n => n.StartsWith(prefix, StringComparison.Ordinal) && n != name && n.EndsWith("." + tag + suffix, StringComparison.Ordinal)).Order(StringComparer.Ordinal))
+            {
+                using var extra = asm.GetManifestResourceStream(part)!;
+                var entries = JsonSerializer.Deserialize(extra, StringsJson.Default.DictionaryStringString)
+                    ?? throw new InvalidDataException($"empty string catalogue {part}");
+                foreach (var entry in entries)
+                    if (!catalogue.TryAdd(entry.Key, entry.Value)) throw new InvalidDataException($"duplicate string key {entry.Key} in {part}");
+            }
+            result[tag] = catalogue;
         }
         return result;
     }

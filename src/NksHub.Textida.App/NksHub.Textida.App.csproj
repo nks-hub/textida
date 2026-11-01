@@ -37,7 +37,7 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\textida.ico" />
     <AvaloniaResource Include="Assets\textida-256.png" />
-    <EmbeddedResource Include="Strings\*.json" />
+    <EmbeddedResource Include="Strings\**\*.json" />
     <!-- help.cs.md would be taken for a satellite resource of the culture "cs" -->
     <EmbeddedResource Include="Help\*.md" LogicalName="NksHub.Textida.App.Help.%(Filename)%(Extension)" WithCulture="false" />
     <ProjectReference Include="..\NksHub.Textida.Core\NksHub.Textida.Core.csproj" />
