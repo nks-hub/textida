@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -91,18 +92,33 @@ public sealed class SaveResilienceTests(ITestOutputHelper output)
         var samples = new List<double>();
         var renders = new List<double>();
         var hex = window.Active!.Hex!;
+        long start = 0;
+        int keyDowns = 0;
+        using var input = InputElement.KeyDownEvent.AddClassHandler<MainWindow>((target, args) =>
+        {
+            if (ReferenceEquals(target, window) && args.Key == Key.Right)
+            {
+                start = Stopwatch.GetTimestamp();
+                keyDowns++;
+            }
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         for (int i = 0; i < 30; i++)
         {
             long caret = hex.Caret, previousFrame = hex.RenderedAt;
-            long start = Stopwatch.GetTimestamp();
+            start = 0;
+            keyDowns = 0;
+            long pressStart = Stopwatch.GetTimestamp();
             TestApp.Press(window, Key.Right);
+            long pressEnd = Stopwatch.GetTimestamp();
+            Assert.Equal(1, keyDowns);
+            Assert.InRange(start, pressStart, pressEnd);
             window.UpdateLayout();
             using var frame = window.CaptureRenderedFrame();
             Assert.NotNull(frame);
             Assert.Equal(caret + 1, hex.Caret);
             long renderedAt = hex.RenderedAt;
             Assert.True(renderedAt > previousFrame && renderedAt >= start, "The moved caret did not produce a new hex frame.");
-            // RenderedAt marks the changed caret's drawing, before the headless helper drains further frames and reads the bitmap back.
+            // The class tunnel handler precedes MainWindow's instance handler; the changed frame ends before headless drain/readback.
             samples.Add(Stopwatch.GetElapsedTime(start, renderedAt).TotalMilliseconds);
             renders.Add(hex.RenderMs);
         }
