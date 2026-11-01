@@ -240,7 +240,7 @@ public sealed class RecipeStep
 
 /// <summary>
 /// Text that goes into the document at every caret. The text uses the template language of <see cref="Variables"/> (<c>${name}</c>, <c>$|</c> for carets, <c>$$</c>);
-/// <see cref="Fields"/> make a form the user fills in first. A clip with a <see cref="Command"/> has its own command; every clip is in the clip list.
+/// <see cref="Fields"/> make a form the user fills in first. A clip with a <see cref="Command"/> has its own command; a clip with a <see cref="Language"/> (a language mode id) is offered in the clip list and in the completion of documents of that language only, every other clip everywhere.
 /// </summary>
 public sealed class ClipContribution
 {

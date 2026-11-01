@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using NksHub.Textida.Core.Documents;
@@ -10,7 +11,7 @@ namespace NksHub.Textida.App.Services;
 /// <summary>The elevated helper did not do what it was asked: <see cref="IOException.Message"/> says what it found.</summary>
 internal class ElevationException(string message) : IOException(message);
 
-/// <summary>The user answered the question of the system (UAC, the authorization window of macOS) with no.</summary>
+/// <summary>The user answered the question of the system (UAC, the authorization window of macOS, the dialog of polkit) with no.</summary>
 internal sealed class ElevationCancelledException() : ElevationException("The system asked for permission and it was not given.");
 
 /// <summary>
@@ -30,19 +31,24 @@ internal interface IElevation
 }
 
 /// <summary>
-/// The elevation of the system: on Windows the program itself started again with the <c>runas</c> verb (the UAC prompt names it), on macOS <c>osascript</c> with administrator privileges (the system authorization window).
+/// The elevation of the system: on Windows the program itself started again with the <c>runas</c> verb (the UAC prompt names it), on macOS <c>osascript</c> with administrator privileges (the system authorization window), on Linux the program itself started again through <c>pkexec</c> (polkit asks).
 /// The job has the same code on both: <see cref="ElevatedHelper"/>.
 /// </summary>
 internal sealed class SystemElevation : IElevation
 {
     private static readonly TimeSpan Patience = TimeSpan.FromMinutes(5);
 
-    public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+    // on Linux the answer is given when the helper is asked for: a missing pkexec is then told to the user as the reason
+    public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() || OperatingSystem.IsLinux();
+
+    /// <summary>The pkexec program of polkit, or null when this system has none.</summary>
+    internal static string? FindPkexec() => new[] { "/usr/bin/pkexec", "/bin/pkexec", "/usr/local/bin/pkexec" }.FirstOrDefault(File.Exists);
 
     public void Install(string tempPath, string target, string sha256)
     {
         if (OperatingSystem.IsWindows()) RunWindows("--elevated-install", tempPath, target, sha256);
         else if (OperatingSystem.IsMacOS()) RunMac(MacInstallScript(tempPath, target, sha256));
+        else if (OperatingSystem.IsLinux()) RunLinux("--elevated-install", tempPath, target, sha256);
         else throw new ElevationException("This system has no way to ask for permission.");
     }
 
@@ -50,6 +56,7 @@ internal sealed class SystemElevation : IElevation
     {
         if (OperatingSystem.IsWindows()) RunWindows("--elevated-read", source, destination, maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
         else if (OperatingSystem.IsMacOS()) RunMac(MacReadScript(source, destination, maxBytes));
+        else if (OperatingSystem.IsLinux()) RunLinux("--elevated-read", source, destination, maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
         else throw new ElevationException("This system has no way to ask for permission.");
     }
 
@@ -69,6 +76,40 @@ internal sealed class SystemElevation : IElevation
             if (process.ExitCode != 0 || answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : $"The helper ended with code {process.ExitCode}.");
         }
         catch (Win32Exception e) when (e.NativeErrorCode == 1223) { throw new ElevationCancelledException(); } // ERROR_CANCELLED: the user said no to UAC
+        catch (Win32Exception e) { throw new ElevationException(e.Message); }
+        finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
+    }
+
+    // ---- Linux: pkexec starts the program of the editor again with the job; polkit shows its own dialog ----
+
+    /// <summary>The command line pkexec gets for a job: the program of the editor (through dotnet when it runs from an assembly), the verb, the arguments and the result file.</summary>
+    internal static List<string> LinuxArguments(string program, string? assembly, string verb, string[] arguments, string result)
+    {
+        var line = new List<string> { program };
+        if (assembly is not null && Path.GetFileNameWithoutExtension(program).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) line.Add(assembly);
+        line.Add(verb);
+        line.AddRange(arguments);
+        line.Add(result);
+        return line;
+    }
+
+    private static void RunLinux(string verb, params string[] arguments)
+    {
+        string pkexec = FindPkexec() ?? throw new ElevationException("pkexec (polkit) is not installed, so there is nothing to ask the system for permission with. Install polkit, or open the file as root another way.");
+        string program = Environment.ProcessPath ?? throw new ElevationException("The program of the editor is not known.");
+        string result = Path.Combine(Path.GetTempPath(), "textida-elevated-" + Guid.NewGuid().ToString("N") + ".result");
+        File.WriteAllText(result, ""); // made by the user, so the user can delete it after the helper wrote into it as root
+        var info = new ProcessStartInfo(pkexec) { UseShellExecute = false, RedirectStandardError = true, CreateNoWindow = true };
+        foreach (string a in LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, result)) info.ArgumentList.Add(a);
+        try
+        {
+            using var process = Process.Start(info) ?? throw new ElevationException("pkexec did not start.");
+            string errors = process.StandardError.ReadToEnd();
+            if (!process.WaitForExit(Patience)) { try { process.Kill(); } catch (InvalidOperationException) { } throw new ElevationException("The authorization did not finish in time."); }
+            if (process.ExitCode == 126) throw new ElevationCancelledException(); // pkexec: the user dismissed the dialog
+            string answer = File.ReadAllText(result);
+            if (process.ExitCode != 0 || answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : errors.Trim().Length > 0 ? errors.Trim() : $"pkexec ended with code {process.ExitCode}.");
+        }
         catch (Win32Exception e) { throw new ElevationException(e.Message); }
         finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
     }
@@ -102,7 +143,7 @@ internal sealed class SystemElevation : IElevation
 /// The job of the elevated process: it checks what it is asked, does one copy and says how it went. It runs in the same program file as the editor (<c>--elevated-install</c>, <c>--elevated-read</c>), takes no input but its arguments
 /// and opens no window. The write keeps the file (its owner, rights and links) by overwriting it where it is, so it is not atomic: the bytes are all in memory and the hash is checked before the first one is written.
 /// </summary>
-internal static class ElevatedHelper
+internal static partial class ElevatedHelper
 {
     public const long MaxWriteBytes = 512L << 20;
 
@@ -165,7 +206,19 @@ internal static class ElevatedHelper
         using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         input.CopyTo(output);
+        output.Flush();
+        GiveToCaller(destination);
     }
+
+    /// <summary>Under pkexec the new file belongs to root; polkit names the user in PKEXEC_UID, and the copy is handed to them so the editor can read and delete it.</summary>
+    private static void GiveToCaller(string path)
+    {
+        if (OperatingSystem.IsWindows() || !uint.TryParse(Environment.GetEnvironmentVariable("PKEXEC_UID"), out uint uid)) return;
+        if (chown(path, uid, uint.MaxValue) != 0) throw new ElevationException("The copy could not be handed to the user: error " + Marshal.GetLastPInvokeError());
+    }
+
+    [LibraryImport("libc", EntryPoint = "chown", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int chown(string path, uint owner, uint group);
 }
 
 /// <summary>Hands the file a save wrote to the elevation, for the one save the user confirmed.</summary>

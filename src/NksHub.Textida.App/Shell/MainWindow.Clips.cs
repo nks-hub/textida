@@ -23,7 +23,9 @@ internal sealed partial class MainWindow
     {
         if (ActiveEditor is not { IsReadOnly: false }) return CommandOutcome.NotHandled;
         ReportLibraryProblems();
-        var rows = _app.Clips.Clips.Select(e => new QuickRow(
+        string? language = Active?.Doc.Language.Id;
+        // a clip that names a language is offered in documents of that language only (the same rule as the completion list)
+        var rows = _app.Clips.Clips.Where(e => e.Clip.Language is null || string.Equals(e.Clip.Language, language, StringComparison.OrdinalIgnoreCase)).Select(e => new QuickRow(
             e.Clip.Title, e.Clip.Language ?? e.PluginName, FirstLines(e.Clip.Text, 1), null, true, null, $"{e.Clip.Title}, {e.PluginName}",
             () => _ = InsertClipAsync(e), () => PreviewOf(e.Clip.Text, e.Clip.Fields))).ToList();
         ShowChoice(Loc.Get(K.ClipsWatermark), Loc.Get(K.A11yClips), rows, emptyText: Loc.Get(K.ClipsEmpty));

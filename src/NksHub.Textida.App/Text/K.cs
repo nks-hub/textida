@@ -2662,6 +2662,8 @@ public static class K
     public const string SessionOpened = "session.opened";
     public const string SessionOpenedMissing = "session.openedMissing";
     public const string SessionLargeLeftOut = "session.largeLeftOut";
+    public const string SessionProposalLeftOut = "session.proposalLeftOut";
+    public const string SessionProposalNotRestored = "session.proposalNotRestored";
     public const string SessionEditsNotRestored = "session.editsNotRestored";
     public const string A11ySessions = "a11y.sessions";
     public const string TokensStatus = "tokens.status";

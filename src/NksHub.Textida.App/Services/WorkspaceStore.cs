@@ -48,6 +48,9 @@ public sealed class SessionTabData
     public long FileLength { get; set; }
     public long FileWriteTicks { get; set; }
 
+    /// <summary>The change proposal that waited in the review of changes for this tab; it comes back only when the text of the tab is the one it was made for.</summary>
+    public SessionProposalData? Proposal { get; set; }
+
     /// <summary>Every selection of the tab when there is more than one (several carets); the primary one is in the line and column fields above.</summary>
     public List<SessionSelectionData>? Selections { get; set; }
 }
@@ -59,6 +62,27 @@ public sealed class SessionSelectionData
     public int AnchorColumn { get; set; } = 1;
     public int CaretLine { get; set; } = 1;
     public int CaretColumn { get; set; } = 1;
+}
+
+/// <summary>One hunk of a kept proposal: the bytes from <see cref="Start"/> to <see cref="End"/> become <see cref="Text"/>.</summary>
+public sealed class SessionHunkData
+{
+    public long Start { get; set; }
+    public long End { get; set; }
+    public string Text { get; set; } = "";
+}
+
+/// <summary>
+/// A change proposal of one document that waited for the decision of the user (a formatter, a plugin, a script): its title, who made it, the hunks, and the length and SHA-256 of the bytes of the
+/// document they are based on. Whoever made it is not asked again; the review that comes back applies the ticked hunks itself.
+/// </summary>
+public sealed class SessionProposalData
+{
+    public string Title { get; set; } = "";
+    public string Origin { get; set; } = "";
+    public long BaseLength { get; set; }
+    public string BaseSha256 { get; set; } = "";
+    public List<SessionHunkData> Hunks { get; set; } = [];
 }
 
 /// <summary>The find strip as it was left: the query, the replacement, the folder and the switches, and whether it searched the files.</summary>

@@ -120,6 +120,26 @@ public class ClipTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_clip_that_names_a_language_is_listed_only_in_documents_of_that_language_and_the_manifest_shape_is_what_the_schema_says()
+    {
+        const string clips = "\"clips\":[{\"id\":\"any\",\"title\":\"Anywhere\",\"text\":\"a\"},{\"id\":\"html\",\"title\":\"Only html\",\"text\":\"<p>$|</p>\",\"language\":\"html\"},{\"id\":\"py\",\"title\":\"Only python\",\"text\":\"p\",\"language\":\"python\"}]";
+        Install("acme", Manifest(clips));
+        Assert.Empty(_app.Clips.Problems);
+        Assert.Equal(3, _app.Clips.Clips.Count);
+
+        var tab = Open("");
+        tab.Doc.ChooseLanguage(Editing.LanguageModes.ById("html"));
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.insertClip"));
+        Assert.Equal(["Anywhere", "Only html"], _w.QuickResults.Select(r => r.Title).Order());
+
+        // the schema of the manifest lists exactly the fields a clip has
+        string schema = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "NksHub.Textida.Plugin.Sdk", "schemas", "nkspad-plugin.schema.json"));
+        using var doc = System.Text.Json.JsonDocument.Parse(schema);
+        var item = doc.RootElement.GetProperty("properties").GetProperty("contributes").GetProperty("properties").GetProperty("clips").GetProperty("items");
+        Assert.Equal(["command", "fields", "id", "language", "text", "title"], item.GetProperty("properties").EnumerateObject().Select(p => p.Name).Order());
+    }
+
+    [AvaloniaFact]
     public void A_data_plugin_brings_a_setting_under_its_name_a_key_that_loses_to_a_builtin_one_and_a_tool_command()
     {
         Install("acme", Manifest("\"commands\":[{\"id\":\"acme.clips.run\",\"title\":\"Run\"}]," +

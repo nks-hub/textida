@@ -35,6 +35,9 @@ internal sealed partial class MainWindow
     private List<PaletteItem> _paletteItems = [];
     private List<QuickRow> _quickRows = [];
     private IReadOnlyList<QuickRow> _choiceRows = [];
+
+    /// <summary>The rows of the list shown by <see cref="ShowChoice"/>, for tests.</summary>
+    internal IReadOnlyList<QuickRow> ChoiceRows => _choiceRows;
     private PaletteMode _paletteMode;
     private string _choiceWatermark = "", _choiceName = "", _choiceEmpty = "";
     private DocTab? _paletteReturnTo;

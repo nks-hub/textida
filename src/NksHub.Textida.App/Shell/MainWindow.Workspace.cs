@@ -1,8 +1,11 @@
+using System.Security.Cryptography;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core;
+using NksHub.Textida.Core.Changes;
+using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Search;
 using NksHub.Textida.Workbench.Settings;
@@ -224,6 +227,7 @@ internal sealed partial class MainWindow
                 }
                 else if (tab.Paged is { } paged && tab.Path is not null) CaptureLargeTab(tab, paged, entry, leftOut);
                 if (tab == group.Active) data.ActiveTab = data.Tabs.Count;
+                if (ProposalOf(tab) is { } proposal) entry.Proposal = proposal;
                 data.Tabs.Add(entry);
             }
             if (data.Tabs.Count == 0) continue;
@@ -231,7 +235,33 @@ internal sealed partial class MainWindow
             session.Groups.Add(data);
         }
         CaptureWorkState(session);
+        ProposalLeftOut = PendingProposalNotKept(session);
         return session;
+    }
+
+    /// <summary>The title of the proposal the last capture could not keep, or null.</summary>
+    internal string? ProposalLeftOut { get; private set; }
+
+    /// <summary>The proposal that waits in the review as data, when it is one for the text of this tab; null for the others.</summary>
+    private SessionProposalData? ProposalOf(DocTab tab)
+    {
+        if (_proposal is null || _plan is not { Files: [{ DocumentId: { } id, Operation: null } change] } plan || id != tab.Doc.Doc.Id || change.BaseRevision != tab.Doc.Doc.Revision) return null;
+        var doc = tab.Doc.Doc;
+        return new SessionProposalData
+        {
+            Title = plan.Title,
+            Origin = plan.Origin,
+            BaseLength = doc.ByteLength,
+            BaseSha256 = Convert.ToHexString(SHA256.HashData(doc.ReadBytes(new ByteRange(0, doc.ByteLength)))),
+            Hunks = [.. change.Hunks.Where(h => h.CanApply).Select(h => new SessionHunkData { Start = h.Range.Start, End = h.Range.End, Text = h.NewText })],
+        };
+    }
+
+    /// <summary>The title of the waiting proposal when the session could not keep it (it changes several files, belongs to a tab the session does not keep, or is only queued); null when it is kept or there is none.</summary>
+    private string? PendingProposalNotKept(SessionData session)
+    {
+        if (_proposal is null || _plan is not { } plan || _planPattern is not null) return _queuedProposals.Count > 0 ? _queuedProposals[0].Plan.Title : null;
+        return session.Groups.Any(g => g.Tabs.Any(t => t.Proposal is not null)) ? null : plan.Title;
     }
 
     /// <summary>The find strip, the filter of the document list, the last recipe and the replacement that waits in the preview.</summary>
@@ -319,6 +349,7 @@ internal sealed partial class MainWindow
         }
         SetStatusMessage(Loc.Get(K.SessionSaved, ("name", name)));
         if (leftOut.Count > 0) ShowNotice("session", Loc.Get(K.SessionLargeLeftOut, ("name", name), ("files", string.Join(", ", leftOut))), warning: true);
+        if (ProposalLeftOut is { } waiting) ShowNotice("session", Loc.Get(K.SessionProposalLeftOut, ("name", name), ("title", waiting)), warning: true);
         return true;
     }
 
@@ -347,6 +378,7 @@ internal sealed partial class MainWindow
                 if (saved.Text is not null && tab.Surface is { } surface && surface.Document.Text != saved.Text) surface.Document.Replace(0, surface.Document.TextLength, saved.Text);
                 if (tab.Paged is not null) RestoreLargeTab(tab, saved, changed);
                 ApplyCaret(tab, saved);
+                if (saved.Proposal is { } kept) RestoreProposal(tab, kept, session.Name);
                 if (i == data.ActiveTab) active = tab;
             }
             if (active is not null) group.Select(active);
@@ -388,6 +420,28 @@ internal sealed partial class MainWindow
             var pattern = new SearchPattern(plan.Query, plan.Regex, plan.CaseSensitive, plan.WholeWord);
             PlanTask = StartResults(pattern, plan.Folder, true, plan.Replacement);
         }
+    }
+
+    /// <summary>The review that opening a task brought back, for tests.</summary>
+    internal Task<ProposalDecision>? RestoredProposal { get; private set; }
+
+    /// <summary>Opens the kept proposal in the review again, on the tab as it is now. When the bytes of the tab are not the ones it was made for, nothing is opened and the notice says so.</summary>
+    private void RestoreProposal(DocTab tab, SessionProposalData kept, string sessionName)
+    {
+        var doc = tab.Doc.Doc;
+        bool same = doc.ByteLength == kept.BaseLength && string.Equals(Convert.ToHexString(SHA256.HashData(doc.ReadBytes(new ByteRange(0, doc.ByteLength)))), kept.BaseSha256, StringComparison.OrdinalIgnoreCase);
+        FileChange? change = null;
+        if (same)
+        {
+            try { change = ChangeBuilder.ForDocument(doc, kept.Hunks.Select(h => new TextReplacement(new ByteRange(h.Start, h.End), h.Text))); }
+            catch (ArgumentException) { /* the ranges do not fit: reported below */ }
+        }
+        if (change is null)
+        {
+            ShowNotice("session", Loc.Get(K.SessionProposalNotRestored, ("name", sessionName), ("title", kept.Title)), warning: true);
+            return;
+        }
+        RestoredProposal = ShowProposalAsync(Guid.NewGuid().ToString("N"), kept.Title, kept.Origin, tab, change, CancellationToken.None);
     }
 
     /// <summary>The preview that opening a task started, for tests.</summary>
