@@ -37,8 +37,6 @@ internal sealed partial class HexView
     private sealed class HexSurface(HexView owner) : Control
     {
         private const double Pad = 10;
-        private static readonly string[] ByteLabels = [.. Enumerable.Range(0, 256).Select(b => b.ToString("X2", CultureInfo.InvariantCulture))];
-        private static readonly string HiddenPair = new(HiddenGlyph, 2);
         private double _cw = 8, _rh = 18;
         private double _hexLeft, _charLeft;
         private int[] _hexChar = [];
@@ -321,58 +319,45 @@ internal sealed partial class HexView
                 if (n > 0)
                 {
                     if (hidden is not null) MarkHidden(hiddenCells, hidden, rowOffset, n);
-                    if (!contrast && fore is ISolidColorBrush && dim is ISolidColorBrush && accent is ISolidColorBrush && muted is ISolidColorBrush)
+                    hexBuilder.Clear();
+                    for (int col = 0; col < n; col++)
                     {
-                        for (int col = 0; col < n; col++)
+                        if (col > 0)
                         {
-                            byte value = buf[rowOffset - bufStart + col];
-                            bool masked = hidden is not null && hiddenCells[col];
-                            var ink = masked || value == 0 ? dim : value == 0xFF ? accent : value < 0x20 || value == 0x7F ? muted : fore;
-                            context.DrawText(Label(masked ? HiddenPair : ByteLabels[value], ink), new Point(HexX(col), y + 1));
+                            hexBuilder.Append(' ');
+                            if (IsGap(col, bpr, owner._group)) hexBuilder.Append(' ');
                         }
+                        byte b = buf[rowOffset - bufStart + col];
+                        if (hidden is not null && hiddenCells[col]) hexBuilder.Append(HiddenGlyph, 2);
+                        else hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
                     }
-                    else
+                    var hex = Format(hexBuilder.ToString(), fore);
+                    // one span per run of bytes with the same colour: a row of zeros is one span, not one per byte
+                    int runStart = 0;
+                    IBrush? runBrush = null;
+                    var runCue = HexCue.None;
+                    for (int col = 0; col <= n; col++)
                     {
-                        hexBuilder.Clear();
-                        for (int col = 0; col < n; col++)
+                        IBrush? brush = null;
+                        var cue = HexCue.None;
+                        if (col < n)
                         {
-                            if (col > 0)
-                            {
-                                hexBuilder.Append(' ');
-                                if (IsGap(col, bpr, owner._group)) hexBuilder.Append(' ');
-                            }
                             byte b = buf[rowOffset - bufStart + col];
-                            if (hidden is not null && hiddenCells[col]) hexBuilder.Append(HiddenGlyph, 2);
-                            else hexBuilder.Append(HexDigit(b >> 4)).Append(HexDigit(b & 15));
+                            bool masked = hidden is not null && hiddenCells[col];
+                            brush = masked || b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
+                            if (contrast && !masked) cue = ByteCue(b);
+                            if (ReferenceEquals(brush, runBrush) && cue == runCue) continue;
                         }
-                        var hex = Format(hexBuilder.ToString(), fore);
-                        // one span per run of bytes with the same colour: a row of zeros is one span, not one per byte
-                        int runStart = 0;
-                        IBrush? runBrush = null;
-                        var runCue = HexCue.None;
-                        for (int col = 0; col <= n; col++)
+                        int runLength = col > 0 ? _hexChar[col - 1] + 2 - _hexChar[runStart] : 0;
+                        if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], runLength);
+                        if (runCue != HexCue.None)
                         {
-                            IBrush? brush = null;
-                            var cue = HexCue.None;
-                            if (col < n)
-                            {
-                                byte b = buf[rowOffset - bufStart + col];
-                                bool masked = hidden is not null && hiddenCells[col];
-                                brush = masked || b == 0 ? dim : b == 0xFF ? accent : b < 0x20 || b == 0x7F ? muted : null;
-                                if (contrast && !masked) cue = ByteCue(b);
-                                if (ReferenceEquals(brush, runBrush) && cue == runCue) continue;
-                            }
-                            int runLength = col > 0 ? _hexChar[col - 1] + 2 - _hexChar[runStart] : 0;
-                            if (runBrush is not null) hex.SetForegroundBrush(runBrush, _hexChar[runStart], runLength);
-                            if (runCue != HexCue.None)
-                            {
-                                ApplyCue(hex, runCue, _hexChar[runStart], runLength);
-                                CueRuns++;
-                            }
-                            (runStart, runBrush, runCue) = (col, brush, cue);
+                            ApplyCue(hex, runCue, _hexChar[runStart], runLength);
+                            CueRuns++;
                         }
-                        context.DrawText(hex, new Point(_hexLeft, y + 1));
+                        (runStart, runBrush, runCue) = (col, brush, cue);
                     }
+                    context.DrawText(hex, new Point(_hexLeft, y + 1));
 
                     int window = (int)(rowOffset - bufStart);
                     int before = Math.Min(window, set.Lookbehind);
