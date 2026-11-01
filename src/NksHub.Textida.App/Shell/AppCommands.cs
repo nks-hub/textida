@@ -168,6 +168,8 @@ internal static class AppCommands
         On("nks.remote.sendChanges", w => w.SendRemoteChanges());
         On("nks.tools.importTextMate", w => w.ImportTextMate());
         On("nks.view.toggleTerminal", w => w.ToggleTerminalCommand());
+        On("nks.tools.pickScreenColor", w => w.PickScreenColor());
+        On("nks.edit.toggleClipboardMonitor", w => w.ToggleClipboardMonitor());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

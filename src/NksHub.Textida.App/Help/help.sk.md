@@ -2146,3 +2146,18 @@ Panel Terminál pod editorom spúšťa shell. Používa pseudoterminál (ConPTY 
 2. Shell sa vyberá v nastavení terminal.shell: názov programu alebo cesta, prípadne s argumentmi ("C:\Program Files\Git\bin\bash.exe" --login). Prázdne nastavenie znamená PowerShell vo Windows a premennú $SHELL inde.
 - Zatvorenie panela, zatvorenie okna aj koniec editora ukončí shell a všetko, čo spustil. Ak skončí shell sám, zostane na obrazovke jeho posledný výstup a tlačidlo Spustiť znova. Zmena veľkosti panela zmení veľkosť terminálu.
 - Klávesy idú do shellu, okrem Ctrl+` a F6, ktoré patria oknu. Ctrl+Shift+C (⌘C v macOS) kopíruje označený text, Ctrl+Shift+V, Shift+Insert a ⌘V vkladajú, Shift+PageUp a PageDown a koleso myši listujú históriou výstupu (5000 riadkov). Vložený text ide do programu ako vložený, keď o to program požiada.
+
+## [tools.screenColor] Kvapkadlo: farba z obrazovky
+commands: nks.tools.pickScreenColor
+Príkaz v ponuke Nástroje otvorí malé okno, ktoré ukazuje farbu pixelu pod ukazovateľom myši kdekoľvek na obrazovke. Vybraná farba sa vloží do dokumentu ako #rrggbb, alebo ide do schránky.
+1. Zvoľte Nástroje a Kvapkadlo. Presuňte myš na farbu v ľubovoľnom programe; okno farbu a súradnice ukazovateľa priebežne aktualizuje.
+2. Stlačte Enter (alebo medzerník, alebo tlačidlo Vybrať). Farba sa vloží na miesto kurzora, a ak niet kam, je v schránke. Esc kvapkadlo zruší.
+- Windows: pixel sa číta z obrazovky bez oprávnenia. macOS: od verzie 10.15 smie obrazovku čítať len program s oprávnením Nahrávanie obrazovky (Nastavenia systému, Súkromie a zabezpečenie); Textida oprávnenie požiada pri prvom použití a bez neho kvapkadlo neotvorí. Číta sa len jeden pixel a nič sa neukladá. Linux: funguje v relácii X11 alebo XWayland; okná čistého Waylandu sa tam čítajú ako čierne a bez X11 sa kvapkadlo neponúkne.
+
+## [edit.clipboardMonitor] Sledovanie schránky
+commands: nks.edit.toggleClipboardMonitor
+Zoznam schránky normálne obsahuje len to, čo skopírujete v editore. Príkaz Zbierať kópie z iných programov doň pridáva aj texty, ktoré skopírujete inde.
+1. Zvoľte Úpravy, Schránka, Zbierať kópie z iných programov (alebo zapnite nastavenie editor.clipboardMonitor). Rovnakým príkazom sledovanie vypnete.
+2. Texty sa objavia v zozname schránky (Úpravy, Schránka, História schránky).
+- Sledovanie je v predvolenom stave vypnuté a zapína ho len používateľ. Po zapnutí sa text, ktorý už na schránke bol, nezbiera; zbierajú sa len kópie vzniknuté od zapnutia. Po vypnutí sa všetko zabudne, takže to, čo ste skopírovali pri vypnutom sledovaní, sa nikdy nezozbiera dodatočne.
+- Zoznam je len v pamäti a nič sa neukladá na disk ani neposiela. Skopírované heslo však na zozname zostane, kým ho nevytlačia novšie položky (počet položiek určuje nastavenie editor.clipboardHistorySize), preto sledovanie zapínajte len, keď ho potrebujete.

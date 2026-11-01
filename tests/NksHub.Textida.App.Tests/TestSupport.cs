@@ -71,6 +71,8 @@ internal sealed class ScriptedDialogs : IDialogs
     public Queue<string?> Prompts { get; } = new();
     public List<string> Picked { get; } = [];
     public Queue<string?> Folders { get; } = new();
+    public Queue<NksHub.Textida.Core.Colors.Rgba?> ScreenColors { get; } = new();
+    public Task<NksHub.Textida.Core.Colors.Rgba?> PickScreenColorAsync(Window owner, Func<(NksHub.Textida.Core.Colors.Rgba Color, int X, int Y)?> read) => Task.FromResult(ScreenColors.Count > 0 ? ScreenColors.Dequeue() : null);
 
     /// <summary>Runs when a question is asked, before it is answered; a test changes the document here to see what a command does when the file moves under it.</summary>
     public Action? WhileAsking { get; set; }

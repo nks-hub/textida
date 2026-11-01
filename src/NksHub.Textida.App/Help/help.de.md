@@ -2146,3 +2146,18 @@ Das Terminal-Fenster unter dem Editor startet eine Shell. Es nutzt ein Pseudoter
 2. Die Shell wählen Sie in der Einstellung terminal.shell: ein Programmname oder Pfad, optional mit Argumenten ("C:\Program Files\Git\bin\bash.exe" --login). Leer bedeutet PowerShell unter Windows und $SHELL sonst.
 - Das Schließen des Fensters, des Editors und des Terminals beendet die Shell und alles, was sie gestartet hat. Endet die Shell von selbst, bleibt ihre letzte Ausgabe mit der Schaltfläche Neu starten stehen. Eine Größenänderung des Bereichs ändert die Größe des Terminals.
 - Tasten gehen an die Shell, außer Strg+` und F6, die dem Fenster gehören. Strg+Umschalt+C (⌘C unter macOS) kopiert den markierten Text, Strg+Umschalt+V, Umschalt+Einfg und ⌘V fügen ein, Umschalt+Bild auf/ab und das Mausrad blättern durch den Ausgabeverlauf (5000 Zeilen). Eingefügter Text kommt als eingefügt beim Programm an, wenn es das verlangt.
+
+## [tools.screenColor] Farbwähler vom Bildschirm
+commands: nks.tools.pickScreenColor
+Der Befehl im Menü Extras öffnet ein kleines Fenster, das die Farbe des Pixels unter dem Mauszeiger an beliebiger Stelle des Bildschirms zeigt. Die gewählte Farbe wird als #rrggbb ins Dokument eingefügt oder in die Zwischenablage gelegt.
+1. Wählen Sie Extras und Farbwähler. Bewegen Sie die Maus über eine Farbe in einem beliebigen Programm; das Fenster aktualisiert Farbe und Zeigerposition laufend.
+2. Drücken Sie Enter (oder die Leertaste oder die Schaltfläche Wählen). Die Farbe wird an der Einfügemarke eingefügt oder liegt in der Zwischenablage, wenn es keine Stelle zum Einfügen gibt. Esc bricht ab.
+- Windows: Der Pixel wird ohne Berechtigung vom Bildschirm gelesen. macOS: Seit 10.15 darf nur ein Programm mit der Berechtigung Bildschirmaufnahme den Bildschirm lesen (Systemeinstellungen, Datenschutz & Sicherheit); Textida fragt beim ersten Mal danach und öffnet den Farbwähler ohne sie nicht. Es wird nur ein Pixel gelesen und nichts gespeichert. Linux: funktioniert in einer X11- oder XWayland-Sitzung; Fenster von reinem Wayland erscheinen dort schwarz, und ohne X11 wird der Farbwähler nicht angeboten.
+
+## [edit.clipboardMonitor] Zwischenablage-Überwachung
+commands: nks.edit.toggleClipboardMonitor
+Die Liste der Zwischenablage enthält normalerweise nur, was Sie im Editor kopieren. Der Befehl Kopien aus anderen Programmen sammeln fügt auch Texte hinzu, die Sie anderswo kopieren.
+1. Wählen Sie Bearbeiten, Zwischenablage, Kopien aus anderen Programmen sammeln (oder schalten Sie die Einstellung editor.clipboardMonitor ein). Derselbe Befehl schaltet es aus.
+2. Die Texte erscheinen in der Liste der Zwischenablage (Bearbeiten, Zwischenablage, Zwischenablageverlauf).
+- Die Überwachung ist standardmäßig aus und wird nur vom Benutzer eingeschaltet. Beim Einschalten wird der Text, der schon in der Zwischenablage lag, nicht gesammelt; nur Kopien seither. Beim Ausschalten wird alles vergessen, was Sie bei ausgeschalteter Überwachung kopiert haben, wird also nie nachträglich gesammelt.
+- Die Liste liegt nur im Speicher; nichts wird auf die Platte geschrieben oder gesendet. Ein kopiertes Passwort bleibt in der Liste, bis neuere Einträge es verdrängen (die Einstellung editor.clipboardHistorySize bestimmt die Anzahl), schalten Sie die Überwachung daher nur ein, solange Sie sie brauchen.

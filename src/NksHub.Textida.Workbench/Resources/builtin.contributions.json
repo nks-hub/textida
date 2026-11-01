@@ -1881,6 +1881,20 @@
       "icon": "terminal"
     },
     {
+      "id": "nks.tools.pickScreenColor",
+      "title": "cmd.tools.pickScreenColor",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.edit.toggleClipboardMonitor",
+      "title": "cmd.edit.toggleClipboardMonitor",
+      "category": "cat.edit",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5054,6 +5068,19 @@
       "command": "nks.view.toggleTerminal",
       "group": "5_panels/03",
       "order": 12
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.pickScreenColor",
+      "group": "2_run/09",
+      "order": 10
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.toggleClipboardMonitor",
+      "group": "2_clip/04.01",
+      "submenu": "clipboard",
+      "order": 40
     },
     {
       "menu": "edit",
@@ -8265,6 +8292,21 @@
         "shell",
         "powershell",
         "bash"
+      ]
+    },
+    {
+      "key": "editor.clipboardMonitor",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.editor.clipboardMonitor.title",
+      "description": "setting.editor.clipboardMonitor.description",
+      "category": "cat.editor.typing",
+      "scope": "application",
+      "tags": [
+        "clipboard",
+        "monitor",
+        "history",
+        "copy"
       ]
     },
     {

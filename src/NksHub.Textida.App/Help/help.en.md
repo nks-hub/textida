@@ -2146,3 +2146,18 @@ The Terminal panel below the editor runs a shell. It uses a pseudo terminal (Con
 2. The shell is chosen in the setting terminal.shell: a program name or path, optionally with arguments ("C:\Program Files\Git\bin\bash.exe" --login). Empty means PowerShell on Windows and $SHELL elsewhere.
 - Closing the panel, closing the window and ending the editor end the shell and everything it started. When the shell ends by itself, its last output stays on screen with a Restart button. Resizing the panel resizes the terminal.
 - Keys go to the shell, except Ctrl+` and F6, which belong to the window. Ctrl+Shift+C (⌘C on macOS) copies the selected text, Ctrl+Shift+V, Shift+Insert and ⌘V paste, Shift+PageUp and PageDown and the mouse wheel scroll through the output history (5000 lines). Pasted text reaches the program as pasted when the program asks for it.
+
+## [tools.screenColor] Colour picker from the screen
+commands: nks.tools.pickScreenColor
+The command in the Tools menu opens a small window that shows the colour of the pixel under the mouse pointer anywhere on the screen. The picked colour is inserted into the document as #rrggbb, or goes to the clipboard.
+1. Choose Tools and Colour Picker. Move the mouse over a colour in any program; the window keeps updating the colour and the position of the pointer.
+2. Press Enter (or Space, or the Pick button). The colour is inserted at the caret, or is on the clipboard when there is nowhere to insert it. Esc cancels.
+- Windows: the pixel is read from the screen without a permission. macOS: since 10.15 only a program with the Screen Recording permission may read the screen (System Settings, Privacy & Security); Textida asks for it the first time and does not open the picker without it. Only one pixel is read and nothing is stored. Linux: works in an X11 or XWayland session; windows of plain Wayland read as black there, and without X11 the picker is not offered.
+
+## [edit.clipboardMonitor] Clipboard monitor
+commands: nks.edit.toggleClipboardMonitor
+The clipboard list normally holds only what you copy in the editor. The command Collect Copies from Other Programs adds the texts you copy elsewhere too.
+1. Choose Edit, Clipboard, Collect Copies from Other Programs (or turn on the setting editor.clipboardMonitor). The same command turns it off.
+2. The texts appear in the clipboard list (Edit, Clipboard, Clipboard History).
+- The monitor is off by default and only the user turns it on. When it is switched on, the text that was already on the clipboard is not collected; only copies made since are. When it is switched off everything is forgotten, so what you copied while it was off is never collected later.
+- The list is in memory only and nothing is written to disk or sent anywhere. A copied password stays in the list until newer items push it out (the setting editor.clipboardHistorySize sets how many items there are), so switch the monitor on only while you need it.

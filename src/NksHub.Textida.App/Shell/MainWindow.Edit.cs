@@ -87,6 +87,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
+        "nks.edit.toggleClipboardMonitor" => (_app.Workbench.Settings.GetBool("editor.clipboardMonitor"), false),
         "nks.view.toggleToolbar" => (ToolbarShown, false),
         "nks.view.fullScreen" => (IsFullScreen, false),
         _ => null,
