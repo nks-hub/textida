@@ -250,7 +250,7 @@ internal sealed class ToolbarEditorWindow : Window
 
     private bool HasRoom()
     {
-        int max = PluginLimitsPlaceholders.ToolbarMaxButtons;
+        int max = PluginLimits.ToolbarMaxButtons;
         if (_buttons.Count < max) return true;
         SetNote(Loc.Plural(K.ToolbarEditFull, max), error: true);
         return false;

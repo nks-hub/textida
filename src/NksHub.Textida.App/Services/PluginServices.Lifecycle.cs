@@ -127,13 +127,13 @@ internal sealed partial class PluginServices
     // ---- the end ----
 
     /// <summary>
-    /// Ends the plugin services when the editor closes and does not wait for them longer than <see cref="PluginLimitsPlaceholders.ExitWaitSeconds"/>; a plugin process that is still alive then is killed by its process id,
+    /// Ends the plugin services when the editor closes and does not wait for them longer than <see cref="PluginLimits.ExitWaitSeconds"/>; a plugin process that is still alive then is killed by its process id,
     /// so closing the editor leaves none behind even when a plugin does not answer the request to leave.
     /// </summary>
     internal void Shutdown()
     {
         // on the thread pool: this runs on the UI thread, and a continuation that went back to it would wait for the wait below
-        try { Task.Run(() => DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(PluginLimitsPlaceholders.ExitWaitSeconds)); }
+        try { Task.Run(() => DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(PluginLimits.ExitWaitSeconds)); }
         catch (AggregateException) { /* what failed to end is killed below */ }
         _host.KillAll();
     }

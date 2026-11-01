@@ -101,7 +101,7 @@ internal sealed class CommitView : Grid, IDisposable
     private readonly ContentControl _stagedHost = new(), _unstagedHost = new();
     private readonly DockPanel _stagedPane, _unstagedPane;
     private readonly Grid _diffs;
-    private readonly DispatcherTimer _reload = new() { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.GitCommitReloadMilliseconds) };
+    private readonly DispatcherTimer _reload = new() { Interval = TimeSpan.FromMilliseconds(PluginLimits.GitCommitReloadMilliseconds) };
     private readonly List<Row> _rows = [];
     private CommitChanges? _changes;
     private CancellationTokenSource? _showing;

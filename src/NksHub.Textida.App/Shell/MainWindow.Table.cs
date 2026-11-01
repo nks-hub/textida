@@ -167,7 +167,7 @@ internal sealed partial class MainWindow
     {
         if (!tab.SecretsHidden) return null;
         var doc = tab.Doc.Doc;
-        return SecretValues.HiddenRanges(doc.GetSnapshot(), doc.BomLength, PluginLimitsPlaceholders.SecretScanMaxBytes);
+        return SecretValues.HiddenRanges(doc.GetSnapshot(), doc.BomLength, PluginLimits.SecretScanMaxBytes);
     }
 
     /// <summary>Copy and cut of cells: a hidden value goes to the clipboard as the placeholder, and a cut that touches one deletes nothing.</summary>

@@ -191,7 +191,7 @@ internal sealed partial class MainWindow
         tab.Doc.Changed += OnLiveEdited;
         tab.ViewClosed += OnLiveTabClosed;
         tab.Surface!.TextArea.TextView.ScrollOffsetChanged += OnLiveEditorScrolled;
-        _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.PreviewLiveDebounceMs) };
+        _liveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.PreviewLiveDebounceMs) };
         _liveTimer.Tick += (_, _) => RefreshLive();
         RefreshLive();
         return CommandOutcome.Handled;
@@ -222,7 +222,7 @@ internal sealed partial class MainWindow
     {
         _liveTimer?.Stop();
         if (_liveTab is not { Surface: { } surface } tab) return;
-        if (surface.Document.TextLength > PluginLimitsPlaceholders.PreviewLiveMaxChars)
+        if (surface.Document.TextLength > PluginLimits.PreviewLiveMaxChars)
         {
             ClosePreview();
             SetStatusMessage(Loc.Get(K.PreviewLiveTooLarge));
@@ -255,7 +255,7 @@ internal sealed partial class MainWindow
     {
         if (_liveTab?.Surface is not { } editor || ScrollMap(editor) is not { } map) return;
         double target = Math.Clamp(map.OffsetFor(TopLine(editor)), 0, Math.Max(0, _previewScroll.Extent.Height - _previewScroll.Viewport.Height));
-        _quietPreviewUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        _quietPreviewUntil = Environment.TickCount64 + PluginLimits.PreviewSyncQuietMs;
         _previewScroll.Offset = new Vector(0, target);
     }
 
@@ -268,7 +268,7 @@ internal sealed partial class MainWindow
         int number = (int)Math.Floor(line) + 1;
         double top = view.GetVisualTopByDocumentLine(number);
         double height = (number < editor.Document.LineCount ? view.GetVisualTopByDocumentLine(number + 1) : view.DocumentHeight) - top;
-        _quietEditorUntil = Environment.TickCount64 + PluginLimitsPlaceholders.PreviewSyncQuietMs;
+        _quietEditorUntil = Environment.TickCount64 + PluginLimits.PreviewSyncQuietMs;
         var scrollable = (ILogicalScrollable)view;
         scrollable.Offset = new Vector(scrollable.Offset.X, top + (line - Math.Floor(line)) * height);
     }

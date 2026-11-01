@@ -269,7 +269,7 @@ public class AcpRealAgentsTests : IDisposable
     public async Task An_adapter_that_does_not_answer_initialize_in_time_ends_as_a_timeout_and_leaves_no_process(string id)
     {
         var (_, launch) = await InstallAsync(id);
-        var options = PluginLimitsPlaceholders.Acp() with { InitializeTimeout = TimeSpan.FromMilliseconds(1) };
+        var options = PluginLimits.Acp() with { InitializeTimeout = TimeSpan.FromMilliseconds(1) };
         var failed = await Assert.ThrowsAsync<AcpTimeoutException>(() => Pump(AcpClient.StartAsync(launch, options, Acp), TimeSpan.FromSeconds(60), "the start to fail"));
         Assert.Contains("initialize", failed.Message);
     }

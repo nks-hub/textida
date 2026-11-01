@@ -42,8 +42,8 @@ public sealed record ServerTarget(string Connection, string RemoteFolder, string
         "upload:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(ProjectFolder) + "\0" + connectionId + "\0" + RemoteFolder)));
 }
 
-/// <param name="FormatTimeout">The time a formatter has before the file is saved unformatted; null while nobody has set it (the product has not decided a value), and then a formatter does not run.</param>
-/// <param name="LintTimeout">The same for a linter: the time before its run is stopped and reported; null while it is not set (the app then applies its provisional limit).</param>
+/// <param name="FormatTimeout">The time a formatter has before the file is saved unformatted; null while nobody has set it, and then the app applies its limit (<c>PluginLimits.FormatOnSaveTimeoutSeconds</c>).</param>
+/// <param name="LintTimeout">The same for a linter: the time before its run is stopped and reported; null while it is not set (the app then applies <c>PluginLimits.LintTimeoutSeconds</c>).</param>
 /// <param name="ToolPaths">The program (or the folder holding it) the user chose for a formatter or linter, by its id in <see cref="LanguageCatalog"/>. Only the profile file can set it: a project must not name the program that runs.</param>
 public sealed record SaveActionSet(IReadOnlyList<SaveAction> Actions, TimeSpan? FormatTimeout, IReadOnlyList<string> Errors, TimeSpan? LintTimeout = null, IReadOnlyDictionary<string, string>? ToolPaths = null);
 

@@ -13,12 +13,12 @@ public sealed class MappedFileSourceOptions
     public bool StartIndexing { get; init; } = true;
     /// <summary>Overrides detection. Reinterpreting a document updates it, but only to an encoding that shares the line index (see <c>MappedFileSource.SharesLineIndex</c>).</summary>
     public TextCodec? Codec { get; set; }
-    /// <summary>Bytes of inserted text, and separately of undo records, an edited document keeps in memory before it spills them to disk. Placeholder: see <see cref="PagedSpillPlaceholders"/>.</summary>
-    public long SpillBudgetBytes { get; init; } = PagedSpillPlaceholders.MemoryBudgetBytes;
+    /// <summary>Bytes of inserted text, and separately of undo records, an edited document keeps in memory before it spills them to disk. See <see cref="PagedSpillLimits"/>.</summary>
+    public long SpillBudgetBytes { get; init; } = PagedSpillLimits.MemoryBudgetBytes;
     /// <summary>Where spill files go; null for a folder under the temp directory.</summary>
     public string? SpillDirectory { get; init; }
-    /// <summary>Bytes of mapped pages the file may keep in the working set, see <see cref="MappedFile.ResidentBudget"/>; 0 keeps them all. Placeholder: see <see cref="PagedSpillPlaceholders"/>.</summary>
-    public long ResidentBudgetBytes { get; init; } = PagedSpillPlaceholders.MappedResidentBytes;
+    /// <summary>Bytes of mapped pages the file may keep in the working set, see <see cref="MappedFile.ResidentBudget"/>; 0 keeps them all. See <see cref="PagedSpillLimits"/>.</summary>
+    public long ResidentBudgetBytes { get; init; } = PagedSpillLimits.MappedResidentBytes;
 }
 
 /// <summary>
@@ -145,7 +145,7 @@ public sealed class MappedFileSource : IPagedTextSource
             try
             {
                 // a huge file is mapped and first looked at before its index starts to compete for the same pages: with the workers running, the first picture of a 50 GiB file took a second more
-                if (_file.Length >= PagedSpillPlaceholders.IndexDelayAboveBytes) await Task.Delay(PagedSpillPlaceholders.IndexStartDelayMs, token).ConfigureAwait(false);
+                if (_file.Length >= PagedSpillLimits.IndexDelayAboveBytes) await Task.Delay(PagedSpillLimits.IndexStartDelayMs, token).ConfigureAwait(false);
                 Parallel.For(0, _blocks, new ParallelOptions { MaxDegreeOfParallelism = parallelism, CancellationToken = token }, IndexBlock);
             }
             catch (OperationCanceledException) { return; }

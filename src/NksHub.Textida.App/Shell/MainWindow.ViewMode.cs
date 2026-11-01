@@ -56,9 +56,9 @@ internal sealed partial class MainWindow
     internal static IReadOnlyList<ViewMode> ModesOf(OpenDocument od) =>
         od.IsResults || od.IsVirtual ? [] : od.IsImageFile ? [ViewMode.Image, ViewMode.Text, ViewMode.Hex] : OffersMarkdownModes(od) ? [ViewMode.Read, ViewMode.Edit, ViewMode.Text] : [];
 
-    /// <summary>The page is drawn only for text that is within <see cref="PluginLimitsPlaceholders.PreviewLiveMaxChars"/>.</summary>
+    /// <summary>The page is drawn only for text that is within <see cref="PluginLimits.PreviewLiveMaxChars"/>.</summary>
     private static bool PreviewFits(OpenDocument od) =>
-        (od.TextBackend is { } text ? text.TextDocument.TextLength : od.Doc.ByteLength) <= PluginLimitsPlaceholders.PreviewLiveMaxChars;
+        (od.TextBackend is { } text ? text.TextDocument.TextLength : od.Doc.ByteLength) <= PluginLimits.PreviewLiveMaxChars;
 
     internal static bool CanShow(OpenDocument od, ViewMode mode) => mode switch
     {
@@ -152,7 +152,7 @@ internal sealed partial class MainWindow
         if (od.Mode == mode) return true;
         if (!CanShow(od, mode))
         {
-            SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimitsPlaceholders.PreviewLiveMaxChars)));
+            SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars)));
             return false;
         }
         if (mode == ViewMode.Hex && !await ConfirmTypedLossAsync(tab, Loc.Get(K.LossHexShow))) return false;

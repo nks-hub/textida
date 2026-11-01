@@ -123,7 +123,7 @@ public class CsvViewTests : IDisposable
         var text = new StringBuilder("id;note;n\r\n");
         for (int i = 0; text.Length < 100_000; i++) text.Append(i).Append(";\"first line\r\nsecond, line, with, commas\";").Append(i).Append("\r\n");
         var tab = OpenCsv(text.ToString());
-        Assert.True(tab.Doc.Doc.ByteLength > PluginLimitsPlaceholders.CsvDetectSampleBytes);
+        Assert.True(tab.Doc.Doc.ByteLength > PluginLimits.CsvDetectSampleBytes);
         Assert.Equal(';', tab.Doc.TableDialect.Delimiter);
 
         var view = ShowTable(tab);

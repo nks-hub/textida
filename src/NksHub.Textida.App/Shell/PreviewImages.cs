@@ -84,11 +84,11 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         try
         {
             var info = new FileInfo(path);
-            if (!info.Exists || info.Length > PluginLimitsPlaceholders.PreviewFileImageMaxBytes) return ("", null, false);
+            if (!info.Exists || info.Length > PluginLimits.PreviewFileImageMaxBytes) return ("", null, false);
             string stamp = $"{info.Length}:{info.LastWriteTimeUtc.Ticks}";
             if (stamp == knownStamp) return (stamp, null, true);
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            return (stamp, Decode(ReadAll(file, PluginLimitsPlaceholders.PreviewFileImageMaxBytes) ?? []), false);
+            return (stamp, Decode(ReadAll(file, PluginLimits.PreviewFileImageMaxBytes) ?? []), false);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
@@ -120,7 +120,7 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
         var host = new ContentControl();
         if (_cache.TryGetValue(key, out var known) && known.Bitmap is { } shown) host.Content = Picture(shown, alt);
         else if (!_allowedHosts.Contains(site)) host.Content = AskButton(site, alt);
-        else if (known is not null && Environment.TickCount64 - known.FailedAt < PluginLimitsPlaceholders.PreviewRemoteImageRetryMs) host.Content = Note(K.PreviewPanelImage, alt);
+        else if (known is not null && Environment.TickCount64 - known.FailedAt < PluginLimits.PreviewRemoteImageRetryMs) host.Content = Note(K.PreviewPanelImage, alt);
         else
         {
             host.Content = Note(K.PreviewImageLoading, alt);
@@ -168,16 +168,16 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
             var h = handler();
             h.AllowAutoRedirect = false;
             using var http = new HttpClient(h, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
-            using var limit = new CancellationTokenSource(PluginLimitsPlaceholders.PreviewRemoteImageTimeoutMs);
+            using var limit = new CancellationTokenSource(PluginLimits.PreviewRemoteImageTimeoutMs);
             using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, limit.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > PluginLimitsPlaceholders.PreviewFileImageMaxBytes) return null;
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength > PluginLimits.PreviewFileImageMaxBytes) return null;
             await using var body = await response.Content.ReadAsStreamAsync(limit.Token).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var chunk = new byte[16 * 1024];
             int read;
             while ((read = await body.ReadAsync(chunk, limit.Token).ConfigureAwait(false)) > 0)
             {
-                if (buffer.Length + read > PluginLimitsPlaceholders.PreviewFileImageMaxBytes) return null;
+                if (buffer.Length + read > PluginLimits.PreviewFileImageMaxBytes) return null;
                 buffer.Write(chunk, 0, read);
             }
             return Decode(buffer.ToArray());
@@ -192,6 +192,6 @@ internal sealed class PreviewImages(Func<HttpClientHandler> handler, Func<string
     {
         if (!_cache.ContainsKey(key)) _order.Enqueue(key);
         _cache[key] = entry;
-        while (_cache.Count > PluginLimitsPlaceholders.PreviewImageCacheEntries && _order.TryDequeue(out var oldest)) _cache.Remove(oldest);
+        while (_cache.Count > PluginLimits.PreviewImageCacheEntries && _order.TryDequeue(out var oldest)) _cache.Remove(oldest);
     }
 }

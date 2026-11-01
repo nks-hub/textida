@@ -282,7 +282,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
         {
             if (adapter is not null) await NoteVersionAsync(launch, adapter, starting.Token);
             if (_stopping) return false;
-            var client = await AcpClient.StartAsync(launch, PluginLimitsPlaceholders.Acp(), this);
+            var client = await AcpClient.StartAsync(launch, PluginLimits.Acp(), this);
             if (_stopping)
             {
                 await client.DisposeAsync();
@@ -309,7 +309,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     /// <summary>Asks the program for its version and says in the conversation what it printed next to the version of the table. A program that prints none is only noted.</summary>
     private async Task NoteVersionAsync(AcpLaunch launch, AcpAdapter adapter, CancellationToken cancellation)
     {
-        var found = await AcpVersionProbe.ReadAsync(launch.Executable, adapter.VersionCheckArgs, launch.WorkingDirectory, TimeSpan.FromSeconds(PluginLimitsPlaceholders.AcpVersionCheckTimeoutSeconds), cancellation);
+        var found = await AcpVersionProbe.ReadAsync(launch.Executable, adapter.VersionCheckArgs, launch.WorkingDirectory, TimeSpan.FromSeconds(PluginLimits.AcpVersionCheckTimeoutSeconds), cancellation);
         if (cancellation.IsCancellationRequested) return;
         if (found.Version is { } version)
             Add(AgentRole.Note, () => Loc.Get(adapter.VerifiedVersion == version ? K.AgentVersionVerified : K.AgentVersionUnverified, ("agent", adapter.Name), ("version", version), ("listed", adapter.ListedVersion)));
@@ -527,8 +527,8 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
             {
                 var info = await CallAsync(DocumentMethods.Info, id, null, cancellation).ConfigureAwait(false);
                 long bom = info.GetProperty("bomLength").GetInt64(), length = info.GetProperty("byteLength").GetInt64(), revision = info.GetProperty("revision").GetInt64();
-                if (length - bom > PluginLimitsPlaceholders.AcpMaxReadBytes)
-                    throw new AcpRefusedException(AcpRefusedException.Declined, $"The file is larger than {PluginLimitsPlaceholders.AcpMaxReadBytes} bytes; the editor does not hand it to the agent.");
+                if (length - bom > PluginLimits.AcpMaxReadBytes)
+                    throw new AcpRefusedException(AcpRefusedException.Declined, $"The file is larger than {PluginLimits.AcpMaxReadBytes} bytes; the editor does not hand it to the agent.");
                 try
                 {
                     var read = await CallAsync(DocumentMethods.ReadText, id, w =>
@@ -637,7 +637,7 @@ internal sealed class AcpService : IAcpHost, IAsyncDisposable
     internal static string? ResultOf(Document doc, AcpDiff diff)
     {
         if (diff.OldText is null) return diff.NewText;
-        if (doc.ByteLength > PluginLimitsPlaceholders.AcpMaxReadBytes) return null;
+        if (doc.ByteLength > PluginLimits.AcpMaxReadBytes) return null;
         string text = doc.ReadText(new ByteRange(doc.BomLength, doc.ByteLength));
         if (text == diff.OldText) return diff.NewText;
         int at = diff.OldText.Length == 0 ? -1 : text.IndexOf(diff.OldText, StringComparison.Ordinal);

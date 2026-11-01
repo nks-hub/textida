@@ -21,7 +21,7 @@ public static class HugeScenario
 {
     public const int PasteChunk = 4 << 20;
     public const long LossLimitMs = 2000;
-    /// <summary>The size above which the app hashes a file in the background (<c>PluginLimitsPlaceholders.OpenHashInBackgroundBytes</c>), which the child and the recovery of this scenario do as well.</summary>
+    /// <summary>The size above which the app hashes a file in the background (<c>PluginLimits.OpenHashInBackgroundBytes</c>), which the child and the recovery of this scenario do as well.</summary>
     public const long BackgroundHashAbove = 64L << 20;
     public static readonly string[] Points = ["edit", "paste", "save", "cancel"];
 
@@ -75,7 +75,7 @@ public static class HugeScenario
         }) { IsBackground = true };
         watch.Start();
 
-        var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillPlaceholders.MemoryBudgetBytes, spillDirectory: Path.Combine(dir, "spill"));
+        var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillLimits.MemoryBudgetBytes, spillDirectory: Path.Combine(dir, "spill"));
         using var session = JournalSession.Start(Path.Combine(dir, "journal"), name => name == "paged" ? factory : null);
         // as the app opens a big file: size and time now, the hash from a pass in the background
         using var doc = Doc.Open(Path.Combine(dir, "data", "doc.txt"), factory, new DocumentOptions { HashInBackgroundAboveBytes = BackgroundHashAbove });
@@ -253,7 +253,7 @@ public static class HugeScenario
         }
 
         string journalPath = Directory.GetFiles(journal, "session-*.njl").Single();
-        var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillPlaceholders.MemoryBudgetBytes, spillDirectory: spill);
+        var factory = new PagedBackendFactory(startIndexing: false, spillBudgetBytes: PagedSpillLimits.MemoryBudgetBytes, spillDirectory: spill);
         clock.Restart();
         var recovery = JournalRecovery.Recover(journalPath, name => name == "paged" ? factory : null, new RecoveryOptions { HashInBackgroundAboveBytes = BackgroundHashAbove });
         double recoverSeconds = clock.Elapsed.TotalSeconds;

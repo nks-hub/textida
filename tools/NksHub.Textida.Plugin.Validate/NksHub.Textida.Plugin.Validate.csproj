@@ -35,7 +35,7 @@
 
   <ItemGroup>
     <!-- the limits of a plugin folder are read from the one file that holds them for the editor -->
-    <Compile Include="..\..\src\NksHub.Textida.App\Services\PluginLimitsPlaceholders.Plugins.cs" Link="PluginLimitsPlaceholders.Plugins.cs" />
+    <Compile Include="..\..\src\NksHub.Textida.App\Services\PluginLimits.Plugins.cs" Link="PluginLimits.Plugins.cs" />
   </ItemGroup>
 
 </Project>

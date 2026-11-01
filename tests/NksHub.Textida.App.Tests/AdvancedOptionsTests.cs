@@ -195,7 +195,7 @@ public class AdvancedOptionsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
         var surface = tab.Editor!;
         var inside = surface.TranslatePoint(new Point(200, 100), _w)!.Value;
-        double notch = PluginLimitsPlaceholders.WheelLinesPerNotch * surface.TextArea.TextView.DefaultLineHeight;
+        double notch = PluginLimits.WheelLinesPerNotch * surface.TextArea.TextView.DefaultLineHeight;
 
         // off: the wheel is left to the scroll viewer and nothing glides
         _w.MouseWheel(inside, new Vector(0, -1), RawInputModifiers.None);

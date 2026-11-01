@@ -42,7 +42,7 @@ internal sealed class SetupEnvironment
         try
         {
             using var process = Process.GetProcessById(pid);
-            return process.WaitForExit(InstallLimitsPlaceholders.WaitForEditorMilliseconds);
+            return process.WaitForExit(InstallLimits.WaitForEditorMilliseconds);
         }
         catch (ArgumentException) { return true; } // already gone
     };

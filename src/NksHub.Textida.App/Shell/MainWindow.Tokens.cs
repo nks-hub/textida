@@ -47,7 +47,7 @@ internal sealed partial class MainWindow
     });
 
     /// <summary>
-    /// Characters in the selection of a text tab, or null when nothing is selected. A selection in paged mode is decoded up to <see cref="PluginLimitsPlaceholders.TokenEstimateMaxSelectionBytes"/>;
+    /// Characters in the selection of a text tab, or null when nothing is selected. A selection in paged mode is decoded up to <see cref="PluginLimits.TokenEstimateMaxSelectionBytes"/>;
     /// a larger one is counted by its bytes, which is never less than its characters.
     /// </summary>
     private static long? SelectionCharacters(DocTab tab)
@@ -56,7 +56,7 @@ internal sealed partial class MainWindow
         if (tab.Paged is { HasSelection: true } paged)
         {
             var range = paged.SelectionRange;
-            return range.Length <= PluginLimitsPlaceholders.TokenEstimateMaxSelectionBytes ? paged.SelectedText().Length : range.Length;
+            return range.Length <= PluginLimits.TokenEstimateMaxSelectionBytes ? paged.SelectedText().Length : range.Length;
         }
         return null;
     }

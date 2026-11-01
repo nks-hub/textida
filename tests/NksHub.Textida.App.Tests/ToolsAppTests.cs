@@ -654,9 +654,9 @@ public class ToolLauncherTests : IDisposable
         Assert.Equal(["all", "clean"], _w.QuickResults.Select(r => r.Title));
 
         string big = Path.Combine(src, "makefile");
-        File.WriteAllText(big, "x:\n" + new string('#', (int)PluginLimitsPlaceholders.MakefileMaxBytes + 1));
+        File.WriteAllText(big, "x:\n" + new string('#', (int)PluginLimits.MakefileMaxBytes + 1));
         _w.ShowMakeTargets();
-        Assert.Equal(Loc.Get(K.MakeTooBig, ("file", big), ("bytes", PluginLimitsPlaceholders.MakefileMaxBytes)), _w.StatusMessageText);
+        Assert.Equal(Loc.Get(K.MakeTooBig, ("file", big), ("bytes", PluginLimits.MakefileMaxBytes)), _w.StatusMessageText);
     }
 
     [AvaloniaFact]

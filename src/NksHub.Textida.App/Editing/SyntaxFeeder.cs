@@ -138,7 +138,7 @@ internal sealed class SyntaxFeeder : IDisposable
         if (DefersJumps && before.First >= 0 && _session is not null && (DefersMoves || _wanted.First >= before.First + before.Count || _wanted.First + _wanted.Count <= before.First))
         {
             long now = Stopwatch.GetTimestamp();
-            bool close = _lastJump != 0 && Stopwatch.GetElapsedTime(_lastJump, now) < TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds);
+            bool close = _lastJump != 0 && Stopwatch.GetElapsedTime(_lastJump, now) < TimeSpan.FromMilliseconds(PluginLimits.SyntaxJumpSettleMilliseconds);
             _lastJump = now;
             if (close)
             {
@@ -156,7 +156,7 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private DispatcherTimer? _jumpTimer;
 
-    /// <summary>A request for lines that share nothing with the last one, and comes within <see cref="PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds"/> of a jump before it, waits until the jumps stop; set by the view of a large file, where a jump starts a walk from a checkpoint.</summary>
+    /// <summary>A request for lines that share nothing with the last one, and comes within <see cref="PluginLimits.SyntaxJumpSettleMilliseconds"/> of a jump before it, waits until the jumps stop; set by the view of a large file, where a jump starts a walk from a checkpoint.</summary>
     public bool DefersJumps { get; set; }
 
     /// <summary>With <see cref="DefersJumps"/>, every request that leaves the last window waits like a jump, not only one that shares nothing with it; set by the minimap, whose window moves by dozens of lines per frame of a drag.</summary>
@@ -164,7 +164,7 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private DispatcherTimer NewJumpTimer()
     {
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SyntaxJumpSettleMilliseconds) };
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.SyntaxJumpSettleMilliseconds) };
         timer.Tick += (_, _) =>
         {
             timer.Stop();

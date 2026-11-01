@@ -892,7 +892,7 @@ public class PagedEditTests : IDisposable
     public void A_file_over_the_backup_limit_is_saved_without_a_copy_and_without_an_error()
     {
         string path = Path.Combine(_temp.Path, "over.log");
-        long length = WriteRows(path, Core.PagedSpillPlaceholders.SaveBackupMaxBytes + 1);
+        long length = WriteRows(path, Core.PagedSpillLimits.SaveBackupMaxBytes + 1);
         var tab = _w.OpenFile(path, null);
         Assert.True(tab.Doc.IsLarge);
         tab.Paged!.Focus();
@@ -939,7 +939,7 @@ public class PagedEditTests : IDisposable
         _output.WriteLine($"Typing during a {length / 1073741824.0:0.0##} GiB save: {times.Count} keystrokes, p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} keystrokes fitted in the save");
         Assert.True(p95 <= 33, $"typing p95 {p95:0.0} ms during the save");
-        Assert.True(p99 <= Core.PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");
+        Assert.True(p99 <= Core.PagedSpillLimits.SaveEditLatencyP99Ms, $"typing p99 {p99:0.0} ms during the save");
         Assert.Equal(length + 2, new FileInfo(path).Length); // the file is the revision of the save: the two characters, not the "x" typed after
         Assert.True(doc.IsModified);
     }

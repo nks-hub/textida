@@ -338,7 +338,7 @@ internal sealed class HistoryView : Grid, IDisposable
         {
             try
             {
-                _history.CountChanges(_path, codec, PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes,
+                _history.CountChanges(_path, codec, PluginLimits.HistoryTextRevisionMaxBytes,
                     (r, before) =>
                     {
                         if (known.TryGetValue(r.Id, out var c) && c.Before == before?.Id) return false; // counted against the same revision already
@@ -392,7 +392,7 @@ internal sealed class HistoryView : Grid, IDisposable
 
     private async Task<CompareSide> SideOfAsync(HistoryRevision r, CancellationToken ct)
     {
-        if (r.Size > PluginLimitsPlaceholders.HistoryTextRevisionMaxBytes) throw new InvalidOperationException(Loc.Get(K.HistoryRevisionTooBig, ("size", OpenDocument.FormatSize(r.Size))));
+        if (r.Size > PluginLimits.HistoryTextRevisionMaxBytes) throw new InvalidOperationException(Loc.Get(K.HistoryRevisionTooBig, ("size", OpenDocument.FormatSize(r.Size))));
         var codec = _codec();
         var bytes = await Task.Run(() => _history.Read(_path, r.Id), ct);
         string title = Loc.Get(K.HistoryActionsTitle, ("time", When(r))) + (r.Label is { Length: > 0 } label ? " · " + label : "");

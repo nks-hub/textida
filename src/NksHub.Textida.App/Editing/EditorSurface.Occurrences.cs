@@ -63,12 +63,12 @@ internal sealed partial class EditorSurface
         if (!selection.IsEmpty)
         {
             var segment = selection.SurroundingSegment;
-            if (segment.Length > PluginLimitsPlaceholders.OccurrenceMaxChars || segment.EndOffset > Document.GetLineByOffset(segment.Offset).EndOffset) return null;
+            if (segment.Length > PluginLimits.OccurrenceMaxChars || segment.EndOffset > Document.GetLineByOffset(segment.Offset).EndOffset) return null;
             return OccurrenceMatcher.TargetOf(Document.GetText(segment.Offset, segment.Length), segment.Offset, wholeWord: false, options);
         }
         if (!options.AtCaret) return null;
         var line = Document.GetLineByOffset(CaretOffset);
-        if (line.Length > PluginLimitsPlaceholders.OccurrenceLineMaxChars) return null;
+        if (line.Length > PluginLimits.OccurrenceLineMaxChars) return null;
         string text = Document.GetText(line.Offset, line.Length);
         return OccurrenceMatcher.WordAt(text, CaretOffset - line.Offset, out int start, out int end)
             ? OccurrenceMatcher.TargetOf(text[start..end], line.Offset + start, wholeWord: true, options)
@@ -77,14 +77,14 @@ internal sealed partial class EditorSurface
 
     /// <summary>
     /// Counts the other occurrences in the whole document and lists their lines, on the search worker over a snapshot of the text, so the same places are found as by the find bar.
-    /// The occurrence that is the selection itself (the one starting at the selection) is not counted. The scan stops at <see cref="PluginLimitsPlaceholders.OccurrenceMaxMarks"/>.
+    /// The occurrence that is the selection itself (the one starting at the selection) is not counted. The scan stops at <see cref="PluginLimits.OccurrenceMaxMarks"/>.
     /// </summary>
     /// <remarks>shortcut: the search worker numbers lines by line feeds, as it does for the marks of the find bar, so a file with lone carriage returns marks the wrong lines; upgrade by mapping the byte offset of each hit to its line.</remarks>
     private async Task<OccurrenceScan> ScanOccurrencesAsync(OccurrenceTarget target, CancellationToken cancel)
     {
         if (Doc.TextBackend is not { } backend) return OccurrenceScan.None;
         long own = backend.ToByteOffsets([(int)target.Own])[0];
-        int max = PluginLimitsPlaceholders.OccurrenceMaxMarks;
+        int max = PluginLimits.OccurrenceMaxMarks;
         var settings = new SearchSettings { MaxResults = max + 1, StopAtLimit = true, Parallelism = 1, PreviewChars = 0 };
         var run = SearchWorker.Start(target.Query.Pattern, new SearchScope([], [LiveBuffer.Of(Doc.Doc)]), settings, cancel);
         var lines = new List<long>();
@@ -113,12 +113,12 @@ internal sealed partial class EditorSurface
             return _occSegments;
         _occKey = (version, first, last, target);
         _occSegments.Clear();
-        int room = PluginLimitsPlaceholders.OccurrenceMaxDrawn;
+        int room = PluginLimits.OccurrenceMaxDrawn;
         foreach (var screenLine in visual)
         {
             for (var line = screenLine.FirstDocumentLine; line is not null; line = line.NextLine)
             {
-                if (line.Length > 0 && line.Length <= PluginLimitsPlaceholders.OccurrenceLineMaxChars) // shortcut: a longer line is left plain; upgrade by searching only the columns on screen
+                if (line.Length > 0 && line.Length <= PluginLimits.OccurrenceLineMaxChars) // shortcut: a longer line is left plain; upgrade by searching only the columns on screen
                 {
                     _occSpans.Clear();
                     OccurrenceMatcher.Spans(regex, Document.GetText(line.Offset, line.Length), _occSpans, room);

@@ -82,7 +82,7 @@ internal sealed class Glide(Func<double> read, Action<double> write)
 
     private DispatcherTimer CreateTimer()
     {
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.SmoothScrollFrameMilliseconds) };
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.SmoothScrollFrameMilliseconds) };
         timer.Tick += (_, _) => Frame();
         return timer;
     }
@@ -91,7 +91,7 @@ internal sealed class Glide(Func<double> read, Action<double> write)
     internal void Frame()
     {
         double now = read();
-        double next = _scroll.Next(now, PluginLimitsPlaceholders.SmoothScrollShare);
+        double next = _scroll.Next(now, PluginLimits.SmoothScrollShare);
         if (_scroll.Active || next != now) write(next);
         if (!_scroll.Active) _timer?.Stop();
     }

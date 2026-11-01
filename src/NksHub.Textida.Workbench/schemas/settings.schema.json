@@ -262,7 +262,7 @@
         "files.secretFilePatterns": {
           "type": "string",
           "default": ".env;.env.*;*.env",
-          "description": "Secret files. Name masks of the files whose values are hidden, separated by semicolons; * stands for any text and ? for one character. The default list is provisional.",
+          "description": "Secret files. Name masks of the files whose values are hidden, separated by semicolons; * stands for any text and ? for one character.",
           "x-scope": "application"
         },
         "history.maxRevisionsPerFile": {

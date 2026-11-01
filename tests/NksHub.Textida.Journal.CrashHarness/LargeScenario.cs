@@ -257,7 +257,7 @@ public static class LargeScenario
 {
     public const long SpillBudget = 256 << 10;
     public const int DefaultBig = 3 << 20;
-    /// <summary>Edits of the Replace All of the script: more than <see cref="JournalPlaceholders.MaxInlineEditCount"/>, so the journal writes them as a list.</summary>
+    /// <summary>Edits of the Replace All of the script: more than <see cref="JournalLimits.MaxInlineEditCount"/>, so the journal writes them as a list.</summary>
     public const int BulkEdits = 6000;
 
     public static readonly string[] Points = ["spill-written", "journal-flushed", "mid-write", "temp-written", "before-swap", "mid-swap", "after-swap", "saved", "post-save", "cancel"];

@@ -46,7 +46,7 @@ public sealed partial class App : Application
     /// <summary>The folder whose dot files hold the MCP server lists of the agents; tests point it at a fixture.</summary>
     internal string AgentConfigHome { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     /// <summary>Limits and timeouts of the MCP client; tests shorten them.</summary>
-    internal NksHub.Textida.McpClient.McpClientOptions McpClientOptions { get; set; } = Services.PluginLimitsPlaceholders.McpClient();
+    internal NksHub.Textida.McpClient.McpClientOptions McpClientOptions { get; set; } = Services.PluginLimits.McpClient();
     internal NksHub.Textida.Core.Secrets.ICredentialStore Credentials { get; set; } = NksHub.Textida.Core.Secrets.CredentialStores.ForCurrentPlatform();
     /// <summary>Connections, local copies of remote files and the network policy.</summary>
     internal RemoteServices Remote { get; set; } = null!;
@@ -207,7 +207,7 @@ public sealed partial class App : Application
         ToolRunner.NetworkGuard = info => NksHub.Textida.Remote.ToolProxy.Shared.Apply(info, "formatter-or-linter"); // formatters and linters have no host on any list: they reach nothing outside the machine
         if (!OperatingSystem.IsWindows()) // Windows ends the children of a killed editor with a job object, see ProcessLaunch.Track
         {
-            ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimitsPlaceholders.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.StartTimeToleranceMilliseconds));
+            ChildProcessGuard.Configure(Path.Combine(ProfileDirectory, PluginLimits.ChildListFolder), TimeSpan.FromMilliseconds(PluginLimits.StartTimeToleranceMilliseconds));
             ChildProcessGuard.SweepLeftovers();
         }
         Workbench = new AppWorkbench(ProfileDirectory, Loc.DefaultLanguage);
@@ -525,9 +525,9 @@ public sealed partial class App : Application
             MaxAge = Limit("history.maxAgeDays") is { } days ? TimeSpan.FromDays(days) : null,
             MaxBytesPerFile = Limit("history.maxMiBPerFile", 1L << 20),
             MaxTotalBytes = Limit("history.maxTotalMiB", 1L << 20),
-            MaxRevisionBytes = PluginLimitsPlaceholders.HistoryRevisionMaxBytes,
-            PatchAboveBytes = PluginLimitsPlaceholders.HistoryPatchAboveBytes,
-            MaxPatchPercent = PluginLimitsPlaceholders.HistoryPatchMaxPercent,
+            MaxRevisionBytes = PluginLimits.HistoryRevisionMaxBytes,
+            PatchAboveBytes = PluginLimits.HistoryPatchAboveBytes,
+            MaxPatchPercent = PluginLimits.HistoryPatchMaxPercent,
         };
     }
 

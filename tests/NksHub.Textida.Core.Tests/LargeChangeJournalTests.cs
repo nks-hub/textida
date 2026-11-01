@@ -525,7 +525,7 @@ public sealed class LargeChangeJournalTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         LargeText.WriteFile(path, big);
         string original = HashFile(path);
-        var factory = Factory(PagedSpillPlaceholders.MemoryBudgetBytes);
+        var factory = Factory(PagedSpillLimits.MemoryBudgetBytes);
         var model = new LargeModel(big);
         var gate = new ManualResetEventSlim();
         LargeModel? saved = null;

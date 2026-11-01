@@ -28,7 +28,7 @@ public sealed partial class Document
     internal PatchHooks? InPlaceHooks;
 
     /// <summary>Test seam: milliseconds between two progress reports of a streamed save; 0 reports after every buffer.</summary>
-    internal int ProgressIntervalMs = PagedSpillPlaceholders.SaveProgressIntervalMs;
+    internal int ProgressIntervalMs = PagedSpillLimits.SaveProgressIntervalMs;
 
     /// <summary>Test seam of the streamed save: called with the step (<c>temp-writing</c> on the worker before the first byte, <c>temp-written</c>, <c>before-swap</c>, <c>after-swap</c>, <c>saved</c>) and the path of the temporary file; a kill is simulated by ending the process there.</summary>
     internal Action<string, string>? StreamSaveStep;
@@ -349,7 +349,7 @@ public sealed partial class Document
     /// backend that can keep them (<see cref="EditsDuringSave"/>); they stay unsaved. Cancelling before the data is committed leaves the
     /// file as it was; the task then ends as cancelled. Call it from the thread that owns the document.
     /// </summary>
-    /// <param name="progress">Told how many bytes of the new file are written, at most once per <see cref="PagedSpillPlaceholders.SaveProgressIntervalMs"/>; called on the worker thread, so use <see cref="Progress{T}"/> to get it on the caller's thread. Not used by an in-place save.</param>
+    /// <param name="progress">Told how many bytes of the new file are written, at most once per <see cref="PagedSpillLimits.SaveProgressIntervalMs"/>; called on the worker thread, so use <see cref="Progress{T}"/> to get it on the caller's thread. Not used by an in-place save.</param>
     public async Task<SaveResult> SaveAsync(string? path = null, bool overwriteExternalChanges = false, CancellationToken cancellationToken = default, IProgress<SaveProgress>? progress = null)
     {
         ThrowIfDisposed();

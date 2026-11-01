@@ -51,7 +51,7 @@ public readonly record struct TextStatisticsResult(long Bytes, long Characters, 
 /// <summary>
 /// Counts characters, words and lines over decoded chunks. A character split between two chunks is held back until its rest arrives.
 /// A line ends at LF, or at CR that is not directly followed by LF (the rule of <c>LineScanner</c>), so a file with N terminators has N + 1 lines.
-/// A word is a run of letters and digits; the definition is not decided yet (placeholder).
+/// A word is a run of letters and digits.
 /// With <paramref name="maxDistinctWords"/> above zero it also tallies characters and lower-cased words; the word table stops growing at that many
 /// distinct words (<see cref="WordTableFull"/>) and a word is cut at <paramref name="maxWordLength"/> characters, so the memory of the tables is bounded.
 /// </summary>

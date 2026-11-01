@@ -28,7 +28,7 @@ internal sealed partial class MainWindow
     private sealed record ExportSource(string Text, (int Start, int Length)? Range, Tokenizer? Tokenizer, LogLevelRules? Levels, string Title, LineState? StartState = null, string? Problem = null);
 
     /// <summary>Longest stretch of a line, in bytes, that is read in front of a selection of a large file to color it; with more the selection is colored from its own start.</summary>
-    private const long PagedExportHeadMaxBytes = 4L * PluginLimitsPlaceholders.HighlightExportMaxChars;
+    private const long PagedExportHeadMaxBytes = 4L * PluginLimits.HighlightExportMaxChars;
 
     private async Task<ExportSource?> ReadExportSourceAsync()
     {
@@ -89,7 +89,7 @@ internal sealed partial class MainWindow
             var shown = Stopwatch.StartNew();
             var progress = new Progress<long>(scanned =>
             {
-                if (_exportJob != cts || shown.ElapsedMilliseconds < PluginLimitsPlaceholders.HighlightExportProgressMilliseconds) return;
+                if (_exportJob != cts || shown.ElapsedMilliseconds < PluginLimits.HighlightExportProgressMilliseconds) return;
                 shown.Restart();
                 SetStatusMessage(Loc.Get(K.ExportReading, ("percent", Math.Clamp(scanned * 100 / Math.Max(1, at.Start), 0, 99))));
             });
@@ -120,9 +120,9 @@ internal sealed partial class MainWindow
             SetStatusMessage(source?.Problem ?? Loc.Get(K.ExportNothing));
             return null;
         }
-        if (source.Text.Length > PluginLimitsPlaceholders.HighlightExportMaxChars)
+        if (source.Text.Length > PluginLimits.HighlightExportMaxChars)
         {
-            SetStatusMessage(Loc.Get(K.ExportTooLarge, ("chars", source.Text.Length), ("limit", PluginLimitsPlaceholders.HighlightExportMaxChars)));
+            SetStatusMessage(Loc.Get(K.ExportTooLarge, ("chars", source.Text.Length), ("limit", PluginLimits.HighlightExportMaxChars)));
             return null;
         }
         var theme = CurrentExportTheme();

@@ -21,11 +21,11 @@ internal sealed partial class MainWindow
     /// <summary>The copy the last chosen scope started; tests wait for it.</summary>
     internal Task AiContextTask { get; private set; } = Task.CompletedTask;
 
-    /// <summary>Size limit of one copy, <see cref="PluginLimitsPlaceholders.AiContextMaxBytes"/>; tests lower it.</summary>
-    internal long AiContextMaxBytes { get; set; } = PluginLimitsPlaceholders.AiContextMaxBytes;
+    /// <summary>Size limit of one copy, <see cref="PluginLimits.AiContextMaxBytes"/>; tests lower it.</summary>
+    internal long AiContextMaxBytes { get; set; } = PluginLimits.AiContextMaxBytes;
 
-    /// <summary>Size above which the preview warns, <see cref="PluginLimitsPlaceholders.AiContextWarnBytes"/>; tests lower it.</summary>
-    internal long AiContextWarnBytes { get; set; } = PluginLimitsPlaceholders.AiContextWarnBytes;
+    /// <summary>Size above which the preview warns, <see cref="PluginLimits.AiContextWarnBytes"/>; tests lower it.</summary>
+    internal long AiContextWarnBytes { get; set; } = PluginLimits.AiContextWarnBytes;
 
     /// <summary>What a scope gathered: the sources and what was left out, or the reason it could not run.</summary>
     internal sealed record AiGathered(IReadOnlyList<AiSource> Sources, IReadOnlyList<AiOmission> Omissions);

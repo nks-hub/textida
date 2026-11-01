@@ -390,7 +390,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
     {
         long size = HugeText.SizePast(2L << 30, 3L << 30); // 2 GiB and 4 MiB, 3 GiB with TEXTIDA_HUGE=1
         string path = NewFile(size);
-        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
+        using var doc = Doc.Open(path, Factory(PagedSpillLimits.MemoryBudgetBytes));
         var model = new LargeModel(size);
         Edit(doc, model, size / 3, 0, 41, 80 << 20);
         Edit(doc, model, size / 2, 1 << 20, 42, 10);
@@ -613,7 +613,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         Say($"{size / 1073741824.0:F1} GiB file written in {clock.Elapsed.TotalSeconds:F0} s; the machine has {GC.GetGCMemoryInfo().TotalAvailableMemoryBytes >> 20} MiB of memory");
         clock.Restart();
         // as the app opens a big file: the hash and the block digests come from a pass in the background, which reads the file while this test goes on
-        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes), fast ? new DocumentOptions { HashInBackgroundAboveBytes = 64L << 20 } : null);
+        using var doc = Doc.Open(path, Factory(PagedSpillLimits.MemoryBudgetBytes), fast ? new DocumentOptions { HashInBackgroundAboveBytes = 64L << 20 } : null);
         Say($"opened in {clock.Elapsed.TotalSeconds:F1} s");
         var model = new LargeModel(size, fill);
         Edit(doc, model, size / 3, 0, 41, 80 << 20, fill); // spilled to the scratch file, not held
@@ -653,8 +653,8 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         await watcher;
 
         long grown = peak - before;
-        Say($"save of {size / 1073741824.0:F1} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillPlaceholders.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
-        Assert.True(grown <= PagedSpillPlaceholders.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
+        Say($"save of {size / 1073741824.0:F1} GiB with {edits} edits meanwhile: {clock.Elapsed.TotalSeconds:F0} s; private memory {before >> 20} MiB before, peak {peak >> 20} MiB (grew {grown >> 20} MiB, limit {PagedSpillLimits.SaveMemoryGrowthBytes >> 20}); peak working set {peakSet >> 20} MiB");
+        Assert.True(grown <= PagedSpillLimits.SaveMemoryGrowthBytes, $"private memory grew by {grown >> 20} MiB during the save");
         // what the save hashed while it wrote against the independent hash of revision N, and the bytes of the file and of the editor against the edit script
         clock.Restart();
         string expected = await snapshotHashing, written = doc.Fingerprint!.Sha256;
@@ -680,7 +680,7 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
     {
         long size = HugeText.SizePast(2L << 30, 3L << 30);
         string path = NewFile(size);
-        using var doc = Doc.Open(path, Factory(PagedSpillPlaceholders.MemoryBudgetBytes));
+        using var doc = Doc.Open(path, Factory(PagedSpillLimits.MemoryBudgetBytes));
         var model = new LargeModel(size);
         Edit(doc, model, size / 2, 0, 41, 1 << 20);
         var snapshot = model.Clone();
@@ -716,9 +716,9 @@ public sealed class PagedStreamingSaveTests(ITestOutputHelper output) : IDisposa
         double stall = Stopwatch.GetElapsedTime(swapAt, doneAt).TotalMilliseconds;
         output.WriteLine($"Edits during a {size / 1073741824.0:0.0##} GiB streaming save: {times.Count} edits, p50 {times[times.Count / 2]:0.0}, p95 {times[(int)(times.Count * 0.95)]:0.0}, p99 {p99:0.0}, max {times[^1]:0.0} ms; SaveAsync call {callMs:0.0} ms; swap to done {stall:0} ms");
         Assert.True(times.Count >= 100, $"only {times.Count} edits fitted in the save");
-        Assert.True(callMs <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"starting the save held the caller for {callMs:0.0} ms");
-        Assert.True(p99 <= PagedSpillPlaceholders.SaveEditLatencyP99Ms, $"edit p99 {p99:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
-        Assert.True(stall <= PagedSpillPlaceholders.SaveCommitStallMs, $"the end of the save held the caller for {stall:0} ms");
+        Assert.True(callMs <= PagedSpillLimits.SaveEditLatencyP99Ms, $"starting the save held the caller for {callMs:0.0} ms");
+        Assert.True(p99 <= PagedSpillLimits.SaveEditLatencyP99Ms, $"edit p99 {p99:0.0} ms (median {times[times.Count / 2]:0.0} ms)");
+        Assert.True(stall <= PagedSpillLimits.SaveCommitStallMs, $"the end of the save held the caller for {stall:0} ms");
         Assert.Equal(snapshot.Sha256(), HashFile(path));
         Assert.Equal(model.Sha256(), HashOf(doc));
     }

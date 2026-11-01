@@ -201,7 +201,7 @@ internal static class TestApp
         App.Startup = new StartupContext(CommandLine.Parse(["--smoke"], temp.Path), new ProfileStore(temp.Path), "test-" + Environment.ProcessId, null);
         var app = (App)Application.Current!;
         // a process start takes tens of seconds on an overloaded machine; the 10 s the product allows for the handshake would fail every test that waits for a plugin
-        PluginLimitsPlaceholders.HandshakeTimeout = TimeSpan.FromSeconds(60);
+        PluginLimits.HandshakeTimeout = TimeSpan.FromSeconds(60);
         app.Configure();
         app.Dialogs = dialogs ?? new ScriptedDialogs();
         // the test clients of the MCP server do not say who they are; a new client has no permission, so the tests of the server's tools allow that name (McpClientPermissionTests do not)

@@ -484,7 +484,7 @@ public class RemoteCachePruneTests
         await services.PruneCopiesAsync(new HashSet<string>());
 
         Assert.True(File.Exists(unsent.LocalPath));
-        Assert.Equal(TimeSpan.FromDays(PluginLimitsPlaceholders.RemoteCacheMaxAgeDays), RemoteServices.CachePolicy.MaxAge);
+        Assert.Equal(TimeSpan.FromDays(PluginLimits.RemoteCacheMaxAgeDays), RemoteServices.CachePolicy.MaxAge);
     }
 }
 

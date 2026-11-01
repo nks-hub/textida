@@ -134,7 +134,7 @@ public class GitGutterTests : IDisposable
     [Fact]
     public void The_limits_of_the_gutter_stay_below_what_the_plugin_reads()
     {
-        Assert.True(PluginLimitsPlaceholders.GitGutterMaxBytes <= PluginLimitsPlaceholders.VirtualDocumentMaxBytes);
-        Assert.True(PluginLimitsPlaceholders.GitGutterDebounceMilliseconds > 0 && PluginLimitsPlaceholders.GitWatchDebounceMilliseconds > 0);
+        Assert.True(PluginLimits.GitGutterMaxBytes <= PluginLimits.VirtualDocumentMaxBytes);
+        Assert.True(PluginLimits.GitGutterDebounceMilliseconds > 0 && PluginLimits.GitWatchDebounceMilliseconds > 0);
     }
 }

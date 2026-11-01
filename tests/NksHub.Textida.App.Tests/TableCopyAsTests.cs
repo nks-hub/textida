@@ -225,7 +225,7 @@ public class TableCopyAsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
-        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)));
+        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimits.ClipboardMaxChars)));
         Assert.DoesNotContain(_w.Notices, n => n.Message.StartsWith("The plugin Text tools could not be run", StringComparison.Ordinal));
     }
 
@@ -243,7 +243,7 @@ public class TableCopyAsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("before", await _w.Clipboard.TryGetTextAsync());
-        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimitsPlaceholders.ClipboardMaxChars)));
+        Assert.Contains(_w.Notices, n => n.Message == Loc.Get(K.TableCopyAsTooLarge, ("limit", PluginLimits.ClipboardMaxChars)));
         Assert.DoesNotContain(_w.Notices, n => n.Message.StartsWith("The plugin Text tools could not be run", StringComparison.Ordinal));
     }
 
@@ -264,7 +264,7 @@ public class TableCopyAsTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         var notice = Assert.Single(_w.Notices, n => n.Message.StartsWith(start, StringComparison.Ordinal));
-        Assert.Contains(PluginLimitsPlaceholders.ClipboardMaxChars.ToString(), notice.Message);
+        Assert.Contains(PluginLimits.ClipboardMaxChars.ToString(), notice.Message);
         Assert.DoesNotContain("{", notice.Message);
         Assert.DoesNotContain(_w.Notices, n => n.Message.Contains("Text tools", StringComparison.Ordinal));
     }

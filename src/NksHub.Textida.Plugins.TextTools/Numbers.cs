@@ -99,7 +99,7 @@ public sealed record BlockResult(int Count, int Ignored, decimal Sum, decimal Mi
 
 /// <summary>
 /// Sum, minimum, maximum, average and count of the numbers in some text. Each line is one number when it reads as one; otherwise the line is split at
-/// white space and semicolons and every piece that is not a number is skipped and counted in <see cref="BlockResult.Ignored"/> (placeholder behaviour).
+/// white space and semicolons and every piece that is not a number is skipped and counted in <see cref="BlockResult.Ignored"/>.
 /// A sum that does not fit a decimal throws <see cref="OverflowException"/>.
 /// </summary>
 public static class BlockCalculator
@@ -153,7 +153,7 @@ public static class BlockCalculator
     }
 }
 
-/// <summary>Conversion between the radixes 2 to 16 for the numbers from the lowest signed to the highest unsigned 64-bit value (placeholder range).</summary>
+/// <summary>Conversion between the radixes 2 to 16 for the numbers from the lowest signed to the highest unsigned 64-bit value.</summary>
 public static class BaseConverter
 {
     public static readonly BigInteger Lowest = long.MinValue;

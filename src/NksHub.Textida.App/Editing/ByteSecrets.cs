@@ -28,7 +28,7 @@ internal sealed class ByteSecrets(OpenDocument document)
     {
         if (!Hidden) return [];
         var doc = document.Doc;
-        if (_known.Revision != doc.Revision) _known = (doc.Revision, SecretValues.HiddenRanges(doc.GetSnapshot(), doc.BomLength, PluginLimitsPlaceholders.SecretScanMaxBytes));
+        if (_known.Revision != doc.Revision) _known = (doc.Revision, SecretValues.HiddenRanges(doc.GetSnapshot(), doc.BomLength, PluginLimits.SecretScanMaxBytes));
         return _known.Ranges;
     }
 

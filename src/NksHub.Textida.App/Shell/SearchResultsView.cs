@@ -220,7 +220,7 @@ internal sealed class SearchResultsView : DockPanel
             batch.Add(head);
             batch.AddRange(file.Hunks.Select(h => new HunkRow(head, h)));
             if (file.Operation is { Kind: FileOperationKind.Create, Content: { } content })
-                batch.Add(new PreviewRow(head, ChangeBuilder.PreviewOfNewFile(content, PluginLimitsPlaceholders.NewFilePreviewLines, PluginLimitsPlaceholders.NewFilePreviewLineChars)));
+                batch.Add(new PreviewRow(head, ChangeBuilder.PreviewOfNewFile(content, PluginLimits.NewFilePreviewLines, PluginLimits.NewFilePreviewLineChars)));
         }
         _rows.AddRange(batch);
     }

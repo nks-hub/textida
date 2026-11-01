@@ -547,7 +547,7 @@ public sealed class JournalSession : IDisposable
                     continue;
                 }
                 // past the inline budget of the document every edit that is more than a keystroke goes to a payload file too, so the records a recovery has to hold stay bounded
-                if (s.Inserted > JournalPlaceholders.MaxInlineEditBytes || (s.Inserted > JournalPlaceholders.SmallEditBytes && _inlineBytes + s.Inserted > JournalPlaceholders.MaxInlineDocumentBytes))
+                if (s.Inserted > JournalLimits.MaxInlineEditBytes || (s.Inserted > JournalLimits.SmallEditBytes && _inlineBytes + s.Inserted > JournalLimits.MaxInlineDocumentBytes))
                 {
                     var block = Externalize(s.Start + shift, s.Inserted);
                     waiting.Blocks.Add((i, block));
@@ -574,14 +574,14 @@ public sealed class JournalSession : IDisposable
         /// <summary>True for a change set with so many edits, or so many inline bytes, that its record would be large (Replace All). A fill is one edit and keeps its pattern.</summary>
         private static bool NeedsList(ChangeSet c)
         {
-            if (c.Edits.Count > JournalPlaceholders.MaxInlineEditCount) return !c.Edits.Any(s => s.Pattern is not null);
+            if (c.Edits.Count > JournalLimits.MaxInlineEditCount) return !c.Edits.Any(s => s.Pattern is not null);
             long inline = 0;
             foreach (var s in c.Edits)
             {
                 if (s.Pattern is not null) return false;
-                if (s.Inserted <= JournalPlaceholders.MaxInlineEditBytes) inline += s.Inserted;
+                if (s.Inserted <= JournalLimits.MaxInlineEditBytes) inline += s.Inserted;
             }
-            return inline > JournalPlaceholders.MaxInlineRecordBytes;
+            return inline > JournalLimits.MaxInlineRecordBytes;
         }
 
         /// <summary>

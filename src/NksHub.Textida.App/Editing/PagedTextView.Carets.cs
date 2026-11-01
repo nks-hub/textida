@@ -34,14 +34,14 @@ internal sealed partial class PagedTextView
     private CancellationTokenSource? _searchCts;
     private bool _searching;
 
-    /// <summary>Most carets the view takes; a test lowers it. Default: <see cref="PluginLimitsPlaceholders.PagedMaxCarets"/>. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
-    internal int CaretLimit { get; set; } = PluginLimitsPlaceholders.PagedMaxCarets;
+    /// <summary>Most carets the view takes; a test lowers it. Default: <see cref="PluginLimits.PagedMaxCarets"/>. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    internal int CaretLimit { get; set; } = PluginLimits.PagedMaxCarets;
 
     /// <summary>Longest selection, in bytes, whose other occurrences are looked for; a test lowers it.</summary>
-    internal int OccurrenceLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedOccurrenceMaxBytes;
+    internal int OccurrenceLimitBytes { get; set; } = PluginLimits.PagedOccurrenceMaxBytes;
 
     /// <summary>Most bytes a paste inserts over all carets together; a test lowers it.</summary>
-    internal long MultiPasteLimitBytes { get; set; } = PluginLimitsPlaceholders.PagedMultiPasteMaxBytes;
+    internal long MultiPasteLimitBytes { get; set; } = PluginLimits.PagedMultiPasteMaxBytes;
 
     /// <summary>True while there is more than one caret.</summary>
     public bool IsMulti => _others is not null;

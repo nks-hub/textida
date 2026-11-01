@@ -153,14 +153,14 @@ internal sealed class ImageView : ScrollViewer, IDisposable
     private static Decoded Decode(DocumentSnapshot snapshot)
     {
         long length = snapshot.ByteLength;
-        if (length > PluginLimitsPlaceholders.ImageViewMaxBytes)
-            return new(null, null, new Issue(K.ImageTooLarge, ("size", OpenDocument.FormatSize(length)), ("limit", OpenDocument.FormatSize(PluginLimitsPlaceholders.ImageViewMaxBytes))));
+        if (length > PluginLimits.ImageViewMaxBytes)
+            return new(null, null, new Issue(K.ImageTooLarge, ("size", OpenDocument.FormatSize(length)), ("limit", OpenDocument.FormatSize(PluginLimits.ImageViewMaxBytes))));
         try
         {
             var bytes = snapshot.ReadBytes(new ByteRange(0, length));
             if (RasterImage.FormatName(bytes) is not { } format || RasterImage.Size(bytes) is not { Width: > 0, Height: > 0 } size) return new(null, null, new Issue(K.ImageBroken));
-            if ((long)size.Width * size.Height > PluginLimitsPlaceholders.PreviewImageMaxPixels)
-                return new(null, null, new Issue(K.ImageTooManyPixels, ("width", size.Width), ("height", size.Height), ("limit", PluginLimitsPlaceholders.PreviewImageMaxPixels / 1_000_000)));
+            if ((long)size.Width * size.Height > PluginLimits.PreviewImageMaxPixels)
+                return new(null, null, new Issue(K.ImageTooManyPixels, ("width", size.Width), ("height", size.Height), ("limit", PluginLimits.PreviewImageMaxPixels / 1_000_000)));
             using var stream = new MemoryStream(bytes, writable: false);
             var bitmap = new Bitmap(stream);
             return new(bitmap, new Picture(bitmap.PixelSize.Width, bitmap.PixelSize.Height, format, length), null);
@@ -221,7 +221,7 @@ internal sealed class ImageView : ScrollViewer, IDisposable
     private void SetZoom(double zoom)
     {
         if (Info is not { } p) return;
-        _zoom = Math.Clamp(zoom, PluginLimitsPlaceholders.ImageViewMinZoom, PluginLimitsPlaceholders.ImageViewMaxZoom);
+        _zoom = Math.Clamp(zoom, PluginLimits.ImageViewMinZoom, PluginLimits.ImageViewMaxZoom);
         _paper.Width = Math.Max(1, p.Width * _zoom);
         _paper.Height = Math.Max(1, p.Height * _zoom);
         RenderOptions.SetBitmapInterpolationMode(_image, _zoom >= 2 ? BitmapInterpolationMode.None : BitmapInterpolationMode.HighQuality);
@@ -250,7 +250,7 @@ internal sealed class ImageView : ScrollViewer, IDisposable
     public void ActualSize() => ZoomTo(1, null);
 
     /// <summary>Zooms in (positive) or out by steps of a quarter; <paramref name="around"/> is the point of the tab that stays where it is, the middle by default.</summary>
-    public void ZoomBy(int steps, Point? around = null) => ZoomTo(_zoom * Math.Pow(PluginLimitsPlaceholders.ImageViewZoomStep, steps), around);
+    public void ZoomBy(int steps, Point? around = null) => ZoomTo(_zoom * Math.Pow(PluginLimits.ImageViewZoomStep, steps), around);
 
     private void ZoomTo(double zoom, Point? around)
     {

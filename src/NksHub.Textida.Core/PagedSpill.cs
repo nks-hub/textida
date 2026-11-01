@@ -9,36 +9,36 @@ namespace NksHub.Textida.Core;
 /// Decisions (P7.1.2, P3.1.9, P7.1.3): how much memory the add buffer and the undo history of one paged document may hold before they move to disk, the caps of the block cache and of the decoded
 /// lines of the paged view, and the limits of a save that streams a whole new file are the round numbers below, chosen so that a 100 MiB file stays within the memory target of the project.
 /// </summary>
-public static class PagedSpillPlaceholders
+public static class PagedSpillLimits
 {
-    /// <summary>Default: milliseconds between two progress reports of a save that writes a whole new file; the first report comes after one interval and the last one when the bytes are written. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Milliseconds between two progress reports of a save that writes a whole new file; the first report comes after one interval and the last one when the bytes are written. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SaveProgressIntervalMs = 200;
 
-    /// <summary>Default: largest file, in bytes, that is copied to the backup folder before a save that streams a whole new file in the background; a larger one is saved without a copy, which is safe because the original stays untouched until the new file is complete. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Largest file, in bytes, that is copied to the backup folder before a save that streams a whole new file in the background; a larger one is saved without a copy, which is safe because the original stays untouched until the new file is complete. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long SaveBackupMaxBytes = 1L << 30;
 
-    /// <summary>Default: growth of private memory, in bytes, that a save of a file larger than memory may cause while edits continue (a few buffers and one digest per MiB, not the file); the tests fail above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Growth of private memory, in bytes, that a save of a file larger than memory may cause while edits continue (a few buffers and one digest per MiB, not the file); the tests fail above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long SaveMemoryGrowthBytes = 256L << 20;
 
-    /// <summary>Default: longest time, in milliseconds, that 99 of 100 edits may take while a save streams in the background; the performance test fails above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Longest time, in milliseconds, that 99 of 100 edits may take while a save streams in the background; the performance test fails above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SaveEditLatencyP99Ms = 80;
 
-    /// <summary>Default: longest time, in milliseconds, that the end of a streamed save may hold the thread of the document (the swap, the mapping of the new file and the replay of the edits made meanwhile); the performance test fails above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Longest time, in milliseconds, that the end of a streamed save may hold the thread of the document (the swap, the mapping of the new file and the replay of the edits made meanwhile); the performance test fails above it. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SaveCommitStallMs = 250;
 
-    /// <summary>Placeholder: bytes of inserted text, and separately of undo records, a paged document keeps in memory before spilling to disk.</summary>
+    /// <summary>Bytes of inserted text, and separately of undo records, a paged document keeps in memory before spilling to disk. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MemoryBudgetBytes = 64L << 20;
 
-    /// <summary>Default: bytes of mapped file pages (the block cache) one paged document keeps in the working set before it gives them back to the system. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Bytes of mapped file pages (the block cache) one paged document keeps in the working set before it gives them back to the system. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MappedResidentBytes = 256L << 20;
 
-    /// <summary>Default: bytes of decoded lines the paged text view keeps; past it the lines off screen are dropped. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Bytes of decoded lines the paged text view keeps; past it the lines off screen are dropped. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long LineCacheBytes = 8L << 20;
 
-    /// <summary>Default: a file of at least this many bytes starts its background line index <see cref="IndexStartDelayMs"/> after it was opened. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>A file of at least this many bytes starts its background line index <see cref="IndexStartDelayMs"/> after it was opened. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long IndexDelayAboveBytes = 1L << 30;
 
-    /// <summary>Default: milliseconds a file of <see cref="IndexDelayAboveBytes"/> or more is shown before its line index starts; the workers read the same mapped pages as the first picture (the map of the hex view, the first screen), and made a 50 GiB file wait for it a second and more. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Milliseconds a file of <see cref="IndexDelayAboveBytes"/> or more is shown before its line index starts; the workers read the same mapped pages as the first picture (the map of the hex view, the first screen), and made a 50 GiB file wait for it a second and more. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int IndexStartDelayMs = 700;
 }
 

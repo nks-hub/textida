@@ -166,8 +166,8 @@ internal sealed partial class MainWindow
             var snapshot = od.Doc.GetSnapshot();
             var rules = od.LogLevels;
             long first = od.Doc.BomLength;
-            var limits = PluginLimitsPlaceholders.LogHeat();
-            var heat = await Task.Run(() => LogHeat.Compute(snapshot, snapshot.Codec, first, rules, PluginLimitsPlaceholders.LogHeatBuckets, limits, cts.Token), cts.Token);
+            var limits = PluginLimits.LogHeat();
+            var heat = await Task.Run(() => LogHeat.Compute(snapshot, snapshot.Codec, first, rules, PluginLimits.LogHeatBuckets, limits, cts.Token), cts.Token);
             if (cts.IsCancellationRequested || !_docs.Contains(od)) return;
             foreach (var view in od.Views) view.Minimap?.SetHeat(heat);
         }
@@ -186,7 +186,7 @@ internal sealed partial class MainWindow
         od.Replaced += () => ScheduleLogHeat(od, 0);
         od.Changed += () =>
         {
-            if (od.IsLog) ScheduleLogHeat(od, PluginLimitsPlaceholders.LogHeatDelayMilliseconds);
+            if (od.IsLog) ScheduleLogHeat(od, PluginLimits.LogHeatDelayMilliseconds);
         };
         if (od.IsLog) ScheduleLogHeat(od, 0);
     }

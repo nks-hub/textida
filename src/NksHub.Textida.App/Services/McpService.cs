@@ -34,10 +34,10 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     {
         _plugins = plugins;
         _channel = IpcEndpoint.McpChannel(mainChannel);
-        Ledger = new ProposalLedger(PluginLimitsPlaceholders.McpTrackedProposals);
+        Ledger = new ProposalLedger(PluginLimits.McpTrackedProposals);
         Proposals = new McpProposals(Ledger, this);
         Clients = new McpClients(Path.Combine(profileDirectory, "mcp-clients.json"));
-        Server = new McpServer(PluginLimitsPlaceholders.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed, PluginTools = plugins.McpPluginTools });
+        Server = new McpServer(PluginLimits.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed, PluginTools = plugins.McpPluginTools });
         Clients.Asked += name => Dispatcher.UIThread.Post(() => ClientAsked?.Invoke(name));
     }
 
@@ -120,7 +120,7 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
     {
         if (IdeOf(window) is not null) return;
         if (!Enabled) throw new InvalidOperationException("The MCP server is off.");
-        var bridge = new IdeBridge(PluginLimitsPlaceholders.Ide(Server, IdeLockDirectory) with
+        var bridge = new IdeBridge(PluginLimits.Ide(Server, IdeLockDirectory) with
         {
             WorkspaceFolders = window.IdeWorkspaceFolders(),
             Scope = id => WindowOf(id) == window,

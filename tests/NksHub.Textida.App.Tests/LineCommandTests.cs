@@ -311,7 +311,7 @@ public class LineCommandTests : IDisposable
         Assert.Equal("a", Text(tab));
 
         string big = _temp.Bytes("big.bin", []);
-        using (var stream = File.OpenWrite(big)) stream.SetLength(PluginLimitsPlaceholders.InsertFromFileMaxBytes + 1);
+        using (var stream = File.OpenWrite(big)) stream.SetLength(PluginLimits.InsertFromFileMaxBytes + 1);
         _dialogs.Picked.Add(big);
         Run("nks.edit.insertFromFile");
         await Eventually(() => _w.StatusLeftText.Contains("big.bin"));

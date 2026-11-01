@@ -20,14 +20,14 @@ internal sealed partial class MainWindow
 
     private string SaveActionsFilePath => Path.Combine(_app.ProfileDirectory, SaveActionConfig.FileName);
 
-    /// <summary>The actions for a file; without <c>formatTimeoutSeconds</c> a formatter gets the provisional limit of <see cref="PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds"/>, without <c>lintTimeoutSeconds</c> a linter that of <see cref="PluginLimitsPlaceholders.LintTimeoutSeconds"/>.</summary>
+    /// <summary>The actions for a file; without <c>formatTimeoutSeconds</c> a formatter gets the limit of <see cref="PluginLimits.FormatOnSaveTimeoutSeconds"/>, without <c>lintTimeoutSeconds</c> a linter the limit of <see cref="PluginLimits.LintTimeoutSeconds"/>.</summary>
     internal SaveActionSet LoadSaveActions(string? documentPath)
     {
         var set = SaveActionConfig.Load(SaveActionsFilePath, SaveActionConfig.FindProjectFile(documentPath is null ? null : Path.GetDirectoryName(Path.GetFullPath(documentPath))));
         return set with
         {
-            FormatTimeout = set.FormatTimeout ?? TimeSpan.FromSeconds(PluginLimitsPlaceholders.FormatOnSaveTimeoutSeconds),
-            LintTimeout = set.LintTimeout ?? TimeSpan.FromSeconds(PluginLimitsPlaceholders.LintTimeoutSeconds),
+            FormatTimeout = set.FormatTimeout ?? TimeSpan.FromSeconds(PluginLimits.FormatOnSaveTimeoutSeconds),
+            LintTimeout = set.LintTimeout ?? TimeSpan.FromSeconds(PluginLimits.LintTimeoutSeconds),
         };
     }
 

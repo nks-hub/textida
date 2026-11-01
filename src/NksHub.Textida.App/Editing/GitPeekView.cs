@@ -139,7 +139,7 @@ internal sealed class GitPeekView : Border
         {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            MaxHeight = PluginLimitsPlaceholders.GitPeekVisibleRows * Math.Ceiling(_fontSize * 1.5),
+            MaxHeight = PluginLimits.GitPeekVisibleRows * Math.Ceiling(_fontSize * 1.5),
             Content = _rows,
         };
         var stack = new StackPanel { Children = { headerHost, scroller } };

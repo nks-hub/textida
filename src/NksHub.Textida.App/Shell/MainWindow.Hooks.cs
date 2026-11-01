@@ -32,12 +32,12 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.HooksNoteToml));
             return CommandOutcome.Handled;
         }
-        if (tab.Surface is not { } surface || tab.Doc.Doc.ByteLength > PluginLimitsPlaceholders.HooksMaxFileBytes)
+        if (tab.Surface is not { } surface || tab.Doc.Doc.ByteLength > PluginLimits.HooksMaxFileBytes)
         {
-            SetStatusMessage(Loc.Get(K.HooksNoteTooLarge, ("size", OpenDocument.FormatSize(PluginLimitsPlaceholders.HooksMaxFileBytes))));
+            SetStatusMessage(Loc.Get(K.HooksNoteTooLarge, ("size", OpenDocument.FormatSize(PluginLimits.HooksMaxFileBytes))));
             return CommandOutcome.Handled;
         }
-        var host = new HooksHost(tab.Path, tab.Title, HookFiles.ProductOf(tab.Path), PluginLimitsPlaceholders.Hooks(), () => surface.Document.Text, () => tab.Doc.Doc.Revision, text => ProposeHooksAsync(tab, text));
+        var host = new HooksHost(tab.Path, tab.Title, HookFiles.ProductOf(tab.Path), PluginLimits.Hooks(), () => surface.Document.Text, () => tab.Doc.Doc.Revision, text => ProposeHooksAsync(tab, text));
         var window = _hooksEditor = new HooksEditorWindow(host);
         window.Closed += (_, _) => _hooksEditor = null;
         window.Show(this);

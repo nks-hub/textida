@@ -238,7 +238,7 @@ public class AiContextCommandTests : IDisposable
     public void The_size_limit_of_the_whole_copy_starts_at_8_MiB()
     {
         Assert.Equal(4L << 20, _w.AiContextMaxBytes);
-        Assert.Equal(4L << 20, PluginLimitsPlaceholders.AiContextMaxBytes);
+        Assert.Equal(4L << 20, PluginLimits.AiContextMaxBytes);
     }
 
     [AvaloniaFact]

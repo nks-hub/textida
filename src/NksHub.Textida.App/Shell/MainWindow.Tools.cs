@@ -190,8 +190,8 @@ internal sealed partial class MainWindow
     private ToolSpec WithToolDefaults(ToolSpec spec)
     {
         var settings = _app.Workbench.Settings;
-        long seconds = settings.GetInt("tools.timeoutSeconds") is > 0 and var chosen ? chosen : PluginLimitsPlaceholders.ToolDefaultTimeoutSeconds;
-        var encoding = ToolCatalog.FindEncoding(settings.GetString("tools.outputEncoding")) ?? ToolCatalog.FindEncoding(PluginLimitsPlaceholders.ToolOutputEncoding);
+        long seconds = settings.GetInt("tools.timeoutSeconds") is > 0 and var chosen ? chosen : PluginLimits.ToolDefaultTimeoutSeconds;
+        var encoding = ToolCatalog.FindEncoding(settings.GetString("tools.outputEncoding")) ?? ToolCatalog.FindEncoding(PluginLimits.ToolOutputEncoding);
         return spec with { Timeout = spec.Timeout ?? (seconds > 0 ? TimeSpan.FromSeconds(seconds) : null), OutputEncoding = spec.OutputEncoding ?? encoding };
     }
 
@@ -229,7 +229,7 @@ internal sealed partial class MainWindow
     private static string? MakefileFor(DocTab tab) =>
         tab.Path is not { } path ? null
         : MakefileTargets.IsMakefileName(Path.GetFileName(path)) ? Path.GetFullPath(path)
-        : MakefileTargets.FindNearest(Path.GetDirectoryName(Path.GetFullPath(path)), PluginLimitsPlaceholders.MakefileSearchLevels);
+        : MakefileTargets.FindNearest(Path.GetDirectoryName(Path.GetFullPath(path)), PluginLimits.MakefileSearchLevels);
 
     /// <summary>The Makefile and the target started last, for Repeat Last Makefile Target.</summary>
     private (string Makefile, string Target)? _lastMake;
@@ -248,9 +248,9 @@ internal sealed partial class MainWindow
             // the text of an open tab wins over the file: the targets are those of what is on the screen
             if (Tabs.FirstOrDefault(t => t.Surface is not null && t.Path is { } p && string.Equals(Path.GetFullPath(p), path, PathComparison)) is { Surface: { } surface })
                 text = surface.Document.GetText(0, surface.Document.TextLength);
-            else if (new FileInfo(path).Length > PluginLimitsPlaceholders.MakefileMaxBytes)
+            else if (new FileInfo(path).Length > PluginLimits.MakefileMaxBytes)
             {
-                SetStatusMessage(Loc.Get(K.MakeTooBig, ("file", path), ("bytes", PluginLimitsPlaceholders.MakefileMaxBytes)));
+                SetStatusMessage(Loc.Get(K.MakeTooBig, ("file", path), ("bytes", PluginLimits.MakefileMaxBytes)));
                 return CommandOutcome.Handled;
             }
             else text = File.ReadAllText(path);

@@ -47,7 +47,7 @@ internal sealed partial class MainWindow
             if (first is ViewMode.Read or ViewMode.Edit)
             {
                 if (CanShow(od, first)) od.ChooseMode(first);
-                else SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimitsPlaceholders.PreviewLiveMaxChars)));
+                else SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars)));
             }
             Core.TypingTrace.End("open.document", t);
             t = Core.TypingTrace.Begin();

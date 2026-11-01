@@ -200,7 +200,7 @@ public class SessionLargeFileTests : IDisposable
     {
         string path = _temp.File("big.log", LogText(40_000));
         var tab = await OpenLargeAsync(path);
-        Assert.True(tab.Doc.Doc.Insert(0, Enumerable.Repeat((byte)'x', PluginLimitsPlaceholders.SessionLargeEditsMaxBytes + 1).ToArray()).Applied);
+        Assert.True(tab.Doc.Doc.Insert(0, Enumerable.Repeat((byte)'x', PluginLimits.SessionLargeEditsMaxBytes + 1).ToArray()).Applied);
 
         Assert.True(_w.SaveNamedSession("big"));
 

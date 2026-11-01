@@ -3,7 +3,7 @@ using NksHub.Textida.Core.Encodings;
 namespace NksHub.Textida.Core.Documents;
 
 /// <summary>Creates <see cref="PagedBackend"/> instances.</summary>
-public sealed class PagedBackendFactory(bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null) : IBackendFactory
+public sealed class PagedBackendFactory(bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillLimits.MemoryBudgetBytes, string? spillDirectory = null) : IBackendFactory
 {
     public static PagedBackendFactory Instance { get; } = new();
     public BackendCapabilities Capabilities => PagedBackend.Caps;
@@ -40,13 +40,13 @@ public sealed class PagedBackend : IByteBackend
         return head;
     }
 
-    public static PagedBackend FromFile(string path, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null)
+    public static PagedBackend FromFile(string path, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillLimits.MemoryBudgetBytes, string? spillDirectory = null)
     {
         var options = OptionsFor(codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
         return new(PagedDocument.Open(path, options), Path.GetFullPath(path), options);
     }
 
-    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillPlaceholders.MemoryBudgetBytes, string? spillDirectory = null)
+    public static PagedBackend FromMemory(ReadOnlySpan<byte> bytes, TextCodec codec, bool startIndexing = true, int indexBlockSize = 1 << 20, long spillBudgetBytes = PagedSpillLimits.MemoryBudgetBytes, string? spillDirectory = null)
     {
         var options = OptionsFor(codec, startIndexing, indexBlockSize, spillBudgetBytes, spillDirectory);
         return new(PagedDocument.OpenMemory(bytes, options), null, options);

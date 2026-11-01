@@ -31,7 +31,7 @@ internal sealed partial class MainWindow
         public void Dispose()
         {
             window._ownWrites--;
-            window._ownWriteUntil = Stopwatch.GetTimestamp() + Stopwatch.Frequency * PluginLimitsPlaceholders.ReviewFolderOwnWriteSeconds;
+            window._ownWriteUntil = Stopwatch.GetTimestamp() + Stopwatch.Frequency * PluginLimits.ReviewFolderOwnWriteSeconds;
         }
     }
 
@@ -50,7 +50,7 @@ internal sealed partial class MainWindow
     private void StartFolderReview(FileTree tree)
     {
         StopFolderReview();
-        var watcher = new FolderChangeWatcher(tree.Roots, TimeSpan.FromMilliseconds(PluginLimitsPlaceholders.ReviewFolderDelayMilliseconds), PluginLimitsPlaceholders.ReviewFolderMaxFiles);
+        var watcher = new FolderChangeWatcher(tree.Roots, TimeSpan.FromMilliseconds(PluginLimits.ReviewFolderDelayMilliseconds), PluginLimits.ReviewFolderMaxFiles);
         watcher.Changed += batch => Dispatcher.UIThread.Post(() =>
         {
             if (ReferenceEquals(_folderWatcher, watcher)) _ = ReviewFolderChangesAsync(batch);
@@ -82,10 +82,10 @@ internal sealed partial class MainWindow
         if (batch.Dropped > 0) SetStatusMessage(Loc.Get(K.ReviewFolderDropped, ("count", batch.Dropped)));
         if (candidates.Count == 0) return;
 
-        int room = Math.Max(0, PluginLimitsPlaceholders.ReviewFolderMaxWaiting - WaitingFolderReviews().Count);
+        int room = Math.Max(0, PluginLimits.ReviewFolderMaxWaiting - WaitingFolderReviews().Count);
         if (room == 0)
         {
-            SetStatusMessage(Loc.Get(K.ReviewFolderFull, ("limit", PluginLimitsPlaceholders.ReviewFolderMaxWaiting)));
+            SetStatusMessage(Loc.Get(K.ReviewFolderFull, ("limit", PluginLimits.ReviewFolderMaxWaiting)));
             return;
         }
         long largest = LargeFileBytes;

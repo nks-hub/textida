@@ -113,7 +113,7 @@ internal sealed partial class MainWindow
         }
         if (text is null)
         {
-            SetStatusMessage(Loc.Get(K.LinesInsertFileTooLarge, ("name", Path.GetFileName(path)), ("limit", PluginLimitsPlaceholders.InsertFromFileMaxBytes)));
+            SetStatusMessage(Loc.Get(K.LinesInsertFileTooLarge, ("name", Path.GetFileName(path)), ("limit", PluginLimits.InsertFromFileMaxBytes)));
             return;
         }
         if (!ReferenceEquals(ActiveEditor, surface)) return;
@@ -121,11 +121,11 @@ internal sealed partial class MainWindow
         RunEdit((s, sels) => LineOperations.ReplaceSelections(s.Document, sels, _ => text));
     }
 
-    /// <summary>The decoded text of the file; null when it is larger than <see cref="PluginLimitsPlaceholders.InsertFromFileMaxBytes"/>.</summary>
+    /// <summary>The decoded text of the file; null when it is larger than <see cref="PluginLimits.InsertFromFileMaxBytes"/>.</summary>
     private static string? ReadInsertedFile(string path)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (stream.Length > PluginLimitsPlaceholders.InsertFromFileMaxBytes) return null;
+        if (stream.Length > PluginLimits.InsertFromFileMaxBytes) return null;
         var bytes = new byte[stream.Length];
         stream.ReadExactly(bytes);
         var codec = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, OpenDocument.SampleBytes)), bytes.Length <= OpenDocument.SampleBytes).Codec;
@@ -235,7 +235,7 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// Wraps the paragraphs at the right margin column; without one set the user is told where to set it. With <paramref name="shortLines"/> a line
-    /// shorter than <see cref="PluginLimitsPlaceholders.ReformatShortLinePercent"/> percent of the margin also ends its paragraph.
+    /// shorter than <see cref="PluginLimits.ReformatShortLinePercent"/> percent of the margin also ends its paragraph.
     /// </summary>
     internal CommandOutcome Reformat(bool shortLines = false)
     {
@@ -246,7 +246,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.LinesReformatNoMargin));
             return CommandOutcome.Handled;
         }
-        int shortLine = shortLines ? Math.Max(1, width * PluginLimitsPlaceholders.ReformatShortLinePercent / 100) : 0;
+        int shortLine = shortLines ? Math.Max(1, width * PluginLimits.ReformatShortLinePercent / 100) : 0;
         return RunEdit((s, sels) => LineOperations.ReformatParagraphs(s.Document, sels, width, shortLine));
     }
 

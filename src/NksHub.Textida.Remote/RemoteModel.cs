@@ -70,7 +70,7 @@ public sealed record RemoteConnection
 
     public ProxySettings Proxy { get; init; } = new();
 
-    /// <summary>Connect timeout in seconds; null leaves the library default. The product has not decided a value.</summary>
+    /// <summary>Connect timeout in seconds; null leaves the default of the library. Decided: no value of its own, the library knows the protocol better than a number chosen here.</summary>
     public int? ConnectTimeoutSeconds { get; init; }
 
     [JsonIgnore] public string SecretKey => $"textida:remote:{Id}";

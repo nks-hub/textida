@@ -8,27 +8,27 @@ namespace NksHub.Textida.Core.Journal;
 /// Decisions (P7.1.4): the size from which a change is recorded as a reference or a list instead of inline bytes, and the size from which a recovery asks before it replays,
 /// are the round numbers below: small enough that the journal stays quick to write, large enough that an ordinary edit is stored inline.
 /// </summary>
-public static class JournalPlaceholders
+public static class JournalLimits
 {
-    /// <summary>Default: inserted bytes of one edit above which the journal records a reference to a payload file. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Inserted bytes of one edit above which the journal records a reference to a payload file. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineEditBytes = 1 << 20;
 
-    /// <summary>Default: inserted bytes of a document that its records may hold inline between two saves; past it every edit of more than <see cref="SmallEditBytes"/> goes to a payload file, so a recovery holds a bounded part of the journal in memory. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Inserted bytes of a document that its records may hold inline between two saves; past it every edit of more than <see cref="SmallEditBytes"/> goes to a payload file, so a recovery holds a bounded part of the journal in memory. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MaxInlineDocumentBytes = 32L << 20;
 
-    /// <summary>Default: inserted bytes of an edit that always stay inline, whatever the inline budget of the document: typing. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Inserted bytes of an edit that always stay inline, whatever the inline budget of the document: typing. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int SmallEditBytes = 4096;
 
-    /// <summary>Default: edits of one change set above which the journal writes them to a payload file as a list instead of into the record (Replace All over a large file). Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Edits of one change set above which the journal writes them to a payload file as a list instead of into the record (Replace All over a large file). Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineEditCount = 4096;
 
-    /// <summary>Default: inserted bytes of the edits of one change set that may stand inline in its record; past it the change set is written as a list. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Inserted bytes of the edits of one change set that may stand inline in its record; past it the change set is written as a list. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int MaxInlineRecordBytes = 8 << 20;
 
-    /// <summary>Default: bytes of changes of one document (inserted and removed) above which a recovery waits for the choice to restore or discard instead of replaying them at start. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Bytes of changes of one document (inserted and removed) above which a recovery waits for the choice to restore or discard instead of replaying them at start. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long AskBeforeRecoverBytes = 64L << 20;
 
-    /// <summary>Default: most edits of one change set that a recovery rebuilds in memory; a longer list is reported as not restorable and stays in the journal. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    /// <summary>Most edits of one change set that a recovery rebuilds in memory; a longer list is reported as not restorable and stays in the journal. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const long MaxRecoveredEdits = 20_000_000;
 }
 
@@ -124,7 +124,7 @@ internal static class JournalPayloads
         if (r.File.Length == 0 || r.File != Path.GetFileName(r.File) || r.Offset < 0 || r.Length < 0 || r.Count < 0 || r.InsertedBytes < 0 || r.DeletedBytes < 0)
             throw new InvalidDataException("A large change refers to an invalid payload file.");
         if (r.Count > r.Length / ListEntryHeaderBytes) throw new InvalidDataException($"A large change claims more edits than its data can hold ({r.File}).");
-        if (r.Count > JournalPlaceholders.MaxRecoveredEdits) throw new NotSupportedException($"A change of more than {JournalPlaceholders.MaxRecoveredEdits} edits cannot be restored.");
+        if (r.Count > JournalLimits.MaxRecoveredEdits) throw new NotSupportedException($"A change of more than {JournalLimits.MaxRecoveredEdits} edits cannot be restored.");
         string path = Path.Combine(payloadDirectory, r.File);
         SafeFileHandle handle;
         try { handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan); }
