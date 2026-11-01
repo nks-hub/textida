@@ -127,9 +127,12 @@ public sealed class UnixUpdateTests : IDisposable
         Assert.False(Directory.Exists(Install));
     }
 
-    [Fact]
-    public void A_mac_package_refused_by_signature_verification_is_never_staged()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_mac_package_refused_by_signature_verification_is_never_staged(bool useSystemVerifier)
     {
+        if (useSystemVerifier) Assert.SkipUnless(OperatingSystem.IsMacOS(), "The system codesign verifier requires macOS");
         WriteVersion(Install, "1.0.0", UpdatePlatform.MacOS);
         var packageRoot = Path.Combine(_temp.Path, "package");
         WriteVersion(Path.Combine(packageRoot, "Textida.app"), "1.1.0", UpdatePlatform.MacOS);
@@ -138,7 +141,7 @@ public sealed class UnixUpdateTests : IDisposable
         var updater = new AppUpdater(new HttpClient(), "", "", Install)
         {
             Platform = UpdatePlatform.MacOS,
-            MacSignatureCheck = _ => throw new UpdateException(UpdateError.BadSignature, "invalid signature")
+            MacSignatureCheck = useSystemVerifier ? null : _ => throw new UpdateException(UpdateError.BadSignature, "invalid signature")
         };
         Assert.Equal(UpdateError.BadSignature, Assert.Throws<UpdateException>(() => updater.Stage(zip, new("1.1.0", "osx-arm64", "", "", 0))).Error);
         Assert.Equal("1.0.0", AppUpdater.InstalledVersion(Install));
