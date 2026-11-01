@@ -158,6 +158,24 @@ public sealed class UnixUpdateTests : IDisposable
     }
 
     [Fact]
+    public void A_portable_mac_profile_inside_the_signed_bundle_is_kept_and_the_update_is_refused()
+    {
+        WriteVersion(Install, "1.0.0", UpdatePlatform.MacOS);
+        WriteVersion(Install + ".previous", "0.9.0", UpdatePlatform.MacOS);
+        var folder = Path.Combine(Install, "Contents", "MacOS");
+        File.WriteAllText(Path.Combine(folder, "textida.portable"), "");
+        Directory.CreateDirectory(Path.Combine(folder, "profile"));
+        var journal = Encoding.UTF8.GetBytes("unsaved portable document");
+        File.WriteAllBytes(Path.Combine(folder, "profile", "journal"), journal);
+        var updater = new AppUpdater(new HttpClient(), "", "", Install) { Platform = UpdatePlatform.MacOS };
+
+        Assert.Throws<UpdateException>(() => updater.Stage("absent.zip", new("1.1.0", "osx-arm64", "", "", 0)));
+        Assert.Throws<UpdateException>(() => updater.Rollback(restart: false));
+        Assert.Equal(SHA256.HashData(journal), SHA256.HashData(File.ReadAllBytes(Path.Combine(folder, "profile", "journal"))));
+        Assert.Equal("1.0.0", AppUpdater.InstalledVersion(Install));
+    }
+
+    [Fact]
     public async Task One_signed_feed_selects_the_exact_platform_and_refuses_ambiguous_packages()
     {
         using var server = new FeedServer();

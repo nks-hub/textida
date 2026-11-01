@@ -127,12 +127,19 @@ internal sealed partial class AppUpdater
     private Process StartUnixHelper(string? staged, bool restart)
     {
         if (UsesSystemPackageManager) throw new UpdateException(UpdateError.WrongSystem, "Update this installation through apt.");
+        RequireSafeProfile();
         if (staged is not null && Path.GetFullPath(staged) != Path.GetFullPath(StagingDir))
             throw new UpdateException(UpdateError.BadPackage, "The staged update is not next to this installation.");
         var start = new ProcessStartInfo(Executable(InstallDir, Platform)) { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetTempPath() };
         foreach (var arg in new[] { "--update-helper", InstallDir, staged is null ? "rollback" : "apply", WaitPid.ToString(), restart ? "restart" : "stop" })
             start.ArgumentList.Add(arg);
         return Process.Start(start)!;
+    }
+
+    private void RequireSafeProfile()
+    {
+        if (HasPortableMacProfile)
+            throw new UpdateException(UpdateError.BadPackage, "The portable profile is inside the signed application bundle. Move it outside the bundle before updating or rolling back.");
     }
 
     internal static int RunUnixHelper(string[] args)
@@ -142,6 +149,7 @@ internal sealed partial class AppUpdater
         var updater = new AppUpdater(new HttpClient(), "", "", Path.GetFullPath(args[1]));
         try
         {
+            updater.RequireSafeProfile();
             if (pid > 0)
             {
                 try

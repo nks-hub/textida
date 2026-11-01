@@ -17,11 +17,8 @@ internal sealed class UpdateException(UpdateError error, string message, Excepti
 }
 
 /// <summary>
-/// P3.7.2: the updater of the per-user Windows install. The feed is one static JSON file that is signed with ECDSA P-256 (SHA-256); the package is a ZIP made by
-/// tools/BuildWindowsPackage.cs whose SHA-256 and size are inside the signed part. Checking is a single GET of the feed and sends nothing else. The new version is unpacked
-/// next to the old one (<c>Textida.new</c>) and verified there; the switch is done after Textida has ended, because a running program cannot replace its own folder: by TextidaSetup.exe when the install has it
-/// (made by the setup program), else by Setup.ps1 (made by Install.cmd).
-/// The old folder stays as <c>Textida.previous</c> and <see cref="Rollback"/> swaps back.
+/// The ECDSA P-256 feed covers each package's size and SHA-256. Packages are staged next to the installation and switched after the editor exits.
+/// Windows uses its installer; macOS and Linux exchange directories atomically. The old version stays in <c>Textida.previous</c>.
 /// </summary>
 internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string publicKeyBase64, string installDir)
 {
@@ -53,6 +50,9 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
 
     public bool UsesSystemPackageManager => Platform == UpdatePlatform.Linux &&
         (File.Exists(Path.Combine(InstallDir, ".deb-managed")) || InstallDir == "/opt/textida");
+
+    public bool HasPortableMacProfile => Platform == UpdatePlatform.MacOS &&
+        File.Exists(Path.Combine(InstallDir, "Contents", "MacOS", "textida.portable"));
 
     private string SetupProgram => Path.Combine(InstallDir, "TextidaSetup.exe");
 
@@ -160,6 +160,7 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
     public string Stage(string zip, UpdateRelease release)
     {
         if (UsesSystemPackageManager) throw new UpdateException(UpdateError.WrongSystem, "Update this installation through apt.");
+        RequireSafeProfile();
         if (Platform != UpdatePlatform.Windows) return StageUnix(zip, release);
         ClearStaging();
         try
