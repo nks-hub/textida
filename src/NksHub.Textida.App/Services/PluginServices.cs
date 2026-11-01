@@ -1109,9 +1109,11 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         }
         finally
         {
-            if (own && keep && (keepOpen || Documents.HasSymbols(document.Id) || Documents.HasDiagnostics(document.Id))) Keep(tab.Doc, document);
-            else if (own) Documents.Withdraw(document);
-            if (ownOther) Documents.Withdraw(otherDocument!);
+            bool closed = _closedWhileRunning.Remove(document.Id);
+            bool otherClosed = otherDocument is not null && _closedWhileRunning.Remove(otherDocument.Id);
+            if (own && !closed && keep && (keepOpen || Documents.HasSymbols(document.Id) || Documents.HasDiagnostics(document.Id))) Keep(tab.Doc, document);
+            else if (own || closed) Documents.Withdraw(document);
+            if (ownOther || otherClosed) Documents.Withdraw(otherDocument!);
             _running.Remove(document.Id);
             if (otherDocument is not null) _running.Remove(otherDocument.Id);
             done.TrySetResult();
@@ -1148,8 +1150,12 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
         _activatedFor.RemoveWhere(x => x.Document == document.Id);
         ReleaseGitWatch(document.Id);
         if (!_kept.Remove(document.Id) && !Documents.IsExposed(document.Id)) return;
-        if (!_running.ContainsKey(document.Id)) Documents.Withdraw(document);
+        // a running command withdraws it when it ends instead of keeping it for its outline
+        if (_running.ContainsKey(document.Id)) _closedWhileRunning.Add(document.Id);
+        else Documents.Withdraw(document);
     }
+
+    private readonly HashSet<Guid> _closedWhileRunning = [];
 
     /// <summary>
     /// The last tab of a document closed: tells the Git plugin, if it runs, which stops watching the repository of the file when no other open file of it is left. A command that is still

@@ -95,7 +95,7 @@ public sealed class TerminalSession : IDisposable
     public TerminalScreen Screen { get; }
     public int ProcessId => _pty.ProcessId;
     public bool Running => !_disposed && !_pty.HasExited;
-    public int? ExitCode { get; private set; }
+    public int? ExitCode { get => field ?? _pty.ExitCode; private set; }
 
     /// <summary>Raised on a background thread after the screen changed.</summary>
     public event Action? Changed;
