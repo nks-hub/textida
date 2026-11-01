@@ -2192,3 +2192,11 @@ Súbor, Tlač vytlačí výber alebo celý dokument s farbami zvýraznenia, čí
 2. Súbor, Exportovať, Ako PDF uloží rovnaké strany do súboru PDF. Na macOS a Linuxe je to cesta k tlači: Avalonia nemá tlačové API, takže Tlač tam uloží PDF a vytlačíte ho v prehliadači.
 - Papier je biely, preto sa tlačia farby svetlej témy, aj keď editor beží v tmavej. Vytlačí sa výber, bez výberu celý dokument; skrytá tajná hodnota sa tlačí ako zástupný text.
 - PDF používa písmo Courier, ktoré má každá čítačka, a vie len znaky Windows-1252 a bežné stredoeurópske písmená (č, ě, ř, ů, ł a podobne); iné znaky sa vytlačia ako otáznik. Tlač na Windows používa písmo Consolas a znaky bez takéhoto obmedzenia.
+
+## [plugins.catalog] Katalóg doplnkov
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Nástroje, Katalóg doplnkov ukáže doplnky z repozitára Git, ktorý určíte v nastavení plugins.catalogUrl. Nainštaluje len doplnok, ktorého ZIP a podpis vydavateľa zodpovedajú katalógu.
+1. Zadajte adresu https repozitára (alebo priečinok) do plugins.catalogUrl. Katalóg sa stiahne programom git (plytký klon); potvrdíte program aj server. Znova stiahnuť katalóg načíta najnovší stav.
+2. Vyberte doplnok. Pri prvom doplnku od nového vydavateľa porovnáte odtlačok jeho kľúča a potvrdíte dôveru. Potom sa overí SHA-256 balíka a podpis a otvorí sa bežné potvrdenie inštalácie s oprávneniami.
+- Katalóg je súbor index.json s vydavateľmi (id, meno, verejný kľúč ECDSA P-256) a doplnkami (id, verzia, balík, SHA-256, oprávnenia, podpis). Podpis kryje id, verziu, hash a oprávnenia, takže zmena ktoréhokoľvek z nich ho zneplatní. Balík je cesta v repozitári alebo adresa https.
+- Aktualizácia, ktorá chce viac oprávnení, než malo nainštalované vydanie, ich ukáže ako nové a vyžaduje nový súhlas. ZIP, ktorý žiada viac, než podpísaná položka uvádza, sa odmietne. Ak vydavateľ zmení kľúč, nič od neho sa neinštaluje, kým starý kľúč neodstránite.

@@ -2192,3 +2192,11 @@ Datei, Drucken druckt die Auswahl oder das ganze Dokument mit den Syntaxfarben, 
 2. Datei, Exportieren, Als PDF speichert dieselben Seiten in eine PDF-Datei. Unter macOS und Linux ist das der Weg zum Drucken: Avalonia hat keine Druck-API, also speichert Drucken dort ein PDF, das Sie im Viewer drucken.
 - Das Papier ist weiß, darum werden die Farben des hellen Themas gedruckt, auch wenn der Editor dunkel ist. Gedruckt wird die Auswahl, ohne sie das ganze Dokument; ein verborgenes Geheimnis wird als Platzhalter gedruckt.
 - Das PDF verwendet die Schrift Courier, die jeder Viewer hat, und deckt die Zeichen von Windows-1252 und die üblichen mitteleuropäischen Buchstaben ab (č, ě, ř, ů, ł und ähnliche); andere Zeichen werden als Fragezeichen gedruckt. Das Drucken unter Windows verwendet die Schrift Consolas und hat keine Grenze dieser Art.
+
+## [plugins.catalog] Plugin-Katalog
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Extras, Plugin-Katalog listet die Plugins des Git-Repositorys, das Sie in der Einstellung plugins.catalogUrl nennen. Installiert wird nur ein Plugin, dessen ZIP und Herausgeber-Signatur zum Katalog passen.
+1. Tragen Sie die https-Adresse des Repositorys (oder einen Ordner) in plugins.catalogUrl ein. Der Katalog wird mit dem Programm git geladen (flacher Klon); Sie bestätigen Programm und Server. Plugin-Katalog neu laden holt den neuesten Stand.
+2. Wählen Sie ein Plugin. Beim ersten Plugin eines neuen Herausgebers vergleichen Sie den Fingerabdruck seines Schlüssels und bestätigen das Vertrauen. Danach werden SHA-256 des Pakets und Signatur geprüft und die übliche Installationsbestätigung mit den Berechtigungen öffnet sich.
+- Der Katalog ist eine Datei index.json mit Herausgebern (ID, Name, öffentlicher ECDSA-P-256-Schlüssel) und Plugins (ID, Version, Paket, SHA-256, Berechtigungen, Signatur). Die Signatur deckt ID, Version, Hash und Berechtigungen ab, jede Änderung bricht sie. Das Paket ist ein Pfad im Repository oder eine https-Adresse.
+- Ein Update, das mehr Berechtigungen will als die installierte Version, zeigt sie als neu und braucht eine neue Zustimmung. Ein ZIP, das mehr verlangt, als der signierte Eintrag nennt, wird abgelehnt. Ändert ein Herausgeber seinen Schlüssel, wird nichts von ihm installiert, bis Sie den alten Schlüssel entfernen.

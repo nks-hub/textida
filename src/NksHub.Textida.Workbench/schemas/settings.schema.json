@@ -592,6 +592,12 @@
           "description": "Decompile .NET assemblies on open. A .dll, .exe or .winmd file with .NET code opens as decompiled C# in a read-only tab. When off, it opens like any binary file.",
           "x-scope": "application"
         },
+        "plugins.catalogUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Plugin catalog source. The https address of the Git repository (or a folder) that holds the plugin catalog the command Tools, Plugin Catalog opens. Empty turns the catalog off.",
+          "x-scope": "application"
+        },
         "terminal.shell": {
           "type": "string",
           "default": "",

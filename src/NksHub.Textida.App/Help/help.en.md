@@ -2192,3 +2192,11 @@ File, Print prints the selection or the whole document with the syntax colours, 
 2. File, Export, As PDF saves the same pages to a PDF file. On macOS and Linux this is the way to print: Avalonia has no print API, so Print there saves a PDF and you print it from a viewer.
 - The paper is white, so the colours of the light theme are printed even when the editor is dark. The selection is printed, or the whole document without one; a hidden secret prints as its placeholder.
 - The PDF uses the Courier font that every reader has and covers the Windows-1252 characters and the usual Central European letters (č, ě, ř, ů, ł and the like); other characters print as a question mark. Printing on Windows uses the Consolas font and has no limit of this kind.
+
+## [plugins.catalog] Plugin catalog
+commands: nks.plugins.catalog, nks.plugins.catalogRefresh
+Tools, Plugin Catalog lists the plugins of the Git repository you name in the setting plugins.catalogUrl. It installs only a plugin whose ZIP and publisher signature match the catalog.
+1. Enter the https address of the repository (or a folder) in plugins.catalogUrl. The catalog is fetched with the git program (a shallow clone); you confirm the program and the server. Refresh Plugin Catalog loads the latest state.
+2. Pick a plugin. For the first plugin of a new publisher you compare the fingerprint of its key and confirm trust. Then the SHA-256 of the package and the signature are checked and the usual install confirmation with the permissions opens.
+- The catalog is an index.json file with publishers (id, name, ECDSA P-256 public key) and plugins (id, version, package, SHA-256, permissions, signature). The signature covers the id, version, hash and permissions, so changing any of them breaks it. The package is a path in the repository or an https address.
+- An update that asks for more permissions than the installed release shows them as new and needs a new consent. A ZIP that asks for more than the signed entry lists is refused. If a publisher changes its key, nothing from it is installed until you remove the old key.

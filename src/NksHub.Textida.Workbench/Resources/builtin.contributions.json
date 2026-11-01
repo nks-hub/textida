@@ -1946,6 +1946,18 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.plugins.catalog",
+      "title": "cmd.plugins.catalog",
+      "category": "cat.tools",
+      "icon": "plug"
+    },
+    {
+      "id": "nks.plugins.catalogRefresh",
+      "title": "cmd.plugins.catalogRefresh",
+      "category": "cat.tools",
+      "icon": "plug"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5180,6 +5192,18 @@
       "order": 30
     },
     {
+      "menu": "tools",
+      "command": "nks.plugins.catalog",
+      "group": "4_other/02",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.catalogRefresh",
+      "group": "4_other/02",
+      "order": 30
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -8374,6 +8398,21 @@
         "assembly",
         "decompile",
         "dll"
+      ]
+    },
+    {
+      "key": "plugins.catalogUrl",
+      "type": "string",
+      "default": "",
+      "title": "setting.plugins.catalogUrl.title",
+      "description": "setting.plugins.catalogUrl.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "plugins",
+        "catalog",
+        "git",
+        "repository"
       ]
     },
     {
