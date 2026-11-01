@@ -3359,6 +3359,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** URL se stáhne do nové karty a nic z obsahu se nespustí.
   - **Závisí na:** P5.4.4
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** stažení textu z http adresy do nové karty po souhlasu s hostem, nic se nespouští, binární obsah a odpovědi nad 16 MB se neotevřou (91951f7e).
 - [ ] **PZ.2.2** Tisk
   - **Co a proč:** Tisk se samostatným platformním ověřením.
   - **Funkce:** F038
@@ -3371,12 +3372,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** výběr se otevře v prohlížeči přes nastavenou šablonu URL.
   - **Závisí na:** P1.6.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** hledání výběru na webu přes uživatelskou adresu `web.searchUrl` (13c6e7d0).
 - [ ] **PZ.2.4** Mapování cesty na URL
   - **Co a proč:** Mapování lokální cesty na URL, nikoli vlastní webový server.
   - **Funkce:** F118
   - **Hotovo, když:** příkaz otevře URL odpovídající souboru podle nastaveného mapování.
   - **Závisí na:** P9.5.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026 (sloučeno):** mapování lokální cesty na URL podle pravidel `web.pathMap` (13c6e7d0).
 - [ ] **PZ.2.5** Dotazy nad textem přes AI
   - **Co a proč:** Volitelný AI nástroj nad vybraným rozsahem s náhledem změny; ne podmínka běžné editace.
   - **Funkce:** F144
@@ -3462,6 +3465,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** otevření `.dll` ukáže dekompilovaný C# v kartě jen pro čtení.
   - **Závisí na:** P3b.2.2
   - **Odhad:** F193 1–2 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** .dll jako dekompilovaný C# jen pro čtení přes ICSharpCode.Decompiler 11.2 přímo v aplikaci; NativeAOT publikace bez varování ověřená na Windows; vypíná `files.decompileAssemblies` (9a54d7dd).
 
 ### PZ.6 Vývojářské doplňky
 
@@ -3487,6 +3491,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F194 3–5 ČT (matice)
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** soubory `.http` a `.rest`: proměnné, prostředí, soukromý soubor s tajnými hodnotami, odpověď v nové kartě, převod z a na cURL, síť přes politiku a souhlas; chybí zvýraznění syntaxe `.http` (460959f1).
+  - **Stav 1. 11. 2026 (sloučeno):** gramatika `.http` a `.rest` (52b1b1aa).
 - [ ] **PZ.6.4** Volající a dopad z codegraph
   - **Co a proč:** Panel „Kdo to volá“ přes `codegraph callers --json`, jen čtení přes CLI.
   - **Funkce:** F258
@@ -3499,12 +3504,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** shody přijdou do náhledu jako návrh s revizí a konflikt revize se odmítne.
   - **Závisí na:** P2.5.2
   - **Odhad:** F259 1,5–2,5 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** strukturální hledání přes `ast-grep run --json=stream` do náhledu změn, neuložené karty přes `--stdin`; ověřeno se skutečným ast-grep 0.51 (aa76b517).
 - [ ] **PZ.6.6** Co agent v této složce načte
   - **Co a proč:** Panel souborů agenta (`AGENTS.md`, `CLAUDE.md`, pravidla, skills) s velikostí a odhadem tokenů; zdroj „Plány agentů“ v Goto Anything.
   - **Funkce:** F260
   - **Hotovo, když:** pro aktivní soubor panel ukáže řetěz uplatněných souborů agenta.
   - **Závisí na:** P8b.3.2
   - **Odhad:** F260 1–2 ČT (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** seznam souborů, které agent ve složce načte (AGENTS.md, CLAUDE.md, pravidla, skills) s velikostí a odhadem tokenů, a zdroj „Plány agentů“ v Přejít na cokoli po `+` (ae24a176).
 
 ### PZ.7 Pracovní postupy
 
@@ -3514,6 +3521,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** vybrané změny se odešlou s náhledem a soubor změněný na serveru se neodešle bez diffu.
   - **Závisí na:** P5.4.2
   - **Odhad:** F167 4–6 ČT navíc (matice)
+  - **Stav 1. 11. 2026 (sloučeno):** odeslání změn ve více souborech na server najednou s diffem; soubor změněný na serveru nejde odeslat bez zobrazeného diffu a novější verze se nepřepíše; ověřeno proti skutečnému FTPS (29933885), SFTP jen testy.
 - [ ] **PZ.7.2** Obnova celé pracovní úlohy
   - **Co a proč:** Dokumenty, výběry, dotazy, filtry a recepty uložené jako úloha s návratem.
   - **Funkce:** F168
@@ -3528,6 +3536,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F177 3–5 ČT (matice)
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** porovnání dvou složek podle velikosti, času nebo obsahu a kopie jedním směrem po náhledu, nic se nemaže; lokálně i proti serveru, chybějící složku na serveru klient zatím nevytvoří (cb9511e7).
+  - **Stav 1. 11. 2026 (sloučeno):** kopie do serveru teď chybějící složky založí (FTP MKD, SFTP mkdir; 3a451479).
 
 ### PZ.8 Pluginy
 
