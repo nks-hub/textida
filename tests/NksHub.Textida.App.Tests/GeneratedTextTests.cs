@@ -101,7 +101,7 @@ public class GeneratedTextTests : IDisposable
     [AvaloniaFact]
     public async Task The_line_at_the_caret_goes_to_a_python_that_stays_open_and_its_output_is_in_the_output_panel()
     {
-        if (Core.Tools.InterpreterKind.Python.Find(null) is null) return; // no python on this machine
+        Assert.SkipWhen(Core.Tools.InterpreterKind.Python.Find(null) is null, "no python on this machine");
         var w = _app.CreateWindow(null);
         var tab = w.OpenFile(_temp.File("calc.py", "x = 6\nprint(x * 7)\nprint('again', x)\n"), null);
         var surface = tab.Editor!;
