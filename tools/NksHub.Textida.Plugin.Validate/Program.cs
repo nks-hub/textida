@@ -63,11 +63,11 @@ namespace NksHub.Textida.Plugin.Validate
             var options = new ValidatorOptions
             {
                 HostApiVersion = hostApi,
-                MaxGrammarBytes = PluginLimitsPlaceholders.GrammarMaxBytes,
-                MaxIconBytes = PluginLimitsPlaceholders.IconMaxBytes,
-                MaxFolderBytes = PluginLimitsPlaceholders.PluginZipMaxUnpackedBytes,
-                MaxEntries = PluginLimitsPlaceholders.PluginZipMaxEntries,
-                PluginTimeout = TimeSpan.FromSeconds(PluginLimitsPlaceholders.ValidatorPluginSeconds),
+                MaxGrammarBytes = PluginLimits.GrammarMaxBytes,
+                MaxIconBytes = PluginLimits.IconMaxBytes,
+                MaxFolderBytes = PluginLimits.PluginZipMaxUnpackedBytes,
+                MaxEntries = PluginLimits.PluginZipMaxEntries,
+                PluginTimeout = TimeSpan.FromSeconds(PluginLimits.ValidatorPluginSeconds),
                 Run = run,
                 ScenarioPath = scenario,
                 SourcePath = source,
