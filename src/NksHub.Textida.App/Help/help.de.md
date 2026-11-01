@@ -2120,3 +2120,12 @@ Der Befehl im Menü Extras sucht Code nach seinem Syntaxbaum statt nach Zeichen 
 3. Die Ersetzung erscheint in der Änderungsvorschau als Vorschlag. Haken Sie ab, was Sie nicht wollen, und übernehmen Sie. Eine Datei, die sich inzwischen geändert hat, bleibt unberührt und wird als Konflikt gemeldet.
 - Das Programm wird in node_modules/.bin, .venv und im PATH gesucht (nichts wird heruntergeladen), und Sie bestätigen es vor dem ersten Lauf. Es läuft hinter dem Proxy des Editors und erreicht kein Netz, das der Proxy nicht erlaubt. Gesucht wird im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
 - Die offenen Tabs des Ordners werden nicht von der Platte gelesen: ihr Text, auch ungespeichert, geht über die Standardeingabe an das Programm. Geplant werden nur UTF-8-Dateien und -Tabs (ast-grep zählt UTF-8-Bytes); eine andere Kodierung wird mit dem Grund im Tab Aufgaben übersprungen. Die Suche endet nach 5000 Treffern oder 120 Sekunden.
+
+## [remote.sendChanges] Änderungen mehrerer Dateien senden
+commands: nks.remote.sendChanges
+Der Befehl im Menü Datei, Remote sendet die Änderungen mehrerer gespeicherter Dateien von FTP, FTPS oder SFTP auf einmal, mit Vorschau der Unterschiede und der Prüfung, dass der Server keine neuere Version hat.
+1. Wählen Sie Datei, Remote und Änderungen mehrerer Dateien senden. Gehören ungesendete Dateien zu mehreren Verbindungen, wählen Sie die Verbindung.
+2. Jede Zeile ist eine Datei mit dem Stand ihrer Version auf dem Server. Eine Zeile kreuzt die Datei an oder ab. Unterschiede zeigen öffnet den Vergleich der Datei mit dem Server.
+3. Wählen Sie Angekreuzte Dateien senden. Jede Datei wird sicher unter einem temporären Namen gesendet und ersetzt erst dann die alte.
+- Eine Datei, die sich auf dem Server geändert hat oder verschwunden ist, lässt sich erst ankreuzen, wenn Sie ihre Unterschiede gezeigt haben (bei einer gelöschten Datei bestätigen Sie, dass sie neu angelegt wird). Der Upload erwartet dann genau die Version, die Sie gesehen haben; ist auf dem Server eine neuere, wird die Datei nicht gesendet und gemeldet.
+- Ein Tab mit ungespeicherten Änderungen wird nicht gesendet, weil die Datei auf der Platte nicht das ist, was Sie sehen; speichern Sie ihn zuerst. Die Versionsprüfung hat auf dem Server eine kleine Lücke zwischen Prüfung und Ersetzen, weil weder FTP noch SFTP ein bedingtes Schreiben kennen.

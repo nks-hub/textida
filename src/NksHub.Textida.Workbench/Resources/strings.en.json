@@ -561,6 +561,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.remote.sendChanges": "Send Changes of Several Files to the Server...",
   "cmd.tools.structuralSearch": "Structural Search and Rewrite (ast-grep)...",
   "cmd.tools.searchWeb": "Search Selection on the Web",
   "cmd.tools.openMappedUrl": "Open File at Its Address",

@@ -2120,3 +2120,12 @@ The command in the Tools menu searches code by its syntax tree instead of its ch
 3. The rewrite appears in the change preview as a proposal. Untick what you do not want and apply. A file that changed meanwhile is left alone and reported as a conflict.
 - The program is looked for in node_modules/.bin, .venv and on the PATH (nothing is downloaded) and you confirm it before the first run. It runs behind the proxy of the editor, so it reaches no network the proxy does not allow. The search covers the folder of the file panel, else the folder of the open file.
 - The open tabs of the folder are not read from disk: their text, even unsaved, goes to the program on standard input. Only UTF-8 files and tabs are planned (ast-grep counts UTF-8 bytes); another encoding is skipped with the reason in the Tasks tab. The search stops after 5000 matches or 120 seconds.
+
+## [remote.sendChanges] Sending the changes of several files
+commands: nks.remote.sendChanges
+The command in the File menu, Remote sends the changes of several saved files from FTP, FTPS or SFTP at once, with a preview of the differences and a check that the server has no newer version.
+1. Choose File, Remote and Send Changes of Several Files. If unsent files belong to more than one connection, pick the connection.
+2. Each row is one file with the state of its version on the server. A row ticks or unticks the file. Show the differences opens a comparison of the file with the server.
+3. Choose Send the ticked files. Each file is sent safely under a temporary name and only then replaces the old one.
+- A file that changed on the server or disappeared cannot be ticked until you have shown its differences (for a deleted file you confirm that it is created again). The upload then expects exactly the version you saw; if there is a newer one on the server, the file is not sent and is reported.
+- A tab with unsaved changes is not sent, because the file on disk is not what you see; save it first. The version check has a small gap on the server between the check and the replacement, because neither FTP nor SFTP has a conditional write.

@@ -2120,3 +2120,12 @@ Příkaz v nabídce Nástroje hledá kód podle jeho stromu, ne podle znaků, a 
 3. Přepis se objeví v přehledu změn jako návrh. Odškrtněte, co nechcete, a použijte. Soubor, který se mezitím změnil, se neupraví a hlásí se jako konflikt.
 - Program se hledá v node_modules/.bin, .venv a v PATH (nic se nestahuje) a před prvním během ho musíte potvrdit. Běží za proxy editoru, takže na síť nedosáhne, dokud ji proxy nepustí. Hledá se ve složce panelu souborů, jinak ve složce otevřeného souboru.
 - Otevřené karty složky se nečtou z disku: jejich text, i neuložený, jde programu na standardní vstup. Jako text se plánují jen soubory a karty v UTF-8 (ast-grep počítá bajty UTF-8); jiné kódování se přeskočí s důvodem v kartě Úlohy. Hledání se zastaví po 5000 shodách nebo po 120 sekundách.
+
+## [remote.sendChanges] Odeslání změn více souborů
+commands: nks.remote.sendChanges
+Příkaz v nabídce Soubor, Vzdálené odešle změny několika uložených souborů z FTP, FTPS nebo SFTP najednou, s náhledem rozdílů a kontrolou, že na serveru není novější verze.
+1. Zvolte Soubor, Vzdálené a Odeslat změny více souborů. Je-li neodeslaných souborů z víc připojení, vyberte připojení.
+2. Každý řádek je jeden soubor se stavem jeho verze na serveru. Řádek označí nebo odznačí soubor. Ukázat rozdíly otevře porovnání souboru se serverem.
+3. Zvolte Odeslat vybrané soubory. Každý soubor se pošle bezpečně přes dočasný název a až pak nahradí starý.
+- Soubor, který se na serveru změnil nebo zmizel, nejde označit, dokud neukážete jeho rozdíly (u smazaného souboru potvrdíte, že se má vytvořit znovu). Odeslání pak čeká právě na tu verzi, kterou jste viděli; je-li na serveru už další, soubor se neodešle a ohlásí se.
+- Karta s neuloženými změnami se neposílá, protože soubor na disku není to, co vidíte; nejdřív ji uložte. Kontrola verze má i na serveru nepatrnou mezeru mezi kontrolou a nahrazením, protože FTP ani SFTP nemají podmíněný zápis.

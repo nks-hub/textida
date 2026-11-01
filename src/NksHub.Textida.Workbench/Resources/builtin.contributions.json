@@ -1861,6 +1861,13 @@
       "enablement": "true"
     },
     {
+      "id": "nks.remote.sendChanges",
+      "title": "cmd.remote.sendChanges",
+      "category": "cat.file",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5015,6 +5022,13 @@
       "command": "nks.tools.structuralSearch",
       "group": "2_run/07",
       "order": 10
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.sendChanges",
+      "group": "5_remote/01.02",
+      "submenu": "remote",
+      "order": 45
     },
     {
       "menu": "edit",
