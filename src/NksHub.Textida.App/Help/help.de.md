@@ -2029,3 +2029,11 @@ Die Befehle im Menü Bearbeiten, Umwandeln, machen aus JSON eine Go-Struct, eine
 - Die Objekte eines Arrays werden zu einem Typ zusammengefasst; ein Feld, das einigen fehlt oder null ist, ist optional (in Go ein Zeiger und omitempty, in C# nullable, in TypeScript ein Fragezeichen).
 - Eine Zahl, die in 64 Bit passt, ist int64 (long, number), jede andere float64 (double, number). Ein Feld ohne bekannten Typ (nur null, leeres Array, gemischte Werte) bekommt den offenen Typ der Sprache.
 - Der Name des Wurzeltyps ist der Dateiname; Text, der kein JSON ist, wird mit dem Grund in der Statusleiste abgelehnt.
+
+## [edit.loremInspect] Lorem ipsum und der Zeicheninspektor
+commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
+Die Befehle im Menü Bearbeiten fügen Platzhaltertext ein und sagen, was das Zeichen am Cursor ist.
+1. Wählen Sie Bearbeiten, Einfügen und Lorem ipsum: Absätze, Sätze oder Wörter und geben Sie die Anzahl ein.
+2. Für das Zeichen am Cursor wählen Sie Bearbeiten und Zeicheninspektor.
+- Der Text ist immer derselbe und beginnt mit dem klassischen „Lorem ipsum dolor sit amet“; ein Absatz hat vier bis sechs Sätze, die Anzahl ist 1 bis 10.000. Er wird an jedem Cursor eingefügt, eine Auswahl wird ersetzt, es ist ein Rückgängig-Schritt.
+- Der Inspektor zeigt Codepunkt, Name, Kategorie und die Bytes des Zeichens in UTF-8, in UTF-16 und in der Kodierung der Datei. Am Textende wird das Zeichen vor dem Cursor untersucht. Die Namen stammen aus Unicode 15.

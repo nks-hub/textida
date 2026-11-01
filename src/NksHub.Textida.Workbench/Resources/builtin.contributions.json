@@ -1695,6 +1695,41 @@
       "enablement": "!largeFileMode"
     },
     {
+      "id": "nks.edit.insertLoremParagraphs",
+      "title": "cmd.edit.insertLoremParagraphs",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertLoremSentences",
+      "title": "cmd.edit.insertLoremSentences",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.insertLoremWords",
+      "title": "cmd.edit.insertLoremWords",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus",
+      "enablement": "!readOnly",
+      "undo": "transaction"
+    },
+    {
+      "id": "nks.edit.inspectCharacter",
+      "title": "cmd.edit.inspectCharacter",
+      "category": "cat.edit",
+      "icon": "hash",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4716,6 +4751,33 @@
       "group": "5_more/01.01",
       "submenu": "convert",
       "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertLoremParagraphs",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 30
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertLoremSentences",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 40
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertLoremWords",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.inspectCharacter",
+      "group": "5_more/02.03",
+      "order": 10
     },
     {
       "menu": "edit",

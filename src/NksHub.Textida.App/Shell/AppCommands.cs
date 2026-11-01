@@ -144,6 +144,10 @@ internal static class AppCommands
         On("nks.edit.jsonToGo", w => w.JsonToTypes(Core.Data.TypeLanguage.Go));
         On("nks.edit.jsonToCSharp", w => w.JsonToTypes(Core.Data.TypeLanguage.CSharp));
         On("nks.edit.jsonToTypeScript", w => w.JsonToTypes(Core.Data.TypeLanguage.TypeScript));
+        On("nks.edit.insertLoremParagraphs", w => w.InsertLorem(Core.Data.LoremUnit.Paragraphs));
+        On("nks.edit.insertLoremSentences", w => w.InsertLorem(Core.Data.LoremUnit.Sentences));
+        On("nks.edit.insertLoremWords", w => w.InsertLorem(Core.Data.LoremUnit.Words));
+        On("nks.edit.inspectCharacter", w => w.InspectCharacter());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

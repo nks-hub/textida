@@ -2029,3 +2029,11 @@ The commands in the Edit menu, Convert, make a Go struct, a C# class or a TypeSc
 - The objects of an array are merged into one type; a field some of them lack or hold null in is optional (a pointer and omitempty in Go, nullable in C#, a question mark in TypeScript).
 - A number that fits in 64 bits is int64 (long, number), any other number float64 (double, number). A field with no known type (only null, an empty array, mixed values) gets the open type of the language.
 - The name of the root type is the name of the file; text that is not JSON is refused with the reason in the status bar.
+
+## [edit.loremInspect] Lorem ipsum and the character inspector
+commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
+The commands in the Edit menu insert placeholder text and say what the character at the caret is.
+1. Choose Edit, Insert and Lorem Ipsum: Paragraphs, Sentences or Words and enter the count.
+2. For the character at the caret choose Edit and Character Inspector.
+- The text is always the same and begins with the classic “Lorem ipsum dolor sit amet”; a paragraph has four to six sentences, the count is 1 to 10,000. It goes in at every caret, a selection is replaced, it is one Undo step.
+- The inspector shows the code point, the name, the category and the bytes of the character in UTF-8, in UTF-16 and in the encoding of the file. At the end of the text the character before the caret is examined. The names are from Unicode 15.

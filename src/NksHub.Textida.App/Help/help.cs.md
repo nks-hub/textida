@@ -2029,3 +2029,11 @@ Příkazy v nabídce Úpravy, Převést vytvoří z JSONu strukturu Go, třídu 
 - Objekty v poli se sloučí do jednoho typu; pole, které některý z nich nemá nebo má null, je volitelné (v Go ukazatel a omitempty, v C# nullable, v TypeScriptu otazník).
 - Celé číslo, které se vejde do 64 bitů, je int64 (long, number), jiné číslo float64 (double, number). Pole bez známého typu (jen null, prázdné pole, smíšené hodnoty) dostane otevřený typ jazyka.
 - Jméno kořenového typu je jméno souboru; text, který není JSON, se odmítne s důvodem ve stavovém řádku.
+
+## [edit.loremInspect] Lorem ipsum a inspektor znaku
+commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
+Příkazy v nabídce Úpravy vloží ukázkový text a řeknou, co je znak pod kurzorem.
+1. Zvolte Úpravy, Vložit a Lorem ipsum: odstavce, věty nebo slova a zadejte počet.
+2. Pro znak pod kurzorem zvolte Úpravy a Inspektor znaku.
+- Text je pokaždé stejný a začíná klasickým „Lorem ipsum dolor sit amet“; odstavec má čtyři až šest vět, počet je 1 až 10 000. Vloží se na každý kurzor, výběr se nahradí, je to jeden krok Zpět.
+- Inspektor ukáže kódový bod, jméno, kategorii a bajty znaku v UTF-8, v UTF-16 a v kódování souboru. Na konci textu se zkoumá znak před kurzorem. Jména jsou z Unicode 15.

@@ -17,6 +17,7 @@ public class TranslationGateTests
     private static readonly Dictionary<string, string> AppSameAsEnglish = new()
     {
         ["app.name"] = "cs sk de",
+        ["lorem.title"] = "cs sk de", // the name of the classic placeholder text
         ["encoding.group.Unicode"] = "cs sk de", // the name of a standard
         ["settings.value.files.encoding.utf-8"] = "cs sk de", // the name of a standard or a product
         ["settings.value.files.encoding.utf-16le"] = "cs sk de", // the name of a standard or a product

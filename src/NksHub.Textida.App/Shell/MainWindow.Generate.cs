@@ -1,4 +1,6 @@
+using System.Text;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data;
 using NksHub.Textida.Workbench.Commands;
@@ -24,6 +26,50 @@ internal sealed partial class MainWindow
         if (tab.Surface is { } surface) surface.Document.Text = text;
         FocusView(tab);
         return tab;
+    }
+
+    /// <summary>Asks how many paragraphs, sentences or words, and writes that much placeholder text at every caret (a selection is replaced); one Undo step.</summary>
+    internal CommandOutcome InsertLorem(LoremUnit unit)
+    {
+        if (ActiveEditor is not { IsReadOnly: false } surface) return CommandOutcome.NotHandled;
+        _ = InsertLoremAsync(surface, unit);
+        return CommandOutcome.Handled;
+    }
+
+    private async Task InsertLoremAsync(EditorSurface surface, LoremUnit unit)
+    {
+        var answer = await _app.Dialogs.PromptAsync(this, Loc.Get(K.LoremTitle), Loc.Get(K.LoremLabel, ("unit", Loc.Get(unit switch { LoremUnit.Words => K.LoremWords, LoremUnit.Sentences => K.LoremSentences, _ => K.LoremParagraphs }))), "3");
+        if (answer is null) return;
+        if (!int.TryParse(answer.Trim(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int count) || count < 1 || count > LoremIpsum.MaxCount)
+        {
+            SetStatusMessage(Loc.Get(K.LoremInvalid, ("max", LoremIpsum.MaxCount)));
+            return;
+        }
+        if (!ReferenceEquals(ActiveEditor, surface) || surface.IsReadOnly || Active is not { } tab) return;
+        string text = LoremIpsum.Generate(unit, count, tab.Doc.NewLine(surface.Settings.ConfiguredEol));
+        RunEdit((s, sels) => AvaloniaEditAdapter.LineOperations.ReplaceSelections(s.Document, sels, _ => text));
+    }
+
+    /// <summary>Says what the character after the caret (the one before it at the end of the text) is: code point, name, category and its bytes in UTF-8, UTF-16 and the encoding of the file.</summary>
+    internal CommandOutcome InspectCharacter()
+    {
+        if (ActiveEditor is not { } surface || Active is not { } tab) return CommandOutcome.NotHandled;
+        string text = surface.Document.Text;
+        int at = Math.Min(surface.CaretOffset, text.Length);
+        var info = CharacterInfo.At(text, at) ?? (at > 0 ? CharacterInfo.At(text, char.IsLowSurrogate(text[at - 1]) && at > 1 ? at - 2 : at - 1) : null);
+        if (info is null)
+        {
+            SetStatusMessage(Loc.Get(K.CharInspectNone));
+            return CommandOutcome.Handled;
+        }
+        string inFile;
+        try { inFile = CharacterInfo.Hex(tab.Doc.Doc.Codec.Encode(char.ConvertFromUtf32(info.CodePoint))); }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException or EncoderFallbackException) { inFile = Loc.Get(K.CharInspectNotInFile); }
+        string message = Loc.Get(K.CharInspectText, ("codepoint", info.CodePointText), ("name", info.Name ?? Loc.Get(K.CharInspectNoName)),
+            ("category", info.CategoryCode + " " + Loc.Get("unicode.category." + info.CategoryCode)), ("utf8", info.Utf8.Length == 0 ? Loc.Get(K.CharInspectNoUtf8) : CharacterInfo.Hex(info.Utf8)), ("utf16", CharacterInfo.Hex(info.Utf16)),
+            ("encoding", tab.Doc.Doc.Codec.Name), ("file", inFile));
+        _ = _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.CharInspectTitle), message, [new DialogButton(Loc.Get(K.DialogClose), IsDefault: true, IsCancel: true)]));
+        return CommandOutcome.Handled;
     }
 
     /// <summary>Turns the selected JSON (or the whole document) into types of <paramref name="language"/> in a new tab; the name of the root type is the one of the file.</summary>
