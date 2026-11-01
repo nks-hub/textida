@@ -2063,3 +2063,12 @@ Příkaz v nabídce Nástroje pošle výběr nebo řádek s kurzorem do interpre
 2. Zvolte Nástroje a Poslat do interpretu. Interpret se při prvním použití spustí ve složce souboru.
 - Používá se python, php -a, node a psql. Je-li ve složce souboru nebo nad ní .venv (nebo node_modules/.bin), použije se program odtud. Připojení psql určují jeho proměnné prostředí (PGHOST, PGDATABASE a další).
 - Interpret zůstává spuštěný a pamatuje si, co jste mu poslali. Ukončí ho příkaz Ukončit interprety, zavření okna nebo on sám (například exit()). Odeslaný text se ve výstupu opakuje za znakem >.
+
+## [tools.compareFolders] Porovnat dvě složky
+commands: nks.tools.compareFolders
+Příkaz v nabídce Nástroje porovná dvě složky i s podsložkami a výsledek otevře jako zprávu v nové záložce.
+1. Zvolte Nástroje a Porovnat složky. Pro každou ze dvou stran vyberte místní složku, nebo složku na uloženém serveru (FTP, FTPS, SFTP).
+2. Vyberte, podle čeho se soubory porovnají: velikost, čas změny, nebo obsah.
+3. Chcete-li jednu stranu zkopírovat na druhou, zvolte směr. Uvidíte seznam souborů, které se zapíšou, a kopírování začne až po vašem potvrzení.
+- Čas změny: rozdíl do 2 sekund se nepočítá (FAT a FTP ukládají čas nepřesně); strana, která čas nezná, se porovná podle velikosti. Obsah: soubory stejné velikosti se porovnají podle otisku, na serveru se proto celé stáhnou.
+- Kopírování nic nemaže: soubory, které má jen cílová strana, zůstanou. Zkopírovaný soubor dostane čas změny zdroje. Klient serveru neumí vytvářet složky, soubor do chybějící složky na serveru se proto nezapíše a chyba se vypíše ve Výstupu.

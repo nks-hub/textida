@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.tools.compareFolders": "Compare Folders",
   "cmd.tools.sendToInterpreter": "Send to Interpreter",
   "cmd.tools.stopInterpreters": "Stop Interpreters",
   "cmd.tools.httpSend": "Send HTTP Request",

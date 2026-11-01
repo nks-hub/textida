@@ -2063,3 +2063,12 @@ Der Befehl im Menü Extras sendet die Auswahl oder die Zeile am Cursor an einen 
 2. Wählen Sie Extras und An Interpreter senden. Der Interpreter startet bei der ersten Verwendung im Ordner der Datei.
 - Verwendet werden python, php -a, node und psql. Hat der Ordner der Datei oder ein Ordner darüber eine .venv (oder node_modules/.bin), wird das Programm von dort benutzt. Die Verbindung von psql kommt aus seinen Umgebungsvariablen (PGHOST, PGDATABASE und andere).
 - Der Interpreter bleibt geöffnet und merkt sich, was Sie gesendet haben. Der Befehl Interpreter beenden, das Schließen des Fensters oder der Interpreter selbst (zum Beispiel exit()) beendet ihn. Der gesendete Text wird in der Ausgabe nach einem >-Zeichen wiederholt.
+
+## [tools.compareFolders] Zwei Ordner vergleichen
+commands: nks.tools.compareFolders
+Der Befehl im Menü Extras vergleicht zwei Ordner mit ihren Unterordnern und öffnet das Ergebnis als Bericht in einem neuen Tab.
+1. Wählen Sie Extras und Ordner vergleichen. Wählen Sie für jede der beiden Seiten einen lokalen Ordner oder einen Ordner auf einem gespeicherten Server (FTP, FTPS, SFTP).
+2. Wählen Sie, wonach die Dateien verglichen werden: Größe, Änderungszeit oder Inhalt.
+3. Um eine Seite auf die andere zu kopieren, wählen Sie die Richtung. Sie sehen die Liste der Dateien, die geschrieben würden, und das Kopieren beginnt erst nach Ihrer Bestätigung.
+- Zeit: ein Unterschied unter 2 Sekunden zählt nicht (FAT und FTP speichern die Zeit grob); eine Seite ohne Zeitangabe wird nach Größe verglichen. Inhalt: Dateien gleicher Größe werden per Hash verglichen, auf einem Server also vollständig heruntergeladen.
+- Kopieren löscht nichts: Dateien, die nur das Ziel hat, bleiben. Eine kopierte Datei erhält die Änderungszeit der Quelle. Der Server-Client kann keine Ordner anlegen, eine Datei für einen fehlenden Ordner auf dem Server wird daher nicht geschrieben und der Fehler steht in der Ausgabe.

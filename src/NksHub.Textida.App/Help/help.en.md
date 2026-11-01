@@ -2063,3 +2063,12 @@ The command in the Tools menu sends the selection or the line at the caret to an
 2. Choose Tools and Send to Interpreter. The interpreter starts on first use, in the folder of the file.
 - It uses python, php -a, node and psql. When the folder of the file or a folder above it has a .venv (or node_modules/.bin), the program from there is used. The connection of psql comes from its environment variables (PGHOST, PGDATABASE and others).
 - The interpreter stays open and remembers what you sent. The command Stop Interpreters, closing the window or the interpreter itself (exit(), for example) ends it. The text sent is repeated in the output after a > sign.
+
+## [tools.compareFolders] Compare two folders
+commands: nks.tools.compareFolders
+The command in the Tools menu compares two folders with their subfolders and opens the result as a report in a new tab.
+1. Choose Tools and Compare Folders. For each of the two sides pick a local folder or a folder on a saved server (FTP, FTPS, SFTP).
+2. Choose what the files are compared by: size, modification time or content.
+3. To copy one side to the other, choose the direction. You see the list of files that would be written, and the copy starts only after you confirm it.
+- Time: a difference under 2 seconds does not count (FAT and FTP store the time coarsely); a side that does not know the time is compared by size. Content: files of the same size are compared by a hash, so on a server they are downloaded in full.
+- Copying deletes nothing: files that only the target has stay. A copied file gets the modification time of the source. The server client cannot make folders, so a file for a missing folder on the server is not written and the error is listed in the Output.
