@@ -127,25 +127,28 @@ public class PluginPanelsTests : IDisposable
         long first = tab.Doc.Doc.Revision;
 
         var shown = await Editor(DocumentMethods.PreviewShow, Show(tab, "# Notes\n\nSome **bold** and `code` text.\n\n- one\n- two\n\n```\nraw  code\n```\n"));
+        await _w.PreviewRenderTask;
         Assert.Equal(first, shown.GetProperty("revision").GetInt64());
         Assert.True(_w.PreviewPanelOpen);
         Assert.Equal(Loc.Get(K.PreviewPanelStatus, ("title", "Doc"), ("revision", first)), _w.PreviewPanelStatus);
         var text = TextOf(_w.PreviewBody!);
         Assert.Contains("Notes", text);
         Assert.Contains("Some bold and code text.", text);
-        Assert.Contains("• one", text);
+        Assert.Matches("•\\s+one", text);
         Assert.Contains("raw  code", text);
 
         // the document moves on: the panel says the preview is outdated, and a late preview for the old revision is refused
         tab.Editor!.Document.Replace(0, 1, "## ");
         long second = tab.Doc.Doc.Revision;
         Assert.True(second > first);
+        await _w.PreviewRenderTask;
         Assert.Equal(Loc.Get(K.PreviewPanelOutdated, ("title", "Doc"), ("revision", first), ("current", second)), _w.PreviewPanelStatus);
         var late = await Editor(DocumentMethods.PreviewShow, $"{{\"document\":\"{tab.Doc.Doc.Id}\",\"revision\":{first},\"format\":\"text\",\"text\":\"old\"}}");
         Assert.Equal(DocumentErrorCodes.RevisionConflict, ErrorOf(late));
         Assert.DoesNotContain("old", TextOf(_w.PreviewBody!).Split('\n'));
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "Updated for the new revision"));
+        await _w.PreviewRenderTask;
         Assert.Equal(Loc.Get(K.PreviewPanelStatus, ("title", "Doc"), ("revision", second)), _w.PreviewPanelStatus);
         Assert.Contains("Updated for the new revision", TextOf(_w.PreviewBody!));
 
@@ -163,6 +166,7 @@ public class PluginPanelsTests : IDisposable
         Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "<script>alert(1)</script>\n\n![chart](https://remote.example/a.png)\n\n[notes](file:///C:/private/notes.txt) and snake_case_name\n"));
+        await _w.PreviewRenderTask;
         var body = _w.PreviewBody!;
         var text = TextOf(body);
         Assert.Contains("<script>alert(1)</script>", text);
@@ -174,6 +178,7 @@ public class PluginPanelsTests : IDisposable
 
         // plain text is shown as it is, Markdown marks included
         await Editor(DocumentMethods.PreviewShow, Show(tab, "# not a heading", "text"));
+        await _w.PreviewRenderTask;
         Assert.Contains("# not a heading", TextOf(_w.PreviewBody!));
     }
 
@@ -205,6 +210,7 @@ public class PluginPanelsTests : IDisposable
         Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, $"![dot](data:image/png;base64,{OnePixelPng})\n\n![broken](data:image/png;base64,AAAA)\n\n![far](https://remote.example/a.png)\n"));
+        await _w.PreviewRenderTask;
         var body = _w.PreviewBody!;
         var images = Tree(body).OfType<Image>().ToList();
         Assert.Single(images);
@@ -227,11 +233,13 @@ public class PluginPanelsTests : IDisposable
         Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
 
         await Editor(DocumentMethods.PreviewShow, WithImages(tab, "![logo](preview:logo) ![gone](preview:gone) <img src=\"preview:logo\" alt=\"again\">", $"{{\"logo\":\"{OnePixelPng}\"}}", "html"));
+        await _w.PreviewRenderTask;
         var body = _w.PreviewBody!;
         Assert.Equal(["again"], Tree(body).OfType<Image>().Select(i => AutomationProperties.GetName(i)).ToList()); // the HTML refers to it; the Markdown marks inside HTML stay text
         Assert.Contains("![gone](preview:gone)", TextOf(body));
 
         await Editor(DocumentMethods.PreviewShow, WithImages(tab, "![logo](preview:logo) ![gone](preview:gone)", $"{{\"logo\":\"{OnePixelPng}\"}}"));
+        await _w.PreviewRenderTask;
         body = _w.PreviewBody!;
         Assert.Equal(["logo"], Tree(body).OfType<Image>().Select(i => AutomationProperties.GetName(i)).ToList());
         Assert.Contains(Loc.Get(K.PreviewPanelImage, ("alt", "gone")), TextOf(body));
@@ -256,6 +264,7 @@ public class PluginPanelsTests : IDisposable
         Permissions.Grant("p", DocumentPermissions.Preview, GrantScope.All);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "<h1>Title</h1><p>one <em>two</em> <script>alert(1)</script></p><img src=\"pic.png\" alt=\"local\">", "html"));
+        await _w.PreviewRenderTask;
         var body = _w.PreviewBody!;
         var text = TextOf(body);
         Assert.Contains("Title", text);
@@ -264,6 +273,7 @@ public class PluginPanelsTests : IDisposable
         Assert.DoesNotContain(Tree(body), c => c is Image);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "```mermaid\ngraph LR\nA[Source] -->|data| B(Result)\n```\n\n```mermaid\nsequenceDiagram\nA->>B: hi\n```\n"));
+        await _w.PreviewRenderTask;
         body = _w.PreviewBody!;
         var drawing = Assert.Single(Tree(body).OfType<Canvas>());
         Assert.Contains("Source", TextOf(drawing));
@@ -283,6 +293,7 @@ public class PluginPanelsTests : IDisposable
         _app.UriOpener = uri => { opened.Add(uri); return Task.FromResult(true); };
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "See [the manual](https://docs.example.org/a) or [local](file:///C:/private/notes.txt)."));
+        await _w.PreviewRenderTask;
         var buttons = Tree(_w.PreviewBody!).OfType<Button>().ToList();
         var link = Assert.Single(buttons);
 
@@ -319,6 +330,7 @@ public class PluginPanelsTests : IDisposable
         Assert.False(_w.PreviewPanelOpen);
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "hi"));
+        await _w.PreviewRenderTask;
         Assert.True(_w.PreviewPanelOpen);
         Permissions.Revoke("p", DocumentPermissions.Preview, GrantScope.All); // taking the permission back takes the preview away
         await Until(() => !_w.PreviewPanelOpen, "the preview to close");

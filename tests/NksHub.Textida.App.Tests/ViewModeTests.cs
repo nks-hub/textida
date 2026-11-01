@@ -490,9 +490,11 @@ public class ViewModeTests : IDisposable
         Walk("main:picture-message");
 
         var page = OpenMarkdown("page.md", "# Title\n\ntext\n", "read");
+        await ((MarkdownPreview)page.Custom!).RenderTask;
         Layout();
         Walk("main:markdown-reading");
         Click(ButtonOf(page, Loc.Get(K.ViewModeEdit)));
+        await _w.Active!.SidePreview!.RenderTask;
         Layout();
         Walk("main:markdown-editing");
         run.AssertClean();
@@ -517,6 +519,15 @@ public class ViewModeTests : IDisposable
 
     // ---- Markdown ----
 
+    private async Task ReadyMarkdown()
+    {
+        foreach (var tab in _w.Tabs)
+        {
+            if (tab.Custom is MarkdownPreview page) await page.RenderTask;
+            if (tab.SidePreview is { } side) await side.RenderTask;
+        }
+    }
+
     private DocTab OpenMarkdown(string name, string text, string? mode = null)
     {
         if (mode is not null) _app.Workbench.Set("markdown.defaultMode", mode);
@@ -524,9 +535,10 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_markdown_file_opens_in_reading_with_the_page_over_the_whole_tab_and_the_bar_offers_the_three_modes()
+    public async Task A_markdown_file_opens_in_reading_with_the_page_over_the_whole_tab_and_the_bar_offers_the_three_modes()
     {
         var tab = OpenMarkdown("a.md", "# Title\n\nSome **strong** words\n", "read");
+        await ReadyMarkdown();
         Layout();
         Assert.Equal(ViewMode.Read, tab.Doc.Mode);
         var page = Assert.IsType<MarkdownPreview>(tab.Custom);
@@ -542,10 +554,11 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Editing_shows_the_editor_with_the_page_beside_it_and_source_the_text_only_by_the_bar_the_commands_and_the_key()
+    public async Task Editing_shows_the_editor_with_the_page_beside_it_and_source_the_text_only_by_the_bar_the_commands_and_the_key()
     {
         var tab = OpenMarkdown("b.md", "# Title\n\ntext\n", "read");
         Click(ButtonOf(tab, Loc.Get(K.ViewModeEdit)));
+        await ReadyMarkdown();
         Layout();
         var edit = _w.Active!;
         Assert.Equal(ViewMode.Edit, edit.Doc.Mode);
@@ -588,6 +601,7 @@ public class ViewModeTests : IDisposable
     public async Task Unsaved_text_shows_in_the_page_in_editing_and_in_reading_after_a_pause()
     {
         var tab = OpenMarkdown("c.md", "# First\n", "edit");
+        await ReadyMarkdown();
         Layout();
         Assert.NotNull(tab.SidePreview);
         tab.Editor!.Document.Insert(tab.Editor.Document.TextLength, "\nSome **new** words\n");
@@ -595,6 +609,7 @@ public class ViewModeTests : IDisposable
         await Until(() => TextOf(tab.SidePreview!).Contains("Some new words"), "the page to follow the edit");
 
         Click(ButtonOf(tab, Loc.Get(K.ViewModeRead)));
+        await ReadyMarkdown();
         Layout();
         var page = Assert.IsType<MarkdownPreview>(_w.Active!.Custom);
         Assert.Contains("Some new words", TextOf(page));
@@ -617,30 +632,35 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Changing_the_mode_keeps_the_place_on_the_page_and_the_selection_of_the_editor()
+    public async Task Changing_the_mode_keeps_the_place_on_the_page_and_the_selection_of_the_editor()
     {
         string text = Lines(400);
         var tab = OpenMarkdown("long.md", text, "edit");
+        await ReadyMarkdown();
         Layout();
         var editor = tab.Surface!;
         int selStart = text.IndexOf("Paragraph 40\n", StringComparison.Ordinal);
         editor.SetSelections([new Sel(selStart, selStart + 12)]);
         MarkdownPreview.ScrollEditorTo(editor, 300);
+        await ReadyMarkdown();
         Layout();
         double before = MainWindow.TopLine(editor);
         Assert.InRange(before, 299, 301);
 
         Click(ButtonOf(tab, Loc.Get(K.ViewModeRead)));
+        await ReadyMarkdown();
         Layout();
         Layout();
         var page = Assert.IsType<MarkdownPreview>(_w.Active!.Custom);
         Assert.InRange(page.TopLine, 296, 304);
 
         page.ScrollToLine(120);
+        await ReadyMarkdown();
         Layout();
         Layout();
         Assert.InRange(page.TopLine, 117, 123);
         Click(ButtonOf(_w.Active, Loc.Get(K.ViewModeSource)));
+        await ReadyMarkdown();
         Layout();
         Layout();
         var source = _w.Active!.Surface!;
@@ -650,6 +670,7 @@ public class ViewModeTests : IDisposable
         Assert.Equal("Paragraph 40", source.SelectedText);
 
         Click(ButtonOf(_w.Active, Loc.Get(K.ViewModeEdit)));
+        await ReadyMarkdown();
         Layout();
         Layout();
         Assert.Equal("Paragraph 40", _w.Active!.Surface!.SelectedText);
@@ -657,18 +678,21 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void The_editor_and_the_page_scroll_together_in_editing()
+    public async Task The_editor_and_the_page_scroll_together_in_editing()
     {
         var tab = OpenMarkdown("sync.md", Lines(400), "edit");
+        await ReadyMarkdown();
         Layout();
         Layout();
         MarkdownPreview.ScrollEditorTo(tab.Surface!, 250);
+        await ReadyMarkdown();
         Layout();
         Layout();
         Assert.InRange(tab.SidePreview!.TopLine, 245, 255);
 
         System.Threading.Thread.Sleep(PluginLimits.PreviewSyncQuietMs + 50); // the page that just followed the editor must not send it back at once
         tab.SidePreview.ScrollToLine(100);
+        await ReadyMarkdown();
         Layout();
         Layout();
         Assert.InRange(MainWindow.TopLine(tab.Surface!), 96, 104);
@@ -769,9 +793,10 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Reading_runs_no_script_and_fetches_nothing_from_the_web_without_consent()
+    public async Task Reading_runs_no_script_and_fetches_nothing_from_the_web_without_consent()
     {
         var tab = OpenMarkdown("safe.md", "![chart](https://remote.example/a.png) and ![local](file:///C:/private/a.png)\n\n<script>alert(1)</script>\n\n[open](file:///C:/private/a.txt)\n", "read");
+        await ReadyMarkdown();
         Layout();
         var page = (MarkdownPreview)tab.Custom!;
         string text = TextOf(page);
