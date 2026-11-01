@@ -502,6 +502,11 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string TerminalPanel = "terminal.panel";
+    public const string TerminalRestart = "terminal.restart";
+    public const string TerminalEnded = "terminal.ended";
+    public const string TerminalNoShell = "terminal.noShell";
+    public const string TerminalFailed = "terminal.failed";
     public const string TextMateTitle = "textMate.title";
     public const string TextMateChoose = "textMate.choose";
     public const string TextMateFile = "textMate.file";

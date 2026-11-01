@@ -23,6 +23,7 @@ internal sealed partial class MainWindow
 
     private void OnKeyDownTunnel(object? sender, KeyEventArgs e)
     {
+        if (KeyBelongsToTerminal(e)) return; // while the terminal has the focus, every key but the few of the window is the shell's
         // while an input method composes, Esc, Enter and the arrows confirm or cancel the composition; shortcuts with Ctrl, Alt or ⌘ still run
         if ((ActiveEditor is { IsComposing: true } || Active?.Paged is { IsComposing: true }) && (e.KeyModifiers & ~Avalonia.Input.KeyModifiers.Shift) == Avalonia.Input.KeyModifiers.None) return;
         if (e.Key == Key.Escape)

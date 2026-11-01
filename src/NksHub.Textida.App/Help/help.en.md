@@ -2137,3 +2137,11 @@ The command in the Tools menu converts a TextMate grammar to a grammar of the ed
 2. Imported grammars are kept as a plugin of their own (a textmate-… folder in the plugins folder) and appear as languages; you choose them like any other language, or they are picked by the file extension.
 - Converted: scope names to colour kinds by their prefix (keyword, string, comment, constant.numeric and more), match rules, begin and end regions over several lines, includes (#name, $self and other grammars of the same bundle) and Oniguruma regular expressions rewritten for .NET (\h, POSIX classes, \R, Unicode properties, possessive quantifiers read as greedy).
 - Not carried over, and reported one by one in the Tasks tab: while rules, \G and \K, back-references in a match or begin pattern (in an end pattern they are replaced by a word), colours of single groups of begin and end patterns, nested and intersected character classes, the operator (?~...), includes of grammars outside the bundle. A rule that .NET still refuses after the rewrite is left out. Extensions a built-in grammar already serves are not taken over.
+
+## [view.terminal] Terminal
+commands: nks.view.toggleTerminal
+The Terminal panel below the editor runs a shell. It uses a pseudo terminal (ConPTY on Windows, a pty on macOS and Linux), so full-screen programs, colours and line editing work.
+1. Choose View and Toggle Terminal (Ctrl+`). The shell starts in the folder of the file panel, else in the folder of the open file.
+2. The shell is chosen in the setting terminal.shell: a program name or path, optionally with arguments ("C:\Program Files\Git\bin\bash.exe" --login). Empty means PowerShell on Windows and $SHELL elsewhere.
+- Closing the panel, closing the window and ending the editor end the shell and everything it started. When the shell ends by itself, its last output stays on screen with a Restart button. Resizing the panel resizes the terminal.
+- Keys go to the shell, except Ctrl+` and F6, which belong to the window. Ctrl+Shift+C (⌘C on macOS) copies the selected text, Ctrl+Shift+V, Shift+Insert and ⌘V paste, Shift+PageUp and PageDown and the mouse wheel scroll through the output history (5000 lines). Pasted text reaches the program as pasted when the program asks for it.

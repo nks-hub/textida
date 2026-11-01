@@ -1875,6 +1875,12 @@
       "enablement": "true"
     },
     {
+      "id": "nks.view.toggleTerminal",
+      "title": "cmd.view.toggleTerminal",
+      "category": "cat.view",
+      "icon": "terminal"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5044,6 +5050,12 @@
       "order": 10
     },
     {
+      "menu": "view",
+      "command": "nks.view.toggleTerminal",
+      "group": "5_panels/03",
+      "order": 12
+    },
+    {
       "menu": "edit",
       "command": "nks.edit.convert",
       "group": "5_more/01.01",
@@ -6729,6 +6741,10 @@
       "command": "nks.view.toggleOutput"
     },
     {
+      "key": "ctrl+backquote",
+      "command": "nks.view.toggleTerminal"
+    },
+    {
       "key": "mod+k mod+left",
       "command": "nks.panel.dockLeft"
     },
@@ -8199,7 +8215,7 @@
       "default": "",
       "title": "setting.web.searchUrl.title",
       "description": "setting.web.searchUrl.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "web",
@@ -8213,7 +8229,7 @@
       "default": "",
       "title": "setting.web.pathMap.title",
       "description": "setting.web.pathMap.description",
-      "category": "cat.tools",
+      "category": "cat.toolsLanguages",
       "scope": "application",
       "tags": [
         "web",
@@ -8234,6 +8250,21 @@
         "assembly",
         "decompile",
         "dll"
+      ]
+    },
+    {
+      "key": "terminal.shell",
+      "type": "string",
+      "default": "",
+      "title": "setting.terminal.shell.title",
+      "description": "setting.terminal.shell.description",
+      "category": "cat.toolsLanguages",
+      "scope": "application",
+      "tags": [
+        "terminal",
+        "shell",
+        "powershell",
+        "bash"
       ]
     },
     {

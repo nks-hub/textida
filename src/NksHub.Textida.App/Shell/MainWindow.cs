@@ -164,7 +164,7 @@ internal sealed partial class MainWindow : Window
         BuildPanelHosts(new DockPanel { Children = { Dock(_notices, Avalonia.Controls.Dock.Top), _groupsGrid } });
         ApplyPanelState(rebuildMenu: false);
 
-        var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
+        var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildTerminalPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
         Grid.SetRow(content, 2);
         root.Children.Add(content);
@@ -356,6 +356,7 @@ internal sealed partial class MainWindow : Window
         ApplyHistoryTexts();
         ApplyCommitTexts();
         ApplyOutputTexts();
+        ApplyTerminalTexts();
         ApplyAgentTexts();
         ApplyPreviewTexts();
         ApplyModeTexts();

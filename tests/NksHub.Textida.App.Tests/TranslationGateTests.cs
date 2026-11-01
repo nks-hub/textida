@@ -19,6 +19,7 @@ public class TranslationGateTests
         ["app.name"] = "cs sk de",
         ["lorem.title"] = "cs sk de", // the name of the classic placeholder text
         ["palette.categoryPlan"] = "de", // Plan
+        ["terminal.panel"] = "de", // Terminal
         ["agentFiles.kindSkill"] = "cs sk de", // the name of the file kind of agents
         ["encoding.group.Unicode"] = "cs sk de", // the name of a standard
         ["settings.value.files.encoding.utf-8"] = "cs sk de", // the name of a standard or a product

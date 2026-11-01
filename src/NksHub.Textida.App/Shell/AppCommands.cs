@@ -167,6 +167,7 @@ internal static class AppCommands
         On("nks.tools.structuralSearch", w => w.StructuralSearch());
         On("nks.remote.sendChanges", w => w.SendRemoteChanges());
         On("nks.tools.importTextMate", w => w.ImportTextMate());
+        On("nks.view.toggleTerminal", w => w.ToggleTerminalCommand());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

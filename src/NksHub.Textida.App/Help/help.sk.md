@@ -2137,3 +2137,11 @@ Príkaz v ponuke Nástroje prevedie gramatiku TextMate na gramatiku editora, tak
 2. Importované gramatiky sa uložia ako vlastný doplnok (priečinok textmate-… v priečinku doplnkov) a objavia sa ako jazyky; vyberiete ich ako každý iný jazyk, alebo sa zvolia podľa prípony súboru.
 - Prevádza sa: názvy rozsahov na druhy farieb podľa predpony (keyword, string, comment, constant.numeric a ďalšie), pravidlá match, oblasti begin a end cez viac riadkov, include (#názov, $self a iné gramatiky zo rovnakého zväzku) a regulárne výrazy Oniguruma prepísané pre .NET (\h, triedy POSIX, \R, vlastnosti Unicode, privlastňujúce kvantifikátory ako bežné).
 - Neprenáša sa a hlási sa jednotlivo v karte Úlohy: pravidlá while, \G a \K, spätné odkazy vo vzore match alebo begin (v end sa nahradia slovom), farby dielčích skupín pri begin a end, vnorené a pretínané triedy znakov, operátor (?~…), include gramatík mimo zväzku. Pravidlo, ktoré .NET po prepise odmietne, sa vynechá. Prípony, ktoré už obsluhuje vstavaná gramatika, sa nepreberajú.
+
+## [view.terminal] Terminál
+commands: nks.view.toggleTerminal
+Panel Terminál pod editorom spúšťa shell. Používa pseudoterminál (ConPTY vo Windows, pty v macOS a Linuxe), takže fungujú aj programy na celú obrazovku, farby a editácia riadka.
+1. Zvoľte Zobrazenie a Zobraziť alebo skryť terminál (Ctrl+`). Shell sa spustí v priečinku panela súborov, inak v priečinku otvoreného súboru.
+2. Shell sa vyberá v nastavení terminal.shell: názov programu alebo cesta, prípadne s argumentmi ("C:\Program Files\Git\bin\bash.exe" --login). Prázdne nastavenie znamená PowerShell vo Windows a premennú $SHELL inde.
+- Zatvorenie panela, zatvorenie okna aj koniec editora ukončí shell a všetko, čo spustil. Ak skončí shell sám, zostane na obrazovke jeho posledný výstup a tlačidlo Spustiť znova. Zmena veľkosti panela zmení veľkosť terminálu.
+- Klávesy idú do shellu, okrem Ctrl+` a F6, ktoré patria oknu. Ctrl+Shift+C (⌘C v macOS) kopíruje označený text, Ctrl+Shift+V, Shift+Insert a ⌘V vkladajú, Shift+PageUp a PageDown a koleso myši listujú históriou výstupu (5000 riadkov). Vložený text ide do programu ako vložený, keď o to program požiada.

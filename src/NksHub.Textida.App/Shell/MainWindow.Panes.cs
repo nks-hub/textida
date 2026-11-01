@@ -38,6 +38,7 @@ internal sealed partial class MainWindow
         if (_previewPanel.IsVisible) panes.Add((_previewPanel, () => _previewScroll.Focus()));
         if (_agentPanel.IsVisible) panes.Add((_agentPanel, () => _agentInput.Focus()));
         if (_outputPanel.IsVisible) panes.Add((_outputPanel, () => _outputText.Focus()));
+        if (_terminalPanel.IsVisible) panes.Add((_terminalPanel, () => _terminalView.Focus()));
         if (_find.IsVisible) panes.Add((_find, () => _find.FindBox.Focus()));
         panes.Add((_statusBar, () => _statusRight.Children.OfType<Button>().FirstOrDefault(b => b.IsVisible && b.IsEffectivelyEnabled)?.Focus() ?? false));
         return panes;

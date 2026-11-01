@@ -2137,3 +2137,11 @@ Příkaz v nabídce Nástroje převede gramatiku TextMate na gramatiku editoru, 
 2. Importované gramatiky se uloží jako vlastní doplněk (složka textmate-… ve složce doplňků) a objeví se jako jazyky; vyberete je jako každý jiný jazyk, nebo se zvolí podle přípony souboru.
 - Převádí se: názvy rozsahů na druhy barev podle předpony (keyword, string, comment, constant.numeric a další), pravidla match, oblasti begin a end přes víc řádků, include (#název, $self a jiné gramatiky ze stejného svazku) a regulární výrazy Oniguruma přepsané pro .NET (\h, třídy POSIX, \R, vlastnosti Unicode, přivlastňující kvantifikátory jako běžné).
 - Nepřenáší se a hlásí se jednotlivě v kartě Úlohy: pravidla while, \G a \K, zpětné odkazy ve vzoru match nebo begin (v end se nahradí slovem), barvy dílčích skupin u begin a end, vnořené a protínané třídy znaků, operátor (?~…), include gramatik mimo svazek. Pravidlo, které .NET po přepisu odmítne, se vynechá. Přípony, které už obsluhuje vestavěná gramatika, se nepřebírají.
+
+## [view.terminal] Terminál
+commands: nks.view.toggleTerminal
+Panel Terminál pod editorem spouští shell. Používá pseudoterminál (ConPTY ve Windows, pty v macOS a Linuxu), takže fungují i programy na celou obrazovku, barvy a editace řádku.
+1. Zvolte Zobrazení a Zobrazit nebo skrýt terminál (Ctrl+`). Shell se spustí ve složce panelu souborů, jinak ve složce otevřeného souboru.
+2. Shell se vybírá v nastavení terminal.shell: název programu nebo cesta, případně s argumenty ("C:\Program Files\Git\bin\bash.exe" --login). Prázdné nastavení znamená PowerShell ve Windows a proměnnou $SHELL jinde.
+- Zavření panelu, zavření okna i konec editoru ukončí shell a vše, co spustil. Skončí-li shell sám, zůstane na obrazovce jeho poslední výstup a tlačítko Spustit znovu. Změna velikosti panelu změní velikost terminálu.
+- Klávesy jdou do shellu, kromě Ctrl+` a F6, které patří oknu. Ctrl+Shift+C (⌘C v macOS) kopíruje označený text, Ctrl+Shift+V, Shift+Insert a ⌘V vkládají, Shift+PageUp a PageDown a kolečko myši listují historií výstupu (5000 řádků). Vložený text jde do programu jako vložený, když o to program požádá.
