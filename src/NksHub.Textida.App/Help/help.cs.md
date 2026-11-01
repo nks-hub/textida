@@ -2231,3 +2231,10 @@ Nástroje, Pravopis kontroluje komentáře a řetězce ve zdrojových souborech,
 3. Doplnit diakritiku najde slova bez diakritiky (výběr, jinak celý dokument), která slovník zná jen s diakritikou právě jedním způsobem, a ukáže změny v přehledu změn. Použije se jen to, co potvrdíte.
 - Ve zdrojovém souboru se kontrolují jen komentáře a řetězce; názvy, zkratky ve velkých písmenech, slova s velkým písmenem uvnitř (camelCase), slova u číslic, podtržítek, lomítek a adres se nekontrolují. V Markdownu se nekontroluje kód a odkazy. Editor žádný slovník nedodává, každý má vlastní licenci. Vlastní slova jsou v souboru spell-words.txt v profilu.
 - Nastavení spell.autocorrect (ve výchozím stavu vypnuté) doplní diakritiku slova, které jste právě dopsali, když ho ukončíte znakem, který není písmeno, a slovník zná jedinou podobu s diakritikou. Zpět vrátí slovo, jak bylo napsáno.
+
+## [converters] Převodníky typů souborů
+commands: nks.file.openConverted
+Soubor, Otevřít přes převodník ukáže soubor jiného typu jako text a při uložení ho převede zpět. Vestavěný převodník ukáže CSV jako TSV; dokument Word (.docx) se čte jako text přes program pandoc, je-li na počítači.
+1. CSV se zobrazí s tabulátory mezi poli; oddělovač (čárka nebo středník), kódování a konce řádků souboru se při uložení zachovají. Tabulátor, konec řádku a zpětné lomítko uvnitř pole se v textu píší \t, \n, \r a \\.
+2. Před zápisem se uložené bajty přečtou zpět; musí dát stejný text. Pokud ne, nebo když převodník ohlásí ztrátu (například znak, který kódování souboru nemá), soubor se přepíše až po vašem výslovném souhlasu s tímto uložením. Převodník jen pro čtení otevře kartu jen ke čtení.
+- Převodník je program s jasným vstupem a výstupem: čte bajty a vrací text, případně z textu vrací bajty; na disk, síť ani do editoru nesahá. Externí převodník dostane kopii souboru v soukromé dočasné složce a po 30 s se ukončí.

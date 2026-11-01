@@ -2231,3 +2231,10 @@ Tools, Spelling checks the comments and strings of source files, Markdown and pl
 3. Complete Diacritics finds the words without diacritics (in the selection, else the whole document) that the dictionary knows only with diacritics in exactly one way, and shows the changes in the change review. Only what you confirm is applied.
 - In a source file only comments and strings are checked; names, words in capitals, words with a capital inside (camelCase) and words next to digits, underscores, slashes and addresses are not. In Markdown code and links are not checked. The editor ships no dictionary, and each has a licence of its own. Your own words are in the file spell-words.txt in the profile.
 - The setting spell.autocorrect (off by default) completes the diacritics of the word you have just typed when you end it with a character that is not a letter and the dictionary knows one form with diacritics. Undo gives the word back as typed.
+
+## [converters] File type converters
+commands: nks.file.openConverted
+File, Open Through Converter shows a file of another type as text and converts it back when you save. The built-in converter shows CSV as TSV; a Word document (.docx) is read as text through the program pandoc when it is on the machine.
+1. CSV is shown with tabs between the fields; the separator (comma or semicolon), the encoding and the line ends of the file are kept when you save. A tab, a line end and a backslash inside a field are written \t, \n, \r and \\ in the text.
+2. Before anything is written the saved bytes are read back and must give the same text. If they do not, or if the converter names a loss (for instance a character the encoding of the file lacks), the file is overwritten only after your explicit consent to that save. A read only converter opens a read only tab.
+- A converter is a program with a clear input and output: it reads bytes and gives text, and where it writes, gives bytes from the text; it has no access to the disk, the network or the editor. An external converter gets a copy of the file in a private temporary folder and is ended after 30 s.

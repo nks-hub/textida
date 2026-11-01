@@ -126,6 +126,9 @@ internal sealed class OpenDocument : IDisposable
     public bool ReadOnly => IsResults || (IsVirtual && !_doc.VirtualEditable) || LockedReadOnly || UserReadOnly;
     /// <summary>The user opened the file read only (Open Special); saving is refused until the tab is closed.</summary>
     public bool UserReadOnly { get; set; }
+
+    /// <summary>Set for a tab that shows a file through a converter (PZ.5.2): the file is not this document's path, a save goes back through the converter.</summary>
+    public Shell.ConvertedFile? Converted { get; set; }
     /// <summary>The document is a view of data a plugin supplies (P6.2.6): never written to a file, never journaled and not part of the session. Read only unless the plugin made it editable, and then a save goes to the plugin.</summary>
     public bool IsVirtual => _doc.IsVirtual;
     /// <summary>The plugin that supplies this virtual document and what it said about it; null for a virtual document the editor made itself and for every other document.</summary>
