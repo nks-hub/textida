@@ -21,6 +21,7 @@ public sealed class Grammar
 
     private readonly Dictionary<string, string> _caseSensitiveWords = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _caseInsensitiveWords = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _spelling = new(StringComparer.OrdinalIgnoreCase);
     internal int MaximumKeywordLength { get; private set; }
 
     internal Grammar(GrammarRegistry registry, string id, string name, string? version, bool caseSensitive, string wordPattern,
@@ -62,11 +63,15 @@ public sealed class Grammar
     internal void AddWord(string word, string kind, bool caseSensitive)
     {
         (caseSensitive ? _caseSensitiveWords : _caseInsensitiveWords).TryAdd(word, kind);
+        if (!caseSensitive) _spelling.TryAdd(word, word);
         MaximumKeywordLength = Math.Max(MaximumKeywordLength, word.Length);
     }
 
     /// <summary>The token kind the keyword groups give <paramref name="word"/>, or null when the grammar does not list it.</summary>
     public string? WordKind(ReadOnlySpan<char> word) => LookupWord(word);
+
+    /// <summary>The spelling the grammar gives a word of a case-insensitive keyword group ("SELECT" or "select", as the list has it); null when the grammar does not list the word that way.</summary>
+    public string? SpellingOf(string word) => _spelling.TryGetValue(word, out var spelling) ? spelling : null;
 
     internal string? LookupWord(ReadOnlySpan<char> word)
     {

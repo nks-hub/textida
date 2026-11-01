@@ -327,6 +327,19 @@ internal static class KsyConstructSamples
                 size: 2
                 process: ror(key - 83)
             """, [0x55, 0x34, 0x37, 0x36, 0x81, 0x40, 0x0C, 0x02]),
+        new("process-zlib", """
+            meta:
+              id: pz
+              encoding: ASCII
+            seq:
+              - id: len
+                type: u1
+              - id: packed
+                size: len
+                process: zlib
+              - id: tail
+                type: u1
+            """, [28, 0x78, 0x9C, 0x33, 0x30, 0x34, 0x32, 0x36, 0x31, 0x35, 0x33, 0xB7, 0xB0, 0x74, 0x74, 0x72, 0x76, 0x71, 0x75, 0x73, 0xF7, 0xF0, 0xF4, 0x02, 0x00, 0x2E, 0x27, 0x04, 0xC5, 9]),
     ];
 
     /// <summary>The tree each sample is expected to read into.</summary>
@@ -467,6 +480,12 @@ internal static class KsyConstructSamples
               secret="abc"@1+3
               rotated=0380@4+2
               shifted=0380@6+2
+            """,
+        ["process-zlib"] = """
+            pz=@0+30
+              len=28@0+1
+              packed=30313233343536373839414243444546 …@1+28
+              tail=9@29+1
             """,
     };
 }

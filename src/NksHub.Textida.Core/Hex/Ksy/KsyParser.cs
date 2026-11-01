@@ -10,7 +10,7 @@ namespace NksHub.Textida.Core.Hex.Ksy;
 /// <c>size</c>, <c>size-eos</c>, <c>repeat</c> (<c>eos</c>, <c>expr</c>, <c>until</c>; not for bit-sized fields), <c>if</c>, <c>switch-on</c> with <c>cases</c>, <c>contents</c> and <c>enum</c>,
 /// and <c>process</c> (<c>xor</c>, <c>rol</c>, <c>ror</c>) on a string or on raw bytes.
 /// <c>size</c>, <c>repeat-expr</c>, <c>repeat-until</c>, <c>if</c>, <c>pos</c>, <c>value</c>, <c>switch-on</c> and the argument of <c>process</c> are expressions
-/// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. The rest (<c>process: zlib</c>, a <c>process</c> of a structure, ...) is refused by name.
+/// (<see cref="KsyExpr"/>); a name in one must be an earlier field or an instance of the type. The rest (a <c>process</c> of a structure, a custom process, ...) is refused by name.
 /// </summary>
 public static class KsyParser
 {
@@ -34,7 +34,7 @@ public static class KsyParser
     /// Constructs the subset has that no pinned template needs, so they are not in <see cref="Constructs"/> (that list is the union of the pinned templates, P8.10.1). A template that uses one of
     /// them names it in <see cref="KsyTemplate.Constructs"/>; each has a sample of its own in the tests (P8.10.4).
     /// </summary>
-    public static IReadOnlyList<string> OtherConstructs { get; } = ["process.xor", "process.rol", "process.ror"];
+    public static IReadOnlyList<string> OtherConstructs { get; } = ["process.xor", "process.rol", "process.ror", "process.zlib"];
 
     private const int MaxYamlDepth = 32;
 
@@ -366,6 +366,7 @@ public static class KsyParser
                 if (type.Kind == KsyKind.User) throw Err(processNode.Start, KsyErrorKind.Unsupported, "process of a structure");
                 if (type.Kind is not (KsyKind.Bytes or KsyKind.Str)) throw Err(processNode.Start, KsyErrorKind.Invalid, "process");
                 process = ReadProcess(def, processNode);
+                if (process.Kind == KsyProcessKind.Zlib && bytes is not null) throw Err(processNode.Start, KsyErrorKind.Unsupported, "process zlib with contents");
             }
 
             string? enumName = null;
@@ -411,11 +412,16 @@ public static class KsyParser
             };
         }
 
-        /// <summary><c>xor(key)</c>, <c>rol(bits)</c> or <c>ror(bits)</c>; any other process (<c>zlib</c>, a custom one) is refused by its name.</summary>
+        /// <summary><c>xor(key)</c>, <c>rol(bits)</c>, <c>ror(bits)</c> or <c>zlib</c>; any other process (a custom one) is refused by its name.</summary>
         private KsyProcess ReadProcess(KsyTypeDef def, DataNode n)
         {
             if (n.Kind != DataKind.String) throw Err(n.Start, KsyErrorKind.Invalid, "process");
             string call = n.Text.Trim();
+            if (call == "zlib")
+            {
+                Use("process.zlib");
+                return new KsyProcess(KsyProcessKind.Zlib, null);
+            }
             int open = call.IndexOf('(', StringComparison.Ordinal);
             string name = open < 0 ? call : call[..open].TrimEnd();
             if (open < 0 || call[^1] != ')' || name is not ("xor" or "rol" or "ror")) throw Err(n.Start, KsyErrorKind.Unsupported, "process " + name);

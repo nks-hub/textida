@@ -221,6 +221,24 @@ internal sealed class HexTemplatePanel : Border
         _rootItem.IsExpanded = true;
     }
 
+    /// <summary>
+    /// The tree of the chosen template as JSON (see <see cref="KsyJson"/>), read on a worker through a reader of its own, from the bytes the grid shows (hidden values stay stars). Null when no template is chosen or the file cannot be read.
+    /// </summary>
+    internal async Task<(string Json, bool Truncated)?> ExportJsonAsync()
+    {
+        IsVisible = true;
+        Refresh();
+        if (Current is not { } pinned) return null;
+        IByteSnapshot data;
+        try { data = _owner.ShownBytes(_owner.Document.GetSnapshot()); }
+        catch (ObjectDisposedException) { return null; }
+        return await Task.Run(() =>
+        {
+            string json = KsyJson.Write(new KsyReader(data, pinned.Template).Root, out bool truncated);
+            return ((string, bool)?)(json, truncated);
+        });
+    }
+
     // ---- templates from files ----
 
     /// <summary>Asks for a <c>.ksy</c> file and offers its template in the list; a file that cannot be read or uses what the subset does not have is named in the note and changes nothing else.</summary>

@@ -231,8 +231,8 @@ public class KsyTemplatesTests
         Assert.True(pinned!.Custom);
         Assert.Equal(("mine", "mine.ksy"), (pinned.Id, pinned.File));
 
-        Assert.False(KsyCatalog.TryParseCustom("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: zlib\n", "p.ksy", out _, out var error));
-        Assert.Equal((KsyErrorKind.Unsupported, "process zlib", 6), (error!.Kind, error.Subject, error.Line));
+        Assert.False(KsyCatalog.TryParseCustom("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: custom(a)\n", "p.ksy", out _, out var error));
+        Assert.Equal((KsyErrorKind.Unsupported, "process custom", 6), (error!.Kind, error.Subject, error.Line));
 
         // a template of the user may use the processes the subset has beyond the pinned ones, and says so
         Assert.True(KsyCatalog.TryParseCustom("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: xor(0x55)\n", "p.ksy", out var xor, out _));

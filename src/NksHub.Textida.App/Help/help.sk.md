@@ -1104,9 +1104,9 @@ Panel štruktúry číta súbor podľa šablóny a ukáže jeho polia ako strom.
 1. Hex: Šablóna štruktúry (Ctrl+J) panel otvorí, alebo zatvorí, keď už má fokus. Šablóna sa vyberie podľa magického čísla, potom podľa prípony súboru; zoznam nad stromom dovolí zvoliť inú a voľba sa pamätá pre danú príponu (nastavenie hex.structureTemplates, zapísané prípona=šablóna).
 2. Pole s časťami (štruktúra alebo zoznam) sa číta až pri rozbalení, takže veľký súbor sa otvorí hneď. Dlhý zoznam sa ukáže ako rozsahy (položky[0..255]), ktoré sa rozbalia na prvky, a zoznam, ktorého prvky majú všetky rovnakú veľkosť, napríklad trojuholníky 3D modelu, môže mať milióny prvkov a otvorí sa aj tak hneď. Riadok ukazuje meno, hodnotu a sivo offset a dĺžku v bajtoch. Šípky hore a dole prechádzajú riadky, doprava a doľava polia otvárajú a zatvárajú, Enter vráti fokus do mriežky s označenými bajtmi poľa, Esc ho vráti bez označenia.
 3. Pole, ktoré sa nedá prečítať, je červené s dôvodom, napríklad že presahuje koniec údajov alebo sa líši od očakávaných bajtov. Polia za ním sa nezobrazia, lebo ich miesto nie je známe.
-4. Hex: Otvoriť súbor šablóny štruktúry vyzve na výber súboru .ksy (to isté robí tlačidlo pod zoznamom) a ponúkne jeho šablónu v zozname. Šablóna, ktorú nemožno použiť, sa pomenuje v poznámke pod zoznamom aj s riadkom, napríklad „nepodporované: process zlib“. Takto otvorené šablóny zostanú v zozname do konca behu programu.
+4. Hex: Otvoriť súbor šablóny štruktúry vyzve na výber súboru .ksy (to isté robí tlačidlo pod zoznamom) a ponúkne jeho šablónu v zozname. Šablóna, ktorú nemožno použiť, sa pomenuje v poznámke pod zoznamom aj s riadkom, napríklad „nepodporované: process custom“. Takto otvorené šablóny zostanú v zozname do konca behu programu.
 - Pribalené šablóny: hlavička BMP (s veľkosťou riadka), bloky PNG (IHDR, gAMA, tEXt), sekcie archívu ZIP, hlavičky Windows PE, hlavičky ELF (32 aj 64 bit, obe poradia bajtov, sekcia dynamic) a binárne STL. Súbor pinned.yaml vedľa šablón pri každej uvádza verziu, licenciu a použité konštrukcie. Napísali sme ich pre Textida a majú licenciu MIT ako program; šablóna iného projektu sa nekopíruje. Panel ukazuje súbor, verziu a licenciu použitej šablóny.
-- Šablóny sú podmnožina formátu Kaitai Struct .ksy: celé čísla (u1 až u8, s1 až s8), desatinné čísla (f4, f8), celé čísla po bitoch (b1 až b64; za sebou, neopakujú sa), reťazce (str, strz), surové bajty, pevné bajty (contents), výčty (aj vnútri typu), vnorené typy, size, size-eos, repeat (eos, expr alebo until), if, switch-on s cases (kľúč _ je predvolená vetva), instances s pos (a io: _root._io) alebo value, meta endian (aj so switch-on a cases) a bit-endian a výrazy. Výrazy sú povolené v size, repeat-expr, repeat-until, if, pos, io, value a switch-on. Počítajú 64-bitové celé čísla, desatinné čísla, true/false a reťazce: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, zátvorky, čísla (desiatkovo, 0x, 0b a desatinné ako 1.5 alebo 2.5e-3), reťazce v úvodzovkách, mená skorších polí a inštancií, a.b, zoznam[i], enum::člen a typ::enum::člen, _parent, _root, _index, _ (posledný prvok v repeat-until), _io.pos, _io.size, _io.eof, .as<typ> (bez prevodu), .to_i pri reťazci, desatinnom čísle a pravdivostnej hodnote, .length pri reťazci, .size, .first a .last pri zozname. Desatinné číslo nikdy nie je size ani počet (použite .to_i) a % a bitové operátory berú len celé čísla. pos sa počíta od začiatku prúdu štruktúry (štruktúra so size je vlastný prúd). Reťazec alebo surové bajty môžu mať process: xor(kľúč) s kľúčom 0 až 255, rol(bity) alebo ror(bity) s 0 až 7 bitmi; argument je výraz a môže pomenovať skoršie pole alebo _index. Riadok ukazuje bajty po procese a jeho rozsah sú stále bajty súboru; kľúč alebo počet bitov mimo rozsahu je chyba na poli. Process štruktúry alebo poľa, ktorého typ závisí od switch-on, nejde. Polia v zápise, iné metódy, iný process (zlib, vlastný) a všetko ostatné, čo nie je uvedené, sa odmietne s riadkom šablóny, napríklad „nepodporované: process zlib“. Delenie nulou, chýbajúce pole alebo zlý druh hodnoty dá chybu na danom poli; obrovský size alebo počet skončí chybou limitu. Inštancie sú vypísané za poľami.
+- Šablóny sú podmnožina formátu Kaitai Struct .ksy: celé čísla (u1 až u8, s1 až s8), desatinné čísla (f4, f8), celé čísla po bitoch (b1 až b64; za sebou, neopakujú sa), reťazce (str, strz), surové bajty, pevné bajty (contents), výčty (aj vnútri typu), vnorené typy, size, size-eos, repeat (eos, expr alebo until), if, switch-on s cases (kľúč _ je predvolená vetva), instances s pos (a io: _root._io) alebo value, meta endian (aj so switch-on a cases) a bit-endian a výrazy. Výrazy sú povolené v size, repeat-expr, repeat-until, if, pos, io, value a switch-on. Počítajú 64-bitové celé čísla, desatinné čísla, true/false a reťazce: + - * / %, << >> & | ^ ~, < <= > >= == !=, and or not, a ? b : c, zátvorky, čísla (desiatkovo, 0x, 0b a desatinné ako 1.5 alebo 2.5e-3), reťazce v úvodzovkách, mená skorších polí a inštancií, a.b, zoznam[i], enum::člen a typ::enum::člen, _parent, _root, _index, _ (posledný prvok v repeat-until), _io.pos, _io.size, _io.eof, .as<typ> (bez prevodu), .to_i pri reťazci, desatinnom čísle a pravdivostnej hodnote, .length pri reťazci, .size, .first a .last pri zozname. Desatinné číslo nikdy nie je size ani počet (použite .to_i) a % a bitové operátory berú len celé čísla. pos sa počíta od začiatku prúdu štruktúry (štruktúra so size je vlastný prúd). Reťazec alebo surové bajty môžu mať process: zlib pri reťazci alebo surových bajtoch so size (pole sa rozbalí; riadok ukáže prvé rozbalené bajty, reťazec sa smie rozbaliť najviac na 64 KiB, poškodený prúd je chyba poľa a zlib sa nedá spojiť s contents), process: xor(kľúč) s kľúčom 0 až 255, rol(bity) alebo ror(bity) s 0 až 7 bitmi; argument je výraz a môže pomenovať skoršie pole alebo _index. Riadok ukazuje bajty po procese a jeho rozsah sú stále bajty súboru; kľúč alebo počet bitov mimo rozsahu je chyba na poli. Process štruktúry alebo poľa, ktorého typ závisí od switch-on, nejde. Polia v zápise, iné metódy, iný process (vlastný) a všetko ostatné, čo nie je uvedené, sa odmietne s riadkom šablóny, napríklad „nepodporované: process custom“. Delenie nulou, chýbajúce pole alebo zlý druh hodnoty dá chybu na danom poli; obrovský size alebo počet skončí chybou limitu. Inštancie sú vypísané za poľami.
 - Čítanie skončí hláškou, keď šablóna vnára príliš hlboko, opakuje jedno pole príliš často, číta reťazec, množstvo práce alebo množstvo pamäte nad pevným limitom, alebo jeden uzol trvá príliš dlho (3 sekundy). Uzly sa čítajú na pozadí: kým uzol trvá dlhšie než chvíľku, jeho riadok hovorí „Číta sa...“ a okno zostáva použiteľné. Medze sú predbežné hodnoty.
 
 ## [hex.compare] Hex: binárne porovnanie
@@ -2020,3 +2020,63 @@ Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty be
 - Súbor, ktorý iný program v priečinku vytvorí, čaká na kontrolu ako pridanie celého obsahu: základ je prázdny, takže každý riadok je zmena, a odškrtnutím všetkého zostane súbor prázdny. Zmenený súbor, ktorého obsah história nepozná (tu sa nikdy neotvoril ani neuložil), prevezme obsah pri prvom zbadaní ako základ a stavový riadok to povie; ďalšia zmena sa meria voči tomuto obsahu. Ponechaním všetkých zmien kontroly sa ponechaný obsah stane základom ďalšej kontroly.
 - Sledovanie vynechá .git, .codegraph, čo ignorujú súbory .gitignore a .ignore v priečinku (ignorovaný priečinok vezme so sebou svoj obsah) a prepisy agentov (priečinok projects pod .claude* a priečinok sessions pod .codex*). Vynechá aj súbory s tajnými hodnotami (.env), súbory príliš veľké pre kartu, binárne súbory, súbory, ktorých nový obsah história už pozná, a súbory, ktoré editor zapísal sám, niekoľko sekúnd po Nahradiť v súboroch, po dávke kódovania alebo po operácii súborového panela.
 - Naraz čaká najviac 200 súborov a jedno prezretie zahrnie najviac 500 súborov; stavový riadok povie, keď sa hranica dosiahne. Tieto hranice, pol sekundy pred prezretím zmeneného súboru a niekoľko sekúnd po vlastných zápisoch editora nie sú rozhodnuté hodnoty.
+
+## [edit.jsonTypes] JSON na typy v kóde
+commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
+Príkazy v ponuke Úpravy, Previesť vytvoria z JSONu štruktúru Go, triedu C# alebo rozhranie TypeScript v novej karte.
+1. Označte JSON, alebo nechajte výber prázdny pre celý dokument.
+2. Zvoľte Úpravy, Previesť a JSON na štruktúru Go, triedu C# alebo rozhranie TypeScript.
+- Objekty v poli sa zlúčia do jedného typu; pole, ktoré niektorý z nich nemá alebo má null, je voliteľné (v Go ukazovateľ a omitempty, v C# nullable, v TypeScripte otáznik).
+- Celé číslo, ktoré sa zmestí do 64 bitov, je int64 (long, number), iné číslo float64 (double, number). Pole bez známeho typu (len null, prázdne pole, zmiešané hodnoty) dostane otvorený typ jazyka.
+- Meno koreňového typu je meno súboru; text, ktorý nie je JSON, sa odmietne s dôvodom v stavovom riadku.
+
+## [edit.loremInspect] Lorem ipsum a inspektor znaku
+commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
+Príkazy v ponuke Úpravy vložia ukážkový text a povedia, čo je znak pod kurzorom.
+1. Zvoľte Úpravy, Vložiť a Lorem ipsum: odseky, vety alebo slová a zadajte počet.
+2. Pre znak pod kurzorom zvoľte Úpravy a Inspektor znaku.
+- Text je zakaždým rovnaký a začína klasickým „Lorem ipsum dolor sit amet“; odsek má štyri až šesť viet, počet je 1 až 10 000. Vloží sa na každý kurzor, výber sa nahradí, je to jeden krok Späť.
+- Inspektor ukáže kódový bod, meno, kategóriu a bajty znaku v UTF-8, v UTF-16 a v kódovaní súboru. Na konci textu sa skúma znak pred kurzorom. Mená sú z Unicode 15.
+
+## [edit.keywordCase] Veľkosť kľúčových slov
+commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
+Príkazy v ponuke Úpravy, Previesť zmenia veľkosť písmen len pri kľúčových slovách jazyka.
+1. Označte časť textu, alebo nechajte výber prázdny pre celý dokument.
+2. Zvoľte Úpravy, Previesť a Kľúčové slová veľkými, malými alebo podľa gramatiky.
+- Mení sa len slová zo zoznamov kľúčových slov gramatiky, nie reťazce, komentáre ani identifikátory. Funguje to len pri jazykoch, ktoré veľkosť písmen nerozlišujú (napríklad SQL, Visual Basic, dávky); pri ostatných editor nič nezmení a povie prečo.
+- „Podľa gramatiky“ použije pravopis zo zoznamu gramatiky. Je to jeden krok Späť.
+
+## [tools.httpClient] Požiadavky HTTP z textu
+commands: nks.tools.httpSend, nks.tools.httpEnvironment, nks.tools.httpCopyCurl, nks.tools.curlToHttp
+Súbory .http a .rest obsahujú požiadavky; príkazy v ponuke Nástroje požiadavku pošlú a odpoveď otvoria v novej karte.
+1. Napíšte požiadavku: riadok GET adresa, pod ním hlavičky, prázdny riadok a telo. Ďalšie požiadavky oddeľte riadkom ###.
+2. Dajte kurzor do požiadavky a zvoľte Nástroje a Poslať požiadavku HTTP. Pri prvej požiadavke na server editor požiada o súhlas.
+- Premenné: riadok @meno = hodnota definuje premennú súboru, {{meno}} ju použije; systémové sú {{$guid}}, {{$timestamp}}, {{$isoTimestamp}} a {{$randomInt}}. Požiadavka s neznámou premennou sa neposiela.
+- Prostredia: vedľa súboru leží http-client.env.json (zdieľaný) a http-client.private.env.json (súkromný, s heslami, nedávajte ho do repozitára). Prostredie vyberiete príkazom Prostredie požiadaviek HTTP; súkromné hodnoty prepíšu zdieľané a nikdy sa nezapíšu do zdieľaného súboru ani do stavového riadka.
+- Požiadavka ide cez sieťové nastavenia editora (proxy). Súhlas s hostom sa pamätá a berie sa späť príkazom na zrušenie súhlasov so sieťou. Skripty odpovedí (riadky začínajúce >) sa nespúšťajú.
+- Skopírovať požiadavku ako curl dá požiadavku s doplnenými premennými do schránky (vrátane súkromných hodnôt). Previesť curl na požiadavku HTTP urobí z označeného príkazu curl požiadavku v novej karte.
+
+## [tools.interpreter] Poslať text do interpretu
+commands: nks.tools.sendToInterpreter, nks.tools.stopInterpreters
+Príkaz v ponuke Nástroje pošle výber alebo riadok s kurzorom do interpretu, ktorý zostane otvorený; výstup je v paneli Výstup.
+1. Otvorte súbor Python, PHP, JavaScriptu alebo SQL a označte kód, alebo dajte kurzor na riadok.
+2. Zvoľte Nástroje a Poslať do interpretu. Interpret sa pri prvom použití spustí v priečinku súboru.
+- Používa sa python, php -a, node a psql. Ak je v priečinku súboru alebo nad ním .venv (alebo node_modules/.bin), použije sa program odtiaľ. Pripojenie psql určujú jeho premenné prostredia (PGHOST, PGDATABASE a ďalšie).
+- Interpret zostáva spustený a pamätá si, čo ste mu poslali. Ukončí ho príkaz Ukončiť interprety, zatvorenie okna alebo on sám (napríklad exit()). Odoslaný text sa vo výstupe opakuje za znakom >.
+
+## [tools.compareFolders] Porovnať dva priečinky
+commands: nks.tools.compareFolders
+Príkaz v ponuke Nástroje porovná dva priečinky aj s podpriečinkami a výsledok otvorí ako správu v novej záložke.
+1. Zvoľte Nástroje a Porovnať priečinky. Pre každú zo dvoch strán vyberte miestny priečinok, alebo priečinok na uloženom serveri (FTP, FTPS, SFTP).
+2. Vyberte, podľa čoho sa súbory porovnajú: veľkosť, čas zmeny, alebo obsah.
+3. Ak chcete jednu stranu skopírovať na druhú, zvoľte smer. Uvidíte zoznam súborov, ktoré sa zapíšu, a kopírovanie začne až po vašom potvrdení.
+- Čas zmeny: rozdiel do 2 sekúnd sa nepočíta (FAT a FTP ukladajú čas nepresne); strana, ktorá čas nepozná, sa porovná podľa veľkosti. Obsah: súbory rovnakej veľkosti sa porovnajú podľa odtlačku, na serveri sa preto celé stiahnu.
+- Kopírovanie nič nemaže: súbory, ktoré má len cieľová strana, zostanú. Skopírovaný súbor dostane čas zmeny zdroja. Klient servera nevie vytvárať priečinky, súbor do chýbajúceho priečinka na serveri sa preto nezapíše a chyba sa vypíše vo Výstupe.
+
+## [hex.templateJson] Hex: strom šablóny do JSON
+commands: nks.hex.template.exportJson
+Príkaz otvorí v novej záložke JSON so stromom polí, ktoré šablóna v súbore našla.
+1. Otvorte súbor v režime Hex a zvoľte šablónu v paneli štruktúry.
+2. Zvoľte Zobrazenie, Hex, Exportovať strom šablóny do JSON.
+- Každý uzol má name, type, start a length (bajty v súbore), value ako text, prípadne error a children. Hodnoty skryté v hexe sa vyexportujú ako hviezdičky.
+- Strom sa číta celý naraz, najviac do 50 000 uzlov, 64 úrovní a 10 sekúnd. Uzly, ktoré sa do limitu nezmestili, majú "truncated": true a stavový riadok to povie.

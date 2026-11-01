@@ -644,9 +644,14 @@ public sealed class KsyReader
                 if (type.Kind == KsyKind.User) return ReadStruct(scope, attr, name, pos, size, budget, out value);
                 if (size < 0) return Fail(attr, name, pos, 0, end, KsyErrorKind.LimitSize);
                 if (size > room) return Fail(attr, name, pos, size, end, KsyErrorKind.OutOfFile);
-                if (type.Kind == KsyKind.Bytes) return new KsyNode(name, pos, size, Preview(Process(attr, scope, pos, budget, index, Read(pos, (int)Math.Min(size, 16)))) + (size > 16 ? " …" : ""), label);
+                if (type.Kind == KsyKind.Bytes)
+                {
+                    bool zlib = attr.Process is { Kind: KsyProcessKind.Zlib };
+                    var shown = ReadProcessed(attr, scope, pos, budget, index, size, zlib ? 17 : (int)Math.Min(size, 16));
+                    return new KsyNode(name, pos, size, Preview(shown) + ((zlib ? shown.Length > 16 : size > 16) ? " …" : ""), label);
+                }
                 if (size > _limits.MaxStringBytes) return Fail(attr, name, pos, size, end, KsyErrorKind.LimitSize);
-                string decoded = Decode(attr.Encoding!, Process(attr, scope, pos, budget, index, Read(pos, (int)size)));
+                string decoded = Decode(attr.Encoding!, ReadProcessed(attr, scope, pos, budget, index, size, (int)size));
                 value = decoded;
                 return new KsyNode(name, pos, size, Quote(decoded), label);
             }
@@ -685,8 +690,8 @@ public sealed class KsyReader
     /// </summary>
     private byte[] Process(KsyAttr attr, KsyScope scope, long pos, Budget budget, long index, byte[] bytes)
     {
-        if (attr.Process is not { } process) return bytes;
-        long argument = Num(process.Argument, scope, pos, budget, index);
+        if (attr.Process is not { Argument: { } expression } process) return bytes;
+        long argument = Num(expression, scope, pos, budget, index);
         if (argument < 0 || argument > (process.Kind == KsyProcessKind.Xor ? 255 : 7)) throw new KsyExprException(KsyErrorKind.Expression, process.Argument.Source);
         int by = (int)argument;
         for (int i = 0; i < bytes.Length; i++)
@@ -697,6 +702,37 @@ public sealed class KsyReader
                 _ => (byte)((bytes[i] >> by) | (bytes[i] << (8 - by))),
             };
         return bytes;
+    }
+
+    /// <summary>
+    /// The first <paramref name="wanted"/> bytes of a field after its <c>process</c>. A byte-wise process needs only those bytes of the file; <c>zlib</c> reads the whole field and inflates it, giving at most <paramref name="wanted"/> bytes
+    /// (a string needs all of them: it is refused when the data inflates to more than <see cref="KsyLimits.MaxStringBytes"/>).
+    /// </summary>
+    private byte[] ReadProcessed(KsyAttr attr, KsyScope scope, long pos, Budget budget, long index, long size, int wanted)
+    {
+        if (attr.Process is not { Kind: KsyProcessKind.Zlib }) return Process(attr, scope, pos, budget, index, Read(pos, wanted));
+        if (size > _limits.MaxRetainedBytes) throw new KsyExprException(KsyErrorKind.LimitSize, "process zlib");
+        bool text = attr.Type.Kind == KsyKind.Str;
+        int cap = text ? _limits.MaxStringBytes + 1 : wanted;
+        var inflated = new byte[Math.Min(cap, 4096)];
+        int got = 0;
+        try
+        {
+            using var stream = new System.IO.Compression.ZLibStream(new MemoryStream(Read(pos, (int)size)), System.IO.Compression.CompressionMode.Decompress);
+            while (got < cap)
+            {
+                if (got == inflated.Length) Array.Resize(ref inflated, (int)Math.Min(cap, inflated.Length * 2L));
+                int n = stream.Read(inflated, got, inflated.Length - got);
+                if (n == 0) break;
+                got += n;
+            }
+        }
+        catch (InvalidDataException)
+        {
+            throw new KsyExprException(KsyErrorKind.Invalid, "process zlib");
+        }
+        if (text && got > _limits.MaxStringBytes) throw new KsyExprException(KsyErrorKind.LimitSize, "process zlib");
+        return inflated.AsSpan(0, got).ToArray();
     }
 
     private byte[] Read(long offset, int length)
