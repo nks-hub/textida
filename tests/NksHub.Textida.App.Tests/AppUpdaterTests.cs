@@ -310,7 +310,17 @@ public class AppUpdaterTests : IDisposable
             Assert.Equal(UpdateError.NotConfigured, error.Error);
         }
         Assert.Equal(0, _server.Count);
-        Assert.False(new AppUpdater(new HttpClient(), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, _dir).IsConfigured);
+    }
+
+    [Fact]
+    public void The_release_build_trusts_a_complete_nist_p256_public_key()
+    {
+        var bytes = Convert.FromBase64String(AppUpdater.DefaultPublicKey);
+        using var key = ECDsa.Create();
+        key.ImportSubjectPublicKeyInfo(bytes, out var read);
+        Assert.Equal(bytes.Length, read);
+        Assert.Equal("1.2.840.10045.3.1.7", key.ExportParameters(false).Curve.Oid.Value);
+        Assert.True(new AppUpdater(new HttpClient(), AppUpdater.DefaultFeedUrl, AppUpdater.DefaultPublicKey, _dir).IsConfigured);
     }
 
     [Fact]

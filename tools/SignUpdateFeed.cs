@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 if (args.Length != 3) { Console.Error.WriteLine("Usage: SignUpdateFeed PACKAGE_DIR VERSION RELEASE_URL"); return 2; }
 var secret = Environment.GetEnvironmentVariable("FEED_SIGNING_KEY");
-if (string.IsNullOrWhiteSpace(secret)) { Console.WriteLine("Update feed skipped: FEED_SIGNING_KEY is not configured."); return 0; }
+if (string.IsNullOrWhiteSpace(secret)) { Console.Error.WriteLine("FEED_SIGNING_KEY is required to sign the update feed."); return 2; }
 using var key = ECDsa.Create();
 key.ImportFromPem(secret);
 if (key.KeySize != 256) throw new CryptographicException("The update feed requires an ECDSA P-256 key.");

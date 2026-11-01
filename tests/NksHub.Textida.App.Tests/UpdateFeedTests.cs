@@ -20,18 +20,8 @@ public sealed class UpdateFeedTests : IDisposable
         foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
             File.WriteAllBytes(Path.Combine(_temp.Path, $"Textida-1.1.0-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip")), package);
         using var server = new FeedServer();
-        var start = new ProcessStartInfo("dotnet", ["run", Path.Combine(Repo.Root, "tools", "SignUpdateFeed.cs"), "--", _temp.Path, "1.1.0", server.Base.TrimEnd('/')])
-        {
-            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
-            WorkingDirectory = Repo.Root
-        };
-        start.Environment["FEED_SIGNING_KEY"] = key.ExportPkcs8PrivateKeyPem();
-        using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEndAsync();
-        var errors = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        await process.WaitForExitAsync(timeout.Token);
-        Assert.True(process.ExitCode == 0, await output + await errors);
+        var (exitCode, output) = await SignAsync(key.ExportPkcs8PrivateKeyPem(), server.Base.TrimEnd('/'));
+        Assert.True(exitCode == 0, output);
         server.Routes["/feed.json"] = File.ReadAllBytes(Path.Combine(_temp.Path, "feed.json"));
         var updater = new AppUpdater(new HttpClient(), server.Base + "feed.json", Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), "unused");
 
@@ -44,6 +34,30 @@ public sealed class UpdateFeedTests : IDisposable
             Assert.Equal(Convert.ToHexString(SHA256.HashData(package)), release.Sha256);
             Assert.StartsWith(server.Base, release.Url);
         }
+    }
+
+    [Fact]
+    public async Task A_release_without_the_signing_key_fails_without_writing_a_feed()
+    {
+        var (exitCode, _) = await SignAsync("", "https://example.test/release");
+        Assert.NotEqual(0, exitCode);
+        Assert.False(File.Exists(Path.Combine(_temp.Path, "feed.json")));
+    }
+
+    private async Task<(int ExitCode, string Output)> SignAsync(string privateKey, string releaseUrl)
+    {
+        var start = new ProcessStartInfo("dotnet", ["run", Path.Combine(Repo.Root, "tools", "SignUpdateFeed.cs"), "--", _temp.Path, "1.1.0", releaseUrl])
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            WorkingDirectory = Repo.Root
+        };
+        start.Environment["FEED_SIGNING_KEY"] = privateKey;
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEndAsync();
+        var errors = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        await process.WaitForExitAsync(timeout.Token);
+        return (process.ExitCode, await output + await errors);
     }
 
     [Theory]

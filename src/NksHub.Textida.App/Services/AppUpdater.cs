@@ -24,8 +24,8 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
 {
     public const string DefaultFeedUrl = "https://github.com/nks-hub/textida/releases/latest/download/feed.json";
 
-    /// <summary>OPEN DECISION: the update signing key does not exist yet. Base64 of the SubjectPublicKeyInfo of the ECDSA P-256 public key; empty means the build cannot verify, so it does not check.</summary>
-    public const string DefaultPublicKey = "";
+    /// <summary>SubjectPublicKeyInfo of the ECDSA P-256 key used by the release workflow.</summary>
+    public const string DefaultPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElYupDVhOG55mAUwjegigyhRNPeXv/ogvJGcFFdAyHkuSoRDZam6qoy31ctIVvHM/L3xw0V7uzeW4BjkxKUcp3g==";
 
     public const int FeedFormat = 1;
     private const int MaxFeedBytes = 64 * 1024;
