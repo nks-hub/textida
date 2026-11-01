@@ -50,6 +50,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
   - **Závisí na:** PR.1.1, P1.1.2, P1.1.8
   - **Odhad:** bez odhadu; účtuje se v P1 (P1.1.2) a v P3 (P3.7)
   - **Stav 29. 10. 2026:** částečně. Na tag `v*` (a ručně) sestaví `.github/workflows/release.yml` publikaci NativeAOT pro win-x64, osx-arm64, osx-x64 a linux-x64, spustí AOT kontrolu (start všech pluginů, u macOS i `minos` a podpis) a kouřový test `--smoke` v publikovaném programu na každé platformě, osx-x64 pod Rosettou. Zkušební běhy prošly na všech čtyřech. Kouřový test našel, že se osnova Markdownu ve výchozím čtení nenačte (P9.3.4). Testovací sady v CI neběží (rozhodnutí majitele); nejstarší systémy R10 a nativní Intel chybí.
+  - **Ověření 1. 11. 2026:** ruční běh vydání nad main 01293f35 (pátá dávka včetně Jintu) prošel na win-x64, osx-arm64, osx-x64 i linux-x64.
 - [ ] **PR.1.3** Kompatibilitní matice R10 po buildech vydání
   - **Co a proč:** R10 slibuje plnou podporu a testy na Windows 10 22H2, Windows 11 22H2 a novějších a macOS 14 a novějších. Je to závazek projektu, ne záruka Microsoftu ani Avalonie. Přibalený runtime nemění systémové knihovny OS, proto se dokládá každý systém zvlášť. Tři RID nejsou tři testovací systémy.
   - **Funkce:** žádná (infrastruktura)
@@ -1623,6 +1624,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Klávesy pluginu v mapě kláves (vestavěná vyhrává, konflikt ve Správci pluginů), nastavení pluginu ve vyhledávání pod jeho názvem a v `initialize`/`settings.changed`, datové příkazy spouštějí externí nástroj s potvrzením, limit gramatiky kontrolovaný na otevřeném souboru. Chybí: schválení tvaru převodníků a klipů, datové příkazy u pluginu s procesem, odebrání bez restartu.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Datové příkazy i u pluginu s procesem, odebrání a vypnutí bez restartu. Tvar převodníků a klipů čeká na rozhodnutí majitele.
+  - **Rozhodnuto 1. 11. 2026 (autonomně):** tvar převodníků podle kontraktu PZ.5.2, tvar klipů zůstává `{id, title, text, language?, command?, fields[]}`; klip s `language` se nabízí jen v dokumentech toho jazyka, stejně jako v doplňování (3cd7f9b2).
 - [ ] **P3b.2.2** UI příspěvky ve vzhledu D5
   - **Co a proč:** Editor kreslí z dat pluginu panel se stromem nebo seznamem, nejvýš jednu položku stavového řádku na plugin, výběr ze seznamu, vstup, potvrzení, oznámení a úlohy s průběhem a zrušením. Plugin nekreslí vlastní UI, nemá webview ani příspěvek do horní lišty.
   - **Funkce:** F200
@@ -3013,6 +3015,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** jádro (hex, kap. 5.5)
   - **Stav 28. 10. 2026:** částečně. Desetinná čísla, bitové typy, vnořené výčty, `endian: switch-on`. `process` odmítnuto.
   - **Stav 31. 10. 2026:** kód je hotový: `KsyParser` umí `if`, `switch-on`, `instances`, bitové typy a `process` xor/rol/ror; zlib a ostatní zpracování odmítá jménem.
+  - **Stav 1. 11. 2026 (sloučeno):** `process: zlib` se podporuje (PZ.9.1); `zlib(9)` hlásí chybný argument místo nepodporovaného zpracování, `custom` se dál odmítá jménem (e4ca5253).
 - [x] **P8.10.3** Líné čtení a limity proti škodlivému vstupu
   - **Co a proč:** Pole se čtou až při rozbalení. Limity hloubky rekurze, počtu opakování, rozsahů, času a paměti chrání před škodlivým datovým vstupem.
   - **Funkce:** F245 (částečně: limity)
@@ -3438,6 +3441,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** otevření a uložení chráněné cesty přes pomocníka s právy (UAC na Windows, osascript na macOS), bez pevného seznamu souborů; samotná výzva UAC a macOS neklikána, na Linuxu chybí (fcef8a09).
   - Stav 1. 11. 2026: chráněné otevření přesunuto do podmenu Soubor > Otevřít zvláštně (limit menu).
+  - **Stav 1. 11. 2026 (sloučeno):** Linux přes `pkexec` se stejným kontraktem jako UAC a osascript, kopie se vrací volajícímu uživateli (`PKEXEC_UID`), chybějící `pkexec` editor ohlásí (7cbe60cb); na Linuxu nespuštěno, testovaný jen příkazový řádek a hláška.
 - [x] **PZ.4.3** Sady ikon
   - **Co a proč:** Vlastní vektorové ikony; import bitmapového skinu jen volitelně.
   - **Funkce:** F137
@@ -3455,13 +3459,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.5 Formátovače a typy souborů
 
-- [ ] **PZ.5.1** PHP formátovač
+- [x] **PZ.5.1** PHP formátovač
   - **Co a proč:** Volitelný aktuální PHP formátovač, ne emulace PhpCB.
   - **Funkce:** F102
   - **Hotovo, když:** formátovač PHP se napojí přes akce při uložení F176 a katalog F213.
   - **Závisí na:** P8.3.1
   - **Odhad:** bez odhadu
   - **Stav 1. 11. 2026 (sloučeno):** formátovač PHP přes katalog nástrojů (php-cs-fixer nalezený lokálně, nic se nestahuje) přes revizi změn; ověřeno s php-cs-fixer 3.95.27 a PHP 8.4 (935fd8da).
+  - **Stav 1. 11. 2026 (sloučeno):** `php-cs-fixer` běží i jako akce při uložení; test načte akci z konfigurace a ověří uložený text (de94328f).
 - [x] **PZ.5.2** Převodníky typů souborů
   - **Co a proč:** Externí převodník s jasným vstupem a výstupem; kontrakt otevření a uložení přes převod zatím není navržený.
   - **Funkce:** F138
@@ -3512,13 +3517,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
   - **Stav 1. 11. 2026 (sloučeno):** soubory `.http` a `.rest`: proměnné, prostředí, soukromý soubor s tajnými hodnotami, odpověď v nové kartě, převod z a na cURL, síť přes politiku a souhlas; chybí zvýraznění syntaxe `.http` (460959f1).
   - **Stav 1. 11. 2026 (sloučeno):** gramatika `.http` a `.rest` (52b1b1aa).
-- [ ] **PZ.6.4** Volající a dopad z codegraph
+- [x] **PZ.6.4** Volající a dopad z codegraph
   - **Co a proč:** Panel „Kdo to volá“ přes `codegraph callers --json`, jen čtení přes CLI.
   - **Funkce:** F258
   - **Hotovo, když:** panel ukáže volající symbolu pod kurzorem a u neuložené karty lištu „graf odpovídá disku“.
   - **Závisí na:** P3b.2.2
   - **Odhad:** F258 1–2 ČT (matice)
   - **Stav 1. 11. 2026 (sloučeno):** panel „Kdo to volá“ přes `codegraph callers --json` jen při existujícím `.codegraph/`; ověřeno se skutečným codegraph (c78394f6).
+  - **Stav 1. 11. 2026 (sloučeno):** u neuložené karty panel volajících i jeho souhrn hlásí, že graf odpovídá disku; `CallersAppTests` se zástupným programem `codegraph` (ff19614e).
 - [x] **PZ.6.5** Strukturální hledání přes ast-grep
   - **Co a proč:** Vzor a přepis přes `ast-grep run --json=stream` do náhledu F152, neuložené karty přes `--stdin`.
   - **Funkce:** F259
@@ -3544,13 +3550,14 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Odhad:** F167 4–6 ČT navíc (matice)
   - **Stav 1. 11. 2026 (sloučeno):** odeslání změn ve více souborech na server najednou s diffem; soubor změněný na serveru nejde odeslat bez zobrazeného diffu a novější verze se nepřepíše; ověřeno proti skutečnému FTPS (29933885), SFTP jen testy.
   - **Ověření 1. 11. 2026:** `RemoteChangesAppTests` proti skutečnému FTPS i SFTP serveru 4/4.
-- [ ] **PZ.7.2** Obnova celé pracovní úlohy
+- [x] **PZ.7.2** Obnova celé pracovní úlohy
   - **Co a proč:** Dokumenty, výběry, dotazy, filtry a recepty uložené jako úloha s návratem.
   - **Funkce:** F168
   - **Hotovo, když:** obnovená úloha vrátí karty, výběry, filtry a rozpracovaný návrh úpravy.
   - **Závisí na:** P9.4.1, P1.5.1
   - **Odhad:** F168 3–5 ČT navíc (matice)
   - **Stav 1. 11. 2026 (sloučeno):** uložení a obnova pojmenované pracovní úlohy: dokumenty, výběry, dotazy hledání, filtry a recepty (4c820c87).
+  - **Stav 1. 11. 2026 (sloučeno):** úloha uloží i čekající návrh úpravy jednoho dokumentu s délkou a SHA-256 textu; obnova ho otevře v revizi jen při shodě, jinak oznámí proč; návrh přes víc souborů nebo ve frontě se při uložení vyjmenuje v oznámení (b1fbe304).
 - [x] **PZ.7.3** Porovnání složek
   - **Co a proč:** Dvě složky nebo lokální složka proti FTP podle velikosti, času nebo obsahu, kopie jedním směrem s náhledem.
   - **Funkce:** F177
