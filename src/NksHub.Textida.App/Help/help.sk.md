@@ -2169,3 +2169,9 @@ Príkaz v ponuke Nástroje spustí formátovač projektu na kópii súboru a vý
 2. Zvoľte Nástroje a Formátovať súborovým formátovačom s náhľadom. Zmeny sa objavia v karte výsledkov; použijú sa jedným krokom späť a len ak sa dokument medzitým nezmenil.
 - PHP CS Fixer sa hľadá v projekte (vendor/bin), potom v PATH; ak tam nie je, spustí php súbor php-cs-fixer.phar z projektu (priečinok súboru a nadradené: tools, bin, vendor/bin) alebo z PATH. Nič sa nesťahuje. Cestu možno zadať aj v súbore saveActions.json (toolPaths).
 - Ten istý formátovač môže bežať aj pri uložení ako akcia Formátovať (Súbor, Akcie pri uložení); tá výsledok použije hneď, ako jeden krok späť, bez náhľadu.
+
+## [tools.callers] Kto to volá
+commands: nks.tools.showCallers
+Príkaz v ponuke Nástroje ukáže funkcie, ktoré volajú symbol pod kurzorom, podľa grafu programu CodeGraph. Len číta, nič neindexuje.
+1. V projekte musí byť priečinok .codegraph (vytvorí ho codegraph init -i). Dajte kurzor na meno funkcie alebo ho označte a zvoľte Nástroje a Kto to volá. Enter na riadku otvorí miesto volajúceho, vedľa zoznamu je jeho okolie.
+- Príkaz sa ponúkne len tam, kde priečinok .codegraph existuje nad súborom; editor graf nevytvára ani neaktualizuje (to robia codegraph init a codegraph sync). Program sa hľadá v node_modules/.bin, .venv a PATH, pred prvým behom ho potvrdíte a beží za proxy editora. Graf je stav súborov v čase indexovania: pri karte s neuloženým textom to lišta hovorí.

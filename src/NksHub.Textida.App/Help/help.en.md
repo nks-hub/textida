@@ -2169,3 +2169,9 @@ The command in the Tools menu runs the formatter of the project on a copy of the
 2. Choose Tools and Format with the File Formatter (Review). The changes appear in the results tab; they are applied as one undo step, and only if the document has not changed meanwhile.
 - PHP CS Fixer is looked for in the project (vendor/bin), then on the PATH; when it is not there, php runs a php-cs-fixer.phar from the project (the folder of the file and those above: tools, bin, vendor/bin) or from the PATH. Nothing is downloaded. The path can also be set in saveActions.json (toolPaths).
 - The same formatter can also run on save as the Format action (File, Save Actions); that applies the result at once as one undo step, without a review.
+
+## [tools.callers] Who calls this
+commands: nks.tools.showCallers
+The command in the Tools menu lists the functions that call the symbol under the caret, from the graph of the CodeGraph program. It only reads and indexes nothing.
+1. The project must have a .codegraph folder (codegraph init -i makes it). Put the caret on the name of a function or select it and choose Tools and Who Calls This. Enter on a row opens the place of the caller, and its lines are shown beside the list.
+- The command is offered only where a .codegraph folder exists above the file; the editor neither makes nor updates the graph (codegraph init and codegraph sync do that). The program is looked for in node_modules/.bin, .venv and on the PATH, you confirm it before the first run, and it runs behind the proxy of the editor. The graph is the state of the files when they were indexed: for a tab with unsaved text a bar says so.

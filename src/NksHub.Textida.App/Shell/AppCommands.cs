@@ -171,6 +171,7 @@ internal static class AppCommands
         On("nks.tools.pickScreenColor", w => w.PickScreenColor());
         On("nks.edit.toggleClipboardMonitor", w => w.ToggleClipboardMonitor());
         On("nks.format.withReview", w => w.FormatWithReview());
+        On("nks.tools.showCallers", w => w.ShowCallers());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

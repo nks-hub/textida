@@ -565,6 +565,7 @@
   "cmd.edit.justifyBlock": "Zeilen im Blocksatz",
   "cmd.edit.insertDateTime": "Datum und Uhrzeit einfügen",
   "cmd.edit.insertGuid": "GUID einfügen",
+  "cmd.tools.showCallers": "Wer ruft das auf (codegraph)",
   "cmd.format.withReview": "Mit dem Datei-Formatierer formatieren (Vorschau)",
   "cmd.edit.toggleClipboardMonitor": "Kopien aus anderen Programmen sammeln",
   "cmd.tools.pickScreenColor": "Farbwähler vom Bildschirm",

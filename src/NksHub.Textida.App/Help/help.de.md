@@ -2169,3 +2169,9 @@ Der Befehl im Menü Extras lässt den Formatierer des Projekts auf einer Kopie d
 2. Wählen Sie Extras und Mit dem Datei-Formatierer formatieren (Vorschau). Die Änderungen erscheinen im Ergebnis-Tab; sie werden als ein Rückgängig-Schritt angewendet, und nur wenn sich das Dokument inzwischen nicht geändert hat.
 - PHP CS Fixer wird im Projekt (vendor/bin) gesucht, dann im PATH; ist er dort nicht, führt php eine php-cs-fixer.phar aus dem Projekt (Ordner der Datei und darüber: tools, bin, vendor/bin) oder aus dem PATH aus. Nichts wird heruntergeladen. Der Pfad lässt sich auch in saveActions.json (toolPaths) setzen.
 - Derselbe Formatierer kann auch beim Speichern als Aktion Formatieren laufen (Datei, Aktionen beim Speichern); diese wendet das Ergebnis sofort als einen Rückgängig-Schritt an, ohne Vorschau.
+
+## [tools.callers] Wer ruft das auf
+commands: nks.tools.showCallers
+Der Befehl im Menü Extras listet die Funktionen, die das Symbol unter dem Cursor aufrufen, nach dem Graphen des Programms CodeGraph. Er liest nur und indiziert nichts.
+1. Das Projekt muss einen Ordner .codegraph haben (codegraph init -i legt ihn an). Setzen Sie den Cursor auf den Namen einer Funktion oder markieren Sie ihn und wählen Sie Extras und Wer ruft das auf. Enter auf einer Zeile öffnet die Stelle des Aufrufers, seine Zeilen stehen neben der Liste.
+- Der Befehl wird nur angeboten, wo über der Datei ein Ordner .codegraph existiert; der Editor legt den Graphen weder an noch aktualisiert er ihn (das tun codegraph init und codegraph sync). Das Programm wird in node_modules/.bin, .venv und im PATH gesucht, Sie bestätigen es vor dem ersten Lauf, und es läuft hinter dem Proxy des Editors. Der Graph ist der Stand der Dateien bei der Indizierung: bei einem Tab mit ungespeichertem Text sagt das eine Leiste.

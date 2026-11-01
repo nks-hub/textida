@@ -91,6 +91,9 @@ public static class LanguageCatalog
     /// <summary>ast-grep, run by <see cref="AstGrep"/>; the command line and the JSON stream were run against ast-grep 0.51 on Windows 11.</summary>
     public static readonly CatalogSearchTool StructuralSearch = new("ast-grep", "ast-grep", "ast-grep", Verified: true);
 
+    /// <summary>The CodeGraph command line, read by <see cref="CodeGraphCallers"/> (read only, and only where a <c>.codegraph</c> folder exists); <c>callers --json</c> was run against CodeGraph on Windows 11.</summary>
+    public static readonly CatalogSearchTool CodeGraph = new("codegraph", "CodeGraph", "codegraph", Verified: true);
+
     /// <summary>The configuration that applies to every file.</summary>
     public static readonly CatalogConfig EditorConfig = new([".editorconfig"], "root = true\n\n[*]\n");
 

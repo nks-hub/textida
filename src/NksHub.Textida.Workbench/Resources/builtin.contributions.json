@@ -1903,6 +1903,14 @@
       "enablement": "!largeFileMode"
     },
     {
+      "id": "nks.tools.showCallers",
+      "title": "cmd.tools.showCallers",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5095,6 +5103,12 @@
       "command": "nks.format.withReview",
       "group": "2_run/03",
       "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.showCallers",
+      "group": "2_run/07",
+      "order": 20
     },
     {
       "menu": "edit",
