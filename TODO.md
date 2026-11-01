@@ -1475,12 +1475,13 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** PR.1.2, PR.3.1, P1.1.4, P1.1.7, P3.7.6
   - **Odhad:** bez odhadu
   - **Stav 29. 10. 2026:** vydání `v0.1.0` (předběžné) na GitHubu: TextidaSetup.exe a ZIP pro Windows, DMG a ZIP pro macOS (arm64 a x64, podpis jen ad-hoc, bez notarizace), `.deb` a `.tar.gz` pro Linux, `SHA256SUMS.txt`. `.deb` je i v apt repozitáři NKS Hub (`https://repo.nks-hub.cz/textida/`, suite `stable`), který skript `75-textida.sh` na serveru repozitáře plní z releasů dvakrát za hodinu. Instalace z apt repozitáře podle README, kouřový test a odinstalace ověřené v čistém Debianu 12 a 13 a Ubuntu 22.04 a 24.04. Neověřeno: instalace na čistém Windows 10/11 a macOS 14 a 15 z releasu.
+  - **Vydáno 1. 11. 2026:** [Textida 0.1.1](https://github.com/nks-hub/textida/releases/tag/v0.1.1), tag `5cebae35`, [CI 41304703417](https://github.com/nks-hub/textida/actions/runs/41304703417). Windows instalátor, ZIP, oba macOS ZIP/DMG a Linux deb/tar.gz jsou veřejné. Windows instalátor SHA-256 `241D8078DBCC43F9BA8AE69E0F7ADBA7FC685A2E390DB139CAAC202084DEFDAF`: čistá instalace, přechod 0.1.0 na 0.1.1 a odinstalace se zachováním profilu prošly na Windows 11 Pro 22H2. Instalační zápisy běžely v izolovaném profilu SYSTEM; nainstalovaný program a skutečné okno instalátoru s připojenými Skia/HarfBuzz knihovnami v interaktivní relaci uživatele. Původní instalace, proces a uživatelské vazby zůstaly zachované. Balíky zatím nemají podpis vydavatele; macOS je ad-hoc bez notarizace, Intel ověřený přes Rosettu. Windows 10 zbývá.
 - [ ] **P3.7.2** Aktualizace a návrat verze
   - **Co a proč:** Kontrola aktualizací a bezpečný návrat na předchozí verzi. Původní telemetrie PSPadu se nepřebírá a editor žádnou telemetrii nemá (PR.6.4). Aktualizace chrání program i neuložená data i při chybě. P9.6.1 tentýž aktualizátor rozšíří o pluginy; nový nevznikne.
   - **Funkce:** F001
   - **Hotovo, když:** aktualizace na novější build a návrat na předchozí projdou na každém systému ze seznamu P1.1.6 a na všech třech RID bez ztráty nastavení a žurnálu; po aktualizaci se na macOS ověří podpis, časové razítko a notarizační ticket nového balíku i přibalených procesů, na Windows ověření původu nového balíku; balík s neplatným podpisem nebo neověřeným původem se odmítne; poškozený balík se pozná před výměnou; přerušená výměna se po startu dokončí nebo vrátí; návrat na starší verzi zachová kompatibilitu schématu nastavení a žurnálu podle P1.7.1; editor neposílá nic kromě dotazu na verzi.
   - **Stav 1. 11. 2026:** částečně. Stávající aktualizátor podporuje podepsaný feed pro více RID, kontrolu velikosti a SHA-256, nástroj na podpis feedu a obnovu přerušené výměny. Windows přepíná adresáře v jedné transakci NTFS; nepodporovaný systém souborů odmítne. Mac ověřuje codesign, spctl a notarizační ticket; Mac a Linux používají nativní atomickou výměnu adresářů. Linuxový balík spravovaný apt odkáže na správce balíků. Nastavení a žurnál se zachovají. Windows: cílené ověření celého doplnění 250 prošlých testů a 2 přeskočené testy jen pro Mac; zahrnuje skutečnou transakci NTFS a pád před potvrzením. Mac arm64: nativní výměna, obnova a odmítnutí nepodepsaného balíku ověřeny. Otevřené: skutečné podepsané vydání pro Mac a Windows a ověření Windows 10 22H2; pro macOS 14 a nativní Intel platí výjimka z P1.1.6. Běžné ověření Windows proběhlo na Windows 11 Pro 22H2, build 22621. Přenosná data uvnitř podepsaného Mac balíku se zatím odmítnou, aby přesun dat nezneplatnil podpis.
-  - **Ověřeno 1. 11. 2026:** veřejný klíč ECDSA P-256 je v aplikaci, soukromý pouze v GitHub Secrets. Skutečný klíč z Secrets podepsal zkušební feed a ověření proti klíči aplikace prošlo: [běh 41302444470](https://github.com/nks-hub/textida/actions/runs/41302444470), zdroj `4a1b2192`. Jiný nebo chybějící klíč zastaví podpis před vytvořením feedu. Windows: 43 cílených testů a 2 přeskočené testy pro Mac nad `9aa4c40c`; po doplnění kontroly shody klíčů 8/8 nad `4a1b2192`. Linux Ubuntu 24.04.5 x64: 58 prošlých testů a 25 přeskočených testů pro jiné systémy nad `9aa4c40c`. Balík NativeAOT se spustil přes `--smoke`; skutečný pomocník počkal na konec procesu, provedl aktualizaci i návrat a po každém otevřel okno aplikace na samostatné virtuální obrazovce. Nastavení a kontrolní obsah profilu zůstaly zachované. SHA-256 balíku `23B7560FF430E94FB3E4094F777271360286FB44354ABB4A15E0D72BAD189641`. Nebylo vydáno nové veřejné vydání. Kontrola při startu zůstává vypnutá.
+  - **Ověřeno 1. 11. 2026:** veřejný klíč ECDSA P-256 je v aplikaci, soukromý pouze v GitHub Secrets. Skutečný klíč z Secrets podepsal zkušební feed a ověření proti klíči aplikace prošlo: [běh 41302444470](https://github.com/nks-hub/textida/actions/runs/41302444470), zdroj `4a1b2192`. Jiný nebo chybějící klíč zastaví podpis před vytvořením feedu. Windows: 43 cílených testů a 2 přeskočené testy pro Mac nad `9aa4c40c`; po doplnění kontroly shody klíčů 8/8 nad `4a1b2192`. Linux Ubuntu 24.04.5 x64: 58 prošlých testů a 25 přeskočených testů pro jiné systémy nad `9aa4c40c`. Balík NativeAOT se spustil přes `--smoke`; skutečný pomocník počkal na konec procesu, provedl aktualizaci i návrat a po každém otevřel okno aplikace na samostatné virtuální obrazovce. Nastavení a kontrolní obsah profilu zůstaly zachované. SHA-256 balíku `23B7560FF430E94FB3E4094F777271360286FB44354ABB4A15E0D72BAD189641`. Vydání 0.1.1 a jeho podepsaný feed jsou veřejné. Feed na větvi `update-feed` zahrnuje i předběžná vydání; anonymní stažení instalátoru i feedu prošlo a feed se shoduje s podepsaným assetem vydání. Kontrola při startu zůstává vypnutá.
   - **Závisí na:** P3.7.1
   - **Odhad:** bez odhadu
 - [ ] **P3.7.3** Ověření cílů MVP
@@ -1769,7 +1770,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P4.1.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
-- [ ] **P4.1.3** Uživatelské proměnné
+- [x] **P4.1.3** Uživatelské proměnné
   - **Co a proč:** Proměnné pro klipy a nástroje s jedním významem všude a s pravidly přednosti. `%File%` znamená v klipu PSPadu něco jiného než v nástroji; tady se významy oddělí.
   - **Funkce:** F127
   - **Stav 26. 10. 2026:** částečně: jedno místo pro proměnné s pořadím formulář › uživatelské (`variables.json` v profilu) › vestavěné, příkaz „Upravit uživatelské proměnné“, test pořadí. Shoda hodnoty s receptem ověřena testem (P4.11.1); se spouštěčem nástrojů čeká na P4.3.3.
@@ -1780,6 +1781,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Stav 27. 10. 2026 (noc):** částečně. Spouštěč nástrojů bere proměnné ze stejného místa jako klipy a recepty (VariableScope přes App.VariableContextFor), takže file.path, date, datetime, selection, user.name…; Poškozený variables.json zastaví nástroj před potvrzením a výstup řekne důvod, stejně jako u klipu a receptu; ${ jméno } s mezerami v závorce funguje v nástroji stejně jako v klipu; Nápověda (cs/en/sk/de) u nástrojů a klipů popisuje sdílené proměnné; nové texty v UI nebyly potřeba, použit existující klíč clips.variablesBroken. Testy prošly (342 v testovací sadě testera). Chybí: Testy jsem nespouštěl, jen build řešení (0 chyb), jak bylo zadáno; spustí je tester; Interní nástroje (lintery, formátovače, git, MCP) dál dostávají jen ${File}, protože mají pevné argumenty a nejsou to uživatelské definice; docs/TODO.md jsem neměnil, takže řádky Stav u P4.1.3 a P4.3.3 jsou pořád staré.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
   - **Stav 31. 10. 2026:** kód je hotový: nástroje berou proměnné ze sdíleného `VariableScope`.
+  - **Ověřeno 1. 11. 2026:** funkční kritéria této položky prošla na referenční Windows VM v cíleném běhu P4 nad `1705a9fb`: 318/318 bez přeskočených testů (Core 18, Workbench 39, Document.AvaloniaEdit 37, App 112, Rpc 112).
 - [x] **P4.1.4** Šablony souborů
   - **Co a proč:** Uživatelské šablony nových souborů jako data načítaná jádrem F029.
   - **Funkce:** F022
@@ -1799,7 +1801,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P3b.2.1, P2.5.2
   - **Odhad:** bez odhadu
   - **Umístění:** data
-- [ ] **P4.2.2** Speciální konverze
+- [x] **P4.2.2** Speciální konverze
   - **Co a proč:** Užitečné textové konverze z PSPadu jako příkazy v paletě nad více výběry.
   - **Funkce:** F048
   - **Před zahájením:** seznam ID konverzí se zapíše jako vstupní rozhodnutí (úvod TODO).
@@ -1811,6 +1813,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Stav 27. 10. 2026 (noc):** částečně. Uzavřený seznam 10 převodů podle F048 je v jádře (SpecialConversions.All): desítkové/šestnáctkové oběma směry, URL, quoted-printable a Base64 kódování i dekódování…; Každý převod je vlastní příkaz nks.edit.convert.<id> v paletě i v nové podnabídce Úpravy › Speciální převody, dá se opakovat a nahrát do makra; zůstává i v seznamu…; Převod běží nad všemi výběry jako jeden krok Zpět, výběry zůstanou na novém textu; když jeden výběr nejde převést, nezmění se nic a stavový řádek řekne proč (nový text…; Tabulátory na mezery počítají zarážky od skutečného sloupce každého výběru a podle velikosti tabulátoru dokumentu, i při mnoha kurzorech na jednom řádku v lineárním čase. Testy prošly (289 v testovací sadě testera). Chybí: Seznam ID převodů ještě neschválil majitel jako vstupní rozhodnutí, v kódu je označený „Placeholder, OPEN“; Převod Add Accent Marks chybí, protože potřebuje slovník F079; Testy jsem podle zadání nespouštěl, spustí je tester.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
   - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** seznam 10 speciálních převodů zůstává, jak je v kódu (odpovídá F048); „Add Accent Marks“ zůstává mimo, chybí slovník F079.
+  - **Ověřeno 1. 11. 2026:** funkční kritéria této položky prošla na referenční Windows VM v cíleném běhu P4 nad `1705a9fb`: 318/318 bez přeskočených testů (Core 18, Workbench 39, Document.AvaloniaEdit 37, App 112, Rpc 112).
 
 ### P4.3 LOG parser a režim logu
 
@@ -1862,7 +1865,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P2.2.1
   - **Odhad:** F173 0,5–1 ČT (matice)
   - **Umístění:** jádro
-- [ ] **P4.5.2** Emmet
+- [x] **P4.5.2** Emmet
   - **Co a proč:** Zkratka + Tab v HTML a CSS, náhled před rozbalením, obalení výběru zkratkou.
   - **Funkce:** F182
   - **Stav 26. 10. 2026:** částečně: plugin `NksHub.Textida.Plugins.Emmet` (algoritmus napsaný podle veřejného popisu syntaxe, bez kódu a dat Emmetu): `ul>li*3` + Tab vytvoří seznam s kurzorem v každé položce jako jeden krok undo, Tab mimo zkratku odsadí jako dřív, náhled a obalení výběru; jádro umí `items` ve `snippet/insert`. Otevřené: jazyky (dnes HTML a CSS), vypnutí v nastavení, zástupné limity; Perf test 33 ms na 1 MiB napsaný, neměřen; přeskakování mezi zástupnými místy chybí.
@@ -1872,7 +1875,8 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** vestavěný plugin
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace. Emmet převeden na snippet session z main (Tab v session skáče, mimo ni rozbalí, nastavení `editor.emmet`).
   - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** Emmet běží v HTML, XML, PHP, Latte, CSS, SCSS, Less, JSX a TSX (44dfa7cb); v JSX `className`, `htmlFor` a prázdné prvky ` />`.
-- [ ] **P4.5.3** Řádkové a blokové příkazy
+  - **Ověřeno 1. 11. 2026:** funkční kritéria této položky prošla na referenční Windows VM v cíleném běhu P4 nad `1705a9fb`: 318/318 bez přeskočených testů (Core 18, Workbench 39, Document.AvaloniaEdit 37, App 112, Rpc 112).
+- [x] **P4.5.3** Řádkové a blokové příkazy
   - **Co a proč:** Speciální vložení včetně sloupcové sémantiky, vkládání a číslování řádků s více výběry, řazení s náhledem a pravidly, výběr řádků podle rozsahů jako filtr, formátování bloku. Externí řazení obřích dat až později.
   - **Funkce:** F045 (částečně: speciální vložení mimo vložení do sloupce), F047, F052, F061, F071
   - **Před zahájením:** seznam ID příkazů a voleb se zapíše jako vstupní rozhodnutí (úvod TODO).
@@ -1884,6 +1888,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Stav 27. 10. 2026 (noc):** částečně. Přidán příkaz Vložit jako HTML (nks.edit.pasteAsHtml): vezme HTML ze schránky, umí hlavičku CF_HTML i holé UTF-8, vloží se jako při Ctrl+V v jednom kroku zpět, a když…; Přidán příkaz Vložit ze souboru (nks.edit.insertFromFile): kódování pozná jako při otevření, konce řádků převede na ty v dokumentu a text vloží do každého kurzoru v…; Přidán příkaz Přeformátovat odstavec s koncem u krátkého řádku (nks.edit.reformatShortLines, F071): odstavec končí i za řádkem kratším než ReformatShortLinePercent…; Nové příkazy jsou v builtin.contributions.json i v menu Úpravy a Formát, mají texty a nápovědu v cs/en/sk/de a klíče v K.cs. Testy prošly (305 v testovací sadě testera). Chybí: Testy jsem podle zadání nespouštěl, sestavil jsem jen řešení s 0 chybami; spuštění nechávám testerovi; Vstupní rozhodnutí (seznam ID příkazů a voleb) musí schválit majitel; seznam je teď uzavřený v testu, ale schválení neudělám sám; Vložit jako HTML jsem ověřil jen na headless schránce, skutečné kopírování z prohlížeče nebo Wordu je ruční krok v okně, které tu nesmím….
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
   - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** sada řádkových a blokových příkazů zůstává, jak je v kódu.
+  - **Ověřeno 1. 11. 2026:** funkční kritéria této položky prošla na referenční Windows VM v cíleném běhu P4 nad `1705a9fb`: 318/318 bez přeskočených testů (Core 18, Workbench 39, Document.AvaloniaEdit 37, App 112, Rpc 112).
 - [x] **P4.5.4** Malé vkládací příkazy
   - **Co a proč:** Datum a čas v uživatelském formátu, GUID, opakování posledního vhodného příkazu. Jsou příliš malé na vlastní proces.
   - **Funkce:** F049, F050, F077
@@ -2003,7 +2008,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.9 Kontext pro AI
 
-- [ ] **P4.9.1** Kopírovat jako kontext pro AI
+- [x] **P4.9.1** Kopírovat jako kontext pro AI
   - **Co a proč:** Výběr, kurzory, karty, soubory nebo složka jako jeden blok v Markdownu nebo XML s cestou, rozsahem řádků, jazykem, kódováním a revizí; neuložené změny označené. Vynechá `.env`, pravidla ignorování a binární soubory a řekne proč. Nic po síti, jen schránka.
   - **Funkce:** F254
   - **Stav 26. 10. 2026:** částečně: „Kopírovat jako kontext pro AI“ (výběr, soubor, otevřené karty, otevřená složka) s náhledem počtu souborů, velikosti v Markdownu i XML a vynechaných částí s důvodem; cesta, řádky, jazyk, kódování a revize u každého souboru, neuložené změny označené; `.env` se nekopíruje nikdy (filtr v builderu); vynechá `.gitignore`, skryté, binární, velké a nečitelné. Otevřené: limit celkové velikosti; ověřeno jen headless.
@@ -2014,6 +2019,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Stav 27. 10. 2026 (noc):** částečně. Celý kontext má limit velikosti (zástupná hodnota 8 MiB v PluginLimitsPlaceholders.AiContextMaxBytes s poznámkou OPEN), počítá se v UTF-8 bajtech textu, takže Markdown i…; Soubor, karta nebo výběr, který se do limitu nevejde, se vynechá a náhled ho uvede s důvodem a limitem; menší soubor za ním se ještě vejde; Složka čte jen soubory, které se do limitu vejdou; soubor, který se nevejde ani v nejhorším případě (UTF-32), se vůbec nečte; Stránkovaný výběr nad limitem se nečte do paměti a pojmenuje se jako vynechaný; volba Výběr se povolí podle HasSelection bez čtení textu. Testy prošly (329 v testovací sadě testera). Chybí: Testy jsem nespouštěl, podle zadání je spustí tester; Hodnota limitu celé kopie není rozhodnutá, je to zástupná hodnota s poznámkou OPEN; Čtečka obrazovky a skutečné okno aplikace se na tomto PC neověřovaly, ověřeno je to jen headless.
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
   - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** limit kopie kontextu pro AI 4 MiB (zhruba milion tokenů, největší okna dnešních modelů), varování v náhledu nad 512 KiB (zhruba 128 tisíc tokenů, běžné okno) (059619a3).
+  - **Ověřeno 1. 11. 2026:** funkční kritéria této položky prošla na referenční Windows VM v cíleném běhu P4 nad `1705a9fb`: 318/318 bez přeskočených testů (Core 18, Workbench 39, Document.AvaloniaEdit 37, App 112, Rpc 112).
 
 ### P4.10 Hex nástroje
 
