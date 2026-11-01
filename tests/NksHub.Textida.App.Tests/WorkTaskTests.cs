@@ -1,5 +1,7 @@
 using Avalonia.Headless.XUnit;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Changes;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -75,5 +77,52 @@ public class WorkTaskTests : IDisposable
         Assert.Null(saved.DocumentFilter);
         Assert.Empty(w.OpenNamedSession(saved));
         await w.PlanTask;
+    }
+
+    private (Shell.MainWindow Window, string File) WindowWithProposal(string name)
+    {
+        string file = _temp.File(name, "foo bar\nbaz\n");
+        var w = _app.CreateWindow(null);
+        var tab = w.OpenFile(file, null);
+        var change = ChangeBuilder.ForDocument(tab.Doc.Doc, [new TextReplacement(new ByteRange(0, 3), "FOO")]);
+        _ = w.ShowProposalAsync("p1", "Make it loud", "plugin:acme", tab, change, CancellationToken.None);
+        return (w, file);
+    }
+
+    [AvaloniaFact]
+    public async Task A_change_proposal_that_waited_in_the_review_comes_back_with_the_task_and_applies_to_the_same_text()
+    {
+        var (w, file) = WindowWithProposal("loud.txt");
+        Assert.True(w.SaveNamedSession("review"));
+        Assert.Null(w.ProposalLeftOut);
+        var saved = _app.Workspace.FindSession("review")!;
+        Assert.Equal("Make it loud", saved.Groups[0].Tabs[0].Proposal!.Title);
+
+        var other = _app.CreateWindow(null);
+        Assert.Empty(other.OpenNamedSession(saved));
+
+        Assert.NotNull(other.RestoredProposal);
+        var report = other.ApplyPlan()!;
+        Assert.Equal(1, report.Applied);
+        Assert.Equal("FOO bar\nbaz\n", other.Tabs.Single(t => t.Path == file).Editor!.Document.Text);
+        Assert.Equal((await other.RestoredProposal!).Outcome, NksHub.Textida.PluginHost.Documents.ProposalOutcome.Applied);
+    }
+
+    [AvaloniaFact]
+    public void When_the_text_is_not_the_one_the_proposal_was_made_for_nothing_is_opened_and_a_proposal_that_cannot_be_kept_is_named_at_the_save()
+    {
+        var (w, file) = WindowWithProposal("changed.txt");
+        Assert.True(w.SaveNamedSession("review2"));
+        var saved = _app.Workspace.FindSession("review2")!;
+        File.WriteAllText(file, "someone else wrote this\n");
+        var other = _app.CreateWindow(null);
+        other.OpenNamedSession(saved);
+        Assert.Null(other.RestoredProposal);
+
+        // an edit after the proposal was made leaves it stale: the save says it could not keep it
+        w.Tabs.Single(t => t.Path == file).Editor!.Document.Insert(0, "x");
+        Assert.True(w.SaveNamedSession("review3"));
+        Assert.Equal("Make it loud", w.ProposalLeftOut);
+        Assert.Null(_app.Workspace.FindSession("review3")!.Groups[0].Tabs[0].Proposal);
     }
 }

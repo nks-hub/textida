@@ -2292,6 +2292,8 @@
   "session.openedMissing": "Relace {name} je otevřena. Nenalezeno: {missing}",
   "session.largeLeftOut": "Relace {name} je uložena, ale neuložené změny těchto velkých souborů v ní nejsou (jsou příliš velké, nebo se soubor na disku změnil): {files}. Uložte soubory.",
   "session.editsNotRestored": "Neuložené změny relace {name} se neobnovily u těchto souborů: {files}. Soubor se od uložení relace změnil, nebo je už otevřený s vlastními změnami.",
+  "session.proposalLeftOut": "Relace {name} je uložena, ale návrh změn „{title}“, který čekal na rozhodnutí, v ní není: mění víc souborů, patří k záložce, kterou relace neukládá, nebo jen čeká ve frontě. Po obnovení ho vytvořte znovu.",
+  "session.proposalNotRestored": "Návrh změn „{title}“ z relace {name} se neobnovil: text jeho záložky už není ten, pro který vznikl.",
   "a11y.sessions": "Relace",
   "tokens.status": "≈ {count} tokenů",
   "tokens.status.tip": "Odhad pro výběr podle pravidla: {rule}. Nic se nikam neposílá. Kliknutím zvolíte jiné pravidlo.",
