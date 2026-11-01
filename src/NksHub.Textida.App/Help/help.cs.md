@@ -2238,3 +2238,9 @@ Soubor, Otevřít přes převodník ukáže soubor jiného typu jako text a při
 1. CSV se zobrazí s tabulátory mezi poli; oddělovač (čárka nebo středník), kódování a konce řádků souboru se při uložení zachovají. Tabulátor, konec řádku a zpětné lomítko uvnitř pole se v textu píší \t, \n, \r a \\.
 2. Před zápisem se uložené bajty přečtou zpět; musí dát stejný text. Pokud ne, nebo když převodník ohlásí ztrátu (například znak, který kódování souboru nemá), soubor se přepíše až po vašem výslovném souhlasu s tímto uložením. Převodník jen pro čtení otevře kartu jen ke čtení.
 - Převodník je program s jasným vstupem a výstupem: čte bajty a vrací text, případně z textu vrací bajty; na disk, síť ani do editoru nesahá. Externí převodník dostane kopii souboru v soukromé dočasné složce a po 30 s se ukončí.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Nástroje, Spustit ve Windows Script Host spustí uložený skript .js (JScript), .vbs (VBScript), .wsf nebo .wsh pomocí cscript.exe z Windows a jeho výstup ukáže v okně výstupu na kartě Úlohy. Jen ve Windows.
+1. Před prvním spuštěním skriptu (a po každé změně jeho obsahu) se editor zeptá, protože skript smí všechno, co smíte vy. Běh se ukončí po 60 s.
+- Je to most k hostiteli, který už ve Windows je, ne interpret editoru: jazykem skriptu je to, co Windows Script Host na počítači umí. Editor netvrdí žádnou shodu s JavaScriptem ani VBScriptem jinde a skripty pro editor (pluginy) tudy nejdou.

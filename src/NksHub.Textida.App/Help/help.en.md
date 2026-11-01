@@ -2238,3 +2238,9 @@ File, Open Through Converter shows a file of another type as text and converts i
 1. CSV is shown with tabs between the fields; the separator (comma or semicolon), the encoding and the line ends of the file are kept when you save. A tab, a line end and a backslash inside a field are written \t, \n, \r and \\ in the text.
 2. Before anything is written the saved bytes are read back and must give the same text. If they do not, or if the converter names a loss (for instance a character the encoding of the file lacks), the file is overwritten only after your explicit consent to that save. A read only converter opens a read only tab.
 - A converter is a program with a clear input and output: it reads bytes and gives text, and where it writes, gives bytes from the text; it has no access to the disk, the network or the editor. An external converter gets a copy of the file in a private temporary folder and is ended after 30 s.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Tools, Run with Windows Script Host runs the saved script .js (JScript), .vbs (VBScript), .wsf or .wsh with cscript.exe of Windows and shows its output in the output window on the Tasks tab. Windows only.
+1. Before a script runs the first time (and after every change of its content) the editor asks, because a script may do everything you may. A run is ended after 60 s.
+- This is a bridge to the host that is already in Windows, not an interpreter of the editor: the language of the script is what the Windows Script Host on the machine runs. The editor claims no compatibility with JavaScript or VBScript elsewhere, and scripts for the editor (plugins) do not go this way.

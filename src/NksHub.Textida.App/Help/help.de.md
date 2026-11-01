@@ -2238,3 +2238,9 @@ Datei, Über Konverter öffnen zeigt eine Datei eines anderen Typs als Text und 
 1. CSV wird mit Tabulatoren zwischen den Feldern gezeigt; Trennzeichen (Komma oder Semikolon), Kodierung und Zeilenenden der Datei bleiben beim Speichern erhalten. Ein Tabulator, ein Zeilenende und ein Backslash in einem Feld werden im Text als \t, \n, \r und \\ geschrieben.
 2. Vor dem Schreiben werden die gespeicherten Bytes zurückgelesen und müssen denselben Text ergeben. Tun sie das nicht, oder meldet der Konverter einen Verlust (etwa ein Zeichen, das die Kodierung der Datei nicht hat), wird die Datei erst nach Ihrer ausdrücklichen Zustimmung zu diesem Speichern überschrieben. Ein Konverter nur zum Lesen öffnet einen schreibgeschützten Tab.
 - Ein Konverter ist ein Programm mit klarer Ein- und Ausgabe: Er liest Bytes und gibt Text, und wo er schreibt, aus dem Text Bytes; er greift weder auf Datenträger, Netz noch Editor zu. Ein externer Konverter erhält eine Kopie der Datei in einem privaten temporären Ordner und wird nach 30 s beendet.
+
+## [tools.wsh] Windows Script Host
+commands: nks.tools.runWsh
+Extras, Mit Windows Script Host ausführen führt das gespeicherte Skript .js (JScript), .vbs (VBScript), .wsf oder .wsh mit cscript.exe von Windows aus und zeigt die Ausgabe im Ausgabefenster auf der Registerkarte Aufgaben. Nur unter Windows.
+1. Bevor ein Skript zum ersten Mal läuft (und nach jeder Änderung seines Inhalts), fragt der Editor, weil ein Skript alles darf, was Sie dürfen. Ein Lauf wird nach 60 s beendet.
+- Das ist eine Brücke zum Host, der in Windows schon vorhanden ist, kein Interpreter des Editors: Die Sprache des Skripts ist das, was der Windows Script Host auf dem Rechner ausführt. Der Editor behauptet keine Kompatibilität mit JavaScript oder VBScript anderswo, und Skripte für den Editor (Plugins) gehen nicht diesen Weg.

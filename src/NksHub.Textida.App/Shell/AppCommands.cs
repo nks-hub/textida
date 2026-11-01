@@ -189,6 +189,7 @@ internal static class AppCommands
         On("nks.spell.next", w => w.NextSpellingMistake());
         On("nks.spell.diacritics", w => w.CompleteDiacritics());
         On("nks.file.openConverted", w => w.OpenThroughConverter());
+        On("nks.tools.runWsh", w => w.RunWsh());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

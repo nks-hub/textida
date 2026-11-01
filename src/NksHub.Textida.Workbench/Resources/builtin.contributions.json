@@ -2026,6 +2026,13 @@
       "icon": "file-text"
     },
     {
+      "id": "nks.tools.runWsh",
+      "title": "cmd.tools.runWsh",
+      "category": "cat.tools",
+      "icon": "play",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -5337,6 +5344,12 @@
       "command": "nks.file.openConverted",
       "group": "1_new/10",
       "order": 100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.runWsh",
+      "group": "2_run/08",
+      "order": 30
     },
     {
       "menu": "edit",
