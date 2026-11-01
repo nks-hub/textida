@@ -72,6 +72,7 @@ internal sealed partial class HexView
 
         protected override Size MeasureOverride(Size availableSize)
         {
+            _labels.Clear();
             _face = new Typeface(new FontFamily(owner._options.FontFamily));
             var sample = Format(new string('0', 32), Brushes.Black);
             _cw = sample.Width / 32;
