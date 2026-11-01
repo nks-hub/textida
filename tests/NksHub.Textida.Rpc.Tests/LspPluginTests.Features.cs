@@ -258,7 +258,7 @@ public partial class LspPluginTests
 
         string notes = File.ReadAllText(Assert.Single(Directory.GetFiles(rig.Dump, "process-*")));
         Assert.Contains("proxy=http://", notes);
-        Assert.Contains(":x@127.0.0.1:", notes); // the login of the proxy is the name of the tool
+        Assert.Contains("proxy=http://127.0.0.1:", notes); // the port is the one of the tool of the server; there is no login in the address
         Assert.Contains("no_proxy=localhost,127.0.0.1,::1", notes);
     }
 
