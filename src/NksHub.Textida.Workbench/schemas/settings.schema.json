@@ -574,6 +574,18 @@
           "description": "Structure template per file type. Which structure template the hex view uses for a file extension, written extension=template and separated by commas, for example bin=elf_file, dat=png_chunks. The list in the structure panel writes it when you pick a template. The shipped templates are bmp_header, png_chunks, zip_archive, pe_file, elf_file and stl_binary. An extension that is not listed gets the template that fits the first bytes of the file or its extension.",
           "x-scope": "application"
         },
+        "web.searchUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Web search address. The address the command Search Selection on the Web sends the selected text to; {query} is replaced by the text. Empty turns the command off. It must be an http or https address.",
+          "x-scope": "application"
+        },
+        "web.pathMap": {
+          "type": "string",
+          "default": "",
+          "description": "Path to address rules. Rules like folder=>address separated by semicolons, from which the command Open File at Its Address builds the address of a file. The longest matching folder wins.",
+          "x-scope": "application"
+        },
         "review.autoKeep": {
           "type": "boolean",
           "default": false,

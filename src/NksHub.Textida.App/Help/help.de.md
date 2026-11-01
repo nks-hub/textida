@@ -2096,3 +2096,11 @@ Der Befehl Aus dem Internet öffnen im Menü Datei lädt den Text einer http- od
 2. Bestätigen Sie bei der ersten Nutzung eines Servers, dass der Editor ihn kontaktieren darf. Die Zustimmung gilt für den Server auch für .http-Anfragen und lässt sich dort widerrufen, wo die Zustimmungen der Werkzeuge verwaltet werden.
 - Der Inhalt erscheint nur als Text in einem neuen, ungespeicherten Tab. Nichts wird ausgeführt, dargestellt oder gespeichert; eine HTML-Seite erscheint als Quelltext. Die Sprache des Tabs richtet sich nach der Endung der Adresse, sonst nach dem Inhaltstyp.
 - Eine Antwort mit Fehlerstatus, eine Antwort über 16 MB und Inhalt, der kein Text ist, werden nicht geöffnet; der Grund steht in der Statusleiste. Die Anfrage läuft über die Netzwerkeinstellungen des Editors (Proxy).
+
+## [tools.webLinks] Websuche und Adresse einer Datei
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Zwei Befehle im Menü Extras öffnen den Browser: eine Suche nach dem markierten Text über Ihre eigene Adresse und die Adresse, unter der die aktive Datei ausgeliefert wird.
+1. Tragen Sie in der Einstellung web.searchUrl die Suchadresse ein, wobei {query} für den Text steht, zum Beispiel die Adresse der Suchmaschine, die Sie nutzen. Markieren Sie dann Text (oder setzen Sie den Cursor auf ein Wort) und wählen Sie Extras und Auswahl im Web suchen.
+2. Tragen Sie in der Einstellung web.pathMap Regeln der Form Ordner=>Adresse ein, durch Semikolons getrennt, zum Beispiel den Webordner auf der Platte und die Adresse seines lokalen Servers. Wählen Sie dann Extras und Datei unter ihrer Adresse öffnen.
+- Text geht nur über den Befehl und nur an die Adresse, die Sie eingetragen haben, ins Web; der Editor hat keine Standardadresse. Aus einer Datei mit geheimen Werten wird nichts gesucht. Der Text darf höchstens 1000 Zeichen haben.
+- Die Regel mit dem längsten Ordner, der die Datei enthält, gewinnt; der Rest des Pfads wird an die Adresse angehängt. Der Editor startet keinen Webserver, er öffnet nur die Adresse. Adressen müssen http oder https sein.

@@ -502,6 +502,16 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string WebSearchNoTemplate = "web.searchNoTemplate";
+    public const string WebSearchSecrets = "web.searchSecrets";
+    public const string WebSearchNothing = "web.searchNothing";
+    public const string WebSearchBad = "web.searchBad";
+    public const string WebSearchOpened = "web.searchOpened";
+    public const string WebOpenFailed = "web.openFailed";
+    public const string WebMapUnsaved = "web.mapUnsaved";
+    public const string WebMapNoRules = "web.mapNoRules";
+    public const string WebMapNoMatch = "web.mapNoMatch";
+    public const string WebMapOpened = "web.mapOpened";
     public const string OpenUrlTitle = "openUrl.title";
     public const string OpenUrlLabel = "openUrl.label";
     public const string OpenUrlConsent = "openUrl.consent";

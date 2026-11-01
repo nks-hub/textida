@@ -2096,3 +2096,11 @@ The command Open from the Internet in the File menu downloads the text of an htt
 2. The first time you use a server, confirm that the editor may contact it. The consent covers the server for .http requests too and can be revoked where the consents of tools are managed.
 - The content is shown as text in a new, unsaved tab only. Nothing is run, rendered or saved; an HTML page appears as source. The language of the tab comes from the extension of the address, else from the content type.
 - An answer with an error status, an answer larger than 16 MB and content that is not text are not opened; the reason is in the status bar. The request goes through the network settings of the editor (proxy).
+
+## [tools.webLinks] Web search and the address of a file
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Two commands in the Tools menu open the browser: a search for the selected text through your own address, and the address at which the active file is served.
+1. In the setting web.searchUrl write the search address, where {query} stands for the text, for example the address of the search engine you use. Then select text (or put the caret on a word) and choose Tools and Search Selection on the Web.
+2. In the setting web.pathMap write rules like folder=>address separated by semicolons, for example the web folder on disk and the address of its local server. Then choose Tools and Open File at Its Address.
+- Text goes to the web only through the command and only to the address you wrote; the editor has no default address. Nothing is searched from a file with secret values. The text may have at most 1000 characters.
+- The rule with the longest folder that holds the file wins; the rest of the path is appended to the address. The editor starts no web server, it only opens the address. Addresses must be http or https.

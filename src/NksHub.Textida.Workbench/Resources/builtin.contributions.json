@@ -1840,6 +1840,20 @@
       "enablement": "true"
     },
     {
+      "id": "nks.tools.searchWeb",
+      "title": "cmd.tools.searchWeb",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
+      "id": "nks.tools.openMappedUrl",
+      "title": "cmd.tools.openMappedUrl",
+      "category": "cat.tools",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4976,6 +4990,18 @@
       "command": "nks.file.openUrl",
       "group": "1_new/04",
       "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.searchWeb",
+      "group": "2_run/06",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.openMappedUrl",
+      "group": "2_run/06",
+      "order": 20
     },
     {
       "menu": "edit",
@@ -8125,6 +8151,34 @@
         "template",
         "ksy",
         "binary"
+      ]
+    },
+    {
+      "key": "web.searchUrl",
+      "type": "string",
+      "default": "",
+      "title": "setting.web.searchUrl.title",
+      "description": "setting.web.searchUrl.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "web",
+        "browser",
+        "url"
+      ]
+    },
+    {
+      "key": "web.pathMap",
+      "type": "string",
+      "default": "",
+      "title": "setting.web.pathMap.title",
+      "description": "setting.web.pathMap.description",
+      "category": "cat.tools",
+      "scope": "application",
+      "tags": [
+        "web",
+        "browser",
+        "url"
       ]
     },
     {

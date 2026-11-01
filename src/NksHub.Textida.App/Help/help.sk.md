@@ -2096,3 +2096,11 @@ Príkaz Otvoriť z internetu v ponuke Súbor stiahne text z adresy http alebo ht
 2. Pri prvom použití servera potvrďte, že sa s ním editor smie spojiť. Súhlas platí pre server aj pre požiadavky súborov .http a dá sa odvolať tam, kde sa spravujú súhlasy nástrojov.
 - Obsah sa zobrazí len ako text v novej, neuloženej záložke. Nič sa nespustí, nevykreslí ani neuloží; stránka HTML sa ukáže ako zdrojový kód. Jazyk záložky sa určí podľa prípony adresy, inak podľa typu obsahu.
 - Neotvorí sa odpoveď s chybovým stavom, odpoveď väčšia ako 16 MB ani obsah, ktorý nie je text; dôvod je v stavovom riadku. Požiadavka ide cez nastavenia siete editora (proxy).
+
+## [tools.webLinks] Hľadanie na webe a adresa súboru
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Dva príkazy v ponuke Nástroje otvoria prehliadač: hľadanie označeného textu cez vašu adresu a adresu, na ktorej sa aktívny súbor obsluhuje.
+1. V nastavení web.searchUrl zapíšte adresu hľadania, kde {query} znamená hľadaný text, napríklad adresu vyhľadávača, ktorý používate. Potom označte text (alebo dajte kurzor na slovo) a zvoľte Nástroje a Hľadať výber na webe.
+2. V nastavení web.pathMap zapíšte pravidlá v tvare priečinok=>adresa, oddelené bodkočiarkami, napríklad priečinok webu na disku a adresa jeho lokálneho servera. Potom zvoľte Nástroje a Otvoriť súbor na jeho adrese.
+- Text sa na web pošle len príkazom a len na adresu, ktorú ste zapísali; editor žiadnu predvolenú adresu nemá. Zo súboru s tajnými hodnotami sa nič nehľadá. Hľadaný text má najviac 1000 znakov.
+- Pravidlo s najdlhším priečinkom, ktorý súbor obsahuje, vyhráva; zvyšok cesty sa pripojí k adrese. Editor žiadny webový server nespúšťa, len otvorí adresu. Adresy musia byť http alebo https.

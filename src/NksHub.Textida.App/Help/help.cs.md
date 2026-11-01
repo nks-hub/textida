@@ -2096,3 +2096,11 @@ Příkaz Otevřít z internetu v nabídce Soubor stáhne text z adresy http nebo
 2. Při prvním použití serveru potvrďte, že se s ním editor smí spojit. Souhlas platí pro server i pro požadavky souborů .http a jde odvolat tam, kde se spravují souhlasy nástrojů.
 - Obsah se zobrazí jen jako text v nové, neuložené kartě. Nic se nespustí, nevykreslí ani neuloží; stránka HTML se ukáže jako zdrojový kód. Jazyk karty se určí podle přípony adresy, jinak podle typu obsahu.
 - Neotevře se odpověď s chybovým stavem, odpověď větší než 16 MB ani obsah, který není text; důvod je ve stavovém řádku. Požadavek jde přes nastavení sítě editoru (proxy).
+
+## [tools.webLinks] Hledání na webu a adresa souboru
+commands: nks.tools.searchWeb, nks.tools.openMappedUrl
+Dva příkazy v nabídce Nástroje otevřou prohlížeč: hledání označeného textu přes vaši adresu a adresu, na které se aktivní soubor obsluhuje.
+1. V nastavení web.searchUrl zapište adresu hledání, kde {query} znamená hledaný text, například adresu vyhledávače, který používáte. Pak označte text (nebo dejte kurzor na slovo) a zvolte Nástroje a Hledat výběr na webu.
+2. V nastavení web.pathMap zapište pravidla ve tvaru složka=>adresa, oddělená středníky, například složka webu na disku a adresa jejího lokálního serveru. Pak zvolte Nástroje a Otevřít soubor na jeho adrese.
+- Text se na web pošle jen příkazem a jen na adresu, kterou jste zapsali; editor žádnou výchozí adresu nemá. Ze souboru s tajnými hodnotami se nic nehledá. Hledaný text má nejvýše 1000 znaků.
+- Pravidlo s nejdelší složkou, která soubor obsahuje, vyhraje; zbytek cesty se připojí k adrese. Editor žádný webový server nespouští, jen otevře adresu. Adresy musí být http nebo https.
