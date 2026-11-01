@@ -1674,6 +1674,7 @@
   "mcp.client.message": "Program „{name}“ se připojil jako klient MCP. Smí číst karty, které sdílíte, a navrhovat změny, které potvrdíte. Dokud to nepovolíte, nevidí nic. Název si klient zvolí sám, takže není důkazem, kdo to je.",
   "mcp.client.allow": "Povolit",
   "mcp.client.deny": "Nepovolit",
+  "mcp.client.unknown": "(neznámý)",
   "mcp.clients.title": "Klienti MCP",
   "mcp.clients.watermark": "Vyberte klienta pro změnu oprávnění",
   "mcp.clients.allowed": "povoleno",

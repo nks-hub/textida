@@ -1634,6 +1634,7 @@
   "mcp.client.message": "A program called “{name}” connected as an MCP client. It may read the tabs you share and propose changes that you confirm. Until you allow it, it sees nothing. The client chooses its own name, so the name does not prove who it is.",
   "mcp.client.allow": "Allow",
   "mcp.client.deny": "Do not allow",
+  "mcp.client.unknown": "(unknown)",
   "mcp.clients.title": "MCP clients",
   "mcp.clients.watermark": "Choose a client to change its permission",
   "mcp.clients.allowed": "allowed",

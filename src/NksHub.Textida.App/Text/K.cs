@@ -1690,6 +1690,7 @@ public static class K
     public const string McpClientMessage = "mcp.client.message";
     public const string McpClientAllow = "mcp.client.allow";
     public const string McpClientDeny = "mcp.client.deny";
+    public const string McpClientUnknown = "mcp.client.unknown";
     public const string McpClientsTitle = "mcp.clients.title";
     public const string McpClientsWatermark = "mcp.clients.watermark";
     public const string McpClientsAllowed = "mcp.clients.allowed";
