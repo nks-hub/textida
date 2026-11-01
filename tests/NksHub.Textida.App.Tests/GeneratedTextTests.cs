@@ -98,6 +98,34 @@ public class GeneratedTextTests : IDisposable
         Assert.Equal("class A { void F() { if (x) return; } }\n", cs.Editor!.Document.Text);
     }
 
+    [AvaloniaFact]
+    public async Task The_line_at_the_caret_goes_to_a_python_that_stays_open_and_its_output_is_in_the_output_panel()
+    {
+        if (Core.Tools.InterpreterKind.Python.Find(null) is null) return; // no python on this machine
+        var w = _app.CreateWindow(null);
+        var tab = w.OpenFile(_temp.File("calc.py", "x = 6\nprint(x * 7)\nprint('again', x)\n"), null);
+        var surface = tab.Editor!;
+        try
+        {
+            surface.CaretOffset = 0;
+            w.SendToInterpreter(); // x = 6
+            surface.CaretOffset = "x = 6\n".Length;
+            w.SendToInterpreter(); // print(x * 7): x is known from the line before, so it is the same session
+            await Until(() => _app.Output.Read(NksHub.Textida.App.Services.OutputChannel.Tasks).Any(l => l.Text == "42"));
+            var lines = _app.Output.Read(NksHub.Textida.App.Services.OutputChannel.Tasks);
+            Assert.Contains(lines, l => l.Source == "interpreter:python" && l.Text == "> print(x * 7)");
+            Assert.Contains(lines, l => l.Source == "interpreter:python" && l.Text == "42");
+            Assert.DoesNotContain(lines, l => l.Text.Contains(">>>"));
+        }
+        finally { w.StopInterpreters(); }
+
+        // a language without an interpreter is said, not guessed
+        var cs = w.OpenFile(_temp.File("a.cs", "int x;\n"), null);
+        cs.Editor!.CaretOffset = 0;
+        w.SendToInterpreter();
+        Assert.Contains("C#", w.StatusMessageText);
+    }
+
     private static async Task Until(Func<bool> done)
     {
         for (var clock = System.Diagnostics.Stopwatch.StartNew(); !done() && clock.ElapsedMilliseconds < 5000;)

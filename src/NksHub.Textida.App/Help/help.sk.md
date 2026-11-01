@@ -2055,3 +2055,11 @@ Súbory .http a .rest obsahujú požiadavky; príkazy v ponuke Nástroje požiad
 - Prostredia: vedľa súboru leží http-client.env.json (zdieľaný) a http-client.private.env.json (súkromný, s heslami, nedávajte ho do repozitára). Prostredie vyberiete príkazom Prostredie požiadaviek HTTP; súkromné hodnoty prepíšu zdieľané a nikdy sa nezapíšu do zdieľaného súboru ani do stavového riadka.
 - Požiadavka ide cez sieťové nastavenia editora (proxy). Súhlas s hostom sa pamätá a berie sa späť príkazom na zrušenie súhlasov so sieťou. Skripty odpovedí (riadky začínajúce >) sa nespúšťajú.
 - Skopírovať požiadavku ako curl dá požiadavku s doplnenými premennými do schránky (vrátane súkromných hodnôt). Previesť curl na požiadavku HTTP urobí z označeného príkazu curl požiadavku v novej karte.
+
+## [tools.interpreter] Poslať text do interpretu
+commands: nks.tools.sendToInterpreter, nks.tools.stopInterpreters
+Príkaz v ponuke Nástroje pošle výber alebo riadok s kurzorom do interpretu, ktorý zostane otvorený; výstup je v paneli Výstup.
+1. Otvorte súbor Python, PHP, JavaScriptu alebo SQL a označte kód, alebo dajte kurzor na riadok.
+2. Zvoľte Nástroje a Poslať do interpretu. Interpret sa pri prvom použití spustí v priečinku súboru.
+- Používa sa python, php -a, node a psql. Ak je v priečinku súboru alebo nad ním .venv (alebo node_modules/.bin), použije sa program odtiaľ. Pripojenie psql určujú jeho premenné prostredia (PGHOST, PGDATABASE a ďalšie).
+- Interpret zostáva spustený a pamätá si, čo ste mu poslali. Ukončí ho príkaz Ukončiť interprety, zatvorenie okna alebo on sám (napríklad exit()). Odoslaný text sa vo výstupe opakuje za znakom >.

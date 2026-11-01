@@ -555,6 +555,8 @@
   "cmd.edit.justifyBlock": "Zarovnať riadky do bloku",
   "cmd.edit.insertDateTime": "Vložiť dátum a čas",
   "cmd.edit.insertGuid": "Vložiť GUID",
+  "cmd.tools.sendToInterpreter": "Poslať do interpretu",
+  "cmd.tools.stopInterpreters": "Ukončiť interprety",
   "cmd.tools.httpSend": "Poslať požiadavku HTTP",
   "cmd.tools.httpEnvironment": "Prostredie požiadaviek HTTP",
   "cmd.tools.httpCopyCurl": "Skopírovať požiadavku ako curl",

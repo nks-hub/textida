@@ -502,6 +502,13 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string InterpreterNoLanguage = "interpreter.noLanguage";
+    public const string InterpreterNothing = "interpreter.nothing";
+    public const string InterpreterNotFound = "interpreter.notFound";
+    public const string InterpreterFailed = "interpreter.failed";
+    public const string InterpreterStarted = "interpreter.started";
+    public const string InterpreterEnded = "interpreter.ended";
+    public const string InterpreterStopped = "interpreter.stopped";
     public const string HttpNoRequest = "httpClient.noRequest";
     public const string HttpMissingVariables = "httpClient.missingVariables";
     public const string HttpBadAddress = "httpClient.badAddress";

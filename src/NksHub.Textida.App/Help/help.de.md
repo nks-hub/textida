@@ -2055,3 +2055,11 @@ Dateien .http und .rest enthalten Anfragen; die Befehle im Menü Extras senden e
 - Umgebungen: neben der Datei liegen http-client.env.json (gemeinsam) und http-client.private.env.json (privat, mit den Passwörtern, nicht ins Repository legen). Die Umgebung wählen Sie mit HTTP-Umgebung wählen; private Werte gehen vor und werden nie in die gemeinsame Datei oder die Statusleiste geschrieben.
 - Die Anfrage geht über die Netzwerkeinstellungen des Editors (den Proxy). Die Zustimmung für einen Host wird gemerkt und mit dem Befehl zum Widerrufen der Netzwerkzustimmungen zurückgenommen. Antwort-Skripte (Zeilen mit >) werden nicht ausgeführt.
 - HTTP-Anfrage als cURL kopieren legt die Anfrage mit ersetzten Variablen in die Zwischenablage (mit den privaten Werten). cURL in HTTP-Anfrage umwandeln macht aus dem markierten curl-Befehl eine Anfrage in einem neuen Tab.
+
+## [tools.interpreter] Text an einen Interpreter senden
+commands: nks.tools.sendToInterpreter, nks.tools.stopInterpreters
+Der Befehl im Menü Extras sendet die Auswahl oder die Zeile am Cursor an einen Interpreter, der geöffnet bleibt; seine Ausgabe steht im Ausgabefenster.
+1. Öffnen Sie eine Python-, PHP-, JavaScript- oder SQL-Datei und markieren Sie den Code oder setzen Sie den Cursor in eine Zeile.
+2. Wählen Sie Extras und An Interpreter senden. Der Interpreter startet bei der ersten Verwendung im Ordner der Datei.
+- Verwendet werden python, php -a, node und psql. Hat der Ordner der Datei oder ein Ordner darüber eine .venv (oder node_modules/.bin), wird das Programm von dort benutzt. Die Verbindung von psql kommt aus seinen Umgebungsvariablen (PGHOST, PGDATABASE und andere).
+- Der Interpreter bleibt geöffnet und merkt sich, was Sie gesendet haben. Der Befehl Interpreter beenden, das Schließen des Fensters oder der Interpreter selbst (zum Beispiel exit()) beendet ihn. Der gesendete Text wird in der Ausgabe nach einem >-Zeichen wiederholt.

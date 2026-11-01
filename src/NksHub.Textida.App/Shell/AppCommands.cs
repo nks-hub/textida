@@ -155,6 +155,8 @@ internal static class AppCommands
         On("nks.tools.httpEnvironment", w => w.ChooseHttpEnvironment());
         On("nks.tools.httpCopyCurl", w => w.CopyHttpAsCurl());
         On("nks.tools.curlToHttp", w => w.CurlToHttp());
+        On("nks.tools.sendToInterpreter", w => w.SendToInterpreter());
+        On("nks.tools.stopInterpreters", w => w.StopInterpreters());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

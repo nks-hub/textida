@@ -2055,3 +2055,11 @@ Files .http and .rest hold requests; the commands in the Tools menu send one and
 - Environments: beside the file lie http-client.env.json (shared) and http-client.private.env.json (private, with the passwords, keep it out of the repository). Choose the environment with Choose HTTP Environment; private values win over shared ones and are never written to the shared file or to the status bar.
 - The request goes through the network settings of the editor (the proxy). The consent for a host is remembered and taken back with the command that revokes network consents. Response scripts (lines that start with >) are not run.
 - Copy HTTP Request as cURL puts the request, variables replaced, on the clipboard (the private values included). Convert cURL to HTTP Request makes a request of the selected curl command in a new tab.
+
+## [tools.interpreter] Send text to an interpreter
+commands: nks.tools.sendToInterpreter, nks.tools.stopInterpreters
+The command in the Tools menu sends the selection or the line at the caret to an interpreter that stays open; its output is in the Output panel.
+1. Open a Python, PHP, JavaScript or SQL file and select the code, or put the caret on a line.
+2. Choose Tools and Send to Interpreter. The interpreter starts on first use, in the folder of the file.
+- It uses python, php -a, node and psql. When the folder of the file or a folder above it has a .venv (or node_modules/.bin), the program from there is used. The connection of psql comes from its environment variables (PGHOST, PGDATABASE and others).
+- The interpreter stays open and remembers what you sent. The command Stop Interpreters, closing the window or the interpreter itself (exit(), for example) ends it. The text sent is repeated in the output after a > sign.
