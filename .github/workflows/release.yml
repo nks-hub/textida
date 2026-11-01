@@ -1,6 +1,6 @@
 name: Release
 
-# Builds the packages for Windows, macOS and Linux on a v* tag and publishes them as a GitHub release.
+# Builds the packages for Windows, macOS and Linux on a v* tag and attaches them to a draft release for installation checks.
 # A manual run builds the same packages as workflow artifacts without a release.
 on:
   push:
@@ -181,7 +181,7 @@ jobs:
         env:
           FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
         run: dotnet run tools/SignUpdateFeed.cs -- dist "${GITHUB_REF_NAME#v}" "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
-      - name: Publish
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -209,4 +209,4 @@ jobs:
           } > "$RUNNER_TEMP/notes.md"
           pre=""
           case "$v" in 0.*|*-*) pre="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Textida $v" --notes-file "$RUNNER_TEMP/notes.md" $pre *
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Textida $v" --notes-file "$RUNNER_TEMP/notes.md" --draft $pre *

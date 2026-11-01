@@ -22,7 +22,7 @@ internal sealed class UpdateException(UpdateError error, string message, Excepti
 /// </summary>
 internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string publicKeyBase64, string installDir)
 {
-    public const string DefaultFeedUrl = "https://github.com/nks-hub/textida/releases/latest/download/feed.json";
+    public const string DefaultFeedUrl = "https://raw.githubusercontent.com/nks-hub/textida/update-feed/feed.json";
 
     /// <summary>SubjectPublicKeyInfo of the ECDSA P-256 key used by the release workflow.</summary>
     public const string DefaultPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAElYupDVhOG55mAUwjegigyhRNPeXv/ogvJGcFFdAyHkuSoRDZam6qoy31ctIVvHM/L3xw0V7uzeW4BjkxKUcp3g==";
