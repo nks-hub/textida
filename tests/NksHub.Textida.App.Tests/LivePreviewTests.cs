@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
@@ -241,5 +243,47 @@ public class LivePreviewTests : IDisposable
         Assert.Equal("x\n\n| a   | b   |\n| --- | --- |\n| 1   |     |\n", tab.Editor.Document.Text);
         _w.Undo();
         Assert.Equal("x\n\na|b\n1|\n", tab.Editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public void Formatting_and_adding_a_row_keep_quote_list_prefixes_mixed_endings_and_unicode_selections()
+    {
+        const string source = "before\r\n\r\n> - name|value\r\n>   :---|---:\n>   ž|😀\r\n\r\nafter\n";
+        var tab = Open(source, "markdown");
+        int depth = tab.Doc.Doc.UndoDepth;
+        byte[] Bytes() => tab.Doc.Doc.ReadBytes(new NksHub.Textida.Core.Documents.ByteRange(0, tab.Doc.Doc.ByteLength));
+        static string[] Endings(string text) => Regex.Matches(text, "\\r\\n|\\r|\\n").Select(match => match.Value).ToArray();
+        byte[] originalBytes = Encoding.UTF8.GetBytes(source);
+        Assert.Equal(originalBytes, Bytes());
+        tab.Editor!.Select(source.IndexOf("😀", StringComparison.Ordinal), 2);
+
+        _w.FormatMarkdownTable();
+        string formatted = tab.Editor.Document.Text;
+        Assert.NotEqual(source, formatted);
+        Assert.StartsWith("before\r\n\r\n> - |", formatted);
+        Assert.EndsWith("\r\n\r\nafter\n", formatted);
+        Assert.Equal(Endings(source), Endings(formatted));
+        Assert.Equal("😀", tab.Editor.SelectedText);
+        Assert.Equal(depth + 1, tab.Doc.Doc.UndoDepth);
+
+        Press(Avalonia.Input.Key.Enter, Avalonia.Input.RawInputModifiers.Shift);
+        string withRow = tab.Editor.Document.Text;
+        Assert.Equal(["\r\n", "\r\n", "\r\n", "\n", "\r\n", "\r\n", "\r\n", "\n"], Endings(withRow));
+        var caretLine = tab.Editor.Document.GetLineByOffset(tab.Editor.CaretOffset);
+        Assert.Equal(6, caretLine.LineNumber);
+        string newRow = tab.Editor.Document.GetText(caretLine.Offset, caretLine.Length);
+        Assert.StartsWith(">   |", newRow);
+        Assert.Equal(newRow.IndexOf('|') + 2, tab.Editor.CaretOffset - caretLine.Offset);
+        Assert.Equal(depth + 2, tab.Doc.Doc.UndoDepth);
+
+        _w.Undo();
+        Assert.Equal(formatted, tab.Editor.Document.Text);
+        _w.Undo();
+        Assert.Equal(source, tab.Editor.Document.Text);
+        Assert.Equal(originalBytes, Bytes());
+        Assert.Equal(depth, tab.Doc.Doc.UndoDepth);
+        _w.Redo();
+        _w.Redo();
+        Assert.Equal(withRow, tab.Editor.Document.Text);
     }
 }

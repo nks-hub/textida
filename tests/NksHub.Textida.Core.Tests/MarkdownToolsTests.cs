@@ -62,6 +62,31 @@ public class MarkdownToolsTests
         Assert.Equal((6, 8), MarkdownTools.TocBlock(source));
     }
 
+    [Theory]
+    [InlineData("> ", "> ")]
+    [InlineData("- ", "  ")]
+    [InlineData("> - ", ">   ")]
+    public void Table_cells_and_new_rows_keep_their_container_prefix_and_utf16_positions(string firstPrefix, string continuation)
+    {
+        string[] rows = [firstPrefix + "name|value", continuation + ":---|---:", continuation + "ž|😀"];
+        Assert.Equal(["ž", "😀"], MarkdownTools.Cells(rows[2]));
+        var spans = MarkdownTools.CellSpans(rows[2]);
+        Assert.Equal((rows[2].IndexOf('ž'), 1), (spans[0].Start, spans[0].Length));
+        Assert.Equal((rows[2].IndexOf("😀", StringComparison.Ordinal), 2), (spans[1].Start, spans[1].Length));
+
+        var formatted = MarkdownTools.FormatTable(rows);
+        Assert.StartsWith(firstPrefix, formatted[0]);
+        Assert.All(formatted.Skip(1), row => Assert.StartsWith(continuation, row));
+        Assert.Equal(["ž", "😀"], MarkdownTools.Cells(formatted[2]));
+
+        var next = MarkdownTools.MoveCell(rows, 2, rows[2].IndexOf('ž'), forward: true)!;
+        Assert.Equal("😀", next.Lines[next.CaretRow].Substring(next.CaretStart, next.CaretLength));
+        var added = MarkdownTools.NewRow(rows, 2)!;
+        Assert.StartsWith(continuation + "|", added.Lines[^1]);
+        Assert.Equal(3, added.CaretRow);
+        Assert.Equal(added.Lines[3].IndexOf('|') + 2, added.CaretStart);
+    }
+
     [Fact]
     public void A_table_is_aligned_with_marks_kept_and_short_rows_filled()
     {
