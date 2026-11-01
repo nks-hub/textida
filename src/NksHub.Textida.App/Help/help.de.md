@@ -2088,3 +2088,11 @@ Der Befehl im Menü Extras listet die Dateien, die ein Agent für die aktive Dat
 2. Agentenpläne (Extras) oder + in Gehe zu allem listen die Pläne, die Agenten hinterlassen haben, den neuesten zuerst.
 - Anweisungen sind AGENTS.md, CLAUDE.md, CLAUDE.local.md und GEMINI.md aus jedem Ordner zwischen Wurzel und Ordner der aktiven Datei sowie ~/.claude/CLAUDE.md. Regeln sind .claude/rules, .cursor/rules und .github/copilot-instructions.md, Skills sind .claude/skills/*/SKILL.md. Jedes Produkt entscheidet selbst, was es liest; die Liste zeigt, was Dateien dieser Namen mitbringen würden.
 - Eine Regel mit paths oder globs im Kopf gilt nur für Dateien, die zum Muster passen; für andere ist sie abgeblendet mit dem Grund und zählt nicht zur Summe. Tokens sind eine Schätzung nach der Regel der Statusleiste, nichts geht ins Netz.
+
+## [file.openUrl] Aus dem Internet öffnen
+commands: nks.file.openUrl
+Der Befehl Aus dem Internet öffnen im Menü Datei lädt den Text einer http- oder https-Adresse in einen neuen Tab.
+1. Wählen Sie Datei und Aus dem Internet öffnen. Eine markierte Adresse wird eingetragen.
+2. Bestätigen Sie bei der ersten Nutzung eines Servers, dass der Editor ihn kontaktieren darf. Die Zustimmung gilt für den Server auch für .http-Anfragen und lässt sich dort widerrufen, wo die Zustimmungen der Werkzeuge verwaltet werden.
+- Der Inhalt erscheint nur als Text in einem neuen, ungespeicherten Tab. Nichts wird ausgeführt, dargestellt oder gespeichert; eine HTML-Seite erscheint als Quelltext. Die Sprache des Tabs richtet sich nach der Endung der Adresse, sonst nach dem Inhaltstyp.
+- Eine Antwort mit Fehlerstatus, eine Antwort über 16 MB und Inhalt, der kein Text ist, werden nicht geöffnet; der Grund steht in der Statusleiste. Die Anfrage läuft über die Netzwerkeinstellungen des Editors (Proxy).

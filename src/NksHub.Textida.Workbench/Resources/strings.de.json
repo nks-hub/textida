@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Zeilen im Blocksatz",
   "cmd.edit.insertDateTime": "Datum und Uhrzeit einfügen",
   "cmd.edit.insertGuid": "GUID einfügen",
+  "cmd.file.openUrl": "Aus dem Internet öffnen…",
   "cmd.tools.agentFiles": "Was ein Agent in diesem Ordner lädt",
   "cmd.tools.agentPlans": "Agentenpläne",
   "cmd.hex.template.exportJson": "Hex: Strukturbaum als JSON exportieren",

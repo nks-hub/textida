@@ -502,6 +502,16 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string OpenUrlTitle = "openUrl.title";
+    public const string OpenUrlLabel = "openUrl.label";
+    public const string OpenUrlConsent = "openUrl.consent";
+    public const string OpenUrlBad = "openUrl.bad";
+    public const string OpenUrlFetching = "openUrl.fetching";
+    public const string OpenUrlFailed = "openUrl.failed";
+    public const string OpenUrlStatus = "openUrl.status";
+    public const string OpenUrlTooLarge = "openUrl.tooLarge";
+    public const string OpenUrlBinary = "openUrl.binary";
+    public const string OpenUrlDone = "openUrl.done";
     public const string AgentFilesTitle = "agentFiles.title";
     public const string AgentFilesA11y = "agentFiles.a11y";
     public const string AgentFilesNoFolder = "agentFiles.noFolder";

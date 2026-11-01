@@ -1833,6 +1833,13 @@
       "enablement": "true"
     },
     {
+      "id": "nks.file.openUrl",
+      "title": "cmd.file.openUrl",
+      "category": "cat.file",
+      "icon": "text",
+      "enablement": "true"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4963,6 +4970,12 @@
       "command": "nks.tools.agentPlans",
       "group": "2_run/05",
       "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openUrl",
+      "group": "1_new/04",
+      "order": 10
     },
     {
       "menu": "edit",

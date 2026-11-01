@@ -2088,3 +2088,11 @@ The command in the Tools menu lists the files an agent loads for the active file
 2. Agent Plans (Tools) or + in Go to Anything lists the plans agents left behind, newest first.
 - Instructions are AGENTS.md, CLAUDE.md, CLAUDE.local.md and GEMINI.md from every folder between the root and the folder of the active file, and ~/.claude/CLAUDE.md. Rules are .claude/rules, .cursor/rules and .github/copilot-instructions.md, skills are .claude/skills/*/SKILL.md. Each product decides what it reads; the list shows what files of these names would bring in.
 - A rule with paths or globs in its header applies only to files that match the pattern; for others it is dimmed with the reason and left out of the sum. Tokens are an estimate by the rule of the status bar, nothing goes over the network.
+
+## [file.openUrl] Open from the Internet
+commands: nks.file.openUrl
+The command Open from the Internet in the File menu downloads the text of an http or https address into a new tab.
+1. Choose File and Open from the Internet. A selected address is filled in for you.
+2. The first time you use a server, confirm that the editor may contact it. The consent covers the server for .http requests too and can be revoked where the consents of tools are managed.
+- The content is shown as text in a new, unsaved tab only. Nothing is run, rendered or saved; an HTML page appears as source. The language of the tab comes from the extension of the address, else from the content type.
+- An answer with an error status, an answer larger than 16 MB and content that is not text are not opened; the reason is in the status bar. The request goes through the network settings of the editor (proxy).

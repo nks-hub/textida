@@ -2088,3 +2088,11 @@ Příkaz v nabídce Nástroje ukáže soubory, které agent pro aktivní soubor 
 2. Plány agentů (Nástroje) nebo + v poli Přejít na cokoli ukážou plány, které agenti zanechali, od nejnovějšího.
 - Pokyny jsou AGENTS.md, CLAUDE.md, CLAUDE.local.md a GEMINI.md z každé složky od kořene po složku aktivního souboru, a ~/.claude/CLAUDE.md. Pravidla jsou .claude/rules, .cursor/rules a .github/copilot-instructions.md, skills jsou .claude/skills/*/SKILL.md. Který agent co čte, určuje každý produkt sám; seznam ukazuje, co by soubory těchto jmen přinesly.
 - Pravidlo, které má v hlavičce paths nebo globs, platí jen pro soubory, které vzoru odpovídají; pro ostatní je v seznamu šedé s důvodem a do součtu se nepočítá. Tokeny jsou odhad podle pravidla ze stavového řádku, nic se neposílá do sítě.
+
+## [file.openUrl] Otevřít z internetu
+commands: nks.file.openUrl
+Příkaz Otevřít z internetu v nabídce Soubor stáhne text z adresy http nebo https do nové karty.
+1. Zvolte Soubor a Otevřít z internetu. Je-li označená adresa, je předvyplněná.
+2. Při prvním použití serveru potvrďte, že se s ním editor smí spojit. Souhlas platí pro server i pro požadavky souborů .http a jde odvolat tam, kde se spravují souhlasy nástrojů.
+- Obsah se zobrazí jen jako text v nové, neuložené kartě. Nic se nespustí, nevykreslí ani neuloží; stránka HTML se ukáže jako zdrojový kód. Jazyk karty se určí podle přípony adresy, jinak podle typu obsahu.
+- Neotevře se odpověď s chybovým stavem, odpověď větší než 16 MB ani obsah, který není text; důvod je ve stavovém řádku. Požadavek jde přes nastavení sítě editoru (proxy).

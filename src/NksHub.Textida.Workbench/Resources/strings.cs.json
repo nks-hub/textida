@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Zarovnat řádky do bloku",
   "cmd.edit.insertDateTime": "Vložit datum a čas",
   "cmd.edit.insertGuid": "Vložit GUID",
+  "cmd.file.openUrl": "Otevřít z internetu…",
   "cmd.tools.agentFiles": "Co agent načte v této složce",
   "cmd.tools.agentPlans": "Plány agentů",
   "cmd.hex.template.exportJson": "Hex: exportovat strom šablony do JSON",

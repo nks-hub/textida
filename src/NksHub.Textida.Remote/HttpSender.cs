@@ -28,9 +28,60 @@ public sealed record HttpAnswer(int Status, string Reason, string Version, IRead
     };
 }
 
+/// <summary>A page or file fetched with GET: its bytes (cut at the limit), the declared type and charset, and the address it came from after redirects.</summary>
+public sealed record Download(int Status, byte[] Bytes, bool Truncated, string? ContentType, string? Charset, Uri FinalUri)
+{
+    public bool Success => Status is >= 200 and < 300;
+
+    /// <summary>True when the first bytes hold a zero byte, which text does not (UTF-16 and UTF-32 with a byte order mark are text).</summary>
+    public bool LooksBinary
+    {
+        get
+        {
+            var head = Bytes.AsSpan(0, Math.Min(Bytes.Length, 8192));
+            if (head.Length >= 2 && ((head[0] == 0xFF && head[1] == 0xFE) || (head[0] == 0xFE && head[1] == 0xFF))) return false;
+            return head.Contains((byte)0);
+        }
+    }
+
+    /// <summary>The bytes as text: the charset of the answer when it names one, else UTF-8 (a byte order mark wins over both).</summary>
+    public string Text
+    {
+        get
+        {
+            var encoding = Encoding.UTF8;
+            try { if (Charset is { } name) encoding = Encoding.GetEncoding(name); }
+            catch (ArgumentException) { /* an unknown charset: UTF-8 */ }
+            using var reader = new StreamReader(new MemoryStream(Bytes), encoding, detectEncodingFromByteOrderMarks: true);
+            return reader.ReadToEnd();
+        }
+    }
+}
+
 /// <summary>Sends one request of a <c>.http</c> file with the <see cref="HttpClient"/> it is given (the client of the network policy), without scripts and without keeping cookies.</summary>
 public static class HttpSender
 {
+    /// <summary>
+    /// Fetches <paramref name="address"/> with GET and reads at most <paramref name="maxBytes"/> of the body. Nothing of the answer is run, parsed or saved. Throws as <see cref="HttpClient"/> does, and
+    /// <see cref="UriFormatException"/> for an address that is not http or https.
+    /// </summary>
+    public static async Task<Download> DownloadAsync(HttpClient client, Uri address, int maxBytes, CancellationToken ct)
+    {
+        if (address.Scheme is not ("http" or "https")) throw new UriFormatException("Only http and https addresses are fetched.");
+        using var response = await client.GetAsync(address, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        await using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        var buffer = new MemoryStream();
+        var chunk = new byte[16 * 1024];
+        bool truncated = false;
+        for (int read; (read = await stream.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0;)
+        {
+            if (buffer.Length + read > maxBytes) { buffer.Write(chunk, 0, (int)(maxBytes - buffer.Length)); truncated = true; break; }
+            buffer.Write(chunk, 0, read);
+        }
+        return new Download((int)response.StatusCode, buffer.ToArray(), truncated, response.Content.Headers.ContentType?.MediaType, response.Content.Headers.ContentType?.CharSet?.Trim('"'),
+            response.RequestMessage?.RequestUri ?? address);
+    }
+
     /// <summary>Sends <paramref name="request"/> (variables already replaced). Throws <see cref="HttpRequestException"/> or <see cref="OperationCanceledException"/> as <see cref="HttpClient"/> does, and <see cref="UriFormatException"/> for a URL that is not absolute.</summary>
     public static async Task<HttpAnswer> SendAsync(HttpClient client, HttpRequest request, int maxBodyBytes, CancellationToken ct)
     {

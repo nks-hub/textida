@@ -555,6 +555,7 @@
   "cmd.edit.justifyBlock": "Justify Lines",
   "cmd.edit.insertDateTime": "Insert Date and Time",
   "cmd.edit.insertGuid": "Insert GUID",
+  "cmd.file.openUrl": "Open from the Internet...",
   "cmd.tools.agentFiles": "What an Agent Loads in This Folder",
   "cmd.tools.agentPlans": "Agent Plans",
   "cmd.hex.template.exportJson": "Hex: Export Structure Tree to JSON",
