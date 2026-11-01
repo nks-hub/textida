@@ -151,6 +151,10 @@ internal static class AppCommands
         On("nks.edit.keywordsUpper", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Upper));
         On("nks.edit.keywordsLower", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.Lower));
         On("nks.edit.keywordsAsDefined", w => w.ChangeKeywordCase(Core.Syntax.KeywordCaseMode.AsDefined));
+        On("nks.tools.httpSend", w => w.SendHttpRequest());
+        On("nks.tools.httpEnvironment", w => w.ChooseHttpEnvironment());
+        On("nks.tools.httpCopyCurl", w => w.CopyHttpAsCurl());
+        On("nks.tools.curlToHttp", w => w.CurlToHttp());
         On("nks.edit.insertGuid", w => w.InsertGuid());
         On("nks.edit.insertClip", w => w.ShowClips());
         On("nks.edit.complete", w => w.ShowCompletion());

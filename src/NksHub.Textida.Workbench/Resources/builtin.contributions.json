@@ -1757,6 +1757,38 @@
       "undo": "transaction"
     },
     {
+      "id": "nks.tools.httpSend",
+      "title": "cmd.tools.httpSend",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.tools.httpEnvironment",
+      "title": "cmd.tools.httpEnvironment",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.tools.httpCopyCurl",
+      "title": "cmd.tools.httpCopyCurl",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.tools.curlToHttp",
+      "title": "cmd.tools.curlToHttp",
+      "category": "cat.tools",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4826,6 +4858,30 @@
       "group": "5_more/01.01",
       "submenu": "convert",
       "order": 160
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpSend",
+      "group": "2_run/03",
+      "order": 10
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpEnvironment",
+      "group": "2_run/03",
+      "order": 20
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpCopyCurl",
+      "group": "2_run/03",
+      "order": 30
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.curlToHttp",
+      "group": "2_run/03",
+      "order": 40
     },
     {
       "menu": "edit",

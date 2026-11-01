@@ -2045,3 +2045,13 @@ Die Befehle im Menü Bearbeiten, Umwandeln, ändern die Schreibung nur bei den S
 2. Wählen Sie Bearbeiten, Umwandeln und Schlüsselwörter groß, klein oder wie definiert.
 - Es ändern sich nur die Wörter aus den Schlüsselwortlisten der Grammatik, nicht Zeichenketten, Kommentare oder Bezeichner. Es funktioniert nur bei Sprachen ohne Unterscheidung von Groß- und Kleinschreibung (zum Beispiel SQL, Visual Basic, Batchdateien); bei den anderen ändert der Editor nichts und sagt warum.
 - „Wie definiert“ verwendet die Schreibweise aus der Liste der Grammatik. Es ist ein Rückgängig-Schritt.
+
+## [tools.httpClient] HTTP-Anfragen aus dem Text
+commands: nks.tools.httpSend, nks.tools.httpEnvironment, nks.tools.httpCopyCurl, nks.tools.curlToHttp
+Dateien .http und .rest enthalten Anfragen; die Befehle im Menü Extras senden eine und öffnen die Antwort in einem neuen Tab.
+1. Schreiben Sie eine Anfrage: eine Zeile GET adresse, darunter die Header, eine Leerzeile und den Body. Weitere Anfragen trennen Sie mit einer Zeile ###.
+2. Setzen Sie den Cursor in die Anfrage und wählen Sie Extras und HTTP-Anfrage senden. Bei der ersten Anfrage an einen Server fragt der Editor um Zustimmung.
+- Variablen: eine Zeile @name = Wert definiert eine Variable der Datei, {{name}} verwendet sie; die System-Variablen sind {{$guid}}, {{$timestamp}}, {{$isoTimestamp}} und {{$randomInt}}. Eine Anfrage mit unbekannter Variable wird nicht gesendet.
+- Umgebungen: neben der Datei liegen http-client.env.json (gemeinsam) und http-client.private.env.json (privat, mit den Passwörtern, nicht ins Repository legen). Die Umgebung wählen Sie mit HTTP-Umgebung wählen; private Werte gehen vor und werden nie in die gemeinsame Datei oder die Statusleiste geschrieben.
+- Die Anfrage geht über die Netzwerkeinstellungen des Editors (den Proxy). Die Zustimmung für einen Host wird gemerkt und mit dem Befehl zum Widerrufen der Netzwerkzustimmungen zurückgenommen. Antwort-Skripte (Zeilen mit >) werden nicht ausgeführt.
+- HTTP-Anfrage als cURL kopieren legt die Anfrage mit ersetzten Variablen in die Zwischenablage (mit den privaten Werten). cURL in HTTP-Anfrage umwandeln macht aus dem markierten curl-Befehl eine Anfrage in einem neuen Tab.

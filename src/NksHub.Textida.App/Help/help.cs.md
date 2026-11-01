@@ -2045,3 +2045,13 @@ Příkazy v nabídce Úpravy, Převést změní velikost písmen jen u klíčov�
 2. Zvolte Úpravy, Převést a Klíčová slova velkými, malými nebo podle gramatiky.
 - Mění se jen slova ze seznamů klíčových slov gramatiky, ne řetězce, komentáře ani identifikátory. Funguje to jen u jazyků, které velikost písmen nerozlišují (například SQL, Visual Basic, dávky); u ostatních editor nic nezmění a řekne proč.
 - „Podle gramatiky“ použije pravopis ze seznamu gramatiky. Je to jeden krok Zpět.
+
+## [tools.httpClient] Požadavky HTTP z textu
+commands: nks.tools.httpSend, nks.tools.httpEnvironment, nks.tools.httpCopyCurl, nks.tools.curlToHttp
+Soubory .http a .rest obsahují požadavky; příkazy v nabídce Nástroje požadavek pošlou a odpověď otevřou v nové kartě.
+1. Napište požadavek: řádek GET adresa, pod ním hlavičky, prázdný řádek a tělo. Další požadavky oddělte řádkem ###.
+2. Dejte kurzor do požadavku a zvolte Nástroje a Poslat požadavek HTTP. Při prvním požadavku na server editor požádá o souhlas.
+- Proměnné: řádek @jmeno = hodnota definuje proměnnou souboru, {{jmeno}} ji použije; systémové jsou {{$guid}}, {{$timestamp}}, {{$isoTimestamp}} a {{$randomInt}}. Požadavek s neznámou proměnnou se neposílá.
+- Prostředí: vedle souboru leží http-client.env.json (sdílený) a http-client.private.env.json (soukromý, s hesly, nedávejte ho do repozitáře). Prostředí vyberete příkazem Prostředí požadavků HTTP; soukromé hodnoty přepíšou sdílené a nikdy se nezapíšou do sdíleného souboru ani do stavového řádku.
+- Požadavek jde přes síťové nastavení editoru (proxy). Souhlas s hostem se pamatuje a bere se zpět příkazem pro zrušení souhlasů se sítí. Skripty odpovědí (řádky začínající >) se nespouštějí.
+- Zkopírovat požadavek jako curl dá požadavek s doplněnými proměnnými do schránky (včetně soukromých hodnot). Převést curl na požadavek HTTP udělá z označeného příkazu curl požadavek v nové kartě.

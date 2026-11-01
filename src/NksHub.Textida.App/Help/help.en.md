@@ -2045,3 +2045,13 @@ The commands in the Edit menu, Convert, change the case of the keywords of the l
 2. Choose Edit, Convert and Keywords to Upper Case, Lower Case or as Defined.
 - Only the words of the keyword lists of the grammar change, not strings, comments or identifiers. It works only for languages that are not case sensitive (SQL, Visual Basic and batch files, for example); for the others the editor changes nothing and says why.
 - “As Defined” uses the spelling of the grammar's list. It is one Undo step.
+
+## [tools.httpClient] HTTP requests from text
+commands: nks.tools.httpSend, nks.tools.httpEnvironment, nks.tools.httpCopyCurl, nks.tools.curlToHttp
+Files .http and .rest hold requests; the commands in the Tools menu send one and open the answer in a new tab.
+1. Write a request: a line GET address, the headers under it, a blank line and the body. Separate further requests with a line ###.
+2. Put the caret in the request and choose Tools and Send HTTP Request. The first request to a server asks for your consent.
+- Variables: a line @name = value defines a variable of the file, {{name}} uses it; the system ones are {{$guid}}, {{$timestamp}}, {{$isoTimestamp}} and {{$randomInt}}. A request with an unknown variable is not sent.
+- Environments: beside the file lie http-client.env.json (shared) and http-client.private.env.json (private, with the passwords, keep it out of the repository). Choose the environment with Choose HTTP Environment; private values win over shared ones and are never written to the shared file or to the status bar.
+- The request goes through the network settings of the editor (the proxy). The consent for a host is remembered and taken back with the command that revokes network consents. Response scripts (lines that start with >) are not run.
+- Copy HTTP Request as cURL puts the request, variables replaced, on the clipboard (the private values included). Convert cURL to HTTP Request makes a request of the selected curl command in a new tab.
