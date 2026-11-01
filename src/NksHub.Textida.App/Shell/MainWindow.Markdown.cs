@@ -40,12 +40,13 @@ internal sealed partial class MainWindow
             if (row < 0) return offset;
             if (row >= before.Count) return offset + delta[^1];
             int column = offset - line.Offset;
+            var oldCells = MarkdownTools.CellSpans(before[row]);
+            var newCells = MarkdownTools.CellSpans(after[row]);
             int mapped;
-            if (column >= before[row].Length) mapped = after[row].Length;
+            if (column >= before[row].Length && column > oldCells[^1].Start + oldCells[^1].Length)
+                mapped = after[row].Length + column - before[row].Length;
             else
             {
-                var oldCells = MarkdownTools.CellSpans(before[row]);
-                var newCells = MarkdownTools.CellSpans(after[row]);
                 int cell = 0;
                 for (int i = 1; i < oldCells.Count; i++) if (oldCells[i].RawStart <= column) cell = i;
                 mapped = column < oldCells[0].Start ? Math.Min(column, newCells[0].Start)
