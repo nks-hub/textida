@@ -2020,3 +2020,12 @@ commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previo
 - Eine Datei, die ein anderes Programm im Ordner erzeugt, wartet als Hinzufügung des ganzen Inhalts auf Prüfung: Die Basis ist leer, jede Zeile ist also eine Änderung, und wenn alle Haken entfernt werden, bleibt die Datei leer. Eine geänderte Datei, von der der Verlauf keinen Inhalt hat (hier nie geöffnet oder gespeichert), übernimmt ihren Inhalt beim ersten Sehen als Basis, und die Statuszeile sagt es; die nächste Änderung wird an diesem Inhalt gemessen. Wer alle Änderungen einer Prüfung behält, macht den behaltenen Inhalt zur Basis der nächsten.
 - Die Beobachtung lässt .git, .codegraph, was die Dateien .gitignore und .ignore des Ordners ignorieren (ein ignorierter Ordner nimmt seinen Inhalt mit) und die Protokolle von Agenten aus (einen Ordner projects unter .claude* und einen Ordner sessions unter .codex*). Ausgelassen werden auch Dateien mit geheimen Werten (.env), für einen Tab zu große Dateien, Binärdateien, Dateien, deren neuen Inhalt der Verlauf schon kennt, und Dateien, die der Editor selbst geschrieben hat, einige Sekunden nach In Dateien ersetzen, nach einem Stapel von Kodierungen oder nach einer Dateioperation des Dateipanels.
 - Es warten höchstens 200 Dateien gleichzeitig, und ein Blick erfasst höchstens 500 Dateien; die Statuszeile sagt es, wenn eine Grenze erreicht ist. Diese Grenzen, die halbe Sekunde vor dem Ansehen einer geänderten Datei und die paar Sekunden nach eigenen Schreibvorgängen des Editors sind keine entschiedenen Werte.
+
+## [edit.jsonTypes] JSON in Typen im Code
+commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
+Die Befehle im Menü Bearbeiten, Umwandeln, machen aus JSON eine Go-Struct, eine C#-Klasse oder ein TypeScript-Interface in einem neuen Tab.
+1. Markieren Sie das JSON oder lassen Sie nichts markiert für das ganze Dokument.
+2. Wählen Sie Bearbeiten, Umwandeln und JSON in Go-Struct, C#-Klasse oder TypeScript-Interface.
+- Die Objekte eines Arrays werden zu einem Typ zusammengefasst; ein Feld, das einigen fehlt oder null ist, ist optional (in Go ein Zeiger und omitempty, in C# nullable, in TypeScript ein Fragezeichen).
+- Eine Zahl, die in 64 Bit passt, ist int64 (long, number), jede andere float64 (double, number). Ein Feld ohne bekannten Typ (nur null, leeres Array, gemischte Werte) bekommt den offenen Typ der Sprache.
+- Der Name des Wurzeltyps ist der Dateiname; Text, der kein JSON ist, wird mit dem Grund in der Statusleiste abgelehnt.

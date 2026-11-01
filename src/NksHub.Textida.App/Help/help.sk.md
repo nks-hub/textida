@@ -2020,3 +2020,12 @@ Keď iný program (skript, asistent, nástroj zostavenia) zmení súbor karty be
 - Súbor, ktorý iný program v priečinku vytvorí, čaká na kontrolu ako pridanie celého obsahu: základ je prázdny, takže každý riadok je zmena, a odškrtnutím všetkého zostane súbor prázdny. Zmenený súbor, ktorého obsah história nepozná (tu sa nikdy neotvoril ani neuložil), prevezme obsah pri prvom zbadaní ako základ a stavový riadok to povie; ďalšia zmena sa meria voči tomuto obsahu. Ponechaním všetkých zmien kontroly sa ponechaný obsah stane základom ďalšej kontroly.
 - Sledovanie vynechá .git, .codegraph, čo ignorujú súbory .gitignore a .ignore v priečinku (ignorovaný priečinok vezme so sebou svoj obsah) a prepisy agentov (priečinok projects pod .claude* a priečinok sessions pod .codex*). Vynechá aj súbory s tajnými hodnotami (.env), súbory príliš veľké pre kartu, binárne súbory, súbory, ktorých nový obsah história už pozná, a súbory, ktoré editor zapísal sám, niekoľko sekúnd po Nahradiť v súboroch, po dávke kódovania alebo po operácii súborového panela.
 - Naraz čaká najviac 200 súborov a jedno prezretie zahrnie najviac 500 súborov; stavový riadok povie, keď sa hranica dosiahne. Tieto hranice, pol sekundy pred prezretím zmeneného súboru a niekoľko sekúnd po vlastných zápisoch editora nie sú rozhodnuté hodnoty.
+
+## [edit.jsonTypes] JSON na typy v kóde
+commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
+Príkazy v ponuke Úpravy, Previesť vytvoria z JSONu štruktúru Go, triedu C# alebo rozhranie TypeScript v novej karte.
+1. Označte JSON, alebo nechajte výber prázdny pre celý dokument.
+2. Zvoľte Úpravy, Previesť a JSON na štruktúru Go, triedu C# alebo rozhranie TypeScript.
+- Objekty v poli sa zlúčia do jedného typu; pole, ktoré niektorý z nich nemá alebo má null, je voliteľné (v Go ukazovateľ a omitempty, v C# nullable, v TypeScripte otáznik).
+- Celé číslo, ktoré sa zmestí do 64 bitov, je int64 (long, number), iné číslo float64 (double, number). Pole bez známeho typu (len null, prázdne pole, zmiešané hodnoty) dostane otvorený typ jazyka.
+- Meno koreňového typu je meno súboru; text, ktorý nie je JSON, sa odmietne s dôvodom v stavovom riadku.

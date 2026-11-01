@@ -502,6 +502,8 @@ public static class K
     public const string SettingsValueLanguageEn = "settings.value.language.en";
     public const string SettingsValueLanguageSk = "settings.value.language.sk";
     public const string SettingsValueLanguageDe = "settings.value.language.de";
+    public const string JsonTypesDone = "jsonTypes.done";
+    public const string JsonTypesInvalid = "jsonTypes.invalid";
     public const string SettingsValueEditorWordWrapOff = "settings.value.editor.wordWrap.off";
     public const string SettingsValueEditorWordWrapOn = "settings.value.editor.wordWrap.on";
     public const string SettingsValueEditorRenderWhitespaceNone = "settings.value.editor.renderWhitespace.none";

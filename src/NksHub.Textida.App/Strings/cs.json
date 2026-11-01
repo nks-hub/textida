@@ -2501,6 +2501,8 @@
   "settings.value.language.en": "English",
   "settings.value.language.sk": "Slovenčina",
   "settings.value.language.de": "Deutsch",
+  "jsonTypes.done": "Typy ({language}) jsou v nové kartě.",
+  "jsonTypes.invalid": "Text není platný JSON: {reason}",
   "settings.value.editor.wordWrap.off": "Vypnuto",
   "settings.value.editor.wordWrap.on": "Zapnuto",
   "settings.value.editor.renderWhitespace.none": "Žádné",

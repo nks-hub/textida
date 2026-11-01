@@ -2020,3 +2020,12 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 - Soubor, který jiný program ve složce vytvoří, čeká na kontrolu jako přidání celého obsahu: základ je prázdný, takže každý řádek je změna, a odškrtnutím všeho zůstane soubor prázdný. Změněný soubor, jehož obsah historie nezná (tady se nikdy neotevřel ani neuložil), převezme obsah při prvním spatření jako základ a stavový řádek to řekne; další změna se měří proti tomuto obsahu. Ponecháním všech změn kontroly se ponechaný obsah stane základem příští kontroly.
 - Sledování vynechá .git, .codegraph, co ignorují soubory .gitignore a .ignore ve složce (ignorovaná složka vezme s sebou svůj obsah) a přepisy agentů (složku projects pod .claude* a složku sessions pod .codex*). Vynechá také soubory s tajnými hodnotami (.env), soubory příliš velké pro kartu, binární soubory, soubory, jejichž nový obsah historie už zná, a soubory, které editor zapsal sám, několik sekund po Nahradit v souborech, po dávce kódování nebo po operaci souborového panelu.
 - Naráz čeká nejvýš 200 souborů a jedno prohlédnutí zahrne nejvýš 500 souborů; stavový řádek řekne, když se mez dosáhne. Tyto meze, půl sekundy před prohlédnutím změněného souboru a několik sekund po vlastních zápisech editoru nejsou rozhodnuté hodnoty.
+
+## [edit.jsonTypes] JSON na typy v kódu
+commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
+Příkazy v nabídce Úpravy, Převést vytvoří z JSONu strukturu Go, třídu C# nebo rozhraní TypeScript v nové kartě.
+1. Označte JSON, nebo nechte výběr prázdný pro celý dokument.
+2. Zvolte Úpravy, Převést a JSON na strukturu Go, třídu C# nebo rozhraní TypeScript.
+- Objekty v poli se sloučí do jednoho typu; pole, které některý z nich nemá nebo má null, je volitelné (v Go ukazatel a omitempty, v C# nullable, v TypeScriptu otazník).
+- Celé číslo, které se vejde do 64 bitů, je int64 (long, number), jiné číslo float64 (double, number). Pole bez známého typu (jen null, prázdné pole, smíšené hodnoty) dostane otevřený typ jazyka.
+- Jméno kořenového typu je jméno souboru; text, který není JSON, se odmítne s důvodem ve stavovém řádku.

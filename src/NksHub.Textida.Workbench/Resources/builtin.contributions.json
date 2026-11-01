@@ -1671,6 +1671,30 @@
       "macro": true
     },
     {
+      "id": "nks.edit.jsonToGo",
+      "title": "cmd.edit.jsonToGo",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.edit.jsonToCSharp",
+      "title": "cmd.edit.jsonToCSharp",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
+      "id": "nks.edit.jsonToTypeScript",
+      "title": "cmd.edit.jsonToTypeScript",
+      "category": "cat.edit",
+      "icon": "text",
+      "when": "editorFocus && textView",
+      "enablement": "!largeFileMode"
+    },
+    {
       "id": "nks.edit.repeatLast",
       "title": "cmd.edit.repeatLast",
       "category": "cat.edit",
@@ -4671,6 +4695,27 @@
       "group": "5_more/02.03",
       "submenu": "insert",
       "order": 20
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.jsonToGo",
+      "group": "5_more/01.01",
+      "submenu": "convert",
+      "order": 110
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.jsonToCSharp",
+      "group": "5_more/01.01",
+      "submenu": "convert",
+      "order": 120
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.jsonToTypeScript",
+      "group": "5_more/01.01",
+      "submenu": "convert",
+      "order": 130
     },
     {
       "menu": "edit",

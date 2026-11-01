@@ -2451,6 +2451,8 @@
   "settings.value.language.en": "English",
   "settings.value.language.sk": "Slovenčina",
   "settings.value.language.de": "Deutsch",
+  "jsonTypes.done": "The {language} types are in a new tab.",
+  "jsonTypes.invalid": "The text is not valid JSON: {reason}",
   "settings.value.editor.wordWrap.off": "Off",
   "settings.value.editor.wordWrap.on": "On",
   "settings.value.editor.renderWhitespace.none": "None",

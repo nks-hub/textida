@@ -2020,3 +2020,12 @@ When another program (a script, an assistant, a build tool) changes the file of 
 - A file that another program creates in the folder waits for review as an addition of the whole content: the base is empty, so every line is a change, and unticking everything leaves the file empty. A changed file that the history has no content of (never opened or saved here) takes its content at first sight as the base, and the status bar says so; the next change is measured against that content. Keeping all changes of a review makes the kept content the base of the next one.
 - The watch leaves out .git, .codegraph, what the .gitignore and .ignore files of the folder ignore (an ignored folder takes its content with it) and the transcripts of agents (a projects folder below .claude* and a sessions folder below .codex*). It also leaves out files that hold secret values (.env), files too large for a tab, binary files, files whose new content the history already knows, and the files the editor wrote itself, for a few seconds after Replace in Files, a batch of encodings or a file operation of the file panel.
 - At most 200 files wait at once and one look takes in at most 500 files; the status bar says when a limit is reached. These limits, the half second before a changed file is looked at and the few seconds after the editor's own writes are not decided values.
+
+## [edit.jsonTypes] JSON to types in code
+commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
+The commands in the Edit menu, Convert, make a Go struct, a C# class or a TypeScript interface from JSON in a new tab.
+1. Select the JSON, or leave nothing selected for the whole document.
+2. Choose Edit, Convert and JSON to Go Struct, C# Class or TypeScript Interface.
+- The objects of an array are merged into one type; a field some of them lack or hold null in is optional (a pointer and omitempty in Go, nullable in C#, a question mark in TypeScript).
+- A number that fits in 64 bits is int64 (long, number), any other number float64 (double, number). A field with no known type (only null, an empty array, mixed values) gets the open type of the language.
+- The name of the root type is the name of the file; text that is not JSON is refused with the reason in the status bar.
