@@ -3398,12 +3398,16 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** změna nezasáhne řetězce ani komentáře.
   - **Závisí na:** P3.2.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** změna velikosti klíčových slov jen u tokenů gramatiky a jen v jazycích bez rozlišení velikosti písmen (efbf4769).
 - [ ] **PZ.3.3** Lorem ipsum a inspektor znaku
   - **Co a proč:** Generátor ukázkového textu; inspektor znaku místo samostatné ASCII tabulky.
   - **Funkce:** F091, F084
   - **Hotovo, když:** inspektor ukáže kód, jméno a bajty znaku pod kurzorem v kódování souboru.
   - **Závisí na:** P1.3.1
   - **Odhad:** bez odhadu
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** generátor Lorem ipsum (odstavce, věty, slova) a inspektor znaku pod kurzorem s názvy z Unicode 15 (58ea18a1).
 
 ### PZ.4 Systém a vzhled
 
@@ -3473,12 +3477,16 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** výběr se vykoná v interpretu a výstup je v panelu.
   - **Závisí na:** PZ.6.1
   - **Odhad:** F191 2–3 ČT (matice)
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** řádek nebo výběr do Pythonu, `php -a`, Node a psql v okně výstupu, `.venv` ze složky; psql bere připojení z proměnných `PG*` (14fa9c34).
 - [ ] **PZ.6.3** HTTP požadavky z textu
   - **Co a proč:** Soubory `.http` a `.rest`, proměnné, prostředí a soukromý soubor s hesly, odpověď v nové kartě, převod z a na cURL; bez skriptů odpovědí.
   - **Funkce:** F194
   - **Hotovo, když:** požadavek ze souboru `.http` vrátí odpověď do nové karty a heslo ze soukromého souboru se neuloží do sdíleného.
   - **Závisí na:** P5.4.4
   - **Odhad:** F194 3–5 ČT (matice)
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** soubory `.http` a `.rest`: proměnné, prostředí, soukromý soubor s tajnými hodnotami, odpověď v nové kartě, převod z a na cURL, síť přes politiku a souhlas; chybí zvýraznění syntaxe `.http` (460959f1).
 - [ ] **PZ.6.4** Volající a dopad z codegraph
   - **Co a proč:** Panel „Kdo to volá“ přes `codegraph callers --json`, jen čtení přes CLI.
   - **Funkce:** F258
@@ -3518,6 +3526,8 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** porovnání ukáže shodné, rozdílné a chybějící soubory a kopie proběhne až po náhledu.
   - **Závisí na:** P5.2.1, P5.4.2
   - **Odhad:** F177 3–5 ČT (matice)
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** porovnání dvou složek podle velikosti, času nebo obsahu a kopie jedním směrem po náhledu, nic se nemaže; lokálně i proti serveru, chybějící složku na serveru klient zatím nevytvoří (cb9511e7).
 
 ### PZ.8 Pluginy
 
@@ -3554,6 +3564,8 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Hotovo, když:** šablona s `process: zlib` se otevře a strom jde exportovat do JSON.
   - **Závisí na:** P8.10.1
   - **Odhad:** F246 3–5 ČT (matice)
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** `process: zlib` u řetězce a bajtů se `size` a export stromu šablony do JSON (nejvýš 50 000 uzlů, 64 úrovní, 10 s) (dda18e8c).
 
 ### PZ.10 Další body bez F-ID
 
@@ -3564,6 +3576,8 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Závisí na:** verze 1.0
   - **Odhad:** LSP text 1 ČT, JSON → typ 1–2 ČT; jinak bez odhadu
   - **Stav 29. 10. 2026:** Linux: na žádost majitele vzniklo předběžné sestavení (`tools/BuildLinuxPackage.cs`, `.deb` a `.tar.gz` s `install.sh`) a apt repozitář; kouřový test prošel v CI (Ubuntu 22.04 s Xvfb) i v kontejnerech Debian 12, Ubuntu 22.04 a 24.04. Plná podpora Linuxu (desktopová prostředí, přístupnost, IME, integrace se systémem) zůstává mimo R10.
+  - **Stav 1. 11. 2026:** zadáno vývojáři v rámci autonomní práce na TODO.
+  - **Stav 1. 11. 2026 (sloučeno):** převodník JSON → Go struct, C# třída a TypeScript interface z výběru nebo dokumentu do nové karty (a9134af7).
 
 ## Souhrn
 
