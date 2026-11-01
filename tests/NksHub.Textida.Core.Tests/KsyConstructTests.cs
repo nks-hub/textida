@@ -190,7 +190,6 @@ public class KsyConstructTests
     // ---- what the subset does not have ----
 
     [Theory]
-    [InlineData("size: 4\n    process: zlib(9)", "process zlib")]
     [InlineData("contents: [1, 2]\n    process: zlib", "process zlib with contents")]
     [InlineData("size: 4\n    process: custom(my.Module, 1)", "process custom")]
     [InlineData("size: 4\n    process: xor([1, 2])", "expression array literal")]
@@ -201,6 +200,19 @@ public class KsyConstructTests
         var e = Refuse($"meta:\n  id: x\nseq:\n  - id: a\n    {field}\n");
         Assert.Equal((KsyErrorKind.Unsupported, subject), (e.Kind, e.Subject));
         Assert.True(e.Line >= 5, e.Line.ToString());
+    }
+
+    [Fact]
+    public void Zlib_is_taken_by_its_name_a_stray_argument_is_an_error_of_the_template_and_a_custom_process_is_still_refused_by_its_name()
+    {
+        Assert.True(KsyParser.TryParse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: zlib\n", out var template, out var none), none?.ToString());
+        Assert.Contains("process.zlib", template!.Constructs);
+
+        var argument = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: zlib(9)\n");
+        Assert.Equal((KsyErrorKind.Invalid, "process zlib argument", 6), (argument.Kind, argument.Subject, argument.Line));
+        Assert.Equal("process custom", Refuse("meta:\n  id: x\nseq:\n  - id: a\n    size: 4\n    process: custom(a)\n").Subject);
+        var withContents = Refuse("meta:\n  id: x\nseq:\n  - id: a\n    contents: [1, 2]\n    process: zlib\n");
+        Assert.Equal((KsyErrorKind.Unsupported, "process zlib with contents"), (withContents.Kind, withContents.Subject));
     }
 
     [Fact]

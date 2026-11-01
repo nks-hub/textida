@@ -424,6 +424,7 @@ public static class KsyParser
             }
             int open = call.IndexOf('(', StringComparison.Ordinal);
             string name = open < 0 ? call : call[..open].TrimEnd();
+            if (name == "zlib") throw Err(n.Start, KsyErrorKind.Invalid, "process zlib argument"); // zlib is supported; it takes none
             if (open < 0 || call[^1] != ')' || name is not ("xor" or "rol" or "ror")) throw Err(n.Start, KsyErrorKind.Unsupported, "process " + name);
             Use("process." + name);
             return new KsyProcess(name switch { "xor" => KsyProcessKind.Xor, "rol" => KsyProcessKind.Rol, _ => KsyProcessKind.Ror }, Expr(def, call[(open + 1)..^1], n.Start, "process"));
