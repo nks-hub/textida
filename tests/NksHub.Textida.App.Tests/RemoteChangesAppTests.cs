@@ -9,11 +9,11 @@ using NksHub.Textida.Remote.Tests;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>PZ.7.1: the unsent changes of several files are ticked, shown against the server and sent in one go, against a real FTPS server in the test process.</summary>
+/// <summary>PZ.7.1: the unsent changes of several files are ticked, shown against the server and sent in one go, against a real FTPS server in the test process and a real SSH server (paramiko) for SFTP.</summary>
 [Collection("LocState")]
 public class RemoteChangesAppTests : IDisposable
 {
-    private const string Password = "S3cret-Pass-9981";
+    public static IEnumerable<object[]> Protocols => Servers.Both;
 
     private readonly TempDir _temp = new();
     private readonly TempDir _server = new();
@@ -21,7 +21,7 @@ public class RemoteChangesAppTests : IDisposable
     private readonly MemoryCredentials _secrets = new();
     private readonly App _app;
     private readonly MainWindow _w;
-    private FtpsServer? _ftps;
+    private IServerFixture? _fixture;
 
     public RemoteChangesAppTests()
     {
@@ -32,7 +32,7 @@ public class RemoteChangesAppTests : IDisposable
 
     public void Dispose()
     {
-        if (_ftps is not null) Task.Run(() => _ftps.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(10));
+        if (_fixture is not null) Task.Run(() => _fixture.DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(10));
         TestApp.Cleanup(_app);
         _temp.Dispose();
         _server.Dispose();
@@ -65,13 +65,13 @@ public class RemoteChangesAppTests : IDisposable
         await Until(() => _w.QuickResults.Any(r => r.Title == (tick ? "☑ " : "☐ ") + name), "the list after " + name);
     }
 
-    [AvaloniaFact]
-    public async Task Ticked_files_are_sent_together_and_a_file_changed_on_the_server_needs_its_differences_first()
+    [AvaloniaTheory, MemberData(nameof(Protocols))]
+    public async Task Ticked_files_are_sent_together_and_a_file_changed_on_the_server_needs_its_differences_first(RemoteProtocol protocol)
     {
         foreach (var name in new[] { "a.txt", "b.txt", "c.txt" }) File.WriteAllText(Path.Combine(_server.Path, name), name + " original\n");
-        _ftps = await FtpsServer.StartAsync(_server.Path, password: Password);
-        var connection = _ftps.Connection(_ftps.Identity) with { Name = "Test server" };
-        _app.Remote.Connections.Add(connection, Password, _secrets);
+        _fixture = await Servers.StartAsync(protocol, _server.Path, _temp.Path);
+        var connection = _fixture.Connection(_fixture.Identity) with { Name = "Test server" };
+        _app.Remote.Connections.Add(connection, _fixture.Password, _secrets);
         await using (var client = _app.Remote.CreateClient(connection, new TrustAll()))
         {
             await client.ConnectAsync(default);
@@ -107,13 +107,13 @@ public class RemoteChangesAppTests : IDisposable
         Assert.Contains("2", _w.StatusMessageText);
     }
 
-    [AvaloniaFact]
-    public async Task A_newer_server_version_after_the_differences_were_shown_is_not_overwritten()
+    [AvaloniaTheory, MemberData(nameof(Protocols))]
+    public async Task A_newer_server_version_after_the_differences_were_shown_is_not_overwritten(RemoteProtocol protocol)
     {
         File.WriteAllText(Path.Combine(_server.Path, "a.txt"), "original\n");
-        _ftps = await FtpsServer.StartAsync(_server.Path, password: Password);
-        var connection = _ftps.Connection(_ftps.Identity) with { Name = "Test server" };
-        _app.Remote.Connections.Add(connection, Password, _secrets);
+        _fixture = await Servers.StartAsync(protocol, _server.Path, _temp.Path);
+        var connection = _fixture.Connection(_fixture.Identity) with { Name = "Test server" };
+        _app.Remote.Connections.Add(connection, _fixture.Password, _secrets);
         await using (var client = _app.Remote.CreateClient(connection, new TrustAll()))
         {
             await client.ConnectAsync(default);

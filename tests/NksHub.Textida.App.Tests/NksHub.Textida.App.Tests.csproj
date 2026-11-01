@@ -35,6 +35,8 @@
     <ProjectReference Include="..\..\src\NksHub.Textida.Remote\NksHub.Textida.Remote.csproj" />
     <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\FtpsServer.cs" Link="Servers\FtpsServer.cs" />
     <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\TestProxy.cs" Link="Servers\TestProxy.cs" />
+    <Compile Include="..\NksHub.Textida.Remote.Tests\Servers\TestServers.cs" Link="Servers\TestServers.cs" />
+    <Content Include="..\NksHub.Textida.Remote.Tests\Servers\sftp_server.py" Link="Servers\sftp_server.py" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\NksHub.Textida.McpClient.Tests\FakeMcpHttpServer.cs" Link="Servers\FakeMcpHttpServer.cs" />
     <ProjectReference Include="..\NksHub.Textida.PluginHost.TestPlugin\NksHub.Textida.PluginHost.TestPlugin.csproj" />
     <ProjectReference Include="..\NksHub.Textida.ToolEcho\NksHub.Textida.ToolEcho.csproj" />
