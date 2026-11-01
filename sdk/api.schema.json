@@ -1,0 +1,490 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Textida plugin API: the calls the SDKs make and the handshake",
+  "description": "Made from the types of the C# SDK. Names are camelCase; an integer is a 64-bit number; a member that is not in required may be left out.",
+  "methods": {
+    "initialize": {
+      "params": "#/$defs/InitializeParams",
+      "result": "#/$defs/InitializeResult"
+    },
+    "document/info": {
+      "params": "#/$defs/DocumentRef",
+      "result": "#/$defs/DocumentInfoResult"
+    },
+    "document/selections": {
+      "params": "#/$defs/DocumentRef",
+      "result": "#/$defs/SelectionsResult"
+    },
+    "document/readText": {
+      "params": "#/$defs/ReadTextParams",
+      "result": "#/$defs/ReadTextResult"
+    },
+    "document/facts": {
+      "params": "#/$defs/RevisionParams",
+      "result": "#/$defs/FactsResult"
+    },
+    "document/offsetToPosition": {
+      "params": "#/$defs/PositionParams",
+      "result": "#/$defs/PositionResult"
+    },
+    "edit/apply": {
+      "params": "#/$defs/ApplyParams",
+      "result": null
+    },
+    "edit/propose": {
+      "params": "#/$defs/ProposeParams",
+      "result": null
+    },
+    "ui/notify": {
+      "params": "#/$defs/NoticeParams",
+      "result": null
+    },
+    "ui/task/start": {
+      "params": "#/$defs/TaskStartParams",
+      "result": "#/$defs/TaskStartResult"
+    },
+    "ui/task/progress": {
+      "params": "#/$defs/TaskProgressParams",
+      "result": null
+    },
+    "ui/task/end": {
+      "params": "#/$defs/TaskEndParams",
+      "result": null
+    }
+  },
+  "$defs": {
+    "InitializeParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "apiVersion": {
+          "type": "integer"
+        },
+        "restarted": {
+          "type": "boolean"
+        },
+        "hostName": {
+          "type": "string"
+        },
+        "settings": {
+          "default": null
+        }
+      },
+      "required": [
+        "apiVersion",
+        "restarted",
+        "hostName"
+      ]
+    },
+    "InitializeResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "apiVersion": {
+          "type": "integer"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "eventAcks": {
+          "type": "boolean",
+          "default": false
+        },
+        "idleStop": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "apiVersion",
+        "name"
+      ]
+    },
+    "DocumentRef": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "document"
+      ]
+    },
+    "DocumentInfoResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "revision": {
+          "type": "integer"
+        },
+        "byteLength": {
+          "type": "integer"
+        },
+        "codec": {
+          "type": "string"
+        },
+        "bomLength": {
+          "type": "integer"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "byteLength",
+        "codec",
+        "bomLength",
+        "path"
+      ]
+    },
+    "SelectionsResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "revision": {
+          "type": "integer"
+        },
+        "selections": {
+          "type": "array",
+          "items": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "anchor": {
+                "type": "integer"
+              },
+              "caret": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "anchor",
+              "caret"
+            ]
+          }
+        }
+      },
+      "required": [
+        "revision",
+        "selections"
+      ]
+    },
+    "ReadTextParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "start": {
+          "type": "integer"
+        },
+        "end": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document",
+        "revision",
+        "start",
+        "end"
+      ]
+    },
+    "ReadTextResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "invalid": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "invalid"
+      ]
+    },
+    "RevisionParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document",
+        "revision"
+      ]
+    },
+    "FactsResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "lineEndings": {
+          "type": "object",
+          "properties": {
+            "dominant": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "dominant"
+          ]
+        }
+      },
+      "required": [
+        "lineEndings"
+      ]
+    },
+    "PositionParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "offset": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "document",
+        "revision",
+        "offset"
+      ]
+    },
+    "PositionResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "line": {
+          "type": "integer"
+        },
+        "column": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "line",
+        "column"
+      ]
+    },
+    "ApplyParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "batchId": {
+          "type": "string"
+        },
+        "edits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "document",
+        "revision",
+        "batchId",
+        "edits"
+      ]
+    },
+    "ProposeParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "edits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "integer"
+              },
+              "end": {
+                "type": "integer"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "document",
+        "revision",
+        "title",
+        "edits"
+      ]
+    },
+    "NoticeParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "message"
+      ]
+    },
+    "TaskStartParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "cancellable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "title",
+        "cancellable"
+      ]
+    },
+    "TaskStartResult": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ]
+    },
+    "TaskProgressParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "task": {
+          "type": "string"
+        },
+        "fraction": {
+          "type": "number"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "task",
+        "fraction",
+        "message"
+      ]
+    },
+    "TaskEndParams": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "textida-plugin",
+  "version": "0.1.0",
+  "description": "SDK for Textida plugins written in JavaScript or TypeScript: the plugin protocol and the calls of the document API, with types.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts", "api.d.ts"],
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
