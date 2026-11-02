@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Headless;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -148,6 +150,52 @@ public class ToolbarTests : IDisposable
         Click(ButtonOf("nks.file.new"));
         Assert.Equal(before + 1, _w.Tabs.Count());
         Assert.True(ButtonOf("nks.file.save").IsEnabled); // the state follows the command that ran
+    }
+
+    private void PointerClick(Button button)
+    {
+        var at = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), _w)!.Value;
+        _w.MouseMove(at);
+        _w.MouseDown(at, MouseButton.Left);
+        _w.MouseUp(at, MouseButton.Left);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public void A_mouse_click_hands_the_keyboard_back_to_the_document_and_a_key_press_keeps_it_on_the_button()
+    {
+        Run("nks.view.toggleToolbar");
+        var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        tab.Editor!.Document.Insert(0, "x");
+        Dispatcher.UIThread.RunJobs();
+        var save = ButtonOf("nks.file.save");
+        Assert.True(save.IsEnabled);
+
+        PointerClick(save);
+        Assert.Equal("xalpha\n", File.ReadAllText(tab.Path!)); // the click ran the command
+        Assert.Same(tab.Editor.TextArea, _w.FocusManager!.GetFocusedElement());
+
+        // from the keyboard the focus stays where the user moved it
+        tab.Editor.Document.Insert(0, "y");
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(save.Focus(NavigationMethod.Tab));
+        TestApp.Press(_w, Key.Enter);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("yxalpha\n", File.ReadAllText(tab.Path!));
+        Assert.Same(save, _w.FocusManager.GetFocusedElement());
+    }
+
+    [AvaloniaFact]
+    public void A_mouse_click_on_a_command_that_moves_the_keyboard_itself_leaves_it_there()
+    {
+        Run("nks.view.toggleToolbar");
+        _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Dispatcher.UIThread.RunJobs();
+
+        PointerClick(ButtonOf("nks.search.find"));
+        Assert.True(_w.FindBar.IsVisible);
+        Assert.True(_w.FindBar.IsKeyboardFocusWithin, "Find opened its bar, but the keyboard went back to the document");
     }
 
     [AvaloniaFact]

@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Help;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Toolbar;
@@ -138,9 +139,12 @@ internal sealed partial class MainWindow
     private void RunToolbarCommand(string id, bool refocus)
     {
         var task = _app.Workbench.Commands.ExecuteAsync(id, new ShellContext(this, forMenu: true)).AsTask();
-        if (refocus) Dispatcher.UIThread.Post(() => { if (Active is { } tab && !IsPaletteOpen && !InSidePanels) FocusView(tab); }, DispatcherPriority.Input);
+        // only a keyboard still on the toolbar goes back: a command that moved it itself (Find opens its bar) keeps it where it put it
+        if (refocus) Dispatcher.UIThread.Post(() => { if (Active is { } tab && !IsPaletteOpen && !InSidePanels && KeyboardOnToolbar()) FocusView(tab); }, DispatcherPriority.Input);
         _ = task.ContinueWith(_ => Dispatcher.UIThread.Post(RefreshToolbarState), TaskScheduler.Default);
     }
+
+    private bool KeyboardOnToolbar() => FocusManager?.GetFocusedElement() is not Visual focused || focused == _toolbar || _toolbar.IsVisualAncestorOf(focused);
 
     /// <summary>Opens the editor of the toolbar buttons; a second call brings the open one forward.</summary>
     internal ToolbarEditorWindow ShowToolbarEditor()
