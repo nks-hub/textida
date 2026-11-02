@@ -49,12 +49,12 @@ public class SettingsTreeTests : IDisposable
         var ids = view.TreeIds;
         Assert.Equal(SettingCategories.Appearance, ids[0]);
         Assert.Equal([SettingCategories.Editor, SettingCategories.EditorDisplay, SettingCategories.EditorTyping, SettingCategories.EditorFormat, SettingCategories.EditorEncoding], ids.Skip(1).Take(5));
-        foreach (var id in new[] { SettingCategories.Files, SettingCategories.Search, SettingCategories.Hex, SettingCategories.Git, SettingCategories.History, SettingCategories.Tools, SettingCategories.Keys, SettingCategories.System, SettingCategories.Advanced })
+        // Plugins holds the built-in process sandbox setting (plugins.sandbox) even with no plugin installed
+        foreach (var id in new[] { SettingCategories.Files, SettingCategories.Search, SettingCategories.Hex, SettingCategories.Git, SettingCategories.History, SettingCategories.Tools, SettingCategories.Plugins, SettingCategories.Keys, SettingCategories.System, SettingCategories.Advanced })
             Assert.Contains(id, ids);
         // nothing is listed for a category that holds nothing yet
         Assert.DoesNotContain(SettingCategories.Log, ids);
         Assert.DoesNotContain(SettingCategories.Ai, ids);
-        Assert.DoesNotContain(SettingCategories.Plugins, ids);
         Assert.All(ids, id => Assert.False(string.IsNullOrWhiteSpace(view.TreeItemName(id)), id));
         Assert.Equal(Loc.Get(K.SettingsTitle), view.Title);
         Assert.Equal(SettingCategories.Appearance, view.SelectedCategory);
@@ -388,7 +388,7 @@ public class SettingsTreeTests : IDisposable
         Assert.Equal("Pluginy › Acme Kit", view.PageTitleText);
         Assert.Equal(["acme.kit.level"], view.ShownIds);
         view.SelectCategory(SettingCategories.Plugins);
-        Assert.Equal(["acme.kit.level"], view.ShownIds);
+        Assert.Equal(["plugins.sandbox", "acme.kit.level"], view.ShownIds);
         view.SetQuery("level");
         Assert.Contains(node, view.TreeIds);
         Assert.Equal(1, CountOf(view, node));
