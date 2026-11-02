@@ -17,9 +17,11 @@ public sealed record PlacedEdge(FlowEdge Edge, IReadOnlyList<FlowPoint> Points, 
 /// Where the parts of a <see cref="Flowchart"/> go: the box of every node (in the order of <see cref="Flowchart.Nodes"/>) and the path of every edge, in a drawing of the given size.
 /// Layers by the longest path (an edge against the flow is reversed for the layering only), edges that skip a layer pass through spacer points, the order inside a layer follows the
 /// average place of the neighbours, and sizes come from the display width of the text, so the result is the same on every platform and needs no font.
-/// The nodes of a subgraph are kept side by side inside every layer and given room for the frame, which is the box around them; the layers are not made to respect the frames, so a chart that
-/// mixes the nodes of two subgraphs across layers can have frames that overlap a foreign node.
+/// The nodes of a subgraph are kept side by side inside every layer and given room for the frame, which is the box around them; a chart that
+/// mixes the nodes of two subgraphs across layers has the foreign nodes moved out of the reach of every frame, in every layer the subgraph spans.
+/// A connection to a subgraph ends where the line towards its first node meets the frame.
 /// shortcut: no crossing minimisation beyond four sweeps and no separate routing around nodes; a very tangled chart is drawn correctly but not prettily.
+/// A title wider than its subgraph can still reach a node of the next layer in a left-to-right chart.
 /// </summary>
 public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<FlowBox> Nodes, IReadOnlyList<PlacedEdge> Edges, IReadOnlyList<PlacedGroup> Groups)
 {
@@ -46,40 +48,59 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             chains[v] = [];
             for (int g = owner[v]; g >= 0; g = groups[g].Parent) chains[v].Insert(0, g);
         }
-        IReadOnlyList<int> Chain(int v) => v < n ? chains[v] : [];
+        // the chain of a spacer or a placeholder, which are numbered after the nodes
+        var held = new Dictionary<int, IReadOnlyList<int>>();
+        IReadOnlyList<int> Chain(int v) => v < n ? chains[v] : held.GetValueOrDefault(v) ?? [];
 
-        // layering: reverse the edges that close a cycle, then the longest path from the sources
-        var outgoing = Enumerable.Range(0, n).Select(_ => new List<int>()).ToArray();
-        foreach (var e in chart.Edges) outgoing[e.From].Add(e.To);
+        // layering: reverse the edges that close a cycle, then the longest path from the sources;
+        // an end written as a subgraph is first its first node, then the node of the subgraph that lies nearest to the other end
+        var ends = chart.Edges.Select(e => (e.From, e.To)).ToArray();
         var back = new HashSet<(int, int)>();
-        var state = new int[n];
-        void Visit(int u)
+        var forward = new List<(int K, int A, int B)>();
+        var layerOf = new List<int>();
+        for (int attempt = 0; ; attempt++)
         {
-            state[u] = 1;
-            foreach (int v in outgoing[u])
+            var outgoing = Enumerable.Range(0, n).Select(_ => new List<int>()).ToArray();
+            foreach (var (from, to) in ends) outgoing[from].Add(to);
+            back.Clear();
+            var state = new int[n];
+            void Visit(int u)
             {
-                if (v == u) continue;
-                if (state[v] == 1) back.Add((u, v));
-                else if (state[v] == 0) Visit(v);
+                state[u] = 1;
+                foreach (int v in outgoing[u])
+                {
+                    if (v == u) continue;
+                    if (state[v] == 1) back.Add((u, v));
+                    else if (state[v] == 0) Visit(v);
+                }
+                state[u] = 2;
             }
-            state[u] = 2;
-        }
-        for (int u = 0; u < n; u++) if (state[u] == 0) Visit(u);
+            for (int u = 0; u < n; u++) if (state[u] == 0) Visit(u);
 
-        var forward = chart.Edges.Select((e, k) => (K: k, A: back.Contains((e.From, e.To)) ? e.To : e.From, B: back.Contains((e.From, e.To)) ? e.From : e.To)).Where(e => e.A != e.B).ToList();
-        var layerOf = new List<int>(new int[n]);
-        var below = Enumerable.Range(0, n).Select(_ => new List<int>()).ToArray();
-        var indegree = new int[n];
-        foreach (var (_, a, b) in forward) { below[a].Add(b); indegree[b]++; }
-        var ready = new Queue<int>(Enumerable.Range(0, n).Where(v => indegree[v] == 0));
-        while (ready.Count > 0)
-        {
-            int u = ready.Dequeue();
-            foreach (int v in below[u])
+            forward = ends.Select((e, k) => (K: k, A: back.Contains(e) ? e.To : e.From, B: back.Contains(e) ? e.From : e.To)).Where(e => e.A != e.B).ToList();
+            layerOf = new List<int>(new int[n]);
+            var below = Enumerable.Range(0, n).Select(_ => new List<int>()).ToArray();
+            var indegree = new int[n];
+            foreach (var (_, a, b) in forward) { below[a].Add(b); indegree[b]++; }
+            var ready = new Queue<int>(Enumerable.Range(0, n).Where(v => indegree[v] == 0));
+            while (ready.Count > 0)
             {
-                layerOf[v] = Math.Max(layerOf[v], layerOf[u] + 1);
-                if (--indegree[v] == 0) ready.Enqueue(v);
+                int u = ready.Dequeue();
+                foreach (int v in below[u])
+                {
+                    layerOf[v] = Math.Max(layerOf[v], layerOf[u] + 1);
+                    if (--indegree[v] == 0) ready.Enqueue(v);
+                }
             }
+            bool changed = false;
+            for (int k = 0; attempt == 0 && k < ends.Length; k++)
+            {
+                var (e, (from, to)) = (chart.Edges[k], ends[k]);
+                if (e.ToGroup >= 0 && Enumerable.Range(0, n).Where(v => chains[v].Contains(e.ToGroup)).MinBy(v => layerOf[v], Comparer<int>.Default) is var top && top != to) { to = top; changed = true; }
+                if (e.FromGroup >= 0 && Enumerable.Range(0, n).Where(v => chains[v].Contains(e.FromGroup)).MaxBy(v => layerOf[v], Comparer<int>.Default) is var bottom && bottom != from) { from = bottom; changed = true; }
+                ends[k] = (from, to);
+            }
+            if (!changed) break;
         }
 
         // a spacer point in every layer an edge passes
@@ -89,8 +110,11 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
         foreach (var (k, a, b) in forward)
         {
             var chain = new List<int> { a };
+            // a spacer on an edge inside a subgraph stays in it
+            var shared = chains[a].TakeWhile((g, i) => i < chains[b].Count && chains[b][i] == g).ToList();
             for (int l = layerOf[a] + 1; l < layerOf[b]; l++)
             {
+                if (shared.Count > 0) held[size.Count] = shared;
                 chain.Add(size.Count);
                 size.Add((Spacer, Spacer));
                 layerOf.Add(l);
@@ -103,8 +127,26 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
                 down[chain[i]].Add(chain[i + 1]);
                 up[chain[i + 1]].Add(chain[i]);
             }
-            if (back.Contains((chart.Edges[k].From, chart.Edges[k].To))) chain.Reverse();
+            if (back.Contains(ends[k])) chain.Reverse();
             paths[k] = chain;
+        }
+
+        // a subgraph holds a place in every layer between its first and its last, so that no other node is put there
+        for (int g = groups.Count - 1; g >= 0; g--)
+        {
+            var inside = Enumerable.Range(0, size.Count).Where(v => Chain(v).Contains(g)).Select(v => layerOf[v]).ToHashSet();
+            if (inside.Count == 0) continue;
+            for (int l = inside.Min() + 1; l < inside.Max(); l++)
+            {
+                if (inside.Contains(l)) continue;
+                var whole = new List<int>();
+                for (int h = g; h >= 0; h = groups[h].Parent) whole.Insert(0, h);
+                held[size.Count] = whole;
+                size.Add((Spacer, Spacer));
+                layerOf.Add(l);
+                up.Add([]);
+                down.Add([]);
+            }
         }
 
         // order inside the layers
@@ -125,7 +167,17 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             layer.AddRange(sorted);
             Number(layer);
         }
-        // the members of a subgraph stay together in a layer, the group standing where the average of its members stood
+        // where a subgraph stands across the layers, as the average of the relative places of its members, frozen for a pass so that every layer sees the same order
+        var standing = new double[groups.Count];
+        void Freeze()
+        {
+            for (int g = 0; g < groups.Count; g++)
+            {
+                var members = Enumerable.Range(0, size.Count).Where(v => Chain(v).Contains(g)).ToList();
+                standing[g] = members.Count == 0 ? 0 : members.Average(v => (place[v] + 0.5) / order[layerOf[v]].Count);
+            }
+        }
+        // the members of a subgraph stay together in a layer, the group standing where the average of its members stood; subgraphs side by side keep the same order in every layer
         List<int> Cluster(List<int> items, int depth)
         {
             var units = new List<(List<int> Items, List<int> At)>();
@@ -137,10 +189,15 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
                 else if (byGroup.TryGetValue(chain[depth], out int unit)) { units[unit].Items.Add(items[i]); units[unit].At.Add(i); }
                 else { byGroup[chain[depth]] = units.Count; units.Add(([items[i]], [i])); }
             }
-            return [.. units.OrderBy(u => u.At.Average()).SelectMany(u => Chain(u.Items[0]).Count <= depth ? u.Items : Cluster(u.Items, depth + 1))];
+            var sorted = units.OrderBy(u => u.At.Average()).ToList();
+            var slots = Enumerable.Range(0, sorted.Count).Where(i => Chain(sorted[i].Items[0]).Count > depth).ToList();
+            var ranked = slots.Select(i => sorted[i]).OrderBy(u => standing[Chain(u.Items[0])[depth]]).ThenBy(u => Chain(u.Items[0])[depth]).ToList();
+            for (int k = 0; k < slots.Count; k++) sorted[slots[k]] = ranked[k];
+            return [.. sorted.SelectMany(u => Chain(u.Items[0]).Count <= depth ? u.Items : Cluster(u.Items, depth + 1))];
         }
         for (int pass = 0; pass < 4; pass++)
         {
+            Freeze();
             for (int l = 1; l < layers; l++) Sort(order[l], up);
             for (int l = layers - 2; l >= 0; l--) Sort(order[l], down);
         }
@@ -173,6 +230,7 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             for (int l = 1; l < layers; l++) Relax(order[l], up);
             for (int l = layers - 2; l >= 0; l--) Relax(order[l], down);
         }
+        KeepFramesClear();
         // every node wants the average place of its neighbours; where that would make nodes overlap they share the move, so a pair of branches stays centred under its parent
         void Relax(List<int> layer, List<List<int>> neighbours)
         {
@@ -195,6 +253,54 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             int index = 0;
             foreach (var (sum, count) in blocks)
                 for (int k = 0; k < count; k++, index++) across[layer[index]] = sum / count + starts[index];
+        }
+
+        // a frame reaches across every layer its subgraph spans, so the nodes of other subgraphs are moved out of that reach in every layer
+        void KeepFramesClear()
+        {
+            const double Clear = FramePad + 4;
+            for (int round = 0; round < 4 * groups.Count + 4; round++)
+            {
+                bool moved = false;
+                var reach = new (double Lo, double Hi)?[groups.Count];
+                for (int g = groups.Count - 1; g >= 0; g--)
+                {
+                    var parts = groups[g].Nodes.Select(v => (Lo: across[v] - Across(v) / 2, Hi: across[v] + Across(v) / 2)).Concat(
+                        Enumerable.Range(g + 1, groups.Count - g - 1).Where(h => groups[h].Parent == g && reach[h] is not null).Select(h => reach[h]!.Value)).ToList();
+                    if (parts.Count == 0) continue;
+                    double lo = parts.Min(p => p.Lo) - FramePad - (vertical ? 0 : LineHeight), hi = parts.Max(p => p.Hi) + FramePad, lacking = vertical ? MarkdownTools.DisplayWidth(groups[g].Title) * CharWidth + 2 * FramePad - (hi - lo) : 0;
+                    reach[g] = lacking > 0 ? (lo - lacking / 2, hi + lacking / 2) : (lo, hi);
+                }
+                for (int g = 0; g < groups.Count; g++)
+                {
+                    if (reach[g] is not { } r) continue;
+                    foreach (var layer in order)
+                    {
+                        int first = layer.FindIndex(v => Chain(v).Contains(g)), last = layer.FindLastIndex(v => Chain(v).Contains(g));
+                        if (first < 0) continue;
+                        // a place held for the subgraph where it has no node sits in the middle of the reach
+                        foreach (int v in layer.Skip(first).Take(last - first + 1).Where(v => v >= n && Chain(v).Contains(g)))
+                            if (across[v] < r.Lo || across[v] > r.Hi) across[v] = (r.Lo + r.Hi) / 2;
+                        double limit = r.Lo - Clear;
+                        for (int i = first - 1; i >= 0; i--)
+                        {
+                            int v = layer[i];
+                            double edge = across[v] + Across(v) / 2;
+                            if (edge > limit) { across[v] -= edge - limit; moved = true; }
+                            if (i > 0) limit = across[v] - Across(v) / 2 - Gap(layer[i - 1], v);
+                        }
+                        limit = r.Hi + Clear;
+                        for (int i = last + 1; i < layer.Count; i++)
+                        {
+                            int v = layer[i];
+                            double edge = across[v] - Across(v) / 2;
+                            if (edge < limit) { across[v] += limit - edge; moved = true; }
+                            if (i + 1 < layer.Count) limit = across[v] + Across(v) / 2 + Gap(v, layer[i + 1]);
+                        }
+                    }
+                }
+                if (!moved) break;
+            }
         }
 
         // positions along the flow
@@ -235,34 +341,6 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             boxes[v] = new FlowBox(c.X - size[v].W / 2, c.Y - size[v].H / 2, size[v].W, size[v].H);
         }
 
-        var placed = new List<PlacedEdge>();
-        for (int k = 0; k < chart.Edges.Count; k++)
-        {
-            var e = chart.Edges[k];
-            List<FlowPoint> points;
-            if (e.From == e.To)
-            {
-                var b = boxes[e.From];
-                var (right, middle) = (b.X + b.Width + 24, b.Y + b.Height / 2);
-                var (top, bottom) = (new FlowPoint(right, middle - b.Height / 4), new FlowPoint(right, middle + b.Height / 4));
-                points = [Border(b, chart.Nodes[e.From].Shape, top), top, bottom, Border(b, chart.Nodes[e.From].Shape, bottom)];
-            }
-            else
-            {
-                var centres = paths[k].Select(At).ToList();
-                points = [Border(boxes[e.From], chart.Nodes[e.From].Shape, centres[1]), .. centres.Skip(1).Take(centres.Count - 2), Border(boxes[e.To], chart.Nodes[e.To].Shape, centres[^2])];
-            }
-            FlowBox? label = null;
-            if (e.Label is { } text)
-            {
-                int s = (points.Count - 1) / 2;
-                var mid = new FlowPoint((points[s].X + points[s + 1].X) / 2, (points[s].Y + points[s + 1].Y) / 2);
-                double w = MarkdownTools.DisplayWidth(text) * CharWidth + 10;
-                label = new FlowBox(mid.X - w / 2, mid.Y - LineHeight / 2, w, LineHeight);
-            }
-            placed.Add(new PlacedEdge(e, points, label));
-        }
-
         // the frames, the inner ones first so that an enclosing frame takes them in
         var frames = new FlowBox?[groups.Count];
         for (int g = groups.Count - 1; g >= 0; g--)
@@ -275,6 +353,36 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             frames[g] = new FlowBox(x0, y0, x1 - x0, y1 - y0);
         }
         var framed = Enumerable.Range(0, groups.Count).Where(g => frames[g] is not null).Select(g => new PlacedGroup(g, groups[g].Title, frames[g]!.Value)).ToList();
+
+        var placed = new List<PlacedEdge>();
+        for (int k = 0; k < chart.Edges.Count; k++)
+        {
+            var (e, (from, to)) = (chart.Edges[k], ends[k]);
+            List<FlowPoint> points;
+            if (from == to)
+            {
+                var b = boxes[from];
+                var (right, middle) = (b.X + b.Width + 24, b.Y + b.Height / 2);
+                var (top, bottom) = (new FlowPoint(right, middle - b.Height / 4), new FlowPoint(right, middle + b.Height / 4));
+                points = [Border(b, chart.Nodes[from].Shape, top), top, bottom, Border(b, chart.Nodes[from].Shape, bottom)];
+            }
+            else
+            {
+                var centres = paths[k].Select(At).ToList();
+                var start = e.FromGroup >= 0 && frames[e.FromGroup] is { } fromFrame ? Enter(fromFrame, centres[1], centres[0]) : null;
+                var end = e.ToGroup >= 0 && frames[e.ToGroup] is { } toFrame ? Enter(toFrame, centres[^2], centres[^1]) : null;
+                points = [start ?? Border(boxes[from], chart.Nodes[from].Shape, centres[1]), .. centres.Skip(1).Take(centres.Count - 2), end ?? Border(boxes[to], chart.Nodes[to].Shape, centres[^2])];
+            }
+            FlowBox? label = null;
+            if (e.Label is { } text)
+            {
+                int s = (points.Count - 1) / 2;
+                var mid = new FlowPoint((points[s].X + points[s + 1].X) / 2, (points[s].Y + points[s + 1].Y) / 2);
+                double w = MarkdownTools.DisplayWidth(text) * CharWidth + 10;
+                label = new FlowBox(mid.X - w / 2, mid.Y - LineHeight / 2, w, LineHeight);
+            }
+            placed.Add(new PlacedEdge(e, points, label));
+        }
 
         // move everything into view and measure the drawing
         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
@@ -293,6 +401,20 @@ public sealed record FlowchartLayout(double Width, double Height, IReadOnlyList<
             [.. boxes.Select(b => b with { X = b.X + dx, Y = b.Y + dy })],
             [.. placed.Select(p => new PlacedEdge(p.Edge, [.. p.Points.Select(pt => new FlowPoint(pt.X + dx, pt.Y + dy))], p.Label is { } l ? l with { X = l.X + dx, Y = l.Y + dy } : null))],
             [.. framed.Select(f => f with { Box = f.Box with { X = f.Box.X + dx, Y = f.Box.Y + dy } })]);
+    }
+
+    /// <summary>Where the line from <paramref name="outside"/> to <paramref name="inside"/> first meets the frame; null when the first point is not outside it.</summary>
+    private static FlowPoint? Enter(FlowBox frame, FlowPoint outside, FlowPoint inside)
+    {
+        if (outside.X >= frame.X && outside.X <= frame.X + frame.Width && outside.Y >= frame.Y && outside.Y <= frame.Y + frame.Height) return null;
+        double t0 = 0, t1 = 1, dx = inside.X - outside.X, dy = inside.Y - outside.Y;
+        foreach (var (start, delta, low, high) in new[] { (outside.X, dx, frame.X, frame.X + frame.Width), (outside.Y, dy, frame.Y, frame.Y + frame.Height) })
+        {
+            if (delta == 0) { if (start < low || start > high) return null; continue; }
+            double a = (low - start) / delta, b = (high - start) / delta;
+            (t0, t1) = (Math.Max(t0, Math.Min(a, b)), Math.Min(t1, Math.Max(a, b)));
+        }
+        return t0 <= t1 ? new FlowPoint(outside.X + dx * t0, outside.Y + dy * t0) : null;
     }
 
     /// <summary>The size a node is drawn at: its text plus room, and for a diamond or an ellipse enough room that the text stays inside the outline.</summary>
