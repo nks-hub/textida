@@ -76,10 +76,10 @@ internal interface IMinimapHost
         remove { }
     }
 
-    /// <summary>Zero-based lines edited since the file was opened or saved, ascending; empty when the view does not track them.</summary>
-    IReadOnlyList<long> EditedLines => [];
+    /// <summary>Runs of zero-based lines edited since the file was opened or saved (first and last line, both included), ascending and apart; empty when the view does not track them.</summary>
+    IReadOnlyList<(long First, long Last)> EditedRanges => [];
 
-    /// <summary>Raised when <see cref="EditedLines"/> changed.</summary>
+    /// <summary>Raised when <see cref="EditedRanges"/> changed.</summary>
     event Action? EditedLinesChanged
     {
         add { }
@@ -788,11 +788,15 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private byte[] BuildLane(long lines, int height, bool sampled)
     {
         var lane = new byte[height];
+        int RowOf(long line)
+        {
+            double share = sampled ? _host.ShareOfLine(line) : double.NaN;
+            return (int)Math.Min(height - 1, double.IsNaN(share) ? line * height / lines : (long)(share * height));
+        }
         void Put(long line, MinimapMarkKind kind)
         {
             if (line < 0 || line >= lines) return;
-            double share = sampled ? _host.ShareOfLine(line) : double.NaN;
-            int row = (int)Math.Min(height - 1, double.IsNaN(share) ? line * height / lines : (long)(share * height));
+            int row = RowOf(line);
             if ((byte)kind > lane[row]) lane[row] = (byte)kind;
         }
         foreach (var change in _changes)
@@ -802,7 +806,12 @@ internal sealed unsafe class Minimap : Control, IDisposable
             for (long line = change.Line; line < end; line += step) Put(line, kind);
             Put(end, kind);
         }
-        foreach (long line in _host.EditedLines) Put(line, MinimapMarkKind.Edited);
+        foreach (var (first, last) in _host.EditedRanges)
+        {
+            if (first >= lines || last < 0) continue;
+            for (int row = RowOf(Math.Max(first, 0)), end = RowOf(Math.Min(last, lines - 1)); row <= end; row++)
+                if ((byte)MinimapMarkKind.Edited > lane[row]) lane[row] = (byte)MinimapMarkKind.Edited;
+        }
         foreach (long line in _host.OccurrenceLines) Put(line, MinimapMarkKind.Occurrence);
         foreach (var mark in _marks.Concat(_filterMarks)) Put(mark.Line, mark.Kind);
         return lane;
