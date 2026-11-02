@@ -142,7 +142,8 @@ internal static class HighlightExport
     /// <summary>
     /// The colored text as a LaTeX document that compiles with pdfLaTeX, XeLaTeX or LuaLaTeX: the page and text colors of the theme, and the text in a <c>Verbatim</c> block
     /// (fancyvrb) in which each colored stretch is a <c>\textcolor</c>. A stretch never spans a line, since the block reads line by line. Backslash and braces are written as macros,
-    /// every other character as it is (the file is UTF-8); control characters other than tab are left out.
+    /// every other character as it is (the file is UTF-8). A tab becomes spaces up to the next multiple of four columns; control characters, DEL and the byte order mark are left out.
+    /// XeLaTeX and LuaLaTeX take all characters; pdfLaTeX only those that inputenc and the T1 fonts know (an emoji stops it).
     /// </summary>
     public static string Tex(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
     {
@@ -151,7 +152,7 @@ internal static class HighlightExport
         sb.Append(@"\newcommand{\TxBs}{\char`\\}").Append('\n').Append(@"\newcommand{\TxOb}{\char`\{}").Append('\n').Append(@"\newcommand{\TxCb}{\char`\}}").Append('\n');
         sb.Append(@"\begin{document}").Append('\n');
         sb.Append(@"\pagecolor[HTML]{").Append(TexHex(theme.Background)).Append(@"}\color[HTML]{").Append(TexHex(theme.Foreground)).Append('}').Append('\n');
-        sb.Append(@"\begin{Verbatim}[commandchars=\\\{\},obeytabs,tabsize=4,fontsize=\small]").Append('\n');
+        sb.Append(@"\begin{Verbatim}[commandchars=\\\{\},fontsize=\small]").Append('\n');
 
         var line = new StringBuilder();
         void Flush(Color? color)
@@ -161,6 +162,7 @@ internal static class HighlightExport
             else sb.Append(line);
             line.Clear();
         }
+        int column = 0; // a tab is written as spaces: obeytabs cannot measure the column inside the argument of \textcolor
         foreach (var segment in Segments(text, tokenizer, levels, theme.Palette, range, cancel, startState))
         {
             var slice = text.AsSpan(segment.Start, segment.Length);
@@ -173,12 +175,21 @@ internal static class HighlightExport
                         if (c == '\r' && i + 1 < slice.Length && slice[i + 1] == '\n') i++;
                         Flush(segment.Color);
                         sb.Append('\n');
+                        column = 0;
                         break;
-                    case '\\': line.Append(@"\TxBs{}"); break;
-                    case '{': line.Append(@"\TxOb{}"); break;
-                    case '}': line.Append(@"\TxCb{}"); break;
-                    case < ' ' and not '\t': break;
-                    default: line.Append(c); break;
+                    case '\t':
+                        int width = TabSize - column % TabSize;
+                        line.Append(' ', width);
+                        column += width;
+                        break;
+                    case '\\': line.Append(@"\TxBs{}"); column++; break;
+                    case '{': line.Append(@"\TxOb{}"); column++; break;
+                    case '}': line.Append(@"\TxCb{}"); column++; break;
+                    case < ' ' or (>= '\u007F' and <= '\u009F') or '﻿': break; // LaTeX stops at these
+                    default:
+                        line.Append(c);
+                        if (!char.IsLowSurrogate(c)) column++;
+                        break;
                 }
             }
             Flush(segment.Color);
@@ -186,6 +197,8 @@ internal static class HighlightExport
         if (sb[^1] != '\n') sb.Append('\n');
         return sb.Append(@"\end{Verbatim}").Append('\n').Append(@"\end{document}").Append('\n').ToString();
     }
+
+    private const int TabSize = 4;
 
     private static string TexHex(Color c) => Hex(c)[1..];
 
