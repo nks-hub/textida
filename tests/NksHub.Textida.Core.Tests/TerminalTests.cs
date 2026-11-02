@@ -131,6 +131,24 @@ public class TerminalTests
         return condition();
     }
 
+    /// <summary>
+    /// The output is read only after the handlers are attached: a caller held up between starting the shell and subscribing (a busy machine) still gets the first prompt, which the shell writes
+    /// once and then waits for input. Before, the reader started first and dropped that prompt, and the terminal stayed empty.
+    /// </summary>
+    [Fact]
+    public async Task The_first_output_of_the_shell_waits_for_the_handlers_of_a_late_caller()
+    {
+        string program = OperatingSystem.IsWindows() ? Path.Combine(Environment.SystemDirectory, "cmd.exe") : "/bin/sh";
+        var said = new StringBuilder();
+        using var pty = PseudoTerminal.Start(program, OperatingSystem.IsWindows() ? ["/q"] : ["-i"], Path.GetTempPath(), null, 80, 20, started =>
+        {
+            Thread.Sleep(1500); // held up long enough for the shell to write its prompt
+            started.OutputReceived += chunk => { lock (said) said.Append(Encoding.UTF8.GetString(chunk.Span)); };
+        });
+        string Said() { lock (said) return System.Text.RegularExpressions.Regex.Replace(said.ToString(), @"\u001b\[[0-9;?]*[A-Za-z]|\u001b\][^\u0007]*\u0007", "").Trim(); }
+        Assert.True(await Until(() => Said().Length > 0, 10_000), "nothing of the first output arrived");
+    }
+
     [Fact]
     public async Task A_real_unix_shell_runs_takes_input_follows_a_resize_and_ends_with_the_session()
     {

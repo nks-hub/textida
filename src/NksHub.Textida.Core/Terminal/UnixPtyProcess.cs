@@ -22,10 +22,11 @@ internal sealed class UnixPtyProcess : IPseudoTerminal
     private int? _exitCode;
     private int _exitReported;
 
-    private UnixPtyProcess(int master, int pid)
+    private UnixPtyProcess(int master, int pid, Action<IPseudoTerminal>? attach)
     {
         _master = master;
         _pid = pid;
+        attach?.Invoke(this); // before the reader starts: what the program writes at once must find its handlers
         _reader = new Thread(ReadLoop) { IsBackground = true, Name = "pty-reader" };
         _reader.Start();
         new Thread(WaitForExit) { IsBackground = true, Name = "pty-wait" }.Start();
@@ -44,7 +45,8 @@ internal sealed class UnixPtyProcess : IPseudoTerminal
         }
     }
 
-    internal static UnixPtyProcess Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string> environment, int columns, int rows)
+    internal static UnixPtyProcess Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string> environment, int columns, int rows,
+        Action<IPseudoTerminal>? attach)
     {
         // everything the child needs is made here, before the fork
         var argv = Pointers([program, .. arguments]);
@@ -62,7 +64,7 @@ internal sealed class UnixPtyProcess : IPseudoTerminal
                 ExecuteVe(path, argv, envp);
                 Exit(127);
             }
-            return new UnixPtyProcess(master, pid);
+            return new UnixPtyProcess(master, pid, attach);
         }
         finally
         {
