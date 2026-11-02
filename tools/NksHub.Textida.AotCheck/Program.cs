@@ -1,4 +1,5 @@
 using System.Text;
+using NksHub.Textida.Core.Agents;
 using NksHub.Textida.Core.Encodings;
 
 // Exercises every codec, detection, loss reporting and normalisation; a trimmed or AOT-broken code page table fails here.
@@ -31,6 +32,8 @@ Check(ByteFidelity.PlanConvert(utf8, TextCodec.Cp1250).Loss.Total == 1, "loss wa
 Check(ByteFidelity.Convert(utf8, TextCodec.Cp1250, "?").AsSpan().SequenceEqual(new byte[] { 0xF8, 0xE8, 0x3F }), "convert with replacement");
 Check(ByteFidelity.PlanConvert(utf8, TextCodec.Cp1252).Loss.Total == 3, "cp1252 loss");
 Check(UnicodeNormalizer.Preview(TextCodec.Utf8.Decode(TextCodec.Utf8.Encode("é")), NormalizationForm.FormC).Count == 1, "normalization");
+// the bundled o200k_base vocabulary is an embedded resource found by type name; a trimmed one fails here (40 is the count of tiktoken 0.14.0)
+Check(TokenEstimator.Count("Příliš žluťoučký kůň úpěl ďábelské ódy. Řeřicha, ještě, čtvrť, ďolíček.", TokenEstimator.OpenAi) == new TokenCount(40, true), "o200k_base token count");
 
 await RemoteChecks.RunAsync(args, Check);
 await RpcChecks.RunAsync(Check);

@@ -126,6 +126,51 @@ public class AgentToolsAppTests : IDisposable
         Assert.Contains(Loc.Get(K.TokensEstimateNote), asked.Message);
     }
 
+    // the counts are those of Python tiktoken 0.14.0 with o200k_base for the same strings
+    private const string Czech = "Příliš žluťoučký kůň úpěl ďábelské ódy. Řeřicha, ještě, čtvrť, ďolíček."; // 40 tokens
+    private const string English = "The quick brown fox jumps over the lazy dog. Tokenizers split text into pieces that a model reads."; // 21 tokens, 61 for Czech + "\n" + English
+
+    [AvaloniaFact]
+    public async Task The_openai_rule_counts_the_selection_exactly_with_o200k_base_and_shows_no_estimate_mark()
+    {
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = Czech + "\n" + English;
+        tab.Editor.Select(0, Czech.Length);
+        _w.TokenRule = TokenEstimator.OpenAi;
+        string exact40 = Loc.Get(K.TokensStatusExact, ("tokens", "40"), ("encoding", "o200k_base"));
+        await Until(() => (string?)_w.TokensItem.Content == exact40, "the exact count of the first selection");
+        Assert.DoesNotContain("≈", exact40);
+        Assert.Contains("o200k_base", (string)ToolTip.GetTip(_w.TokensItem)!);
+
+        // a new selection while a count runs is counted when that one is done
+        tab.Editor.Select(Czech.Length + 1, English.Length);
+        tab.Editor.Select(0, Czech.Length + 1 + English.Length);
+        await Until(() => (string?)_w.TokensItem.Content == Loc.Get(K.TokensStatusExact, ("tokens", "61"), ("encoding", "o200k_base")), "the exact count of the last selection");
+
+        _w.TokenRule = TokenEstimator.Gemini;
+        Assert.Equal(Loc.Get(K.TokensStatus, ("count", "43")), _w.TokensItem.Content);
+        Assert.StartsWith("≈", (string)_w.TokensItem.Content!);
+    }
+
+    [AvaloniaFact]
+    public async Task The_details_of_the_openai_rule_give_exact_counts_and_name_the_encoding()
+    {
+        var tab = _w.NewDocument();
+        tab.Editor!.Document.Text = Czech + "\n" + English;
+        tab.Editor.Select(0, Czech.Length);
+        _w.TokenRule = TokenEstimator.OpenAi;
+        _dialogs.Answers.Enqueue(0);
+        Assert.Equal(CommandOutcome.Handled, _w.ShowTokenEstimate());
+        await _w.TokenDialogTask;
+
+        var asked = Assert.Single(_dialogs.Asked);
+        Assert.Contains(Loc.Get(K.TokensSelectionExact, ("tokens", "40"), ("chars", "71")), asked.Message);
+        Assert.Contains(Loc.Get(K.TokensDocumentExact, ("tokens", "61"), ("chars", "170")), asked.Message);
+        Assert.Contains(Loc.Get(K.TokensExactNote, ("encoding", "o200k_base"), ("size", MainWindow.FormatTokens(TokenEstimator.ExactMaxCharacters))), asked.Message);
+        Assert.DoesNotContain(Loc.Get(K.TokensEstimateNote), asked.Message);
+        Assert.DoesNotContain("≈", asked.Message.Split("\n\n")[0]);
+    }
+
     // ---- the hooks editor ----
 
     private const string Settings = "{\n  \"model\": \"x\",\n  \"hooks\": {\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          { \"type\": \"command\", \"command\": \"echo hi\" }\n        ]\n      }\n    ]\n  }\n}\n";

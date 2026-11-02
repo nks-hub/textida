@@ -5,6 +5,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Agents;
 using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Settings;
@@ -216,7 +217,10 @@ public class NetworkNoConsentTests
         foreach (var rule in TokenEstimator.Presets)
         {
             rig.Window.TokenRule = rule;
+            await rig.Window.TokenCountTask;
             Assert.True(rig.Window.TokensItem.IsVisible);
+            // the OpenAI rule counts exactly with the bundled o200k_base vocabulary (378 by tiktoken 0.14.0), every other rule is an estimate
+            Assert.Equal(rule.Encoding is null ? Loc.Get(K.TokensStatus, ("count", MainWindow.FormatTokens(TokenEstimator.Estimate(3000, rule)))) : Loc.Get(K.TokensStatusExact, ("tokens", "378"), ("encoding", "o200k_base")), rig.Window.TokensItem.Content);
             rig.Dialogs.Answers.Enqueue(0);
             rig.Window.ShowTokenEstimate();
             await rig.Window.TokenDialogTask;
