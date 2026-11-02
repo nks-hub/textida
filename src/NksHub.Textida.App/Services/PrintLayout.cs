@@ -105,7 +105,7 @@ internal static class PrintLayout
             {
                 if (char.IsControl(c) && c != '\t') continue;
                 int span = c == '\t' ? tab - column % tab : 1;
-                if (column + span > width && column > 0)
+                if (column + span > width && column > 0 && !char.IsLowSurrogate(c)) // a surrogate pair stays on one row
                 {
                     Flush();
                     rows.Add([]);
