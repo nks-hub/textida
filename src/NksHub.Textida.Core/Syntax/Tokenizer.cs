@@ -34,6 +34,7 @@ public sealed class Tokenizer(Grammar grammar)
         int n = text.Length;
         int limit = final ? n : SafeLimit(text, begin);
         int pos = begin, from = begin;
+        if (begin == 0 && state.HasWhile) pos = from = MatchWhiles(text, ref state, tokens, shift, firstColumn, lastColumn);
         while (true)
         {
             var ctx = state.Context;
@@ -102,6 +103,31 @@ public sealed class Tokenizer(Grammar grammar)
 
         if (final)
             while (state.Parent is not null && !state.Context.Multiline) state = state.Parent;
+        return pos;
+    }
+
+    /// <summary>
+    /// At a line start: each open region with a <c>while</c> expression, outermost first, must match it where the previous one ended; the first that does not is closed together with everything inside it.
+    /// Returns where the scan goes on.
+    /// </summary>
+    private static int MatchWhiles(string text, ref LineState state, List<Token> tokens, int shift, int firstColumn, int lastColumn)
+    {
+        var frames = new List<LineState>();
+        for (var s = state; s is not null; s = s.Parent)
+            if (s.Context.While is not null) frames.Add(s);
+        int pos = 0;
+        for (int i = frames.Count - 1; i >= 0; i--)
+        {
+            var ctx = frames[i].Context;
+            if (ctx.WhileMatch(text, pos) is not { } m)
+            {
+                state = frames[i].Parent!;
+                break;
+            }
+            if (ctx.WhileCaptures is { } captures) EmitGroups(tokens, m.Index, m.Length, ctx.EndToken, captures, m, shift, firstColumn, lastColumn);
+            else Emit(tokens, m.Index, m.Index + m.Length, ctx.EndToken, shift, firstColumn, lastColumn);
+            pos = m.Index + m.Length;
+        }
         return pos;
     }
 

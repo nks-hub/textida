@@ -199,12 +199,16 @@ internal sealed class ContextDef : Rule
     /// <summary>Token kinds of capturing groups of the begin expression, by group number, ascending.</summary>
     public (int Group, string Kind)[]? BeginCaptures { get; init; }
     public (int Group, string Kind)[]? EndCaptures { get; init; }
+    /// <summary>Instead of an end expression: the region goes on at a following line only while this expression matches at the line start.</summary>
+    public string? While { get; init; }
+    public (int Group, string Kind)[]? WhileCaptures { get; init; }
     public List<Rule> Rules { get; } = [];
 
     private static readonly Regex BeginReference = new(@"\(\?#begin:(\d+)\)", RegexOptions.CultureInvariant);
     private readonly ConditionalWeakTable<object, Dictionary<string, WeakReference<LineState>>> _dynamicStates = new();
     private readonly ConcurrentDictionary<string, Matcher> _dynamicMatchers = new(StringComparer.Ordinal);
     private Regex? _beginDetail;
+    private Regex? _while;
 
     /// <summary>The end expression holds <c>(?#begin:N)</c>: the escaped text group N of the begin match stands there, so every opening of the region has its own end.</summary>
     internal bool EndRefersBack => End is not null && End.Contains("(?#begin:", StringComparison.Ordinal);
@@ -219,6 +223,17 @@ internal sealed class ContextDef : Rule
         try
         {
             var m = (_beginDetail ??= new Regex(@"\G(?:" + Begin + ")", DetailOptions, TimeSpan.FromSeconds(1))).Match(text, index);
+            return m.Success ? m : null;
+        }
+        catch (RegexMatchTimeoutException) { return null; }
+    }
+
+    /// <summary>The <see cref="While"/> expression anchored at <paramref name="index"/>, with its groups captured; null when it does not match there. The expression is compiled once per region.</summary>
+    internal Match? WhileMatch(string text, int index)
+    {
+        try
+        {
+            var m = (_while ??= new Regex(@"\G(?:" + While + ")", DetailOptions, TimeSpan.FromSeconds(1))).Match(text, index);
             return m.Success ? m : null;
         }
         catch (RegexMatchTimeoutException) { return null; }

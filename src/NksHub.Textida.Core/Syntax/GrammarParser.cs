@@ -9,7 +9,7 @@ internal static class GrammarParser
     private static readonly HashSet<string> TopKeys = ["$schema", "formatVersion", "id", "name", "version", "extensions", "fileNames", "firstLine", "caseSensitive", "wordPattern", "keywords", "comments", "repository", "rules"];
     private static readonly HashSet<string> CommentKeys = ["line", "block"];
     private static readonly HashSet<string> GroupKeys = ["name", "token", "words", "caseSensitive"];
-    private static readonly HashSet<string> RuleKeys = ["match", "words", "operators", "begin", "include", "token", "end", "beginToken", "endToken", "multiline", "rules", "embed", "name", "beginCaptures", "endCaptures"];
+    private static readonly HashSet<string> RuleKeys = ["match", "words", "operators", "begin", "include", "token", "end", "beginToken", "endToken", "multiline", "rules", "embed", "name", "beginCaptures", "endCaptures", "while", "whileCaptures"];
     private static readonly Regex KindPattern = new(@"^[a-z][a-z0-9]*(\.[a-z0-9]+)*$", RegexOptions.CultureInvariant);
     private static readonly Regex IdPattern = new(@"^[a-z0-9][a-z0-9-]*$", RegexOptions.CultureInvariant);
 
@@ -130,9 +130,11 @@ internal static class GrammarParser
         }
 
         string begin = RequiredString(e, "begin", path);
-        string? end = OptionalString(e, "end") ?? throw new GrammarException($"{path} needs an end pattern.");
+        string? end = OptionalString(e, "end"), whilePattern = OptionalString(e, "while");
+        if ((end is null) == (whilePattern is null)) throw new GrammarException($"{path} needs an end pattern or a while pattern, not both.");
         CheckRegex(begin, g.Id, path + ".begin");
-        CheckRegex(end, g.Id, path + ".end");
+        if (end is not null) CheckRegex(end, g.Id, path + ".end");
+        if (whilePattern is not null) CheckRegex(whilePattern, g.Id, path + ".while");
         var ctx = new ContextDef(g)
         {
             Name = OptionalString(e, "name") ?? token ?? "region",
@@ -141,10 +143,12 @@ internal static class GrammarParser
             Token = token,
             BeginToken = OptionalString(e, "beginToken") is { } bt ? Kind(bt, path) : token,
             EndToken = OptionalString(e, "endToken") is { } et ? Kind(et, path) : token,
-            Multiline = OptionalBool(e, "multiline") ?? false,
+            Multiline = OptionalBool(e, "multiline") ?? whilePattern is not null,
             Embed = OptionalString(e, "embed"),
             BeginCaptures = Captures(e, "beginCaptures", path),
             EndCaptures = Captures(e, "endCaptures", path),
+            While = whilePattern,
+            WhileCaptures = Captures(e, "whileCaptures", path),
         };
         if (e.TryGetProperty("rules", out var inner)) ParseRules(g, inner, ctx.Rules, path + ".rules");
         return ctx;
