@@ -49,8 +49,14 @@ public class RemoteFileTests : IDisposable
     /// <summary>The text of a file the server is changing right now; null while FTP has the old file parked and the new one not yet in place.</summary>
     private static string? Read(string path)
     {
-        try { return File.ReadAllText(path); }
+        // FileShare.Delete: a plain read holds the file against the server's rename on Windows, and the server answers that RNTO with 501
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return new StreamReader(stream).ReadToEnd();
+        }
         catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; } // a file being moved in place can refuse for a moment
     }
 
     private static async Task Until(Func<bool> condition, string what, int timeoutMs = 20_000)
