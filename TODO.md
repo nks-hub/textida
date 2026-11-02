@@ -192,6 +192,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** automatický test spočítá kontrast všech dvojic barev textu a pozadí z témat a každá dvojice pod 4,5 : 1 test shodí; systémový vysoký kontrast na Windows i macOS se ručně ověří; změny v textu, diffu a hexu jdou rozlišit i bez barvy.
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu; účtuje se v P1 a P9
+  - **Stav 2. 11. 2026 (2ec87afb, sloučeno 9882a7f3):** kontrast 4,5:1 se teď testuje i ve světlém a tmavém tématu: všechny dvojice text/pozadí a všechny barvy syntaxe na editoru i na řádku s kurzorem. Test našel a opravy upravily: čísla řádků 3,2 a 3,6:1, tmavé přidané slovo v diffu 3,9:1, světlé number, type, log.debug a log.warning na řádku s kurzorem, tmavý komentář 4,49:1, světlý Accent na InfoBg 4,49:1 (`App.axaml`, `SyntaxPalette.cs`). `ContrastThemeTests` 16/16. Barvy nikdo neviděl v běžící aplikaci.
 
 ### PR.5 Dokumentace
 
@@ -1476,6 +1477,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Umístění:** jádro (`Workbench/Commands`, `builtin.contributions.json`)
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
   - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (b1f82990). Nové kontextové klíče: druh souboru, skupina jazyků, režim logu, repozitář Git, vzdálený soubor, náhled Markdownu. Pravidla `when`/`enablement` a test tabulky proti skutečnému menu. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
+  - **Kontrola kódu 2. 11. 2026:** kontextové klíče pro druh souboru, log, Git, vzdálený soubor a Markdown v kódu jsou; zbývá pohled v běžící aplikaci.
 - [ ] **P3.6.17** Review a přeorganizování celé nabídky
   - **Co a proč:** Majitel 28. 10. 2026: projít celou nabídku a logicky ji roztřídit.
   - **Dnešní stav:** 422 příkazů a 371 položek menu v deseti nabídkách:
@@ -2314,6 +2316,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
   - **Stav 31. 10. 2026:** kód je hotový: plugin JSON posílá dotazy do registrů přes `EditorHttpHandler`, tedy přes proxy a síťovou politiku editoru. `ConnectTimeoutSeconds` pro FTPS a SFTP čeká na rozhodnutí majitele.
   - **Rozhodnuto (dávka 7, 07a4e86c; zapsáno 2. 11. 2026):** `RemoteConnection.ConnectTimeoutSeconds` bez hodnoty nechává výchozí časový limit knihovny (FluentFTP, SSH.NET), uživatel ho může u spojení nastavit; `net/request` pluginů 30 s a odpověď nejvýš 2 MiB (`PluginLimits.NetworkTimeoutMilliseconds`, `NetworkMaxResponseBytes`).
   - **Oprava 2. 11. 2026 (6ee8a2da, sloučeno e48b0958):** FTPS přes HTTP proxy se na macOS a Linuxu nepřipojilo: FluentFTP 55.1.0 `AsyncFtpClientHttp11Proxy` skládá CONNECT přes `StreamWriter.WriteLine` (`Environment.NewLine`, mimo Windows holé LF), proxy nedostala konec hlaviček a klient po 15 s vypršel (zachyceno sondou na referenční Mac). `CrlfHttpProxyClient` posílá stejný požadavek s CRLF včetně Basic `Proxy-Authorization` a tunel otevře na 2xx. SOCKS4/5 (binární) a SSH.NET HTTP proxy (pevné CRLF) problém nemají. Testovací proxy teď čeká na CRLF jako skutečná; `ProxyTests` 32/32, `NetworkConsentTests` 16/16 na Windows; macOS se ověřuje.
+  - **Kontrola kódu 2. 11. 2026:** plugin JSON přihlášení k proxy umí (`NetworkConsentTests.With_a_proxy_that_asks_for_a_login…` prošel na Windows i macOS).
 - [x] **P5.4.5** Zámky a souběžný zápis
   - **Co a proč:** Systémové a vlastní zámky editoru a nový výslovný režim souběžného zápisu. Zámky `.lck` PSPadu se v 1.0 nečtou; editor nenačítá žádné soubory PSPadu.
   - **Funkce:** F026
@@ -2431,6 +2434,7 @@ Společný základ celé etapy (kap. 5.3). F179, F180 a pluginy do ní jen posí
   - **Umístění:** jádro
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Sledovaná složka s ignorováním `.gitignore`/`.ignore`, čekající kontroly se základem z historie přežijí restart; nové soubory a soubory bez základu se nekontrolují. Neověřeno se skutečným Claude Code a Codexem.
   - **Stav 31. 10. 2026:** kód je hotový: `ReviewIgnore` vynechá `.git`, `.codegraph` a pravidla `.gitignore`. Chybí ověření se skutečným Claude Code a Codexem.
+  - **Kontrola kódu 2. 11. 2026:** nové soubory a soubory bez základu se kontrolují, sledovanou složku a ignorování řeší `MainWindow.ReviewFolder.cs`; zbývá ověření se skutečným Claude Code a Codexem.
 - [x] **P6.1.2** Návrhy pluginů do revize změn
   - **Co a proč:** `edit/propose` z P3b se přepojí ze služby náhledu změn na revizi F178. Odpověď přijde po rozhodnutí uživatele. Je to rozšíření kontraktu F199; návrhový mechanismus z P3b se znovu neúčtuje.
   - **Funkce:** F199 (částečně: napojení na F178)
@@ -3282,6 +3286,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Ověření 1. 11. 2026:** `HighlightExportWordTests` se skutečným Wordem na vývojovém PC prošel (1/1).
   - **Kontrola 2. 11. 2026:** výběr ve stránkovaném režimu se už barví podle skutečného stavu gramatiky na řádku (`ReadPagedExportSourceAsync` přes `StartStateOfLineAsync`, test `A_selection_in_a_large_file_is_colored_as_the_whole_document` s blokovým komentářem i řetězcem); řádek „Chybí“ byl zastaralý.
   - **Stav 2. 11. 2026 (25ffd936):** „Exportovat jako PDF…“ (podmenu Export vedle HTML a RTF, cs/en/sk/de) už existoval; přibyl test, že PDF výběru má jen vybraný text a aspoň 3 barvy výplně (dřívější kontrola barev ignorovala desetinná čísla operátoru `rg`). `PrintAppTests` 3/3. TeX nedělán.
+  - **Stav 2. 11. 2026 (2c982f61, sloučeno 9882a7f3):** export jako LaTeX (`nks.file.exportTex`, Soubor › Exportovat): samostatný UTF-8 dokument s barvami stránky a tokenů z tématu, `	extcolor` ve `Verbatim`, zpětné lomítko a složené závorky přes makra; menu, názvy a nápověda ve 4 jazycích. Testy čtou výstup zpět a porovnávají text i barvy s editorem (57/57, 17/17). Překlad pdfLaTeXem/XeLaTeXem neověřen (na vývojovém PC není).
 - [x] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
