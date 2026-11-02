@@ -230,6 +230,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** CI selže, když je v repozitáři cesta `re/` nebo soubor z distribuce PSPadu; seznam závislostí s licencemi je součástí balíku (about).
   - **Závisí na:** PR.1.1
   - **Odhad:** bez odhadu; účtuje se v P1 a P10
+  - **Stav 2. 11. 2026:** hotovo v kódu (2ca0cae6). `tools/CheckCleanRoom.cs` odmítne sledovanou cestu pod `re/` a každý sledovaný soubor nebo soubor uvnitř balíku `.zip`/`.tar.gz`, jehož SHA-256 je v `tools/pspad-dist.sha256` (472 hashů souborů z distribuce PSPadu 5.5.2 x86 i x64, jen hashe, žádný obsah; soubory pod 64 B se nepočítají, protože se shodují náhodou). V `release.yml` běží jako samostatná úloha `clean-room` před vydáním a v úloze `release` nad hotovými balíky. Lokálně: selftest prošel, repozitář 0 nálezů, balíky 0.1.4 win-x64 a linux-x64 0 nálezů, podvržený `WWWTools.ini` z PSPadu v ZIPu nalezen. Seznam licencí je v balíku (`THIRD-PARTY-NOTICES.md` a `LICENSE` v ZIPu 0.1.4, okno O aplikaci podle P3.6.7). Zbývá první běh úlohy v CI.
 
 ### PR.7 Matice funkcí
 
@@ -734,6 +735,7 @@ měření obojí řadí do P1 jako samostatné úkoly. P1 ověří nativní vrst
   - **Co a proč:** AvaloniaEdit hlásí `SupportsPreedit = false`; rozpracovaný text IME se kreslí v okně systému. Ručně ověřit českou, japonskou a čínskou klávesnici a podle výsledku doplnit preedit v řádku.
   - **Funkce:** žádná (infrastruktura)
   - **Stav 26. 10. 2026:** AvaloniaEdit hlásí `SupportsPreedit=False`, rozpracovaný text kreslí systém, ne editor; přesné místo pro napojení (obal klienta v `TextArea`) je v interním záznamu. Skutečná IME (česká, japonská, čínská klávesnice) neověřena.
+  - **Stav 2. 11. 2026:** rozpracovaný text se kreslí v řádku editoru u každého kurzoru od 27. 10. 2026 (1aba1aff, a24018d8, `EditorSurface.Ime.cs`): klient `TextArea` je obalený a hlásí preedit, potvrzený text jde do všech kurzorů jedním krokem undo, kompozice skončí změnou dokumentu, posunem kurzoru nebo ztrátou fokusu. Zbývá jen ruční zkouška tří skutečných klávesnic v matici R10 (člověk).
   - **Hotovo, když:** v matici R10 (PR.4) v přihlášené relaci projde u tří klávesnic zahájení, změna, potvrzení a zrušení kompozice, přepnutí karty během kompozice, změna DPI, kompozice s více kurzory (po P2.2.1 se zopakuje) a undo, bez zdvojení i ztráty textu; rozpracovaný text se kreslí v řádku editoru, nebo je zapsané rozhodnutí majitele, proč ne.
   - **Závisí na:** P1.4.1
   - **Odhad:** bez odhadu
@@ -2302,7 +2304,7 @@ Vzdálená editace přes lokální pracovní kopii; práce i bez spojení, žád
     - Výběr kódování podle skupin (Unicode, středoevropské, západoevropské, cyrilice, řečtina, turečtina, baltské, hebrejština, arabština, asijské, DOS) s vyhledáváním, v menu Formát i ve stavovém řádku; nedávno použitá nahoře.
     - Detekce: k dnešním čtyřem stránkám rozlišit cyrilici (1251, KOI8-R, 866), řečtinu, turečtinu a vícebajtové asijské podle statistiky dvojic bajtů; nejistý výsledek nabídne volbu, jako dnes.
     - Dávková konverze (P5.5.2), inspektor bajtů (P5.5.1) a „Znovu otevřít v kódování“ nabídnou všechny kodeky.
-  - **Funkce:** F046 (požadavek majitele 31. 10. 2026)
+  - **Funkce:** žádná (požadavek majitele 31. 10. 2026; rozšiřuje převod a detekci kódových stránek z MVP o další kodeky; dřívější odkaz na funkci operací s řádky byl omyl)
   - **Hotovo, když:** každý kodek projde zpátečním testem bajt → text → bajt na všech 256 bajtech (jednobajtové) a na vzorových textech (vícebajtové) i v blocích s hranicí uprostřed znaku; uložení znaku, který kodek neumí, ohlásí ztrátu jako dnes; detektor správně pozná vzorové texty v češtině, ruštině, řečtině, japonštině a čínštině; výběr kódování jde z klávesnice a čtečka hlásí skupinu a název; NativeAOT publikace všechny stránky najde.
   - **Závisí na:** P1.3.1, P5.5.1
   - **Odhad:** bez odhadu
