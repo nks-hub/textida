@@ -1600,7 +1600,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 
 ### P3b.1 JSON-RPC a procesy
 
-- [ ] **P3b.1.1** Sdílená vrstva JSON-RPC a protokolové adaptéry
+- [x] **P3b.1.1** Sdílená vrstva JSON-RPC a protokolové adaptéry
   - **Co a proč:** Jeden dispatcher JSON-RPC 2.0, proudy a správa procesů pro pluginy, MCP, ACP i LSP. Stejné JSON-RPC neznamená stejnou sémantiku, proto rámování, inicializace, rušení a průběh patří protokolovým adaptérům:
     - LSP: hlavička `Content-Length` v bajtech, `$/cancelRequest`, `$/progress`
     - MCP stdio: zprávy oddělené novým řádkem, `notifications/cancelled`
@@ -1614,7 +1614,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
     - adaptéry LSP, MCP, ACP a pluginů nad stejným dispatcherem
   - **Stav 26. 10. 2026:** částečně: dispatcher a adaptéry LSP, MCP, ACP a pluginů (`NksHub.Textida.Rpc`), 87 testů rámování, rušení a souběhu. Neověřeno: běh pod NativeAOT a macOS; ACP `$/cancel_request` podle návrhu, ne specifikace.
   - **Ověření 2. 11. 2026 na Macu (macOS 15.7.4 arm64, main 4e8009fc):** celá sada `NksHub.Textida.Rpc.Tests` pod JIT 1250 prošlo, 12 přeskočeno, 0 selhalo. Pod NativeAOT na osx-arm64 prošla `AotCheck` nad balíkem Textida-osx-arm64 („rpc: four adapters done“, „AOT check OK“): dva dispečery přes paměťové roury dělené po 3 bajtech pro LSP, MCP, ACP a pluginy (rámování, ID, rušení, konec spojení, vadná data); stejná kontrola běží v CI na win-x64 (41373925939). Pod AOT jde o podmnožinu scénářů `DispatcherTests`, ne o všechny testy z kroků.
-  - **Stav 2. 11. 2026 (783461b4, sloučeno):** `AotCheck` (`RpcChecks`) teď pokrývá všechny kroky pro všechny čtyři protokoly: vadný rámec a vadná hlavička `Content-Length`, EOF, useknutý a slepené rámce (zápis po 3 bajtech), souběžná obousměrná volání, zahlcený stderr přes `StderrPump` (50 000 řádků, zbude posledních 20 ořezaných), časový limit s uvolněním slotu, stejné číselné ID z obou stran, zrušení s pozdní odpovědí a restart bez zopakovaného zápisu. NativeAOT win-x64 lokálně „AOT check OK“, pod JIT 3× OK. Skutečný proces (stderr dítěte, restart s backoffem) AotCheck nespouští; ten pokrývají `PluginLifecycleTests` a `ProcessTests` pod JIT. Na macOS se nové kontroly pod AOT ověří dalším během.
+  - **Stav 2. 11. 2026 (783461b4, sloučeno):** `AotCheck` (`RpcChecks`) teď pokrývá všechny kroky pro všechny čtyři protokoly: vadný rámec a vadná hlavička `Content-Length`, EOF, useknutý a slepené rámce (zápis po 3 bajtech), souběžná obousměrná volání, zahlcený stderr přes `StderrPump` (50 000 řádků, zbude posledních 20 ořezaných), časový limit s uvolněním slotu, stejné číselné ID z obou stran, zrušení s pozdní odpovědí a restart bez zopakovaného zápisu. NativeAOT win-x64 lokálně „AOT check OK“, pod JIT 3× OK. Skutečný proces (stderr dítěte, restart s backoffem) AotCheck nespouští; ten pokrývají `PluginLifecycleTests` a `ProcessTests` pod JIT. Na macOS (referenční Mac, macOS 15.7.4 arm64, main 0a6bfc12) NativeAOT `AotCheck --package` nad balíkem osx-arm64 také „rpc: four adapters done“, „AOT check OK“. Uzavřeno: kroky procházejí pod NativeAOT na Windows i macOS pro všechny čtyři adaptéry; restart skutečného procesu a stderr dítěte se ověřují pod JIT (`PluginLifecycleTests`, `ProcessTests`).
   - **Hotovo, když:** testy z kroků procházejí pod NativeAOT na Windows i macOS pro všechny čtyři adaptéry; žádná odpověď se nepřiřadí cizímu požadavku a žádný zápis se po restartu nezopakuje.
   - **Závisí na:** P1.1.2
   - **Odhad:** v rámci F196
