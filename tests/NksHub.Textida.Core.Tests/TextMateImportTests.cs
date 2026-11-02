@@ -225,6 +225,66 @@ public sealed class TextMateImportTests : IDisposable
         Assert.Equal(matches, tokens.Count > 0);
     }
 
+    [Theory]
+    [InlineData(@"^[a[bc]]+$", "abca", true)]
+    [InlineData(@"^[a[bc]]$", "d", false)]
+    [InlineData(@"^[a[^bc]]$", "d", true)]
+    [InlineData(@"^[a[^bc]]$", "b", false)]
+    [InlineData(@"^[a[^bc]]$", "a", true)]
+    [InlineData(@"^[^a[^bc]]$", "b", true)]
+    [InlineData(@"^[^a[^bc]]$", "a", false)]
+    [InlineData(@"^[^a[^bc]]$", "d", false)]
+    [InlineData(@"^[a-z&&[^aeiou]]+$", "xyz", true)]
+    [InlineData(@"^[a-z&&[^aeiou]]$", "e", false)]
+    [InlineData(@"^[a-z&&[^aeiou]]$", "1", false)]
+    [InlineData(@"^[a-z&&[def]]+$", "fed", true)]
+    [InlineData(@"^[a-z&&[def]]$", "g", false)]
+    [InlineData(@"^[^a-c&&b-d]$", "b", false)]
+    [InlineData(@"^[^a-c&&b-d]$", "a", true)]
+    [InlineData(@"^[\w&&\D]$", "5", false)]
+    [InlineData(@"^[\w&&\D]$", "x", true)]
+    [InlineData(@"^[a[:^alpha:]]$", "1", true)]
+    [InlineData(@"^[a[:^alpha:]]$", "b", false)]
+    [InlineData(@"^[a\P{Alpha}]$", "1", true)]
+    public void Nested_and_intersected_character_classes_match_the_same_characters_as_in_oniguruma(string pattern, string text, bool matches)
+    {
+        var (tokenizer, result) = Convert(Match(pattern));
+        Assert.Empty(result.Warnings);
+        var tokens = new List<Token>();
+        tokenizer.TokenizeLine(text, tokenizer.InitialState, tokens);
+        Assert.Equal(matches, tokens.Count > 0);
+    }
+
+    [Fact]
+    public void A_nested_class_can_be_repeated_and_leaves_the_group_numbers_alone()
+    {
+        string rule = """{ "match": "(x)([a-z&&[^aeiou]]+)", "captures": { "2": { "name": "string.t" } } }""";
+        Assert.Equal(["string=bc"], Run(rule, "xbcae"));
+    }
+
+    [Theory]
+    [InlineData(@"^/\*(?~\*/)\*/$", "/* a * b */", true)]
+    [InlineData(@"^/\*(?~\*/)", "/* a */ b */", true)]
+    [InlineData(@"^a(?~bc)c", "abc", true)]
+    [InlineData(@"^a(?~bc)", "abc", true)]
+    [InlineData(@"^(?~x)$", "abc", true)]
+    [InlineData(@"^(?~x)$", "axc", false)]
+    public void The_absence_operator_of_a_literal_text_matches_text_without_that_text(string pattern, string text, bool matches)
+    {
+        var (tokenizer, result) = Convert(Match(pattern));
+        Assert.Empty(result.Warnings);
+        var tokens = new List<Token>();
+        tokenizer.TokenizeLine(text, tokenizer.InitialState, tokens);
+        Assert.Equal(matches, tokens.Count > 0);
+    }
+
+    [Fact]
+    public void The_absence_operator_stops_before_the_last_character_of_the_text_and_is_reported_for_anything_but_a_literal()
+    {
+        Assert.Equal(["keyword=/*ab*"], Run(Match(@"/\*(?~\*/)"), "/*ab*/ cd*/")); // the longest text without the closing pair is "ab" plus its first character
+        Assert.Contains(Convert(Match(@"a(?~b+)c")).Result.Warnings, w => w.Contains("absence"));
+    }
+
     [Fact]
     public void A_back_reference_in_the_end_pattern_ends_the_region_only_at_the_text_the_begin_pattern_matched()
     {
