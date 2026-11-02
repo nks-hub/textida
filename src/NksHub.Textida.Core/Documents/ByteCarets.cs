@@ -54,6 +54,7 @@ public static class ByteCarets
     private const int Reach = 12;
     private const int SearchChunk = 1 << 20;
     private const int WordReach = 512;
+    private const int MaxWordReach = 8 << 20;
 
     // ---- characters next to an offset ----
 
@@ -120,16 +121,26 @@ public static class ByteCarets
     }
 
     /// <summary>
-    /// The word (letters, digits, underscore) the offset is in or touches, as bytes. Only 512 bytes each way are read, so a word longer than that is cut
-    /// at its ends (shortcut: a word of a minified line is cut, upgrade by reading on until the word ends).
+    /// The word (letters, digits, underscore) the offset is in or touches, as bytes. 512 bytes each way are read first; a word that reaches the edge of what was read
+    /// is read on, the reach growing fourfold, up to <see cref="MaxWordReach"/> bytes each way (shortcut: a word longer than that is cut, which only a minified line holds).
     /// </summary>
     public static bool TryWordAt(ByteText t, long offset, out long start, out long end)
     {
+        for (int reach = WordReach; ; reach *= 4)
+        {
+            bool found = TryWordAt(t, offset, reach, out start, out end, out bool cut);
+            if (!cut || reach >= MaxWordReach) return found;
+        }
+    }
+
+    private static bool TryWordAt(ByteText t, long offset, int reach, out long start, out long end, out bool cut)
+    {
         start = end = offset;
+        cut = false;
         int w = t.Codec.Alignment;
-        long from = Math.Max(t.Bom, offset - WordReach);
+        long from = Math.Max(t.Bom, offset - reach);
         from -= (from - t.Bom) % w;
-        long to = Math.Min(t.Length, offset + WordReach);
+        long to = Math.Min(t.Length, offset + reach);
         if (to <= from || offset < from) return false;
         var bytes = new byte[to - from];
         t.Read(from, bytes);
@@ -144,6 +155,7 @@ public static class ByteCarets
         int s = decoded.CharIndexOf(offset - origin), e = s;
         while (s > 0 && IsWordChar(text[s - 1])) s--;
         while (e < text.Length && IsWordChar(text[e])) e++;
+        cut = s == 0 && from > t.Bom || e == text.Length && to < t.Length;
         if (e == s) return false;
         start = origin + decoded.ByteOffsetOf(s);
         end = origin + decoded.ByteOffsetOf(e);
