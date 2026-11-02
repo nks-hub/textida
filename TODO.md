@@ -1770,10 +1770,11 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Závisí na:** P3b.5.4, P3b.4.2, PR.3.1
   - **Odhad:** v rámci zbytku rozpočtu P3b (viz P3b.5.4)
   - **Umístění:** jádro
-- [ ] **P3b.5.3** JSON formátovač jako první vestavěný plugin
+- [x] **P3b.5.3** JSON formátovač jako první vestavěný plugin
   - **Co a proč:** První ověření veřejného API: příkaz na vyžádání, syntaktická chyba, náhled, zastaralá revize, jeden krok undo, více výběrů, odmítnutí příliš velkého vstupu. Nejdřív malé UTF-8 soubory, pak kódování a EOL.
   - **Funkce:** F074, F205 (částečně: první plugin ověřovací sady)
   - **Stav 26. 10. 2026:** částečně: `NksHub.Textida.Plugins.Json` – formátování na vyžádání, náhled ve stávajícím dialogu změn, syntaktická chyba s řádkem a sloupcem, zastaralá revize odmítnuta, více výběrů jako jeden krok undo, příliš velký vstup odmítnut s oběma velikostmi; nad CP1250 se smíšenými EOL se změní jen vybrané rozsahy (test end-to-end). AOT publikace win-x64 přibalí všech 6 pluginů a textida-mcp (`AotCheck --publish` ověří rozložení a start každého programu, 27. 10. 2026). Neověřeno: že je spuštěná aplikace z publikace najde, a běh na macOS.
+  - **Ověření 2. 11. 2026 na Macu (macOS 15.7.4 arm64, main 4e8009fc):** balík `BuildMacPackage --rid osx-arm64` a NativeAOT `AotCheck --package` „AOT check OK“ (rozložení balíku, start každého přibaleného pluginu a textida-mcp). `Textida.app/Contents/MacOS/Textida --smoke` (NativeAOT aplikace, v GUI relaci uživatele přes `launchctl asuser`) dal SMOKE_OK: aplikace z balíku najde a spustí všech 9 přibalených pluginů; plugin JSON naformátuje jen vybraný rozsah souboru CP1250 se smíšenými EOL, bajty mimo rozsah i kódová stránka po uložení zůstanou, vrátí se jedním krokem undo, po restartu neopakuje zápis; 1 MiB nad limit odmítne s hláškou s velikostí a limitem. Stejný `--smoke` prošel v CI na win-x64, osx-arm64, osx-x64, linux-x64 a linux-arm64 (41373925939). Uzavřeno. Poznámka ze stejného běhu: krok „Go to Anything najde soubor“ trval na Macu asi 14 s.
   - **Hotovo, když:** formátovač běží jako vestavěný plugin proti AOT buildu na obou OS; nad souborem CP1250 se smíšenými EOL změní jen formátovaný rozsah; vstup nad limit odmítne s hlášením.
   - **Závisí na:** P3b.3.2, P3b.5.1, P3b.2.2
   - **Odhad:** v rámci zbytku rozpočtu P3b (viz P3b.5.4)
