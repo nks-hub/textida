@@ -1170,6 +1170,28 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public async Task The_fake_server_outlives_a_test_that_holds_its_version_file_while_it_writes()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var doc = rig.Add("held.fake", "a\n");
+        Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+        await rig.ServerTextAsync(doc);
+
+        // what a polling File.ReadAllText does for an instant, here for long enough that the write of the next version surely meets it
+        using (new FileStream(Path.Combine(rig.Dump, "held.fake.version"), FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await rig.Edit(doc, 0, 0, "b");
+            await T.Until(() =>
+            {
+                try { return rig.Stats(doc).Contains("incremental=1"); } // the change reached the server, which now writes the version
+                catch (IOException) { return false; }
+            });
+            await Task.Delay(200);
+        }
+        Assert.Equal("ba\n", await rig.ServerTextAsync(doc));
+    }
+
+    [Fact]
     public void The_catalog_names_the_roslyn_launch_line_without_telemetry_and_every_text_has_four_languages()
     {
         // data only: no Roslyn or csharp-ls server is started by any test
