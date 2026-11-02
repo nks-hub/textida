@@ -3548,7 +3548,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
 
 ### PZ.6 Vývojářské doplňky
 
-- [ ] **PZ.6.1** Integrovaný terminál
+- [x] **PZ.6.1** Integrovaný terminál
   - **Co a proč:** Terminál s životním cyklem a korektním předáním vstupu.
   - **Funkce:** F159
   - **Hotovo, když:** terminál v panelu spustí shell, přežije změnu velikosti a zavření ukončí proces.
@@ -3557,6 +3557,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Stav 1. 11. 2026 (sloučeno):** integrovaný terminál (ConPTY na Windows, pty na macOS a Linuxu, shell v `terminal.shell`); ověřeno se skutečným cmd.exe, pty na macOS a Linuxu nespuštěno (2363cb4c).
   - **Ověření 2. 11. 2026 na Macu (macOS 15.7.4 arm64, main 7078ef8b):** `TerminalTests` 19 prošlo, 1 přeskočený (ConPTY); skutečný pty s /bin/sh (bash 3.2.57): výstup echo dorazí, `Resize(100,30)` dá ze `stty size` „30 100“, `exit 3` dá kód 3, Dispose proces ukončí. `TerminalAppTests` na macOS přeskočené (jen Windows); zkušební sonda panelu se zsh 5.9 prošla 3/3 (start z `$SHELL` ve složce souboru, změna velikosti, zavření ukončí zsh, `exit 5` v liště a nový shell, chybějící shell se ohlásí jménem). Pozor: zsh zapíná bracketed paste, Enter se musí poslat jako klávesa. Sonda se převádí na unixovou část `TerminalAppTests`. Linux nespuštěn.
   - **Oprava 2. 11. 2026 (605a4f5b, sloučeno ec4012bb):** `ConPtyProcess` i `UnixPtyProcess` spouštěly čtení výstupu už v konstruktoru a `TerminalSession` se k výstupu připojila až potom, takže co shell vypsal v této mezeře, se zahodilo; `cmd` vypíše výzvu jen jednou, a na vytíženém stroji se tak terminál otevřel prázdný, dokud uživatel nestiskl Enter (našel to test v plné sadě na referenčním virtuálu). `PseudoTerminal.Start` má parametr `attach`, který proběhne před prvním čtením. Regresní test `The_first_output_of_the_shell_waits_for_the_handlers_of_a_late_caller` se starým pořadím padá; lokálně 21/21 testů terminálu, na virtuálu v plném běhu prošel. Unixová strana opravy se ověřuje na Macu.
+  - **Ověření 2. 11. 2026 na Macu (macOS 15.7.4 arm64, 62169405, sloučeno 280cea0e):** unixová část `TerminalAppTests` 4/4 ve třech bězích (zsh 5.9, bash 3.2.57, bez `$SHELL` → /bin/sh): shell startuje ve složce souboru, změna velikosti dá „30 100“, zavření panelu ukončí proces, `exit 5` je v liště, restart funguje, chybějící shell se ohlásí jménem. Core `TerminalTests` 21/21 (20 skutečně běží, ConPTY se přeskočí), včetně regresního testu 605a4f5b, takže oprava platí i pro pty. Uzavřeno; Linux ručně nespuštěn, kód pty je společný s macOS.
 - [x] **PZ.6.2** Poslat výběr do interpretu
   - **Co a proč:** Řádek nebo výběr do `python`, `php -a`, `node`, `psql` v okně výstupu; `.venv` ve složce se použije.
   - **Funkce:** F191
