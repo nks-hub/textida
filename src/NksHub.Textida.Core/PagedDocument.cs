@@ -595,14 +595,7 @@ public sealed class PagedDocument : IPagedTextSource
         string tmp = target + ".textida-" + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         try
         {
-            using (var fs = new FileStream(tmp, new FileStreamOptions
-            {
-                Mode = FileMode.CreateNew,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                PreallocationSize = ByteLength,
-                BufferSize = 0,
-            }))
+            using (var fs = Documents.FileSwap.CreateTemp(tmp, target, ByteLength))
             {
                 WriteTo(fs, progress, ct);
                 fs.Flush(true);
@@ -610,7 +603,7 @@ public sealed class PagedDocument : IPagedTextSource
 
             if (!inPlace)
             {
-                File.Move(tmp, target, overwrite: true);
+                Documents.FileSwap.Replace(tmp, target);
                 return;
             }
 

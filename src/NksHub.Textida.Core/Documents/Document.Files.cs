@@ -162,14 +162,7 @@ public sealed partial class Document
         {
             string hash;
             var blocks = new OriginalBlockHashes();
-            using (var fs = new FileStream(temp, new FileStreamOptions
-            {
-                Mode = FileMode.CreateNew,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                PreallocationSize = ByteLength,
-                BufferSize = 0,
-            }))
+            using (var fs = FileSwap.CreateTemp(temp, target, ByteLength))
             {
                 var hashing = new HashingStream(fs, blocks);
                 _backend.CopyTo(hashing);
