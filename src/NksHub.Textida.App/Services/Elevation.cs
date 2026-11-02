@@ -47,7 +47,7 @@ internal sealed class SystemElevation : IElevation
     public void Install(string tempPath, string target, string sha256)
     {
         if (OperatingSystem.IsWindows()) RunWindows("--elevated-install", tempPath, target, sha256);
-        else if (OperatingSystem.IsMacOS()) RunMac(MacInstallScript(tempPath, target, sha256));
+        else if (OperatingSystem.IsMacOS()) RunMacHelper("--elevated-install", tempPath, target, sha256);
         else if (OperatingSystem.IsLinux()) RunLinux("--elevated-install", tempPath, target, sha256);
         else throw new ElevationException("This system has no way to ask for permission.");
     }
@@ -118,9 +118,28 @@ internal sealed class SystemElevation : IElevation
 
     private static string AppleString(string text) => "\"" + text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 
-    internal static string MacInstallScript(string temp, string target, string sha256) =>
-        $"set src to {AppleString(temp)}\nset dst to {AppleString(target)}\nset want to {AppleString(sha256.ToLowerInvariant())}\n" +
-        "do shell script \"test \\\"$(/usr/bin/shasum -a 256 \" & quoted form of src & \" | /usr/bin/awk '{print $1}')\\\" = \" & quoted form of want & \" && /bin/cp \" & quoted form of src & \" \" & quoted form of dst with administrator privileges";
+    /// <summary>
+    /// Runs the command line <paramref name="line"/> (the program of the editor with a helper job, <see cref="LinuxArguments"/>) as root: the helper reads the staged file once into memory and checks
+    /// its hash there, so the file the user can write cannot change between the check and the copy.
+    /// </summary>
+    internal static string MacHelperScript(IReadOnlyList<string> line) =>
+        string.Concat(line.Select((a, i) => $"set a{i} to {AppleString(a)}\n")) +
+        "do shell script " + string.Join(" & \" \" & ", line.Select((_, i) => $"quoted form of a{i}")) + " with administrator privileges";
+
+    private static void RunMacHelper(string verb, params string[] arguments)
+    {
+        string program = Environment.ProcessPath ?? throw new ElevationException("The program of the editor is not known.");
+        string result = Path.Combine(Path.GetTempPath(), "textida-elevated-" + Guid.NewGuid().ToString("N") + ".result");
+        File.WriteAllText(result, ""); // made by the user, so the user can delete it after the helper wrote into it as root
+        try
+        {
+            try { RunMac(MacHelperScript(LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, result))); }
+            catch (ElevationException) when (File.ReadAllText(result) is { Length: > 0 } reason && reason != "ok") { throw new ElevationException(reason); }
+            string answer = File.ReadAllText(result);
+            if (answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : "The helper did not say how the job went.");
+        }
+        finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
+    }
 
     internal static string MacReadScript(string source, string destination, long maxBytes) =>
         $"set src to {AppleString(source)}\nset dst to {AppleString(destination)}\nset who to {AppleString(Environment.UserName)}\n" +

@@ -135,12 +135,15 @@ public class ElevatedHelperTests : IDisposable
     [Fact]
     public void The_macos_scripts_pass_every_path_through_the_quoting_of_applescript_and_the_shell()
     {
-        string script = SystemElevation.MacInstallScript("/tmp/a \"b\" c\\d", "/etc/hosts", "ABCDEF");
-        Assert.Contains("set src to \"/tmp/a \\\"b\\\" c\\\\d\"", script);
-        Assert.Contains("set want to \"abcdef\"", script);
-        Assert.Contains("quoted form of src", script);
-        Assert.Contains("with administrator privileges", script);
-        Assert.DoesNotContain("/etc/hosts && ", script.Replace("set dst to \"/etc/hosts\"", "")); // the path is never part of the shell text
+        // an install runs the helper of the program as root, which hashes the bytes it then writes: no shasum and cp that read the staged file twice
+        var line = SystemElevation.LinuxArguments("/Applications/Textida.app/Contents/MacOS/Textida", null, "--elevated-install", ["/tmp/a \"b\" c\\d", "/etc/hosts", "ABCDEF"], "/tmp/r");
+        string script = SystemElevation.MacHelperScript(line);
+        Assert.Contains("set a0 to \"/Applications/Textida.app/Contents/MacOS/Textida\"", script);
+        Assert.Contains("set a2 to \"/tmp/a \\\"b\\\" c\\\\d\"", script);
+        Assert.EndsWith("do shell script quoted form of a0 & \" \" & quoted form of a1 & \" \" & quoted form of a2 & \" \" & quoted form of a3 & \" \" & quoted form of a4 & \" \" & quoted form of a5 with administrator privileges", script);
+        Assert.Contains("set a1 to \"--elevated-install\"", script);
+        Assert.DoesNotContain("shasum", script);
+        Assert.DoesNotContain("/bin/cp", script);
         string read = SystemElevation.MacReadScript("/private/etc/x", "/tmp/y", 100);
         Assert.Contains("-le 100", read);
         Assert.Contains("/usr/sbin/chown", read);
