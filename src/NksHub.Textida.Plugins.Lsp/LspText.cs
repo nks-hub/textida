@@ -61,9 +61,10 @@ public readonly record struct TextChange(int Start, int OldEnd, string Inserted)
     /// The separate changes that turn <paramref name="old"/> into <paramref name="next"/>, in the order of the old text, each against the old text; empty when the texts are equal.
     /// The texts are compared by lines (<c>\n</c>, <c>\r\n</c> and a lone <c>\r</c> end one, so a line break is never cut in two), and every run of different lines is narrowed to its own common prefix and suffix,
     /// so the carets of a multi-caret edit on different lines are separate changes. Send them from the last to the first, or apply them with <see cref="ApplyAll"/>.
-    /// shortcut: edits on the same or on neighbouring lines are one change, and a text that differs by more than <paramref name="maxEdits"/> lines is one change spanning them; fine while the server only needs the text to be right.
+    /// Edits on the same or on neighbouring lines are one change. The shortest script of line edits is searched only up to <paramref name="maxEdits"/> added and removed lines, which bounds time and memory;
+    /// beyond that, texts with the same number of lines are compared line by line (linear, one change per run of differing lines), and any other text is one change spanning all the differences.
     /// </summary>
-    public static IReadOnlyList<TextChange> Hunks(string old, string next, int maxEdits = 256)
+    public static IReadOnlyList<TextChange> Hunks(string old, string next, int maxEdits = 2048)
     {
         if (Between(old, next) is not { } whole) return [];
         var (a, b) = (Lines(old), Lines(next));
@@ -72,7 +73,8 @@ public readonly record struct TextChange(int Start, int OldEnd, string Inserted)
         int tail = 0;
         while (tail < a.Count - head && tail < b.Count - head && SameLine(old, a[^(tail + 1)], next, b[^(tail + 1)])) tail++;
         int n = a.Count - head - tail, m = b.Count - head - tail;
-        var runs = Myers(n, m, (i, j) => SameLine(old, a[head + i], next, b[head + j]), maxEdits);
+        Func<int, int, bool> same = (i, j) => SameLine(old, a[head + i], next, b[head + j]);
+        var runs = Myers(n, m, same, maxEdits) ?? (n == m ? InPlace(n, same) : null);
         if (runs is null) return [whole];
         var result = new List<TextChange>();
         foreach (var (a0, a1, b0, b1) in runs)
@@ -114,6 +116,20 @@ public readonly record struct TextChange(int Start, int OldEnd, string Inserted)
     private static bool SameLine(string x, (int Start, int Length) a, string y, (int Start, int Length) b) =>
         a.Length == b.Length && string.CompareOrdinal(x, a.Start, y, b.Start, a.Length) == 0;
 
+    /// <summary>The runs of lines that differ at the same place in two sequences of the same length.</summary>
+    private static List<(int A0, int A1, int B0, int B1)> InPlace(int n, Func<int, int, bool> same)
+    {
+        var runs = new List<(int, int, int, int)>();
+        for (int i = 0; i < n; i++)
+        {
+            if (same(i, i)) continue;
+            int start = i;
+            while (i + 1 < n && !same(i + 1, i + 1)) i++;
+            runs.Add((start, i + 1, start, i + 1));
+        }
+        return runs;
+    }
+
     /// <summary>The runs of the shortest edit script between two sequences (Myers), as [from, to) of the first and [from, to) of the second; null when it needs more than <paramref name="maxEdits"/> edits.</summary>
     private static List<(int A0, int A1, int B0, int B1)>? Myers(int n, int m, Func<int, int, bool> same, int maxEdits)
     {
@@ -123,7 +139,7 @@ public readonly record struct TextChange(int Start, int OldEnd, string Inserted)
         var trace = new List<int[]>();
         for (int d = 0; d <= limit; d++)
         {
-            trace.Add((int[])v.Clone());
+            trace.Add(v[(offset - d)..(offset + d + 1)]); // the diagonals -d..d are all that the walk back reads
             for (int k = -d; k <= d; k += 2)
             {
                 int x = k == -d || (k != d && v[offset + k - 1] < v[offset + k + 1]) ? v[offset + k + 1] : v[offset + k - 1] + 1, y = x - k;
@@ -135,7 +151,7 @@ public readonly record struct TextChange(int Start, int OldEnd, string Inserted)
                 for (int step = d; step > 0; step--)
                 {
                     var before = trace[step];
-                    int at = x - y, from = at == -step || (at != step && before[offset + at - 1] < before[offset + at + 1]) ? at + 1 : at - 1, fromX = before[offset + from], fromY = fromX - from;
+                    int at = x - y, from = at == -step || (at != step && before[step + at - 1] < before[step + at + 1]) ? at + 1 : at - 1, fromX = before[step + from], fromY = fromX - from;
                     if (from == at + 1) added[fromY] = true;
                     else removed[fromX] = true;
                     (x, y) = (fromX, fromY);

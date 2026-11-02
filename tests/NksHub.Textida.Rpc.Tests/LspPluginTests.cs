@@ -1139,6 +1139,40 @@ public partial class LspPluginTests
         }
     }
 
+    [Theory]
+    [InlineData(1000, 1000)] // 2000 edited lines: inside the search for the shortest script
+    [InlineData(1500, 1500)] // 3000 edited lines: past it, compared line by line
+    public void Carets_on_a_thousand_separate_lines_are_a_thousand_changes(int carets, int expected)
+    {
+        string old = string.Concat(Enumerable.Range(0, 2 * carets).Select(i => $"line {i}\r\n"));
+        string next = string.Concat(Enumerable.Range(0, 2 * carets).Select(i => i % 2 == 0 ? $"line {i}!\r\n" : $"line {i}\r\n"));
+        var changes = TextChange.Hunks(old, next);
+        Assert.Equal(expected, changes.Count);
+        Assert.Equal(next, TextChange.ApplyAll(old, changes));
+    }
+
+    [Fact]
+    public async Task A_thousand_carets_reach_the_server_as_a_thousand_ranges_and_the_server_text_stays_the_editor_text()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var model = string.Concat(Enumerable.Range(0, 2000).Select(i => $"line {i}\r\n"));
+        var doc = rig.Add("thousand.fake", model);
+        Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+
+        var ends = new List<int>();
+        for (int i = 0, at = 0; i < 2000; i++)
+        {
+            at += $"line {i}\r\n".Length;
+            if (i % 2 == 0) ends.Add(at - 2);
+        }
+        var byteEdits = ends.Select(at => new ByteEdit(new ByteRange(at, at), "!"u8.ToArray())).ToList();
+        foreach (int at in Enumerable.Reverse(ends)) model = model[..at] + "!" + model[at..];
+        Assert.True(await rig.Owner.InvokeAsync(() => doc.Apply(byteEdits).Applied));
+        Assert.Equal(model, Rig.TextOf(doc));
+        Assert.Equal(model, await rig.ServerTextAsync(doc));
+        Assert.Equal("opens=1 incremental=1000 full=0", rig.Stats(doc));
+    }
+
     [Fact]
     public async Task A_multi_caret_edit_reaches_the_server_as_one_range_per_caret_and_the_server_text_stays_the_editor_text_in_every_line_ending()
     {
