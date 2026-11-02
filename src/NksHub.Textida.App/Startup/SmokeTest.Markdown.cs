@@ -82,9 +82,14 @@ internal sealed partial class SmokeTest
             bool unchanged = Bytes().SequenceEqual(original) && document.Doc.UndoDepth == undo && !document.Doc.IsModified;
             var contents = controls.OfType<Button>().Single(button => button.Classes.Contains("previewlink"));
             contents.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await NextFrameAsync();
-            window.UpdateLayout();
-            bool jumped = Math.Abs(page.TopLine - headings[1].Line) <= 3;
+            // the scroll lands within a few frames; a loaded machine (Rosetta, a watcher beside it) needs more than one
+            bool jumped = false;
+            for (int i = 0; i < 60 && !jumped; i++)
+            {
+                await NextFrameAsync();
+                window.UpdateLayout();
+                jumped = Math.Abs(page.TopLine - headings[1].Line) <= 3;
+            }
             window.SetViewMode(document, ViewMode.Edit);
             tab = window.Active!;
             await tab.SidePreview!.RenderTask;
@@ -101,8 +106,10 @@ internal sealed partial class SmokeTest
             bool formatted = document.Doc.UndoDepth == undo + 1 && !Bytes().SequenceEqual(original);
             window.Undo();
             byte[] disk = await File.ReadAllBytesAsync(file);
-            Check(unchanged && jumped && selected && modesPreservedBytes && formatted && document.Doc.UndoDepth == undo && !document.Doc.IsModified
-                && Bytes().SequenceEqual(original) && disk.SequenceEqual(original) && Convert.ToHexString(SHA256.HashData(Bytes())) == hash, "markdown.anchor_modes_bytes_and_undo");
+            bool restored = unchanged && jumped && selected && modesPreservedBytes && formatted && document.Doc.UndoDepth == undo && !document.Doc.IsModified
+                && Bytes().SequenceEqual(original) && disk.SequenceEqual(original) && Convert.ToHexString(SHA256.HashData(Bytes())) == hash;
+            Check(restored, restored ? "markdown.anchor_modes_bytes_and_undo"
+                : $"markdown.anchor_modes_bytes_and_undo (unchanged={unchanged} jumped={jumped} selected={selected} modes={modesPreservedBytes} formatted={formatted} undo={document.Doc.UndoDepth - undo} modified={document.Doc.IsModified} disk={disk.SequenceEqual(original)})");
             _log.Add("markdown.sha256=" + hash);
         }
         finally
