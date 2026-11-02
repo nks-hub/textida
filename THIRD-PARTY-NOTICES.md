@@ -16,6 +16,9 @@ Libraries that ship with Textida: for remote files (`NksHub.Textida.Remote`), fo
 | [WeCantSpell.Hunspell](https://github.com/aarondandy/WeCantSpell.Hunspell) | 7.0.1 | MIT, Copyright Aaron Dandy | Spelling check (Hunspell dictionaries the user chooses or downloads) |
 | [Jint](https://github.com/sebastienros/jint) | 4.17.0 | BSD-2-Clause, Copyright Sebastien Ros | Scripts in the editor (prototype, off by default) |
 | [Acornima](https://github.com/adams85/acornima) | 1.7.0 | BSD-3-Clause | JavaScript parser used by Jint |
+| [Microsoft.ML.Tokenizers](https://github.com/dotnet/machinelearning) | 2.0.1 | MIT, Copyright (c) .NET Foundation and Contributors | Exact token count of the OpenAI preset |
+| [Microsoft.ML.Tokenizers.Data.O200kBase](https://github.com/dotnet/machinelearning) | 2.0.1 | MIT, Copyright (c) .NET Foundation and Contributors | The o200k_base vocabulary of OpenAI tiktoken (MIT, Copyright (c) 2022 OpenAI, Shantanu Jain) |
+| [Google.Protobuf](https://github.com/protocolbuffers/protobuf) | 3.30.2 | BSD-3-Clause, Copyright 2008 Google Inc. | Dependency of Microsoft.ML.Tokenizers |
 
 Test-only (not shipped): FubarDev.FtpServer 3.1.2 (MIT), the in-process FTPS server of the remote tests; paramiko (LGPL-2.1), started as a separate process by the SFTP tests and never linked or distributed.
 

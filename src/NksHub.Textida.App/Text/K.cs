@@ -2681,6 +2681,12 @@ public static partial class K
     public const string TokensPagedNote = "tokens.dialog.paged";
     public const string TokensRule = "tokens.dialog.rule";
     public const string TokensEstimateNote = "tokens.dialog.note";
+    public const string TokensStatusExact = "tokens.status.exact";
+    public const string TokensStatusExactTip = "tokens.status.exact.tip";
+    public const string TokensStatusExactA11y = "tokens.status.exact.a11y";
+    public const string TokensSelectionExact = "tokens.dialog.selection.exact";
+    public const string TokensDocumentExact = "tokens.dialog.document.exact";
+    public const string TokensExactNote = "tokens.dialog.exact.note";
     public const string AiTokens = "aicontext.tokens";
     public const string AiLargeWarning = "aicontext.largeWarning";
     public const string HooksTitle = "hooks.title";
