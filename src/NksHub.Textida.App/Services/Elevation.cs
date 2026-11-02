@@ -46,7 +46,7 @@ internal sealed class SystemElevation : IElevation
 
     public void Install(string tempPath, string target, string sha256)
     {
-        if (OperatingSystem.IsWindows()) RunWindows("--elevated-install", tempPath, target, sha256);
+        if (OperatingSystem.IsWindows()) RunWindows("--elevated-install", null, tempPath, target, sha256);
         else if (OperatingSystem.IsMacOS()) RunMacHelper("--elevated-install", tempPath, target, sha256);
         else if (OperatingSystem.IsLinux()) RunLinux("--elevated-install", tempPath, target, sha256);
         else throw new ElevationException("This system has no way to ask for permission.");
@@ -55,7 +55,7 @@ internal sealed class SystemElevation : IElevation
     public void Read(string source, string destination, long maxBytes)
     {
         string max = maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (OperatingSystem.IsWindows()) { RunWindows("--elevated-read", source, destination, max); return; }
+        if (OperatingSystem.IsWindows()) { RunWindows("--elevated-read", destination, source, max); return; }
         if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux()) throw new ElevationException("This system has no way to ask for permission.");
 
         // root writes the copy only into a folder it makes itself in the shared temporary folder, then hands it over; the user copies it on from there
@@ -72,24 +72,31 @@ internal sealed class SystemElevation : IElevation
         finally { try { Directory.Delete(folder, true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* in the temporary folder */ } }
     }
 
-    private static void RunWindows(string verb, params string[] arguments)
+    /// <summary>
+    /// UAC: runas starts the helper through the shell, so it can hand back neither its output nor a handle, only its exit code. The answer (and the copy of a read) is written by the helper into a new
+    /// folder it makes itself in the Temp folder of Windows, which only administrators may write into and the user may read and delete (<see cref="ElevatedHelper.MakeBox"/>); nothing elevated is written in a folder of the user.
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static void RunWindows(string verb, string? copyTo, params string[] arguments)
     {
-        string result = Path.Combine(Path.GetTempPath(), "textida-elevated-" + Guid.NewGuid().ToString("N") + ".result");
+        string name = "textida-" + Guid.NewGuid().ToString("N"), box = Path.Combine(ElevatedHelper.WindowsTemp, name);
         var info = new ProcessStartInfo(Environment.ProcessPath ?? throw new ElevationException("The program of the editor is not known.")) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
         if (Path.GetFileNameWithoutExtension(info.FileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase)) info.ArgumentList.Add(Environment.GetCommandLineArgs()[0]); // run from the assembly, not from the single-file program
         info.ArgumentList.Add(verb);
         foreach (string a in arguments) info.ArgumentList.Add(a);
-        info.ArgumentList.Add(result);
+        info.ArgumentList.Add($"box:{System.Security.Principal.WindowsIdentity.GetCurrent().User!.Value}:{name}");
         try
         {
             using var process = Process.Start(info) ?? throw new ElevationException("The helper did not start.");
             if (!process.WaitForExit(Patience)) throw new ElevationException("The helper did not finish in time.");
+            string result = Path.Combine(box, ElevatedHelper.ResultName);
             string answer = File.Exists(result) ? File.ReadAllText(result) : "";
             if (process.ExitCode != 0 || answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : $"The helper ended with code {process.ExitCode}.");
+            if (copyTo is not null) File.Copy(Path.Combine(box, ElevatedHelper.CopyName), copyTo);
         }
         catch (Win32Exception e) when (e.NativeErrorCode == 1223) { throw new ElevationCancelledException(); } // ERROR_CANCELLED: the user said no to UAC
         catch (Win32Exception e) { throw new ElevationException(e.Message); }
-        finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
+        finally { try { Directory.Delete(box, true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* in the Temp folder of Windows */ } }
     }
 
     // ---- Linux: pkexec starts the program of the editor again with the job; polkit shows its own dialog ----
@@ -175,39 +182,114 @@ internal static partial class ElevatedHelper
     /// <summary>The temporary folder of the system on macOS and Linux: root's, sticky, so no user can rename or replace what root makes in it.</summary>
     public static string SharedTemp => OperatingSystem.IsMacOS() ? "/private/tmp" : "/tmp";
 
-    /// <summary>Exit code 0 and the word <c>ok</c> in the result file, else code 1 and the reason there; a result file <c>-</c> means the standard output (ok) and the standard error (the reason).</summary>
-    public static int Run(string[] args)
+    /// <summary>The file name of the answer in the folder of <see cref="MakeBox"/>.</summary>
+    public const string ResultName = "result";
+
+    /// <summary>The Temp folder of Windows: only the system may rename or replace it, and what an administrator makes in it gets the rights it is made with.</summary>
+    public static string WindowsTemp => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp");
+
+    /// <summary>
+    /// Exit code 0 and the word <c>ok</c>, else code 1 and the reason. The last argument says where: <c>-</c> is the standard output (ok) and error (the reason), on macOS and Linux;
+    /// <c>box:&lt;SID of the user&gt;:&lt;name&gt;</c> is the file <see cref="ResultName"/> in a new folder of that name in <see cref="WindowsTemp"/> (<see cref="MakeBox"/>), on Windows, where UAC leaves no other way back.
+    /// </summary>
+    public static int Run(string[] args, TextWriter? output = null, TextWriter? errors = null)
     {
-        string? resultFile = args.Length > 1 ? args[^1] : null;
+        string? channel = args.Length > 1 ? args[^1] : null;
+        string? box = null;
         try
         {
+            if (OperatingSystem.IsWindows() && channel is not null && channel.StartsWith("box:", StringComparison.Ordinal)) box = OpenBox(channel);
             switch (args)
             {
                 case ["--elevated-install", var temp, var target, var hash, _]: Install(temp, target, hash); break;
-                case ["--elevated-read", var source, var destination, var max, _] when long.TryParse(max, out long limit): Read(source, destination, limit); break;
+                case ["--elevated-read", var source, var max, _] when box is not null && long.TryParse(max, out long limit): Read(source, Path.Combine(box, CopyName), limit); break;
                 case ["--elevated-read-as", var source, var name, var max, var user, _] when long.TryParse(max, out long limit) && uint.TryParse(user, out uint uid):
-                    if (name.Length == 0 || name != Path.GetFileName(name) || name is "." or "..") throw new ElevationException("The name of the folder for the copy is not a plain name.");
-                    ReadAs(source, Path.Combine(SharedTemp, name), limit, uid);
+                    ReadAs(source, Path.Combine(SharedTemp, PlainName(name)), limit, uid);
                     break;
                 default: throw new ElevationException("The helper was called with arguments it does not know.");
             }
-            Report(resultFile, "ok", Console.Out);
+            Report(channel, box, "ok", output ?? Console.Out);
             return 0;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            Report(resultFile, e.Message, Console.Error);
+            Report(channel, box, e.Message, errors ?? Console.Error);
             return 1;
         }
     }
 
-    private static void Report(string? resultFile, string text, TextWriter stream)
+    private static string PlainName(string name) =>
+        name.Length == 0 || name != Path.GetFileName(name) || name is "." or ".." ? throw new ElevationException("The name of the folder for the copy is not a plain name.") : name;
+
+    private static void Report(string? channel, string? box, string text, TextWriter stream)
     {
-        if (resultFile == "-") { stream.Write(text); stream.Flush(); return; }
-        if (resultFile is null || !Path.IsPathRooted(resultFile)) return;
-        try { File.WriteAllText(resultFile, text, new UTF8Encoding(false)); }
+        if (channel == "-") { stream.Write(text); stream.Flush(); return; }
+        if (box is null) return; // no box, no file: the exit code still tells
+        try { WriteNew(Path.Combine(box, ResultName), Encoding.UTF8.GetBytes(text)); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the exit code still tells */ }
     }
+
+    /// <summary>Writes a new file; anything already at <paramref name="path"/>, a link included, is refused (CREATE_NEW, O_CREAT|O_EXCL), never written through.</summary>
+    internal static void WriteNew(string path, byte[] bytes)
+    {
+        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        file.Write(bytes);
+        file.Flush(true);
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string OpenBox(string channel)
+    {
+        string[] parts = channel.Split(':');
+        if (parts.Length != 3) throw new ElevationException("The helper was called with arguments it does not know.");
+        var user = new System.Security.Principal.SecurityIdentifier(parts[1]);
+        string box = Path.Combine(WindowsTemp, PlainName(parts[2]));
+        MakeBox(box, user, new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, null));
+        return box;
+    }
+
+    /// <summary>
+    /// Makes the new folder <paramref name="folder"/> with its rights set at creation: <paramref name="writer"/> (the administrators) and the system may do anything in it, <paramref name="reader"/> (the user) may only read and delete.
+    /// Anything already in its place, a junction or a link included, is refused (CreateDirectory does not follow the last name), and the folder made is checked not to be a reparse point.
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    internal static void MakeBox(string folder, System.Security.Principal.SecurityIdentifier reader, System.Security.Principal.SecurityIdentifier writer)
+    {
+        const System.Security.AccessControl.InheritanceFlags All = System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit;
+        var security = new System.Security.AccessControl.DirectorySecurity();
+        security.SetAccessRuleProtection(true, false);
+        foreach (var (who, rights) in new[]
+                 {
+                     (new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.LocalSystemSid, null), System.Security.AccessControl.FileSystemRights.FullControl),
+                     (writer, System.Security.AccessControl.FileSystemRights.FullControl),
+                     (reader, System.Security.AccessControl.FileSystemRights.ReadAndExecute | System.Security.AccessControl.FileSystemRights.Delete),
+                     // OWNER RIGHTS: the owner gets only this, not the implied right to change the rights, should the creator's own account (the user's, under split UAC) become the owner
+                     (new System.Security.Principal.SecurityIdentifier("S-1-3-4"), System.Security.AccessControl.FileSystemRights.ReadAndExecute | System.Security.AccessControl.FileSystemRights.Delete),
+                 })
+            security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(who, rights, All, System.Security.AccessControl.PropagationFlags.None, System.Security.AccessControl.AccessControlType.Allow));
+        byte[] descriptor = security.GetSecurityDescriptorBinaryForm();
+        nint memory = Marshal.AllocHGlobal(descriptor.Length);
+        try
+        {
+            Marshal.Copy(descriptor, 0, memory, descriptor.Length);
+            var attributes = new SecurityAttributes { Length = Marshal.SizeOf<SecurityAttributes>(), Descriptor = memory };
+            if (!CreateDirectoryW(folder, attributes)) throw new ElevationException($"The folder for the answer could not be made (error {Marshal.GetLastPInvokeError()}); something may already be in its place.");
+        }
+        finally { Marshal.FreeHGlobal(memory); }
+        if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) throw new ElevationException("The folder for the answer is a link.");
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SecurityAttributes
+    {
+        public int Length;
+        public nint Descriptor;
+        public int InheritHandle;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateDirectoryW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool CreateDirectoryW(string path, in SecurityAttributes attributes);
 
     private static void RequireFile(string path, string what)
     {
@@ -253,7 +335,9 @@ internal static partial class ElevatedHelper
         byte[] bytes = ReadNoFollow(source, maxBytes);
         if (mkdir(folder, 0b111_000_000) != 0) throw new ElevationException($"The folder for the copy could not be made (error {Marshal.GetLastPInvokeError()}); something may already be in its place.");
         string copy = Path.Combine(folder, CopyName);
-        using (var output = new FileStream(copy, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite }))
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        using (var output = new FileStream(copy, options))
         {
             output.Write(bytes);
             output.Flush(true);
