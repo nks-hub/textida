@@ -29,9 +29,9 @@ public class InPlaceSaveCostTests
     private static EditOptions Raw => new() { RawBytes = true };
 
     /// <summary>Waits for the background hash that follows an in-place save.</summary>
-    internal static void AwaitHash(Doc d)
+    internal static void AwaitHash(Doc d, TimeSpan? limit = null)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(60);
+        var deadline = DateTime.UtcNow + (limit ?? TimeSpan.FromSeconds(60));
         while (!d.Fingerprint!.HasHash && DateTime.UtcNow < deadline) Thread.Sleep(10);
         Assert.True(d.Fingerprint!.HasHash, "The background hash did not finish.");
     }
@@ -182,6 +182,22 @@ public class InPlaceSaveCostLargeTests
         d.FileReader = p => new CountingStream(new FileStream(p, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete), n => Interlocked.Add(ref read, n));
         Assert.True(d.Save().Saved);
         Assert.True(read <= 2 * OriginalBlockHashes.BlockSize, $"The save read {read} bytes.");
-        InPlaceSaveCostTests.AwaitHash(d);
+        // the background hash reads all 4.5 GiB: how long that takes is how fast this machine hashes now, which the other test processes of a full run decide (60 s were not
+        // enough beside them on the 5 cores of the test machine); the limit is three passes at the speed measured beside the running hash, at least the 60 s of the small files
+        double rate = HashRate(path, 256 << 20);
+        var limit = TimeSpan.FromSeconds(Math.Max(60, 3 * new FileInfo(path).Length / rate));
+        InPlaceSaveCostTests.AwaitHash(d, limit);
+    }
+
+    /// <summary>Bytes per second a SHA-256 pass over the start of the file reaches now.</summary>
+    private static double HashRate(string path, int bytes)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1 << 20];
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long done = 0;
+        for (int n; done < bytes && (n = fs.Read(buffer)) > 0; done += n) hash.AppendData(buffer, 0, n);
+        return done / Math.Max(clock.Elapsed.TotalSeconds, 1e-3);
     }
 }
