@@ -50,11 +50,20 @@ internal sealed class SpillFile : IDisposable
 {
     private static readonly object SweepGate = new();
     private static readonly HashSet<string> Swept = new(StringComparer.OrdinalIgnoreCase);
+    private readonly FileStream _stream;
     private readonly SafeFileHandle _handle;
 
-    private SpillFile(SafeFileHandle handle) => _handle = handle;
+    private SpillFile(string path, FileShare share, FileOptions options)
+    {
+        var o = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.ReadWrite, Share = share, Options = options, BufferSize = 0 };
+        if (!OperatingSystem.IsWindows()) o.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite; // it holds text of the user's documents
+        _stream = new FileStream(path, o);
+        _handle = _stream.SafeFileHandle;
+    }
 
-    public static string DefaultDirectory => Path.Combine(Path.GetTempPath(), "textida-spill");
+    /// <summary>A folder of this user only; on Linux the name carries the user, since /tmp is shared.</summary>
+    public static string DefaultDirectory =>
+        Files.PrivateDirectory.Get(OperatingSystem.IsLinux() ? "textida-spill-" + string.Concat(Environment.UserName.Select(c => char.IsAsciiLetterOrDigit(c) ? c : '_')) : "textida-spill", runtime: false);
 
     public static SpillFile Create(string? directory, string kind)
     {
@@ -63,7 +72,7 @@ internal sealed class SpillFile : IDisposable
         lock (SweepGate)
             if (Swept.Add(Path.GetFullPath(dir))) SweepOrphans(dir);
         string path = Path.Combine(dir, $"{Environment.ProcessId}-{Guid.NewGuid():N}-{kind}.spill");
-        return new(File.OpenHandle(path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete, FileOptions.DeleteOnClose | FileOptions.RandomAccess));
+        return new(path, FileShare.Delete, FileOptions.DeleteOnClose | FileOptions.RandomAccess);
     }
 
     /// <summary>
@@ -72,7 +81,7 @@ internal sealed class SpillFile : IDisposable
     public static SpillFile CreateDurable(string directory, string name)
     {
         Directory.CreateDirectory(directory);
-        return new(File.OpenHandle(Path.Combine(directory, name), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess));
+        return new(Path.Combine(directory, name), FileShare.ReadWrite | FileShare.Delete, FileOptions.RandomAccess);
     }
 
     /// <summary>Makes everything written so far survive a power loss.</summary>
@@ -117,7 +126,7 @@ internal sealed class SpillFile : IDisposable
 
     public void Truncate(long length) => RandomAccess.SetLength(_handle, length);
 
-    public void Dispose() => _handle.Dispose();
+    public void Dispose() => _stream.Dispose();
 }
 
 /// <summary>

@@ -17,6 +17,7 @@
   <ItemGroup>
     <!-- the same endpoint code as the editor, so the pipe name cannot drift between the two -->
     <Compile Include="..\NksHub.Textida.App\Startup\Ipc.cs" Link="Ipc.cs" />
+    <Compile Include="..\NksHub.Textida.Core\Files\PrivateDirectory.cs" Link="PrivateDirectory.cs" />
   </ItemGroup>
 
 </Project>
