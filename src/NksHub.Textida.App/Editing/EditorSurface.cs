@@ -281,6 +281,8 @@ internal sealed partial class EditorSurface : TextEditor
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
         BracketBrush = Find("BracketMatch");
+        UnmatchedBracketBrush = Find("BracketUnmatched");
+        UnmatchedBracketPen = Find("Danger") is { } danger ? new Pen(danger, 1) : null;
         ApplyOccurrenceBrushes(Find);
         _caretBrush = Find("Fg");
         UpdateNativeCaret();

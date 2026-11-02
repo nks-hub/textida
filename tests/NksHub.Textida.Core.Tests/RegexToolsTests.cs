@@ -174,6 +174,18 @@ public class BracketMatcherTests
     }
 
     [Fact]
+    public void A_bracket_without_a_partner_to_the_end_of_the_document_is_unmatched_but_a_cut_off_search_says_nothing()
+    {
+        var lines = Lines("a(\n\n\nb");
+        Assert.Equal((new TextPosition(0, 1), (TextPosition?)null), BracketMatcher.MatchOrUnmatched(lines, null, 0, 1, 10));
+        Assert.Null(BracketMatcher.MatchOrUnmatched(lines, null, 0, 1, 2)); // the limit ended the search before the document did
+        Assert.Equal((new TextPosition(1, 0), (TextPosition?)null), BracketMatcher.MatchOrUnmatched(Lines("x\n)"), null, 1, 1, 10));
+        Assert.Null(BracketMatcher.MatchOrUnmatched(lines, null, 3, 0, 10)); // no bracket there
+        Assert.Equal((new TextPosition(0, 0), (TextPosition?)new TextPosition(0, 1)), BracketMatcher.MatchOrUnmatched(Lines("()"), null, 0, 0, 10));
+        Assert.Null(BracketMatcher.Match(lines, null, 0, 1, 10)); // Match keeps answering only for a pair
+    }
+
+    [Fact]
     public void Match_takes_the_tokens_of_a_line_once_from_a_token_source()
     {
         var js = BuiltinGrammars.Tokenizer("javascript");

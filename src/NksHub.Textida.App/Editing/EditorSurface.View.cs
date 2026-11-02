@@ -174,10 +174,19 @@ internal sealed partial class EditorSurface : IMinimapHost
     /// <summary>Background of the bracket at the caret and of its partner; set with the theme.</summary>
     internal IBrush? BracketBrush { get; private set; }
 
+    /// <summary>Background of a bracket in code that has no partner; set with the theme.</summary>
+    internal IBrush? UnmatchedBracketBrush { get; private set; }
+
+    /// <summary>Outline of the unmatched bracket, so that it differs from a pair by shape and not by colour alone.</summary>
+    internal IPen? UnmatchedBracketPen { get; private set; }
+
+    /// <summary>The partner offset of <see cref="MatchingBrackets"/> for a bracket that has none.</summary>
+    internal const int NoPartner = -1;
+
     /// <summary>
     /// Offsets of the bracket at the caret (or just before it) and of its partner while the highlight is on, there is one caret and nothing is
-    /// selected; null otherwise. Brackets in strings and comments do not count when the language has a grammar. Kept until the text, the caret
-    /// or the grammar changes.
+    /// selected; null otherwise. The partner is <see cref="NoPartner"/> when the bracket has none up to the end of the document. Brackets in strings
+    /// and comments do not count when the language has a grammar. Kept until the text, the caret or the grammar changes.
     /// </summary>
     internal (int Bracket, int Partner)? MatchingBrackets()
     {
@@ -210,8 +219,8 @@ internal sealed partial class EditorSurface : IMinimapHost
         }
         try
         {
-            var match = BracketMatcher.Match(new DocumentLines(Document), tokensOf, line.LineNumber - 1, CaretOffset - line.Offset, PluginLimits.BracketHighlightMaxLines);
-            return match is { } m ? (OffsetOf(m.Bracket), OffsetOf(m.Partner)) : null;
+            var match = BracketMatcher.MatchOrUnmatched(new DocumentLines(Document), tokensOf, line.LineNumber - 1, CaretOffset - line.Offset, PluginLimits.BracketHighlightMaxLines);
+            return match is { } m ? (OffsetOf(m.Bracket), m.Partner is { } partner ? OffsetOf(partner) : NoPartner) : null;
         }
         catch (ArgumentOutOfRangeException) { return null; } // the line breaks of the decoded text and of the tokenizer disagree
         int OffsetOf(TextPosition p) => Document.GetLineByNumber(p.Line + 1).Offset + p.Column;
@@ -346,8 +355,10 @@ internal sealed class BracketRenderer(EditorSurface owner) : IBackgroundRenderer
             if (owner.BracketBrush is not { } brush || !textView.VisualLinesValid || owner.MatchingBrackets() is not { } pair) return;
             var builder = new BackgroundGeometryBuilder { AlignToWholePixels = true, CornerRadius = 2 };
             builder.AddSegment(textView, new TextSegment { StartOffset = pair.Bracket, Length = 1 });
-            builder.AddSegment(textView, new TextSegment { StartOffset = pair.Partner, Length = 1 });
-            if (builder.CreateGeometry() is { } geometry) drawingContext.DrawGeometry(brush, null, geometry);
+            bool unmatched = pair.Partner == EditorSurface.NoPartner;
+            if (!unmatched) builder.AddSegment(textView, new TextSegment { StartOffset = pair.Partner, Length = 1 });
+            if (builder.CreateGeometry() is { } geometry)
+                drawingContext.DrawGeometry(unmatched ? owner.UnmatchedBracketBrush ?? brush : brush, unmatched ? owner.UnmatchedBracketPen : null, geometry);
         }
         finally { NksHub.Textida.Core.TypingTrace.End("editor.drawBrackets", trace); }
     }

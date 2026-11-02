@@ -27,7 +27,17 @@ public static class BracketMatcher
     public static (TextPosition Bracket, TextPosition Partner)? Match(IReadOnlyList<string> lines, Func<int, IReadOnlyList<Token>>? tokensOf, int line, int column, int maxLines) =>
         Match(lines, new LineTokens(tokensOf), line, column, maxLines);
 
-    private static (TextPosition Bracket, TextPosition Partner)? Match(IReadOnlyList<string> lines, LineTokens tokens, int line, int column, int maxLines)
+    private static (TextPosition Bracket, TextPosition Partner)? Match(IReadOnlyList<string> lines, LineTokens tokens, int line, int column, int maxLines) =>
+        Locate(lines, tokens, line, column, maxLines) is { Partner: { } partner } found ? (found.Bracket, partner) : null;
+
+    /// <summary>
+    /// Like <see cref="Match"/>, but a bracket in code that has no partner up to the end of the document comes back with a null partner. A search cut off by
+    /// <paramref name="maxLines"/> before the end of the document says nothing about the partner, so it gives null.
+    /// </summary>
+    public static (TextPosition Bracket, TextPosition? Partner)? MatchOrUnmatched(IReadOnlyList<string> lines, Func<int, IReadOnlyList<Token>>? tokensOf, int line, int column, int maxLines) =>
+        Locate(lines, new LineTokens(tokensOf), line, column, maxLines);
+
+    private static (TextPosition Bracket, TextPosition? Partner)? Locate(IReadOnlyList<string> lines, LineTokens tokens, int line, int column, int maxLines)
     {
         if ((uint)line >= (uint)lines.Count) return null;
         string text = lines[line];
@@ -49,7 +59,7 @@ public static class BracketMatcher
                 else if (--depth == 0) return (new TextPosition(line, at), new TextPosition(l, c));
             }
         }
-        return null;
+        return stop == (step > 0 ? lines.Count : -1) ? (new TextPosition(line, at), null) : null;
     }
 
     private static bool IsBracket(string text, int column) => (uint)column < (uint)text.Length && Brackets.Contains(text[column]);
