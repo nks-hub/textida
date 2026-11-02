@@ -20,6 +20,7 @@ public partial class PluginSdkTests
     {
         public readonly TaskCompletionSource TaskStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public readonly TaskCompletionSource SawCancel = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource FloodSent = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Probe() : base("probe", apiVersion: 1)
         {
@@ -51,6 +52,15 @@ public partial class PluginSdkTests
                 try { await Task.Delay(Timeout.Infinite, task.Cancellation); }
                 catch (OperationCanceledException) { return new CommandResult("cancelled"); }
                 return new CommandResult("finished");
+            });
+            OnCommand("probe.flood", async (_, ct) =>
+            {
+                await using var task = await StartTaskAsync("Probe flood", ct);
+                // as git progress arrives: every line is reported and none is waited for
+                var reports = Enumerable.Range(1, 20).Select(i => task.ReportAsync(i / 20.0, "step " + i).AsTask()).ToList();
+                FloodSent.TrySetResult();
+                await Task.WhenAll(reports);
+                return new CommandResult("flooded");
             });
             OnCommand("probe.edit", async (c, ct) =>
             {
@@ -193,6 +203,21 @@ public partial class PluginSdkTests
         var progress = Assert.Single(editor.Seen("ui/task/progress"));
         Assert.Equal("{\"task\":\"t1\",\"fraction\":0.25,\"message\":\"a quarter\"}", progress.Json);
         Assert.Equal("{\"task\":\"t1\"}", Assert.Single(editor.Seen("ui/task/end")).Json);
+    }
+
+    [Fact]
+    public async Task Progress_reported_without_waiting_has_one_report_on_its_way_and_drops_the_others()
+    {
+        await using var editor = await Editor.StartAsync();
+        editor.Answer = (method, _) => method == "ui/task/start" ? "{\"task\":\"t1\"}"u8.ToArray() : "{}"u8.ToArray();
+        // the editor answers the first report only after the plugin sent them all; each one on its way would take a request slot of the editor
+        editor.BeforeAnswer = method => method == "ui/task/progress" ? new ValueTask(editor.Plugin.FloodSent.Task) : ValueTask.CompletedTask;
+
+        var answer = await editor.CommandAsync("probe.flood").WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Equal("flooded", answer.GetProperty("status").GetString());
+        Assert.Equal("{\"task\":\"t1\",\"fraction\":0.05,\"message\":\"step 1\"}", Assert.Single(editor.Seen("ui/task/progress")).Json);
+        Assert.Single(editor.Seen("ui/task/end"));
     }
 
     [Fact]

@@ -110,7 +110,8 @@ public partial class GitPluginTests
                 DiffActions = new DiffActionOptions(4, 200),
             }, new Owner(), send, (plugin, method, payload, timeout, ct) => host!.CallAsync(plugin, method, payload, timeout, ct));
             var uiApi = new UiApi(new UiApiOptions { MaxPanelsPerPlugin = 2, MaxItemsPerPanel = 100, MaxTreeDepth = 3, MaxTasksPerPlugin = 2, MaxTextLength = 2000, MaxPickItems = 10, TaskCancelGrace = TimeSpan.FromSeconds(30) }, ui, send);
-            host = new PluginHost.PluginHost(PluginHostTests.Options(), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
+            // the editor's 8 requests at a time: a command's own call, a progress report and the refresh the watcher started can be on their way together
+            host = new PluginHost.PluginHost(PluginHostTests.Options(o => o with { Limits = o.Limits with { MaxConcurrentIncoming = 8 } }), PluginApiRouter.Create(docs.HandleAsync, ("ui/", uiApi.HandleAsync)), docs);
             var dll = System.IO.Path.Combine(AppContext.BaseDirectory, "NksHub.Textida.Plugins.Git.dll");
             Assert.True(File.Exists(dll), dll);
             string[] args = [dll, "--timeout-ms", "20000", "--max-bytes", "1000000", "--max-entries", "50", "--chunk-bytes", "60000", "--peek-max-lines", "500"];

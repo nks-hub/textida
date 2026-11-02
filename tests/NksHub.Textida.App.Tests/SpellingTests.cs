@@ -17,6 +17,24 @@ internal static class TinyDictionary
 
     private static readonly string[] Words = ["příliš", "žluťoučký", "kůň", "úpěl", "ďábelské", "ódy", "hello", "world", "comment", "string", "text", "the", "quick", "brown", "fox", "color", "šest", "šel", "šla", "sel", "už", "úz"];
 
+    /// <summary>
+    /// The first suggestion of the process compiles the engine: 40 ms without tiered compilation on an idle machine, against the 50 ms Hunspell gives a step of the suggestion (a later one takes 0.05 ms).
+    /// On a loaded machine that first one runs out of time and comes back without the word, so the engine is warmed once before any test asks it.
+    /// </summary>
+    static TinyDictionary()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "spell-warm-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            var list = WeCantSpell.Hunspell.WordList.CreateFromFiles(Write(folder));
+            foreach (string word in new[] { "prilis", "zlutoucky", "kun", "helo" }) _ = list.Suggest(word).ToList();
+        }
+        finally
+        {
+            try { Directory.Delete(folder, true); } catch (IOException) { }
+        }
+    }
+
     public static string Write(string folder, string name = "tiny")
     {
         Directory.CreateDirectory(folder);
