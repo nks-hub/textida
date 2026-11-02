@@ -51,10 +51,11 @@ internal static partial class PreviewRenderer
         for (int i = 0; i < chart.Nodes.Count; i++) canvas.Children.Add(DrawNode(chart.Nodes[i], layout.Nodes[i]));
 
         string Name(int node) => chart.Nodes[node].Text.ReplaceLineEndings(" ");
+        string End(int node, int group) => group >= 0 ? chart.Groups[group].Title.ReplaceLineEndings(" ") : Name(node);
         string Described(int node) => chart.Groups.FirstOrDefault(g => g.Nodes.Contains(node)) is { } group ? Name(node) + " (" + group.Title.ReplaceLineEndings(" ") + ")" : Name(node);
         var connections = chart.Edges.Select(e => e.Label is { } label
-            ? Loc.Get(K.PreviewMermaidEdgeLabel, ("from", Name(e.From)), ("to", Name(e.To)), ("label", label))
-            : Loc.Get(K.PreviewMermaidEdge, ("from", Name(e.From)), ("to", Name(e.To))));
+            ? Loc.Get(K.PreviewMermaidEdgeLabel, ("from", End(e.From, e.FromGroup)), ("to", End(e.To, e.ToGroup)), ("label", label))
+            : Loc.Get(K.PreviewMermaidEdge, ("from", End(e.From, e.FromGroup)), ("to", End(e.To, e.ToGroup))));
         var scroll = new ScrollViewer { Content = canvas, Focusable = true, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalAlignment = HorizontalAlignment.Left };
         AutomationProperties.SetName(scroll, Loc.Get(K.PreviewMermaidName, ("nodes", string.Join(", ", chart.Nodes.Select((_, i) => Described(i)))), ("edges", string.Join("; ", connections))));
         return scroll;

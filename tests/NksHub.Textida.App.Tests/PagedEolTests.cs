@@ -99,6 +99,18 @@ public class PagedEolTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Reading_the_bytes_in_another_width_drops_the_endings_of_the_old_reading_at_once()
+    {
+        var tab = OpenPaged(Text(null));
+        tab.Doc.FlushEol();
+        Assert.Equal(new EolStats(Rows, 0, 0), tab.Doc.Eol);
+
+        // as UTF-16 the one-byte newlines of the file pair up with their neighbours and no line end is left
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Assert.Equal(new EolStats(0, 0, 0), tab.Doc.Eol);
+    }
+
+    [AvaloniaFact]
     public void Removing_the_only_odd_line_ending_makes_the_document_uniform_again()
     {
         var tab = OpenPaged(Text("\r\n"));

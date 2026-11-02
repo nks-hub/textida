@@ -12,8 +12,12 @@ public enum FlowLine { Solid, Dotted, Thick }
 /// <summary>A node of a flowchart: the id used in the source, the text drawn in it and its shape.</summary>
 public sealed record FlowNode(string Id, string Text, FlowShape Shape);
 
-/// <summary>A connection between two nodes (indexes into <see cref="Flowchart.Nodes"/>), with an optional label, a line style and an arrow head at the end.</summary>
-public sealed record FlowEdge(int From, int To, string? Label, FlowLine Line, bool Arrow);
+/// <summary>
+/// A connection between two nodes (indexes into <see cref="Flowchart.Nodes"/>), with an optional label, a line style and an arrow head at the end.
+/// When an end was written as the id of a subgraph, <see cref="FromGroup"/> or <see cref="ToGroup"/> is that subgraph (index into <see cref="Flowchart.Groups"/>, -1 otherwise)
+/// and <see cref="From"/> or <see cref="To"/> is its first node, which fixes the layer; the line is drawn to the frame.
+/// </summary>
+public sealed record FlowEdge(int From, int To, string? Label, FlowLine Line, bool Arrow, int FromGroup = -1, int ToGroup = -1);
 
 /// <summary>A <c>subgraph</c>: the title drawn on its frame, the enclosing subgraph (index into <see cref="Flowchart.Groups"/>, -1 at the top) and the nodes written directly in it.</summary>
 public sealed record FlowGroup(string Id, string Title, int Parent, IReadOnlyList<int> Nodes);
@@ -25,7 +29,8 @@ public sealed record Flowchart(FlowDirection Direction, IReadOnlyList<FlowNode> 
 /// The flowchart subset of Mermaid that the preview draws without a script engine (P9.3.1, P9.3.3): <c>graph</c> or <c>flowchart</c> with the direction TD, TB, BT, LR or RL; nodes <c>A</c>,
 /// <c>A[text]</c>, <c>A(text)</c>, <c>A([text])</c> (stadium), <c>A((text))</c>, <c>A{text}</c>, <c>A{{text}}</c> (hexagon), <c>A[(text)]</c> (cylinder), <c>A[/text/]</c> and <c>A[	ext\]</c> (parallelogram); connections <c>--&gt;</c>, <c>---</c>, <c>-.-&gt;</c>, <c>==&gt;</c> with a label as <c>--&gt;|text|</c> or
 /// <c>-- text --&gt;</c>; chains (<c>A --&gt; B --&gt; C</c>) and groups (<c>A &amp; B --&gt; C</c>); <c>subgraph id [title]</c> ... <c>end</c>, nested, around the nodes written inside. <c>style</c>, <c>classDef</c>, <c>class</c>, <c>linkStyle</c>, <c>click</c> and <c>direction</c> lines are skipped.
-/// shortcut: other diagram types and the trapezoid shapes make <see cref="Parse"/> return null or a plain box, and a connection to a subgraph id becomes a node of that name; add them when a user needs them.
+/// A connection to the id of a subgraph that holds a node ends at its frame.
+/// shortcut: other diagram types and the trapezoid shapes make <see cref="Parse"/> return null or a plain box; add them when a user needs them.
 /// </summary>
 public static partial class MermaidFlowchart
 {
@@ -101,7 +106,33 @@ public static partial class MermaidFlowchart
             }
             else if (!Statement(statement, nodes, edges, index, maxNodes, maxEdges, Mention)) return null;
         }
-        return nodes.Count == 0 || open.Count > 0 ? null : new Flowchart(direction, nodes, edges, [.. groups.Select(g => new FlowGroup(g.Id, g.Title, g.Parent, g.Nodes))]);
+        if (nodes.Count == 0 || open.Count > 0) return null;
+        return AttachToFrames(direction, nodes, edges, [.. groups.Select(g => new FlowGroup(g.Id, g.Title, g.Parent, g.Nodes))]);
+    }
+
+    /// <summary>Drops the nodes that only name a subgraph that holds nodes and points the connections of them at the subgraph.</summary>
+    private static Flowchart AttachToFrames(FlowDirection direction, List<FlowNode> nodes, List<FlowEdge> edges, FlowGroup[] groups)
+    {
+        bool Within(int group, int outer) { for (; group >= 0; group = groups[group].Parent) if (group == outer) return true; return false; }
+        var named = new Dictionary<int, int>();
+        for (int v = 0; v < nodes.Count; v++)
+        {
+            int g = Array.FindIndex(groups, h => h.Id == nodes[v].Id);
+            if (g >= 0 && !groups.Select((h, i) => (h, i)).Any(x => x.h.Nodes.Contains(v) && Within(x.i, g))) named[v] = g;
+        }
+        int First(int g) => Enumerable.Range(0, nodes.Count).FirstOrDefault(v => !named.ContainsKey(v) && groups.Select((h, i) => (h, i)).Any(x => x.h.Nodes.Contains(v) && Within(x.i, g)), -1);
+        var proxy = named.Where(p => First(p.Value) >= 0).ToDictionary(p => p.Key, p => p.Value);
+        if (proxy.Count == 0) return new Flowchart(direction, nodes, edges, groups);
+        var map = new int[nodes.Count];
+        var kept = new List<FlowNode>();
+        for (int v = 0; v < nodes.Count; v++) { map[v] = proxy.ContainsKey(v) ? -1 : kept.Count; if (!proxy.ContainsKey(v)) kept.Add(nodes[v]); }
+        (int Node, int Group) End(int v) => proxy.TryGetValue(v, out int g) ? (map[First(g)], g) : (map[v], -1);
+        var rewritten = edges.Select(e =>
+        {
+            var (from, to) = (End(e.From), End(e.To));
+            return e with { From = from.Node, To = to.Node, FromGroup = from.Group, ToGroup = to.Group };
+        }).ToList();
+        return new Flowchart(direction, kept, rewritten, [.. groups.Select(g => g with { Nodes = [.. g.Nodes.Where(v => !proxy.ContainsKey(v)).Select(v => map[v])] })]);
     }
 
     /// <summary>The statements of the body: split at line ends and at semicolons that are outside brackets and quotes.</summary>

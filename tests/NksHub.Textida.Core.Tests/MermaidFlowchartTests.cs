@@ -263,6 +263,44 @@ public class MermaidFlowchartTests
         Assert.False(Overlap(layout.Groups[0].Box, layout.Nodes[2]), "X sits between A and B");
     }
 
+    [Theory]
+    [InlineData("graph TD\nsubgraph g\nA\nC\nend\nA --> B\nB --> C\nA --> X\nX --> C\nA --> Y\nY --> C")]
+    [InlineData("graph LR\nsubgraph g\nA\nC\nend\nA --> B\nB --> C\nA --> X\nX --> C\nA --> Y\nY --> C")]
+    [InlineData("graph TD\nR --> A\nR --> B\nsubgraph one\nA\nD\nend\nsubgraph two\nB\nC\nend\nA --> C\nB --> D\nC --> E\nD --> F\nE --> G\nF --> G")]
+    [InlineData("graph TD\nsubgraph outer\nsubgraph inner\nA\nD\nend\nB\nend\nsubgraph other\nX\nZ\nend\nA --> B\nA --> X\nX --> D\nB --> Z\nZ --> D\nA --> Y\nY --> D")]
+    public void No_frame_covers_a_node_of_another_subgraph(string source)
+    {
+        var chart = Chart(source);
+        var layout = FlowchartLayout.Compute(chart);
+        foreach (var frame in layout.Groups)
+            for (int v = 0; v < chart.Nodes.Count; v++)
+            {
+                bool member = chart.Groups.Select((g, i) => (g, i)).Any(x => x.g.Nodes.Contains(v) && InGroup(chart, x.i, frame.Group));
+                Assert.True(member || !Overlap(frame.Box, layout.Nodes[v]), $"the frame of {chart.Groups[frame.Group].Id} covers {chart.Nodes[v].Id}");
+            }
+    }
+
+    private static bool InGroup(Flowchart chart, int group, int outer)
+    {
+        for (; group >= 0; group = chart.Groups[group].Parent) if (group == outer) return true;
+        return false;
+    }
+
+    [Fact]
+    public void A_connection_to_a_subgraph_id_ends_at_its_frame()
+    {
+        var chart = Chart("graph TD\nX --> sub\nsub --> Y\nsubgraph sub [Part]\nA --> B\nend");
+        Assert.Equal("X=X/Rectangle,Y=Y/Rectangle,A=A/Rectangle,B=B/Rectangle", Names(chart));
+        Assert.Equal("X>A/Solid,A>Y/Solid,A>B/Solid", Links(chart));
+        Assert.Equal([-1, 0], [chart.Edges[0].FromGroup, chart.Edges[0].ToGroup]);
+        Assert.Equal([0, -1], [chart.Edges[1].FromGroup, chart.Edges[1].ToGroup]);
+        var layout = FlowchartLayout.Compute(chart);
+        var frame = layout.Groups[0].Box;
+        var (into, outOf) = (layout.Edges[0].Points[^1], layout.Edges[1].Points[0]);
+        Assert.True(Math.Abs(into.Y - frame.Y) < 0.01 && into.X >= frame.X && into.X <= frame.X + frame.Width, "the arrow in ends on the top of the frame");
+        Assert.True(Math.Abs(outOf.Y - (frame.Y + frame.Height)) < 0.01 && outOf.X >= frame.X && outOf.X <= frame.X + frame.Width, "the line out starts on the bottom of the frame");
+    }
+
     [Fact]
     public void The_new_shapes_take_room_and_their_connections_end_on_their_outline()
     {
