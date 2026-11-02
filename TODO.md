@@ -1115,7 +1115,7 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Co a proč:** Požadavek majitele 2. 11. 2026: optimalizované zobrazení i velkých JSON souborů (stovky MiB až GiB, často na jednom řádku) včetně formátovaného (pretty) pohledu. Formátovaný pohled je jen zobrazení: odsazení a zalomení podle struktury bez přepsání souboru a bez načtení celého dokumentu do paměti, počítané po blocích na pozadí; rozbalování a sbalování objektů a polí, cesta ke klíči u kurzoru, skok na klíč, zvýraznění syntaxe a hledání fungují i v něm; přepnutí na původní text zachová polohu. Úprava ve formátovaném pohledu se zapíše do původního textu jen v daném rozsahu.
   - **Funkce:** žádná (požadavek majitele 2. 11. 2026)
   - **Hotovo, když:** JSON 1 GiB na jednom řádku se otevře a formátovaný pohled ukáže první obrazovku do 1 s bez nárůstu paměti nad limit stránkovaného režimu; posun, sbalení a skok na klíč mají psaní a posun do 33 ms p95; uložení beze změn nezmění bajty souboru; úprava hodnoty ve formátovaném pohledu změní jen její bajty; měřeno na referenčním stroji.
-  - **Závisí na:** P3.1.3, P4.6.4
+  - **Závisí na:** P3.1.3
   - **Odhad:** bez odhadu
 
 ### P3.2 Zvýrazňování
