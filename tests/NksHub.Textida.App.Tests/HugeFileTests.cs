@@ -99,6 +99,23 @@ public sealed class HugeFileTests : IDisposable
         return tab;
     }
 
+    /// <summary>
+    /// Ticks a transcript window at the interval of its own timer. The window copies new turns from its index on a DispatcherTimer, and a synchronous headless test never runs the
+    /// dispatcher loop that fires one (RunJobs only runs queued jobs), so without this the list would stop at what the window saw when it opened.
+    /// </summary>
+    private static Action TickerOf(TranscriptWindow window)
+    {
+        long last = Stopwatch.GetTimestamp(); // the window ticked when it opened
+        bool stopped = false;
+        return () =>
+        {
+            if (stopped || Stopwatch.GetElapsedTime(last).TotalMilliseconds < PluginLimits.TranscriptRefreshMilliseconds) return;
+            last = Stopwatch.GetTimestamp();
+            window.Tick();
+            stopped = window.IsListComplete; // the tick that sees the whole index stops the timer of the window
+        };
+    }
+
     private static double Percentile(List<double> sorted, double share) => sorted[Math.Min(sorted.Count - 1, (int)(sorted.Count * share))];
 
     private static string LineAtCaret(PagedTextView.TextSurface surface)
@@ -267,12 +284,14 @@ public sealed class HugeFileTests : IDisposable
             string tiny = Path.Combine(dir, "tiny.jsonl");
             File.WriteAllText(tiny, "{\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":\"hello\"}}\n");
             var warmUp = _w.OpenTranscript(tiny)!;
-            PumpUntil(() => warmUp.TurnList.SelectedIndex >= 0 && warmUp.RowData.Count > 0, "the warm-up turn", TimeSpan.FromSeconds(30));
+            var warmUpTick = TickerOf(warmUp);
+            PumpUntil(() => { warmUpTick(); return warmUp.TurnList.SelectedIndex >= 0 && warmUp.RowData.Count > 0; }, "the warm-up turn", TimeSpan.FromSeconds(30));
             warmUp.Close();
 
             clock.Restart();
             var window = _w.OpenTranscript(path) ?? throw new InvalidOperationException("the transcript did not open");
-            PumpUntil(() => window.TurnList.SelectedIndex >= 0 && window.RowData.Count > 0, "the first turn", TimeSpan.FromSeconds(30));
+            var tick = TickerOf(window);
+            PumpUntil(() => { tick(); return window.TurnList.SelectedIndex >= 0 && window.RowData.Count > 0; }, "the first turn", TimeSpan.FromSeconds(30));
             var first = clock.Elapsed;
             _output.WriteLine($"{(cold ? "cold" : "warm")}: the first turn was in the window {first.TotalMilliseconds:F0} ms after the call; status '{window.StatusText}'");
 
@@ -284,12 +303,13 @@ public sealed class HugeFileTests : IDisposable
             {
                 var timer = Stopwatch.StartNew();
                 window.MouseWheel(inside, new Vector(0, step % 40 < 30 ? -3 : 3), RawInputModifiers.None);
+                tick(); // measured: a tick that lands in the frame of a wheel step
                 window.UpdateLayout();
                 Dispatcher.UIThread.RunJobs();
                 (window.IsListComplete ? afterwards : whileFilling).Add(timer.Elapsed.TotalMilliseconds);
                 Thread.Sleep(10);
             }
-            PumpUntil(() => window.IsListComplete, "the end of the index", TimeSpan.FromMinutes(2));
+            PumpUntil(() => { tick(); return window.IsListComplete; }, "the end of the index", TimeSpan.FromMinutes(2));
             var index = window.Index;
             _output.WriteLine($"index complete: {index.LineCount} lines, {index.TurnCount} turns, {index.IndexBytes >> 10} KiB of {PluginLimits.TranscriptIndexMaxBytes >> 10} KiB allowed, truncated {index.IsTruncated}");
 
