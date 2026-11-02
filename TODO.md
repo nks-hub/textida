@@ -1327,6 +1327,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.5
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Požadavek majitele 2. 11. 2026:** okno O aplikaci nemá informace o NKS Hub: doplnit autora/vydavatele NKS Hub s odkazem na web (https://nks-hub.cz), GitHub organizace a repozitář projektu, kontakt (dev@nks-hub.cz) a hlášení chyb (GitHub Issues), licenci MIT s rokem a držitelem; odkazy po potvrzení jako dnes, texty ve 4 jazycích.
 - [ ] **P3.6.8** Ikona aplikace
   - **Co a proč:** Spustitelný soubor ani okna neměly ikonu. Ikona ve vzhledu D5 (tyrkysová dlaždice, „T“ s řádky textu a kurzorem, zjednodušená do 24 px) pro exe, všechna okna, instalátor a O aplikaci; generátor tools/MakeIcon.cs, aby šla vyrobit znovu.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
