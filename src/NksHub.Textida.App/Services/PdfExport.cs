@@ -178,13 +178,38 @@ internal static partial class PdfExport
             {
                 var typeface = _subsets.GetValueOrDefault(system, system);
                 using var font = new SKFont(typeface, size);
-                if (rightToLeft) x += DrawShaped(canvas, piece, typeface, font, x, baseline, paint);
-                else
-                {
-                    canvas.DrawText(piece, x, baseline, font, paint);
-                    x += font.MeasureText(piece);
-                }
+                x += rightToLeft ? DrawShaped(canvas, piece, typeface, font, x, baseline, paint) : DrawPlain(canvas, piece, font, x, baseline, paint);
             }
+        }
+
+        /// <summary>
+        /// Draws a left-to-right piece glyph by glyph with the default advances, as DrawText does, but gives Skia each character as the cluster of its glyph.
+        /// Skia then writes an ActualText where the ToUnicode entry it takes from the font's cmap gives back another character than the one printed:
+        /// CJK fonts share one glyph between 文 and the Kangxi radical ⽂, many fonts one glyph between the space and the no-break space. Returns the width drawn.
+        /// </summary>
+        private static float DrawPlain(SKCanvas canvas, string text, SKFont font, float x, float baseline, SKPaint paint)
+        {
+            var glyphs = font.GetGlyphs(text);
+            var widths = font.GetGlyphWidths(glyphs);
+            var utf8 = Encoding.UTF8.GetBytes(text);
+            using var builder = new SKTextBlobBuilder();
+            var run = builder.AllocatePositionedTextRun(font, glyphs.Length, utf8.Length);
+            float pen = 0;
+            int i = 0, offset = 0;
+            foreach (var rune in text.EnumerateRunes())
+            {
+                if (i == glyphs.Length) break;
+                run.Glyphs[i] = glyphs[i];
+                run.Positions[i] = new SKPoint(pen, 0);
+                run.Clusters[i] = (uint)offset;
+                pen += widths[i];
+                offset += rune.Utf8SequenceLength;
+                i++;
+            }
+            run.SetText(utf8);
+            using var blob = builder.Build();
+            canvas.DrawText(blob, x, baseline, paint);
+            return pen;
         }
 
         /// <summary>
@@ -270,6 +295,8 @@ internal static partial class PdfExport
     /// </summary>
     private static SKTypeface? Subset(SKTypeface typeface, HashSet<int> codePoints)
     {
+        // a font whose outlines are in a table HarfBuzz does not renumber (PingFang on macOS 15 has neither glyf nor CFF) would draw the wrong glyphs once cut
+        if (!typeface.GetTableTags().Any(tag => tag is 0x676C7966 /* glyf */ or 0x43464620 /* CFF */ or 0x43464632 /* CFF2 */)) return null;
         if (typeface.TryGetTableData(0x4F532F32 /* OS/2 */, out byte[] os2) && os2.Length >= 10 && (BinaryPrimitives.ReadUInt16BigEndian(os2.AsSpan(8)) & 0x0100) != 0) return null;
         using var asset = typeface.OpenStream(out int index);
         if (asset is null) return null;
