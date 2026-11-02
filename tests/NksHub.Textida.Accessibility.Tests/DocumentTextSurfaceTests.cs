@@ -63,4 +63,81 @@ public class DocumentTextSurfaceTests
         Assert.Equal("", r.GetText());
         Assert.Equal(0, r.Move(TextUnit.Line, 1));
     }
+
+    private static int[] StartsOf(string text)
+    {
+        var starts = new List<int> { 0 };
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n') i++;
+            else if (text[i] is not ('\r' or '\n')) continue;
+            starts.Add(i + 1);
+        }
+        return [.. starts];
+    }
+
+    private static void AssertMirrors(TestSurface s)
+    {
+        string expected = s.Document.ReadText(new(s.Document.BomLength, s.Document.ByteLength));
+        Assert.Equal(expected, s.GetText(0, s.Length));
+        var starts = StartsOf(expected);
+        Assert.Equal(starts.Length, s.LineCount);
+        for (int line = 0; line < starts.Length; line++) Assert.Equal(starts[line], s.LineStart(line));
+        Assert.Equal(expected.Length, s.LineStart(s.LineCount));
+    }
+
+    [Fact]
+    public void Edits_applied_in_place_leave_the_same_text_lines_and_change_reports_as_a_full_read()
+    {
+        string[] pieces = ["", "a", "\n", "\r\n", "\r", "\u00e9", "\U0001F600", "xy\nz", "\r\nx\r", "line one\r\nline two\n", "\n\n"];
+        var random = new Random(7);
+        using var s = new TestSurface("start\r\nsecond \U0001F600 line\nthird\r\n\r\nend");
+        string before = s.GetText(0, s.Length);
+        var failures = new List<string>();
+        s.TextChanged += c =>
+        {
+            string now = s.GetText(0, s.Length);
+            if (before[..c.Start] + now.Substring(c.Start, c.Inserted) + before[(c.Start + c.Removed)..] != now) failures.Add($"{c} on '{before}'");
+            before = now;
+        };
+        for (int step = 0; step < 400; step++)
+        {
+            string text = s.GetText(0, s.Length);
+            if (step % 9 == 8 && s.Document.CanUndo) s.Document.Undo();
+            else if (step % 13 == 12 && s.Document.CanRedo) s.Document.Redo();
+            else
+            {
+                int start = Boundary(text, random.Next(text.Length + 1));
+                int end = Boundary(text, Math.Min(text.Length, start + (random.Next(4) == 0 ? random.Next(12) : random.Next(2))));
+                if (end < start) end = start;
+                s.ReplaceText(start, end - start, pieces[random.Next(pieces.Length)]);
+            }
+            AssertMirrors(s);
+        }
+        Assert.Empty(failures);
+    }
+
+    /// <summary>The nearest offset that is not inside a surrogate pair or between CR and LF.</summary>
+    private static int Boundary(string text, int offset)
+    {
+        while (offset > 0 && offset < text.Length && (char.IsLowSurrogate(text[offset]) || (text[offset - 1] == '\r' && text[offset] == '\n'))) offset--;
+        return offset;
+    }
+
+    [Fact]
+    public void Typing_in_a_large_document_decodes_only_what_is_typed()
+    {
+        string line = new string('x', 63) + "\r\n";
+        using var s = new TestSurface(string.Concat(Enumerable.Repeat(line, 16_384))); // 1 MiB
+        Assert.True(s.Length >= 1 << 20);
+        long afterOpen = s.CharsDecoded;
+        int at = s.LineStart(8_000) + 10;
+        for (int i = 0; i < 200; i++) s.ReplaceText(at + i, 0, i % 50 == 49 ? "\n" : "k");
+        Assert.Equal(200, s.GetText(at, 200).Length);
+        Assert.Equal(16_384 + 4 + 1, s.LineCount);
+        Assert.Equal(200, s.CharsDecoded - afterOpen); // the old code read the whole 1 MiB text again at each of the 200 keystrokes
+        s.Document.Undo();
+        Assert.Equal(200, s.CharsDecoded - afterOpen); // an undo removes text and decodes none
+        AssertMirrors(s);
+    }
 }
