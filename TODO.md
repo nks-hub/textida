@@ -2545,6 +2545,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Streamable HTTP, zdroje dat, Připojit, dotaz před voláním nástroje, limity, tajné hodnoty jen v úložišti pověření. Chybí starý přenos HTTP+SSE.
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. doplněn starý přenos HTTP+SSE (spec 2024-11-05) včetně přechodu z adresy bez typu; testy proti testovacímu serveru prošly na referenční Windows VM i referenční Mac.
+  - **Oprava 2. 11. 2026 (99ef0c2d, sloučeno a10b7107):** přes Streamable HTTP handshake skončil hned po zařazení `notifications/initialized`, ale zapisovač držel další požadavek až do potvrzení serverem; na vytíženém stroji tak čekání spotřebovalo limit prvního volání a `tools/call` vypršel ve frontě neodeslaný (test `A_call_at_an_address_that_takes_too_long…` na virtuálu). Handshake teď počká na potvrzení (`McpHttpTransport.Initialized`, nejvýš `HandshakeTimeout`); regresní test `A_slow_acknowledgement_of_the_handshake_is_not_charged_to_the_first_call`.
 - [ ] **P6.4.1** Adaptér NKS IS wiki
   - **Co a proč:** „Otevřít z…“ → služba → dokument, jako první NKS IS wiki. Stránka se upravuje jako běžný dokument a uloží se zpět. MCP nemá obecný zápis zdrojů, každá služba potřebuje adaptér. Bez atomické kontroly revize na straně NKS IS (P6.4.4) nejde wiki bezpečně dokončit.
   - **Funkce:** F171
