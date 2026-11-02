@@ -70,6 +70,8 @@ jobs:
           $env:PATH += ';C:\Program Files (x86)\Microsoft Visual Studio\Installer'
           dotnet run tools/CheckSamplePlugin.cs -- --rid win-x64
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: No PSPad files in the package
+        run: dotnet run tools/CheckCleanRoom.cs -- --scan artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -107,6 +109,8 @@ jobs:
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" smoke/Textida.app/Contents/MacOS/Textida --smoke
       - name: Sample plugin
         run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
+      - name: No PSPad files in the package
+        run: dotnet run tools/CheckCleanRoom.cs -- --scan artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.rid }}
@@ -150,6 +154,8 @@ jobs:
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-${{ matrix.rid }}/Textida" --smoke
       - name: Sample plugin
         run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
+      - name: No PSPad files in the packages
+        run: dotnet run tools/CheckCleanRoom.cs -- --scan artifacts
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.rid }}
@@ -200,8 +206,6 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: No PSPad files in the packages
-        run: dotnet run tools/CheckCleanRoom.cs -- --scan dist
       - name: Sign update feed
         env:
           FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}

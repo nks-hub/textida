@@ -3,7 +3,7 @@
 // tools/pspad-dist.sha256 holds only the hashes; --update makes it from the original archives in re/dl, which stay on the developer's computer.
 //
 //   dotnet run tools/CheckCleanRoom.cs                  check the tracked files
-//   dotnet run tools/CheckCleanRoom.cs -- --scan DIR    also check every .zip and .tar.gz under DIR
+//   dotnet run tools/CheckCleanRoom.cs -- --scan DIR    also check every .zip, .tar.gz and .deb under DIR (.deb needs dpkg-deb)
 //   dotnet run tools/CheckCleanRoom.cs -- --update      rebuild the hash list from re/dl/*.zip
 //   dotnet run tools/CheckCleanRoom.cs -- --selftest
 using System.Diagnostics;
@@ -32,7 +32,16 @@ for (int i = 0; i < args.Length; i++)
         return 2;
     }
 }
-var problems = Check(root, LoadHashes(), scan);
+List<string> problems;
+try
+{
+    problems = Check(root, LoadHashes(), scan);
+}
+catch (InvalidOperationException e)
+{
+    Console.Error.WriteLine($"CheckCleanRoom: {e.Message}.");
+    return 2;
+}
 foreach (var p in problems) Console.Error.WriteLine(p);
 Console.WriteLine($"CheckCleanRoom: {problems.Count} problems.");
 return problems.Count == 0 ? 0 : 1;
@@ -103,11 +112,35 @@ static IEnumerable<(string Name, byte[] Data)> PackageMembers(string path)
     }
     else if (file.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase))
     {
-        using var tar = new TarReader(new GZipStream(File.OpenRead(path), CompressionMode.Decompress));
-        while (tar.GetNextEntry() is { } entry)
-            if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile && entry.DataStream is { } data)
-                yield return ($"{file}:{entry.Name}", Read(data));
+        foreach (var member in TarMembers(file, new GZipStream(File.OpenRead(path), CompressionMode.Decompress))) yield return member;
     }
+    else if (file.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
+    {
+        // the data member is xz or zstd compressed, which .NET cannot read; dpkg-deb gives it back as a plain tar
+        Process dpkg;
+        try
+        {
+            dpkg = Process.Start(new ProcessStartInfo("dpkg-deb", ["--fsys-tarfile", path]) { RedirectStandardOutput = true })!;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            throw new InvalidOperationException($"{file} needs dpkg-deb to be scanned");
+        }
+        using (dpkg)
+        {
+            foreach (var member in TarMembers(file, dpkg.StandardOutput.BaseStream)) yield return member;
+            dpkg.WaitForExit();
+            if (dpkg.ExitCode != 0) throw new InvalidOperationException($"dpkg-deb failed on {file} with {dpkg.ExitCode}");
+        }
+    }
+}
+
+static IEnumerable<(string Name, byte[] Data)> TarMembers(string file, Stream stream)
+{
+    using var tar = new TarReader(stream);
+    while (tar.GetNextEntry() is { } entry)
+        if (entry.EntryType is TarEntryType.RegularFile or TarEntryType.V7RegularFile && entry.DataStream is { } data)
+            yield return ($"{file}:{entry.Name}", Read(data));
 }
 
 static List<string> Check(string repo, Dictionary<string, string> known, IEnumerable<string> scan)
