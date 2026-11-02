@@ -18,6 +18,8 @@ internal sealed class FakeMcpHttpServer : IDisposable
     public string Token = "good-token";
     public int StatusToSend { get; set; }
     public bool Resources = true;
+    /// <summary>How long the server takes to acknowledge <c>notifications/initialized</c>.</summary>
+    public TimeSpan InitializedAckDelay = TimeSpan.Zero;
 
     public string Url { get; }
 
@@ -87,6 +89,7 @@ internal sealed class FakeMcpHttpServer : IDisposable
             if (!root.TryGetProperty("id", out var id))
             {
                 if (method == "notifications/cancelled") Log.Enqueue("cancelled:" + root.GetProperty("params").GetProperty("requestId").GetRawText());
+                if (method == "notifications/initialized") await Task.Delay(InitializedAckDelay);
                 response.StatusCode = 202;
                 return;
             }

@@ -298,6 +298,12 @@ public sealed class McpClient : IAsyncDisposable
         ReadServerInfo(init);
         if (_http is { Legacy: false }) _http.ProtocolVersion = LegacyVersion; // the older transport has no version header
         await Guard(async () => { await _rpc.NotifyAsync("notifications/initialized", ct: ct).ConfigureAwait(false); return 0; }, _options.HandshakeTimeout).ConfigureAwait(false);
+        // over HTTP the next request waits until the server acknowledged it: that wait belongs to the handshake, not to the deadline of the first call
+        if (_http is not null)
+        {
+            try { await _http.Initialized.WaitAsync(_options.HandshakeTimeout, ct).ConfigureAwait(false); }
+            catch (TimeoutException) { /* the writer gives up on the acknowledgement after ExitGrace; a longer ExitGrace must not fail the handshake */ }
+        }
     }
 
     private void ReadServerInfo(JsonElement result)

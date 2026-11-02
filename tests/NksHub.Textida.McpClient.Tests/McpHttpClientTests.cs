@@ -89,6 +89,15 @@ public sealed class McpHttpClientTests
     }
 
     [Fact]
+    public async Task A_slow_acknowledgement_of_the_handshake_is_not_charged_to_the_first_call()
+    {
+        using var server = new FakeMcpHttpServer { InitializedAckDelay = TimeSpan.FromMilliseconds(600) };
+        await using var client = await StartAsync(server, Options with { CallTimeout = TimeSpan.FromMilliseconds(400) });
+
+        Assert.Equal("first", (await client.CallToolAsync("echo", """{"text":"first"}""")).Text);
+    }
+
+    [Fact]
     public async Task An_address_that_cannot_be_reached_is_a_readable_error_without_the_values_of_its_query()
     {
         var e = await Assert.ThrowsAsync<McpClientException>(() =>

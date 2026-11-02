@@ -202,10 +202,10 @@ public sealed class TestEditor : IAsyncDisposable
     /// <summary>The last lines the plugin program wrote to its standard error; empty for a plugin that does not run as a program.</summary>
     public IReadOnlyList<string> StderrTail => (_link as ProcessLink)?.StderrTail ?? [];
 
-    /// <summary>Opens a document that plugins may see. <paramref name="name"/> is how the test and recordings refer to it.</summary>
+    /// <summary>Opens a document that plugins may see. <paramref name="name"/> is how the test and recordings refer to it. Its line index is complete, so every position is known.</summary>
     public TestDocument OpenDocument(string name, string text)
     {
-        var document = Document.FromBytes(TextCodec.Utf8.Encode(text), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        var document = Indexed(Document.FromBytes(TextCodec.Utf8.Encode(text), PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 }));
         var opened = new TestDocument(_owner, document, name);
         lock (_documents)
         {
@@ -225,7 +225,7 @@ public sealed class TestEditor : IAsyncDisposable
         _folder ??= Directory.CreateTempSubdirectory("textida-testhost-").FullName;
         var path = Path.Combine(_folder, fileName);
         File.WriteAllBytes(path, TextCodec.Utf8.Encode(text));
-        var document = Document.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 });
+        var document = Indexed(Document.Open(path, PagedBackendFactory.Instance, new DocumentOptions { Format = TextCodec.Utf8 }));
         var opened = new TestDocument(_owner, document, fileName, path);
         lock (_documents)
         {
@@ -234,6 +234,13 @@ public sealed class TestEditor : IAsyncDisposable
         }
         _owner.Run(() => Documents.Expose(document, opened.CurrentSelections));
         return opened;
+    }
+
+    /// <summary>Waits for the background line index of a new document: without it a position the plugin asks for right away is unknown on a busy machine.</summary>
+    private static Document Indexed(Document document)
+    {
+        ((PagedBackend)document.Backend).Paged.Source.IndexTask.Wait();
+        return document;
     }
 
     /// <summary>A document the test opened, by the name it gave it.</summary>
