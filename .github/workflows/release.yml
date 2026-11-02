@@ -20,6 +20,20 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
 
 jobs:
+  clean-room:
+    if: inputs.signing_only != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: No reverse-engineering folder and no PSPad files
+        run: |
+          dotnet run tools/CheckCleanRoom.cs -- --selftest
+          dotnet run tools/CheckCleanRoom.cs
+
   windows:
     if: inputs.signing_only != true
     runs-on: windows-latest
@@ -172,8 +186,8 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [windows, macos, linux]
-    if: always() && github.ref_type == 'tag' && needs.windows.result == 'success' && needs.macos.result == 'success' && needs.linux.result == 'success'
+    needs: [clean-room, windows, macos, linux]
+    if: always() && github.ref_type == 'tag' && needs.clean-room.result == 'success' && needs.windows.result == 'success' && needs.macos.result == 'success' && needs.linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -186,6 +200,8 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: No PSPad files in the packages
+        run: dotnet run tools/CheckCleanRoom.cs -- --scan dist
       - name: Sign update feed
         env:
           FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
