@@ -86,7 +86,9 @@ public class PrintLayoutTests
         Assert.True(pdf.Length < 1_000_000, $"{pdf.Length} bytes: a fallback font was not subset");
         var mapped = MappedText(pdf);
         // the joined Arabic letters have no entry of their own in the cmap; their text is in the ActualText of the run
-        var missing = UnicodeSample.EnumerateRunes().Where(r => r.Value is < 0x0600 or > 0x06FF).Select(r => r.ToString()).Where(r => r is not ("\n" or " ") && !mapped.Contains(r)).Distinct().ToList();
+        // a glyph two characters share (文 and ⽂ in PingFang on macOS) maps back to the other one; its ActualText gives the printed one
+        var readable = mapped.Concat(ActualTexts(pdf).SelectMany(a => a.Text.EnumerateRunes().Select(r => r.ToString()))).ToHashSet();
+        var missing = UnicodeSample.EnumerateRunes().Where(r => r.Value is < 0x0600 or > 0x06FF).Select(r => r.ToString()).Where(r => r is not ("\n" or " ") && !readable.Contains(r)).Distinct().ToList();
         Assert.True(missing.Count == 0, "not mapped: " + string.Join(' ', missing));
         Assert.Contains("مرحبا", ActualTexts(pdf).Select(a => a.Text));
         Assert.DoesNotContain("?", mapped); // nothing was replaced by a question mark
