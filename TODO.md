@@ -1519,6 +1519,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Stav 29. 10. 2026:** zadáno vývojáři B (menu, nastavení, ikony, lišta); testy až jako poslední krok.
   - **Stav 29. 10. 2026 (sloučeno do main):** hotovo v kódu (e7c90ac7). Celé menu přeorganizované s klávesami pro přístup a zanořenými podnabídkami, jazyk rozhraní přesunut z menu do nastavení. Mapa staré → nové je v `docs/menu-map.md`. Rychlá sada na testovacím virtuálu nad větví prošla (e82f686b); opravy po testech v c96a69a7, ed1ada18, 69206163 a e82f686b. Neověřeno v běžící aplikaci.
   - Stav 1. 11. 2026: Nástroje měly po PZ dávkách 21 položek. HTTP a web jsou v novém podmenu „Web a HTTP“, interpret je v Spouštění, porovnání složek v Porovnání, soubory agentů v Agenti a AI, strukturální hledání a volající v Kód a jazyk, kapátko v Barvy. Nahoře jich zbylo 18.
+  - **Požadavek majitele 2. 11. 2026 (snímek nabídky Zobrazit):** ikona `>_` u Palety příkazů je nesrozumitelná a celé menu je zbytečně odsazené: šablona položky menu vyhrazuje v každém řádku široký sloupec pro ikonu a zaškrtnutí, i když položka nemá ani jedno. Upravit: užší sloupec ikon (16 px ikona + malý okraj), v nabídce, kde žádná položka nemá ikonu ani zaškrtnutí, sloupec vůbec nekreslit; zaškrtnutí a ikona sdílí jeden sloupec; Paleta příkazů dostane srozumitelnější ikonu.
 
 ### P3.7 První distribuce
 
