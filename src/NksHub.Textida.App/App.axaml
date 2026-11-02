@@ -589,10 +589,15 @@
             <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
             <Setter Property="BorderThickness" Value="1.5" />
         </Style>
-        <Style Selector="Polygon.mermaidshape, Ellipse.mermaidshape">
+        <Style Selector="Polygon.mermaidshape, Ellipse.mermaidshape, Path.mermaidshape">
             <Setter Property="Fill" Value="{DynamicResource BgEditor}" />
             <Setter Property="Stroke" Value="{DynamicResource Accent}" />
             <Setter Property="StrokeThickness" Value="1.5" />
+        </Style>
+        <Style Selector="Border.mermaidgroup">
+            <Setter Property="BorderBrush" Value="{DynamicResource FgMuted}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Polyline.mermaidedge">
             <Setter Property="Stroke" Value="{DynamicResource FgMuted}" />
