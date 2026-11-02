@@ -23,6 +23,9 @@ public sealed class TestProxy : IDisposable
     public int Tunnels => Volatile.Read(ref _tunnels);
     public int Refused => Volatile.Read(ref _refused);
 
+    /// <summary>The raw text of the last complete HTTP request line and headers, as received.</summary>
+    public string? LastConnectRequest { get; private set; }
+
     public TestProxy(ProxyType kind, string? user = null, string? password = null)
     {
         Kind = kind; User = user; Password = password;
@@ -85,13 +88,14 @@ public sealed class TestProxy : IDisposable
     {
         var sb = new StringBuilder();
         var one = new byte[1];
-        // FluentFTP ends the lines of the CONNECT request with Environment.NewLine, a bare LF off Windows; real proxies accept both
-        while (!sb.ToString().EndsWith("\r\n\r\n") && !sb.ToString().EndsWith("\n\n"))
+        // like a real proxy, wait for the CRLF CRLF that ends the headers; a request with bare LF never completes
+        while (!sb.ToString().EndsWith("\r\n\r\n"))
         {
             if (await s.ReadAsync(one) == 0) return null;
             sb.Append((char)one[0]);
         }
-        var lines = sb.ToString().Replace("\r\n", "\n").Split('\n');
+        LastConnectRequest = sb.ToString();
+        var lines = sb.ToString().Split("\r\n");
         var parts = lines[0].Split(' ');
         if (parts[0] != "CONNECT") { await Refuse(s, "HTTP/1.1 405 Method Not Allowed\r\n\r\n"u8.ToArray()); return null; }
         if (User is not null)
