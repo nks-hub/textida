@@ -139,7 +139,8 @@ public class PrintLayoutTests
                 z.CopyTo(o);
                 streams.Add(Encoding.Latin1.GetString(o.ToArray()));
             }
-            catch (InvalidDataException) { streams.Add(Encoding.Latin1.GetString(raw)); }
+            // an uncompressed stream (the glyph procedures of a Type3 font) can start with a zlib header that asks for a dictionary: an IOException (the internal ZLibException), not InvalidDataException
+            catch (Exception e) when (e is InvalidDataException or IOException) { streams.Add(Encoding.Latin1.GetString(raw)); }
         }
         return streams;
     }
