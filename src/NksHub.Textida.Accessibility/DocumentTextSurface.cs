@@ -6,7 +6,7 @@ namespace NksHub.Textida.Accessibility;
 /// <summary>
 /// The text, line and selection half of <see cref="ITextAutomationSurface"/> over a <see cref="Document"/>; a view derives from it
 /// and adds geometry and focus. The text is decoded once, when the surface is made; an edit of one stretch (typing, a deletion, undo) is applied to it
-/// in place, so the cost of a keystroke follows the size of the edit and not the size of the document. Anything else (several ranges at once, a new encoding,
+/// in place, so the cost of a keystroke follows the size of the edit and not the size of the document. Anything else (a new encoding,
 /// hidden secret values, a line index that is not ready) decodes the document again.
 /// While <see cref="MaskSecrets"/> is true the reported text shows <see cref="HiddenMarker"/> in place of every secret value; all offsets of the
 /// interface are then offsets of that shown text, and <see cref="ToDocument"/> / <see cref="ToShown"/> convert from and to the document's own.
@@ -236,36 +236,73 @@ public abstract class DocumentTextSurface : ITextAutomationSurface, IDisposable
     }
 
     /// <summary>
-    /// Applies a change of one stretch to the text and the line starts in place. False, with nothing touched, when the change is not that simple
-    /// (the caller then reads the document again): several ranges, a re-read in another encoding, hidden values, a position the line index does not know yet.
+    /// Applies a change to the text and the line starts in place, edit by edit from the front: when an edit is reached, everything in front of it already
+    /// reads as in the new document. False when the change is not that simple (the caller then reads the document again): a re-read in another encoding,
+    /// hidden values, a position the line index does not know yet. The text is then put back as it was, so the caller can still diff against it.
     /// </summary>
     private bool TryApply(ChangeSet changeSet, out TextChange change)
     {
         change = default;
-        if (changeSet.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || changeSet.Edits.Count != 1 || changeSet.Revision != _syncedRevision + 1 || MaskSecrets || _shown is not null) return false;
-        var edit = changeSet.Edits[0];
-        if (edit.Start < _document.BomLength || edit.Inserted > int.MaxValue / 4 || edit.Deleted > int.MaxValue / 4) return false;
+        if (changeSet.Kind is not (ChangeKind.Edit or ChangeKind.Undo or ChangeKind.Redo) || changeSet.Edits.Count == 0 || changeSet.Revision != _syncedRevision + 1 || MaskSecrets || _shown is not null) return false;
+        List<(int Start, string Removed, int Inserted)> done = [];
         try
         {
-            // the text in front of the edit is the same in both revisions, so its position in the new document is its position in the old text
-            if (!_document.TryGetPosition(edit.Start, out var position) || position.Line >= _realLineStarts.Length) return false;
-            long at = _realLineStarts[position.Line] + position.Column;
-            if (at > _real.Length) return false;
-            int start = (int)at;
-            if (!TryCharsOf(start, edit.Deleted, out int removed)) return false;
-            string inserted = edit.Inserted == 0 ? "" : _document.ReadText(new ByteRange(edit.Start, edit.Start + edit.Inserted));
-            CharsDecoded += inserted.Length;
-            if (!ApplyLineStarts(start, removed, inserted)) return false;
-            _real.Replace(start, removed, inserted);
+            long shiftBytes = 0;
+            int shiftChars = 0, first = -1, oldEnd = 0;
+            foreach (var edit in changeSet.Edits)
+            {
+                long newStart = edit.Start + shiftBytes;
+                if (edit.Start < _document.BomLength || edit.Inserted > int.MaxValue / 4 || edit.Deleted > int.MaxValue / 4) return Undo(done);
+                if (!TryCharIndexOf(newStart, out int start)) return Undo(done);
+                if (!TryCharsOf(start, edit.Deleted, out int removed)) return Undo(done);
+                string inserted = edit.Inserted == 0 ? "" : _document.ReadText(new ByteRange(newStart, newStart + edit.Inserted));
+                string was = _real.Substring(start, removed);
+                if (!ApplyLineStarts(start, removed, inserted)) return Undo(done);
+                CharsDecoded += inserted.Length;
+                _real.Replace(start, removed, inserted);
+                done.Add((start, was, inserted.Length));
+                if (first < 0) first = start;
+                oldEnd = start + removed - shiftChars;
+                shiftChars += inserted.Length - removed;
+                shiftBytes += edit.Inserted - edit.Deleted;
+            }
             _lineStarts = _realLineStarts;
             _syncedRevision = changeSet.Revision;
-            change = new TextChange(start, removed, inserted.Length, changeSet.Revision);
+            change = new TextChange(first, oldEnd - first, oldEnd - first + shiftChars, changeSet.Revision);
             return true;
         }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException)
         {
+            return Undo(done);
+        }
+
+        bool Undo(List<(int Start, string Removed, int Inserted)> applied)
+        {
+            for (int i = applied.Count - 1; i >= 0; i--) _real.Replace(applied[i].Start, applied[i].Inserted, applied[i].Removed);
             return false;
         }
+    }
+
+    /// <summary>
+    /// The index in the text so far of the character at a byte offset of the new document. The text in front of the edit is the same in both revisions, so the line
+    /// and column of that offset are its line and column here; except at the start of a line, where a CR in front may have been part of a CR LF pair in the old text.
+    /// The character in front is then located instead, because the line it ends starts in front of the edit and means the same in both texts.
+    /// </summary>
+    private bool TryCharIndexOf(long newOffset, out int index)
+    {
+        index = 0;
+        if (!_document.TryGetPosition(newOffset, out var position) || position.Line >= _realLineStarts.Length) return false;
+        long at;
+        if (position.Column == 0 && position.Line > 0)
+        {
+            int width = _document.Codec.Encode("\n").Length;
+            if (newOffset < _document.BomLength + width || !_document.TryGetPosition(newOffset - width, out var before) || before.Line >= position.Line) return false;
+            at = _realLineStarts[before.Line] + before.Column + 1;
+        }
+        else at = _realLineStarts[position.Line] + position.Column;
+        if (at > _real.Length) return false;
+        index = (int)at;
+        return true;
     }
 
     /// <summary>How many characters of the old text from <paramref name="from"/> take exactly <paramref name="bytes"/> bytes in the encoding; false when no number of characters does.</summary>
@@ -295,7 +332,7 @@ public abstract class DocumentTextSurface : ITextAutomationSurface, IDisposable
         int end = start + removed, length = _real.Length;
         char before = start > 0 ? _real[start - 1] : '\0', after = end < length ? _real[end] : '\0';
         char first = inserted.Length > 0 ? inserted[0] : after, last = inserted.Length > 0 ? inserted[^1] : before;
-        if ((before == '\r' && first == '\n') || (last == '\r' && after == '\n') || (removed > 0 && before == '\r' && _real[start] == '\n')) return false;
+        if ((before == '\r' && first == '\n') || (last == '\r' && after == '\n') || (before == '\r' && start < length && _real[start] == '\n')) return false;
 
         var starts = _realLineStarts;
         int kept = LineIndexOf(starts, start) + 1; // the starts up to and including the one at or before the edit stay

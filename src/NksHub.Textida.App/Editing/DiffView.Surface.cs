@@ -9,6 +9,12 @@ namespace NksHub.Textida.App.Editing;
 
 internal sealed partial class DiffView
 {
+    internal enum GutterMark { Arrows, Bar }
+
+    /// <summary>What the gutter shows on a row of a block: arrows on the first row when a side accepts changes, else a bar, so that no row of a block is marked by its tint alone.</summary>
+    internal static GutterMark GutterMarkOf(bool firstRow, bool leftCanReceive, bool rightCanReceive) =>
+        firstRow && (leftCanReceive || rightCanReceive) ? GutterMark.Arrows : GutterMark.Bar;
+
     /// <summary>The rows of the two sides as pixels. Geometry is in character cells of the monospace font; text of a side is read in windows of lines from its index.</summary>
     private sealed class DiffSurface(DiffView owner) : Control
     {
@@ -136,7 +142,7 @@ internal sealed partial class DiffView
                 }
             }
 
-            // the gutter: an arrow pair on the first row of each block, a bar on the following rows
+            // the gutter: an arrow pair on the first row of each block that can be copied, a bar on the other rows
             context.FillRectangle(filler, new Rect(paneW, 0, GutterWidth, Bounds.Height));
             var pen = new Pen(accent, 1.5);
             for (int i = 0; i < rows && top + i < layout.RowCount; i++)
@@ -145,7 +151,7 @@ internal sealed partial class DiffView
                 int h = layout.HunkAtRow(r);
                 if (h < 0) continue;
                 double y = i * _rh;
-                if (r == layout.RowOfHunk(h))
+                if (GutterMarkOf(r == layout.RowOfHunk(h), owner._session.Left.CanReceive, owner._session.Right.CanReceive) == GutterMark.Arrows)
                 {
                     if (owner._session.Left.CanReceive) context.DrawText(Format("‹", accent), new Point(paneW + 8, y + 1));
                     if (owner._session.Right.CanReceive) context.DrawText(Format("›", accent), new Point(paneW + GutterWidth - 8 - _cw, y + 1));

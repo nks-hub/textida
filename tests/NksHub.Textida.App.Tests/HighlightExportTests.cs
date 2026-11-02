@@ -231,11 +231,26 @@ public class HighlightExportTests
         Assert.DoesNotContain('\u0007', tex);
         Assert.DoesNotContain('\r', tex);
         var (read, _) = ReadTex(tex);
-        Assert.Equal("path C:\\dir {x}\n\t\"Příliš žluťoučký\" \U0001F600\n/* a\nb */ int x;\n", read); // a last line gets its end of line
+        Assert.Equal("path C:\\dir {x}\n    \"Příliš žluťoučký\" \U0001F600\n/* a\nb */ int x;\n", read); // a last line gets its end of line
         foreach (Match m in Regex.Matches(body, @"\\textcolor\[HTML\]\{[0-9A-F]{6}\}\{([^{}]*)\}")) Assert.DoesNotContain('\n', m.Value);
 
         // the macros the text uses are defined in front of the document
         foreach (string macro in new[] { "\\TxBs", "\\TxOb", "\\TxCb" }) Assert.Contains($"\\newcommand{{{macro}}}", tex[..tex.IndexOf("\\begin{document}", StringComparison.Ordinal)]);
+    }
+
+    [Fact]
+    public void The_tex_has_no_tab_or_character_that_stops_LaTeX_and_leaves_the_other_specials_as_they_are()
+    {
+        // fancyvrb with commandchars makes only the backslash and the braces special; $ & # ^ _ % ~ stay literal in Verbatim
+        string text = "a\tb \"x\"\t// $ & # ^ _ % ~\u007F\u0085﻿\n\t\tint x = 1;\tend";
+        string tex = HighlightExport.Tex(text, LanguageModes.Tokenizer("csharp"), null, Theme());
+        string body = tex[tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal)..];
+        Assert.DoesNotContain('\t', tex);
+        Assert.DoesNotContain("obeytabs", tex);
+        foreach (char dropped in new[] { '\u007F', '\u0085', '﻿' }) Assert.DoesNotContain(dropped, tex);
+        var (read, _) = ReadTex(tex);
+        Assert.Equal("a   b \"x\"   // $ & # ^ _ % ~\n        int x = 1;  end\n", read); // tab stops every four columns, counted from the start of the line
+        Assert.Contains("$ & # ^ _ % ~", body);
     }
 
     [Fact]
