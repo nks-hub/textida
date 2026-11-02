@@ -1151,6 +1151,13 @@ TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad vidi
   - **Stav 28. 10. 2026 (noc, sloučeno af7d25a1):** opraveno. Editor hlásil viditelné sloupce z `VisualLinesChanged`, který přijde při měření dřív, než se okno poprvé umístí. `Bounds.Width` bylo 0, takže se barvy vyžádaly jen pro sloupce 0–1. Platilo to pro všechny jazyky, ne jen PHP. Šířka se teď čte z `Viewport.Width` (`EditorSurface.OnVisualLinesChangedCore`). Test `Every_character_on_screen_has_the_color_of_its_token` porovná barvu každého vykresleného znaku s tokeny gramatiky (PHP ve světlém i tmavém, C#, JS, JSON, Markdown). S původním kódem padá 6 ze 6. AOT publish prošel. V běžící aplikaci neověřeno.
   - **Ověření 29. 10. 2026 (noc):** rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb). Zbývá pohled v běžící aplikaci.
 
+- [ ] **P3.2.5** Barevné motivy editoru a zvýraznění syntaxe
+  - **Co a proč:** Požadavek majitele 2. 11. 2026: v nastavení chybí výběr barevných motivů jako v PSPadu. Uživatel má vybrat motiv editoru a zvýraznění syntaxe ze seznamu s náhledem: vestavěné aspoň Světlý, Tmavý, Monokai, Solarized Light/Dark, Dracula, One Dark, GitHub Light/Dark, Nord, a jednotlivé barvy tokenů (klíčové slovo, řetězec, komentář, číslo, typ, …) i plochy editoru (pozadí, aktuální řádek, výběr, čísla řádků, minimapa) upravit výběrem barvy; vlastní motiv uložit, exportovat a importovat (i motivy TextMate/VS Code `.tmTheme`/`.json`).
+  - **Funkce:** žádná (požadavek majitele 2. 11. 2026)
+  - **Hotovo, když:** v nastavení je seznam motivů s živým náhledem kódu, přepnutí platí hned ve všech oknech, úprava barvy tokenu se projeví v editoru, náhledu i exportu se zvýrazněním, vlastní motiv přežije restart a jde exportovat a importovat, import `.tmTheme` a VS Code motivu převezme barvy tokenů; kontrast motivů se hlídá testem jako u vestavěných témat; texty ve 4 jazycích.
+  - **Závisí na:** P3.2.1, P3.6.15
+  - **Odhad:** bez odhadu
+
 ### P3.3 Minimapa
 
 - [ ] **P3.3.1** Minimapa D5
