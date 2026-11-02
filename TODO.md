@@ -211,6 +211,17 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** každé pravidlo z zadání, které se týká funkcí MVP, má test nebo záznam ruční kontroly s buildem a výsledkem; žádné nesplněné pravidlo nezůstalo bez opravy.
   - **Závisí na:** P3.7.1, P3.7.2, PR.6.4
   - **Odhad:** bez odhadu; účtuje se v P3
+  - **Revize 2. 11. 2026 (main 422076fe, čtení kódu, bez spuštění):** síť po svolení a bez telemetrie: kód OK, doklad `NetworkNoConsentTests`, `NetworkConsentTests`, `PreviewImageSecurityTests`, `AppUpdaterTests` jen z Windows/JIT, chybí macOS a AOT (PR.6.4). Aktualizace: Windows a Linux OK (podpis před čtením feedu, právě jeden balík pro RID, jen novější verze, velikost a SHA-256 před rozbalením, jen https, žádné cesty ven ze stagingu). Uložení: atomické OK. Data PSPadu: PR.6.2. Nálezy:
+    1. vysoká: Git plugin spouští `git status` sám od sebe a `core.fsmonitor` z `.git/config` otevřené složky by se provedl pod účtem uživatele (`GitRepository.cs`);
+    2. střední: na macOS a Linuxu uložení nastaví souboru práva podle umask (0600 → 0644) a smaže +x, protože výměna je přejmenování dočasného souboru (`FileSwap.Replace`);
+    3. střední: aktualizace na macOS s dnešními balíky (podpis ad hoc, bez notarizace) vždy selže na `spctl`, `codesign` nekontroluje Team ID; čeká na Developer ID (PR.3.1), selže zavřeně;
+    4. nízká: podepsaný feed nemá platnost, starý feed jde přehrávat donekonečna;
+    5. nízká: zvýšené uložení na macOS ověří hash a pak kopíruje tentýž soubor, který smí uživatel změnit (`Elevation.cs`);
+    6. nízká, jen Linux: předvídatelné adresáře `/tmp/textida-<user>` a `/tmp/textida-spill`, soubory přelévání 0644;
+    7. info: odinstalace spouští `cmd.exe` bez plné cesty (`SelfRemoval.cs`);
+    8. info: kontrola čistého přepisu neskenovala `.deb`; opraveno (7d07eb0f), `.deb` se čte přes `dpkg-deb` v linuxové úloze CI, `.dmg` se dělá ze stejné `.app` jako ZIP (`BuildMacPackage.cs`) a `TextidaSetup.exe` nese ten samý ZIP přilepený (`BuildWindowsPackage.cs`), takže sken ZIPu je pokrývá.
+    Opravy 1, 2, 4–7 dělá vývojář v dávce 9.
+
 - [ ] **PR.6.3** Bezpečnostní revize před 1.0
   - **Co a proč:** Před 1.0 projít všechna pravidla z kap. 5.2–5.4: lokální transport MCP, port mostu F179 jen po potvrzení, výslovné zpřístupnění karet, síť jen po svolení, oprávnění pluginů a hranice záruky API u agentů (P6.6.3), instalace ZIP, záznam volání bez obsahu a tokenů, jeden filtr maskování tajemství (P4.6.2).
   - **Funkce:** žádná (infrastruktura)
