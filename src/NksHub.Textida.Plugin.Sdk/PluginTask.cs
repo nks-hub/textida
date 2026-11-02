@@ -17,6 +17,7 @@ public sealed class PluginTask : IAsyncDisposable
     private readonly TimeSpan? _reportEvery;
     private readonly Stopwatch _since = Stopwatch.StartNew();
     private bool _reported;
+    private int _sending;
 
     internal PluginTask(JsonRpcDispatcher rpc, string id, CancellationTokenSource source, TimeSpan? reportEvery, Action<string> forget)
     {
@@ -26,13 +27,21 @@ public sealed class PluginTask : IAsyncDisposable
     /// <summary>Cancelled when the user presses cancel or the request that started the task is cancelled.</summary>
     public CancellationToken Cancellation => _source.Token;
 
-    /// <summary>Reports <paramref name="fraction"/> (0 to 1) of the work done. When the task was started with a reporting interval, a report sooner than that after the last one is dropped.</summary>
+    /// <summary>
+    /// Reports <paramref name="fraction"/> (0 to 1) of the work done. When the task was started with a reporting interval, a report sooner than that after the last one is dropped.
+    /// A report made while the one before is still on its way is dropped too, so reports that are not waited for never hold more than one request slot of the editor.
+    /// </summary>
     public async ValueTask ReportAsync(double fraction, string? message = null)
     {
         if (_reported && _reportEvery is { } every && _since.Elapsed < every) return;
-        _reported = true;
-        _since.Restart();
-        await _rpc.RequestAsync(UiMethods.TaskProgress, new TaskProgressParams(_id, Math.Clamp(fraction, 0, 1), message), SdkJson.Default.TaskProgressParams, CancellationToken.None).ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _sending, 1) == 1) return;
+        try
+        {
+            _reported = true;
+            _since.Restart();
+            await _rpc.RequestAsync(UiMethods.TaskProgress, new TaskProgressParams(_id, Math.Clamp(fraction, 0, 1), message), SdkJson.Default.TaskProgressParams, CancellationToken.None).ConfigureAwait(false);
+        }
+        finally { Volatile.Write(ref _sending, 0); }
     }
 
     /// <summary>Tells the editor the task is over.</summary>
