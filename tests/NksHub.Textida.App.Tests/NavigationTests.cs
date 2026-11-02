@@ -9,6 +9,7 @@ using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Core.Files;
 
 namespace NksHub.Textida.App.Tests;
@@ -525,6 +526,19 @@ public class NavigationTests : IDisposable
         await _w.OpenTargetAsNewCopyAsync();
         Assert.Null(_w.Active!.Path);
         Assert.Equal("abc", _w.Active.Editor!.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Special_open_as_new_copy_reads_a_file_without_a_byte_order_mark_in_its_own_encoding()
+    {
+        string root = await PanelWithFolderAsync(("a.txt", "abc"));
+        string text = string.Concat(Enumerable.Repeat("Příliš žluťoučký kůň úpěl ďábelské ódy. ", 6));
+        string path = Path.Combine(root, "legacy.txt");
+        File.WriteAllBytes(path, TextCodec.Cp1250.Encode(text));
+        _w.OpenFile(path, null);
+        await _w.OpenTargetAsNewCopyAsync();
+        Assert.Null(_w.Active!.Path);
+        Assert.Equal(text, _w.Active.Editor!.Document.Text);
     }
 
     [AvaloniaFact]
