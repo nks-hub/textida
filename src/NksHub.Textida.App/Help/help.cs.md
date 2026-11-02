@@ -1990,9 +1990,9 @@ Textida pro macOS se dodává jako obraz disku (.dmg) a jako ZIP se stejnou apli
 
 ## [help.updates] Aktualizace a návrat na předchozí verzi
 commands: nks.help.updateCheck, nks.help.updateReturn
-Aktualizace podporují instalaci Windows na místním NTFS s podporou transakcí, aplikaci macOS a rozbalený balík Linuxu. Instalaci .deb aktualizujte přes apt. Aktualizace i návrat odmítnou přenosný profil uvnitř Textida.app; použijte profil mimo podepsaný balík. Textida sama nezjišťuje nic, dokud nezapnete nastavení Zjišťovat aktualizace při startu; ve výchozím stavu je vypnuté. Zjištění je jeden dotaz na malý podepsaný soubor; neposílá se nic dalšího, žádný identifikátor vás ani počítače.
+Aktualizace podporují instalaci Windows na místním NTFS s podporou transakcí, aplikaci macOS a rozbalený balík Linuxu. Instalaci .deb aktualizujte přes apt. Aktualizace i návrat odmítnou přenosný profil uvnitř Textida.app; použijte profil mimo podepsaný balík. Textida se na novější verzi zeptá několik sekund po startu a pak jednou denně, dokud běží; nastavení Zjišťovat aktualizace automaticky to vypne. Zjištění je jeden dotaz na malý podepsaný soubor; neposílá se nic dalšího, žádný identifikátor vás ani počítače. Selhané zjištění nebo chybějící připojení nic neukáže. Novější verze ukáže ve stavovém řádku odznak Nová verze a pro každou verzi jednou lištu; obojí spustí instalaci.
 1. Zvolte Nápověda, Zjistit aktualizace. Je-li nabídnuta novější verze, Textida se před čímkoli zeptá.
-2. Nainstalovat a restartovat stáhne balíček, ověří jeho kontrolní součet podle podepsaného souboru a rozbalí ho vedle stávající verze. Teprve potom se Textida zavře, složky se přepnou a Textida se spustí znovu s vašimi kartami. Neuložený text drží žurnál; při vypnutém žurnálu dokumenty nejdřív uložte nebo zavřete.
+2. Nainstalovat a restartovat stáhne balíček, ověří jeho kontrolní součet podle podepsaného souboru a rozbalí ho vedle stávající verze. Teprve potom se Textida zavře, složky se přepnou a Textida se spustí znovu s vašimi kartami. Neuložený text drží žurnál; při vypnutém žurnálu dokumenty nejdřív uložte nebo zavřete. Lišta ukazuje stahování v megabajtech a procentech a tlačítko Zrušit ho zastaví a smaže rozstahovaný soubor. Když server 30 sekund nepošle nic nebo spojení spadne, stahování pokračuje od již přijatých bajtů (celkem nejvýše čtyři pokusy). Po restartu lišta uvede, z jaké verze jste aktualizovali, a nabídne poznámky k vydání.
 3. Když cokoli nesedí (podpis, kontrolní součet, balíček, který neodpovídá), nic se nenainstaluje a stávající verze běží dál.
 4. Nápověda, Vrátit se na předchozí verzi vás vrátí na verzi, která byla nainstalovaná před poslední aktualizací. Novější verze se pak stane tou, na kterou se lze vrátit.
 - Nastavení Textidy a žurnál zůstávají, složka přenosného profilu se přenese.
@@ -2000,7 +2000,7 @@ Aktualizace podporují instalaci Windows na místním NTFS s podporou transakcí
 ### Hlášení
 - Automatické aktualizace nejsou pro tuto instalaci dostupné.
 - Tento build nemá nastavenou adresu aktualizací ani podpisový klíč, aktualizace proto nejde zjistit. Použijte sestavení, které má adresu aktualizací a podpisový klíč, nebo novou verzi nainstalujte sami.
-- Aktualizace selhala: důvod. Nic se nenainstalovalo a běží dál současná verze. Důvod uvádí příčinu (nesedící podpis nebo kontrolní součet, balíček, který nesouhlasí, chyba sítě); zkuste to později.
+- Aktualizace selhala: důvod. Nic se nenainstalovalo a běží dál současná verze. Důvod uvádí příčinu (nesedící podpis nebo kontrolní součet, balíček, který nesouhlasí, chyba sítě); zkuste to později. Lišta s chybou má tlačítko Stáhnout ze stránky vydání a podrobnosti jsou ve výstupu Úlohy.
 - Nejdřív uložte nebo zavřete dokumenty s neuloženými změnami: žurnál je vypnutý, aktualizace by je mohla ztratit. Dokumenty uložte, nebo zapněte obnovu po pádu (téma Obnova po pádu), a pak aktualizaci zvolte znovu.
 - Není žádná předchozí verze, na kterou by se šlo vrátit. Předchozí verze existuje jen po aktualizaci.
 

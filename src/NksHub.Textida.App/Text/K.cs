@@ -2615,7 +2615,13 @@ public static partial class K
     public const string UpdateFailed = "update.failed";
     public const string UpdateAvailable = "update.available";
     public const string UpdateInstall = "update.install";
-    public const string UpdateDownloading = "update.downloading";
+    public const string UpdateProgress = "update.progress";
+    public const string UpdateInstalling = "update.installing";
+    public const string UpdateCancelled = "update.cancelled";
+    public const string UpdateReleasePage = "update.releasePage";
+    public const string UpdateDone = "update.done";
+    public const string UpdateBadge = "update.badge";
+    public const string UpdateNotes = "update.notes";
     public const string UpdateUnsaved = "update.unsaved";
     public const string UpdateBar = "update.bar";
     public const string UpdateReturnTitle = "update.return.title";

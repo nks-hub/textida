@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using Avalonia.Headless.XUnit;
 using Microsoft.Win32;
 using NksHub.Textida.App.Services;
+using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Settings;
 
@@ -438,24 +439,90 @@ public class AppUpdaterWindowTests : IDisposable
         return new AppUpdater(new HttpClient(), _server.Base + "feed.json", Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), dir);
     }
 
-    [AvaloniaFact]
-    public async Task With_the_check_off_nothing_is_requested_and_with_it_on_one_request_shows_a_bar()
+    private (App App, MainWindow Window, ScriptedDialogs Dialogs) Open(bool? checkOnStart = null)
     {
-        Assert.SkipUnless(OperatingSystem.IsWindows(), "the per-user install is Windows only");
-        var app = TestApp.Prepare(_temp);
+        var dialogs = new ScriptedDialogs();
+        var app = TestApp.Prepare(_temp, dialogs);
         var w = app.CreateWindow(null);
         w.UpdaterOverride = Updater();
-        Assert.False(app.Workbench.Settings.GetBool("updates.checkOnStart"));
+        w.AutoCheckDelay = TimeSpan.Zero;
+        w.AutoCheckInterval = TimeSpan.FromMilliseconds(100);
+        if (checkOnStart is { } on) app.Workbench.Settings.SetLayer(SettingSource.User, new JsonObject { ["updates.checkOnStart"] = on });
+        return (app, w, dialogs);
+    }
+
+    private static async Task Until(Func<bool> condition, string what)
+    {
+        var sw = Stopwatch.StartNew();
+        while (!condition())
+        {
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30), "Not reached: " + what);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task With_the_setting_off_no_automatic_request_is_made()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the per-user install is Windows only");
+        var (_, w, _) = Open(checkOnStart: false);
 
         w.CheckUpdatesOnStart();
-        await w.UpdateTask;
+        await Task.Delay(700); // several intervals
+
         Assert.Equal(0, _server.Count);
-
-        app.Workbench.Settings.SetLayer(SettingSource.User, new JsonObject { ["updates.checkOnStart"] = true });
-        w.CheckUpdatesOnStart();
-        await w.UpdateTask;
-        Assert.Equal(["/feed.json"], _server.Requests);
+        Assert.False(w.UpdateItem.IsVisible);
         w.Close();
+        await w.AutoCheckTask;
+    }
+
+    [AvaloniaFact]
+    public async Task By_default_the_feed_is_asked_again_every_interval_and_a_newer_version_shows_one_bar_and_a_badge()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the per-user install is Windows only");
+        var (app, w, _) = Open();
+        Assert.True(app.Workbench.Settings.GetBool("updates.checkOnStart"));
+
+        w.CheckUpdatesOnStart();
+        await Until(() => w.UpdateItem.IsVisible, "the badge");
+        var bar = Assert.Single(w.Notices);
+        Assert.Equal(Loc.Get(K.UpdateBadge, ("version", "1.1.0")), w.UpdateItem.Content);
+        Assert.Equal(Loc.Get(K.UpdateBadge, ("version", "1.1.0")), Avalonia.Automation.AutomationProperties.GetName(w.UpdateItem));
+
+        w.DismissNotice("update");
+        await Until(() => _server.Count >= 3, "two more checks");
+        Assert.All(_server.Requests, r => Assert.Equal("/feed.json", r));
+        Assert.Empty(w.Notices); // the bar came once for 1.1.0
+        Assert.True(w.UpdateItem.IsVisible);
+
+        _server.Routes.Remove("/feed.json"); // an offline or failed check changes nothing
+        int seen = _server.Count;
+        await Until(() => _server.Count > seen + 1, "failed checks");
+        Assert.True(w.UpdateItem.IsVisible);
+        Assert.Empty(w.Notices);
+        w.Close();
+        await w.AutoCheckTask;
+    }
+
+    [AvaloniaFact]
+    public async Task Clicking_the_badge_starts_the_install_flow()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the per-user install is Windows only");
+        var (_, w, dialogs) = Open();
+        w.AutoCheckInterval = TimeSpan.FromHours(1);
+        dialogs.Answers.Enqueue(0);
+        w.CheckUpdatesOnStart();
+        await Until(() => w.UpdateItem.IsVisible, "the badge");
+
+        w.UpdateItem.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        await w.UpdateTask;
+
+        var asked = Assert.Single(dialogs.Asked);
+        Assert.Contains("1.1.0", asked.Message);
+        Assert.Contains(w.Notices, n => n.Message.StartsWith(Loc.Get(K.UpdateFailed, ("reason", "")).TrimEnd())); // the package is not on the server: the install ran and reported
+        w.Close();
+        await w.AutoCheckTask;
     }
 
     [AvaloniaFact]

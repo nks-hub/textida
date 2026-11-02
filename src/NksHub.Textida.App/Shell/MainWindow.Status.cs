@@ -17,6 +17,7 @@ internal sealed partial class MainWindow
     private readonly Button _eolItem = StatusItem();
     private readonly Button _languageItem = StatusItem();
     private readonly Button _configItem = StatusItem();
+    private readonly Button _updateItem = StatusItem();
     private readonly StackPanel _statusRight = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
     private static Button StatusItem()
@@ -36,7 +37,7 @@ internal sealed partial class MainWindow
 
     private Control BuildStatusBar()
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto"), Margin = new Thickness(14, 0), VerticalAlignment = VerticalAlignment.Center };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto"), Margin = new Thickness(14, 0), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(_statusRight, 3);
         Grid.SetColumn(_pluginStatus, 2);
         Grid.SetColumn(_ideItem, 1);
@@ -45,6 +46,10 @@ internal sealed partial class MainWindow
         grid.Children.Add(_ideItem);
         grid.Children.Add(_pluginStatus);
         grid.Children.Add(_statusRight);
+        Grid.SetColumn(_updateItem, 4);
+        grid.Children.Add(_updateItem);
+        _updateItem.IsVisible = false;
+        _updateItem.Click += (_, _) => InstallOffered();
         StartIdeItem();
         _indentItem.Click += (_, _) => ShowIndentMenu();
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);

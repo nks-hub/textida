@@ -7724,7 +7724,7 @@
     {
       "key": "updates.checkOnStart",
       "type": "boolean",
-      "default": false,
+      "default": true,
       "title": "setting.updates.checkOnStart.title",
       "description": "setting.updates.checkOnStart.description",
       "category": "cat.system",

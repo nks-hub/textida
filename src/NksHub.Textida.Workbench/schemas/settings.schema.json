@@ -179,8 +179,8 @@
         },
         "updates.checkOnStart": {
           "type": "boolean",
-          "default": false,
-          "description": "Check for updates at start. Asks the update address for the newest version when Textida starts, and shows a bar when there is one. Off by default; nothing else is sent.",
+          "default": true,
+          "description": "Check for updates automatically. Asks the update address for the newest version a few seconds after Textida starts and then once a day, and shows a badge in the status bar when there is one. On by default; only the signed feed is requested and nothing about you or your computer is sent.",
           "x-scope": "application"
         },
         "remote.versionCheck": {

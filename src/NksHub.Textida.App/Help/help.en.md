@@ -1990,9 +1990,9 @@ Textida for macOS comes as a disk image (a .dmg) and as a ZIP with the same appl
 
 ## [help.updates] Updates and return to the previous version
 commands: nks.help.updateCheck, nks.help.updateReturn
-Updates support Windows installations on local NTFS with transaction support, macOS apps, and unpacked Linux packages. Update .deb installations through apt. Updates and rollback refuse a portable profile inside Textida.app; use a profile outside the signed bundle. Textida never checks by itself unless you turn on the setting Check for updates at start, which is off by default. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer.
+Updates support Windows installations on local NTFS with transaction support, macOS apps, and unpacked Linux packages. Update .deb installations through apt. Updates and rollback refuse a portable profile inside Textida.app; use a profile outside the signed bundle. Textida asks for a newer version a few seconds after it starts and then once a day while it runs; the setting Check for updates automatically turns this off. A check is one request for a small signed file; nothing else is sent, and no identifier of you or your computer. A failed or offline check shows nothing. A newer version shows the badge New version in the status bar and a bar once for each version; both start the installation.
 1. Choose Help, Check for Updates. If a newer version is offered, Textida asks before it does anything.
-2. Install and restart downloads the package, checks its checksum against the signed file, and unpacks it next to the current version. Only then Textida closes, the folders are switched and Textida starts again with your tabs. Unsaved text is kept by the journal; with the journal off, save or close the documents first.
+2. Install and restart downloads the package, checks its checksum against the signed file, and unpacks it next to the current version. Only then Textida closes, the folders are switched and Textida starts again with your tabs. Unsaved text is kept by the journal; with the journal off, save or close the documents first. A bar shows the download in megabytes and per cent, with a Cancel button that stops it and removes the partial file. If the server sends nothing for 30 seconds, or the connection drops, the download continues from the bytes already received (up to four attempts in all). After the restart a bar tells which version you updated from and offers the release notes.
 3. If anything is wrong (signature, checksum, a package that does not match), nothing is installed and the current version keeps running.
 4. Choose Help, Return to the Previous Version to go back to the version that was installed before the last update. The newer version then becomes the one you can return to.
 - The settings of Textida and the journal stay where they are, and a portable profile folder is carried over.
@@ -2000,7 +2000,7 @@ Updates support Windows installations on local NTFS with transaction support, ma
 ### Messages
 - Automatic updates are unavailable for this installation.
 - This build has no update address or signing key set, so it cannot check for updates. Use a build that comes with the update address and the signing key, or install the new version yourself.
-- Update failed: reason. Nothing was installed and the current version keeps running. The reason names the cause (a signature or checksum that does not fit, a package that does not match, a network error); try again later.
+- Update failed: reason. Nothing was installed and the current version keeps running. The reason names the cause (a signature or checksum that does not fit, a package that does not match, a network error); try again later. The bar with the error has a button Download from the release page, and the details are in the Tasks output.
 - Save or close the documents with unsaved changes first: the journal is off, so an update could lose them. Save the documents, or turn on crash recovery (topic Crash recovery), then choose the update again.
 - There is no previous version to return to. There is a previous version only after an update.
 

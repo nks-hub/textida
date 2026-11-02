@@ -385,12 +385,12 @@ public class NetworkNoConsentTests
     {
         using var rig = new NetworkRig();
         rig.Window.UpdaterOverride = UpdaterOf(rig, "127.0.0.1:9", out _);
-        Assert.False(rig.App.Workbench.Settings.GetBool("updates.checkOnStart"));
+        rig.App.Workbench.Settings.SetLayer(SettingSource.User, new JsonObject { ["updates.checkOnStart"] = false });
+        rig.Window.AutoCheckDelay = TimeSpan.Zero;
+        rig.Window.AutoCheckInterval = TimeSpan.FromMilliseconds(100);
 
         rig.StartLikeTheProgram();
-        rig.Window.CheckUpdatesOnStart();
-        await rig.Window.UpdateTask;
-        await rig.Settle(1000);
+        await rig.Settle(1500);
 
         AssertSilent(await rig.Net.FinishAsync(), rig);
     }

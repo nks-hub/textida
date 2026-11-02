@@ -235,10 +235,11 @@ public class NetworkConsentTests
         using var rig = new NetworkRig();
         rig.Window.UpdaterOverride = NetworkNoConsentTests.UpdaterOf(rig, "127.0.0.1:9", out var feed);
         rig.Net.Sinkhole.Respond = uri => uri.AbsolutePath == "/feed.json" ? ("application/json", System.Text.Encoding.UTF8.GetBytes(feed)) : null;
-        rig.App.Workbench.Settings.SetLayer(SettingSource.User, new JsonObject { ["updates.checkOnStart"] = true });
+        Assert.True(rig.App.Workbench.Settings.GetBool("updates.checkOnStart")); // on by default
+        rig.Window.AutoCheckDelay = TimeSpan.Zero;
 
         rig.StartLikeTheProgram();
-        await rig.Window.UpdateTask;
+        await rig.Until(() => rig.Net.Sinkhole.Targets.Any(), "the feed request");
         await rig.Settle(1000);
 
         Assert.Equal(["127.0.0.1:9"], rig.Net.Sinkhole.Targets);

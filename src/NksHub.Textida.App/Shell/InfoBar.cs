@@ -14,6 +14,7 @@ internal sealed class InfoBar : Border
     public InfoBar(string message, IReadOnlyList<(string Label, Action Click)> actions, bool warning = false, Action? onClose = null, string? helpTopic = null)
     {
         Message = message;
+        _text = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         if (helpTopic is not null) HelpContext.Set(this, helpTopic);
         Classes.Add("infobar");
         if (warning) Classes.Add("warning");
@@ -29,18 +30,26 @@ internal sealed class InfoBar : Border
         close.Classes.Add("tabclose");
         AutomationProperties.SetName(close, Loc.Get(K.InfoBarClose));
         close.Click += (_, _) => onClose?.Invoke();
-        var text = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 12, Margin = new Thickness(14, 6) };
         Grid.SetColumn(row, 1);
         Grid.SetColumn(close, 2);
-        grid.Children.Add(text);
+        grid.Children.Add(_text);
         grid.Children.Add(row);
         grid.Children.Add(close);
         Child = grid;
         AutomationProperties.SetName(this, message);
     }
 
-    public string Message { get; }
+    private readonly TextBlock _text;
+
+    public string Message { get; private set; }
+
+    /// <summary>Changes the text of a bar that shows a running task; a screen reader is told once, when the bar appears.</summary>
+    public void SetMessage(string message)
+    {
+        Message = message;
+        _text.Text = message;
+    }
 
     /// <summary>A notice appears without taking the keyboard, so a screen reader is told what it says; a warning interrupts.</summary>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
