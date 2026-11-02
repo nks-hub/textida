@@ -3765,7 +3765,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 53 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 54 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 27 | 24–37 (neúplné) |
@@ -3776,7 +3776,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **347** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **348** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
