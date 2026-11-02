@@ -38,10 +38,13 @@ internal readonly record struct Piece(bool Original, long Start, long Length, by
 /// Line terminators of a byte run read on its own (a trailing CR counts), plus the edge bytes needed
 /// to join a CR and an LF that end up in neighbouring runs.
 /// </summary>
-internal readonly record struct LineStats(long Terminators, bool FirstLf, bool LastCr)
+internal readonly record struct LineStats(long Terminators, bool FirstLf, bool LastCr, long CrLf = 0, long Cr = 0)
 {
-    public static LineStats Join(LineStats a, LineStats b) =>
-        new(a.Terminators + b.Terminators - (a.LastCr && b.FirstLf ? 1 : 0), a.FirstLf, b.LastCr);
+    public static LineStats Join(LineStats a, LineStats b)
+    {
+        int pair = a.LastCr && b.FirstLf ? 1 : 0; // the lone CR ending a and the LF opening b become one CRLF
+        return new(a.Terminators + b.Terminators - pair, a.FirstLf, b.LastCr, a.CrLf + b.CrLf + pair, a.Cr + b.Cr - pair);
+    }
 }
 
 /// <summary>
@@ -68,6 +71,9 @@ internal sealed class PieceTree
     public bool TracksLines => _measure is not null;
     /// <summary>Line terminators in the whole sequence; valid only while <see cref="TracksLines"/>.</summary>
     public long Terminators => _root?.Agg.Terminators ?? 0;
+
+    /// <summary>Terminators of the whole sequence by kind; valid only while <see cref="TracksLines"/>.</summary>
+    public LineEndings Endings => _root is { } r ? new(r.Agg.Terminators, r.Agg.CrLf, r.Agg.Cr) : default;
 
     private static long Sum(Node? n) => n?.Sum ?? 0;
 

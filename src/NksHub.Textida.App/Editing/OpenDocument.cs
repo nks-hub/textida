@@ -486,14 +486,37 @@ internal sealed class OpenDocument : IDisposable
             for (int at = 0; at < d.TextLength; at += EolBlockChars) scanner.Add(d.GetText(at, Math.Min(EolBlockChars, d.TextLength - at)));
             _eol = scanner.Finish();
         }
+        else if (WatchIndex(_doc.Backend as PagedBackend) is { } paged && paged.TryGetEolStats(out var counted))
+        {
+            _eol = counted;
+        }
         else
         {
-            // shortcut: the paged surface reports the line endings of the first block only
+            // the index is not complete yet: the first block stands in until OnIndexProgress refreshes it
             var head = new byte[(int)Math.Min(_doc.ByteLength, 64 * 1024)];
             int n = _doc.Read(0, head);
             var complete = _doc.Codec.CompleteLength(head.AsSpan(0, n));
             _eol = Core.Encodings.Eol.Analyze(_doc.Codec.GetString(head.AsSpan(0, complete)));
         }
+    }
+
+    private PagedDocument? _indexWatch;
+
+    /// <summary>Follows the line index of the paged document under this one (it changes with the backend), subscribing before the caller looks at the index so a completion is not missed.</summary>
+    private PagedDocument? WatchIndex(PagedBackend? backend)
+    {
+        var paged = backend?.Paged;
+        if (ReferenceEquals(paged, _indexWatch)) return paged;
+        if (_indexWatch is not null) _indexWatch.IndexProgress -= OnIndexProgress;
+        _indexWatch = paged;
+        if (paged is not null) paged.IndexProgress += OnIndexProgress;
+        return paged;
+    }
+
+    // raised on a pool thread; Source state is safe to read there, the document is not
+    private void OnIndexProgress(object? sender, EventArgs e)
+    {
+        if (_indexWatch?.Source.LineIndexState.Complete == true) Dispatcher.UIThread.Post(FlushEol);
     }
 
     /// <summary>The line ending the text the user types gets: the configured one, else the one the document already uses.</summary>
