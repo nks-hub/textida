@@ -4,7 +4,7 @@
 //   dotnet run tools/BuildMacPackage.cs -- [--version V] [--rid osx-arm64|osx-x64] [--output DIR] [--publish-dir DIR] [--dotnet PATH] [--no-dmg]
 //
 // It runs only on macOS (it needs ditto, hdiutil, codesign and the SDK of the Mac) and says so on any other system. It publishes the app unless --publish-dir names an existing output, draws the icon with
-// tools/MakeIcon.cs, signs every Mach-O file and then the bundle with the ad-hoc identity ("-"), which is what an Apple silicon Mac needs to start a program at all, and makes the packages. Then it runs the AOT check on
+// tools/MakeIcon.cs (the application icon and one document icon per group of file types), signs every Mach-O file and then the bundle with the ad-hoc identity ("-"), which is what an Apple silicon Mac needs to start a program at all, and makes the packages. Then it runs the AOT check on
 // the ZIP and on the disk image: the contents, the minimum system version (macOS 14) of every Mach-O file, the signature, and that every built-in plugin starts. It ends with the record of the build next to the packages:
 // the SHA-256 of each file, the version of macOS and the architecture of the Mac that made them.
 //
@@ -77,6 +77,7 @@ try
     foreach (var dir in Directory.GetDirectories(publish)) CopyTree(dir, Path.Combine(resources, Path.GetFileName(dir)));
     File.WriteAllText(Path.Combine(resources, "version.txt"), version);
     File.Copy(Path.Combine(icons, "textida.icns"), Path.Combine(resources, MacBundle.IconName + ".icns"));
+    foreach (var group in FileTypeIcons.Groups) File.Copy(Path.Combine(icons, "FileTypes", group.Id + ".icns"), Path.Combine(resources, group.MacIconName + ".icns")); // CFBundleTypeIconFile of the document types
     File.WriteAllText(Path.Combine(contents, "Info.plist"), MacBundle.InfoPlist(version), new UTF8Encoding(false));
     File.WriteAllText(Path.Combine(contents, "PkgInfo"), "APPL????", Encoding.ASCII);
     Run("plutil", "-lint", Path.Combine(contents, "Info.plist"));

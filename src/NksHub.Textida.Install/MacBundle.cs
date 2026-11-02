@@ -68,7 +68,7 @@ public static class MacBundle
     private const string Header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n";
 
     /// <summary>
-    /// The <c>Info.plist</c> of the application bundle: name, identifier, the executable and the icon, the oldest system, the document types (the extensions of <see cref="IntegrationExtensions"/> and plain text,
+    /// The <c>Info.plist</c> of the application bundle: name, identifier, the executable and the icon, the oldest system, the document types (one per group of <see cref="FileTypeIcons"/> with its own icon, and plain text,
     /// as an alternative handler, so installing the application takes no file type away from another one) and a retina-capable window.
     /// </summary>
     public static string InfoPlist(string version)
@@ -90,8 +90,9 @@ public static class MacBundle
         Strings(xml, "\t", ["MacOSX"]);
         Entry(xml, "CFBundleVersion", bundleVersion);
         xml.Append("\t<key>CFBundleDocumentTypes</key>\n\t<array>\n");
-        DocumentType(xml, "Text", extensions: IntegrationExtensions.All.Select(e => e.TrimStart('.')), contentTypes: null);
-        DocumentType(xml, "Plain text", extensions: null, contentTypes: ["public.plain-text", "public.source-code"]);
+        foreach (var group in FileTypeIcons.Groups)
+            DocumentType(xml, group.Name, extensions: group.Extensions.Select(e => e.TrimStart('.')), contentTypes: null, iconFile: group.MacIconName);
+        DocumentType(xml, "Plain text", extensions: null, contentTypes: ["public.plain-text", "public.source-code"], iconFile: null);
         xml.Append("\t</array>\n");
         Entry(xml, "LSApplicationCategoryType", "public.app-category.developer-tools");
         Entry(xml, "LSMinimumSystemVersion", MinimumMajor + ".0");
@@ -101,10 +102,11 @@ public static class MacBundle
         return xml.ToString();
     }
 
-    private static void DocumentType(StringBuilder xml, string name, IEnumerable<string>? extensions, IEnumerable<string>? contentTypes)
+    private static void DocumentType(StringBuilder xml, string name, IEnumerable<string>? extensions, IEnumerable<string>? contentTypes, string? iconFile)
     {
         xml.Append("\t\t<dict>\n");
         xml.Append("\t\t\t<key>CFBundleTypeName</key>\n\t\t\t<string>").Append(Escape(name)).Append("</string>\n");
+        if (iconFile is not null) xml.Append("\t\t\t<key>CFBundleTypeIconFile</key>\n\t\t\t<string>").Append(Escape(iconFile)).Append("</string>\n");
         xml.Append("\t\t\t<key>CFBundleTypeRole</key>\n\t\t\t<string>Editor</string>\n");
         xml.Append("\t\t\t<key>LSHandlerRank</key>\n\t\t\t<string>Alternate</string>\n");
         if (extensions is not null)

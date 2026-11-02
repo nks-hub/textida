@@ -80,14 +80,16 @@ public class MacBundleTests
         Assert.Equal(["en", "cs", "sk", "de"], entries["CFBundleLocalizations"].Elements().Select(e => e.Value));
 
         var types = entries["CFBundleDocumentTypes"].Elements("dict").Select(Entries).ToList();
-        Assert.Equal(2, types.Count);
+        Assert.Equal(FileTypeIcons.Groups.Count + 1, types.Count);
         Assert.All(types, t =>
         {
             Assert.Equal("Editor", t["CFBundleTypeRole"].Value);
             Assert.Equal("Alternate", t["LSHandlerRank"].Value); // installing Textida takes no file type away from another application
         });
-        Assert.Equal(IntegrationExtensions.All.Select(e => e.TrimStart('.')), types[0]["CFBundleTypeExtensions"].Elements().Select(e => e.Value));
-        Assert.Contains("public.plain-text", types[1]["LSItemContentTypes"].Elements().Select(e => e.Value));
+        var grouped = types.Take(FileTypeIcons.Groups.Count).ToList();
+        Assert.Equal(IntegrationExtensions.All.Select(e => e.TrimStart('.')).Order(), grouped.SelectMany(t => t["CFBundleTypeExtensions"].Elements().Select(e => e.Value)).Order());
+        Assert.Equal(FileTypeIcons.Groups.Select(g => "Textida-" + g.Id), grouped.Select(t => t["CFBundleTypeIconFile"].Value));
+        Assert.Contains("public.plain-text", types[^1]["LSItemContentTypes"].Elements().Select(e => e.Value));
     }
 
     [Fact]

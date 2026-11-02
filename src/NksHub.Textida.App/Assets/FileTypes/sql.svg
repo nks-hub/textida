@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs><linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E3F0ED"/></linearGradient></defs>
+  <path d="M43.52 15.36H156.16L212.48 71.68V240.64H43.52Z" fill="url(#page)" stroke="#0F7B6C" stroke-width="8.96" stroke-linejoin="round"/>
+  <path d="M156.16 15.36V71.68H212.48Z" fill="#9CD6CB" stroke="#0F7B6C" stroke-width="8.96" stroke-linejoin="round"/>
+  <path d="M66.56 89.6H171.52M66.56 112.64H145.92" stroke="#9AB5B0" stroke-width="8.96" stroke-linecap="round"/>
+  <rect x="56.96" y="133.12" width="142.08" height="71.68" fill="#B83A8A"/>
+  <text x="128" y="184.51" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="44.44" text-anchor="middle" fill="#FFFFFF" textLength="95.99" lengthAdjust="spacingAndGlyphs">SQL</text>
+</svg>

@@ -29,3 +29,6 @@ __pycache__/
 
 # dotnet test results and hang dumps
 TestResults/
+
+# macOS icons are drawn by the package build (tools/MakeIcon.cs)
+src/NksHub.Textida.App/Assets/FileTypes/*.icns

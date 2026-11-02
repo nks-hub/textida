@@ -81,6 +81,11 @@
     <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- the document icons of the Windows file associations: Explorer reads them from icons\ next to the program (ShellIntegration); macOS and Linux get their own formats from the package builders -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))">
+    <None Include="Assets\FileTypes\*.ico" Link="icons\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!--
     The commit and the date of the build go into a source file (BuildStamp), so the program shows them without git, a network or reflection. The commit is the revision the SDK
     reads from the git checkout (SourceRevisionId, the same one it puts into the informational version); a build outside a checkout leaves it empty, and -p:TextidaCommit=sha sets it there.
