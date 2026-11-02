@@ -43,6 +43,33 @@ public class AssemblyViewAppTests : IDisposable
         Assert.Equal(tabs, w.Tabs.Count());
     }
 
+    /// <summary>Closing the tab stops the decompiler (System.Private.CoreLib runs into its time limit otherwise) and the text that would have come is not shown anywhere.</summary>
+    [AvaloniaFact]
+    public async Task Closing_the_tab_stops_a_long_decompile_and_shows_nothing_afterwards()
+    {
+        string dll = typeof(object).Assembly.Location;
+        var w = _app.CreateWindow(null);
+        var tab = w.OpenFile(dll, null);
+        var text = tab.Editor!.Document;
+        string working = text.Text;
+        await Task.Delay(500); // the decompiler is under way
+        Assert.False(w.AssemblyWork.IsCompleted, "the decompile ended before the tab was closed");
+
+        var close = w.CloseTabAsync(tab);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(await close);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (!w.AssemblyWork.IsCompleted && clock.ElapsedMilliseconds < 30_000)
+        {
+            await Task.Delay(20);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(w.AssemblyWork.IsCompleted && clock.ElapsedMilliseconds < 5_000, $"the decompile ran on for {clock.ElapsedMilliseconds} ms after the tab was closed");
+        await w.AssemblyWork;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(working, text.Text);
+    }
+
     [AvaloniaFact]
     public void The_setting_turns_it_off_and_a_file_that_is_not_an_assembly_opens_as_before()
     {
