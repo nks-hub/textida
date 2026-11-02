@@ -61,8 +61,12 @@ internal readonly record struct CommitBlob(bool Exists, bool TooLarge, byte[] By
 /// <param name="Blob">A file as <c>HEAD</c> (true) or the index (false) has it.</param>
 /// <param name="Commit">Commits the index with the message, or amends the last commit; true when a commit was made.</param>
 /// <param name="Push">Pushes the current branch (the plugin asks first).</param>
+/// <param name="PreCommit">Runs the checks the user ticked before a commit (see <see cref="CommitChecks"/>); true when the commit may go on. Null: the panel offers no checks.</param>
 internal sealed record CommitViewActions(Func<Task<CommitChanges?>> Read, Func<IReadOnlyList<string>, bool, Task> Stage, Func<string, bool, long, Task<bool>> StageHunk,
-    Func<string, bool, Task<CommitBlob?>> Blob, Func<string, bool, Task<bool>> Commit, Func<Task> Push);
+    Func<string, bool, Task<CommitBlob?>> Blob, Func<string, bool, Task<bool>> Commit, Func<Task> Push, Func<CommitChecks, Task<bool>>? PreCommit = null);
+
+/// <summary>The checks before a commit: save the open files (which runs the save actions), format the open files of the commit, over the files that are wholly in the commit (paths relative to the top of the repository).</summary>
+internal sealed record CommitChecks(bool Save, bool Format, IReadOnlyList<string> Files);
 
 /// <summary>
 /// The commit panel of a repository as a tab: on the left the changed files with a box for each (a ticked file is in the index, so it goes into the commit), the box for the message, Amend and the
@@ -94,6 +98,10 @@ internal sealed class CommitView : Grid, IDisposable
     private readonly TextBox _message = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 200 };
     private readonly CheckBox _amend = new();
     private readonly Button _commit = new(), _commitPush = new();
+    private readonly TextBlock _checksLabel = new() { Margin = new Thickness(0, 4, 0, 0), Opacity = 0.8 };
+    private readonly CheckBox _checkSave = new(), _checkFormat = new();
+    private readonly WrapPanel _stagedHunks = new(), _unstagedHunks = new();
+    private readonly ScrollViewer _stagedHunkScroll, _unstagedHunkScroll;
     private readonly TextBlock _fileHeader = new() { FontWeight = FontWeight.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(12, 8, 12, 2) };
     private readonly TextBlock _note = new() { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(12, 4, 12, 4) };
     private readonly TextBlock _stagedTitle = new() { Margin = new Thickness(12, 4, 12, 2), FontWeight = FontWeight.SemiBold };
@@ -144,17 +152,22 @@ internal sealed class CommitView : Grid, IDisposable
         DockPanel.SetDock(header, Dock.Top);
 
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 4, 8, 8), Children = { _commit, _commitPush } };
-        var composer = new StackPanel { Spacing = 4, Margin = new Thickness(8, 4, 8, 0), Children = { _recent, _message, _amend } };
+        var composer = new StackPanel { Spacing = 4, Margin = new Thickness(8, 4, 8, 0), Children = { _recent, _message, _amend, _checksLabel, _checkSave, _checkFormat } };
+        _checksLabel.IsVisible = _checkSave.IsVisible = _checkFormat.IsVisible = actions.PreCommit is not null;
         var bottom = new StackPanel { Children = { _summary, composer, buttons } };
         DockPanel.SetDock(bottom, Dock.Bottom);
         var left = new DockPanel { Children = { header, bottom, _files } };
 
         var splitter = new GridSplitter { Background = Brushes.Transparent };
 
-        _stagedPane = new DockPanel { Children = { _stagedTitle, _stagedHost } };
-        _unstagedPane = new DockPanel { Children = { _unstagedTitle, _unstagedHost } };
+        _stagedHunkScroll = HunkScroll(_stagedHunks);
+        _unstagedHunkScroll = HunkScroll(_unstagedHunks);
+        _stagedPane = new DockPanel { Children = { _stagedTitle, _stagedHunkScroll, _stagedHost } };
+        _unstagedPane = new DockPanel { Children = { _unstagedTitle, _unstagedHunkScroll, _unstagedHost } };
         DockPanel.SetDock(_stagedTitle, Dock.Top);
         DockPanel.SetDock(_unstagedTitle, Dock.Top);
+        DockPanel.SetDock(_stagedHunkScroll, Dock.Top);
+        DockPanel.SetDock(_unstagedHunkScroll, Dock.Top);
         SetRow(_unstagedPane, 1);
         _diffs = new Grid { RowDefinitions = new RowDefinitions("*,0"), Children = { _stagedPane, _unstagedPane } };
         var headerBox = new StackPanel { Children = { _fileHeader, _note } };
@@ -203,6 +216,17 @@ internal sealed class CommitView : Grid, IDisposable
     public ListBox Files => _files;
     public TextBox MessageBox => _message;
     public CheckBox AmendBox => _amend;
+    public CheckBox SaveCheckBox => _checkSave;
+    public CheckBox FormatCheckBox => _checkFormat;
+
+    /// <summary>The boxes of the changes of the chosen file's staged comparison (all ticked: a box takes the change out of the index).</summary>
+    public IReadOnlyList<CheckBox> StagedHunkBoxes => [.. _stagedHunks.Children.OfType<CheckBox>()];
+
+    /// <summary>The boxes of the changes of the chosen file's unstaged comparison (none ticked: a box puts the change into the index).</summary>
+    public IReadOnlyList<CheckBox> UnstagedHunkBoxes => [.. _unstagedHunks.Children.OfType<CheckBox>()];
+
+    /// <summary>The headers of the groups of the list ("Changes", "Unversioned files") as they are read.</summary>
+    public IReadOnlyList<string> GroupNames => [.. _files.Items.OfType<ListBoxItem>().Where(i => !_rows.Any(r => ReferenceEquals(r.Item, i))).Select(i => AutomationProperties.GetName(i) ?? "")];
     public CheckBox AllBox => _all;
     public ComboBox RecentBox => _recent;
     public Button CommitButton => _commit;
@@ -268,6 +292,11 @@ internal sealed class CommitView : Grid, IDisposable
         _refresh.Content = Loc.Get(K.CommitRefresh);
         _message.PlaceholderText = Loc.Get(K.CommitMessagePlaceholder);
         _amend.Content = Loc.Get(K.CommitAmend);
+        _checksLabel.Text = Loc.Get(K.CommitChecks);
+        _checkSave.Content = Loc.Get(K.CommitCheckSave);
+        _checkFormat.Content = Loc.Get(K.CommitCheckFormat);
+        AutomationProperties.SetName(_checkSave, Loc.Get(K.CommitCheckSave));
+        AutomationProperties.SetName(_checkFormat, Loc.Get(K.CommitCheckFormat));
         _commit.Content = Loc.Get(K.CommitCommit);
         _commitPush.Content = Loc.Get(K.CommitCommitPush);
         _recent.PlaceholderText = Loc.Get(K.CommitRecent);
@@ -353,7 +382,12 @@ internal sealed class CommitView : Grid, IDisposable
         _files.Items.Clear();
         _rows.Clear();
         foreach (var e in changes.Entries.OrderBy(Weight).ThenBy(e => e.Path, StringComparer.OrdinalIgnoreCase)) _rows.Add(NewRow(e));
-        foreach (var row in _rows) _files.Items.Add(row.Item);
+        foreach (var (group, members) in new[] { (K.CommitGroupChanges, _rows.Where(r => !r.Entry.Untracked).ToList()), (K.CommitGroupUnversioned, _rows.Where(r => r.Entry.Untracked).ToList()) })
+        {
+            if (members.Count == 0) continue;
+            _files.Items.Add(NewGroup(Loc.Get(K.CommitGroupRow, ("group", Loc.Get(group)), ("number", members.Count))));
+            foreach (var row in members) _files.Items.Add(row.Item);
+        }
         var again = chosen is null ? null : _rows.FirstOrDefault(r => r.Entry.Path == chosen);
         _files.SelectedItem = (again ?? (_rows.Count > 0 ? _rows[0] : null))?.Item;
         _filling = false;
@@ -379,6 +413,16 @@ internal sealed class CommitView : Grid, IDisposable
         if (!keepDiff) _shownKey = null;
         _ = ShowSelectionAsync();
     }
+
+    /// <summary>The header of a group of the list: it is read by a screen reader but cannot be chosen.</summary>
+    private static ListBoxItem NewGroup(string text)
+    {
+        var item = new ListBoxItem { Content = new TextBlock { Text = text, FontWeight = FontWeight.SemiBold }, IsEnabled = false, Focusable = false };
+        AutomationProperties.SetName(item, text);
+        return item;
+    }
+
+    private static ScrollViewer HunkScroll(WrapPanel panel) => new() { Content = panel, MaxHeight = 56, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, IsVisible = false, Margin = new Thickness(12, 0, 12, 2) };
 
     private static string FirstLine(string message)
     {
@@ -450,9 +494,20 @@ internal sealed class CommitView : Grid, IDisposable
         if (!CanCommit) return false;
         _busy = true;
         UpdateButtons();
-        bool done;
-        try { done = await _actions.Commit(_message.Text ?? "", _amend.IsChecked == true); }
+        bool done, checksPassed = true;
+        try
+        {
+            if (_actions.PreCommit is { } checks && (_checkSave.IsChecked == true || _checkFormat.IsChecked == true))
+                checksPassed = await checks(new CommitChecks(_checkSave.IsChecked == true, _checkFormat.IsChecked == true, [.. _changes!.Entries.Where(e => e.Included == true).Select(e => e.Path)]));
+            done = checksPassed && await _actions.Commit(_message.Text ?? "", _amend.IsChecked == true);
+        }
         finally { _busy = false; }
+        if (!checksPassed)
+        {
+            await ReloadAsync();
+            _summary.Text = Loc.Get(K.CommitChecksFailed);
+            return false;
+        }
         if (done)
         {
             _message.Text = "";
@@ -498,11 +553,38 @@ internal sealed class CommitView : Grid, IDisposable
         }
         _stagedHost.Content = staged;
         _unstagedHost.Content = unstaged;
+        FillHunks(_stagedHunks, _stagedHunkScroll, staged);
+        FillHunks(_unstagedHunks, _unstagedHunkScroll, unstaged);
         _stagedPane.IsVisible = staged is not null;
         _unstagedPane.IsVisible = unstaged is not null;
         _diffs.RowDefinitions = new RowDefinitions(staged is not null && unstaged is not null ? "*,*" : staged is not null ? "*,0" : "0,*");
         _note.Text = note ?? "";
         _note.IsVisible = !string.IsNullOrEmpty(note);
+    }
+
+    /// <summary>What a comparison of the panel is for: the file and whether it is the staged one (its changes are taken out of the index) or the unstaged one (they are put in).</summary>
+    private sealed record HunkTarget(CommitEntry Entry, bool Unstage);
+
+    /// <summary>One box for each change of a comparison: ticked when the change is in the index; a click stages or takes back that change alone.</summary>
+    private void FillHunks(WrapPanel panel, ScrollViewer scroll, DiffView? view)
+    {
+        panel.Children.Clear();
+        if (view?.Session.Diff is { } diff && view.Tag is HunkTarget target)
+        {
+            for (int i = 0; i < diff.Hunks.Count; i++)
+            {
+                int number = i;
+                var box = new CheckBox { Content = Loc.Get(K.CommitHunk, ("number", i + 1)), IsChecked = target.Unstage, Margin = new Thickness(0, 0, 12, 0) };
+                AutomationProperties.SetName(box, Loc.Get(K.A11yCommitHunk, ("number", i + 1), ("line", diff.Hunks[i].BStart + 1)));
+                box.Click += (_, ev) =>
+                {
+                    ev.Handled = true;
+                    _ = StageHunkAsync(target.Entry, target.Unstage, view, number);
+                };
+                panel.Children.Add(box);
+            }
+        }
+        scroll.IsVisible = panel.Children.Count > 0;
     }
 
     private string ShownKey(CommitEntry e)
@@ -622,7 +704,13 @@ internal sealed class CommitView : Grid, IDisposable
     private DiffView NewDiff(CompareSide left, CompareSide right, CommitEntry entry, bool unstage)
     {
         // the plugin finds the change by the line it starts at, so both compare the same way: no difference is ignored
-        var view = new DiffView(new CompareSession(left, right) { Ignore = DiffIgnore.None }, _options());
+        var view = new DiffView(new CompareSession(left, right) { Ignore = DiffIgnore.None }, _options()) { Tag = new HunkTarget(entry, unstage) };
+        view.Session.Updated += () =>
+        {
+            if (_disposed) return;
+            if (ReferenceEquals(view, StagedDiff)) FillHunks(_stagedHunks, _stagedHunkScroll, view);
+            else if (ReferenceEquals(view, UnstagedDiff)) FillHunks(_unstagedHunks, _unstagedHunkScroll, view);
+        };
         // the buttons act on the current difference: the first one is current from the start, and after a change was taken the next one stands where it was
         view.RestoreHunk(unstage ? _restoreStaged : _restoreUnstaged);
         if (unstage) _restoreStaged = 0; else _restoreUnstaged = 0;

@@ -2911,5 +2911,14 @@
   "panel.tool.hide": "Hide {panel}",
   "a11y.panel.strip.left": "Panel buttons on the left edge",
   "a11y.panel.strip.right": "Panel buttons on the right edge",
-  "a11y.panel.strip.bottom": "Panel buttons on the bottom edge"
+  "a11y.panel.strip.bottom": "Panel buttons on the bottom edge",
+  "commit.group.changes": "Changes",
+  "commit.group.unversioned": "Unversioned files",
+  "commit.group.row": "{group} ({number})",
+  "commit.hunk": "Change {number}",
+  "a11y.commit.hunk": "Include change {number}, line {line} in the commit",
+  "commit.checks": "Before the commit:",
+  "commit.check.save": "Save all files and run the save actions",
+  "commit.check.format": "Format the open files of the commit (EditorConfig)",
+  "commit.checks.failed": "The checks before the commit did not pass, nothing was committed."
 }

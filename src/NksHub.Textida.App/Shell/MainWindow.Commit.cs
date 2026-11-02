@@ -112,7 +112,39 @@ internal sealed partial class MainWindow
             try { return StatusOf(await RepoAnswerAsync("git.commit", root, $",\"message\":{Quoted(message)},\"amend\":{Flag(amend)}")) is "committed" or "amended"; }
             finally { _gitCommandRunning = false; }
         },
-        Push: () => RunGitRepoCommandAsync("git.push", root));
+        Push: () => RunGitRepoCommandAsync("git.push", root),
+        PreCommit: checks => RunCommitChecksAsync(root, checks));
+
+    /// <summary>
+    /// The checks the user ticked in the commit panel. Formatting brings the open files of the commit to what their <c>.editorconfig</c> says; saving writes every unsaved document, which runs the save
+    /// actions of each. A file of the commit that these changed is put into the index again, so that the commit holds what was saved and not the text before the checks. False stops the commit.
+    /// </summary>
+    private async Task<bool> RunCommitChecksAsync(string root, CommitChecks checks)
+    {
+        var open = new List<(string File, DocTab Tab)>();
+        foreach (var file in checks.Files)
+        {
+            string full = Path.GetFullPath(Path.Combine(root, file));
+            if (Tabs.FirstOrDefault(t => t.Path is { } p && string.Equals(Path.GetFullPath(p), full, PathComparison)) is { } tab) open.Add((file, tab));
+        }
+        var restage = new HashSet<string>();
+        if (checks.Format)
+            foreach (var (file, tab) in open)
+                if (await ApplyEditorConfigFormatAsync(tab)) restage.Add(file);
+        if (checks.Save)
+        {
+            foreach (var (file, tab) in open)
+                if (tab.Doc.Doc.IsModified) restage.Add(file);
+            if (!await SaveAllAsync()) return false;
+        }
+        else
+        {
+            foreach (var (file, tab) in open.Where(o => restage.Contains(o.File)))
+                if (!await SaveAsync(tab)) return false;
+        }
+        if (restage.Count > 0) await RepoAnswerAsync("git.stagePaths", root, $",\"paths\":[{string.Join(',', restage.Select(Quoted))}]", notify: false);
+        return true;
+    }
 
     /// <summary>
     /// Runs one Git command on the repository (see <see cref="GitRepoPath"/>), or on <paramref name="path"/>. One such command runs at a time; a second one is refused with a message in the status line.

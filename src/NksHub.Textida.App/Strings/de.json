@@ -2911,5 +2911,14 @@
   "panel.tool.hide": "{panel} ausblenden",
   "a11y.panel.strip.left": "Panel-Schaltflächen am linken Rand",
   "a11y.panel.strip.right": "Panel-Schaltflächen am rechten Rand",
-  "a11y.panel.strip.bottom": "Panel-Schaltflächen am unteren Rand"
+  "a11y.panel.strip.bottom": "Panel-Schaltflächen am unteren Rand",
+  "commit.group.changes": "Änderungen",
+  "commit.group.unversioned": "Nicht versionierte Dateien",
+  "commit.group.row": "{group} ({number})",
+  "commit.hunk": "Änderung {number}",
+  "a11y.commit.hunk": "Änderung {number}, Zeile {line} in den Commit aufnehmen",
+  "commit.checks": "Vor dem Commit:",
+  "commit.check.save": "Alle Dateien speichern und Speicheraktionen ausführen",
+  "commit.check.format": "Geöffnete Dateien des Commits formatieren (EditorConfig)",
+  "commit.checks.failed": "Die Prüfungen vor dem Commit sind fehlgeschlagen, es wurde nichts committet."
 }

@@ -2966,5 +2966,14 @@
   "panel.tool.hide": "Skryť panel {panel}",
   "a11y.panel.strip.left": "Tlačidlá panelov na ľavom okraji",
   "a11y.panel.strip.right": "Tlačidlá panelov na pravom okraji",
-  "a11y.panel.strip.bottom": "Tlačidlá panelov na dolnom okraji"
+  "a11y.panel.strip.bottom": "Tlačidlá panelov na dolnom okraji",
+  "commit.group.changes": "Zmeny",
+  "commit.group.unversioned": "Nesledované súbory",
+  "commit.group.row": "{group} ({number})",
+  "commit.hunk": "Zmena {number}",
+  "a11y.commit.hunk": "Zahrnúť zmenu {number}, riadok {line} do commitu",
+  "commit.checks": "Pred commitom:",
+  "commit.check.save": "Uložiť všetky súbory a vykonať akcie pri uložení",
+  "commit.check.format": "Formátovať otvorené súbory z commitu (EditorConfig)",
+  "commit.checks.failed": "Kontroly pred commitom neprešli, nič sa necommitovalo."
 }

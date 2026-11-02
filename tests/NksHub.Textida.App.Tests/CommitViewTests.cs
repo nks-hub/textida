@@ -60,7 +60,7 @@ public class CommitViewTests : IDisposable
         public string Branch = "main";
         public string? Upstream = "origin/main";
         public int Ahead = 2, Behind = 1;
-        public bool HasCommits = true, CommitResult = true;
+        public bool HasCommits = true, CommitResult = true, ChecksResult = true;
         public readonly List<string> Calls = [];
         public readonly Dictionary<(string, bool), CommitBlob> Blobs = [];
 
@@ -93,6 +93,11 @@ public class CommitViewTests : IDisposable
             {
                 Calls.Add("push");
                 return Task.CompletedTask;
+            },
+            PreCommit: checks =>
+            {
+                Calls.Add($"checks save={checks.Save} format={checks.Format} [{string.Join(',', checks.Files)}]");
+                return Task.FromResult(ChecksResult);
             });
     }
 
@@ -120,7 +125,10 @@ public class CommitViewTests : IDisposable
         Loc.SetLanguage("en");
         var (view, _) = await Open(Mixed);
 
-        Assert.Equal(["c.txt", "a.txt", "b.txt", "d.txt", "n.txt"], view.Files.Items.OfType<ListBoxItem>().Select(i => (AutomationProperties.GetName(i) ?? "").Split(',')[0]));
+        Assert.Equal(["c.txt", "a.txt", "b.txt", "d.txt", "n.txt"], view.Files.Items.OfType<ListBoxItem>().Where(i => i.IsEnabled).Select(i => (AutomationProperties.GetName(i) ?? "").Split(',')[0]));
+        Assert.Equal(["Changes (4)", "Unversioned files (1)"], view.GroupNames); // the new files are listed apart from the changes
+        Assert.Equal(["Changes (4)", "c.txt", "a.txt", "b.txt", "d.txt", "Unversioned files (1)", "n.txt"],
+            view.Files.Items.OfType<ListBoxItem>().Select(i => (AutomationProperties.GetName(i) ?? "").Split(',')[0]));
         Assert.True(view.CheckOf("a.txt")!.IsChecked);           // everything of it is in the index
         Assert.Null(view.CheckOf("b.txt")!.IsChecked);           // a part of it is
         Assert.False(view.CheckOf("d.txt")!.IsChecked);
@@ -331,6 +339,146 @@ public class CommitViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_group_header_cannot_be_chosen_and_a_clean_repository_has_none()
+    {
+        Loc.SetLanguage("en");
+        var (view, _) = await Open(Entry("a.txt", 'M', ' '), Entry("n.txt", '?', '?'));
+        var headers = view.Files.Items.OfType<ListBoxItem>().Where(i => !i.IsEnabled).ToList();
+        Assert.Equal(2, headers.Count);
+        Assert.All(headers, h => Assert.False(h.Focusable));
+        Assert.Equal("a.txt", view.SelectedPath); // the first file, not the header above it
+
+        var (clean, _) = await Open();
+        Assert.Empty(clean.GroupNames);
+    }
+
+    [AvaloniaFact]
+    public async Task A_new_file_and_a_changed_one_are_staged_one_by_one_and_only_the_path_that_was_ticked_is_sent()
+    {
+        Loc.SetLanguage("en");
+        var (view, repo) = await Open(Entry("a.txt", ' ', 'M'), Entry("d.txt", ' ', 'M'), Entry("n.txt", '?', '?'));
+
+        view.CheckOf("n.txt")!.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Primitives.ToggleButton.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Count == 1 && view.CheckOf("n.txt")!.IsChecked == true));
+        view.CheckOf("a.txt")!.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Primitives.ToggleButton.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Count == 2 && view.CheckOf("a.txt")!.IsChecked == true));
+
+        Assert.Equal(["stage n.txt", "stage a.txt"], repo.Calls);
+        Assert.False(view.CheckOf("d.txt")!.IsChecked); // the others stay out of the commit
+        Assert.Equal("3 changed files, 2 in the commit.", view.SummaryText);
+    }
+
+    [AvaloniaFact]
+    public async Task Every_change_of_a_file_has_a_box_and_a_box_stages_or_takes_back_that_change_alone()
+    {
+        Loc.SetLanguage("en");
+        _temp.File("b.txt", "1\nX\n3\n4\n5\n6\n7\nY\n9\n");
+        var repo = new Fake(_temp.Path) { Entries = [Entry("b.txt", 'M', 'M')] };
+        repo.Blobs[("b.txt", true)] = new CommitBlob(true, false, U("1\n2\n3\n"));
+        repo.Blobs[("b.txt", false)] = new CommitBlob(true, false, U("1\n2\n3\n4\n5\n6\n7\n8\n9\n"));
+        var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
+        _w.HostCommit(view);
+        await view.ReloadAsync();
+
+        Assert.True(await Eventually(() => view.UnstagedHunkBoxes.Count == 2 && view.StagedHunkBoxes.Count >= 1));
+        var unstaged = view.UnstagedHunkBoxes;
+        Assert.All(unstaged, b => Assert.False(b.IsChecked)); // in the tree, not in the index
+        Assert.All(view.StagedHunkBoxes, b => Assert.True(b.IsChecked));
+        Assert.Equal("Include change 2, line 8 in the commit", AutomationProperties.GetName(unstaged[1]));
+
+        unstaged[1].RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Primitives.ToggleButton.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Any(c => c.StartsWith("hunk ", StringComparison.Ordinal))));
+        Assert.Equal("hunk b.txt stage 7", repo.Calls.Single(c => c.StartsWith("hunk ", StringComparison.Ordinal))); // the eighth line is line 7; nothing else was staged
+        Assert.DoesNotContain(repo.Calls, c => c.StartsWith("stage ", StringComparison.Ordinal));
+
+        Assert.True(await Eventually(() => view.UnstagedHunkBoxes.Count == 2 && view.StagedHunkBoxes.Count >= 1));
+        repo.Calls.Clear();
+        view.StagedHunkBoxes[0].RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Primitives.ToggleButton.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Count == 1));
+        Assert.StartsWith("hunk b.txt unstage ", repo.Calls[0]);
+    }
+
+    [AvaloniaFact]
+    public async Task Amend_sends_the_flag_with_the_old_message_and_needs_no_staged_file()
+    {
+        Loc.SetLanguage("en");
+        var (view, repo) = await Open(Entry("a.txt", ' ', 'M'));
+        view.AmendBox.IsChecked = true;
+        Assert.Equal("last message", view.MessageBox.Text);
+
+        view.CommitButton.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+
+        Assert.True(await Eventually(() => repo.Calls.Contains("commit last message|True")));
+        Assert.True(await Eventually(() => view.AmendBox.IsChecked == false)); // done: the box is cleared like the message
+        Assert.Equal("", view.MessageBox.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task The_checks_before_the_commit_run_first_over_the_files_wholly_in_it_and_a_failed_check_stops_the_commit()
+    {
+        Loc.SetLanguage("en");
+        var (view, repo) = await Open(Entry("a.txt", 'M', ' '), Entry("b.txt", 'M', 'M'));
+        Assert.False(view.SaveCheckBox.IsChecked);
+        Assert.False(view.FormatCheckBox.IsChecked);
+        view.MessageBox.Text = "msg";
+        await Pump(40);
+
+        view.CommitButton.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent)); // nothing ticked: no check runs
+        Assert.True(await Eventually(() => repo.Calls.Contains("commit msg|False")));
+        Assert.DoesNotContain(repo.Calls, c => c.StartsWith("checks", StringComparison.Ordinal));
+
+        repo.Calls.Clear();
+        view.MessageBox.Text = "second";
+        view.SaveCheckBox.IsChecked = true;
+        view.FormatCheckBox.IsChecked = true;
+        await Pump(40);
+        view.CommitButton.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Contains("commit second|False")));
+        Assert.Equal(["checks save=True format=True [a.txt]", "commit second|False"], repo.Calls); // b.txt is only partly in the commit: left alone
+
+        repo.Calls.Clear();
+        repo.ChecksResult = false;
+        view.MessageBox.Text = "third";
+        await Pump(40);
+        view.CommitPushButton.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.True(await Eventually(() => view.SummaryText == Loc.Get(K.CommitChecksFailed)));
+        Assert.Equal(["checks save=True format=True [a.txt]"], repo.Calls); // no commit, no push
+        Assert.Equal("third", view.MessageBox.Text); // the message stays
+    }
+
+    [AvaloniaFact]
+    public async Task The_messages_of_the_last_commits_are_offered_again_and_the_one_just_made_comes_first()
+    {
+        Loc.SetLanguage("en");
+        var (view, repo) = await Open(Entry("a.txt", 'M', ' '));
+        view.MessageBox.Text = "Add the panel\n\nIn detail";
+        await Pump(40);
+        view.CommitButton.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.True(await Eventually(() => repo.Calls.Contains("commit Add the panel\n\nIn detail|False")));
+        repo.Messages = ["Add the panel\n\nIn detail", .. repo.Messages]; // the repository tells it in the next list
+        await view.ReloadAsync();
+
+        Assert.Equal(["Add the panel", "last message"], view.RecentBox.Items.OfType<ComboBoxItem>().Select(i => (string)i.Content!));
+        view.RecentBox.SelectedIndex = 0;
+        Assert.Equal("Add the panel\n\nIn detail", view.MessageBox.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task The_panel_stands_on_the_host_and_lays_its_halves_one_above_the_other_at_a_side()
+    {
+        var (view, _) = await Open(Mixed);
+        Assert.Same(view, _w.CommitPanelView);
+        Assert.Equal(PanelDock.Bottom, _w.SideLayout.DockOf(SidePanel.Commit));
+        Assert.Equal(3, view.ColumnDefinitions.Count);
+
+        _w.MovePanel(SidePanel.Commit, PanelDock.Right);
+        _w.UpdateLayout();
+        Assert.Same(_w.PanelHost(PanelDock.Right), _w.CommitTool.Parent?.Parent);
+        Assert.Equal(1, view.ColumnDefinitions.Count);
+        Assert.Equal(3, view.RowDefinitions.Count);
+    }
+
+    [AvaloniaFact]
     public async Task The_panel_follows_the_language()
     {
         Loc.SetLanguage("en");
@@ -346,6 +494,9 @@ public class CommitViewTests : IDisposable
         Assert.Equal("Všechny soubory", view.AllBox.Content);
         Assert.Contains("v indexu: změněno", view.RowName("a.txt"));
         Assert.Equal("Panel commitu", AutomationProperties.GetName(view));
+        Assert.Equal("Změny (4)", view.GroupNames[0]);
+        Assert.Equal(Loc.Get(K.CommitCheckSave), view.SaveCheckBox.Content);
+        Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(view.FormatCheckBox)));
     }
 
     [AvaloniaFact]
