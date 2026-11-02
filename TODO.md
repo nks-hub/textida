@@ -1611,6 +1611,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
     - obě strany současně volají se stejným číselným ID, přijde zrušení a pozdní odpověď, pak restart
     - adaptéry LSP, MCP, ACP a pluginů nad stejným dispatcherem
   - **Stav 26. 10. 2026:** částečně: dispatcher a adaptéry LSP, MCP, ACP a pluginů (`NksHub.Textida.Rpc`), 87 testů rámování, rušení a souběhu. Neověřeno: běh pod NativeAOT a macOS; ACP `$/cancel_request` podle návrhu, ne specifikace.
+  - **Ověření 2. 11. 2026 na Macu (macOS 15.7.4 arm64, main 4e8009fc):** celá sada `NksHub.Textida.Rpc.Tests` pod JIT 1250 prošlo, 12 přeskočeno, 0 selhalo. Pod NativeAOT na osx-arm64 prošla `AotCheck` nad balíkem Textida-osx-arm64 („rpc: four adapters done“, „AOT check OK“): dva dispečery přes paměťové roury dělené po 3 bajtech pro LSP, MCP, ACP a pluginy (rámování, ID, rušení, konec spojení, vadná data); stejná kontrola běží v CI na win-x64 (41373925939). Pod AOT jde o podmnožinu scénářů `DispatcherTests`, ne o všechny testy z kroků.
   - **Hotovo, když:** testy z kroků procházejí pod NativeAOT na Windows i macOS pro všechny čtyři adaptéry; žádná odpověď se nepřiřadí cizímu požadavku a žádný zápis se po restartu nezopakuje.
   - **Závisí na:** P1.1.2
   - **Odhad:** v rámci F196
