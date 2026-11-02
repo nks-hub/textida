@@ -166,8 +166,9 @@ internal sealed partial class MainWindow : Window
 
         var content = new Border { Child = new ReadingDockPanel { Children = { Dock(BuildFindBar(), Avalonia.Controls.Dock.Bottom), Dock(BuildOutputPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildTerminalPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildAgentPanel(), Avalonia.Controls.Dock.Bottom), Dock(BuildPreviewPanel(), Avalonia.Controls.Dock.Bottom), new Panel { Children = { _body, BuildPalette() } } } } };
         content.Classes.Add("content");
-        Grid.SetRow(content, 2);
-        root.Children.Add(content);
+        var middle = WithStrips(content);
+        Grid.SetRow(middle, 2);
+        root.Children.Add(middle);
 
         _statusBar.Child = BuildStatusBar();
         _statusBar.Classes.Add("statusbar");

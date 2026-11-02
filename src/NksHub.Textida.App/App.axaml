@@ -527,6 +527,27 @@
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
         </Style>
+        <!-- the strip of buttons on an edge of the window, one for each panel docked there -->
+        <Style Selector="Border.panelstrip">
+            <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="ToggleButton.stripbutton">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="6,8" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="ToggleButton.stripbutton:checked /template/ ContentPresenter#PART_ContentPresenter, ToggleButton.stripbutton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
+        <Style Selector="ToggleButton.stripbutton:not(:checked):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+            <Setter Property="Foreground" Value="{DynamicResource Fg}" />
+        </Style>
         <Style Selector="Button.outputaction">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />

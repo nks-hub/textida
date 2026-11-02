@@ -108,6 +108,8 @@ internal sealed class CommitView : Grid, IDisposable
     private string? _shownKey;
     private int _generation, _restoreStaged, _restoreUnstaged;
     private bool _filling, _disposed, _busy;
+    private readonly Control _paneLeft, _paneRight;
+    private readonly GridSplitter _paneSplitter;
 
     public CommitView(string root, CommitViewActions actions, Func<EditorOptions> options)
     {
@@ -115,7 +117,6 @@ internal sealed class CommitView : Grid, IDisposable
         _root = root;
         _actions = actions;
         _options = options;
-        ColumnDefinitions = new ColumnDefinitions("360,Auto,*");
         Focusable = true; // the window gives the focus to the view of a tab; it passes it on
         GotFocus += (_, e) =>
         {
@@ -148,8 +149,7 @@ internal sealed class CommitView : Grid, IDisposable
         DockPanel.SetDock(bottom, Dock.Bottom);
         var left = new DockPanel { Children = { header, bottom, _files } };
 
-        var splitter = new GridSplitter { Width = 4, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns };
-        SetColumn(splitter, 1);
+        var splitter = new GridSplitter { Background = Brushes.Transparent };
 
         _stagedPane = new DockPanel { Children = { _stagedTitle, _stagedHost } };
         _unstagedPane = new DockPanel { Children = { _unstagedTitle, _unstagedHost } };
@@ -160,10 +160,11 @@ internal sealed class CommitView : Grid, IDisposable
         var headerBox = new StackPanel { Children = { _fileHeader, _note } };
         DockPanel.SetDock(headerBox, Dock.Top);
         var right = new DockPanel { Children = { headerBox, _diffs } };
-        SetColumn(right, 2);
+        (_paneLeft, _paneSplitter, _paneRight) = (left, splitter, right);
         Children.Add(left);
         Children.Add(splitter);
         Children.Add(right);
+        SetWide(true);
 
         AutomationProperties.SetLiveSetting(_summary, AutomationLiveSetting.Polite);
         AutomationProperties.SetLiveSetting(_note, AutomationLiveSetting.Polite);
@@ -463,7 +464,10 @@ internal sealed class CommitView : Grid, IDisposable
     }
 
     /// <summary>Moves the keyboard focus into the box of the message.</summary>
-    public void FocusMessage() => _message.Focus();
+    public bool FocusMessage() => _message.Focus();
+
+    /// <summary>Lays the list with the message and the comparisons side by side (the panel is wide) or one above the other (it stands at a side of the window).</summary>
+    public void SetWide(bool wide) => SplitPaneLayout.Apply(this, _paneLeft, _paneSplitter, _paneRight, wide, 360);
 
     // ---- the comparisons of the chosen file ----
 

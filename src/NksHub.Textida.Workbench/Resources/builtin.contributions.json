@@ -1012,6 +1012,18 @@
       "icon": "reload"
     },
     {
+      "id": "nks.view.toggleCommitPanel",
+      "title": "cmd.view.toggleCommitPanel",
+      "category": "cat.view",
+      "icon": "git-commit"
+    },
+    {
+      "id": "nks.view.toggleHistoryPanel",
+      "title": "cmd.view.toggleHistoryPanel",
+      "category": "cat.view",
+      "icon": "history"
+    },
+    {
       "id": "nks.view.toggleOutput",
       "title": "cmd.view.toggleOutput",
       "category": "cat.view",
@@ -4659,6 +4671,18 @@
     },
     {
       "menu": "view",
+      "command": "nks.view.toggleCommitPanel",
+      "group": "5_panels/02",
+      "order": 20
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleHistoryPanel",
+      "group": "5_panels/02",
+      "order": 30
+    },
+    {
+      "menu": "view",
       "command": "nks.files.toggleHidden",
       "group": "5_panels/05.01",
       "submenu": "panels",
@@ -7137,6 +7161,14 @@
     {
       "key": "ctrl+backquote",
       "command": "nks.view.toggleTerminal"
+    },
+    {
+      "key": "alt+0",
+      "command": "nks.view.toggleCommitPanel"
+    },
+    {
+      "key": "alt+9",
+      "command": "nks.view.toggleHistoryPanel"
     },
     {
       "key": "mod+k mod+left",

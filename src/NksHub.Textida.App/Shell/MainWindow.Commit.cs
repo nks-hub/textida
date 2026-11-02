@@ -7,17 +7,16 @@ using NksHub.Textida.Workbench.Commands;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The window's side of the Git commands that work on a repository and not on a document: the commit panel (a tab per repository), commit, fetch, pull, push, the branches, the stashes and the
+/// The window's side of the Git commands that work on a repository and not on a document: the commit panel (a tool window that shows one repository), commit, fetch, pull, push, the branches, the stashes and the
 /// history. The Git plugin does the work, asks its questions and tells the user how it went; the window finds the repository, runs one such command at a time and reads the commit panels again
 /// afterwards. Nothing here talks to a remote by itself: every command is one the user chose.
 /// </summary>
 internal sealed partial class MainWindow
 {
-    private readonly Dictionary<string, DocTab> _commitPanels = new(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     private bool _gitCommandRunning;
 
-    /// <summary>The commit panels of this window.</summary>
-    internal IEnumerable<CommitView> CommitViews => Tabs.Select(t => t.Custom).OfType<CommitView>();
+    /// <summary>The commit panel of this window (none, or the one of the repository that was opened last).</summary>
+    internal IEnumerable<CommitView> CommitViews => _commitView is { } view ? [view] : [];
 
     private void ApplyCommitTexts()
     {
@@ -30,14 +29,15 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>
-    /// The path the Git commands act on: the repository of the commit panel that is shown, else the file of the active tab, else the folder of the file panel; null when none of them is in a repository.
+    /// The path the Git commands act on: the repository of the commit panel while the keyboard is in it, else the file of the active tab, else the folder of the file panel, else the repository of the
+    /// commit panel that is open; null when none of them is in a repository.
     /// </summary>
     internal string? GitRepoPath()
     {
-        if (Active?.Custom is CommitView view) return view.Root;
+        if (_commitView is { } view && IsOpen(SidePanel.Commit) && _commitTool.IsKeyboardFocusWithin) return view.Root;
         if (Active?.Path is { } file && PluginServices.InRepository(file)) return file;
         if (FileRootFolder is { } root && PluginServices.InRepositoryFolder(root)) return root;
-        return null;
+        return _commitView?.Root;
     }
 
     private static string Quoted(string text) => $"\"{JsonEncodedText.Encode(text)}\"";
@@ -61,7 +61,7 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>Opens the commit panel of the repository that holds <paramref name="path"/> as a tab, or goes to the one that is open. Null when the path is in no repository.</summary>
+    /// <summary>Opens the commit panel of the repository that holds <paramref name="path"/>, or goes to the one that is open. Null when the path is in no repository.</summary>
     internal async Task<CommitView?> OpenCommitAsync(string path)
     {
         var changes = CommitChanges.Parse(await RepoAnswerAsync("git.changes", path) ?? default);
@@ -70,39 +70,19 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.GitNoRepository));
             return null;
         }
-        string root = changes.Root, key = Path.GetFullPath(root);
-        if (_commitPanels.TryGetValue(key, out var open) && open.Group is not null && open.Custom is CommitView shown)
+        string root = changes.Root;
+        if (_commitView is { } shown && Path.GetFullPath(shown.Root) == Path.GetFullPath(root))
         {
-            SelectTab(open);
+            TogglePanel(SidePanel.Commit, true);
             shown.RequestReload();
             shown.FocusMessage();
             return shown;
         }
         var view = new CommitView(root, CommitActionsOf(root), () => Options);
-        AddCommitTab(view);
+        HostCommit(view);
         await view.ReloadAsync();
         view.FocusMessage();
         return view;
-    }
-
-    /// <summary>Puts a commit panel in a tab of its own; the tab and the view go away together.</summary>
-    internal DocTab AddCommitTab(CommitView view)
-    {
-        string key = Path.GetFullPath(view.Root), name = Path.GetFileName(view.Root.TrimEnd('/', '\\'));
-        var od = OpenDocument.NewResults();
-        od.TitleOverride = () => Loc.Get(K.CommitTitle, ("repo", name));
-        Adopt(od);
-        var panel = new DocTab(od, Options, view);
-        panel.ViewClosed += () =>
-        {
-            view.Dispose();
-            _commitPanels.Remove(key);
-        };
-        _commitPanels[key] = panel;
-        _activeGroup.Add(panel, null);
-        OnActiveTabChanged();
-        _app.SessionChanged();
-        return panel;
     }
 
     /// <summary>What the commit panel of <paramref name="root"/> asks of the plugin; the reads say nothing to the user, the commit and the writes let the plugin tell how they went.</summary>

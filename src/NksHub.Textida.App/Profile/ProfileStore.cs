@@ -56,12 +56,14 @@ public sealed class SavedWindow
     public SavedPanels? Panels { get; set; }
 }
 
-/// <summary>The sides ("left", "right", "bottom") of the three side panels, and the width of the left and right side and the height of the bottom one, in device-independent units.</summary>
+/// <summary>The sides ("left", "right", "bottom") of the side panels, and the width of the left and right side and the height of the bottom one, in device-independent units.</summary>
 public sealed class SavedPanels
 {
     public string Documents { get; set; } = "left";
     public string Files { get; set; } = "left";
     public string Plugin { get; set; } = "left";
+    public string Commit { get; set; } = "bottom";
+    public string History { get; set; } = "bottom";
     public double LeftWidth { get; set; } = 220;
     public double RightWidth { get; set; } = 220;
     public double BottomHeight { get; set; } = 200;

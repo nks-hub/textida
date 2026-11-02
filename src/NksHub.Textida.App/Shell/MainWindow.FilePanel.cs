@@ -75,6 +75,7 @@ internal sealed partial class MainWindow
         _filePanel.Children.Add(_fileList);
 
         BuildPluginPanel();
+        BuildToolPanels();
     }
 
     private void ApplyFileTexts()

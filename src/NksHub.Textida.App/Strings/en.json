@@ -2905,5 +2905,11 @@
   "toolbar.edit.hasAlready": "{title} is already on the toolbar.",
   "toolbar.edit.added": "{title} is on the toolbar.",
   "toolbar.edit.removed": "{title} is no longer on the toolbar.",
-  "toolbar.edit.writeFailed": "The toolbar could not be saved: {reason}"
+  "toolbar.edit.writeFailed": "The toolbar could not be saved: {reason}",
+  "panel.commit.name": "Commit",
+  "panel.history.name": "Local History",
+  "panel.tool.hide": "Hide {panel}",
+  "a11y.panel.strip.left": "Panel buttons on the left edge",
+  "a11y.panel.strip.right": "Panel buttons on the right edge",
+  "a11y.panel.strip.bottom": "Panel buttons on the bottom edge"
 }

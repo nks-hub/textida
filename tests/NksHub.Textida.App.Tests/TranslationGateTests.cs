@@ -97,6 +97,7 @@ public class TranslationGateTests
         ["viewmode.hex"] = "cs sk de",
         ["commit.title"] = "cs sk de", // Commit is the word of Git in each of them
         ["commit.commit"] = "cs sk de",
+        ["panel.commit.name"] = "cs sk de",
         ["commit.branch"] = "de",
         ["commit.side.head"] = "cs sk de",
         ["commit.side.index"] = "cs sk de",

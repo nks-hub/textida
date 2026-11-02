@@ -103,8 +103,13 @@ public class PseudoLocalizationTests : IDisposable
         if (block.TranslatePoint(new Point(block.Bounds.Width, 0), root) is { } right && root.Bounds.Width > 0 && right.X > root.Bounds.Width + 2)
             return $"ends {right.X - root.Bounds.Width:0} px beyond the window";
         // a label that is not stretched takes the room it wants, so it can stick out of the slot its parent has (a button of a fixed width, a row in a narrow column)
-        if (block.GetVisualParent() is Visual parent && parent.Bounds.Width > 1 && (block.Bounds.Right > parent.Bounds.Width + 2 || block.Bounds.Left < -2))
-            return $"is {block.Bounds.Width:0} px wide in a parent that is {parent.Bounds.Width:0} px wide";
+        // the label of a strip button on a side edge is turned by a quarter: its length lies along the height of the parent
+        if (block.GetVisualParent() is Visual parent)
+        {
+            double slot = parent is LayoutTransformControl ? parent.Bounds.Height : parent.Bounds.Width;
+            if (slot > 1 && (block.Bounds.Right > slot + 2 || block.Bounds.Left < -2))
+                return $"is {block.Bounds.Width:0} px wide in a parent that is {slot:0} px wide";
+        }
         return null;
     }
 

@@ -96,7 +96,7 @@ public class HistoryPanelTests : IDisposable
             Assert.Contains(OpenDocument.FormatSize(r.Size), name);
         }
         Assert.Equal(Loc.Plural(K.HistoryPanelSummary, 4, ("size", OpenDocument.FormatSize(stored.Sum(r => r.StoredBytes))), ("oldest", stored[^1].TimeUtc.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture))), view.SummaryText);
-        Assert.Equal("History: h.txt", _w.Active!.Title);
+        Assert.Equal("History: h.txt", _w.HistoryTool.Title.Text);
         Assert.Equal(Loc.Get(K.A11yHistoryPanel), AutomationProperties.GetName(view));
         Assert.Equal(Loc.Get(K.A11yHistoryList), AutomationProperties.GetName(view.List));
     }
@@ -246,23 +246,28 @@ public class HistoryPanelTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task There_is_one_panel_for_a_file_and_it_opens_from_the_command_the_tab_menu_and_closing_the_tab_ends_it()
+    public async Task There_is_one_panel_that_shows_one_file_and_it_opens_from_the_command_and_the_tab_menu_and_another_file_replaces_it()
     {
         var (tab, path, view) = await OpenPanel(Versions.Take(2).ToArray());
-        var panelTab = _w.Active!;
-        Assert.Same(view, panelTab.Custom);
+        Assert.Equal(PanelDock.Bottom, _w.SideLayout.DockOf(SidePanel.History));
 
-        _w.SelectTab(tab);
-        Assert.Same(panelTab, _w.OpenHistoryPanel(tab, path)); // the same panel, not a second one
+        Assert.Same(view, _w.OpenHistoryPanel(tab, path)); // the same panel, not a second one
         Assert.Same(view, _w.ActiveHistory);
         Assert.Single(_w.HistoryViews);
 
-        await _w.CloseTabAsync(panelTab);
-        Assert.Empty(_w.HistoryViews);
-        Assert.Null(view.Diff);
-        var reopened = _w.OpenHistoryPanel(tab, path);
-        Assert.NotSame(panelTab, reopened);
+        _w.HistoryTool.Close.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Assert.Null(_w.ActiveHistory); // hidden, and the view is kept for the strip button
+        Assert.Same(view, _w.HistoryPanelView);
+        Assert.Same(view, _w.OpenHistoryPanel(tab, path));
+        Assert.Same(view, _w.ActiveHistory);
+
+        string other = _temp.File("other.txt", "x\n");
+        var otherTab = _w.OpenFile(other, null);
+        Assert.True(await Eventually(() => _app.History.List(other).Count == 1));
+        var replaced = _w.OpenHistoryPanel(otherTab, other);
+        Assert.NotSame(view, replaced);
         Assert.Single(_w.HistoryViews);
+        Assert.Null(view.Diff);
 
         Assert.True(_app.Workbench.Commands.TryGet("nks.file.historyPanel", out _));
         Assert.True(_app.Workbench.Commands.TryGet("nks.files.history", out _));

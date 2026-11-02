@@ -2960,5 +2960,11 @@
   "toolbar.edit.hasAlready": "{title} už na liště je.",
   "toolbar.edit.added": "{title} je na liště.",
   "toolbar.edit.removed": "{title} už na liště není.",
-  "toolbar.edit.writeFailed": "Lištu se nepodařilo uložit: {reason}"
+  "toolbar.edit.writeFailed": "Lištu se nepodařilo uložit: {reason}",
+  "panel.commit.name": "Commit",
+  "panel.history.name": "Místní historie",
+  "panel.tool.hide": "Skrýt panel {panel}",
+  "a11y.panel.strip.left": "Tlačítka panelů na levém okraji",
+  "a11y.panel.strip.right": "Tlačítka panelů na pravém okraji",
+  "a11y.panel.strip.bottom": "Tlačítka panelů na dolním okraji"
 }

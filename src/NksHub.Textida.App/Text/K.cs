@@ -2860,4 +2860,10 @@ public static partial class K
     public const string A11yPanelSplitterLeft = "a11y.panel.splitter.left";
     public const string A11yPanelSplitterRight = "a11y.panel.splitter.right";
     public const string A11yPanelSplitterBottom = "a11y.panel.splitter.bottom";
+    public const string PanelCommitName = "panel.commit.name";
+    public const string PanelHistoryName = "panel.history.name";
+    public const string PanelToolHide = "panel.tool.hide";
+    public const string A11yPanelStripLeft = "a11y.panel.strip.left";
+    public const string A11yPanelStripRight = "a11y.panel.strip.right";
+    public const string A11yPanelStripBottom = "a11y.panel.strip.bottom";
 }

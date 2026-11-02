@@ -10,7 +10,7 @@ using NksHub.Textida.App.Text;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// Where the side panels stand. Each panel is docked to the left, the right or the bottom of the window, a side shows one panel at a time, and the size of a side is changed by dragging the handle
+/// Where the tool windows stand. Each panel is docked to the left, the right or the bottom of the window, a side shows one panel at a time, and the size of a side is changed by dragging the handle
 /// between it and the text. A panel moves to another side by dragging its header or by a command, and the layout is written into the profile with the geometry of the window, so it survives a restart;
 /// a command takes it back to the default. Everything that is done with the mouse is also a command, and every change is said to a screen reader.
 /// </summary>
@@ -54,12 +54,14 @@ internal sealed partial class MainWindow
     /// <summary>True when the keyboard is in a side panel.</summary>
     private bool InSidePanels => _hosts.Values.Any(h => h.IsKeyboardFocusWithin);
 
-    private Control ControlOf(SidePanel panel) => panel switch { SidePanel.Documents => _docPanel, SidePanel.Files => _filePanel, _ => _pluginPanel };
+    private Control ControlOf(SidePanel panel) => panel switch { SidePanel.Documents => _docPanel, SidePanel.Files => _filePanel, SidePanel.Commit => _commitTool, SidePanel.History => _historyTool, _ => _pluginPanel };
 
     private string PanelName(SidePanel panel) => panel switch
     {
         SidePanel.Documents => Loc.Get(K.PanelDocumentsTitle),
         SidePanel.Files => Loc.Get(K.PanelFilesTitle),
+        SidePanel.Commit => Loc.Get(K.PanelCommitName),
+        SidePanel.History => Loc.Get(K.PanelHistoryName),
         _ => _pluginPanelTitle.Text is { Length: > 0 } title ? title : Loc.Get(K.PanelPluginName),
     };
 
@@ -135,6 +137,8 @@ internal sealed partial class MainWindow
         }
         foreach (var dock in PanelLayout.Docks) _hosts[dock].IsVisible = _splitters[dock].IsVisible = _shown[dock] is not null;
         ApplySizes();
+        ApplyToolOrientation();
+        RefreshStrips();
         if (rebuildMenu) _menuModel = BuildMenuModel();
     }
 
@@ -155,7 +159,7 @@ internal sealed partial class MainWindow
     // ---- opening and closing ----
 
     /// <summary>Shows or hides a panel on its side. A panel that was shown there is replaced, and stays docked there for the next time.</summary>
-    private void TogglePanel(SidePanel which, bool? open)
+    internal void TogglePanel(SidePanel which, bool? open)
     {
         var dock = _layout.DockOf(which);
         bool show = open ?? !IsOpen(which);
@@ -182,6 +186,8 @@ internal sealed partial class MainWindow
         {
             case SidePanel.Plugin: FocusPluginTree(); break;
             case SidePanel.Documents: _docFilter.Focus(); break;
+            case SidePanel.Commit: _commitView?.FocusMessage(); break;
+            case SidePanel.History: _historyView?.FocusList(); break;
             default: (_fileTree is null ? (Control)_filesOpenButton : _fileList).Focus(); break;
         }
     }
@@ -192,6 +198,12 @@ internal sealed partial class MainWindow
         if (IsOpen(SidePanel.Plugin) && _pluginPanel.IsKeyboardFocusWithin)
         {
             TogglePanel(SidePanel.Plugin, false);
+            return true;
+        }
+        foreach (var tool in new[] { SidePanel.Commit, SidePanel.History })
+        {
+            if (!IsOpen(tool) || !ControlOf(tool).IsKeyboardFocusWithin) continue;
+            TogglePanel(tool, false);
             return true;
         }
         if (IsOpen(SidePanel.Documents)) TogglePanel(SidePanel.Documents, false);
@@ -358,6 +370,7 @@ internal sealed partial class MainWindow
     private void ApplyPanelLayoutTexts()
     {
         foreach (var (panel, header) in _panelHeaders) header.ContextMenu = BuildPanelMenu(panel);
+        ApplyStripTexts();
         AutomationProperties.SetName(_splitters[PanelDock.Left], Loc.Get(K.A11yPanelSplitterLeft));
         AutomationProperties.SetName(_splitters[PanelDock.Right], Loc.Get(K.A11yPanelSplitterRight));
         AutomationProperties.SetName(_splitters[PanelDock.Bottom], Loc.Get(K.A11yPanelSplitterBottom));

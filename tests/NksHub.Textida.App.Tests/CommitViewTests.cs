@@ -103,8 +103,7 @@ public class CommitViewTests : IDisposable
     {
         var repo = new Fake(_temp.Path) { Entries = [.. entries] };
         var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
-        var tab = _w.AddCommitTab(view);
-        _w.SelectTab(tab);
+        _w.HostCommit(view);
         await view.ReloadAsync();
         await Pump(20);
         return (view, repo);
@@ -135,7 +134,7 @@ public class CommitViewTests : IDisposable
         Assert.Equal("tracks origin/main · 2 commits to push · 1 commit to pull", view.DistanceText);
         Assert.Equal("5 changed files, 2 in the commit.", view.SummaryText);
         Assert.Null(view.AllBox.IsChecked);
-        Assert.Equal("Commit: " + Path.GetFileName(_temp.Path), _w.Active!.Title);
+        Assert.Equal("Commit: " + Path.GetFileName(_temp.Path), _w.CommitTool.Title.Text);
         Assert.Equal(Loc.Get(K.A11yCommitPanel), AutomationProperties.GetName(view));
         Assert.Equal(Loc.Get(K.A11yCommitInclude, ("file", "a.txt")), AutomationProperties.GetName(view.CheckOf("a.txt")!));
         Assert.Equal(Loc.Get(K.A11yCommitMessage), AutomationProperties.GetName(view.MessageBox));
@@ -147,7 +146,7 @@ public class CommitViewTests : IDisposable
         Loc.SetLanguage("en");
         var repo = new Fake(_temp.Path) { Upstream = null, Ahead = 0, Behind = 0, Messages = [] };
         var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
-        _w.SelectTab(_w.AddCommitTab(view));
+        _w.HostCommit(view);
         await view.ReloadAsync();
 
         Assert.Equal("No changes. The working tree is clean.", view.SummaryText);
@@ -257,7 +256,7 @@ public class CommitViewTests : IDisposable
         repo.Blobs[("a.txt", true)] = new CommitBlob(true, false, U("x\n"));
         repo.Blobs[("a.txt", false)] = new CommitBlob(true, false, U("y\n"));
         var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
-        _w.SelectTab(_w.AddCommitTab(view));
+        _w.HostCommit(view);
         await view.ReloadAsync();
 
         Assert.True(view.Select("b.txt"));
@@ -297,7 +296,7 @@ public class CommitViewTests : IDisposable
         repo.Blobs[("bin.dat", false)] = new CommitBlob(true, false, [1, 2, 0, 4]);
         repo.Blobs[("big.txt", false)] = new CommitBlob(true, true, []);
         var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
-        _w.SelectTab(_w.AddCommitTab(view));
+        _w.HostCommit(view);
         await view.ReloadAsync();
 
         view.Select("bin.dat");
@@ -317,7 +316,7 @@ public class CommitViewTests : IDisposable
         var repo = new Fake(_temp.Path) { Entries = [Entry("n.txt", '?', '?'), Entry("gone.txt", ' ', 'D')] };
         repo.Blobs[("gone.txt", false)] = new CommitBlob(true, false, U("was here\n"));
         var view = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
-        _w.SelectTab(_w.AddCommitTab(view));
+        _w.HostCommit(view);
         await view.ReloadAsync();
 
         view.Select("n.txt");
@@ -350,15 +349,25 @@ public class CommitViewTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task Closing_the_tab_disposes_the_panel()
+    public async Task Hiding_the_panel_keeps_it_and_a_panel_of_another_repository_replaces_and_disposes_it()
     {
         Loc.SetLanguage("en");
-        var (view, _) = await Open(Mixed);
-        Assert.Contains(view, _w.CommitViews);
+        var (view, repo) = await Open(Mixed);
+        Assert.Same(view, _w.CommitPanelView);
+        Assert.True(_w.IsPanelOpen(SidePanel.Commit));
+        Assert.Equal(PanelDock.Bottom, _w.SideLayout.DockOf(SidePanel.Commit));
 
-        await _w.CloseTabAsync(_w.Active!);
+        _w.CommitTool.Close.RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.False(_w.IsPanelOpen(SidePanel.Commit));
+        Assert.Same(view, _w.CommitPanelView);
+        Assert.True(_w.StripButton(SidePanel.Commit).IsVisible); // the hidden panel is a button on the edge
 
-        Assert.DoesNotContain(view, _w.CommitViews);
+        var second = new CommitView(_temp.Path, repo.Actions, () => _w.Options);
+        _w.HostCommit(second);
+        Assert.Same(second, _w.CommitPanelView);
+        Assert.Equal([second], _w.CommitViews);
+        Assert.True(_w.IsPanelOpen(SidePanel.Commit));
+        Assert.Null(view.StagedDiff); // the replaced panel let go of its comparisons
     }
 
     [AvaloniaFact]
