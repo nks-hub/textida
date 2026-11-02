@@ -3,10 +3,15 @@ using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.Core.Tests;
 
+/// <summary>Tests that change the PATH of the test process run alone: a program another test starts meanwhile (a terminal's cmd.exe) inherits that PATH.</summary>
+[CollectionDefinition("PATH", DisableParallelization = true)]
+public sealed class PathCollection;
+
 /// <summary>
 /// P8.5.3 and P8.7.4: the table of language tools, the discovery of a program on disk and the configuration files that apply to a file.
 /// ToolEcho stands in for every tool. No real formatter, linter or language server is started, so their command lines are not verified here (gofmt, clang-format and dart format have tests with the real program in <see cref="SaveActionsTests"/>).
 /// </summary>
+[Collection("PATH")]
 public sealed class LanguageCatalogTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("textida-catalog-").FullName;

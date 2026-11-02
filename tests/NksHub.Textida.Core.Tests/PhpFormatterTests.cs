@@ -6,6 +6,7 @@ using Doc = NksHub.Textida.Core.Documents.Document;
 namespace NksHub.Textida.Core.Tests;
 
 /// <summary>PZ.5.1: the PHP formatter of the catalog is found in the project, as a PHAR run by php, never downloaded, and its result can be planned for the change review.</summary>
+[Collection("PATH")]
 public sealed class PhpFormatterTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "phpfmt-" + Guid.NewGuid().ToString("N")[..8]);
