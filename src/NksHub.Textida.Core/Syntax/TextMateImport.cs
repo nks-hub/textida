@@ -20,7 +20,8 @@ public sealed class TextMateImportException(string message) : Exception(message)
 /// property names) and every rule whose expression .NET still refuses is dropped. A <c>match</c> without a name whose <c>captures</c> name groups becomes one rule per top-level group, the group between a lookbehind for what precedes it and a lookahead for what follows.
 /// <c>beginCaptures</c> and <c>endCaptures</c> (<c>captures</c> for both) colour their groups; a back-reference in an <c>end</c> pattern is replaced at run time by the escaped text the begin pattern matched; possessive quantifiers become atomic groups
 /// (<c>{n,m}+</c> repeats the interval, as in Oniguruma); POSIX classes, <c>\p{Alpha}</c> and <c>\p{Word}</c> follow the Oniguruma definitions; <c>\G</c> holds at the scan position of the engine.
-/// Not carried over, and reported each time: <c>while</c> rules, <c>\K</c>, back-references in a match or begin pattern, nested or intersected character classes, the absence operator,
+/// A <c>begin</c>/<c>while</c> rule becomes a region that goes on at the next line only while the <c>while</c> pattern matches at the line start (<c>whileCaptures</c> colour it); <c>\K</c> becomes a lookbehind for the part before it.
+/// Not carried over, and reported each time: <c>\K</c> inside a group or next to a top-level alternation, back-references in a match, begin or while pattern, nested or intersected character classes, the absence operator,
 /// and includes of grammars that are not in the bundle. Extensions that a built-in grammar already serves are not taken over.
 /// </summary>
 public static class TextMateImport
@@ -225,14 +226,11 @@ public static class TextMateImport
         {
             if (rule["disabled"] is { } disabled && disabled.ToJsonString() is "1" or "true") return;
             if (rule["include"]?.GetValue<string>() is { } include) { Include(include, into); return; }
-            if (rule["while"] is not null) { Warn($"A while rule ({Describe(rule)}) is not carried over."); return; }
             string? name = rule["name"]?.GetValue<string>();
-            if (rule["begin"] is not null && rule["end"] is not null) { Region(rule, into); return; }
+            if (rule["begin"] is not null && (rule["end"] is not null || rule["while"] is not null)) { Region(rule, into); return; }
             if (rule["match"]?.GetValue<string>() is { } match) { Match(rule, match, name, into); return; }
             if (rule["patterns"] is JsonArray nested) foreach (var child in nested) if (child is JsonObject c) Rule(c, into);
         }
-
-        private static string Describe(JsonObject rule) => rule["name"]?.GetValue<string>() ?? rule["begin"]?.GetValue<string>() ?? rule["match"]?.GetValue<string>() ?? "rule";
 
         private void Include(string include, JsonArray into)
         {
@@ -276,29 +274,30 @@ public static class TextMateImport
 
         private void Region(JsonObject rule, JsonArray into)
         {
-            string begin = rule["begin"]!.GetValue<string>(), end = rule["end"]!.GetValue<string>();
+            string begin = rule["begin"]!.GetValue<string>(), end = (rule["end"] ?? rule["while"])!.GetValue<string>();
+            bool isWhile = rule["end"] is null;
             if (!Rewrite(begin, out var beginNet, out _)) { Warn($"The begin pattern {Shorten(begin)} could not be converted; the rule was left out."); return; }
             int beginCount = _count;
             var beginNames = new Dictionary<string, int>(_names, StringComparer.Ordinal);
-            if (!Rewrite(end, out var endNet, out _, beginNames)) { Warn($"The end pattern {Shorten(end)} could not be converted; the rule was left out."); return; }
+            if (!Rewrite(end, out var endNet, out _, isWhile ? null : beginNames)) { Warn($"The {(isWhile ? "while" : "end")} pattern {Shorten(end)} could not be converted; the rule was left out."); return; }
             int endCount = _count;
             string? name = rule["name"]?.GetValue<string>(), content = rule["contentName"]?.GetValue<string>();
             var beginCaptures = rule["beginCaptures"] as JsonObject ?? rule["captures"] as JsonObject;
-            var endCaptures = rule["endCaptures"] as JsonObject ?? rule["captures"] as JsonObject;
+            var endCaptures = (isWhile ? rule["whileCaptures"] : rule["endCaptures"]) as JsonObject ?? rule["captures"] as JsonObject;
             string? beginKind = KindOf(beginCaptures?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
             string? endKind = KindOf(endCaptures?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
             var region = new JsonObject
             {
                 ["name"] = "r" + ++_regions,
                 ["begin"] = beginNet,
-                ["end"] = endNet,
+                [isWhile ? "while" : "end"] = endNet,
                 ["multiline"] = true,
             };
             if ((KindOf(content) ?? KindOf(name)) is { } kind) region["token"] = kind;
             if (beginKind is not null) region["beginToken"] = beginKind;
             if (endKind is not null) region["endToken"] = endKind;
             if (GroupKinds(beginCaptures, beginCount) is { } beginGroups) region["beginCaptures"] = beginGroups;
-            if (GroupKinds(endCaptures, endCount) is { } endGroups) region["endCaptures"] = endGroups;
+            if (GroupKinds(endCaptures, endCount) is { } endGroups) region[isWhile ? "whileCaptures" : "endCaptures"] = endGroups;
             var inner = Rules(rule["patterns"] as JsonArray ?? []);
             if (inner.Count > 0) region["rules"] = inner;
             into.Push(region);
@@ -374,6 +373,8 @@ public static class TextMateImport
             bool named = System.Text.RegularExpressions.Regex.IsMatch(onig, @"\(\?(<[A-Za-z_]|'|P<)");
             var open = new Stack<(int Index, int Position)>();
             int count = 0;
+            int keep = -1; // where \K stood in o: what precedes it becomes a lookbehind
+            bool alternated = false;
             int atom = -1; // where the last atom starts in o, for a quantifier with a + after it to wrap
             var found = groups;
             void Wrap(string opener, string closer)
@@ -415,7 +416,10 @@ public static class TextMateImport
                             case 'R': o.Append(@"(?>\r\n|[\n\v\f\r\x85\u2028\u2029])"); break;
                             case 'X': o.Append(@"(?:\P{M}\p{M}*)"); break;
                             case 'G': o.Append(@"\G"); break; // the engine matches from the scan position, which is where \G holds
-                            case 'K': Warn(@"\K (keep out) is not supported."); return false;
+                            case 'K':
+                                if (open.Count > 0 || keep >= 0 || alternated) { Warn(@"\K (keep out) inside a group, repeated or next to a top-level alternation is not supported."); return false; }
+                                keep = o.Length;
+                                break;
                             case 'p' or 'P' when i + 1 < onig.Length && onig[i + 1] == '{':
                             {
                                 int close = onig.IndexOf('}', i);
@@ -483,10 +487,21 @@ public static class TextMateImport
                         else o.Append(c);
                         continue;
                     }
+                    if (c == '|' && open.Count == 0)
+                    {
+                        if (keep >= 0) { Warn(@"\K (keep out) next to a top-level alternation is not supported."); return false; }
+                        alternated = true;
+                    }
                     atom = o.Length;
                     o.Append(c);
                 }
                 if (open.Count != 0) return false;
+                if (keep > 0)
+                {
+                    o.Insert(keep, ")").Insert(0, "(?<=");
+                    for (int g = 0; g < groups.Count; g++)
+                        groups[g] = groups[g].End <= keep ? groups[g] with { Start = groups[g].Start + 4, End = groups[g].End + 4 } : groups[g] with { Start = groups[g].Start + 5, End = groups[g].End + 5 };
+                }
                 _count = count;
                 net = o.ToString();
                 _ = new Regex(net);

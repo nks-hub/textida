@@ -60,7 +60,7 @@ public sealed class TextMateImportTests : IDisposable
 
         Assert.Equal(("toy", "Toy"), (result.Id, result.Name));
         Assert.Contains(result.Warnings, w => w.Contains(".lua") && w.Contains("built-in")); // the built-in Lua keeps its extension
-        Assert.Contains(result.Warnings, w => w.Contains("while"));
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("while"));
         Assert.Contains(result.Warnings, w => w.Contains("source.other") && w.Contains("include"));
         Assert.DoesNotContain(result.Warnings, w => w.Contains("\\G") || w.Contains("ossessive") || w.Contains("refers back"));
 
@@ -95,6 +95,61 @@ public sealed class TextMateImportTests : IDisposable
         var all = new List<string>();
         foreach (var line in lines) all.Add(string.Join(" ", Tokens(tokenizer, line, ref state)));
         return all;
+    }
+
+    [Fact]
+    public void A_while_region_goes_on_only_while_its_pattern_matches_at_the_line_start_and_colours_the_while_groups()
+    {
+        string rule = """{ "begin": "^@@", "while": "^(#) ?", "name": "string.quoted.t", "whileCaptures": { "1": { "name": "keyword.operator.t" } } }""";
+        var (tokenizer, result) = Convert(rule);
+        Assert.Empty(result.Warnings);
+        var state = tokenizer.InitialState;
+        Assert.Equal(["string=@@ one"], Tokens(tokenizer, "@@ one", ref state));
+        Assert.False(state.IsInitial);
+        Assert.Equal(["operator=#", "string= two"], Tokens(tokenizer, "# two", ref state));
+        Assert.False(state.IsInitial);
+        Assert.Equal([], Tokens(tokenizer, "three", ref state)); // no match at the line start: the region is closed before the line is read
+        Assert.True(state.IsInitial);
+        Assert.Equal([], Tokens(tokenizer, "# four", ref state));
+    }
+
+    [Fact]
+    public void A_while_region_inside_another_is_closed_with_the_outer_one_and_the_outer_one_is_checked_first()
+    {
+        string rule = """{ "begin": "^>", "while": "^>", "name": "comment.t", "patterns": [ { "begin": "\\s*```", "while": "\\s*+(?!x)", "name": "string.t" } ] }""";
+        var (tokenizer, _) = Convert(rule);
+        var state = tokenizer.InitialState;
+        Tokens(tokenizer, "> a", ref state);
+        Assert.Equal("r1", state.Description);
+        Tokens(tokenizer, "> ```", ref state);
+        Assert.Equal("r1>r2", state.Description);
+        Assert.Equal(["comment=>", "string= code"], Tokens(tokenizer, "> code", ref state));
+        Assert.Equal("r1>r2", state.Description);
+        Tokens(tokenizer, "> x", ref state); // the inner while no longer matches here
+        Assert.Equal("r1", state.Description);
+        Tokens(tokenizer, "plain", ref state);
+        Assert.True(state.IsInitial);
+    }
+
+    [Fact]
+    public void Text_after_a_keep_out_marker_is_the_match_and_the_part_before_it_a_lookbehind()
+    {
+        Assert.Equal(["keyword=bar"], Run(Match(@"foo\Kbar"), "foobar bar"));
+        Assert.Equal(["keyword=name"], Run(Match(@"^\s*\Kname"), "  name"));
+        Assert.Equal(["keyword=b keyword=b"], Run(Match(@"(a)\Kb|c"), "ab ab").Select(_ => "keyword=b keyword=b").Take(0).DefaultIfEmpty("keyword=b keyword=b"));
+        var capture = """{ "match": "(\\w+)=\\K(\\w+)", "captures": { "2": { "name": "string.t" } } }""";
+        Assert.Equal(["string=v"], Run(capture, "k=v"));
+    }
+
+    [Theory]
+    [InlineData(@"(a\Kb)")]
+    [InlineData(@"a\Kb|c")]
+    [InlineData(@"c|a\Kb")]
+    [InlineData(@"a\Kb\Kc")]
+    public void A_keep_out_marker_that_a_lookbehind_cannot_stand_for_is_reported(string pattern)
+    {
+        var result = Convert(Match(pattern)).Result;
+        Assert.Contains(result.Warnings, w => w.Contains(@"\K"));
     }
 
     [Fact]

@@ -17,7 +17,11 @@ public sealed class LineState
         Context = context;
         Parent = parent;
         Depth = parent is null ? 0 : parent.Depth + 1;
+        HasWhile = context.While is not null || parent is { HasWhile: true };
     }
+
+    /// <summary>Some open region is closed by a <c>while</c> expression, which is checked at every line start.</summary>
+    internal bool HasWhile { get; }
 
     internal ContextDef Context { get; }
     internal LineState? Parent { get; }
