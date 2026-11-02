@@ -105,12 +105,25 @@ public sealed class NetRecorder : EventListener
     {
         _sink = sink;
         if (freshProcess) Interlocked.CompareExchange(ref _datagrams, 0, -1);
+        _built = true;
     }
+
+    // the sources that exist already are announced while the base constructor runs; one announced after it was created after the recorder
+    private volatile bool _built;
+    private volatile bool _socketsSource;
+
+    /// <summary>The socket event source exists; it is created with the first socket of the process, so before it no datagram can have been counted.</summary>
+    public bool SocketsSourceExists => _socketsSource;
 
     public string Process => _process;
 
     /// <summary>The datagram counter has reported once, so a later report can be compared with it.</summary>
     public bool HasBaseline => Interlocked.Read(ref _datagrams) >= 0;
+
+    /// <summary>How many reports of the datagram counter arrived; a datagram sent before a report was sampled shows in the next one.</summary>
+    public long CounterReports => Interlocked.Read(ref _reports);
+
+    private long _reports;
 
     public void Emit(string kind, string target, string detail = "") =>
         _sink?.Invoke(new NetEvent(DateTime.UtcNow.Ticks, _pid, _process, kind, target, detail));
@@ -118,7 +131,9 @@ public sealed class NetRecorder : EventListener
     /// <summary>The name of the process, and for the shared host (<c>dotnet app.dll</c>) the name of the dll.</summary>
     private static string Label()
     {
-        var name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "?";
+        // only ".exe" is an extension here: on macOS and Linux "NksHub.Textida.Plugins.Json" is the whole name
+        var name = Path.GetFileName(Environment.ProcessPath) ?? "?";
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
         if (name != "dotnet") return name;
         var dll = Environment.GetCommandLineArgs().FirstOrDefault(a => a.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)); // the first element is the dll when the host starts it
         return dll is null ? name : name + ":" + Path.GetFileName(dll);
@@ -129,6 +144,9 @@ public sealed class NetRecorder : EventListener
         switch (source.Name)
         {
             case "System.Net.Sockets":
+                // created after the recorder: its counter starts at 0 with this recorder watching, so the first report is growth, not the level
+                if (_built) Interlocked.CompareExchange(ref _datagrams, 0, -1);
+                _socketsSource = true;
                 // 1 s is the shortest interval the counters take; a fraction is parsed with the culture of the machine
                 EnableEvents(source, EventLevel.Informational, EventKeywords.All, new Dictionary<string, string?> { ["EventCounterIntervalSec"] = "1" });
                 break;
@@ -157,6 +175,7 @@ public sealed class NetRecorder : EventListener
                 long total = Convert.ToInt64(counter["Mean"], System.Globalization.CultureInfo.InvariantCulture);
                 long before = Interlocked.Exchange(ref _datagrams, total);
                 if (before >= 0 && total > before) Emit(NetKind.Datagram, "", $"+{total - before}");
+                Interlocked.Increment(ref _reports);
                 break;
         }
     }

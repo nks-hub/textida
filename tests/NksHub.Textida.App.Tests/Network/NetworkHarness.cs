@@ -50,7 +50,8 @@ internal sealed class NetworkHarness : IDisposable
             s_recorder = new NetRecorder(e => (s_current?._inProcess ?? s_none).Enqueue(e), freshProcess: false);
             // the first report of the datagram counter sets the level later reports are compared with
             var wait = System.Diagnostics.Stopwatch.StartNew();
-            while (!s_recorder.HasBaseline && wait.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(50);
+            // no socket source yet: the first socket creates it, and the recorder then counts from 0
+            while (!s_recorder.HasBaseline && s_recorder.SocketsSourceExists && wait.Elapsed < TimeSpan.FromSeconds(10)) Thread.Sleep(50);
         }
         s_current = this;
         Environment.SetEnvironmentVariable("DOTNET_STARTUP_HOOKS", hook);
@@ -113,8 +114,11 @@ internal sealed class NetworkHarness : IDisposable
     /// <summary>Waits for the datagram counters to report, then reads what this process and the hooked children recorded since <paramref name="since"/>.</summary>
     public async Task<NetReport> FinishAsync(long since = 0)
     {
-        // the counters report once a second; one more second makes sure a datagram sent just before is in a report
-        await Task.Delay(1200);
+        // the counters report about once a second, later on a loaded machine; the second report after now was sampled after every datagram sent before now
+        long reports = s_recorder!.CounterReports;
+        var wait = System.Diagnostics.Stopwatch.StartNew();
+        while (s_recorder.SocketsSourceExists && s_recorder.CounterReports < reports + 2 && wait.Elapsed < TimeSpan.FromSeconds(10)) await Task.Delay(50);
+        await Task.Delay(200); // the hooked children report on their own timers
         var all = _inProcess.Concat(NetLog.ReadAll(LogFolder)).Where(e => e.Ticks >= since || e.Kind == NetKind.Hello).OrderBy(e => e.Ticks).ToList();
         var report = new NetReport(
             [.. all.Where(e => e.Kind == NetKind.Hello)],
