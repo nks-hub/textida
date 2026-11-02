@@ -801,6 +801,7 @@ Hlavní vstupy D5: nahoře není pruh tlačítek, takže paleta a Goto Anything 
   - **Hotovo, když:** „mvc ctrl“ najde soubor podle částí cesty; náhled nezmění seznam nedávných souborů, dokud se soubor neotevře; chybějící cesta z historie je označená.
   - **Závisí na:** P2.1.1, P2.3.1
   - **Odhad:** F148 2–3 ČT (matice), včetně symbolů v P4.4.1; celá cena se počítá v P2
+  - **Požadavek majitele 2. 11. 2026:** v nabídce Soubor chybí Otevřít poslední: podnabídka s posledními soubory (pamatovat si 10–20, počet v nastavení, výchozí 15), nejnovější nahoře, s cestou v popisku, chybějící soubor se označí a nabídne odebrání, položka Vymazat seznam; klávesové zkratky pro první položky.
 - [x] **P2.1.3** Panel otevřených souborů
   - **Co a proč:** Přehled otevřených dokumentů s filtrem, panel na požádání (D5).
   - **Funkce:** F146
@@ -1295,6 +1296,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Stav 27. 10. 2026 (noc):** částečně. Stránkovaný pohled kreslí konce řádků jako CRLF/CR/LF; dřív kreslil samotné řídicí znaky, takže nebyly vidět; Ve vzdálených sloupcích dlouhého řádku (i 100 MiB) se ukazují mezery, tabulátory a konec řádku a posuvník nechá na značku konce místo; Při změně písma nebo voleb se znovu spočítá rozsah vodorovného posuvníku stránkovaného pohledu; Přepnutí zalamování nad obřím řádkem nechá nastavení zapnuté a do stavového řádku napíše proč; po smazání obřího řádku se zalamování vrátí. Testy prošly (541 v testovací sadě testera). Chybí: Řádek 100 MiB na referenční Windows VM a kontrolu vzhledu člověkem jsem neověřoval: na tomto PC se aplikace nespouští; Volba editor.renderWhitespace = selection (bílé znaky jen ve výběru) dál nic nekreslí; do podmínek Hotovo, když nepatří, a tak jsem ji…; Testy jsou napsané, ale nespuštěné, spustí je testovací agent; porovnávají pixely a spoléhají na písma Windows (Microsoft YaHei UI, Segoe….
   - **Ověření 28. 10. 2026:** podmínky „Hotovo, když“, které jdou ověřit na vývojovém PC, mají test ověřený mutací kódu. Neověřeno tady: Perf čísla (referenční Windows VM), čtečka obrazovky, živé IME, macOS a běžící aplikace.
+  - **Požadavek majitele 2. 11. 2026:** přiblížení textu kolečkem (Ctrl+kolečko) jde vrátit na původní velikost (Ctrl+0 a příkaz v menu Lupa) a stavový řádek ukazuje aktuální přiblížení v procentech (např. 110 %); kliknutí na údaj nabídne přednastavené hodnoty a návrat na 100 %.
 - [x] **P3.6.2** Záložky v textu
   - **Co a proč:** Záložky jako kotvy, navigace mezi nimi, trvalé uložení v relaci (`08` kap. 6).
   - **Funkce:** F064
