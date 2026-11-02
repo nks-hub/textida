@@ -195,6 +195,8 @@ public class DocumentTextSurfaceTests
     {
         string line = new string('x', 63) + "\r\n";
         using var s = new TestSurface(string.Concat(Enumerable.Repeat(line, 16_384))); // 1 MiB
+        // an edit is applied in place only where the document knows the position; on a busy machine the background line index is not there yet
+        ((PagedBackend)s.Document.Backend).Paged.Source.IndexTask.Wait();
         Assert.True(s.Length >= 1 << 20);
         long afterOpen = s.CharsDecoded;
         int at = s.LineStart(8_000) + 10;
