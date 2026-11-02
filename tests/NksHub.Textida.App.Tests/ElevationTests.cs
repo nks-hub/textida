@@ -91,7 +91,7 @@ public class ElevatedHelperTests : IDisposable
     [Fact]
     public void A_read_copies_a_file_into_a_new_one_and_refuses_one_over_the_limit_or_a_destination_that_exists()
     {
-        string source = Staged("secret text");
+        string source = ElevatedHelper.ApprovedPath(Staged("secret text"));
         string copy = Path.Combine(_dir, "copy.tmp");
         ElevatedHelper.Read(source, copy, 1000);
         Assert.Equal("secret text", File.ReadAllText(copy));
@@ -225,7 +225,7 @@ public class ElevatedHelperTests : IDisposable
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "the box of UAC is Windows only");
         // the test is its own "administrator" here: the writer is this account, the reader another one
-        string box = Path.Combine(_dir, "own-box"), source = Staged("protected text");
+        string box = Path.Combine(_dir, "own-box"), source = ElevatedHelper.ApprovedPath(Staged("protected text"));
         ElevatedHelper.MakeBox(box, Sid(WellKnownSidType.BuiltinGuestsSid), Me);
         ElevatedHelper.Read(source, Path.Combine(box, ElevatedHelper.CopyName), 1000);
         ElevatedHelper.WriteNew(Path.Combine(box, ElevatedHelper.ResultName), Encoding.UTF8.GetBytes("ok"));
@@ -267,6 +267,56 @@ public class ElevatedHelperTests : IDisposable
 
         Assert.Throws<IOException>(() => ElevatedHelper.WriteNew(link, Encoding.UTF8.GetBytes("ok")));
         Assert.Equal("keep", File.ReadAllText(target));
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_a_read_refuses_a_junction_in_place_of_the_source_or_of_its_folder_and_copies_nothing()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the read through UAC is Windows only");
+        string folder = Path.Combine(_dir, "approved"), secrets = Path.Combine(_dir, "secrets");
+        Directory.CreateDirectory(folder);
+        Directory.CreateDirectory(secrets);
+        File.WriteAllText(Path.Combine(folder, "file.txt"), "public");
+        File.WriteAllText(Path.Combine(secrets, "file.txt"), "admin only");
+        string source = ElevatedHelper.ApprovedPath(Path.Combine(folder, "file.txt"));
+
+        // the approved file in another case of letters is still the approved file
+        ElevatedHelper.Read(source.ToUpperInvariant(), Path.Combine(_dir, "case.tmp"), 1000);
+        Assert.Equal("public", File.ReadAllText(Path.Combine(_dir, "case.tmp")));
+
+        // after the approval the folder is swapped for a junction to another folder with a file of the same name
+        Directory.Delete(folder, true);
+        Junction(folder, secrets);
+        string copy = Path.Combine(_dir, "copy.tmp");
+        Assert.Contains("not the one approved", Assert.Throws<ElevationException>(() => ElevatedHelper.Read(source, copy, 1000)).Message);
+        Assert.False(File.Exists(copy));
+
+        // a junction in the place of the file itself
+        string junction = Path.Combine(_dir, "junction.txt");
+        Junction(junction, secrets);
+        Assert.Throws<ElevationException>(() => ElevatedHelper.Read(junction, copy, 1000));
+        Assert.False(File.Exists(copy));
+        Directory.Delete(junction);
+        Directory.Delete(folder);
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_a_read_refuses_a_file_link_in_place_of_the_source_and_copies_nothing()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the read through UAC is Windows only");
+        string secret = Path.Combine(_dir, "secret.txt"), source = Path.Combine(_dir, "approved.txt"), copy = Path.Combine(_dir, "copy.tmp");
+        File.WriteAllText(secret, "admin only");
+        File.WriteAllText(source, "public");
+        source = ElevatedHelper.ApprovedPath(source);
+        File.Delete(source);
+        try { File.CreateSymbolicLink(source, secret); }
+        catch (IOException e) { Assert.Skip("a file link needs Developer Mode or the right to make links: " + e.Message); }
+        catch (UnauthorizedAccessException e) { Assert.Skip("a file link needs Developer Mode or the right to make links: " + e.Message); }
+
+        Assert.Contains("link", Assert.Throws<ElevationException>(() => ElevatedHelper.Read(source, copy, 1000)).Message);
+        Assert.False(File.Exists(copy));
     }
 
     [Fact]
