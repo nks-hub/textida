@@ -28,6 +28,21 @@ public class MarkdownRendererRegressionTests
         PreviewRenderer.Render(PreviewFormats.Markdown, source, new PreviewRenderer.Ctx(new FontFamily("Consolas"), Open: open, Anchors: anchors));
 
     [AvaloniaFact]
+    public void An_html_table_applies_colspan_and_rowspan()
+    {
+        var body = PreviewRenderer.Render(PreviewFormats.Html,
+            "<table><tr><td colspan=\"2\">wide</td><td rowspan=\"2\">tall</td></tr><tr><td>a</td><td>b</td></tr></table>",
+            new PreviewRenderer.Ctx(new FontFamily("Consolas")));
+        var grid = Assert.Single(Tree(body).OfType<Grid>(), g => g.ColumnDefinitions.Count > 0);
+        Assert.Equal(3, grid.ColumnDefinitions.Count);
+        var cells = grid.Children.OfType<Border>().ToDictionary(b => Text((TextBlock)b.Child!));
+        Assert.Equal((0, 0, 2, 1), (Grid.GetRow(cells["wide"]), Grid.GetColumn(cells["wide"]), Grid.GetColumnSpan(cells["wide"]), Grid.GetRowSpan(cells["wide"])));
+        Assert.Equal((0, 2, 1, 2), (Grid.GetRow(cells["tall"]), Grid.GetColumn(cells["tall"]), Grid.GetColumnSpan(cells["tall"]), Grid.GetRowSpan(cells["tall"])));
+        Assert.Equal((1, 0), (Grid.GetRow(cells["a"]), Grid.GetColumn(cells["a"])));
+        Assert.Equal((1, 1), (Grid.GetRow(cells["b"]), Grid.GetColumn(cells["b"])));
+    }
+
+    [AvaloniaFact]
     public void A_heading_keeps_its_hash_and_its_text_runs_are_semibold()
     {
         var body = Render("# C#\n");
