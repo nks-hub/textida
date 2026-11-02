@@ -133,6 +133,16 @@ string Location(string uri, string text, int start, int end) => $"{{\"uri\":{Quo
 
 string DumpName(string uri) => string.Concat(Uri.UnescapeDataString(uri[(uri.LastIndexOf('/') + 1)..]).Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
 
+// a test polling a dump file holds it open for a moment, and on Windows a reader that shares only reading makes the write fail: try again instead of ending the process
+void WriteDump(string file, string content)
+{
+    for (int attempt = 0; ; attempt++)
+    {
+        try { File.WriteAllText(Path.Combine(dump!, file), content, new UTF8Encoding(false)); return; }
+        catch (IOException) when (attempt < 500) { Thread.Sleep(10); }
+    }
+}
+
 void Changed(string uri, long version, string text)
 {
     texts[uri] = text;
@@ -140,10 +150,10 @@ void Changed(string uri, long version, string text)
     if (dump is not null)
     {
         var name = DumpName(uri);
-        File.WriteAllText(Path.Combine(dump, name + ".txt"), text, new UTF8Encoding(false));
+        WriteDump(name + ".txt", text);
         var (opens, incremental, fullCount) = stats.GetValueOrDefault(uri);
-        File.WriteAllText(Path.Combine(dump, name + ".stats"), $"opens={opens} incremental={incremental} full={fullCount}");
-        File.WriteAllText(Path.Combine(dump, name + ".version"), version.ToString());
+        WriteDump(name + ".stats", $"opens={opens} incremental={incremental} full={fullCount}");
+        WriteDump(name + ".version", version.ToString());
     }
     if (text.Contains("CRASH")) Environment.Exit(3);
     if (text.Contains("FALLONCE") && dump is not null && !File.Exists(Path.Combine(dump, "fell-once")))
@@ -297,7 +307,7 @@ var requestCounts = new Dictionary<string, int>();
 void CountAndPush(string file, int id, string refreshMethod)
 {
     int n = requestCounts[file] = requestCounts.GetValueOrDefault(file) + 1;
-    if (dump is not null) File.WriteAllText(Path.Combine(dump, file), n.ToString());
+    if (dump is not null) WriteDump(file, n.ToString());
     if (refreshAfterMs < 0 || n != 1) return;
     _ = Task.Run(async () =>
     {
