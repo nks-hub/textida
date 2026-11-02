@@ -268,8 +268,8 @@ public partial class LspPluginTests
         await rig.RunAsync(doc, LspPlugin.InlayHintsCommand);
         await rig.RunAsync(doc, LspPlugin.SemanticTokensCommand);
 
-        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "inlay-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "inlay-requests")) == "2");
-        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "semantic-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "semantic-requests")) == "2");
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "inlay-requests")) && ReadShared(Path.Combine(rig.Dump, "inlay-requests")) == "2");
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "semantic-requests")) && ReadShared(Path.Combine(rig.Dump, "semantic-requests")) == "2");
     }
 
     [Fact]
@@ -297,7 +297,7 @@ public partial class LspPluginTests
         var diagnostic = Assert.Single(rig.DiagnosticsOf(doc));
         Assert.Equal(new ByteRange(Bytes("é€😀 ok "), Bytes("é€😀 ok ERROR")), diagnostic.Range);
 
-        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "pull-requests")) && File.ReadAllText(Path.Combine(rig.Dump, "pull-requests")) == "2"); // the refresh request of the server: "unchanged" keeps the finding
+        await T.Until(() => File.Exists(Path.Combine(rig.Dump, "pull-requests")) && ReadShared(Path.Combine(rig.Dump, "pull-requests")) == "2"); // the refresh request of the server: "unchanged" keeps the finding
         Assert.Single(rig.DiagnosticsOf(doc));
 
         await rig.Edit(doc, diagnostic.Range.Start, diagnostic.Range.End, "FINE!");
