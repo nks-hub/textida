@@ -35,6 +35,29 @@ public class ProxyTests
         if (protocol == RemoteProtocol.Ftps) Assert.True(proxy.Tunnels >= 2, $"only {proxy.Tunnels} connection(s) used the proxy");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TheConnectRequestToAnHttpProxyUsesCrlfOnEveryOs(bool withCredentials)
+    {
+        using var dir = new TempDir();
+        await using var server = await Servers.StartAsync(RemoteProtocol.Ftps, dir.Path, dir.Path);
+        using var proxy = withCredentials ? new TestProxy(ProxyType.Http, "pu", "proxy-secret") : new TestProxy(ProxyType.Http);
+        var connection = server.Connection(trusted: server.Identity, proxy: proxy.Settings);
+        var secrets = new MemoryCredentials();
+        secrets.Set(connection.SecretKey, "p");
+        if (withCredentials) secrets.Set(connection.ProxySecretKey, "proxy-secret");
+
+        await using var client = RemoteClients.Create(connection, secrets, DenyUnknownServers.Instance);
+        await client.ConnectAsync(default);
+
+        var raw = proxy.LastConnectRequest!;
+        Assert.StartsWith($"CONNECT {connection.Host}:{connection.EffectivePort} HTTP/1.1\r\nHost: ", raw);
+        Assert.EndsWith("\r\n\r\n", raw);
+        Assert.Equal(raw.Count(c => c == '\n'), raw.Split("\r\n").Length - 1); // every LF is part of a CRLF
+        Assert.Equal(withCredentials, raw.Contains("Proxy-Authorization: Basic " + Convert.ToBase64String("pu:proxy-secret"u8.ToArray()) + "\r\n"));
+    }
+
     [Theory, MemberData(nameof(Matrix))]
     public async Task TheProxyOfTheNetworkPolicyCarriesEveryTypeAndProtocolForAConnectionWithoutItsOwn(RemoteProtocol protocol, ProxyType kind)
     {

@@ -3,7 +3,9 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using FluentFTP;
+using FluentFTP.Client.BaseClient;
 using FluentFTP.Exceptions;
 using FluentFTP.Proxy.AsyncProxy;
 
@@ -87,7 +89,7 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         };
         return proxy.Type switch
         {
-            ProxyType.Http => new AsyncFtpClientHttp11Proxy(profile),
+            ProxyType.Http => new CrlfHttpProxyClient(profile),
             ProxyType.Socks4 => new AsyncFtpClientSocks4Proxy(profile),
             ProxyType.Socks5 => new AsyncFtpClientSocks5Proxy(profile),
             _ => throw new RemoteException(RemoteError.UnsupportedCombination, $"Proxy type {proxy.Type} is not supported."),
@@ -178,5 +180,41 @@ public sealed class FtpRemoteClient(RemoteConnection connection, string? secret,
         _client?.Dispose();
         _client = null;
         return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>
+/// The HTTP proxy client of FluentFTP ends the lines of its CONNECT request with Environment.NewLine, a bare LF off Windows, so a proxy never sees the end of
+/// the headers. This one sends the same request with CRLF and reads the reply the same way (any 2xx status opens the tunnel).
+/// </summary>
+internal sealed class CrlfHttpProxyClient(FtpProxyProfile profile) : AsyncFtpClientHttp11Proxy(profile)
+{
+    protected override BaseFtpClient Create() => new CrlfHttpProxyClient(Proxy);
+
+    protected override async Task ConnectAsync(FtpSocketStream stream, string host, int port, FtpIpVersion ipVersions, CancellationToken token)
+    {
+        await stream.ConnectAsync(Proxy.ProxyHost, Proxy.ProxyPort, Config.InternetProtocolVersions, token).ConfigureAwait(false);
+        await stream.WriteAsync(BuildConnectRequest(host, port, Proxy.ProxyCredentials), token).ConfigureAwait(false);
+        await stream.FlushAsync(token).ConfigureAwait(false);
+
+        stream.ReadTimeout = Config.ReadTimeout;
+        stream.WriteTimeout = Config.WriteTimeout;
+        string? status = null;
+        string? line;
+        while ((line = await stream.ReadLineAsync(Encoding, token).ConfigureAwait(false)) is not null)
+            if (line.StartsWith("HTTP/", StringComparison.Ordinal)) { status = line; break; }
+        while ((line = await stream.ReadLineAsync(Encoding, token).ConfigureAwait(false)) is not null && !string.IsNullOrWhiteSpace(line)) { }
+
+        var parts = status?.Split(' ', 3);
+        if (parts is not { Length: >= 2 } || parts[1].Length != 3 || parts[1][0] != '2')
+            throw new FtpException($"Can't connect {Host} via proxy {Proxy.ProxyHost}.\nMessage : {status ?? "no reply from the proxy"}");
+    }
+
+    internal static byte[] BuildConnectRequest(string host, int port, NetworkCredential? credentials)
+    {
+        var request = $"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n";
+        if (credentials is not null)
+            request += "Proxy-Authorization: Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials.UserName + ":" + credentials.Password)) + "\r\n";
+        return Encoding.ASCII.GetBytes(request + "User-Agent: custom-ftp-client\r\n\r\n");
     }
 }
