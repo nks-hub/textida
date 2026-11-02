@@ -32,8 +32,8 @@ public sealed class BatchLaunchTests : IDisposable
     public async Task Git_found_as_a_batch_file_gets_every_argument_back_and_a_line_break_is_refused()
     {
         if (!OperatingSystem.IsWindows()) return;
-        // answers the probe for the repository root itself, echoes the arguments of every other command
-        File.WriteAllText(Path.Combine(_dir, "git.cmd"), $"@echo off\r\nif \"%~2\"==\"rev-parse\" (\r\necho {_dir}\r\necho.\r\nexit /b 0\r\n)\r\n\"{Dotnet}\" \"{EchoDll}\" %*\r\n");
+        // answers the probe for the repository root itself (after the four -c options of the editor), echoes the arguments of every other command
+        File.WriteAllText(Path.Combine(_dir, "git.cmd"), $"@echo off\r\nif \"%~6\"==\"rev-parse\" (\r\necho {_dir}\r\necho.\r\nexit /b 0\r\n)\r\n\"{Dotnet}\" \"{EchoDll}\" %*\r\n");
         string path = Environment.GetEnvironmentVariable("PATH") ?? "";
         Environment.SetEnvironmentVariable("PATH", _dir + Path.PathSeparator + path);
         try
@@ -41,7 +41,7 @@ public sealed class BatchLaunchTests : IDisposable
             var repo = await GitRepository.OpenAsync(_dir, 10_000, 1 << 20, CancellationToken.None);
             Assert.NotNull(repo);
             foreach (var text in Awkward)
-                Assert.Equal(Brackets(["--literal-pathspecs", "cat-file", "blob", text]), Encoding.UTF8.GetString(await repo.ReadBlobAsync(text, CancellationToken.None)).Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
+                Assert.Equal(Brackets(["-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "--literal-pathspecs", "cat-file", "blob", text]), Encoding.UTF8.GetString(await repo.ReadBlobAsync(text, CancellationToken.None)).Split("\r\n", StringSplitOptions.RemoveEmptyEntries));
             await Assert.ThrowsAsync<GitException>(() => repo.ReadBlobAsync("one\ntwo", CancellationToken.None));
         }
         finally { Environment.SetEnvironmentVariable("PATH", path); }
