@@ -1,0 +1,32 @@
+name: Re-sign update feed
+
+# The signed feed expires 90 days after it is signed (tools/SignUpdateFeed.cs). Run this before then when no release is due;
+# commit the feed.json it produces to the update-feed branch, as after a release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/checkout@v4
+        with:
+          ref: update-feed
+          path: published
+      - name: Sign the published feed again
+        env:
+          FEED_SIGNING_KEY: ${{ secrets.FEED_SIGNING_KEY }}
+        run: dotnet run tools/SignUpdateFeed.cs -- --resign published/feed.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: feed
+          path: published/feed.json
+          if-no-files-found: error
