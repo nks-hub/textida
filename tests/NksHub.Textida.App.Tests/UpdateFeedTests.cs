@@ -24,7 +24,7 @@ public sealed class UpdateFeedTests : IDisposable
         server.Routes["/feed.json"] = File.ReadAllBytes(Path.Combine(_temp.Path, "feed.json"));
         var updater = new AppUpdater(new HttpClient(), server.Base + "feed.json", Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), "unused");
 
-        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
+        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64", "linux-arm64" })
         {
             var release = await updater.CheckAsync("1.0.0", rid, CancellationToken.None);
             Assert.NotNull(release);
@@ -56,7 +56,7 @@ public sealed class UpdateFeedTests : IDisposable
 
     private void WritePackages(byte[] bytes)
     {
-        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64" })
+        foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64", "linux-arm64" })
             File.WriteAllBytes(Path.Combine(_temp.Path, $"Textida-1.1.0-{rid}" + (rid.StartsWith("linux-") ? ".tar.gz" : ".zip")), bytes);
     }
 
