@@ -34,22 +34,28 @@ internal sealed partial class MainWindow
         var document = Document.CreateVirtual(name + ".cs", Encoding.UTF8.GetBytes(Loc.Get(K.AssemblyWorking, ("name", name)).Insert(0, "// ")), AvaloniaEditBackendFactory.Instance, TextCodec.Utf8);
         var tab = OpenVirtualDocument(document, Loc.Get(K.AssemblyTitle, ("name", name)));
         _assemblyTabs[path] = tab;
-        AssemblyWork = DecompileIntoAsync(path, name, document);
+        var closed = new CancellationTokenSource(); // closing the tab stops the decompiler; the time limit is only for a tab that stays open
+        _ = tab.Closed.Task.ContinueWith(_ => closed.Cancel(), TaskScheduler.Default);
+        AssemblyWork = DecompileIntoAsync(path, name, document, tab.Closed.Task, closed.Token);
         return tab;
     }
 
-    private async Task DecompileIntoAsync(string path, string name, Document document)
+    private async Task DecompileIntoAsync(string path, string name, Document document, Task tabClosed, CancellationToken closed)
     {
         string text;
         try
         {
-            var result = await Task.Run(() => AssemblyDecompiler.Decompile(path));
+            var result = await Task.Run(() => AssemblyDecompiler.Decompile(path, null, closed), CancellationToken.None);
             text = result.Text + (result.Truncated ? Environment.NewLine + "// " + Loc.Get(K.AssemblyTruncated, ("done", result.TypesDone), ("total", result.TypesTotal)) + Environment.NewLine : "");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or OperationCanceledException or BadImageFormatException or InvalidOperationException or NotSupportedException)
         {
             text = "// " + Loc.Get(K.AssemblyFailed, ("name", name), ("reason", e is OperationCanceledException ? Loc.Get(K.AssemblyTooSlow) : e.Message));
         }
-        await Dispatcher.UIThread.InvokeAsync(() => document.ApplyVirtual([new ByteEdit(new ByteRange(0, document.ByteLength), Encoding.UTF8.GetBytes(text))], null, "decompile"));
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (tabClosed.IsCompleted) return; // the tab was closed: its document is gone, nothing is shown
+            document.ApplyVirtual([new ByteEdit(new ByteRange(0, document.ByteLength), Encoding.UTF8.GetBytes(text))], null, "decompile");
+        });
     }
 }
