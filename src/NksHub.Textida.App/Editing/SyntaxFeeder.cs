@@ -99,6 +99,9 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>The window the last request asked for: first line, number of lines, first column, number of columns. A test reads it to see the limits at work.</summary>
     internal (long First, int Count, int Column, int Columns) Requested => (_wanted.First, _wanted.Count, _wanted.Column, _wanted.Columns);
 
+    /// <summary>How many times the grammar was run for a viewport on the UI thread, for tests.</summary>
+    internal int ViewportRuns { get; private set; }
+
     /// <summary>
     /// Lowers how much around the screen is colored in one request, for a slow machine; a value above <see cref="MaxRows"/> or <see cref="MaxColumns"/> is brought down to it.
     /// A change makes the view report what is on screen again, so the colors follow the new limits at once.
@@ -121,8 +124,24 @@ internal sealed class SyntaxFeeder : IDisposable
     /// </summary>
     public void SetVisible(long first, long last, int firstColumn, int lastColumn)
     {
+        bool moved = (first, last, firstColumn, lastColumn) != _visible;
+        _visible = (first, last, firstColumn, lastColumn);
         if (_wanted.First >= 0 && first >= _wanted.First && last < _wanted.First + _wanted.Count
-            && firstColumn >= _wanted.Column && lastColumn <= _wanted.Column + _wanted.Columns) return;
+            && firstColumn >= _wanted.Column && lastColumn <= _wanted.Column + _wanted.Columns)
+        {
+            // a drag that moves inside the margin is still moving: on a slower machine the frames inside it alone outlast the settle time, and the request that
+            // leaves the window next, or the one waiting, would then run the grammar in the middle of the drag
+            if (moved && DefersJumps && DefersMoves && _lastJump != 0)
+            {
+                _lastJump = Stopwatch.GetTimestamp();
+                if (_jumpTimer is { IsEnabled: true } waiting)
+                {
+                    waiting.Stop();
+                    waiting.Start();
+                }
+            }
+            return;
+        }
         long rows = Math.Max(1, last - first + 1);
         int width = Math.Max(1, lastColumn - firstColumn);
         long start = Math.Max(0, first - rows);
@@ -153,6 +172,7 @@ internal sealed class SyntaxFeeder : IDisposable
     }
 
     private long _lastJump;
+    private (long First, long Last, int FirstColumn, int LastColumn) _visible = (-1, -1, 0, 0);
 
     private DispatcherTimer? _jumpTimer;
 
@@ -272,6 +292,7 @@ internal sealed class SyntaxFeeder : IDisposable
         }
         if (_doneRevision == _session.Revision) return;
         SyntaxViewport result;
+        ViewportRuns++;
         long tRun = Core.TypingTrace.Begin();
         try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over

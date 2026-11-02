@@ -1375,6 +1375,26 @@ public class ViewOptionsTests : IDisposable
         Assert.Equal(0, Matching(Capture(), strip, [blue], 4));
     }
 
+    /// <summary>
+    /// A drag moves the window of the colors a little per frame and leaves it only every few frames. Those few frames together can outlast the settle time on a slow machine,
+    /// so the moves inside the window must count as moving too, or every window left would run the grammar in the middle of the drag.
+    /// </summary>
+    [AvaloniaFact]
+    public void A_drag_that_moves_inside_the_window_of_the_colors_does_not_run_the_grammar_when_it_leaves_it()
+    {
+        var syntax = Open("d.cs", KeywordFile(5000)).Editor!.Syntax;
+        syntax.DefersMoves = true; // as a minimap drag sets it
+        syntax.SetVisible(1000, 1040, 0, 80); // a jump after a quiet time is colored at once
+        int runs = syntax.ViewportRuns;
+        for (int k = 1; k <= 30; k++)
+        {
+            Thread.Sleep(15); // each frame well within the settle time, five of them outlast it
+            syntax.SetVisible(1000 + k * 10, 1040 + k * 10, 0, 80);
+        }
+        Assert.True(syntax.Requested.First > 1100, "the drag never left the first window");
+        Assert.Equal(runs, syntax.ViewportRuns);
+    }
+
     [AvaloniaFact]
     [Trait("Category", "Perf")]
     public void Dragging_the_minimap_of_a_file_of_100000_lines_moves_the_editor_within_the_budget()
