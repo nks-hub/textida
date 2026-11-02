@@ -1,4 +1,5 @@
 using NksHub.Textida.Accessibility;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Accessibility.Tests;
 
@@ -111,6 +112,71 @@ public class DocumentTextSurfaceTests
                 int end = Boundary(text, Math.Min(text.Length, start + (random.Next(4) == 0 ? random.Next(12) : random.Next(2))));
                 if (end < start) end = start;
                 s.ReplaceText(start, end - start, pieces[random.Next(pieces.Length)]);
+            }
+            AssertMirrors(s);
+        }
+        Assert.Empty(failures);
+    }
+
+    private static EditResult ApplyAt(TestSurface s, string text, IEnumerable<(int Start, int End, string Text)> edits) =>
+        s.Document.Apply([.. edits.Select(e => new ByteEdit(
+            new ByteRange(System.Text.Encoding.UTF8.GetByteCount(text.AsSpan(0, e.Start)), System.Text.Encoding.UTF8.GetByteCount(text.AsSpan(0, e.End))),
+            System.Text.Encoding.UTF8.GetBytes(e.Text)))]);
+
+    [Fact]
+    public void Typing_at_a_thousand_carets_decodes_only_what_is_typed()
+    {
+        string line = new string('x', 63) + "\r\n";
+        using var s = new TestSurface(string.Concat(Enumerable.Repeat(line, 16_384))); // 1 MiB
+        long afterOpen = s.CharsDecoded;
+        var changes = new List<TextChange>();
+        s.TextChanged += changes.Add;
+        string text = s.GetText(0, s.Length);
+        for (int round = 0; round < 3; round++)
+        {
+            Assert.True(ApplyAt(s, text, Enumerable.Range(0, 1000).Select(i => (s.LineStart(i * 16) + 5, s.LineStart(i * 16) + 5, "k"))).Applied);
+            text = s.Document.ReadText(new(s.Document.BomLength, s.Document.ByteLength));
+            AssertMirrors(s);
+        }
+        Assert.Equal(3000, s.CharsDecoded - afterOpen); // a full read per keystroke would decode 1 MiB each time
+        Assert.Equal(3, changes.Count);
+        s.Document.Undo();
+        Assert.Equal(3000, s.CharsDecoded - afterOpen);
+        AssertMirrors(s);
+    }
+
+    [Fact]
+    public void Several_edits_in_one_change_leave_the_same_text_lines_and_change_report_as_a_full_read()
+    {
+        string[] pieces = ["", "a", "\n", "\r\n", "\r", "é", "\U0001F600", "xy\nz", "\r\nx\r", "\n\n"];
+        var random = new Random(11);
+        using var s = new TestSurface("start\r\nsecond \U0001F600 line\nthird\r\n\r\nend\r\nmore text here\n");        string before = s.GetText(0, s.Length);
+        var failures = new List<string>();
+        s.TextChanged += c =>
+        {
+            string now = s.GetText(0, s.Length);
+            if (before[..c.Start] + now.Substring(c.Start, c.Inserted) + before[(c.Start + c.Removed)..] != now) failures.Add($"{c} on '{before}'");
+            before = now;
+        };
+        for (int step = 0; step < 400; step++)
+        {
+            string text = s.GetText(0, s.Length);
+            if (step % 11 == 10 && s.Document.CanUndo) s.Document.Undo();
+            else
+            {
+                var edits = new List<(int, int, string)>();
+                int at = 0;
+                for (int n = random.Next(1, 6); n > 0; n--)
+                {
+                    int start = Boundary(text, Math.Min(text.Length, at + random.Next(10)));
+                    if (start < at) start = at;
+                    int end = Boundary(text, Math.Min(text.Length, start + (random.Next(3) == 0 ? random.Next(6) : 0)));
+                    if (end < start) end = start;
+                    edits.Add((start, end, pieces[random.Next(pieces.Length)]));
+                    at = end + 1;
+                    if (at >= text.Length) break;
+                }
+                if (!ApplyAt(s, text, edits).Applied) continue;
             }
             AssertMirrors(s);
         }
