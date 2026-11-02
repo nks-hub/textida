@@ -434,7 +434,9 @@ internal sealed class OpenDocument : IDisposable
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
         Edited?.Invoke(e.Change);
-        if (e.Change.TouchesLineBreaks && !_eolTimer.IsEnabled) _eolTimer.Start();
+        // another reading of the same bytes has other line endings: never show those of the old one, not even for the typing pause
+        if (e.Change.Kind == ChangeKind.View) { _eolTimer.Stop(); RefreshEol(); }
+        else if (e.Change.TouchesLineBreaks && !_eolTimer.IsEnabled) _eolTimer.Start();
         Changed?.Invoke();
     }
 
