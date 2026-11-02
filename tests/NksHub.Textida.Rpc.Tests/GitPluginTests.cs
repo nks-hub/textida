@@ -1310,10 +1310,12 @@ public partial class GitPluginTests
         var root = Path.Combine(Path.GetTempPath(), "textida-watch-" + Guid.NewGuid().ToString("N"));
         var gitDir = Path.Combine(root, ".git");
         Directory.CreateDirectory(Path.Combine(gitDir, "objects"));
+        // the 30 ms gaps of the burst must stay well inside the quiet time even when a busy machine stretches a delay
+        const int QuietMs = 1500;
         int calls = 0;
         try
         {
-            using var watcher = new RepoWatcher(root, gitDir, 400, () => Interlocked.Increment(ref calls));
+            using var watcher = new RepoWatcher(root, gitDir, QuietMs, () => Interlocked.Increment(ref calls));
             for (int i = 0; i < 8; i++)
             {
                 File.WriteAllText(Path.Combine(root, $"f{i}.txt"), "x");
@@ -1321,13 +1323,13 @@ public partial class GitPluginTests
             }
             Assert.Equal(0, Volatile.Read(ref calls)); // each change started the quiet time again
             await WaitUntilAsync(() => Volatile.Read(ref calls) == 1);
-            await Task.Delay(1000);
+            await Task.Delay(QuietMs + 600);
             Assert.Equal(1, Volatile.Read(ref calls));
 
             File.WriteAllText(Path.Combine(gitDir, "objects", "x"), "x"); // what git itself writes while it works
             File.WriteAllText(Path.Combine(gitDir, "index.lock"), "x");
             File.WriteAllText(Path.Combine(gitDir, "COMMIT_EDITMSG"), "x");
-            await Task.Delay(1000);
+            await Task.Delay(QuietMs + 600);
             Assert.Equal(1, Volatile.Read(ref calls));
 
             File.WriteAllText(Path.Combine(gitDir, "index"), "x");
