@@ -1,6 +1,6 @@
 # Changelog
 
-All releases so far are previews. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
+Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular release. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
 
 ## [0.1.5] - 2026-11-02
 
