@@ -55,7 +55,7 @@ internal sealed class SystemElevation : IElevation
     public void Read(string source, string destination, long maxBytes)
     {
         string max = maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (OperatingSystem.IsWindows()) { RunWindows("--elevated-read", destination, source, max); return; }
+        if (OperatingSystem.IsWindows()) { RunWindows("--elevated-read", destination, ElevatedHelper.ApprovedPath(source), max); return; }
         if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux()) throw new ElevationException("This system has no way to ask for permission.");
 
         // root writes the copy only into a folder it makes itself in the shared temporary folder, then hands it over; the user copies it on from there
@@ -312,17 +312,79 @@ internal static partial class ElevatedHelper
         file.Flush(true);
     }
 
-    /// <summary>Copies <paramref name="source"/> to the new file <paramref name="destination"/> when it is at most <paramref name="maxBytes"/> long.</summary>
+    /// <summary>
+    /// Copies <paramref name="source"/> to the new file <paramref name="destination"/> when it is at most <paramref name="maxBytes"/> long. On Windows the source is opened without following a link in its place, and the file opened must be
+    /// the one at the path given (<see cref="ApprovedPath"/>), so a link swapped in for it or for a folder on its way is refused, not read.
+    /// </summary>
     public static void Read(string source, string destination, long maxBytes)
     {
         RequireFile(source, "The source");
         RequireFile(destination, "The destination");
-        if (new FileInfo(source).Length > maxBytes) throw new ElevationException($"The file is larger than {maxBytes} bytes.");
-        using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var input = OperatingSystem.IsWindows() ? OpenApproved(source) : new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (input.Length > maxBytes) throw new ElevationException($"The file is larger than {maxBytes} bytes.");
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         input.CopyTo(output);
         output.Flush();
     }
+
+    private const uint GenericRead = 0x80000000, OpenReparsePoint = 0x00200000, BackupSemantics = 0x02000000;
+
+    /// <summary>
+    /// The path the user approves, as the helper will find it: the target of a link of the user's (the helper follows none) in the folder as the system names it (no junction, no short name), so the helper can
+    /// compare it with the name of the file it opened. Run as the user, before the elevation.
+    /// </summary>
+    internal static string ApprovedPath(string path)
+    {
+        if (!OperatingSystem.IsWindows()) return path;
+        path = Path.GetFullPath(path);
+        try { path = File.ResolveLinkTarget(path, true)?.FullName ?? path; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the helper says what it finds */ }
+        if (Path.GetDirectoryName(path) is not { } folder) return path;
+        using var handle = CreateFileW(folder, 0, FileShare.ReadWrite | FileShare.Delete, 0, FileMode.Open, BackupSemantics, 0);
+        return handle.IsInvalid ? path : Path.Combine(FinalPath(handle), Path.GetFileName(path));
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static FileStream OpenApproved(string source)
+    {
+        var handle = CreateFileW(source, GenericRead, FileShare.ReadWrite | FileShare.Delete, 0, FileMode.Open, OpenReparsePoint, 0);
+        if (handle.IsInvalid) throw new ElevationException($"The source could not be opened (error {Marshal.GetLastPInvokeError()}).");
+        try
+        {
+            if ((File.GetAttributes(handle) & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0) throw new ElevationException("The source is a link; a link is not followed.");
+            if (!string.Equals(FinalPath(handle), Path.GetFullPath(source), StringComparison.OrdinalIgnoreCase))
+                throw new ElevationException("The file opened is not the one approved: a folder on its way leads elsewhere.");
+            return new FileStream(handle, FileAccess.Read);
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>The path of an open file or folder as the system names it, without the <c>\\?\</c> prefix.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static unsafe string FinalPath(Microsoft.Win32.SafeHandles.SafeFileHandle handle)
+    {
+        char[] buffer = new char[512];
+        for (uint n; ; buffer = new char[n])
+        {
+            fixed (char* p = buffer) n = GetFinalPathNameByHandleW(handle, p, (uint)buffer.Length, 0);
+            if (n == 0) throw new ElevationException($"The path of the opened file is not known (error {Marshal.GetLastPInvokeError()}).");
+            if (n < buffer.Length)
+            {
+                string path = new(buffer, 0, (int)n);
+                return path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal) ? @"\\" + path[8..] : path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
+            }
+        }
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    private static partial Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path, uint access, FileShare share, nint security, FileMode mode, uint flags, nint template);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", SetLastError = true)]
+    private static unsafe partial uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle handle, char* path, uint length, uint flags);
 
     /// <summary>
     /// The read as root on macOS and Linux: reads <paramref name="source"/> (not a link) into memory, makes the new folder <paramref name="folder"/> (0700; anything already there, a link included, is refused),

@@ -108,6 +108,67 @@ public class PrintLayoutTests
         Assert.Equal(runs[0].Glyphs[^5..], word); // drawn right to left, so the first word of the line is the last glyphs
     }
 
+    [AvaloniaFact]
+    public void Numbers_and_latin_inside_right_to_left_text_stay_left_to_right_and_nothing_is_lost()
+    {
+        const string arabic = "مرحبا 123 بالعالم", hebrew = "שלום abc 42";
+        var pdf = PdfExport.Write(PrintLayout.Paginate(Lines(arabic + "\n" + hebrew), PdfExport.Options(false)), "rtl.txt");
+        var rows = Rows(pdf);
+
+        // seen from the left: the last Arabic word, the number read 1-2-3, the first word; the Hebrew word, then the Latin and the number as they are
+        Assert.Contains([" بالعالم", "123", "مرحبا "], rows);
+        Assert.Contains(["שלום", " abc 42"], rows);
+        // the right-to-left words read back in logical order from their ActualText
+        Assert.Equal([" بالعالم", "مرحبا ", "שלום"], ActualTexts(pdf).Select(a => a.Text));
+        // read from the right (the Arabic line) and from the left (the Hebrew one, which starts left to right), the pieces give the lines back whole
+        Assert.Equal(arabic, string.Concat(rows.Single(r => r.Contains("123")).AsEnumerable().Reverse()));
+        Assert.Equal(hebrew, string.Concat(rows.Single(r => r.Contains("שלום"))));
+    }
+
+    /// <summary>The text drawn in each row of the content, left to right, one item per text object: its ActualText, else its glyphs read back through the ToUnicode map of its font.</summary>
+    private static List<List<string>> Rows(byte[] pdf)
+    {
+        string s = Encoding.Latin1.GetString(pdf);
+        string Obj(string number) => Regex.Match(s, $@"(?<!\d){number} 0 obj(.*?)endobj", RegexOptions.Singleline).Groups[1].Value;
+        var maps = new Dictionary<string, Dictionary<int, string>>();
+        foreach (Match font in Regex.Matches(s, @"/(F\d+) (\d+) 0 R"))
+        {
+            string cmap = Regex.Match(Obj(font.Groups[2].Value), @"/ToUnicode (\d+) 0 R").Groups[1].Value;
+            if (cmap.Length > 0) maps.TryAdd(font.Groups[1].Value, CMap(Streams(Encoding.Latin1.GetBytes(Obj(cmap))).Single()));
+        }
+        var drawn = new List<(double X, double Y, string Text)>();
+        foreach (string content in Streams(pdf).Where(c => c.Contains("BT")))
+            foreach (Match bt in Regex.Matches(content, @"BT(.*?)ET", RegexOptions.Singleline))
+            {
+                string body = bt.Groups[1].Value;
+                var at = Regex.Match(body, @"1 0 0 -1 ([\d.]+) ([\d.]+) Tm");
+                var actual = Regex.Match(body, @"/ActualText\s*<FEFF([0-9A-Fa-f]*)>");
+                var map = maps[Regex.Match(body, @"/(F\d+) [\d.]+ Tf").Groups[1].Value];
+                string text = actual.Success ? Encoding.BigEndianUnicode.GetString(Convert.FromHexString(actual.Groups[1].Value))
+                    : string.Concat(Regex.Matches(body, @"<([0-9A-Fa-f]+)>\s*Tj").SelectMany(t => t.Groups[1].Value.Chunk(4)).Select(g => map[Convert.ToInt32(new string(g), 16)]));
+                drawn.Add((double.Parse(at.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), double.Parse(at.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture), text));
+            }
+        return [.. drawn.GroupBy(d => d.Y).Select(row => row.OrderBy(d => d.X).Select(d => d.Text).ToList())];
+    }
+
+    /// <summary>The glyphs of a ToUnicode map and the text each gives back.</summary>
+    private static Dictionary<int, string> CMap(string cmap)
+    {
+        static string Utf16(string hex) => Encoding.BigEndianUnicode.GetString(Convert.FromHexString(hex));
+        var map = new Dictionary<int, string>();
+        foreach (Match block in Regex.Matches(cmap, "beginbfchar(.*?)endbfchar", RegexOptions.Singleline))
+            foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>"))
+                map[Convert.ToInt32(m.Groups[1].Value, 16)] = Utf16(m.Groups[2].Value);
+        foreach (Match block in Regex.Matches(cmap, "beginbfrange(.*?)endbfrange", RegexOptions.Singleline))
+            foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>"))
+            {
+                int low = Convert.ToInt32(m.Groups[1].Value, 16), high = Convert.ToInt32(m.Groups[2].Value, 16);
+                string first = Utf16(m.Groups[3].Value);
+                for (int i = 0; i <= high - low; i++) map[low + i] = first[..^1] + (char)(first[^1] + i);
+            }
+        return map;
+    }
+
     /// <summary>The ActualText spans of the content, each with the glyphs drawn inside it in the order they are drawn.</summary>
     private static List<(string Text, List<int> Glyphs)> ActualTexts(byte[] pdf) =>
         Regex.Matches(string.Join('\n', Streams(pdf)), @"/ActualText\s*<FEFF([0-9A-Fa-f]*)>(.*?)EMC", RegexOptions.Singleline)
@@ -160,25 +221,7 @@ public class PrintLayoutTests
     }
 
     /// <summary>Every text the ToUnicode maps of the file give back for its glyphs.</summary>
-    internal static HashSet<string> MappedText(byte[] pdf)
-    {
-        static string Utf16(string hex) => Encoding.BigEndianUnicode.GetString(Convert.FromHexString(hex));
-        var mapped = new HashSet<string>();
-        foreach (string cmap in Streams(pdf).Where(x => x.Contains("begincmap")))
-        {
-            foreach (Match block in Regex.Matches(cmap, "beginbfchar(.*?)endbfchar", RegexOptions.Singleline))
-                foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<[0-9A-Fa-f]+>\s*<([0-9A-Fa-f]+)>"))
-                    mapped.Add(Utf16(m.Groups[1].Value));
-            foreach (Match block in Regex.Matches(cmap, "beginbfrange(.*?)endbfrange", RegexOptions.Singleline))
-                foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>"))
-                {
-                    int count = Convert.ToInt32(m.Groups[2].Value, 16) - Convert.ToInt32(m.Groups[1].Value, 16);
-                    string first = Utf16(m.Groups[3].Value);
-                    for (int i = 0; i <= count; i++) mapped.Add(first[..^1] + (char)(first[^1] + i));
-                }
-        }
-        return mapped;
-    }
+    internal static HashSet<string> MappedText(byte[] pdf) => [.. Streams(pdf).Where(x => x.Contains("begincmap")).SelectMany(c => CMap(c).Values)];
 }
 
 [Collection("LocState")]
