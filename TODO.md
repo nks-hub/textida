@@ -221,7 +221,14 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
     6. nízká, jen Linux: předvídatelné adresáře `/tmp/textida-<user>` a `/tmp/textida-spill`, soubory přelévání 0644;
     7. info: odinstalace spouští `cmd.exe` bez plné cesty (`SelfRemoval.cs`);
     8. info: kontrola čistého přepisu neskenovala `.deb`; opraveno (7d07eb0f), `.deb` se čte přes `dpkg-deb` v linuxové úloze CI, `.dmg` se dělá ze stejné `.app` jako ZIP (`BuildMacPackage.cs`) a `TextidaSetup.exe` nese ten samý ZIP přilepený (`BuildWindowsPackage.cs`), takže sken ZIPu je pokrývá.
-    Opravy 1, 2, 4–7 dělá vývojář v dávce 9.
+  - **Opravy 2. 11. 2026 (sloučeno 238b68b4):**
+    1. f77cfa2b: každý příkaz `git` z pluginu má `-c core.fsmonitor=false -c log.showSignature=false`; status, stav stromu a blame navíc vyprázdní každý `filter.*.clean/process` z konfigurace (git 2.55 je spouští i při obyčejném `status`), status má `--ignore-submodules=dirty` (podmodul s neuloženými změnami se už neukáže jako změněný). Test `The_status_the_editor_reads_by_itself_starts_no_program_the_config_of_the_repository_names`, `GitPluginTests` 102/102 na Windows.
+    2. 3797952e: na Unixu uložení přenese režim původního souboru na dočasný soubor před výměnou, dočasný soubor vzniká 0600; „uložit jako“ přes existující soubor ve stránkovaném režimu jde přes `FileSwap.Replace`. `FileSwapTests` 7/7 na Windows, test režimu běží jen na Unixu.
+    4. 73955ee6: podpis feedu nese `issued` a `expires` (`FeedLifetimeDays = 90`), aplikace prošlý feed i feed bez `expires` odmítne. Vydaná 0.1.4 nový tvar feedu přijme (test proti nezměněnému `AppUpdater.cs` z tagu v0.1.4 i skutečný `SignUpdateFeed.cs`). Důsledek pro provoz: feed se musí znovu podepsat aspoň jednou za 90 dní. `AppUpdaterTests` 24/24.
+    5. 242de41d: zvýšené uložení na macOS jde přes vlastní pomocníka `--elevated-install` (načte soubor do paměti a hash ověří tam) místo `shasum` + `cp`. `ElevatedHelperTests` 9/9, skript ověřen jen jako text. Čtení chráněné cesty na macOS (`MacReadScript`, `stat` a `cp` jako root) má stejnou mezeru a zůstává otevřené.
+    6. b6aea271: Linux: IPC v `$XDG_RUNTIME_DIR`, pokud je soukromý; pevná složka v `/tmp` jen když je to skutečná složka uživatele s 0700 (`statx` bez následování odkazů), jinak nová soukromá složka; soubory přelévání 0600 ve složce se jménem uživatele (`PrivateDirectory.cs`). `PrivateDirectoryTests` běží jen na Linuxu.
+    7. 011e01d3: `cmd.exe` ze systémové složky s `/d`, cesta s `%` nebo `"` se odmítne. 3/3 testy odebrání v `PayloadAndShortcutTests`.
+    Zbývá: nález 3 (Developer ID a notarizace, PR.3.1), unixové testy na macOS (tester) a na Linuxu (stroj s Linuxem není k dispozici), čtení chráněné cesty na macOS.
 
 - [ ] **PR.6.3** Bezpečnostní revize před 1.0
   - **Co a proč:** Před 1.0 projít všechna pravidla z kap. 5.2–5.4: lokální transport MCP, port mostu F179 jen po potvrzení, výslovné zpřístupnění karet, síť jen po svolení, oprávnění pluginů a hranice záruky API u agentů (P6.6.3), instalace ZIP, záznam volání bez obsahu a tokenů, jeden filtr maskování tajemství (P4.6.2).
