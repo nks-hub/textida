@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -195,7 +196,67 @@ internal sealed class ContextDef : Rule
     public string? EndToken { get; init; }
     public bool Multiline { get; init; }
     public string? Embed { get; init; }
+    /// <summary>Token kinds of capturing groups of the begin expression, by group number, ascending.</summary>
+    public (int Group, string Kind)[]? BeginCaptures { get; init; }
+    public (int Group, string Kind)[]? EndCaptures { get; init; }
     public List<Rule> Rules { get; } = [];
+
+    private static readonly Regex BeginReference = new(@"\(\?#begin:(\d+)\)", RegexOptions.CultureInvariant);
+    private readonly ConditionalWeakTable<object, Dictionary<string, WeakReference<LineState>>> _dynamicStates = new();
+    private readonly ConcurrentDictionary<string, Matcher> _dynamicMatchers = new(StringComparer.Ordinal);
+    private Regex? _beginDetail;
+
+    /// <summary>The end expression holds <c>(?#begin:N)</c>: the escaped text group N of the begin match stands there, so every opening of the region has its own end.</summary>
+    internal bool EndRefersBack => End is not null && End.Contains("(?#begin:", StringComparison.Ordinal);
+
+    internal bool NeedsBeginMatch => BeginCaptures is not null || EndRefersBack;
+
+    private RegexOptions DetailOptions => RegexOptions.CultureInvariant | (Owner.CaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase);
+
+    /// <summary>The begin expression matched again at <paramref name="index"/> with its groups captured; null when it does not match there. Run only for regions with begin captures or a back-reference.</summary>
+    internal Match? BeginMatch(string text, int index)
+    {
+        try
+        {
+            var m = (_beginDetail ??= new Regex(@"\G(?:" + Begin + ")", DetailOptions, TimeSpan.FromSeconds(1))).Match(text, index);
+            return m.Success ? m : null;
+        }
+        catch (RegexMatchTimeoutException) { return null; }
+    }
+
+    /// <summary>The end expression of <paramref name="matcher"/> matched again at <paramref name="index"/> with its groups captured.</summary>
+    internal Match? EndMatch(Matcher matcher, string text, int index)
+    {
+        try
+        {
+            var m = (matcher.EndDetail ??= new Regex(@"\G(?:" + matcher.Patterns[0] + ")", DetailOptions, TimeSpan.FromSeconds(1))).Match(text, index);
+            return m.Success ? m : null;
+        }
+        catch (RegexMatchTimeoutException) { return null; }
+    }
+
+    /// <summary>Opens the region after <paramref name="begin"/>; with a back-reference in the end expression the state carries the end expression for that text (interned and cached by it).</summary>
+    public LineState Push(LineState? parent, Match? begin)
+    {
+        if (!EndRefersBack) return Push(parent);
+        string end = BeginReference.Replace(End!, r => begin is null ? "" : Regex.Escape(begin.Groups[int.Parse(r.Groups[1].Value)].Value));
+        Matcher matcher;
+        try
+        {
+            if (_dynamicMatchers.Count > 256) _dynamicMatchers.Clear();
+            matcher = _dynamicMatchers.GetOrAdd(end, e => Build(e, true));
+        }
+        catch (GrammarException) { return Push(parent); }
+        var table = _dynamicStates.GetValue(parent ?? (object)this, _ => []);
+        lock (table)
+        {
+            if (table.TryGetValue(end, out var reference) && reference.TryGetTarget(out var state)) return state;
+            if (table.Count > 64) foreach (var key in table.Where(e => !e.Value.TryGetTarget(out _)).Select(e => e.Key).ToList()) table.Remove(key);
+            state = new LineState(this, parent, matcher);
+            table[end] = new WeakReference<LineState>(state);
+            return state;
+        }
+    }
 
     public LineState Push(LineState? parent)
     {
@@ -209,9 +270,9 @@ internal sealed class ContextDef : Rule
         }
     }
 
-    public Matcher GetMatcher() => _matcher ?? Interlocked.CompareExchange(ref _matcher, Build(), null) ?? _matcher;
+    public Matcher GetMatcher() => _matcher ?? Interlocked.CompareExchange(ref _matcher, Build(End, false), null) ?? _matcher;
 
-    private Matcher Build()
+    private Matcher Build(string? end, bool dynamic)
     {
         var alts = new List<Alt>();
         var patterns = new List<string>();
@@ -225,7 +286,7 @@ internal sealed class ContextDef : Rule
             patterns.Add(pattern);
         }
 
-        if (End is not null) Add(End, Owner, new Alt(AltKind.End, null, null, Owner));
+        if (end is not null) Add(end, Owner, new Alt(AltKind.End, null, null, Owner));
         var visiting = new HashSet<object>(ReferenceEqualityComparer.Instance);
         void Collect(IEnumerable<Rule> rules)
         {
@@ -252,7 +313,7 @@ internal sealed class ContextDef : Rule
         }
 
         if (alts.Count == 0) sb.Append("(?!)");
-        var options = RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | (Owner.Registry.CompileRegexes ? RegexOptions.Compiled : RegexOptions.None);
+        var options = RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | (Owner.Registry.CompileRegexes && !dynamic ? RegexOptions.Compiled : RegexOptions.None);
         Regex re;
         try
         {
@@ -284,4 +345,7 @@ internal enum AltKind { End, Match, Word, Begin }
 
 internal readonly record struct Alt(AltKind Kind, string? Token, ContextDef? Child, Grammar Owner);
 
-internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups, string[] Patterns);
+internal sealed record Matcher(Regex Regex, Alt[] Alts, int[] Groups, string[] Patterns)
+{
+    internal Regex? EndDetail { get; set; }
+}

@@ -18,7 +18,9 @@ public sealed class TextMateImportException(string message) : Exception(message)
 /// nothing of TextMate or Oniguruma runs. What the conversion does: scopes become token kinds by their prefix (<c>keyword.control</c> is <c>keyword</c>, <c>constant.numeric</c> is <c>number</c>, ...); a <c>match</c> becomes a match rule; <c>begin</c>/<c>end</c>
 /// becomes a region that goes on across lines; <c>include</c> of <c>#name</c>, <c>$self</c> and of another grammar of the same bundle becomes an include. Oniguruma regular expressions are rewritten for .NET (<c>\h</c>, POSIX classes, <c>\R</c>, possessive quantifiers,
 /// property names) and every rule whose expression .NET still refuses is dropped. A <c>match</c> without a name whose <c>captures</c> name groups becomes one rule per top-level group, the group between a lookbehind for what precedes it and a lookahead for what follows.
-/// Not carried over, and reported each time: <c>while</c> rules, <c>\G</c> and <c>\K</c>, back-references in an <c>end</c> pattern (replaced by a word), captures of begin and end patterns beyond the whole match, nested or intersected character classes, the absence operator,
+/// <c>beginCaptures</c> and <c>endCaptures</c> (<c>captures</c> for both) colour their groups; a back-reference in an <c>end</c> pattern is replaced at run time by the escaped text the begin pattern matched; possessive quantifiers become atomic groups
+/// (<c>{n,m}+</c> repeats the interval, as in Oniguruma); POSIX classes, <c>\p{Alpha}</c> and <c>\p{Word}</c> follow the Oniguruma definitions; <c>\G</c> holds at the scan position of the engine.
+/// Not carried over, and reported each time: <c>while</c> rules, <c>\K</c>, back-references in a match or begin pattern, nested or intersected character classes, the absence operator,
 /// and includes of grammars that are not in the bundle. Extensions that a built-in grammar already serves are not taken over.
 /// </summary>
 public static class TextMateImport
@@ -276,13 +278,15 @@ public static class TextMateImport
         {
             string begin = rule["begin"]!.GetValue<string>(), end = rule["end"]!.GetValue<string>();
             if (!Rewrite(begin, out var beginNet, out _)) { Warn($"The begin pattern {Shorten(begin)} could not be converted; the rule was left out."); return; }
-            if (System.Text.RegularExpressions.Regex.IsMatch(end, @"\\[1-9]|\\k<")) { Warn($"The end pattern {Shorten(end)} refers back to the begin pattern; the reference is replaced by a word."); end = System.Text.RegularExpressions.Regex.Replace(end, @"\\[1-9]|\\k<[^>]*>", @"\w+"); }
-            if (!Rewrite(end, out var endNet, out _)) { Warn($"The end pattern {Shorten(end)} could not be converted; the rule was left out."); return; }
+            int beginCount = _count;
+            var beginNames = new Dictionary<string, int>(_names, StringComparer.Ordinal);
+            if (!Rewrite(end, out var endNet, out _, beginNames)) { Warn($"The end pattern {Shorten(end)} could not be converted; the rule was left out."); return; }
+            int endCount = _count;
             string? name = rule["name"]?.GetValue<string>(), content = rule["contentName"]?.GetValue<string>();
-            string? beginKind = KindOf((rule["beginCaptures"] as JsonObject)?["0"]?["name"]?.GetValue<string>() ?? (rule["captures"] as JsonObject)?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
-            string? endKind = KindOf((rule["endCaptures"] as JsonObject)?["0"]?["name"]?.GetValue<string>() ?? (rule["captures"] as JsonObject)?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
-            if ((rule["beginCaptures"] as JsonObject ?? rule["endCaptures"] as JsonObject ?? rule["captures"] as JsonObject)?.Any(c => c.Key != "0") == true)
-                Warn($"The captures of the begin and end patterns of {Describe(rule)} are not coloured separately.");
+            var beginCaptures = rule["beginCaptures"] as JsonObject ?? rule["captures"] as JsonObject;
+            var endCaptures = rule["endCaptures"] as JsonObject ?? rule["captures"] as JsonObject;
+            string? beginKind = KindOf(beginCaptures?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
+            string? endKind = KindOf(endCaptures?["0"]?["name"]?.GetValue<string>()) ?? KindOf(name);
             var region = new JsonObject
             {
                 ["name"] = "r" + ++_regions,
@@ -293,9 +297,20 @@ public static class TextMateImport
             if ((KindOf(content) ?? KindOf(name)) is { } kind) region["token"] = kind;
             if (beginKind is not null) region["beginToken"] = beginKind;
             if (endKind is not null) region["endToken"] = endKind;
+            if (GroupKinds(beginCaptures, beginCount) is { } beginGroups) region["beginCaptures"] = beginGroups;
+            if (GroupKinds(endCaptures, endCount) is { } endGroups) region["endCaptures"] = endGroups;
             var inner = Rules(rule["patterns"] as JsonArray ?? []);
             if (inner.Count > 0) region["rules"] = inner;
             into.Push(region);
+        }
+
+        /// <summary>The coloured groups (number to token kind) of a captures object; groups the expression does not have and unnamed ones are left out.</summary>
+        private static JsonObject? GroupKinds(JsonObject? captures, int groupCount)
+        {
+            var kinds = new JsonObject();
+            foreach (var (key, value) in captures ?? [])
+                if (int.TryParse(key, out int index) && index >= 1 && index <= groupCount && KindOf(value?["name"]?.GetValue<string>()) is { } kind) kinds[key] = kind;
+            return kinds.Count > 0 ? kinds : null;
         }
 
         private static JsonObject Token(JsonObject rule, string? kind)
@@ -316,26 +331,56 @@ public static class TextMateImport
 
         private sealed record Group(int Index, int Start, int End);
 
-        private static readonly Dictionary<string, string> PosixClasses = new(StringComparer.Ordinal)
+        /// <summary>A character set as the body of a .NET character class; <c>Excluded</c> means the class is every character but these (graph, print).</summary>
+        private readonly record struct CharSet(string Body, bool Excluded = false);
+
+        /// <summary>The Oniguruma definitions of the POSIX bracket classes and of the properties <c>\p{Alpha}</c>, ..., for Unicode text.</summary>
+        private static readonly Dictionary<string, CharSet> Posix = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["alpha"] = @"\p{L}", ["digit"] = @"\d", ["alnum"] = @"\p{L}\p{N}", ["upper"] = @"\p{Lu}", ["lower"] = @"\p{Ll}", ["space"] = @"\s", ["punct"] = @"\p{P}\p{S}",
-            ["word"] = @"\w", ["xdigit"] = "0-9a-fA-F", ["blank"] = @" \t", ["cntrl"] = @"\p{Cc}", ["print"] = @"\P{C}", ["graph"] = @"\p{L}\p{N}\p{P}\p{S}",
+            ["alpha"] = new(@"\p{L}\p{M}"), ["alnum"] = new(@"\p{L}\p{M}\p{Nd}"), ["ascii"] = new(@"\x00-\x7F"), ["blank"] = new(@"\p{Zs}\t"),
+            ["cntrl"] = new(@"\p{Cc}\p{Cf}\p{Cn}\p{Co}\p{Cs}"), ["digit"] = new(@"\p{Nd}"), ["lower"] = new(@"\p{Ll}"), ["upper"] = new(@"\p{Lu}"),
+            ["graph"] = new(@"\p{Zs}\p{Zl}\p{Zp}\p{Cc}\p{Cn}\p{Cs}", true), ["print"] = new(@"\p{Zl}\p{Zp}\p{Cc}\p{Cn}\p{Cs}", true),
+            ["punct"] = new(@"\p{Pc}\p{Pd}\p{Pe}\p{Pf}\p{Pi}\p{Po}\p{Ps}\$\+<=>\^`\|~"), ["space"] = new(@"\p{Zs}\p{Zl}\p{Zp}\t\n\v\f\r\x85"),
+            ["word"] = new(@"\p{L}\p{M}\p{Nd}\p{Pc}"), ["xdigit"] = new("0-9A-Fa-f"), ["letter"] = new(@"\p{L}"), ["number"] = new(@"\p{N}"),
         };
 
-        private static readonly Dictionary<string, string> Properties = new(StringComparer.OrdinalIgnoreCase)
+        /// <summary>The .NET text of a set, or its complement when <paramref name="negate"/>; false when the complement of a set cannot sit among other members of a class.</summary>
+        private static bool Express(CharSet set, bool negate, bool inClass, out string text)
         {
-            ["Alpha"] = "L", ["Alnum"] = "L}\\p{N", ["Digit"] = "Nd", ["Upper"] = "Lu", ["Lower"] = "Ll", ["Punct"] = "P", ["Space"] = "Z", ["Word"] = "L}\\p{N", ["Letter"] = "L", ["Number"] = "N",
-        };
+            if (!set.Excluded && set.Body.StartsWith(@"\p{", StringComparison.Ordinal) && set.Body.IndexOf('}') == set.Body.Length - 1)
+            {
+                text = (negate ? @"\P" : @"\p") + set.Body[2..];
+                return true;
+            }
+            bool exclude = set.Excluded ^ negate;
+            text = inClass ? set.Body : "[" + (exclude ? "^" : "") + set.Body + "]";
+            return !(inClass && exclude);
+        }
+
+        private static readonly Regex Interval = new(@"\G\{(\d+(,\d*)?|,\d+)\}", RegexOptions.CultureInvariant);
+        private static readonly Regex LonePosix = new(@"\G\[(\^?)\[:(\^?)([A-Za-z]+):\]\]", RegexOptions.CultureInvariant);
+
+        private Dictionary<string, int> _names = [];
+        private int _count;
 
         /// <summary>Rewrites an Oniguruma expression for .NET. False when it uses what .NET cannot do or the result does not compile; the group list is that of the top-level capturing groups, as positions in <paramref name="net"/>.</summary>
-        private bool Rewrite(string onig, out string net, out List<Group> groups)
+        private bool Rewrite(string onig, out string net, out List<Group> groups, Dictionary<string, int>? beginNames = null)
         {
             groups = [];
             net = "";
+            _names = [];
+            _count = 0;
             var o = new StringBuilder();
             bool named = System.Text.RegularExpressions.Regex.IsMatch(onig, @"\(\?(<[A-Za-z_]|'|P<)");
             var open = new Stack<(int Index, int Position)>();
             int count = 0;
+            int atom = -1; // where the last atom starts in o, for a quantifier with a + after it to wrap
+            var found = groups;
+            void Wrap(string opener, string closer)
+            {
+                if (found.Count > 0 && found[^1].Start == atom) found.RemoveAt(found.Count - 1);
+                o.Insert(atom, opener).Append(closer);
+            }
             try
             {
                 for (int i = 0; i < onig.Length; i++)
@@ -344,15 +389,32 @@ public static class TextMateImport
                     if (c == '\\' && i + 1 < onig.Length)
                     {
                         char n = onig[++i];
+                        atom = o.Length;
                         switch (n)
                         {
-                            case >= '1' and <= '9': Warn("A back-reference (\\1) in a match or begin pattern is not supported; the rule was left out."); return false;
-                            case 'k' when i + 1 < onig.Length && onig[i + 1] == '<': Warn("A named back-reference (\\k<name>) is not supported; the rule was left out."); return false;
+                            case >= '1' and <= '9':
+                            {
+                                if (beginNames is null) { Warn("A back-reference (\\1) in a match or begin pattern is not supported; the rule was left out."); return false; }
+                                int first = i;
+                                while (i + 1 < onig.Length && char.IsAsciiDigit(onig[i + 1])) i++;
+                                o.Append("(?:(?#begin:").Append(onig, first, i - first + 1).Append("))");
+                                break;
+                            }
+                            case 'k' when i + 1 < onig.Length && onig[i + 1] is '<' or '\'':
+                            {
+                                if (beginNames is null) { Warn("A named back-reference (\\k<name>) in a match or begin pattern is not supported; the rule was left out."); return false; }
+                                int close = onig.IndexOf(onig[i + 1] == '<' ? '>' : '\'', i + 2);
+                                string reference = close < 0 ? "" : onig[(i + 2)..close];
+                                if (close < 0 || !(int.TryParse(reference, out int number) || beginNames.TryGetValue(reference, out number))) { Warn($"The back-reference \\k<{reference}> names no group of the begin pattern; the rule was left out."); return false; }
+                                o.Append("(?:(?#begin:").Append(number).Append("))");
+                                i = close;
+                                break;
+                            }
                             case 'h': o.Append("[0-9a-fA-F]"); break;
                             case 'H': o.Append("[^0-9a-fA-F]"); break;
-                            case 'R': o.Append(@"(?:\r\n|[\n\r  ])"); break;
+                            case 'R': o.Append(@"(?>\r\n|[\n\v\f\r\x85\u2028\u2029])"); break;
                             case 'X': o.Append(@"(?:\P{M}\p{M}*)"); break;
-                            case 'G': Warn(@"\G (continue where the last match ended) is not supported and was dropped."); break;
+                            case 'G': o.Append(@"\G"); break; // the engine matches from the scan position, which is where \G holds
                             case 'K': Warn(@"\K (keep out) is not supported."); return false;
                             case 'p' or 'P' when i + 1 < onig.Length && onig[i + 1] == '{':
                             {
@@ -361,8 +423,12 @@ public static class TextMateImport
                                 string prop = onig[(i + 2)..close];
                                 bool negate = n == 'P' ^ prop.StartsWith('^');
                                 prop = prop.TrimStart('^');
-                                if (Properties.TryGetValue(prop, out var mapped)) prop = mapped;
-                                o.Append(negate ? @"\P{" : @"\p{").Append(prop).Append('}');
+                                if (Posix.TryGetValue(prop, out var set))
+                                {
+                                    if (!Express(set, negate, false, out var text)) return false;
+                                    o.Append(text);
+                                }
+                                else o.Append(negate ? @"\P{" : @"\p{").Append(prop).Append('}');
                                 i = close;
                                 break;
                             }
@@ -370,7 +436,14 @@ public static class TextMateImport
                         }
                         continue;
                     }
-                    if (c == '[') { i = CharacterClass(onig, i, o); continue; }
+                    if (c == '[') { atom = o.Length; i = CharacterClass(onig, i, o); continue; }
+                    if (c == '{' && Interval.Match(onig, i) is { Success: true } interval)
+                    {
+                        o.Append(interval.Value);
+                        i += interval.Length - 1;
+                        if (i + 1 < onig.Length && onig[i + 1] == '+' && atom >= 0) { Wrap("(?:", ")+"); i++; } // in Oniguruma {n,m}+ repeats the interval, it is not possessive
+                        continue;
+                    }
                     if (c == '(')
                     {
                         if (i + 1 < onig.Length && onig[i + 1] == '?')
@@ -381,6 +454,8 @@ public static class TextMateImport
                             bool capturing = rest.StartsWith('\'') || rest.StartsWith("P<", StringComparison.Ordinal) || (rest.StartsWith('<') && rest.Length > 1 && rest[1] is not ('=' or '!'));
                             if (capturing)
                             {
+                                int nameStart = rest.StartsWith("P<", StringComparison.Ordinal) ? 2 : 1, nameEnd = rest.IndexOfAny(['>', '\''], nameStart);
+                                if (nameEnd > nameStart) _names[rest[nameStart..nameEnd]] = count + 1;
                                 if (rest.StartsWith("P<", StringComparison.Ordinal)) { o.Append("(?<"); i += 3; open.Push((++count, o.Length - 3)); continue; }
                                 open.Push((++count, o.Length));
                             }
@@ -398,17 +473,21 @@ public static class TextMateImport
                         if (open.Count == 0) return false;
                         var (index, position) = open.Pop();
                         o.Append(')');
+                        atom = position;
                         if (index > 0 && open.Count == 0) groups.Add(new Group(index, position, o.Length));
                         continue;
                     }
-                    o.Append(c);
-                    if ((c is '*' or '+' or '?' or '}') && i + 1 < onig.Length && onig[i + 1] == '+' && !(c == '+' && i > 0 && onig[i - 1] == '\\'))
+                    if (c is '*' or '+' or '?')
                     {
-                        Warn("Possessive quantifiers (*+, ++, ?+) are read as greedy ones.");
-                        i++;
+                        if (i + 1 < onig.Length && onig[i + 1] == '+' && atom >= 0) { Wrap("(?>", c + ")"); i++; }
+                        else o.Append(c);
+                        continue;
                     }
+                    atom = o.Length;
+                    o.Append(c);
                 }
                 if (open.Count != 0) return false;
+                _count = count;
                 net = o.ToString();
                 _ = new Regex(net);
                 return true;
@@ -419,6 +498,12 @@ public static class TextMateImport
         /// <summary>Copies a character class starting at <paramref name="start"/>; returns the index of its closing bracket.</summary>
         private int CharacterClass(string onig, int start, StringBuilder o)
         {
+            if (LonePosix.Match(onig, start) is { Success: true } lone && Posix.TryGetValue(lone.Groups[3].Value, out var only))
+            {
+                if (!Express(only, lone.Groups[1].Length + lone.Groups[2].Length == 1, false, out var whole)) throw new ArgumentException("posix class");
+                o.Append(whole);
+                return start + lone.Length - 1;
+            }
             o.Append('[');
             int i = start + 1;
             if (i < onig.Length && onig[i] == '^') { o.Append('^'); i++; }
@@ -431,14 +516,27 @@ public static class TextMateImport
                 {
                     char n = onig[++i];
                     if (n == 'h') o.Append("0-9a-fA-F");
+                    else if (n is 'p' or 'P' && i + 1 < onig.Length && onig[i + 1] == '{' && onig.IndexOf('}', i) is var close && close > 0)
+                    {
+                        string prop = onig[(i + 2)..close];
+                        bool negate = n == 'P' ^ prop.StartsWith('^');
+                        prop = prop.TrimStart('^');
+                        if (Posix.TryGetValue(prop, out var set))
+                        {
+                            if (!Express(set, negate, true, out var text)) { Warn($"The property {prop} negated among other members of a character class is not supported."); throw new ArgumentException("negated property"); }
+                            o.Append(text);
+                        }
+                        else o.Append(negate ? @"\P{" : @"\p{").Append(prop).Append('}');
+                        i = close;
+                    }
                     else o.Append('\\').Append(n);
                 }
                 else if (c == '[' && i + 1 < onig.Length && onig[i + 1] == ':')
                 {
                     int close = onig.IndexOf(":]", i + 2, StringComparison.Ordinal);
                     string posix = close < 0 ? "" : onig[(i + 2)..close];
-                    if (PosixClasses.TryGetValue(posix.TrimStart('^'), out var mapped) && !posix.StartsWith('^')) { o.Append(mapped); i = close + 1; }
-                    else { Warn("A nested character class is not supported."); throw new ArgumentException("nested class"); }
+                    if (Posix.TryGetValue(posix.TrimStart('^'), out var set) && Express(set, posix.StartsWith('^'), true, out var text)) { o.Append(text); i = close + 1; }
+                    else { Warn("A nested character class or a negated POSIX class among other members of a class is not supported."); throw new ArgumentException("nested class"); }
                 }
                 else if (c == '[') { Warn("A nested character class is not supported."); throw new ArgumentException("nested class"); }
                 else if (c == '&' && i + 1 < onig.Length && onig[i + 1] == '&') { Warn("An intersection of character classes (&&) is not supported."); throw new ArgumentException("intersection"); }

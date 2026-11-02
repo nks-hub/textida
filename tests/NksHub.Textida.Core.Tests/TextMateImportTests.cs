@@ -61,10 +61,8 @@ public sealed class TextMateImportTests : IDisposable
         Assert.Equal(("toy", "Toy"), (result.Id, result.Name));
         Assert.Contains(result.Warnings, w => w.Contains(".lua") && w.Contains("built-in")); // the built-in Lua keeps its extension
         Assert.Contains(result.Warnings, w => w.Contains("while"));
-        Assert.Contains(result.Warnings, w => w.Contains("\\G"));
-        Assert.Contains(result.Warnings, w => w.Contains("Possessive"));
         Assert.Contains(result.Warnings, w => w.Contains("source.other") && w.Contains("include"));
-        Assert.Contains(result.Warnings, w => w.Contains("refers back"));
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("\\G") || w.Contains("ossessive") || w.Contains("refers back"));
 
         var tokenizer = TokenizerOf(result, registry);
         Assert.Equal([".toy"], tokenizer.Grammar.Extensions);
@@ -76,8 +74,126 @@ public sealed class TextMateImportTests : IDisposable
 
         Assert.Equal(["string=<<END"], Tokens(tokenizer, "<<END", ref state)); // a region goes on over the lines
         Assert.False(state.IsInitial);
-        Assert.Equal(["string=END"], Tokens(tokenizer, "END", ref state)); // the end pattern  is read as a word
+        Assert.Equal(["string=END"], Tokens(tokenizer, "END", ref state)); // the end pattern \u0001 is read as a word
         Assert.True(state.IsInitial);
+    }
+
+    private static (Tokenizer Tokenizer, TextMateImportResult Result) Convert(string rules)
+    {
+        var result = Assert.Single(TextMateImport.Convert([("t.json", JsonNode.Parse($$"""{ "scopeName": "source.t", "patterns": [ {{rules}} ] }""")!.AsObject())], BuiltinGrammars.Registry));
+        return (TokenizerOf(result, new GrammarRegistry(BuiltinGrammars.Registry)), result);
+    }
+
+    private static string Quote(string pattern) => JsonValue.Create(pattern)!.ToJsonString();
+
+    private static string Match(string pattern) => $$"""{ "match": {{Quote(pattern)}}, "name": "keyword.t" }""";
+
+    private static List<string> Run(string rules, params string[] lines)
+    {
+        var (tokenizer, _) = Convert(rules);
+        var state = tokenizer.InitialState;
+        var all = new List<string>();
+        foreach (var line in lines) all.Add(string.Join(" ", Tokens(tokenizer, line, ref state)));
+        return all;
+    }
+
+    [Fact]
+    public void Groups_of_the_begin_and_end_patterns_are_coloured_like_the_groups_of_a_match()
+    {
+        string rule = """{ "begin": "(\\w+)(=)", "end": "(;)", "name": "string.quoted.t", "beginCaptures": { "1": { "name": "variable.other.t" }, "2": { "name": "keyword.operator.t" } }, "endCaptures": { "1": { "name": "punctuation.t" } } }""";
+        Assert.Equal(["variable=x operator== string=abc punctuation=;"], Run(rule, "x=abc;"));
+        string both = """{ "begin": "<(a)", "end": "(a)>", "name": "string.t", "captures": { "1": { "name": "keyword.t" } } }""";
+        Assert.Equal(["string=< keyword=a string=b keyword=a string=>"], Run(both, "<aba>"));
+        Assert.Empty(Convert(rule).Result.Warnings);
+    }
+
+    [Fact]
+    public void A_possessive_quantifier_does_not_give_characters_back_and_an_interval_with_a_plus_repeats_the_interval()
+    {
+        Assert.Equal([""], Run(Match("^a*+a"), "aaa")); // greedy would match by giving one a back
+        Assert.Equal(["keyword=ab"], Run(Match("^(?:a|b)++"), "ab"));
+        Assert.Equal([""], Run(Match("^a++a"), "aaa"));
+        Assert.Equal([""], Run(Match("^a?+a"), "a"));
+        Assert.Equal([""], Run(Match(@"^\w*+\d"), "ab1"));
+        Assert.Equal(["keyword=aaa"], Run(Match("^a{1,2}+"), "aaa")); // (?:a{1,2})+ in Oniguruma
+        Assert.Equal(["keyword=\\++"], Run(Match(@"\\\++"), "\\++")); // an escaped plus before a quantifier is not possessive
+    }
+
+    [Fact]
+    public void A_G_anchor_holds_where_the_scan_continues_after_the_last_token()
+    {
+        Assert.Equal(["keyword=xx"], Run(Match(@"\Gx"), "xxax"));
+        Assert.Equal([""], Run(Match(@"\Gx"), "ax"));
+        Assert.DoesNotContain(Convert(Match(@"\Gx")).Result.Warnings, w => w.Contains("\\G"));
+    }
+
+    [Fact]
+    public void A_line_break_escape_is_atomic_and_knows_every_line_break_character()
+    {
+        foreach (var brk in new[] { "\u000B", "\u000C", "\u0085", "\u2028", "\u2029", "\r\n", "\r", "\n" })
+            Assert.Equal(["keyword=a" + brk + "b"], Run(Match(@"^a\Rb$"), "a" + brk + "b"));
+        Assert.Equal([""], Run(Match(@"^a\R\n"), "a\r\n")); // atomic: \R keeps the \r\n pair
+        Assert.Equal(["keyword=a\r\n"], Run(Match(@"^a\R"), "a\r\n"));
+    }
+
+    [Theory]
+    [InlineData(@"^\p{Word}+$", "a_b1", true)]
+    [InlineData(@"^\P{Word}$", "_", false)]
+    [InlineData(@"^[[:word:]]+$", "a_1", true)]
+    [InlineData(@"^[[:alpha:]]+$", "éx", true)]
+    [InlineData(@"^[[:alpha:]]$", "1", false)]
+    [InlineData(@"^[[:punct:]]+$", "$+<=>^`|~!", true)]
+    [InlineData(@"^[[:punct:]]$", "a", false)]
+    [InlineData(@"^\p{Punct}$", "$", true)]
+    [InlineData(@"^[[:space:]]$", "\u0085", true)]
+    [InlineData(@"^[[:space:]]$", "\u00A0", true)]
+    [InlineData(@"^[[:blank:]]$", "\n", false)]
+    [InlineData(@"^[[:cntrl:]]$", "\u0001", true)]
+    [InlineData(@"^[[:graph:]]+$", "ab!", true)]
+    [InlineData(@"^[[:graph:]]$", " ", false)]
+    [InlineData(@"^[[:print:]]$", " ", true)]
+    [InlineData(@"^[[:print:]]$", "\u0001", false)]
+    [InlineData(@"^[[:^alpha:]]$", "1", true)]
+    [InlineData(@"^[[:^alpha:]]$", "a", false)]
+    [InlineData(@"^[^[:alpha:]]$", "a", false)]
+    [InlineData(@"^[^[:graph:]]$", " ", true)]
+    [InlineData(@"^[[:alpha:][:digit:]_]+$", "a1_", true)]
+    [InlineData(@"^[[:xdigit:]]+$", "09afAF", true)]
+    [InlineData(@"^[[:xdigit:]]$", "g", false)]
+    [InlineData(@"^[[:upper:]]$", "a", false)]
+    [InlineData(@"^[\p{Alpha}\d]+$", "a1", true)]
+    public void The_posix_classes_and_properties_follow_the_oniguruma_definitions(string pattern, string text, bool matches)
+    {
+        var (tokenizer, _) = Convert(Match(pattern));
+        var tokens = new List<Token>();
+        tokenizer.TokenizeLine(text, tokenizer.InitialState, tokens);
+        Assert.Equal(matches, tokens.Count > 0);
+    }
+
+    [Fact]
+    public void A_back_reference_in_the_end_pattern_ends_the_region_only_at_the_text_the_begin_pattern_matched()
+    {
+        string heredoc = """{ "begin": "<<(\\S+)", "end": "^\\1$", "name": "string.t" }""";
+        Assert.Equal(["string=<<a.b", "string=aXb", "string=a.b"], Run(heredoc, "<<a.b", "aXb", "a.b")); // the dot is escaped
+        var (tokenizer, _) = Convert(heredoc);
+        var state = tokenizer.InitialState;
+        Tokens(tokenizer, "<<END", ref state);
+        Tokens(tokenizer, "END2", ref state);
+        Assert.False(state.IsInitial);
+        Tokens(tokenizer, "END", ref state);
+        Assert.True(state.IsInitial);
+        var first = tokenizer.InitialState;
+        var second = tokenizer.InitialState;
+        var third = tokenizer.InitialState;
+        Tokens(tokenizer, "<<ONE", ref first);
+        Tokens(tokenizer, "<<ONE", ref second);
+        Tokens(tokenizer, "<<TWO", ref third);
+        Assert.Same(first, second);
+        Assert.NotSame(first, third);
+
+        string named = """{ "begin": "(?<q>['\"])", "end": "\\k<q>", "name": "string.t" }""";
+        Assert.Equal(["string=\"a'b\""], Run(named, "\"a'b\""));
+        Assert.Equal(["string='a\"b'"], Run(named, "'a\"b'"));
     }
 
     [Fact]

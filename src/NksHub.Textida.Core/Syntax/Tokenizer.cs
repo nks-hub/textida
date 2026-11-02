@@ -37,7 +37,7 @@ public sealed class Tokenizer(Grammar grammar)
         while (true)
         {
             var ctx = state.Context;
-            var matcher = ctx.GetMatcher();
+            var matcher = state.Matcher;
             Match? m = null;
             if (from <= n)
             {
@@ -67,7 +67,8 @@ public sealed class Tokenizer(Grammar grammar)
             {
                 regionEnded?.Invoke();
                 Emit(tokens, pos, index, ctx.Token, shift, firstColumn, lastColumn);
-                Emit(tokens, index, index + length, ctx.EndToken, shift, firstColumn, lastColumn);
+                if (ctx.EndCaptures is { } endCaptures) EmitGroups(tokens, index, length, ctx.EndToken, endCaptures, ctx.EndMatch(matcher, text, index), shift, firstColumn, lastColumn);
+                else Emit(tokens, index, index + length, ctx.EndToken, shift, firstColumn, lastColumn);
                 state = state.Parent!;
                 pos = from = index + length;
                 continue;
@@ -90,8 +91,10 @@ public sealed class Tokenizer(Grammar grammar)
                     break;
                 case AltKind.Begin:
                     var child = a.Child!;
-                    if (state.Depth < LineState.MaxDepth) state = child.Push(state);
-                    Emit(tokens, index, index + length, child.BeginToken, shift, firstColumn, lastColumn);
+                    var begun = child.NeedsBeginMatch ? child.BeginMatch(text, index) : null;
+                    if (state.Depth < LineState.MaxDepth) state = child.Push(state, begun);
+                    if (child.BeginCaptures is { } beginCaptures) EmitGroups(tokens, index, length, child.BeginToken, beginCaptures, begun, shift, firstColumn, lastColumn);
+                    else Emit(tokens, index, index + length, child.BeginToken, shift, firstColumn, lastColumn);
                     break;
             }
             pos = from = index + length;
@@ -100,6 +103,24 @@ public sealed class Tokenizer(Grammar grammar)
         if (final)
             while (state.Parent is not null && !state.Context.Multiline) state = state.Parent;
         return pos;
+    }
+
+    /// <summary>Emits a delimiter whose capturing groups have kinds of their own; the later group paints over the earlier one where they overlap.</summary>
+    private static void EmitGroups(List<Token> tokens, int index, int length, string? kind, (int Group, string Kind)[] captures, Match? detail, int shift, int firstColumn, int lastColumn)
+    {
+        var paint = new string?[length];
+        Array.Fill(paint, kind);
+        if (detail is not null)
+            foreach (var (group, groupKind) in captures)
+            {
+                var g = detail.Groups[group];
+                if (g.Success && g.Index >= index && g.Index + g.Length <= index + length) Array.Fill(paint, groupKind, g.Index - index, g.Length);
+            }
+        for (int i = 0, run = 0; i < length; i = run)
+        {
+            for (run = i + 1; run < length && paint[run] == paint[i]; run++) { }
+            Emit(tokens, index + i, index + run, paint[i], shift, firstColumn, lastColumn);
+        }
     }
 
     private static int SafeLimit(string text, int begin)
