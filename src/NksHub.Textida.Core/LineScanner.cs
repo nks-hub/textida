@@ -4,6 +4,14 @@ using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core;
 
+/// <summary>Terminators of a run by kind: <see cref="Cr"/> lone CRs, <see cref="CrLf"/> CR+LF pairs; the rest of <see cref="Terminators"/> are LFs on their own.</summary>
+internal readonly record struct LineEndings(long Terminators, long CrLf, long Cr)
+{
+    public EolStats ToStats() => new(Clamp(Terminators - CrLf - Cr), Clamp(CrLf), Clamp(Cr));
+
+    private static int Clamp(long v) => (int)Math.Min(v, int.MaxValue);
+}
+
 /// <summary>
 /// Line terminator rules shared by the index, the reader and the tests. A terminator is a single byte:
 /// every LF, plus every CR that is not directly followed by LF. A line therefore starts at offset 0
@@ -103,6 +111,28 @@ public static class LineScanner
         4 => CountUnits(MemoryMarshal.Cast<byte, uint>(span), blockLen / 4, Native(10u, codec.BigEndian), Native(13u, codec.BigEndian)),
         _ => CountTerminators(span, blockLen),
     };
+
+    /// <summary>The terminators below <paramref name="blockLen"/> by kind in one scan; same rules and lookahead as <see cref="CountTerminators(ReadOnlySpan{byte}, int, TextCodec)"/>.</summary>
+    internal static LineEndings CountEndings(ReadOnlySpan<byte> span, int blockLen, TextCodec codec) => codec.Alignment switch
+    {
+        2 => EndingsOf(MemoryMarshal.Cast<byte, ushort>(span), blockLen / 2, Native((ushort)10, codec.BigEndian), Native((ushort)13, codec.BigEndian)),
+        4 => EndingsOf(MemoryMarshal.Cast<byte, uint>(span), blockLen / 4, Native(10u, codec.BigEndian), Native(13u, codec.BigEndian)),
+        _ => EndingsOf(span, blockLen, (byte)'\n', (byte)'\r'),
+    };
+
+    private static LineEndings EndingsOf<T>(ReadOnlySpan<T> span, int blockUnits, T lf, T cr) where T : unmanaged, IEquatable<T>
+    {
+        var block = span[..Math.Min(blockUnits, span.Length)];
+        long lfs = block.Count(lf), crlf = 0, lone = 0;
+        int from = block.IndexOf(cr);
+        while (from >= 0)
+        {
+            if (from + 1 < span.Length && span[from + 1].Equals(lf)) crlf++; else lone++;
+            int next = block[(from + 1)..].IndexOf(cr);
+            from = next < 0 ? -1 : from + 1 + next;
+        }
+        return new(lfs + lone, crlf, lone);
+    }
 
     private static long CountUnits<T>(ReadOnlySpan<T> span, int blockUnits, T lf, T cr) where T : unmanaged, IEquatable<T>
     {

@@ -34,6 +34,8 @@ public sealed class MappedFileSource : IPagedTextSource
     private int _blocks;
     private long[] _cum = [];
     private int[] _blockCounts = [];
+    private long[] _cumCrLf = [], _cumCr = []; // cumulative CRLF pairs and lone CRs, beside _cum (all terminators)
+    private int[] _blockCrLf = [], _blockCr = [];
     private bool[] _ready = [];
     private readonly object _pub = new();
     private CancellationTokenSource _cts = new();
@@ -70,6 +72,10 @@ public sealed class MappedFileSource : IPagedTextSource
         _blocks = (int)((_file.Length + _blockSize - 1) / _blockSize);
         _cum = new long[_blocks + 1];
         _blockCounts = new int[_blocks];
+        _cumCrLf = new long[_blocks + 1];
+        _cumCr = new long[_blocks + 1];
+        _blockCrLf = new int[_blocks];
+        _blockCr = new int[_blocks];
         _ready = new bool[_blocks];
         _published = 0;
     }
@@ -160,15 +166,19 @@ public sealed class MappedFileSource : IPagedTextSource
         int len = (int)Math.Min(_blockSize, _file.Length - start);
         var codec = Codec;
         var span = _file.GetSpan(start, (int)Math.Min(len + (long)codec.Alignment, _file.Length - start));
-        int count = (int)LineScanner.CountTerminators(span, len, codec);
+        var found = LineScanner.CountEndings(span, len, codec);
         lock (_pub)
         {
-            _blockCounts[b] = count;
+            _blockCounts[b] = (int)found.Terminators;
+            _blockCrLf[b] = (int)found.CrLf;
+            _blockCr[b] = (int)found.Cr;
             _ready[b] = true;
             int pub = _published;
             while (pub < _blocks && _ready[pub])
             {
                 _cum[pub + 1] = _cum[pub] + _blockCounts[pub];
+                _cumCrLf[pub + 1] = _cumCrLf[pub] + _blockCrLf[pub];
+                _cumCr[pub + 1] = _cumCr[pub] + _blockCr[pub];
                 pub++;
                 Volatile.Write(ref _published, pub);
             }
@@ -234,6 +244,29 @@ public sealed class MappedFileSource : IPagedTextSource
         if (len == 0) return _cum[b];
         var span = _file.GetSpan(start, (int)Math.Min(len + (long)Codec.Alignment, _file.Length - start));
         return _cum[b] + LineScanner.CountTerminators(span, len, Codec);
+    }
+
+    /// <summary>The terminators at offsets below <paramref name="offset"/> by kind (a CR directly before <paramref name="offset"/> counts as CRLF when an LF is at it); scans at most one index block.</summary>
+    /// <exception cref="InvalidOperationException">The index does not reach <paramref name="offset"/> yet.</exception>
+    internal LineEndings CountEndingsBefore(long offset)
+    {
+        if (offset < 0 || offset > _file.Length) throw new ArgumentOutOfRangeException(nameof(offset));
+        int b = (int)(offset / _blockSize);
+        if (b > Volatile.Read(ref _published)) throw new InvalidOperationException("The line index does not cover this offset yet.");
+        var before = new LineEndings(_cum[b], _cumCrLf[b], _cumCr[b]);
+        long start = (long)b * _blockSize;
+        int len = (int)(offset - start);
+        if (len == 0) return before;
+        var found = LineScanner.CountEndings(_file.GetSpan(start, (int)Math.Min(len + (long)Codec.Alignment, _file.Length - start)), len, Codec);
+        return new(before.Terminators + found.Terminators, before.CrLf + found.CrLf, before.Cr + found.Cr);
+    }
+
+    /// <summary>The terminators of the whole file by kind, counted while the line index was built; false until the index is complete.</summary>
+    internal bool TryGetEndings(out LineEndings endings)
+    {
+        int pub = Volatile.Read(ref _published);
+        endings = pub == _blocks ? new(_cum[pub], _cumCrLf[pub], _cumCr[pub]) : default;
+        return pub == _blocks;
     }
 
     /// <summary>

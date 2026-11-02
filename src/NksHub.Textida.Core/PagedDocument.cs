@@ -211,6 +211,22 @@ public sealed class PagedDocument : IPagedTextSource
         return true;
     }
 
+    /// <summary>
+    /// The line endings of the whole current text by kind: the counts of the index blocks, or after edits the aggregate of the piece tree. False while the base file index is not complete.
+    /// </summary>
+    public bool TryGetEolStats(out EolStats stats)
+    {
+        LineEndings endings;
+        if (IsModified)
+        {
+            if (!EnsureLineTracking()) { stats = default; return false; }
+            endings = _tree.Endings;
+        }
+        else if (!_source.TryGetEndings(out endings)) { stats = default; return false; }
+        stats = endings.ToStats();
+        return true;
+    }
+
     private bool EnsureLineTracking()
     {
         if (_tree.TracksLines) return true;
@@ -225,21 +241,27 @@ public sealed class PagedDocument : IPagedTextSource
         bool whole = p.Length % w == 0; // only a partial unit at the very end of the file can break this
         bool firstLf = whole && LineScanner.Unit(PieceBytes(p with { Length = w }), 0, Codec) == 10;
         bool lastCr = whole && LineScanner.Unit(PieceBytes(p with { Start = p.Start + p.Length - w, Length = w }), 0, Codec) == 13;
-        long n;
+        long n, crlf = 0, cr = 0;
         if (p.Repeated && p.Pattern.AsSpan().IndexOfAny((byte)10, (byte)13) < 0) n = 0;
         else if (p.Original)
         {
             long end = p.Start + p.Length;
-            n = _source.CountTerminatorsBefore(end) - _source.CountTerminatorsBefore(p.Start);
-            // the base index skips a CR followed by LF; read on its own the piece ends with a terminator
-            if (lastCr && end + w <= _source.ByteLength && LineScanner.Unit(_source.File.GetSpan(end, w), 0, Codec) == 10) n++;
+            var (te, ce, re) = _source.CountEndingsBefore(end);
+            var (ts, cs, rs) = _source.CountEndingsBefore(p.Start);
+            (n, crlf, cr) = (te - ts, ce - cs, re - rs);
+            // the base index pairs a CR with the LF after it; read on its own the piece ends with a lone CR
+            if (lastCr && end + w <= _source.ByteLength && LineScanner.Unit(_source.File.GetSpan(end, w), 0, Codec) == 10) (n, crlf, cr) = (n + 1, crlf - 1, cr + 1);
         }
         else
         {
             n = 0;
-            foreach (var (_, buffer, length) in PieceChunks(p)) n += LineScanner.CountTerminators(buffer.AsSpan(0, length), length, Codec);
+            foreach (var (_, buffer, length) in PieceChunks(p))
+            {
+                var found = LineScanner.CountEndings(buffer.AsSpan(0, length), length, Codec);
+                (n, crlf, cr) = (n + found.Terminators, crlf + found.CrLf, cr + found.Cr);
+            }
         }
-        return new LineStats(n, firstLf, lastCr);
+        return new LineStats(n, firstLf, lastCr, crlf, cr);
     }
 
     /// <summary>
