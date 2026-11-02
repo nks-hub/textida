@@ -46,6 +46,8 @@ internal sealed class McpHttpTransport : IAsyncDisposable
     private readonly TimeSpan _grace;
     private readonly bool _legacy;
     private readonly TaskCompletionSource<Endpoint> _endpoint = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private Task? _initializedPost;
     private readonly Task _stream = Task.CompletedTask;
     private readonly Channel<byte[]> _incoming = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(64) { SingleReader = true });
     private readonly CancellationTokenSource _lifetime = new();
@@ -76,6 +78,12 @@ internal sealed class McpHttpTransport : IAsyncDisposable
     /// <summary>Whether disposing the transport also disposes the <see cref="HttpClient"/>; false while a caller may still want it for another attempt.</summary>
     public bool OwnsHttp { get; set; } = true;
 
+    /// <summary>
+    /// Ends when the writer has passed <c>notifications/initialized</c> (the server acknowledged it, or the wait for that ran out) or the transport is disposed. Until then the
+    /// next request waits behind it, so the deadline of a call must not start before.
+    /// </summary>
+    public Task Initialized => _initialized.Task;
+
     /// <summary>What the JSON-RPC layer reads: the answers, one per line.</summary>
     public Stream Input { get; }
 
@@ -99,6 +107,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
             _posts.Add(post);
         }
         _ = post.ContinueWith(t => { lock (_gate) _posts.Remove(t); }, TaskScheduler.Default);
+        if (sent.Method == "notifications/initialized") _initializedPost = post;
         return sent.Method is not null && sent.Id is null && sent.CancelTarget is null ? post : null;
     }
 
@@ -370,6 +379,7 @@ internal sealed class McpHttpTransport : IAsyncDisposable
         }
         await _lifetime.CancelAsync().ConfigureAwait(false);
         _incoming.Writer.TryComplete();
+        _initialized.TrySetResult();
         Task[] posts;
         lock (_gate) posts = [.. _posts, _stream];
         try { await Task.WhenAll(posts).WaitAsync(_grace).ConfigureAwait(false); }
@@ -424,6 +434,10 @@ internal sealed class McpHttpTransport : IAsyncDisposable
                 if (owner.Send(line) is not { } notification) continue;
                 try { await notification.WaitAsync(owner._grace, cancellationToken).ConfigureAwait(false); }
                 catch (TimeoutException) { /* a server that does not acknowledge a notification must not stop the messages behind it */ }
+                finally
+                {
+                    if (notification == owner._initializedPost) owner._initialized.TrySetResult();
+                }
             }
         }
 
