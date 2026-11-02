@@ -197,11 +197,11 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** v kořeni je `LICENSE` s textem MIT a `README.md` s popisem, požadavky (podporované systémy podle R10) a postupem sestavení, který projde na čistém stroji podle textu README; jazyk README odpovídá P1.1.7.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu; účtuje se v P1
-- [ ] **PR.5.2** Záznam odchylek od PSPadu
+- [x] **PR.5.2** Záznam odchylek od PSPadu
   - **Co a proč:** rozbor PSPadu žádá zapsat odchylky do `docs/deviations` (přesnější sonda UTF-8, UTF-32, hlášení ztráty a smíšených konců). Stejně se zapíšou odchylky z `08`.
   - **Funkce:** žádná (dokumentace)
   - **Hotovo, když:** každá vědomá odchylka od chování PSPadu má řádek s odkazem na kapitolu rozboru a na test.
-  - **Stav 2. 11. 2026:** `docs/deviations.md` má 23 odchylek (kódování 14, chování editoru 8, zvýraznění 1), každou s kapitolou a oddílem rozboru a s testem `třída.metoda`; všechny odkazy na testy ověřené proti `tests/`. Odchylky chování editoru platí ve výchozím profilu, profil `pspad` vrací původní chování. U Home/End a Alt+tahu byl testovaný jen profil `pspad`; testy výchozího profilu se dopisují. Bez dokladu záměru, proto mimo tabulku: U+2028 jako konec řádku, `<meta charset>` a `charset` z HTTP.
+  - **Stav 2. 11. 2026:** `docs/deviations.md` má 23 odchylek (kódování 14, chování editoru 8, zvýraznění 1), každou s kapitolou a oddílem rozboru a s testem `třída.metoda`; všechny odkazy na testy ověřené proti `tests/`. Odchylky chování editoru platí ve výchozím profilu, profil `pspad` vrací původní chování. U Home/End a Alt+tahu byl testovaný jen profil `pspad`; testy výchozího profilu doplněné (082e2dc8, sloučeno 32d98035, `SmartKeysAndProfileEditorTests` 20/20) a ukázaly, že Home se ve výchozím profilu chová jako v PSPadu a liší se jen End, řádek je opravený. Kontrola: všech 47 odkazů na testy v tabulce v `tests/` existuje, žádný řádek není bez testu. Bez dokladu záměru, proto mimo tabulku: U+2028 jako konec řádku, `<meta charset>` a `charset` z HTTP.
   - **Závisí na:** P1.3.1
   - **Odhad:** bez odhadu; účtuje se v P1–P3
 
