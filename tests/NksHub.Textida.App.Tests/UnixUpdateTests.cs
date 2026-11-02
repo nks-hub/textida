@@ -192,4 +192,31 @@ public sealed class UnixUpdateTests : IDisposable
         server.Routes["/feed.json"] = Encoding.UTF8.GetBytes(AppUpdater.CreateFeed(key, [releases[0], releases[0]]));
         Assert.Equal(UpdateError.WrongSystem, (await Assert.ThrowsAsync<UpdateException>(() => updater.CheckAsync("1.0.0", "win-x64", CancellationToken.None))).Error);
     }
+
+    [Fact]
+    public async Task A_signed_feed_counts_until_it_expires_and_one_without_an_expiry_is_refused_on_every_system()
+    {
+        using var server = new FeedServer();
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        // signed like tools/SignUpdateFeed.cs: the dates beside the releases
+        string Feed(long? expires)
+        {
+            var item = new System.Text.Json.Nodes.JsonObject { ["version"] = "1.1.0", ["rid"] = "linux-x64", ["url"] = "l.tar.gz", ["sha256"] = new string('0', 64), ["size"] = 1 };
+            var payload = new System.Text.Json.Nodes.JsonObject { ["issued"] = now - 60, ["releases"] = new System.Text.Json.Nodes.JsonArray(item) };
+            if (expires is { } at) payload["expires"] = at;
+            var text = payload.ToJsonString();
+            return new System.Text.Json.Nodes.JsonObject { ["format"] = 1, ["payload"] = text, ["signature"] = Convert.ToBase64String(key.SignData(Encoding.UTF8.GetBytes(text), HashAlgorithmName.SHA256)) }.ToJsonString();
+        }
+        var updater = new AppUpdater(new HttpClient(), server.Base + "feed.json", Convert.ToBase64String(key.ExportSubjectPublicKeyInfo()), Install);
+
+        server.Routes["/feed.json"] = Encoding.UTF8.GetBytes(Feed(now + 86400));
+        Assert.Equal("1.1.0", (await updater.CheckAsync("1.0.0", "linux-x64", CancellationToken.None))?.Version);
+
+        foreach (var stale in new[] { Feed(now - 1), Feed(null) }) // a replayed feed: expired, or made before feeds had an expiry
+        {
+            server.Routes["/feed.json"] = Encoding.UTF8.GetBytes(stale);
+            Assert.Equal(UpdateError.BadFeed, (await Assert.ThrowsAsync<UpdateException>(() => updater.CheckAsync("1.0.0", "linux-x64", CancellationToken.None))).Error);
+        }
+    }
 }
