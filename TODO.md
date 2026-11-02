@@ -162,6 +162,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Hotovo, když:** balík skutečně stažený přes prohlížeč projde Gatekeeperem na čistém Macu s Apple Silicon i Intel bez ruční výjimky, a to na macOS 14 i na novějších verzích ze seznamu P1.1.6; každý distribuovaný spustitelný soubor včetně přibalených procesů je podepsaný Developer ID s Hardened Runtime a časovým razítkem; přiložený notarizační ticket projde kontrolou bez sítě; záznam uvádí Developer ID, výsledek notarizace, hash balíku a verzi OS pro oba RID; přibalené pluginy se spustí.
   - **Závisí na:** PR.1.2
   - **Odhad:** bez odhadu; účtuje se v P3 (P3.7.1) a P9
+  - **Poznámka 2. 11. 2026:** návrh skriptu pro podpis Developer ID a notarizaci (`tools/BuildMacPackage.sh`, výběr identity v dočasné klíčence, podpis vnořených programů před hlavním, 4 commity z 27. 10.) leží v místní větvi `wip/mac-notarize-script`; main dnes podepisuje ad hoc v `tools/BuildMacPackage.cs`. Při zahájení PR.3.1 převést do C# nástroje.
 - [ ] **PR.3.2** Podpis buildů pro Windows (Authenticode)
   - **Co a proč:** plán P9 určuje podpis buildů pro Windows přes Authenticode. Zbývá provedení: typ certifikátu a přístup k němu.
   - **Funkce:** žádná (infrastruktura)
