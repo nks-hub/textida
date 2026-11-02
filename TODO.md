@@ -193,6 +193,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Závisí na:** P1.1.3
   - **Odhad:** bez odhadu; účtuje se v P1 a P9
   - **Stav 2. 11. 2026 (2ec87afb, sloučeno 9882a7f3):** kontrast 4,5:1 se teď testuje i ve světlém a tmavém tématu: všechny dvojice text/pozadí a všechny barvy syntaxe na editoru i na řádku s kurzorem. Test našel a opravy upravily: čísla řádků 3,2 a 3,6:1, tmavé přidané slovo v diffu 3,9:1, světlé number, type, log.debug a log.warning na řádku s kurzorem, tmavý komentář 4,49:1, světlý Accent na InfoBg 4,49:1 (`App.axaml`, `SyntaxPalette.cs`). `ContrastThemeTests` 16/16. Barvy nikdo neviděl v běžící aplikaci.
+  - **Oprava 2. 11. 2026 (b472b872, sloučeno f3c7c083):** v porovnání, kde žádná strana nepřijímá změny, měl první řádek úseku jen barvu; teď má v okraji svislou čáru jako ostatní řádky (WCAG 1.4.1). `DiffGutterMarkTests` 6/6.
 
 ### PR.5 Dokumentace
 
@@ -762,6 +763,7 @@ měření obojí řadí do P1 jako samostatné úkoly. P1 ověří nativní vrst
   - **Závisí na:** P1.4.1, P1.8.3
   - **Odhad:** bez odhadu
   - **Stav 2. 11. 2026 (33310bdb, sloučeno 4705b21f):** `DocumentTextSurface` po změně jedné pasáže (psaní, mazání, undo/redo) upraví text a začátky řádků přímo, celý dokument čte znovu jen při více úsecích, skrytých tajných hodnotách nebo nepřipraveném indexu; 200 úhozů v 1 MiB dokumentu dekóduje 200 znaků místo celého textu, 400 náhodných úprav (CRLF, emoji, undo/redo) souhlasí s úplným načtením. Testy Accessibility 7/7, 11/11, 4/4. Skutečná čtečka neověřena.
+  - **Stav 2. 11. 2026 (13894138, sloučeno f3c7c083):** i změna o více úsecích (např. 1000 kurzorů) se do `DocumentTextSurface` promítne po úsecích bez čtení celého dokumentu. Náhodný test proti úplnému čtení (400 kroků s undo) našel a opravené jsou dvě starší chyby: špatná pozice na hranici CR/LF při undo a nepřepočtené řádky po vložení doprostřed páru CR/LF. Projekt Accessibility 24/24. Posun začátků řádků je u každého úseku lineární.
 - [ ] **P1.8.2** Kontrola preeditu IME
   - **Co a proč:** AvaloniaEdit hlásí `SupportsPreedit = false`; rozpracovaný text IME se kreslí v okně systému. Ručně ověřit českou, japonskou a čínskou klávesnici a podle výsledku doplnit preedit v řádku.
   - **Funkce:** žádná (infrastruktura)
@@ -3287,6 +3289,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Kontrola 2. 11. 2026:** výběr ve stránkovaném režimu se už barví podle skutečného stavu gramatiky na řádku (`ReadPagedExportSourceAsync` přes `StartStateOfLineAsync`, test `A_selection_in_a_large_file_is_colored_as_the_whole_document` s blokovým komentářem i řetězcem); řádek „Chybí“ byl zastaralý.
   - **Stav 2. 11. 2026 (25ffd936):** „Exportovat jako PDF…“ (podmenu Export vedle HTML a RTF, cs/en/sk/de) už existoval; přibyl test, že PDF výběru má jen vybraný text a aspoň 3 barvy výplně (dřívější kontrola barev ignorovala desetinná čísla operátoru `rg`). `PrintAppTests` 3/3. TeX nedělán.
   - **Stav 2. 11. 2026 (2c982f61, sloučeno 9882a7f3):** export jako LaTeX (`nks.file.exportTex`, Soubor › Exportovat): samostatný UTF-8 dokument s barvami stránky a tokenů z tématu, `\textcolor` ve `Verbatim`, zpětné lomítko a složené závorky přes makra; menu, názvy a nápověda ve 4 jazycích. Testy čtou výstup zpět a porovnávají text i barvy s editorem (57/57, 17/17). Překlad pdfLaTeXem/XeLaTeXem neověřen (na vývojovém PC není).
+  - **Oprava 2. 11. 2026 (99e329c1):** export LaTeX zapisuje tabulátory jako mezery na zarážky po 4 sloupcích (`obeytabs` uvnitř `\textcolor` sloupec neměří) a vypouští DEL, řídicí znaky C1 a BOM uprostřed textu; ostatní speciální znaky jsou ve `Verbatim` s `commandchars` doslovné.
 - [x] **P9.3.3** Markdown tabulky a obsah
   - **Co a proč:** `Tab` mezi buňkami, `Shift+Enter` nový řádek, zarovnání sloupců, oprava rozbité tabulky, obsah v `<!-- TOC -->`, Mermaid v náhledu F099 přes řízený vstup z P6.2.4. `Tab` mimo tabulku plugin předá zpět jádru (P3b.3.5). Revize upozorňuje, že API v1 na celou funkci nestačí.
   - **Funkce:** F190
@@ -3566,6 +3569,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Stav 2. 11. 2026 (9fb56650, sloučeno d05d6fce):** přesně převedeno: `beginCaptures`/`endCaptures` (a `captures` pro obojí) se barví po skupinách jako u `match`; přivlastňovací `*+`, `++`, `?+` jako atomická skupina; `\G` zůstává (engine hledá přes `Match(text, from)`); `\R` jako `(?>\r\n|[\n\v\f\r\x85\u2028\u2029])`; třídy POSIX a `\p{Word}` aj. podle Onigurumy (s `_`, i uvnitř závorek a v negaci); zpětný odkaz v `end` se dosadí z textu `begin` (escapovaný, vzory v cache). `{n,m}+` zůstává opakováním intervalu jako v syntaxi Ruby Onigurumy. Dál nepodporováno: `\K`, absence operátor, vnořené a protnuté třídy, `while`, zpětný odkaz v `match`/`begin` (hlášeno). Lokálně `TextMateImportTests` 44/44, testy Grammar/Tokenizer/Syntax 411/411, brána psaní p95 16,4 ms.
   - **Stav 2. 11. 2026 (c296a3f2, sloučeno 4705b21f):** tokenizer umí `begin`/`while`: oblast pokračuje na dalším řádku, jen když vzor `while` sedí na jeho začátku, `whileCaptures` se barví, vnořené oblasti se kontrolují od vnější; regex `while` se kompiluje jednou na oblast. `\K` se převádí na lookbehind, uvnitř skupiny, vedle alternace nejvyšší úrovně nebo vícenásobně se hlásí. Testy `TextMateImportTests`, `SyntaxGrammarFormatTests`, `MarkdownSyntaxTests` 106/106. Mez: streamovací relace obřích souborů `while` neumí (běží jen nad vestavěnými gramatikami).
   - **Stav 2. 11. 2026 (5f357d35, sloučeno 4df42dea):** vnořené třídy `[a[bc]]`, průnik `[a-z&&[^aeiou]]` (přes lookahead, přesně), negované vnořené třídy i negované POSIX třídy mezi členy; absenční operátor `(?~abc)` jen pro literální text, jinak hlášen. `TextMateImportTests` 79/79.
+  - **Kontrola 2. 11. 2026:** importované gramatiky se do `StreamingSyntaxSession` nedostanou (žijí v podřízeném registru, `CheckpointSyntaxSession` pro cizí registr streaming nezakládá a vrací `FullLineRequired`); streaming slouží jen řádkům nad 1 Mi znaků a vestavěné gramatiky `while` nepoužívají, takže mez z předchozího řádku v praxi nenastává.
 - [x] **PZ.5.4** Prohlížeč .NET sestavení
   - **Co a proč:** `.dll` jen pro čtení jako dekompilovaný C# přes `ICSharpCode.Decompiler` (MIT).
   - **Funkce:** F193
