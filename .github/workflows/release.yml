@@ -63,6 +63,12 @@ jobs:
           $p = Start-Process smoke/Textida.exe -ArgumentList '--smoke' -Wait -PassThru -NoNewWindow -RedirectStandardOutput smoke.out -RedirectStandardError smoke.err
           Get-Content smoke.out, smoke.err
           if ($p.ExitCode -ne 0) { throw "smoke test failed with $($p.ExitCode)" }
+      - name: No network
+        shell: pwsh
+        run: |
+          # the smoke run again under an OS-level watch: any socket to a non-loopback address fails
+          dotnet run tools/CheckNoNetwork.cs -- smoke/Textida.exe --smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Sample plugin
         shell: pwsh
         run: |
@@ -107,6 +113,8 @@ jobs:
         run: |
           ditto -x -k "artifacts/Textida-$VERSION-${{ matrix.rid }}.zip" smoke
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" smoke/Textida.app/Contents/MacOS/Textida --smoke
+      - name: No network
+        run: dotnet run tools/CheckNoNetwork.cs -- smoke/Textida.app/Contents/MacOS/Textida --smoke
       - name: Sample plugin
         run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
       - name: No PSPad files in the package
@@ -152,6 +160,8 @@ jobs:
           mkdir smoke
           tar -xzf "artifacts/Textida-$VERSION-${{ matrix.rid }}.tar.gz" -C smoke
           TEXTIDA_PROFILE="$RUNNER_TEMP/textida-profile" xvfb-run -a "smoke/Textida-$VERSION-${{ matrix.rid }}/Textida" --smoke
+      - name: No network
+        run: dotnet run tools/CheckNoNetwork.cs -- xvfb-run -a "smoke/Textida-$VERSION-${{ matrix.rid }}/Textida" --smoke
       - name: Sample plugin
         run: dotnet run tools/CheckSamplePlugin.cs -- --rid ${{ matrix.rid }}
       - name: No PSPad files in the packages
