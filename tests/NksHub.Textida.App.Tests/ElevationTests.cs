@@ -144,9 +144,83 @@ public class ElevatedHelperTests : IDisposable
         Assert.Contains("set a1 to \"--elevated-install\"", script);
         Assert.DoesNotContain("shasum", script);
         Assert.DoesNotContain("/bin/cp", script);
-        string read = SystemElevation.MacReadScript("/private/etc/x", "/tmp/y", 100);
-        Assert.Contains("-le 100", read);
-        Assert.Contains("/usr/sbin/chown", read);
+
+        // a read runs the same helper as root too: no stat, cp or chown of the shell on paths the user could swap, and the answer comes on the standard output ("-"), not in a file
+        string read = SystemElevation.MacHelperScript(SystemElevation.LinuxArguments("/Applications/Textida.app/Contents/MacOS/Textida", null, "--elevated-read-as", ["/private/etc/x 'y'", "textida-read-1", "100", "501"], "-"));
+        Assert.Contains("set a1 to \"--elevated-read-as\"", read);
+        Assert.Contains("set a2 to \"/private/etc/x 'y'\"", read);
+        Assert.Contains("set a6 to \"-\"", read);
+        Assert.EndsWith("quoted form of a6 with administrator privileges", read);
+        foreach (string shell in new[] { "stat", "/bin/cp", "chown", "test " }) Assert.DoesNotContain(shell, read);
+    }
+
+    [Fact]
+    public void The_read_as_root_takes_only_a_plain_folder_name_in_the_shared_temporary_folder()
+    {
+        string source = Staged("secret");
+        foreach (string name in new[] { "", ".", "..", "../etc", "a/b", "/etc" })
+        {
+            string result = Path.Combine(_dir, Guid.NewGuid().ToString("N") + ".result");
+            Assert.Equal(1, ElevatedHelper.Run(["--elevated-read-as", source, name, "100", "501", result]));
+            Assert.Contains("plain name", File.ReadAllText(result));
+        }
+        Assert.Equal(1, ElevatedHelper.Run(["--elevated-read-as", source, "x", "100", "-1", Path.Combine(_dir, "uid.result")])); // not a user id
+        Assert.Contains("arguments", File.ReadAllText(Path.Combine(_dir, "uid.result")));
+    }
+
+    [Fact]
+    public void The_read_as_root_writes_a_0600_copy_in_a_new_0700_folder_and_hands_both_to_the_user()
+    {
+        if (OperatingSystem.IsWindows()) return; // the job of macOS and Linux (open, mkdir, fchown of libc)
+        string source = Staged("secret text"), folder = Path.Combine(_dir, "read");
+        uint me = ElevatedHelper.getuid();
+
+        string copy = ElevatedHelper.ReadAs(source, folder, 1000, me);
+
+        Assert.Equal(Path.Combine(folder, ElevatedHelper.CopyName), copy);
+        Assert.Equal("secret text", File.ReadAllText(copy));
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(copy));
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, File.GetUnixFileMode(folder));
+        Assert.Equal(me.ToString(), Owner(copy));
+        Assert.Equal(me.ToString(), Owner(folder));
+
+        if (me != 0) Assert.Throws<ElevationException>(() => ElevatedHelper.ReadAs(source, Path.Combine(_dir, "other"), 1000, 0)); // the copy really is chowned: a user may not give it to root
+    }
+
+    [Fact]
+    public void The_read_as_root_refuses_a_folder_that_exists_a_linked_folder_a_linked_source_and_a_file_over_the_limit()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        string source = Staged("secret");
+        uint me = ElevatedHelper.getuid();
+
+        string existing = Path.Combine(_dir, "existing");
+        Directory.CreateDirectory(existing);
+        Assert.Throws<ElevationException>(() => ElevatedHelper.ReadAs(source, existing, 1000, me));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(existing));
+
+        string elsewhere = Path.Combine(_dir, "elsewhere"), linked = Path.Combine(_dir, "linked");
+        Directory.CreateDirectory(elsewhere);
+        Directory.CreateSymbolicLink(linked, elsewhere);
+        Assert.Throws<ElevationException>(() => ElevatedHelper.ReadAs(source, linked, 1000, me));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(elsewhere)); // nothing written where the link points
+
+        string link = Path.Combine(_dir, "source-link");
+        File.CreateSymbolicLink(link, source);
+        Assert.Throws<ElevationException>(() => ElevatedHelper.ReadAs(link, Path.Combine(_dir, "via-link"), 1000, me));
+        Assert.False(Directory.Exists(Path.Combine(_dir, "via-link")));
+
+        Assert.Throws<ElevationException>(() => ElevatedHelper.ReadAs(source, Path.Combine(_dir, "big"), 3, me));
+        Assert.False(Directory.Exists(Path.Combine(_dir, "big"))); // checked before anything is made
+    }
+
+    private static string Owner(string path)
+    {
+        var info = new ProcessStartInfo("stat", OperatingSystem.IsMacOS() ? ["-f", "%u", path] : ["-c", "%u", path]) { RedirectStandardOutput = true, UseShellExecute = false };
+        using var process = Process.Start(info)!;
+        string owner = process.StandardOutput.ReadToEnd().Trim();
+        process.WaitForExit();
+        return owner;
     }
 
     [Fact]
