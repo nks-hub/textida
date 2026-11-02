@@ -105,7 +105,15 @@ public sealed class NetRecorder : EventListener
     {
         _sink = sink;
         if (freshProcess) Interlocked.CompareExchange(ref _datagrams, 0, -1);
+        _built = true;
     }
+
+    // the sources that exist already are announced while the base constructor runs; one announced after it was created after the recorder
+    private volatile bool _built;
+    private volatile bool _socketsSource;
+
+    /// <summary>The socket event source exists; it is created with the first socket of the process, so before it no datagram can have been counted.</summary>
+    public bool SocketsSourceExists => _socketsSource;
 
     public string Process => _process;
 
@@ -136,6 +144,9 @@ public sealed class NetRecorder : EventListener
         switch (source.Name)
         {
             case "System.Net.Sockets":
+                // created after the recorder: its counter starts at 0 with this recorder watching, so the first report is growth, not the level
+                if (_built) Interlocked.CompareExchange(ref _datagrams, 0, -1);
+                _socketsSource = true;
                 // 1 s is the shortest interval the counters take; a fraction is parsed with the culture of the machine
                 EnableEvents(source, EventLevel.Informational, EventKeywords.All, new Dictionary<string, string?> { ["EventCounterIntervalSec"] = "1" });
                 break;
