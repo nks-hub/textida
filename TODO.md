@@ -97,6 +97,7 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
   - **Nález 31. 10. 2026 (měření referenčního stroje):** na referenční Windows VM nejde bránu 33 ms posoudit. Pět střídavých běhů starého (4361560b) a nového main (41bee928), p95 medián (min–max): psaní 54,7 (45,9–57,3) proti 43,9 (40,2–44,4) ms, minimapa 10k řádků 81,8 (77,6–98,8) proti 97,5 (79,9–115,8) ms, minimapa 100k 88,0 proti 88,3 ms. Rozptyl uvnitř jednoho buildu 15–25 %, tentýž kód během dne 35 → 57 ms. Regrese prokázaná není. Úkol: stabilizovat referenční stroj (vyhrazená jádra a vypnutá úspora energie hostitele, nebo měření na fyzickém stroji či na Macu) a teprve pak brány hodnotit; `WordCompletion` p95 34 ms proti limitu 33 ms je v tomto šumu.
   - **Měření 31. 10. 2026 na Macu (Apple Silicon, main 2bf10da, headless, 5 běhů, p95 medián):** psaní 38,6 ms (brána 33 ms splněna 1 z 5), minimapa 10k 40,2 ms (1 z 5), minimapa 100k 56,0 ms (0 z 5, trvale 1,7× nad), WordCompletion 5/5. Mac je stabilní (rozptyl 5–10 %), takže jde o skutečnou rychlost kódu. Zadáno: najít commit, od kterého psaní zpomalilo (28. 10. bylo na Macu p95 28 ms), a zrychlit minimapu 100k řádků.
   - **Ověření 31. 10. 2026 na Macu (main 5ca0866, 5 běhů, p95 medián):** psaní 300k řádků 10,3 ms, minimapa 10k 23,4 ms, minimapa 100k 28,7 ms, WordCompletion 11 ms; všech 20 běhů splnilo bránu 33 ms (před opravou 38,6 / 40,2 / 56,0 ms).
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): 83 výkonových testů, 76 prošlo, 2 přeskočené (publikovaný nativní plugin), 5 neprošlo: psaní s 1000 kurzory (p95 34,5 / 38,0 / 33,4 ms, limit 33), tažení minimapy 300k řádků (p95 46,9 ms), okno přepisu 1,2 GiB s teplou cache (index nedoběhl do 120 s), mimo Perf `TerminalTests.A_real_shell_...` (ConPTY bez výzvy do 20 s) a `ChildPipeTests.ManyChildProcesses...` (2037 ms, limit 1 s) při souběhu projektů. Tytéž tři brány neprošly ani na dcbf0828 před dávkou 9 (1000 kurzorů p95 37–41 ms, minimapa 92 ms); main byl v párovém běhu u 1000 kurzorů o 6–8 ms pomalejší. Příčiny hledá ladění. Prošly mimo jiné psaní 1 MiB (`EditorTests`, `SyntaxViewTests`), psaní na stránkované ploše, dlouhé řádky 100 MiB, hex, mapa 50 GiB do 1 s, doplňování 33 ms, statistika 10 GiB, záznamy pádu ukládání 2 GiB a 50 GiB. Druhý stroj R8 (referenční Mac) v tomto běhu neměřen.
 - [ ] **PR.2.3** Latence psaní a posunu na skutečném displeji
   - **Co a proč:** Měření v P0 bylo headless a neobsahuje prezentaci na displeji. Cíl p95 ≤ 33 ms, p99 ≤ 80 ms platí od vstupu po prezentaci. Počet přečtených bajtů není čas vykreslení.
   - **Funkce:** žádná (infrastruktura)
@@ -1331,6 +1332,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Ověření 29. 10. 2026 (noc):** oprava šipky je v main; rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb). Zbývá Perf se 100 000 položkami a pohled v běžící aplikaci.
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): `FileTreeTests.A_folder_with_a_hundred_thousand_files_opens_after_one_listing`, `FileTreeHiddenAndContentTests.Switching_the_hidden_entries_of_a_folder_with_a_hundred_thousand_files_is_one_pass_over_its_listing` a `GitFileStatusTests.A_hundred_thousand_entries_are_built_and_read_in_well_under_a_second` prošly. Zbývá pohled v běžící aplikaci.
 - [ ] **P3.6.11** Prohlížení obrázků
   - **Co a proč:** Obrázek (PNG, JPEG, GIF, BMP, WebP, ICO, rozpoznané podle začátku souboru) se dnes otevře jako binární text. Má se otevřít jako obrázek: přizpůsobit oknu, 100 %, lupa a posun, šachovnice pod průhledností, rozměry, formát a velikost souboru ve stavovém řádku; lišta nabídne „Zobrazit jako text“ a „Zobrazit jako hex“ a volba se dá změnit i v nastavení. Jen prohlížení, žádné úpravy; SVG je text a otevře se jako text. Dekódování s limity bajtů a pixelů (stávající kód obrázků náhledu), aby obří nebo poškozený soubor nezahltil paměť.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1357,6 +1359,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
     - Testy: 32 headless testů (`OccurrenceHighlightTests`), 12 mutací kódu odhaleno.
     - Neověřeno: Perf (testy napsané), čtečka, IME, macOS. Soubory jen s CR mají značky na špatných řádcích, stejně jako značky Hledání (`SearchWorker`).
   - **Ověření 29. 10. 2026 (noc):** rychlá sada na testovacím virtuálu nad main d75476eb prošla (App 1862, Core 2828, Rpc 1146, bez chyb), včetně 32 nových testů. Zbývá Perf a pohled v běžící aplikaci.
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): `OccurrenceHighlightPerfTests` 3/3 (psaní se zvýrazněním se slovem u kurzoru i bez něj v rozpočtu psaní, překreslení obrazovky plné výskytů v jednom snímku). Zbývá pohled v běžící aplikaci.
 - [ ] **P3.6.13** Nástrojová lišta podle uživatele
   - **Co a proč:** Majitel chce nástrojovou lištu, kterou si uživatel přizpůsobí: přidat, odebrat a přeřadit tlačítka z registru příkazů (včetně příkazů pluginů), oddělovače, ikony s popiskem nebo bez, velikost. Vzhled D5 počítá s oknem bez pruhu tlačítek, proto je lišta volitelná: zapíná se v menu Zobrazit, ve výchozím stavu je vypnutá a vzhled D5 bez ní zůstává beze změny. Nastavení lišty se ukládá do profilu a jde vrátit na výchozí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -2000,7 +2003,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
 
 ### P4.8 Balík textových nástrojů
 
-- [ ] **P4.8.1** Balík textových nástrojů: statistika
+- [x] **P4.8.1** Balík textových nástrojů: statistika
   - **Co a proč:** Jeden balík vestavěných pluginů, jeden proces pro statistiku (tady), hashe (P4.8.2) a výrazy se soustavami (P4.8.3). Statistika asynchronně po blocích s viditelnou neúplností.
   - **Funkce:** F036
   - **Stav 26. 10. 2026:** částečně: vestavěný plugin `NksHub.Textida.Plugins.TextTools` počítá statistiku celého dokumentu po 1MiB blocích na pozadí s průběhem a zrušením (zrušený běh ukáže počet spočtených bajtů); Large test 10 GiB drží živou paměť pod 64 MiB. Otevřená rozhodnutí: definice slova (dnes písmena a číslice); chybí tabulky četností; limity jsou zástupné hodnoty.
@@ -2010,6 +2013,7 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Umístění:** vestavěný plugin (textové nástroje)
   - **Stav 27. 10. 2026 (noc):** částečně. Statistika i nad výběrem, nejčastější znaky a slova se stropem tabulky. Chybí měření 10 GiB a paměti.
   - **Ověření 1. 11. 2026:** přesný NativeAOT plugin z CI balíku 0.1.3 nad `bbb1441b`, SHA-256 `9C64431A00645C974DED3D088F70EFD44F1230297DF0ABADEF04667C61EC554D`, Windows 11: skutečný 2GiB soubor, správné počty, 47,6 s, špička privátní paměti podle OS 17,05 MiB, zrušení 21 ms; 2/2 nativní testy prošly v Release/JIT0. Navazující sada textových nástrojů nad `eb664ce1` prošla 163/163. Oprava omezuje čtení statistiky na 32 KiB. Vydaný plugin 0.1.1 stejný limit překročil (76,25 MiB, 34,7 s). Podle PR.2.5 se nyní měří jen 1–2 GiB; původní podmínka 10 GiB zůstává neověřená a úkol otevřený.
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): `TextToolsTests.Statistics_of_a_real_ten_gibibyte_file_run_in_the_plugin_process_with_a_bounded_memory` (skutečný 10GiB soubor v procesu pluginu, nárůst privátní paměti mezi první a poslední třetinou běhu ≤ 64 MiB, 8 min 30 s) a `Cancelling_the_statistics_of_a_real_ten_gibibyte_file_ends_the_run_in_seconds_and_says_how_far_it_got` (2 min 29 s) prošly. Všechny tři části běží v jednom procesu pluginu.
 - [x] **P4.8.2** Hashe po blocích
   - **Co a proč:** Hashe po blocích nad surovými bajty; společný dialog s hex hashi F242.
   - **Funkce:** F090
@@ -3159,6 +3163,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** F257 3–5 ČT (matice) za P8b.3.3–P8b.3.5
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Okno přepisu jen pro čtení s tahy, nástroji, diffy, hledáním a maskováním. Neměřeno: 1,2 GiB s řádkem 54 MiB.
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): Core `TranscriptPerfTests` prošly (první tahy do 1 s, obří řádek se nečte, index drží strop; varianta mimo cache do 2 s). Okno v aplikaci: `HugeFileTests.The_transcript_window_of_a_1_2_GiB_transcript_...(cold: True)` prošlo, `(cold: False)` neprošlo — index nedoběhl do 120 s; stejně i na dcbf0828 před dávkou 9, příčinu hledá ladění.
 - [x] **P8b.3.4** Přepisy agentů: parsery a index
   - **Co a proč:** Plugin postaví index „tah → offset“ ve vlastním procesu, pro formát Claude Code i Codexu, nad stránkovaným čtením.
   - **Funkce:** F257 (částečně: parsery a index)
@@ -3176,6 +3181,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** v rámci F257 (viz P8b.3.3)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Maskování i pro Codex, index se stropem paměti. Neměřeno: 1,2GiB přepis.
+  - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): index 1,2GiB přepisu v Core drží strop paměti (`TranscriptPerfTests` prošly); okno v aplikaci s teplou cache index nedokončí do 120 s (viz P8b.3.3).
 
 ## P9 – použitelnost a vydání
 
