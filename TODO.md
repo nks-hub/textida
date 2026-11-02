@@ -1535,6 +1535,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.7.1
   - **Odhad:** bez odhadu
   - **Chyba nahlášená majitelem 2. 11. 2026:** v 0.1.3 po „Nainstalovat a restartovat“ (nabídka 0.1.4) se nic viditelného nestalo. Stahování uvízlo na 41 466 560 z 69 212 060 B a dál čekalo: tělo odpovědi se čte bez časového limitu (`HttpClient.Timeout` s `ResponseHeadersRead` hlídá jen hlavičky), průběh ani zrušení nejsou vidět a `InstallAsync` zachytí jen čtyři typy výjimek, ostatní skončí potichu. Oprava pro 0.1.5: časový limit nečinnosti, pokračování přes Range, lišta s průběhem a Zrušit, viditelná chyba s odkazem na stránku vydání.
+  - **Požadavek majitele 2. 11. 2026:** aktualizace proběhla (0.1.3 → 0.1.4 za ~20 s), ale bez průběhu, bez stavu instalace a bez potvrzení po restartu; navíc chce automatickou kontrolu a odznak „Nová verze X“ na stavovém řádku. Pro 0.1.5: kontrola ve výchozím stavu zapnutá (pár sekund po startu a pak každých 24 h, nastavení `updates.checkOnStart` ji vypne; stahuje jen podepsaný feed), klikací odznak spustí instalaci s průběhem, lišta jednou za verzi, po restartu hláška „Textida byla aktualizována z X na Y“; `--smoke` a testy bez sítě automatickou kontrolu nespouští (PR.6.4).
 - [ ] **P3.7.3** Ověření cílů MVP
   - **Co a proč:** Všechny cíle sloupce MVP z kap. 3 na referenčních strojích R8, na Windows i macOS, nad distribuovaným AOT buildem.
   - **Funkce:** žádná (ověření)
