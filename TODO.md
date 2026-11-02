@@ -3544,6 +3544,7 @@ Funkce s vydáním „později“ nejsou v součtu 1.0. Odhady jsou z matice, kd
   - **Stav 1. 11. 2026 (sloučeno):** .dll jako dekompilovaný C# jen pro čtení přes ICSharpCode.Decompiler 11.2 přímo v aplikaci; NativeAOT publikace bez varování ověřená na Windows; vypíná `files.decompileAssemblies` (9a54d7dd).
   - **Ověření 1. 11. 2026 na Macu:** NativeAOT publikace osx-arm64 s dekompilátorem prošla; samostatný AOT program dekompiloval malou .dll i System.Collections.dll (33/33 typů, 965 ms). Kontrola do kouřového testu zadána.
   - **Stav 1. 11. 2026 (sloučeno):** kouřový test otevře vloženou .NET knihovnu v prohlížeči sestavení (e798f23f).
+  - **Oprava 2. 11. 2026 (d2aca12b, sloučeno 4e2146cd):** u modulu nad 300 typů měl limit 60 s vrátit hotové typy jako zkrácený výstup s počtem, ale vypršení uprostřed typu pustilo `OperationCanceledException` ven a uživatel dostal jen „příliš pomalé“ (našel plný běh na referenčním virtuálu, kde pod souběžnou zátěží dekompilace narazila na limit). Teď se vypršení zachytí a vrátí se zkrácený výsledek; zrušení uživatelem projde jako dřív. Samotná dekompilace System.Collections i velkého modulu trvá na virtuálu ~3 s, limit 60 s zůstává s odůvodněním v `DecompileLimits`. Testy obsahu běží bez časového limitu, limit hlídá samostatný test (4fc59eaf). Zavření panelu zatím dekompilaci nezastaví; doplňuje se.
 
 ### PZ.6 Vývojářské doplňky
 
