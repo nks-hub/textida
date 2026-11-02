@@ -305,6 +305,18 @@ public class CodexTranscriptTests
     }
 
     [Fact]
+    public void Past_the_limit_only_the_oldest_waiting_call_is_forgotten_so_a_late_secret_output_is_still_masked()
+    {
+        var lines = new List<string> { Session[1] };
+        for (int i = 0; i < 4; i++)
+            lines.Add("{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"shell\",\"arguments\":\"{\\\"command\\\":[\\\"cat\\\",\\\".env\\\"]}\",\"call_id\":\"k" + i + "\"}}");
+        lines.Add("""{"type":"response_item","payload":{"type":"function_call_output","call_id":"k2","output":"TOKEN=abcdef123456"}}""");
+        using var file = Write(lines);
+        using var index = Open(file, limits: Limits with { MaxPendingTools = 3 });
+        Assert.DoesNotContain("abcdef123456", AllText(index.ReadTurn(0)));
+    }
+
+    [Fact]
     public void Reading_a_codex_file_never_changes_it()
     {
         using var file = Write(Session);

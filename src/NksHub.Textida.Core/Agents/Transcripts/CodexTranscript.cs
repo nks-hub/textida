@@ -155,11 +155,7 @@ internal static class CodexTranscript
         if (values.Any(TranscriptMasker.TargetsSecretFile))
         {
             foreach (var value in values) Learn(ctx.Masker, value);
-            if (callId is not null)
-            {
-                if (ctx.Pending.Count >= ctx.Limits.MaxPendingTools) ctx.Pending.Clear(); // shortcut: the oldest waiting calls are forgotten together; upgrade to an ordered map when results come back late
-                ctx.Pending[callId] = true;
-            }
+            if (callId is not null) ctx.Wait(callId);
         }
         if (into is null) return;
         TranscriptParser.Add(into, line, TranscriptRowKind.ToolCall, ctx.Masker.Mask(display), ctx, null, tool);
@@ -170,7 +166,7 @@ internal static class CodexTranscript
 
     private static void Output(long line, JsonElement payload, TranscriptContext ctx, TurnContent? into)
     {
-        bool secret = Str(payload, "call_id") is { } id && ctx.Pending.Remove(id, out bool isSecret) && isSecret;
+        bool secret = Str(payload, "call_id") is { } id && ctx.Answer(id);
         if (!secret && into is null) return;
         string text = payload.TryGetProperty("output", out var output) ? OutputText(output) : "";
         if (secret)
