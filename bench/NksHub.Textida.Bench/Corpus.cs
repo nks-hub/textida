@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -175,7 +176,10 @@ internal static class Corpus
         Pad(s, "0,pad,", ",0,2026-10-01\r\n");
     }
 
-    private sealed record Spec(string Name, long Bytes, ulong Seed, Func<byte[], int, Sink> MakeSink, Action<Sink, Rng, long, long> Fill, byte[]? Prefix = null);
+    /// <summary>A corpus file. <paramref name="Sha256"/> pins the content, so a generator that differs between machines or versions fails; <paramref name="Ascii"/> allows only bytes 0x20-0x7E and LF.</summary>
+    private sealed record Spec(string Name, long Bytes, ulong Seed, Func<byte[], int, Sink> MakeSink, Action<Sink, Rng, long, long> Fill, byte[]? Prefix = null, string? Sha256 = null, bool Ascii = false);
+
+    private static readonly SearchValues<byte> AsciiText = SearchValues.Create([0x0A, .. Enumerable.Range(0x20, 0x7F - 0x20).Select(b => (byte)b)]);
 
     private static Spec Log(string name, long bytes, ulong seed) =>
         new(name, bytes, seed, (b, n) => new Utf8Sink(b, n), (s, r, c, _) => FillLog(s, r, c));
@@ -187,7 +191,8 @@ internal static class Corpus
         yield return Log("text-1GiB.log", 1L << 30, 3);
         yield return Log("text-10GiB.log", 10L << 30, 4);
         yield return Log("text-50GiB.log", 50L << 30, 5);
-        yield return new("ascii-100MiB.log", 100L << 20, 11, (b, n) => new Utf8Sink(b, n), (s, r, c, _) => FillLog(s, r, c, ascii: true));
+        yield return new("ascii-100MiB.log", 100L << 20, 11, (b, n) => new Utf8Sink(b, n), (s, r, c, _) => FillLog(s, r, c, ascii: true),
+            Sha256: "f1160c865fb0507140d91a74b4731042af3cafcadcb8cd6a45cd1eaf11f9d18b", Ascii: true);
         yield return new("oneline-100MiB.txt", 100L << 20, 6, (b, n) => new Utf8Sink(b, n), (s, r, _, _) => FillOneLine(s, r));
         yield return new("json-100MiB.json", 100L << 20, 7, (b, n) => new Utf8Sink(b, n),
             (s, r, c, cnt) => FillJson(s, r, c, c == 0, c == cnt - 1));
@@ -250,6 +255,8 @@ internal static class Corpus
                     var rng = new Rng(spec.Seed * 1_000_003UL + (ulong)ci);
                     spec.Fill(sink, rng, ci, chunks);
                     if (sink.Pos != size) throw new InvalidOperationException($"{name} chunk {ci}: {sink.Pos} != {size}");
+                    if (spec.Ascii && buf.AsSpan(0, size).IndexOfAnyExcept(AsciiText) is var bad and >= 0)
+                        throw new InvalidOperationException($"{name} chunk {ci}: byte 0x{buf[bad]:X2} at {bad} is not printable ASCII or LF");
                     return (buf, size, sink.Lines);
                 }));
             }
@@ -287,6 +294,7 @@ internal static class Corpus
         await producer;
         if (total != spec.Bytes) throw new InvalidOperationException($"{name}: wrote {total}, wanted {spec.Bytes}");
         string sha = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+        if (spec.Sha256 is { } pinned && sha != pinned) throw new InvalidOperationException($"{name}: sha256 {sha}, pinned {pinned}");
         File.WriteAllText(side, $"{spec.Name},{total},{sha},lines_lf={lines}\n");
         Console.WriteLine($"done {name}: {total} B, sha256={sha}, lf={lines}, {sw.Elapsed.TotalSeconds:F1}s");
     }
