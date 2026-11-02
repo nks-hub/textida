@@ -21,6 +21,11 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 - A bracket without a partner at the caret is highlighted.
 - Mermaid flowcharts draw `subgraph ... end` as a labelled frame, nested too. They also draw the stadium, hexagon, cylinder and parallelogram shapes, and edges end on the outline of each shape.
 - The toolbar is a single Tab stop. Arrow keys, Home and End move between its buttons.
+- Updates:
+  - Textida checks for a new version a few seconds after start and then every 24 hours. Only the signed feed is fetched, and the setting `updates.checkOnStart` turns the check off.
+  - A newer version shows a "New version" item in the status bar; clicking it installs the update.
+  - While an update installs, a bar shows the downloaded size and percentage, with Cancel, and then the installing step.
+  - After the restart, a notice says which version was updated to which.
 - `SignUpdateFeed --resign` and the manual `resign-feed.yml` workflow sign the published feed again between releases.
 - Release builds start the native program with `--smoke` under an OS-level socket watch (`tools/CheckNoNetwork.cs`). Any connection to a non-loopback address fails the build.
 
@@ -43,6 +48,9 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 - Elevated reads and saves:
   - Elevated reads and saves on macOS and Linux go through a folder created by root.
   - On Windows, elevated results come back through a folder created by the administrator, and a source path swapped for a link is refused.
+- Update download:
+  - A stalled update download waited forever without any message. The download now fails after 30 s without data and resumes from the bytes it already has with a Range request.
+  - Any failure during an update shows its reason and a link to the release page instead of ending silently.
 - FTPS through an HTTP proxy failed on macOS and Linux: the CONNECT request ended its lines with a bare LF.
 - MCP over HTTP could time out the first tool call on a busy machine, because the handshake ended before the server acknowledged `initialized`.
 - Terminal: output written before the panel attached its handlers was lost, so `cmd` sometimes opened empty.
