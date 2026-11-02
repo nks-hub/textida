@@ -62,7 +62,8 @@ public class TemplateTests
                 Path.Combine("src", "NksHub.Textida.Plugin.TestHost", "NksHub.Textida.Plugin.TestHost.csproj"),
                 Path.Combine("src", "NksHub.Textida.Plugin.Templates", "NksHub.Textida.Plugin.Templates.csproj"),
             })
-                await DotnetAsync(repo, TimeSpan.FromMinutes(10), "pack", Path.Combine(repo, project), "-c", "Release", $"-p:Version={version}", "-o", feed, "--nologo");
+                // bin and obj of its own: the other test projects of a run build the same projects in Release at the same time, and a shared bin loses files under one of them
+                await DotnetAsync(repo, TimeSpan.FromMinutes(10), "pack", Path.Combine(repo, project), "-c", "Release", $"-p:Version={version}", "-o", feed, "--artifacts-path", Path.Combine(work, "build"), "--nologo");
 
             // 2. the template, in a template hive of its own so the machine's list of templates stays as it is
             await DotnetAsync(work, TimeSpan.FromMinutes(2), "new", "install", Path.Combine(feed, $"NksHub.Textida.Plugin.Templates.{version}.nupkg"), "--debug:custom-hive", hive);
