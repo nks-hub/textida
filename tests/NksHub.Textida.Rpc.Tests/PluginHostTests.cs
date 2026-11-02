@@ -7,6 +7,17 @@ namespace NksHub.Textida.Rpc.Tests;
 
 public class PluginHostTests
 {
+    /// <summary>Reads a file the plugin may still be writing; Windows refuses File.ReadAllText while a writer holds it without read sharing.</summary>
+    private static string ReadShared(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return new StreamReader(stream).ReadToEnd();
+        }
+        catch (IOException) { return ""; }
+    }
+
     internal static PluginHostOptions Options(Func<PluginHostOptions, PluginHostOptions>? change = null)
     {
         var o = new PluginHostOptions
@@ -326,7 +337,7 @@ public class PluginHostTests
             await Task.Delay(500);
             cts.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
-            await T.Until(() => File.Exists(file) && File.ReadAllText(file).Contains("cancelled"));
+            await T.Until(() => File.Exists(file) && ReadShared(file).Contains("cancelled"));
             await T.Until(() => host.CallAsync("c", "stats").GetAwaiter().GetResult().GetProperty("inFlight").GetInt32() <= 1);
             Assert.Equal(PluginState.Running, host.GetState("c"));
         }

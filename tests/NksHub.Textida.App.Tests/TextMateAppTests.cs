@@ -37,7 +37,7 @@ public class TextMateAppTests : IDisposable
     {
         string grammar = _temp.File("toy.tmLanguage.json", """
             { "name": "Toy", "scopeName": "source.toy", "fileTypes": ["toy"],
-              "patterns": [ { "match": "\\b(if|else)\\b", "name": "keyword.control.toy" }, { "begin": "^```", "while": "^>", "name": "markup.raw.toy" } ] }
+              "patterns": [ { "match": "\\b(if|else)\\b", "name": "keyword.control.toy" }, { "match": "(a)\\1", "name": "string.toy" } ] }
             """);
         var w = _app.CreateWindow(null);
 
@@ -48,7 +48,7 @@ public class TextMateAppTests : IDisposable
         Assert.Equal("toy", tab.Doc.Language.Id);
         var lines = _app.Output.Read(OutputChannel.Tasks).Select(l => l.Text).ToList();
         Assert.Contains(lines, l => l.Contains("toy"));
-        Assert.Contains(lines, l => l.Contains("while"));
+        Assert.Contains(lines, l => l.Contains("back-reference")); // still not convertible; begin/while is since c296a3f2
 
         await w.ImportTextMateAsync(_temp.File("broken.json", "{ nope"));
         Assert.Contains("broken.json", w.StatusMessageText);
