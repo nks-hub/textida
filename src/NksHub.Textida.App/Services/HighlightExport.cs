@@ -143,12 +143,15 @@ internal static class HighlightExport
     /// The colored text as a LaTeX document that compiles with pdfLaTeX, XeLaTeX or LuaLaTeX: the page and text colors of the theme, and the text in a <c>Verbatim</c> block
     /// (fancyvrb) in which each colored stretch is a <c>\textcolor</c>. A stretch never spans a line, since the block reads line by line. Backslash and braces are written as macros,
     /// every other character as it is (the file is UTF-8). A tab becomes spaces up to the next multiple of four columns; control characters, DEL and the byte order mark are left out.
-    /// XeLaTeX and LuaLaTeX take all characters; pdfLaTeX only those that inputenc and the T1 fonts know (an emoji stops it).
+    /// The preamble picks the engine with iftex: fontspec under XeTeX and LuaTeX (all characters), inputenc utf8 + fontenc T1 under pdfTeX. pdfTeX stops at a character that inputenc
+    /// or the T1 fonts do not know, so every character outside <see cref="IsPdfTexSafe"/> is written as <c>\TxU{c}</c>: the character itself under XeTeX and LuaTeX, a bold ? under pdfTeX.
+    /// The argument is only passed over, never expanded, so pdfTeX reads it without an error; no \symbol or \char is used, since a glyph the font lacks would be a warning at best.
     /// </summary>
     public static string Tex(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
     {
         var sb = new StringBuilder(text.Length * 3 + 512);
-        sb.Append("\\documentclass{article}\n\\usepackage[T1]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\usepackage[margin=1.5cm]{geometry}\n\\usepackage{xcolor}\n\\usepackage{fancyvrb}\n");
+        sb.Append("\\documentclass{article}\n\\usepackage{iftex}\n\\ifPDFTeX\n\\usepackage[T1]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\else\n\\usepackage{fontspec}\n\\fi\n\\usepackage[margin=1.5cm]{geometry}\n\\usepackage{xcolor}\n\\usepackage{fancyvrb}\n");
+        sb.Append(@"\newcommand{\TxU}[1]{\ifPDFTeX\textbf{?}\else #1\fi}").Append('\n');
         sb.Append(@"\newcommand{\TxBs}{\char`\\}").Append('\n').Append(@"\newcommand{\TxOb}{\char`\{}").Append('\n').Append(@"\newcommand{\TxCb}{\char`\}}").Append('\n');
         sb.Append(@"\begin{document}").Append('\n');
         sb.Append(@"\pagecolor[HTML]{").Append(TexHex(theme.Background)).Append(@"}\color[HTML]{").Append(TexHex(theme.Foreground)).Append('}').Append('\n');
@@ -187,8 +190,12 @@ internal static class HighlightExport
                     case '}': line.Append(@"\TxCb{}"); column++; break;
                     case < ' ' or (>= '\u007F' and <= '\u009F') or '﻿': break; // LaTeX stops at these
                     default:
-                        line.Append(c);
-                        if (!char.IsLowSurrogate(c)) column++;
+                        int length = char.IsHighSurrogate(c) && i + 1 < slice.Length && char.IsLowSurrogate(slice[i + 1]) ? 2 : 1;
+                        var written = slice.Slice(i, length);
+                        if (IsPdfTexSafe(length == 2 ? char.ConvertToUtf32(c, slice[i + 1]) : c)) line.Append(written);
+                        else line.Append(@"\TxU{").Append(written).Append('}');
+                        i += length - 1;
+                        column++;
                         break;
                 }
             }
@@ -199,6 +206,10 @@ internal static class HighlightExport
     }
 
     private const int TabSize = 4;
+
+    /// <summary>True for the characters pdfLaTeX takes with inputenc utf8 and fontenc T1: ASCII, Latin-1, Latin Extended-A, common general punctuation and the euro sign. Conservative; the rest goes through <c>\TxU</c>.</summary>
+    internal static bool IsPdfTexSafe(int cp) => cp is (>= ' ' and <= '~') or (>= 0xA0 and <= 0x17F)
+        or 0x2013 or 0x2014 or 0x2018 or 0x2019 or 0x201A or 0x201C or 0x201D or 0x201E or 0x2020 or 0x2021 or 0x2022 or 0x2026 or 0x2030 or 0x2039 or 0x203A or 0x20AC;
 
     private static string TexHex(Color c) => Hex(c)[1..];
 

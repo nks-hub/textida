@@ -187,7 +187,7 @@ public class HighlightExportTests
     {
         int open = tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal);
         string body = tex[(tex.IndexOf('\n', open) + 1)..tex.LastIndexOf("\\end{Verbatim}", StringComparison.Ordinal)];
-        body = body.Replace("\\TxBs{}", "\u0001").Replace("\\TxOb{}", "\u0002").Replace("\\TxCb{}", "\u0003");
+        body = Regex.Replace(body, @"\\TxU\{([^{}]*)\}", "$1").Replace("\\TxBs{}", "\u0001").Replace("\\TxOb{}", "\u0002").Replace("\\TxCb{}", "\u0003");
         var text = new StringBuilder();
         var colors = new List<Color?>();
         int consumed = 0;
@@ -227,7 +227,7 @@ public class HighlightExportTests
         string body = tex[tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal)..];
         Assert.Contains("C:\\TxBs{}dir \\TxOb{}x\\TxCb{}", body);
         Assert.Contains("Příliš žluťoučký", body);
-        Assert.Contains("\U0001F600", body);
+        Assert.Contains("\\TxU{\U0001F600}", body);
         Assert.DoesNotContain('\u0007', tex);
         Assert.DoesNotContain('\r', tex);
         var (read, _) = ReadTex(tex);
@@ -236,6 +236,18 @@ public class HighlightExportTests
 
         // the macros the text uses are defined in front of the document
         foreach (string macro in new[] { "\\TxBs", "\\TxOb", "\\TxCb" }) Assert.Contains($"\\newcommand{{{macro}}}", tex[..tex.IndexOf("\\begin{document}", StringComparison.Ordinal)]);
+    }
+
+    [Fact]
+    public void The_tex_preamble_picks_the_engine_and_wraps_what_pdfLaTeX_cannot_take()
+    {
+        string tex = HighlightExport.Tex("a é ř € \u4E2D \U0001F600 \u2192 \u00A9", null, null, Theme());
+        string head = tex[..tex.IndexOf("\\begin{document}", StringComparison.Ordinal)];
+        Assert.Contains("\\usepackage{iftex}\n\\ifPDFTeX\n\\usepackage[T1]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\else\n\\usepackage{fontspec}\n\\fi\n", head);
+        Assert.Contains("\\newcommand{\\TxU}[1]{\\ifPDFTeX\\textbf{?}\\else #1\\fi}", head);
+        string body = tex[tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal)..];
+        Assert.Contains("a é ř € \\TxU{\u4E2D} \\TxU{\U0001F600} \\TxU{\u2192} \u00A9", body);
+        Assert.Equal("a é ř € \u4E2D \U0001F600 \u2192 \u00A9\n", ReadTex(tex).Text);
     }
 
     [Fact]
