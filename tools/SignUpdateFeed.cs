@@ -30,7 +30,11 @@ foreach (var rid in new[] { "win-x64", "osx-arm64", "osx-x64", "linux-x64", "lin
     releases.Add((JsonNode)new JsonObject { ["version"] = version, ["rid"] = rid, ["url"] = args[2].TrimEnd('/') + "/" + name,
         ["sha256"] = Convert.ToHexString(SHA256.HashData(stream)), ["size"] = stream.Length });
 }
-var payload = new JsonObject { ["releases"] = releases }.ToJsonString();
+// a replayed old feed holds an installation back for at most this long; a new release (or a new signing of the feed) must come within it
+const int FeedLifetimeDays = 90;
+var issued = DateTimeOffset.UtcNow;
+// Textida 0.1.4 and older read only "releases" from the signed text, so the dates do not break them
+var payload = new JsonObject { ["issued"] = issued.ToUnixTimeSeconds(), ["expires"] = issued.AddDays(FeedLifetimeDays).ToUnixTimeSeconds(), ["releases"] = releases }.ToJsonString();
 var signature = key.SignData(Encoding.UTF8.GetBytes(payload), HashAlgorithmName.SHA256);
 if (!verifier.VerifyData(Encoding.UTF8.GetBytes(payload), signature, HashAlgorithmName.SHA256))
     throw new CryptographicException("The signed feed cannot be verified by the trusted public key.");

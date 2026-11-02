@@ -290,6 +290,32 @@ public class AppUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task A_feed_is_believed_until_it_expires_and_one_without_an_expiry_is_refused()
+    {
+        var release = Publish("1.1.0");
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        // the shape tools/SignUpdateFeed.cs signs; 0.1.4 verifies the same bytes and reads only the releases from them
+        string Feed(long? expires)
+        {
+            var item = new JsonObject { ["version"] = "1.1.0", ["rid"] = AppUpdater.CurrentRid, ["url"] = "Textida-1.1.0.zip", ["sha256"] = release.Sha256, ["size"] = release.Size };
+            var payload = new JsonObject { ["issued"] = now - 60, ["releases"] = new JsonArray(item) };
+            if (expires is { } at) payload["expires"] = at;
+            var text = payload.ToJsonString();
+            return new JsonObject { ["format"] = 1, ["payload"] = text, ["signature"] = Convert.ToBase64String(_key.SignData(Encoding.UTF8.GetBytes(text), HashAlgorithmName.SHA256)) }.ToJsonString();
+        }
+
+        _server.Routes["/feed.json"] = Encoding.UTF8.GetBytes(Feed(now + 86400));
+        Assert.Equal("1.1.0", (await Updater().CheckAsync("1.0.0", AppUpdater.CurrentRid, CancellationToken.None))?.Version);
+
+        foreach (var stale in new[] { Feed(now - 1), Feed(null) }) // a replayed feed: expired, or older than the expiry
+        {
+            _server.Routes["/feed.json"] = Encoding.UTF8.GetBytes(stale);
+            var error = await Assert.ThrowsAsync<UpdateException>(() => Updater().CheckAsync("1.0.0", AppUpdater.CurrentRid, CancellationToken.None));
+            Assert.Equal(UpdateError.BadFeed, error.Error);
+        }
+    }
+
+    [Fact]
     public async Task A_feed_with_the_same_or_an_older_version_is_ignored()
     {
         Publish("1.0.0");

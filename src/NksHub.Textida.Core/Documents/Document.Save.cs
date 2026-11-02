@@ -421,9 +421,9 @@ public sealed partial class Document
                         // the loss is known before a byte is written: a character the target cannot hold, and no replacement the user confirmed, ends the save here
                         var (loss, blocked) = await Task.Run(() => Transcode(snapshot!, fromCodec, transcode, _transcodeReplacement, ct, null, null, 0), CancellationToken.None);
                         if (blocked) return new(false, null, loss);
-                        (hash, baseline) = await Task.Run(() => WriteTranscoded(snapshot!, fromCodec, transcode, _transcodeReplacement, tempPath, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
+                        (hash, baseline) = await Task.Run(() => WriteTranscoded(snapshot!, fromCodec, transcode, _transcodeReplacement, tempPath, target, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
                     }
-                    else (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
+                    else (hash, baseline) = await Task.Run(() => WriteTemp(snapshot!, tempPath, target, ct, StreamSaveStep, BeforeStreamFlush, progress, ProgressIntervalMs), CancellationToken.None);
                     StreamSaveStep?.Invoke("temp-written", tempPath);
                 }
                 catch (SnapshotInvalidatedException) when (guard)
@@ -469,16 +469,9 @@ public sealed partial class Document
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/>; the new baseline is taken from the bytes written, not from the target afterwards.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTemp(IByteSnapshot snapshot, string temp, string target, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
     {
-        using var fs = new FileStream(temp, new FileStreamOptions
-        {
-            Mode = FileMode.CreateNew,
-            Access = FileAccess.Write,
-            Share = FileShare.None,
-            PreallocationSize = snapshot.ByteLength,
-            BufferSize = 0,
-        });
+        using var fs = FileSwap.CreateTemp(temp, target, snapshot.ByteLength);
         step?.Invoke("temp-writing", temp);
         var written = CopyHashed(snapshot, fs, ct, progress, intervalMs);
         beforeFlush?.Invoke(ct);
@@ -488,9 +481,9 @@ public sealed partial class Document
     }
 
     /// <summary>Writes the snapshot to <paramref name="temp"/> converted from <paramref name="from"/> to <paramref name="to"/>, block by block; the hash and block digests are those of the bytes written.</summary>
-    private static (string Hash, OriginalBlockHashes Blocks) WriteTranscoded(IByteSnapshot snapshot, Encodings.TextCodec from, Encodings.TextCodec to, string? replacement, string temp, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
+    private static (string Hash, OriginalBlockHashes Blocks) WriteTranscoded(IByteSnapshot snapshot, Encodings.TextCodec from, Encodings.TextCodec to, string? replacement, string temp, string target, CancellationToken ct, Action<string, string>? step, Action<CancellationToken>? beforeFlush, IProgress<SaveProgress>? progress, int intervalMs)
     {
-        using var fs = new FileStream(temp, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, BufferSize = 0 });
+        using var fs = FileSwap.CreateTemp(temp, target);
         step?.Invoke("temp-writing", temp);
         var blocks = new OriginalBlockHashes();
         var hashing = new HashingStream(fs, blocks);

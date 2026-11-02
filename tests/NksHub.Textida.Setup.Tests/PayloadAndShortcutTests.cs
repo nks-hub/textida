@@ -195,9 +195,11 @@ public class PayloadAndShortcutTests : IDisposable
     {
         var info = SelfRemoval.Command(@"C:\Some Folder\TextidaSetup.exe", @"C:\Some Folder");
 
-        Assert.Equal("cmd.exe", info.FileName);
-        Assert.Equal("/c ping -n 4 127.0.0.1 >nul & del /f /q \"C:\\Some Folder\\TextidaSetup.exe\" & rmdir \"C:\\Some Folder\"", info.Arguments);
+        Assert.Equal(Path.Combine(Environment.SystemDirectory, "cmd.exe"), info.FileName); // never a cmd.exe found in the current folder
+        Assert.Equal("/d /c ping -n 4 127.0.0.1 >nul & del /f /q \"C:\\Some Folder\\TextidaSetup.exe\" & rmdir \"C:\\Some Folder\"", info.Arguments);
         Assert.False(info.UseShellExecute);
+        // cmd.exe expands %name% on the /c line: such a path would name another file
+        Assert.Throws<ArgumentException>(() => SelfRemoval.Command(@"C:\%TEMP%\TextidaSetup.exe", @"C:\%TEMP%"));
     }
 
     [Fact]

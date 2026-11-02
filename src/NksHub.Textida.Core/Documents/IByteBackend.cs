@@ -131,6 +131,17 @@ public interface IBackendFactory
 public static class FileSwap
 {
     /// <summary>
+    /// Creates the temporary file a save writes before <see cref="Replace"/> moves it over <paramref name="target"/>. On Unix it is readable by the owner only while the target exists
+    /// (<see cref="Replace"/> gives it the target's mode); a new file gets the default mode, the one the saved file ends with anyway.
+    /// </summary>
+    public static FileStream CreateTemp(string temp, string target, long preallocationSize = 0)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, PreallocationSize = preallocationSize, BufferSize = 0 };
+        if (!OperatingSystem.IsWindows() && File.Exists(target)) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        return new FileStream(temp, options);
+    }
+
+    /// <summary>
     /// Atomic replace of <paramref name="target"/> by <paramref name="temp"/>. A sharing violation is retried
     /// for about 1.5 s, because virus scanners and indexers open a freshly written file for a few milliseconds.
     /// </summary>
@@ -146,6 +157,8 @@ public static class FileSwap
                     // rename(2) ignores the write bit of the target, ReplaceFile refuses it: both refuse
                     if ((File.GetAttributes(target) & FileAttributes.ReadOnly) != 0) throw new UnauthorizedAccessException($"The file is read-only: {target}");
                     TryDelete(backup);
+                    // rename(2) keeps the mode of the temp file; ReplaceFile keeps the ACL of the target on its own
+                    if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temp, File.GetUnixFileMode(target));
                     File.Replace(temp, target, backup);
                 }
                 else File.Move(temp, target);

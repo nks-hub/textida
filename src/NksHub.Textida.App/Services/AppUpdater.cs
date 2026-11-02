@@ -71,10 +71,16 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
     }
 
     /// <summary>The signed feed text for <paramref name="release"/>; the release tooling and the tests build their feeds with it.</summary>
-    public static string CreateFeed(ECDsa key, UpdateRelease release)
+    public static string CreateFeed(ECDsa key, UpdateRelease release) =>
+        SignFeed(key, Dated(new JsonObject { ["version"] = release.Version, ["rid"] = release.Rid, ["url"] = release.Url, ["sha256"] = release.Sha256, ["size"] = release.Size }).ToJsonString());
+
+    /// <summary>The validity window tools/SignUpdateFeed.cs signs into a feed, here one day from now.</summary>
+    private static JsonObject Dated(JsonObject payload)
     {
-        var payload = new JsonObject { ["version"] = release.Version, ["rid"] = release.Rid, ["url"] = release.Url, ["sha256"] = release.Sha256, ["size"] = release.Size }.ToJsonString();
-        return SignFeed(key, payload);
+        var now = DateTimeOffset.UtcNow;
+        payload["issued"] = now.ToUnixTimeSeconds();
+        payload["expires"] = now.AddDays(1).ToUnixTimeSeconds();
+        return payload;
     }
 
     public static string CreateFeed(ECDsa key, IEnumerable<UpdateRelease> releases)
@@ -82,7 +88,7 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
         var items = new JsonArray();
         foreach (var release in releases)
             items.Add((JsonNode)new JsonObject { ["version"] = release.Version, ["rid"] = release.Rid, ["url"] = release.Url, ["sha256"] = release.Sha256, ["size"] = release.Size });
-        return SignFeed(key, new JsonObject { ["releases"] = items }.ToJsonString());
+        return SignFeed(key, Dated(new JsonObject { ["releases"] = items }).ToJsonString());
     }
 
     private static string SignFeed(ECDsa key, string payload)
@@ -121,6 +127,10 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
         try
         {
             var p = (JsonNode.Parse(payload) as JsonObject)!;
+            // a feed replayed by whoever sits between the editor and the feed would keep it on an old version: a feed counts only until its signed expiry, and one without it predates this check
+            if (p["expires"]?.GetValue<long>() is not { } expires) throw new UpdateException(UpdateError.BadFeed, "The feed has no expiry date; it is older than this Textida.");
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expires)
+                throw new UpdateException(UpdateError.BadFeed, $"The feed expired on {DateTimeOffset.FromUnixTimeSeconds(expires):yyyy-MM-dd}; the update address may be serving an old copy.");
             if (p["releases"] is JsonArray releases)
             {
                 var matches = releases.OfType<JsonObject>().Where(r => r["rid"]?.GetValue<string>() == rid).ToArray();

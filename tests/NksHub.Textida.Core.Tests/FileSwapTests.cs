@@ -126,6 +126,44 @@ public class FileSwapTests
     }
 
     [Fact]
+    public async Task A_save_keeps_the_mode_of_the_file_and_a_new_file_gets_the_default_one()
+    {
+        if (OperatingSystem.IsWindows()) return; // ReplaceFile keeps the ACL; Unix modes only
+        var dir = Directory.CreateTempSubdirectory("textida-swap-");
+        try
+        {
+            const UnixFileMode Secret = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+            const UnixFileMode Script = Secret | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+            foreach (var mode in new[] { Secret, Script })
+            {
+                var target = Path.Combine(dir.FullName, $"{(int)mode}.txt");
+                File.WriteAllText(target, "old\n");
+                File.SetUnixFileMode(target, mode);
+                using (var temp = FileSwap.CreateTemp(target + ".probe.tmp", target))
+                    Assert.Equal(Secret, File.GetUnixFileMode(temp.Name)); // nobody else reads the content on its way in
+                File.Delete(target + ".probe.tmp");
+
+                using var doc = Doc.Open(target, ReferenceBackendFactory.Instance);
+                doc.Insert(0, "new "u8.ToArray());
+                Assert.True((await doc.SaveAsync()).Saved);
+                Assert.Equal("new old\n", File.ReadAllText(target));
+                Assert.Equal(mode, File.GetUnixFileMode(target));
+            }
+
+            var reference = Path.Combine(dir.FullName, "reference.txt");
+            File.WriteAllText(reference, "");
+            var fresh = Path.Combine(dir.FullName, "fresh.txt");
+            using (var doc = Doc.Open(Path.Combine(dir.FullName, $"{(int)Secret}.txt"), ReferenceBackendFactory.Instance))
+                Assert.True(doc.Save(fresh).Saved);
+            Assert.Equal(File.GetUnixFileMode(reference), File.GetUnixFileMode(fresh));
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
     public void Replace_gives_up_on_a_lock_that_does_not_go_away()
     {
         if (!OperatingSystem.IsWindows()) return;

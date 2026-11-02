@@ -44,14 +44,8 @@ public static class IpcEndpoint
 {
     private const int MaxMessageBytes = 1 << 20;
 
-    /// <summary>Directory for the lock file and the unix socket; created private to the current user.</summary>
-    internal static string RuntimeDirectory()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "textida-" + Sanitize(Environment.UserName));
-        if (OperatingSystem.IsWindows()) Directory.CreateDirectory(dir);
-        else Directory.CreateDirectory(dir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-        return dir;
-    }
+    /// <summary>Directory for the lock file and the unix socket, private to the current user (on Linux in $XDG_RUNTIME_DIR when there is one, see <see cref="Core.Files.PrivateDirectory"/>).</summary>
+    internal static string RuntimeDirectory() => Core.Files.PrivateDirectory.Get("textida-" + Sanitize(Environment.UserName), runtime: true);
 
     /// <summary>The channel an MCP client (the <c>textida-mcp</c> program) reaches the editor on; separate from the channel of the second launch, so it is off until the user switches it on.</summary>
     public static string McpChannel(string mainChannel) => mainChannel + "-mcp";
