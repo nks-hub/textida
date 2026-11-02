@@ -49,13 +49,20 @@ internal sealed partial class MainWindow
         var choices = ConversionChoices();
         if (repeat && choices.FirstOrDefault(c => c.Key == _app.LastParameters.Conversion) is { } last) return ConvertSelections(last);
 
-        var selected = SelectionTexts().FirstOrDefault(t => t.Length > 0);
-        // shortcut: the preview counts tab stops from column 0, so Tabs to Spaces on a selection that starts inside a line may preview other widths than it writes
-        var at = new ConversionContext(TabSizeOf(surface), 0);
+        var (selected, startColumn) = FirstSelectionPreview(surface);
+        var at = new ConversionContext(TabSizeOf(surface), startColumn);
         var rows = choices.Select(c => new QuickRow(c.Title, c.Origin, null, null, true, null, $"{c.Title}, {c.Origin}",
             () => ConvertSelections(c), () => ConversionPreview(c, selected ?? c.Sample ?? "", at))).ToList();
         ShowChoice(Loc.Get(K.ConvertWatermark), Loc.Get(K.A11yConvert), rows, emptyText: Loc.Get(K.ConvertEmpty));
         return CommandOutcome.Handled;
+    }
+
+    /// <summary>The text of the first non-empty selection and the visual column at which it starts, so the preview counts tab stops as the conversion will.</summary>
+    internal static (string? Text, int Column) FirstSelectionPreview(EditorSurface surface)
+    {
+        var first = surface.GetSelections().Where(s => !s.IsEmpty).OrderBy(s => s.Start).Cast<Sel?>().FirstOrDefault();
+        if (first is not { } sel) return (null, 0);
+        return (surface.Document.GetText(sel.Start, sel.Length), StartColumns(surface.Document, [sel], TabSizeOf(surface))[0]);
     }
 
     private static int TabSizeOf(EditorSurface surface) => Math.Max(1, surface.Settings.TabSize);
