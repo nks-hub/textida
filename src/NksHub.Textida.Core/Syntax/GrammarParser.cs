@@ -9,7 +9,7 @@ internal static class GrammarParser
     private static readonly HashSet<string> TopKeys = ["$schema", "formatVersion", "id", "name", "version", "extensions", "fileNames", "firstLine", "caseSensitive", "wordPattern", "keywords", "comments", "repository", "rules"];
     private static readonly HashSet<string> CommentKeys = ["line", "block"];
     private static readonly HashSet<string> GroupKeys = ["name", "token", "words", "caseSensitive"];
-    private static readonly HashSet<string> RuleKeys = ["match", "words", "operators", "begin", "include", "token", "end", "beginToken", "endToken", "multiline", "rules", "embed", "name"];
+    private static readonly HashSet<string> RuleKeys = ["match", "words", "operators", "begin", "include", "token", "end", "beginToken", "endToken", "multiline", "rules", "embed", "name", "beginCaptures", "endCaptures"];
     private static readonly Regex KindPattern = new(@"^[a-z][a-z0-9]*(\.[a-z0-9]+)*$", RegexOptions.CultureInvariant);
     private static readonly Regex IdPattern = new(@"^[a-z0-9][a-z0-9-]*$", RegexOptions.CultureInvariant);
 
@@ -143,9 +143,25 @@ internal static class GrammarParser
             EndToken = OptionalString(e, "endToken") is { } et ? Kind(et, path) : token,
             Multiline = OptionalBool(e, "multiline") ?? false,
             Embed = OptionalString(e, "embed"),
+            BeginCaptures = Captures(e, "beginCaptures", path),
+            EndCaptures = Captures(e, "endCaptures", path),
         };
         if (e.TryGetProperty("rules", out var inner)) ParseRules(g, inner, ctx.Rules, path + ".rules");
         return ctx;
+    }
+
+    private static (int Group, string Kind)[]? Captures(JsonElement e, string key, string path)
+    {
+        if (!e.TryGetProperty(key, out var v)) return null;
+        if (v.ValueKind != JsonValueKind.Object) throw new GrammarException($"{path}.{key} must be an object of group numbers and token kinds.");
+        var list = new List<(int, string)>();
+        foreach (var p in v.EnumerateObject())
+        {
+            if (!int.TryParse(p.Name, out int group) || group < 1) throw new GrammarException($"{path}.{key}: '{p.Name}' is not a group number.");
+            if (p.Value.ValueKind != JsonValueKind.String) throw new GrammarException($"{path}.{key}.{p.Name} must be a token kind.");
+            list.Add((group, Kind(p.Value.GetString()!, path)));
+        }
+        return list.Count == 0 ? null : [.. list.OrderBy(c => c.Item1)];
     }
 
     private static string Kind(string kind, string path) =>

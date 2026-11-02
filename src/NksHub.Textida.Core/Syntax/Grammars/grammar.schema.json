@@ -57,6 +57,8 @@
         "token": { "$ref": "#/$defs/kind", "description": "Kind of the match, or of the text of a region." },
         "beginToken": { "$ref": "#/$defs/kind", "description": "Kind of the begin delimiter; default token." },
         "endToken": { "$ref": "#/$defs/kind", "description": "Kind of the end delimiter; default token." },
+        "beginCaptures": { "type": "object", "additionalProperties": { "$ref": "#/$defs/kind" }, "description": "Kind per capturing group number of the begin expression (group 1, 2, ...); the rest of the delimiter keeps beginToken." },
+        "endCaptures": { "type": "object", "additionalProperties": { "$ref": "#/$defs/kind" }, "description": "The same for the end expression. The end expression may hold (?#begin:N), which is replaced by the escaped text group N of the begin expression matched." },
         "multiline": { "type": "boolean", "default": false, "description": "The region goes on at the next line when it is not closed; otherwise it ends with the line." },
         "rules": { "$ref": "#/$defs/rules", "description": "Rules that apply inside the region, before those of an embedded grammar." },
         "embed": { "type": "string", "description": "Id of a grammar whose top-level rules also apply inside the region (CSS in a style element)." },
