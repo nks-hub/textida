@@ -17,7 +17,7 @@
                     <SolidColorBrush x:Key="Accent">#0F7B6C</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#FFFFFF</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectedFg">#1B1D21</SolidColorBrush>
-                    <SolidColorBrush x:Key="LineNumbers">#8A9099</SolidColorBrush>
+                    <SolidColorBrush x:Key="LineNumbers">#656B75</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#1B1D21</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#EEF0F3</SolidColorBrush>
                     <SolidColorBrush x:Key="TabRowBg">#E3E7EC</SolidColorBrush>
@@ -32,7 +32,7 @@
                     <SolidColorBrush x:Key="OccurrenceBg">#4D3B82F6</SolidColorBrush>
                     <SolidColorBrush x:Key="OccurrenceBorder">#993B82F6</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectionBg">#3D0F7B6C</SolidColorBrush>
-                    <SolidColorBrush x:Key="InfoBg">#E8F1EF</SolidColorBrush>
+                    <SolidColorBrush x:Key="InfoBg">#EEF5F3</SolidColorBrush>
                     <SolidColorBrush x:Key="WarnBg">#FFF4D6</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffRemoved">#FFD5D2</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffAdded">#C9EBCF</SolidColorBrush>
@@ -69,7 +69,7 @@
                     <SolidColorBrush x:Key="Accent">#3DC2AC</SolidColorBrush>
                     <SolidColorBrush x:Key="AccentFg">#00201A</SolidColorBrush>
                     <SolidColorBrush x:Key="SelectedFg">#E6E8EB</SolidColorBrush>
-                    <SolidColorBrush x:Key="LineNumbers">#6F7681</SolidColorBrush>
+                    <SolidColorBrush x:Key="LineNumbers">#8F95A0</SolidColorBrush>
                     <SolidColorBrush x:Key="EditorFg">#D4D7DC</SolidColorBrush>
                     <SolidColorBrush x:Key="ChromeBg">#202225</SolidColorBrush>
                     <SolidColorBrush x:Key="TabRowBg">#2A2C31</SolidColorBrush>
@@ -107,7 +107,7 @@
                     <SolidColorBrush x:Key="GitGutterAdded">#4CC38A</SolidColorBrush>
                     <SolidColorBrush x:Key="GitGutterModified">#6CA8E8</SolidColorBrush>
                     <SolidColorBrush x:Key="GitGutterRemoved">#FF8A80</SolidColorBrush>
-                    <SolidColorBrush x:Key="DiffAddedWord">#3F7F4C</SolidColorBrush>
+                    <SolidColorBrush x:Key="DiffAddedWord">#2C6638</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffRemovedWord">#8E4040</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>

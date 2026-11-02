@@ -9,6 +9,7 @@ using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -74,6 +75,56 @@ public class ContrastThemeTests : IDisposable
         // lines and marks that carry meaning need 3 : 1 against what is behind them
         Assert.True(Ratio("Border", "Bg0") >= 3 && Ratio("Accent", "Bg0") >= 3, $"{theme}: borders and the focus ring");
         Assert.True(ContrastColors.Ratio(palette["BgHover"], palette["Bg0"]) > 1.2, $"{theme}: the hover can be told from the window");
+    }
+
+    private Color Over(string key, ThemeVariant variant, Color under)
+    {
+        Assert.True(_app.TryFindResource(key, variant, out var value), key);
+        var top = Assert.IsAssignableFrom<ISolidColorBrush>(value).Color;
+        double a = top.A / 255.0;
+        byte Mix(byte t, byte u) => (byte)Math.Round(t * a + u * (1 - a));
+        return Color.FromRgb(Mix(top.R, under.R), Mix(top.G, under.G), Mix(top.B, under.B));
+    }
+
+    [AvaloniaTheory, InlineData("Light"), InlineData("Dark")]
+    public void Every_text_of_the_light_and_the_dark_theme_reads_on_the_fill_it_is_drawn_on(string name)
+    {
+        var variant = name == "Dark" ? ThemeVariant.Dark : ThemeVariant.Light;
+        var editor = Over("BgEditor", variant, Avalonia.Media.Colors.White);
+        Color Fill(string key) => Over(key, variant, editor);
+        void Reads(string text, string fill, double needed = 4.5)
+        {
+            double ratio = ContrastColors.Ratio(Fill(text), Fill(fill));
+            Assert.True(ratio >= needed, $"{name}: {text} on {fill} is {ratio:0.00} : 1");
+        }
+
+        string[] fills = ["Bg0", "Bg1", "BgEditor", "ChromeBg", "TabRowBg", "TabBg", "InfoBg", "WarnBg", "BgHover", "TabHoverBg", "CurrentLine", "Highlight", "BracketMatch", "BracketUnmatched", "OccurrenceBg", "SelectionBg", "DiffAdded", "DiffRemoved", "DiffAddedWord", "DiffRemovedWord"];
+        foreach (var text in new[] { "Fg", "EditorFg" })
+            foreach (var fill in fills) Reads(text, fill);
+        foreach (var fill in fills.Take(11).Where(f => f != "Highlight")) Reads("FgMuted", fill);
+        foreach (var fill in new[] { "Bg0", "Bg1", "BgEditor", "CurrentLine" }) Reads("LineNumbers", fill);
+        foreach (var text in new[] { "Accent", "Danger", "Good" })
+            foreach (var fill in new[] { "Bg0", "Bg1", "BgEditor", "InfoBg", "WarnBg" }) Reads(text, fill);
+        Reads("SelectedFg", "AccentSoft");
+        Reads("AccentFg", "Accent");
+        foreach (var mark in new[] { "GitGutterAdded", "GitGutterModified", "GitGutterRemoved" }) Reads(mark, "BgEditor", 3);
+    }
+
+    [AvaloniaTheory, InlineData(false), InlineData(true)]
+    public void Every_colour_of_the_syntax_reads_on_the_editor_and_on_the_line_of_the_caret(bool dark)
+    {
+        var variant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        var palette = dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+        var editor = Over("BgEditor", variant, Avalonia.Media.Colors.White);
+        string[] kinds = ["comment", "string", "code", "regex", "keyword", "constant", "tag", "attribute", "number", "type", "function", "variable", "property", "preprocessor", "meta", "heading", "link", "log.error", "log.warning", "log.info", "log.debug"];
+        foreach (var kind in kinds)
+            foreach (var fill in new[] { editor, Over("CurrentLine", variant, editor) })
+            {
+                var colour = Assert.IsAssignableFrom<ISolidColorBrush>(palette.GetBrush(kind)).Color;
+                Assert.True(ContrastColors.Ratio(colour, fill) >= 4.5, $"{(dark ? "Dark" : "Light")}: {kind} on {fill} is {ContrastColors.Ratio(colour, fill):0.00} : 1");
+            }
+        var mark = Assert.IsAssignableFrom<ISolidColorBrush>(palette.GetBrush("log.highlight")).Color;
+        Assert.True(ContrastColors.Ratio(Over("EditorFg", variant, editor), mark) >= 4.5, "the text on the highlight of a log");
     }
 
     [AvaloniaTheory, MemberData(nameof(Themes))]
