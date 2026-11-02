@@ -267,6 +267,21 @@ public class SmartKeysAndProfileEditorTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Home_toggles_like_the_original_but_End_always_goes_to_the_real_line_end_in_the_default_profile()
+    {
+        var tab = Open("    foo");
+        End(tab);
+        int[] home = new int[3];
+        for (int i = 0; i < 3; i++) { Press(Key.Home); home[i] = tab.Editor!.CaretOffset; }
+        Assert.Equal([4, 0, 4], home);
+
+        var end = Open("foo   ");
+        int[] ends = new int[3];
+        for (int i = 0; i < 3; i++) { Press(Key.End); ends[i] = end.Editor!.CaretOffset; }
+        Assert.Equal([6, 6, 6], ends); // the original stops at the last non-blank character (3) first
+    }
+
+    [AvaloniaFact]
     public void Backspace_at_the_end_of_an_indentation_removes_back_to_the_tab_stop_in_the_pspad_profile()
     {
         var tab = Open("        x");
@@ -383,5 +398,27 @@ public class SmartKeysAndProfileEditorTests : IDisposable
         _w.MouseUp(to, MouseButton.Left, RawInputModifiers.Alt);
         Assert.IsType<RectangleSelection>(tab.Editor.TextArea.Selection);
         Assert.False(tab.Editor.IsMulti);
+    }
+
+    [AvaloniaFact]
+    public void Alt_drag_makes_one_caret_a_line_in_the_default_profile_and_typing_goes_to_each()
+    {
+        var tab = Open("abcdef\nabcdef\nabcdef");
+        _w.UpdateLayout();
+        var view = tab.Editor!.TextArea.TextView;
+        view.EnsureVisualLines();
+        Point At(int line, int column) => view.TranslatePoint(view.GetVisualPosition(new TextViewPosition(line, column), VisualYPosition.LineMiddle), _w)!.Value;
+        var from = At(1, 2);
+        var to = At(3, 5);
+        _w.MouseDown(from, MouseButton.Left, RawInputModifiers.Alt);
+        _w.MouseMove(new Point(to.X, from.Y + 1), RawInputModifiers.Alt | RawInputModifiers.LeftMouseButton);
+        _w.MouseMove(to, RawInputModifiers.Alt | RawInputModifiers.LeftMouseButton);
+        _w.MouseUp(to, MouseButton.Left, RawInputModifiers.Alt);
+        Assert.IsNotType<RectangleSelection>(tab.Editor.TextArea.Selection);
+        Assert.True(tab.Editor.IsMulti);
+        Assert.Equal(3, tab.Editor.CaretCount);
+
+        TestApp.Type(_w, "X");
+        Assert.Equal("aXef\naXef\naXef", Text(tab)); // each caret's selection (columns 2 to 5) is replaced
     }
 }
