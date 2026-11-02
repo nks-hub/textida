@@ -193,12 +193,13 @@ Cíle kap. 3 platí pro referenční stroje R8 a protokol z revize. Původní m�
 
 ### PR.5 Dokumentace
 
-- [ ] **PR.5.1** Soubory LICENSE a README
+- [x] **PR.5.1** Soubory LICENSE a README
   - **Co a proč:** Repozitář nemá `LICENSE` ani `README.md`. Licence je MIT (R3, rozhodnuto 26. 10. 2026). Jazyk README a uživatelských návodů určí matice textů P1.1.7.
   - **Funkce:** žádná (infrastruktura)
   - **Hotovo, když:** v kořeni je `LICENSE` s textem MIT a `README.md` s popisem, požadavky (podporované systémy podle R10) a postupem sestavení, který projde na čistém stroji podle textu README; jazyk README odpovídá P1.1.7.
   - **Závisí na:** žádná
   - **Odhad:** bez odhadu; účtuje se v P1
+  - **Stav 2. 11. 2026 (sloučeno):** v kořeni je `LICENSE` (MIT) a `README.md` a podle P1.1.7 přibyly `README.cs.md`, `README.sk.md` a `README.de.md` se stejnými sekcemi a příkazy a s řádkem jazyků (c277e283). Krok testů v README teď vynechá `Perf` a popis vydání odpovídá `release.yml`. Postup sestavení z README spouští CI na čistých strojích GitHubu (`dotnet run tools/Build*Package.cs`, běh 41373925939 prošel na 5 cílech) a testovací virtuál při každém běhu staví `NksHub.Textida.sln` z čistého klonu. Rodilý mluvčí sk a de text nečetl.
 - [x] **PR.5.2** Záznam odchylek od PSPadu
   - **Co a proč:** rozbor PSPadu žádá zapsat odchylky do `docs/deviations` (přesnější sonda UTF-8, UTF-32, hlášení ztráty a smíšených konců). Stejně se zapíšou odchylky z `08`.
   - **Funkce:** žádná (dokumentace)
