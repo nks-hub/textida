@@ -198,6 +198,60 @@ public class ToolbarTests : IDisposable
         Assert.True(_w.FindBar.IsKeyboardFocusWithin, "Find opened its bar, but the keyboard went back to the document");
     }
 
+    private IReadOnlyList<Button> TabStops() => [.. _w.ToolbarButtons.Where(b => b.IsTabStop && b.IsEnabled)];
+
+    [AvaloniaFact]
+    public void The_toolbar_is_one_tab_stop_and_the_arrow_keys_move_between_its_buttons()
+    {
+        Run("nks.view.toggleToolbar");
+        _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        var enabled = _w.ToolbarButtons.Where(b => b.IsEnabled).ToList();
+        Assert.True(enabled.Count > 3);
+        Assert.Equal([enabled[0]], TabStops()); // before the keyboard was there, the stop is the first button
+
+        Assert.True(enabled[0].Focus(NavigationMethod.Tab));
+        TestApp.Press(_w, Key.Right);
+        Assert.Same(enabled[1], _w.FocusManager!.GetFocusedElement());
+        Assert.Equal([enabled[1]], TabStops()); // the stop follows the keyboard
+        TestApp.Press(_w, Key.End);
+        Assert.Same(enabled[^1], _w.FocusManager.GetFocusedElement());
+        TestApp.Press(_w, Key.Right);
+        Assert.Same(enabled[^1], _w.FocusManager.GetFocusedElement()); // the end does not wrap
+        TestApp.Press(_w, Key.Left);
+        Assert.Same(enabled[^2], _w.FocusManager.GetFocusedElement());
+        TestApp.Press(_w, Key.Home);
+        Assert.Same(enabled[0], _w.FocusManager.GetFocusedElement());
+        TestApp.Press(_w, Key.Left);
+        Assert.Same(enabled[0], _w.FocusManager.GetFocusedElement());
+
+        TestApp.Press(_w, Key.Right);
+        TestApp.Press(_w, Key.Tab); // one Tab leaves the toolbar instead of visiting the next button
+        Assert.DoesNotContain(_w.FocusManager.GetFocusedElement(), _w.ToolbarButtons);
+        TestApp.Press(_w, Key.Tab, RawInputModifiers.Shift);
+        Assert.Same(enabled[1], _w.FocusManager.GetFocusedElement()); // and Shift+Tab comes back to the button it left
+    }
+
+    [AvaloniaFact]
+    public void The_remembered_button_is_the_tab_stop_until_it_is_greyed_and_the_buttons_keep_their_names()
+    {
+        Run("nks.view.toggleToolbar");
+        var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        var save = ButtonOf("nks.file.save");
+        Assert.True(save.Focus(NavigationMethod.Tab));
+        Assert.Equal([save], TabStops());
+        _w.CloseTab(tab);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(save.IsEnabled);
+        var stop = Assert.Single(TabStops()); // the remembered button cannot take the keyboard, so the first enabled one does
+        Assert.NotSame(save, stop);
+        _w.OpenFile(_temp.File("b.txt", "beta\n"), null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal([save], TabStops()); // and it gets the stop back when it can run again
+        foreach (var button in _w.ToolbarButtons) Assert.False(string.IsNullOrEmpty(AutomationProperties.GetName(button)));
+    }
+
     [AvaloniaFact]
     public void A_button_for_a_command_that_is_not_there_stays_in_the_file_and_stays_hidden()
     {

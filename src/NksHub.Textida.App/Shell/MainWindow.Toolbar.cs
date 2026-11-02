@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NksHub.Textida.App.Help;
@@ -25,6 +26,7 @@ internal sealed partial class MainWindow
     private IReadOnlyList<string> _toolbarDrawn = [];
     private string? _toolbarLanguage;
     private bool _toolbarByPointer;
+    private string? _toolbarCurrent;
     private ToolbarEditorWindow? _toolbarEditor;
 
     /// <summary>True while the toolbar is switched on.</summary>
@@ -50,6 +52,8 @@ internal sealed partial class MainWindow
         _toolbar.Classes.Add("toolbar");
         _toolbar.Child = _toolbarRow;
         HelpContext.Set(_toolbar, "view.toolbar");
+        _toolbarRow.AddHandler(KeyDownEvent, OnToolbarKeyDown);
+        _toolbarRow.AddHandler(GotFocusEvent, OnToolbarGotFocus);
         _app.Toolbar.Changed += OnToolbarChanged;
         return _toolbar;
     }
@@ -99,6 +103,45 @@ internal sealed partial class MainWindow
         var context = new ShellContext(this, forMenu: true);
         foreach (var button in _toolbarRow.Children.OfType<Button>())
             if (button.Tag is string id && _app.Workbench.Commands.TryGet(id, out var command)) button.IsEnabled = command.IsEnabled(context);
+        UpdateToolbarStops();
+    }
+
+    /// <summary>
+    /// The toolbar is one Tab stop: the button the keyboard was on last (the first enabled one before any), and the others are reached with the arrow keys.
+    /// A remembered button that is greyed for now gives the stop to the first enabled one, so the toolbar never becomes unreachable.
+    /// </summary>
+    private void UpdateToolbarStops()
+    {
+        var buttons = _toolbarRow.Children.OfType<Button>().ToList();
+        var current = buttons.FirstOrDefault(b => b.IsEnabled && (string?)b.Tag == _toolbarCurrent) ?? buttons.FirstOrDefault(b => b.IsEnabled);
+        foreach (var button in buttons) button.IsTabStop = button == current;
+    }
+
+    private void OnToolbarGotFocus(object? sender, RoutedEventArgs e)
+    {
+        if (e.Source is not Button { Tag: string id }) return;
+        _toolbarCurrent = id;
+        UpdateToolbarStops();
+    }
+
+    /// <summary>Left and Right move to the neighbouring enabled button (the other way round in a right-to-left layout), Home and End to the first and last; the ends do not wrap.</summary>
+    private void OnToolbarKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None || e.Source is not Button from) return;
+        var stops = _toolbarRow.Children.OfType<Button>().Where(b => b.IsEnabled).ToList();
+        int at = stops.IndexOf(from);
+        bool rtl = _toolbarRow.FlowDirection == FlowDirection.RightToLeft;
+        int? target = e.Key switch
+        {
+            Key.Right => at + (rtl ? -1 : 1),
+            Key.Left => at + (rtl ? 1 : -1),
+            Key.Home => 0,
+            Key.End => stops.Count - 1,
+            _ => null,
+        };
+        if (at < 0 || target is not { } index) return;
+        e.Handled = true;
+        stops[Math.Clamp(index, 0, stops.Count - 1)].Focus(NavigationMethod.Directional);
     }
 
     private static Control ToolbarSeparator()
