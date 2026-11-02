@@ -2,6 +2,22 @@
 
 Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular release. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
 
+## [Unreleased]
+
+### Fixed
+
+- Open as New Copy reads a file without a byte order mark in its guessed encoding instead of UTF-8.
+- Mermaid subgraph frames no longer cover nodes of another subgraph, and an edge to a subgraph id ends on its frame.
+- After Re-read As in another character width, the line endings shown come from the new reading at once.
+
+### Added
+
+- Insert Image reads the size of SVG, ICO, AVIF and HEIF files.
+
+### Changed
+
+- With incremental sync, multi-caret edits of up to 2048 changed lines reach the language server as one range per run of changed lines.
+
 ## [0.1.5] - 2026-11-02
 
 ### Added
