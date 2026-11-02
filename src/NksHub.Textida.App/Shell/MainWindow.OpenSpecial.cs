@@ -1,6 +1,7 @@
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -88,12 +89,16 @@ internal sealed partial class MainWindow
         ShowEncodingMenu(false);
     }
 
-    /// <summary>The text of the file in a new unsaved document. shortcut: the encoding is the one .NET detects from the BOM, and large files are refused; use "Open with Encoding" for those.</summary>
+    /// <summary>
+    /// The text of the file in a new unsaved document, read in the encoding the guesser finds, as a regular open does.
+    /// shortcut: a file above the large-file limit is refused, because a paged document is always bound to its file and there is no unnamed one; use "Open with Encoding" for those.
+    /// </summary>
     internal Task OpenTargetAsNewCopyAsync() => OpenSpecialAsync(path =>
     {
         string name = Path.GetFileName(path);
         if (new FileInfo(path).Length > LargeFileBytes) throw new IOException(Loc.Get(K.SpecialTooLarge, ("name", name)));
-        string text = File.ReadAllText(path);
+        byte[] bytes = File.ReadAllBytes(path);
+        string text = EncodingGuesser.Guess(bytes.AsSpan(0, Math.Min(bytes.Length, OpenDocument.SampleBytes)), bytes.Length <= OpenDocument.SampleBytes).Codec.Decode(bytes).Text;
         var tab = NewDocument();
         tab.Surface!.Document.Insert(0, text);
         return tab;

@@ -1,26 +1,31 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
+using System.Xml;
 
 namespace NksHub.Textida.Core.Syntax;
 
 /// <summary>
 /// The pieces of "Insert Image" and "Insert Link": the pixel size of an image file, the address of a file as a relative reference from the document, and the tags.
-/// shortcut: the size is read for PNG, GIF, JPEG, BMP and WebP; an SVG or any other file gets an image tag without a size.
+/// shortcut: the size is read for PNG, GIF, JPEG, BMP, WebP, SVG, ICO, AVIF and HEIF; any other file gets an image tag without a size. Of several pictures in one ICO, AVIF or HEIF file the largest counts, and a rotation flag is not applied.
 /// </summary>
 public static class HtmlInsert
 {
-    public static readonly IReadOnlyList<string> ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp"];
+    public static readonly IReadOnlyList<string> ImagePatterns = ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp", "*.webp", "*.svg", "*.ico", "*.avif", "*.heic", "*.heif"];
 
-    private static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"];
+    private static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".ico", ".avif", ".heic", ".heif"];
 
     /// <summary>JPEG segments looked through for the frame header before the file counts as having none; a real file has it among the first few.</summary>
     private const int MaxJpegSegments = 1024;
+
+    /// <summary>How much of the start of an SVG, ICO, AVIF or HEIF file is looked through for the size.</summary>
+    private const int MaxHeadBytes = 64 * 1024;
 
     private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     public static bool IsImageFile(string path) => ImageExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Reads the width and height in pixels from the header of a PNG, GIF, JPEG, BMP or WebP image; false for anything else or a damaged header.</summary>
+    /// <summary>Reads the width and height in pixels from the header of a PNG, GIF, JPEG, BMP, WebP, SVG, ICO, AVIF or HEIF image; false for anything else or a damaged header.</summary>
     public static bool TryImageSize(Stream image, out int width, out int height)
     {
         width = height = 0;
@@ -41,6 +46,8 @@ public static class HtmlInsert
             (width, height) = WebPSize(h);
         else if (h.Length >= 4 && h[0] == 0xFF && h[1] == 0xD8)
             (width, height) = JpegSize(image);
+        else if (image.CanSeek && ReadHead(image) is { Length: > 0 } big)
+            (width, height) = IconSize(big) is { Width: > 0 } icon ? icon : IsoSize(big) is { Width: > 0 } iso ? iso : SvgSize(big);
         return width > 0 && height > 0;
     }
 
@@ -54,6 +61,110 @@ public static class HtmlInsert
             total += n;
         }
         return total;
+    }
+
+    private static byte[] ReadHead(Stream stream)
+    {
+        stream.Position = 0;
+        var buffer = new byte[MaxHeadBytes];
+        return buffer[..ReadUpTo(stream, buffer)];
+    }
+
+    /// <summary>The largest picture listed in the directory of an ICO file (an entry of 0 means 256).</summary>
+    private static (int Width, int Height) IconSize(byte[] d)
+    {
+        if (d.Length < 22 || d[0] != 0 || d[1] != 0 || d[2] != 1 || d[3] != 0) return (0, 0);
+        int count = BinaryPrimitives.ReadUInt16LittleEndian(d.AsSpan(4));
+        if (count == 0 || d[9] != 0) return (0, 0); // the reserved byte of the first entry
+        (int Width, int Height) best = (0, 0);
+        for (int i = 0; i < count && 6 + (i + 1) * 16 <= d.Length; i++)
+        {
+            int w = d[6 + i * 16] is 0 ? 256 : d[6 + i * 16], h = d[7 + i * 16] is 0 ? 256 : d[7 + i * 16];
+            if (w * h > best.Width * best.Height) best = (w, h);
+        }
+        return best;
+    }
+
+    private static readonly string[] IsoBrands = ["avif", "avis", "heic", "heix", "heim", "heis", "hevc", "mif1", "msf1"];
+
+    /// <summary>The largest <c>ispe</c> (image spatial extent) property of an AVIF or HEIF file, found through <c>meta</c>, <c>iprp</c> and <c>ipco</c>.</summary>
+    private static (int Width, int Height) IsoSize(byte[] d)
+    {
+        if (d.Length < 16 || !d.AsSpan(4, 4).SequenceEqual("ftyp"u8)) return (0, 0);
+        int ftypSize = (int)Math.Min(BinaryPrimitives.ReadUInt32BigEndian(d), (uint)d.Length);
+        bool known = false;
+        for (int at = 8; at + 4 <= ftypSize && !known; at += 4)
+            if (at != 12) known = IsoBrands.Contains(Encoding.ASCII.GetString(d, at, 4)); // bytes 12..15 are the minor version
+        if (!known) return (0, 0);
+        (int Width, int Height) best = (0, 0);
+        FindIspe(d, ref best, 0);
+        return best;
+    }
+
+    private static void FindIspe(ReadOnlySpan<byte> data, ref (int Width, int Height) best, int depth)
+    {
+        while (data.Length >= 8)
+        {
+            ulong size = BinaryPrimitives.ReadUInt32BigEndian(data);
+            int header = 8;
+            if (size == 1)
+            {
+                if (data.Length < 16) return;
+                size = BinaryPrimitives.ReadUInt64BigEndian(data[8..]);
+                header = 16;
+            }
+            else if (size == 0) size = (ulong)data.Length;
+            if (size < (ulong)header) return;
+            int total = (int)Math.Min(size, (ulong)data.Length); // a box cut off by the end of what was read still counts as far as it goes
+            var body = data[header..total];
+            var type = data[4..8];
+            if (type.SequenceEqual("ispe"u8) && body.Length >= 12)
+            {
+                uint w = BinaryPrimitives.ReadUInt32BigEndian(body[4..]), h = BinaryPrimitives.ReadUInt32BigEndian(body[8..]);
+                if (w is > 0 and <= int.MaxValue && h is > 0 and <= int.MaxValue && (long)w * h > (long)best.Width * best.Height) best = ((int)w, (int)h);
+            }
+            else if (depth < 4 && type.SequenceEqual("meta"u8) && body.Length >= 4) FindIspe(body[4..], ref best, depth + 1); // meta is a full box: version and flags first
+            else if (depth < 4 && (type.SequenceEqual("iprp"u8) || type.SequenceEqual("ipco"u8))) FindIspe(body, ref best, depth + 1);
+            data = data[total..];
+        }
+    }
+
+    /// <summary>The <c>width</c> and <c>height</c> of the root <c>svg</c> element, or its <c>viewBox</c> when either is missing or relative. No DTD is processed and nothing is fetched.</summary>
+    private static (int Width, int Height) SvgSize(byte[] d)
+    {
+        int start = d.AsSpan().StartsWith(Encoding.UTF8.Preamble) ? 3 : 0;
+        while (start < d.Length && d[start] is (byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n') start++;
+        if (start >= d.Length || d[start] != (byte)'<' && d[start] != 0xFE && d[start] != 0xFF) return (0, 0);
+        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore, XmlResolver = null, MaxCharactersInDocument = 1 << 20 };
+        try
+        {
+            using var reader = XmlReader.Create(new MemoryStream(d), settings);
+            while (reader.Read() && reader.NodeType != XmlNodeType.Element) { }
+            if (reader.NodeType != XmlNodeType.Element || reader.LocalName != "svg") return (0, 0);
+            if (SvgLength(reader.GetAttribute("width")) is { } w && SvgLength(reader.GetAttribute("height")) is { } h) return (w, h);
+            var box = reader.GetAttribute("viewBox")?.Split([' ', ',', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            return box is { Length: 4 }
+                && double.TryParse(box[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double bw)
+                && double.TryParse(box[3], NumberStyles.Float, CultureInfo.InvariantCulture, out double bh)
+                && ToPixels(bw) is { } vw && ToPixels(bh) is { } vh ? (vw, vh) : (0, 0);
+        }
+        catch (XmlException) { return (0, 0); }
+    }
+
+    private static int? ToPixels(double value) => value > 0 && value < 1_000_000 ? Math.Max(1, (int)Math.Round(value)) : null;
+
+    /// <summary>An SVG length as pixels: a plain number or one with px, pt, pc, in, cm or mm; null for a percentage, em, ex or anything else.</summary>
+    private static int? SvgLength(string? text)
+    {
+        if (text is null) return null;
+        text = text.Trim();
+        int unit = text.Length;
+        while (unit > 0 && char.IsAsciiLetter(text[unit - 1])) unit--;
+        double factor = text[unit..].ToLowerInvariant() switch
+        {
+            "" or "px" => 1, "pt" => 96 / 72.0, "pc" => 16, "in" => 96, "cm" => 96 / 2.54, "mm" => 96 / 25.4, _ => 0,
+        };
+        return factor > 0 && double.TryParse(text[..unit], NumberStyles.Float, CultureInfo.InvariantCulture, out double n) ? ToPixels(n * factor) : null;
     }
 
     private static (int Width, int Height) WebPSize(ReadOnlySpan<byte> h)

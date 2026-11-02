@@ -100,6 +100,90 @@ public class HtmlInsertTests
         Assert.Equal((true, 640, 480), Size(Jpeg(0xC2, 640, 480))); // progressive
     }
 
+    private static byte[] Box(string type, params byte[][] parts)
+    {
+        var body = parts.SelectMany(x => x).ToArray();
+        var b = new byte[8 + body.Length];
+        BinaryPrimitives.WriteUInt32BigEndian(b, (uint)b.Length);
+        System.Text.Encoding.ASCII.GetBytes(type).CopyTo(b, 4);
+        body.CopyTo(b, 8);
+        return b;
+    }
+
+    private static byte[] Ispe(uint w, uint h)
+    {
+        var fields = new byte[12];
+        BinaryPrimitives.WriteUInt32BigEndian(fields.AsSpan(4), w);
+        BinaryPrimitives.WriteUInt32BigEndian(fields.AsSpan(8), h);
+        return Box("ispe", fields);
+    }
+
+    /// <summary>An AVIF or HEIF file: ftyp, then meta (a full box) with iprp and ipco holding the extents given.</summary>
+    private static byte[] Heif(string brand, params (uint W, uint H)[] extents)
+    {
+        var ftyp = Box("ftyp", System.Text.Encoding.ASCII.GetBytes(brand), new byte[4], System.Text.Encoding.ASCII.GetBytes(brand));
+        var ipco = Box("ipco", [Box("pixi", new byte[4]), .. extents.Select(e => Ispe(e.W, e.H))]);
+        return [.. ftyp, .. Box("meta", new byte[4], Box("hdlr", new byte[24]), Box("iprp", ipco)), .. Box("mdat", new byte[16])];
+    }
+
+    private static byte[] Ico(params (int W, int H)[] entries)
+    {
+        var b = new byte[6 + entries.Length * 16];
+        b[2] = 1;
+        b[4] = (byte)entries.Length;
+        for (int i = 0; i < entries.Length; i++) (b[6 + i * 16], b[7 + i * 16]) = ((byte)entries[i].W, (byte)entries[i].H); // 256 is stored as 0
+        return b;
+    }
+
+    private static byte[] Svg(string text) => System.Text.Encoding.UTF8.GetBytes(text);
+
+    [Fact]
+    public void The_size_of_an_icon_is_its_largest_entry()
+    {
+        Assert.Equal((true, 32, 32), Size(Ico((16, 16), (32, 32), (24, 24))));
+        Assert.Equal((true, 256, 256), Size(Ico((16, 16), (256, 256))));
+        Assert.False(Size(Ico()).Ok);
+    }
+
+    [Fact]
+    public void The_size_of_an_avif_or_heif_is_its_largest_ispe_box()
+    {
+        Assert.Equal((true, 4032, 3024), Size(Heif("avif", (160, 120), (4032, 3024))));
+        Assert.Equal((true, 800, 600), Size(Heif("heic", (800, 600))));
+        Assert.False(Size(Heif("avif")).Ok); // no ispe box
+        Assert.False(Size(Heif("isom", (800, 600))).Ok); // some other brand, e.g. an MP4
+        Assert.False(Size(Heif("avif", (0, 600))).Ok);
+        Assert.False(Size(Heif("avif", (800, 600))[..30]).Ok); // cut before the property
+    }
+
+    [Fact]
+    public void The_size_of_an_svg_comes_from_the_root_element()
+    {
+        Assert.Equal((true, 120, 80), Size(Svg("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"80\"/>")));
+        Assert.Equal((true, 120, 80), Size(Svg("﻿<?xml version=\"1.0\"?>\n<!-- c -->\n<svg width=\"120px\" height=\"80.4\"><rect width=\"5\" height=\"5\"/></svg>")));
+        Assert.Equal((true, 96, 192), Size(Svg("<svg width=\"1in\" height=\"2in\"/>")));
+        Assert.Equal((true, 24, 16), Size(Svg("<svg viewBox=\"0 0 24 16\"/>")));
+        Assert.Equal((true, 24, 16), Size(Svg("<svg width=\"100%\" height=\"100%\" viewBox=\"0,0,24,16\"/>")));
+        Assert.False(Size(Svg("<svg/>")).Ok);
+        Assert.False(Size(Svg("<svg width=\"10\" height=\"10\"")).Ok); // damaged
+        Assert.False(Size(Svg("<html width=\"10\" height=\"10\"/>")).Ok);
+    }
+
+    [Fact]
+    public void An_svg_with_a_dtd_is_read_without_the_dtd_being_used_or_anything_fetched()
+    {
+        string marker = Path.Combine(Path.GetTempPath(), "textida-svg-xxe-" + Guid.NewGuid().ToString("N"));
+        File.WriteAllText(marker, "10");
+        try
+        {
+            string dtd = "<?xml version=\"1.0\"?><!DOCTYPE svg [<!ENTITY w SYSTEM \"" + new Uri(marker).AbsoluteUri + "\">]>";
+            Assert.Equal((true, 20, 30), Size(Svg(dtd + "<svg width=\"20\" height=\"30\"/>")));
+            Assert.False(Size(Svg(dtd + "<svg width=\"&w;\" height=\"30\"/>")).Ok); // the entity is not expanded
+            Assert.Equal((true, 5, 5), Size(Svg("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://127.0.0.1:9/none.dtd\"><svg width=\"5\" height=\"5\"/>")));
+        }
+        finally { File.Delete(marker); }
+    }
+
     [Fact]
     public void A_real_one_by_one_png_and_gif_are_read()
     {
@@ -112,7 +196,7 @@ public class HtmlInsertTests
     {
         Assert.False(Size([]).Ok);
         Assert.False(Size("plain text, not an image"u8.ToArray()).Ok);
-        Assert.False(Size("<svg width=\"10\" height=\"10\"></svg>"u8.ToArray()).Ok);
+        Assert.False(Size("<html width=\"10\" height=\"10\"></html>"u8.ToArray()).Ok);
         Assert.False(Size(Png(0, 5)).Ok);
         Assert.False(Size(Png(-1, 5)).Ok);
         Assert.False(Size(Png(640, 480)[..20]).Ok);
@@ -142,7 +226,8 @@ public class HtmlInsertTests
     public void Image_files_are_told_by_their_extension()
     {
         Assert.True(HtmlInsert.IsImageFile("a/b/Photo.JPG") && HtmlInsert.IsImageFile("x.webp") && HtmlInsert.IsImageFile("y.png"));
-        Assert.False(HtmlInsert.IsImageFile("a.svg") || HtmlInsert.IsImageFile("a.txt") || HtmlInsert.IsImageFile("png"));
+        Assert.True(HtmlInsert.IsImageFile("a.svg") && HtmlInsert.IsImageFile("a.ICO") && HtmlInsert.IsImageFile("a.avif") && HtmlInsert.IsImageFile("a.heic") && HtmlInsert.IsImageFile("a.heif"));
+        Assert.False(HtmlInsert.IsImageFile("a.txt") || HtmlInsert.IsImageFile("png"));
     }
 
     [Fact]
