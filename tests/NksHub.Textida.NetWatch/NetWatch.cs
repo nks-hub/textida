@@ -118,7 +118,9 @@ public sealed class NetRecorder : EventListener
     /// <summary>The name of the process, and for the shared host (<c>dotnet app.dll</c>) the name of the dll.</summary>
     private static string Label()
     {
-        var name = Path.GetFileNameWithoutExtension(Environment.ProcessPath) ?? "?";
+        // only ".exe" is an extension here: on macOS and Linux "NksHub.Textida.Plugins.Json" is the whole name
+        var name = Path.GetFileName(Environment.ProcessPath) ?? "?";
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
         if (name != "dotnet") return name;
         var dll = Environment.GetCommandLineArgs().FirstOrDefault(a => a.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)); // the first element is the dll when the host starts it
         return dll is null ? name : name + ":" + Path.GetFileName(dll);
