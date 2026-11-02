@@ -8,6 +8,8 @@
 
 > Text editor for Windows, macOS and Linux with a paged document core for files larger than RAM. Built with C# / .NET 10 and Avalonia 12. Preview builds are on the [Releases](https://github.com/nks-hub/textida/releases) page.
 
+**Languages:** English · [Čeština](README.cs.md) · [Slovenčina](README.sk.md) · [Deutsch](README.de.md)
+
 ![Markdown source beside its preview in Textida 0.1.4](assets/screenshots/markdown-editing.png)
 
 [Product page and screenshots](https://nks-hub.cz/reference/repo-textida)
@@ -66,8 +68,10 @@ Build from source:
 git clone https://github.com/nks-hub/textida.git
 cd textida
 dotnet build
-dotnet test
+dotnet test --filter "Category!=Perf"
 ```
+
+The `Perf` tests measure time and need the Release setup described under [Development](#development).
 
 ## Usage
 
@@ -131,7 +135,7 @@ dotnet run tools/BuildLinuxPackage.cs -- --version <version> --output ./artifact
 dotnet run tools/BuildLinuxPackage.cs -- --version <version> --rid linux-arm64 --output ./artifacts
 ```
 
-Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and attaches them with `SHA256SUMS.txt` and the signed `feed.json` to a draft release. All five platform builds must pass. Publish the draft after checking the installer, then commit its `feed.json` to the `update-feed` branch. Linux remains a preview; its automated GUI checks run under Xvfb.
+Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and attaches them with `SHA256SUMS.txt` and the signed `feed.json` to a draft release. Each platform build also validates the sample plugin and checks that the packages hold no PSPad files. The draft is created only when the clean-room check and all five platform builds pass. Publish the draft after checking the installer, then commit its `feed.json` to the `update-feed` branch. Linux remains a preview; its automated GUI checks run under Xvfb.
 
 Before publishing, verify the actual packages for Windows x64, macOS arm64 and x64, and Linux x64 and arm64. After publishing, check the public download and signed feed, then update the [NKS Hub product page](https://nks-hub.cz/reference/repo-textida), this README and the repository description with the same verified version and platform information. Product screenshots must come from the running application with sample documents.
 
