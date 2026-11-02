@@ -114,6 +114,18 @@ public class PrintLayoutTests
             .ToList();
 
     [Fact]
+    public void A_glyph_two_characters_share_reads_back_as_the_character_that_was_printed()
+    {
+        // CJK fonts draw 文 and the Kangxi radical ⽂ with one glyph, and fonts commonly draw the space and the no-break space with one glyph;
+        // by its cmap such a glyph maps back to either character. Where the fonts here do not share them the check holds anyway.
+        const string sample = "文 x y\n⽂";
+        var pdf = PdfExport.Write(PrintLayout.Paginate(Lines(sample), PdfExport.Options(false)), "t");
+        // the glyph keeps the ToUnicode entry of the font's cmap; the character it does not give back carries an ActualText
+        var readable = MappedText(pdf).Concat(ActualTexts(pdf).Select(a => a.Text)).ToHashSet();
+        foreach (string c in new[] { "文", "⽂", " " }) Assert.Contains(c, readable);
+    }
+
+    [Fact]
     public void A_surrogate_pair_never_splits_across_rows()
     {
         var pages = PrintLayout.Paginate(Lines("abc😀d"), new PrintOptions(4, 10, false));
