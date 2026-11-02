@@ -54,6 +54,7 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 - The HTML preview applies `colspan` and `rowspan`.
 - The Python outline lists a `def` or `class` under `if`, `try`, `with` or `for` with its real parent, and ignores definitions inside strings, comments and bracketed continuation lines.
 - LSP: a change inside a `\r\n` pair gave the server a wrong range, and its copy of the document drifted from the editor.
+- Plugin SDK: progress reports that nobody waited for could fill all of the editor's request slots during a long Git fetch, and the editor then refused the command's own requests. A task now keeps at most one progress report in flight.
 - The word at the caret in a large file is read past 512 bytes.
 - The conversion preview counts tab stops from the column where the selection starts.
 - Dragging the minimap keeps syntax colouring off the UI thread while the view stays inside the coloured window.
