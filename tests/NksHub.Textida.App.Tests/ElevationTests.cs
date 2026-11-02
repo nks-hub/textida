@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
@@ -100,20 +101,31 @@ public class ElevatedHelperTests : IDisposable
     }
 
     [Fact]
-    public void The_entry_of_the_helper_says_ok_or_the_reason_in_its_result_file_and_by_its_exit_code()
+    public void The_entry_of_the_helper_says_ok_or_the_reason_by_its_output_and_its_exit_code()
     {
-        string target = Path.Combine(_dir, "t.txt"), result = Path.Combine(_dir, "r1.result");
+        string target = Path.Combine(_dir, "t.txt");
         string staged = Staged("via run");
-        Assert.Equal(0, ElevatedHelper.Run(["--elevated-install", staged, target, Hash(File.ReadAllBytes(staged)), result]));
-        Assert.Equal("ok", File.ReadAllText(result));
+        Assert.Equal((0, "ok"), Answer("--elevated-install", staged, target, Hash(File.ReadAllBytes(staged))));
         Assert.Equal("via run", File.ReadAllText(target));
 
-        string bad = Path.Combine(_dir, "r2.result");
-        Assert.Equal(1, ElevatedHelper.Run(["--elevated-install", staged, target, "00", bad]));
-        Assert.Contains("hash", File.ReadAllText(bad));
-        string unknown = Path.Combine(_dir, "r3.result");
-        Assert.Equal(1, ElevatedHelper.Run(["--elevated-install", "x", unknown]));
-        Assert.Contains("arguments", File.ReadAllText(unknown));
+        var (code, reason) = Answer("--elevated-install", staged, target, "00");
+        Assert.Equal(1, code);
+        Assert.Contains("hash", reason);
+        Assert.Contains("arguments", Answer("--elevated-install", "x").Text);
+
+        // a path as the last argument is no way back any more: the helper writes no file the user named
+        string named = Path.Combine(_dir, "r.result");
+        Assert.Equal(0, ElevatedHelper.Run(["--elevated-install", staged, target, Hash(File.ReadAllBytes(staged)), named], TextWriter.Null, TextWriter.Null));
+        Assert.False(File.Exists(named));
+    }
+
+    /// <summary>Runs the helper with the answer on its standard output and error ("-"), and gives the exit code and what it said.</summary>
+    private static (int Code, string Text) Answer(params string[] args)
+    {
+        var output = new StringWriter();
+        var errors = new StringWriter();
+        int code = ElevatedHelper.Run([.. args, "-"], output, errors);
+        return (code, output.ToString() + errors.ToString());
     }
 
     [Fact]
@@ -121,14 +133,15 @@ public class ElevatedHelperTests : IDisposable
     {
         // the real entry point (Program.Main) of the app, started as a process: the same code the system starts with the rights of the user's allowance
         string app = Path.Combine(AppContext.BaseDirectory, "Textida.dll");
-        string target = Path.Combine(_dir, "from-process.txt"), result = Path.Combine(_dir, "p.result");
+        string target = Path.Combine(_dir, "from-process.txt");
         string staged = Staged("written by the program");
         var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string a in new[] { app, "--elevated-install", staged, target, Hash(File.ReadAllBytes(staged)), result }) info.ArgumentList.Add(a);
+        foreach (string a in new[] { app, "--elevated-install", staged, target, Hash(File.ReadAllBytes(staged)), "-" }) info.ArgumentList.Add(a);
         using var process = Process.Start(info)!;
+        string output = await process.StandardOutput.ReadToEndAsync();
         await process.WaitForExitAsync();
         Assert.Equal(0, process.ExitCode);
-        Assert.Equal("ok", File.ReadAllText(result));
+        Assert.Equal("ok", output.Trim());
         Assert.Equal("written by the program", File.ReadAllText(target));
     }
 
@@ -160,18 +173,107 @@ public class ElevatedHelperTests : IDisposable
         string source = Staged("secret");
         foreach (string name in new[] { "", ".", "..", "../etc", "a/b", "/etc" })
         {
-            string result = Path.Combine(_dir, Guid.NewGuid().ToString("N") + ".result");
-            Assert.Equal(1, ElevatedHelper.Run(["--elevated-read-as", source, name, "100", "501", result]));
-            Assert.Contains("plain name", File.ReadAllText(result));
+            var (code, reason) = Answer("--elevated-read-as", source, name, "100", "501");
+            Assert.Equal(1, code);
+            Assert.Contains("plain name", reason);
         }
-        Assert.Equal(1, ElevatedHelper.Run(["--elevated-read-as", source, "x", "100", "-1", Path.Combine(_dir, "uid.result")])); // not a user id
-        Assert.Contains("arguments", File.ReadAllText(Path.Combine(_dir, "uid.result")));
+        Assert.Contains("arguments", Answer("--elevated-read-as", source, "x", "100", "-1").Text); // not a user id
+    }
+
+    // ---- Windows: UAC hands back only the exit code, so the answer and the copy go into a folder the elevated helper makes itself in the Temp folder of Windows ----
+
+    [SupportedOSPlatform("windows")]
+    private static SecurityIdentifier Me => WindowsIdentity.GetCurrent().User!;
+
+    [SupportedOSPlatform("windows")]
+    private static SecurityIdentifier Sid(WellKnownSidType type) => new(type, null);
+
+    private static void Junction(string link, string target)
+    {
+        using var process = Process.Start(new ProcessStartInfo("cmd.exe", ["/c", "mklink", "/J", link, target]) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true })!;
+        process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        Assert.True(Directory.Exists(link) && File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint), "the junction was made");
     }
 
     [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_the_box_of_the_helper_lets_the_user_read_and_delete_but_not_write()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the box of UAC is Windows only");
+        string box = Path.Combine(_dir, "box");
+        ElevatedHelper.MakeBox(box, Me, Sid(WellKnownSidType.BuiltinAdministratorsSid));
+
+        Assert.False(File.GetAttributes(box).HasFlag(FileAttributes.ReparsePoint));
+        if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+        {
+            // the user cannot place a file, a link or a folder in it before or while the elevated helper writes
+            Assert.Throws<UnauthorizedAccessException>(() => File.WriteAllText(Path.Combine(box, ElevatedHelper.ResultName), "planted"));
+            Assert.Throws<UnauthorizedAccessException>(() => Directory.CreateDirectory(Path.Combine(box, "sub")));
+            // the user owns this test box, yet cannot give itself the right to write: OWNER RIGHTS takes the implied right to change the rights away
+            var rights = new DirectoryInfo(box).GetAccessControl();
+            rights.AddAccessRule(new FileSystemAccessRule(Me, FileSystemRights.FullControl, AccessControlType.Allow));
+            Assert.Throws<UnauthorizedAccessException>(() => new DirectoryInfo(box).SetAccessControl(rights));
+        }
+        Directory.Delete(box, true); // and can remove it when done
+        Assert.False(Directory.Exists(box));
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_the_box_writes_its_answer_and_copy_as_new_files_the_user_can_read()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the box of UAC is Windows only");
+        // the test is its own "administrator" here: the writer is this account, the reader another one
+        string box = Path.Combine(_dir, "own-box"), source = Staged("protected text");
+        ElevatedHelper.MakeBox(box, Sid(WellKnownSidType.BuiltinGuestsSid), Me);
+        ElevatedHelper.Read(source, Path.Combine(box, ElevatedHelper.CopyName), 1000);
+        ElevatedHelper.WriteNew(Path.Combine(box, ElevatedHelper.ResultName), Encoding.UTF8.GetBytes("ok"));
+        Assert.Equal("protected text", File.ReadAllText(Path.Combine(box, ElevatedHelper.CopyName)));
+        Assert.Equal("ok", File.ReadAllText(Path.Combine(box, ElevatedHelper.ResultName)));
+        Assert.Throws<IOException>(() => ElevatedHelper.WriteNew(Path.Combine(box, ElevatedHelper.ResultName), [1])); // never over a file that is there
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_a_junction_in_place_of_the_box_is_refused_and_nothing_is_written_where_it_points()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the box of UAC is Windows only");
+        string target = Path.Combine(_dir, "system-like"), box = Path.Combine(_dir, "box-link");
+        Directory.CreateDirectory(target);
+        Junction(box, target);
+
+        Assert.Throws<ElevationException>(() => ElevatedHelper.MakeBox(box, Me, Sid(WellKnownSidType.BuiltinAdministratorsSid)));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(target));
+
+        // a bad box in the arguments is refused before any job is done
+        string staged = Staged("x"), installed = Path.Combine(_dir, "never.txt");
+        foreach (string box2 in new[] { "box:not-a-sid:n", $"box:{Me.Value}:..", $"box:{Me.Value}:a\\b", "box:" })
+            Assert.Equal(1, ElevatedHelper.Run(["--elevated-install", staged, installed, Hash(File.ReadAllBytes(staged)), box2], TextWriter.Null, TextWriter.Null));
+        Assert.False(File.Exists(installed));
+        Directory.Delete(box); // the junction itself, before the recursive clean-up of the test folder meets it
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public void On_windows_a_link_in_place_of_the_answer_is_refused_and_its_target_is_left_alone()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "the box of UAC is Windows only");
+        string target = Path.Combine(_dir, "important.txt"), link = Path.Combine(_dir, ElevatedHelper.ResultName);
+        File.WriteAllText(target, "keep");
+        try { File.CreateSymbolicLink(link, target); }
+        catch (IOException e) { Assert.Skip("a file link needs Developer Mode or the right to make links: " + e.Message); }
+        catch (UnauthorizedAccessException e) { Assert.Skip("a file link needs Developer Mode or the right to make links: " + e.Message); }
+
+        Assert.Throws<IOException>(() => ElevatedHelper.WriteNew(link, Encoding.UTF8.GetBytes("ok")));
+        Assert.Equal("keep", File.ReadAllText(target));
+    }
+
+    [Fact]
+    [UnsupportedOSPlatform("windows")]
     public void The_read_as_root_writes_a_0600_copy_in_a_new_0700_folder_and_hands_both_to_the_user()
     {
-        if (OperatingSystem.IsWindows()) return; // the job of macOS and Linux (open, mkdir, fchown of libc)
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the read as root is the job of macOS and Linux (open, mkdir, fchown of libc)");
         string source = Staged("secret text"), folder = Path.Combine(_dir, "read");
         uint me = ElevatedHelper.getuid();
 
@@ -188,9 +290,10 @@ public class ElevatedHelperTests : IDisposable
     }
 
     [Fact]
+    [UnsupportedOSPlatform("windows")]
     public void The_read_as_root_refuses_a_folder_that_exists_a_linked_folder_a_linked_source_and_a_file_over_the_limit()
     {
-        if (OperatingSystem.IsWindows()) return;
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the read as root is the job of macOS and Linux (open, mkdir, fchown of libc)");
         string source = Staged("secret");
         uint me = ElevatedHelper.getuid();
 
