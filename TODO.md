@@ -67,6 +67,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
   - **Závisí na:** P1.1.6, P1.1.8, PR.1.2, PR.3.1
   - **Odhad:** bez odhadu; zavedení prostředí v P1, opakované přijetí v P3 (P3.7.5), P9 a P10 (P10.1.4); ocení PR.8.1 a PR.8.2
   - **Záznam 2. 11. 2026 (referenční Mac, macOS 15.7.4 arm64, před 0.1.5):** rychlé sady nad a57cc4cf: Rpc 1254/0, Core 3212 + 4 pády, App 2288 + 11 pádů. Porovnání s v0.1.4: všechny pády kromě jednoho existují už ve v0.1.4 — import z PSPadu na Unixu (zpětné lomítko v cestě projektu se nepřevádí, 5 testů), chybějící `python` v PATH (4 testy převodníků, prostředí), FSEvents (`ReviewFolderTests`, `FileTreeHiddenAndContentTests`), `FolderCompareTests` (nekopírovatelný soubor), `OccurrenceHighlightTests` o 1 px, `PagedSpillTests` jen jednou. Nový je jen `ViewOptionsTests.A_drag_that_moves_inside_the_window_of_the_colors…` (test z 19171d42): na macOS gramatika při tažení minimapy běží 9× místo 3× (výkon, ne správnost). Opravit po 0.1.5.
+  - **Otevřené 2. 11. 2026 (testovací virtuál):** na C: referenční Windows VM ubývá místo z neznámé příčiny (6,4 → 4,0 → 2,6 GB během dne; testy zapisují na F:, profil ABF ani systemprofile nerostou; největší je cizí profil `C:\Users\RDP` 50,8 GB, nesahat). Pojistka v `tools/remote_test.py` dočasně snížena na 1,5 GB, plná sada s výkonovými testy (~3 h) proto neběžela nad 0.1.5 a instalátor 0.1.5 na čistém Windows neověřen. Zjistit příčinu a vrátit pojistku na 5 GB.
 
 ### PR.2 Testovací korpus a výkonové brány
 
@@ -1316,6 +1317,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.7.1
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Požadavek majitele 2. 11. 2026:** soubory přidružené k Textidě mají v systému vlastní ikonu podle přípony (u podporovaných typů např. .md, .json, .yaml, .xml, .csv, .log, .txt, .php, .js, .ts, .cs, .py, .html, .css, .sql, .ini): ikona dokumentu se značkou typu, ne jedna společná ikona aplikace. Windows: ProgID pro skupinu typů s vlastním DefaultIcon (ikony v .ico ve zdrojích nebo vedle programu), instalátor i nastavení integrace; macOS: CFBundleDocumentTypes s CFBundleTypeIconFile pro každou skupinu; Linux: ikony MIME v hicolor. Odinstalace ikony odebere.
 - [ ] **P3.6.7** O aplikaci: kompletní okno
   - **Co a proč:** Dnes jen název a verze. Okno ukáže verzi, commit a datum buildu, .NET a NativeAOT/JIT, systém a architekturu (i Rosettu), jazyk UI, druh a cestu profilu, složku logů, nainstalované pluginy s verzemi, licenci MIT a prohlížeč licencí třetích stran, odkazy na stránku projektu a hlášení chyb; „Kopírovat informace“ pro hlášení chyb bez osobních cest, pokud je uživatel nepovolí.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -1342,6 +1344,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Závisí na:** P3.6.3
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
+  - **Požadavek majitele 2. 11. 2026:** dokovatelné panely i pro Git (změny, commit, log, větve), místní historii a další nástroje; každý panel jde připnout vlevo, vpravo nebo dolů, přesunout tažením nadpisu, sbalit do pruhu na okraji a rozložení se pamatuje (jako tool windows v PhpStormu). Rozšiřuje dnešní dokování Dokumentů, Souborů a pluginového panelu.
 - [ ] **P3.6.10** Strom souborů: barvy, ikony, skryté položky a stav Gitu
   - **Co a proč:** Strom souborů je jednobarevný a bez ikon. Má odlišit složky a soubory barvou a ikonou podle typu souboru, ztlumit skryté položky (tečka na začátku názvu, atribut skrytý), a když je složka v repozitáři Gitu, ukázat stav souborů (změněno, nové, smazáno, ignorováno, konflikt) barvou a značkou i u nadřazených složek. Stav dodá plugin Git, když je k dispozici; bez něj se nic nespouští. Názvy se znaky, které písmo nemá, se ukážou čitelně (náhradní písmo nebo kód znaku), ne jako čtvereček.
   - **Funkce:** žádná (požadavek majitele 28. 10. 2026)
@@ -2986,6 +2989,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Stav 29. 10. 2026:** zadáno vývojáři A (minimapa, Git v editoru, historie, commit/push, macOS balík); testy až jako poslední krok.
   - **Stav 29. 10. 2026 (sloučeno do main 08afd24e):** hotovo v kódu (9f66ae0d). Commit, pull, push (`nks.git.commit`, `nks.git.pull`, `nks.git.push`), fetch, větve, stash a log; síť jen na pokyn uživatele, se zrušením a průběhem; hesla jen přes credential helper Gitu; ikony příkazů a podnabídka Git v novém menu. Časové limity sítě jsou placeholdery (OPEN). Rychlá sada na testovacím virtuálu prošla až na test `PluginUiTests`, který nečekal na pozdější odpověď pluginu; po opravě testu (2503d33c) prošla třída 45/45. Neověřeno v běžící aplikaci.
   - **Rozhodnuto (dávka 7, 07a4e86c; zapsáno 2. 11. 2026):** fetch, pull a push bez časového limitu (`PluginLimits.GitNetworkTimeoutMilliseconds` = 0), uživatel je ruší v řádku úlohy; historie 500 commitů, 20 posledních zpráv.
+  - **Požadavek majitele 2. 11. 2026:** přepracovat Git commit po vzoru PhpStormu: commit jako dokovatelný panel (ne dialog) se seznamem změněných souborů se zaškrtávátky po souborech i po úsecích, náhled rozdílu vybraného souboru, zpráva s historií posledních zpráv, Amend, Commit a Commit and Push, kontrola před commitem (akce při uložení, formátování) a nové/nesledované soubory zvlášť.
 
 ### P8.7 Schémata a manifesty
 
