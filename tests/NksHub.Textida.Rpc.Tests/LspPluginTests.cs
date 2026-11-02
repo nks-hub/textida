@@ -1102,6 +1102,74 @@ public partial class LspPluginTests
     }
 
     [Fact]
+    public void Separate_edits_on_different_lines_are_separate_changes_that_apply_back_in_any_line_ending()
+    {
+        var two = TextChange.Hunks("one\r\ntwo\r\nthree\r\nfour\r\n", "ONE\r\ntwo\r\nthree\r\nfour!\r\n");
+        Assert.Equal([new TextChange(0, 3, "ONE"), new TextChange(21, 21, "!")], two);
+        Assert.Empty(TextChange.Hunks("same\n", "same\n"));
+        Assert.Equal(new TextChange(1, 3, "\n"), Assert.Single(TextChange.Hunks("a\r\nb", "a\nb"))); // the break is not cut: it is replaced whole
+        Assert.Single(TextChange.Hunks("one two\n", "ONE TWO\n")); // two edits on one line are one change
+        Assert.Single(TextChange.Hunks(string.Concat(Enumerable.Range(0, 20).Select(i => $"{i}\n")), string.Concat(Enumerable.Range(0, 20).Select(i => $"{i}x\n")), maxEdits: 5)); // too many differing lines: one change spanning them
+
+        var random = new Random(11);
+        string[] alphabet = ["a", "b", "c", "😀", "😁", "é", "\n", "\r\n", "\r", "ab\n", "abc"];
+        for (int n = 0; n < 3000; n++)
+        {
+            string Make() => string.Concat(Enumerable.Range(0, random.Next(0, 14)).Select(_ => alphabet[random.Next(alphabet.Length)]));
+            string old = Make(), next = Make();
+            var changes = TextChange.Hunks(old, next);
+            Assert.Equal(next, TextChange.ApplyAll(old, changes));
+            Assert.Equal(old == next, changes.Count == 0);
+            int end = 0;
+            foreach (var c in changes)
+            {
+                Assert.True(c.Start >= end && c.OldEnd >= c.Start, "ascending and apart");
+                end = c.OldEnd;
+                Assert.False(c.Start > 0 && c.Start < old.Length && char.IsLowSurrogate(old[c.Start]));
+                Assert.False(c.OldEnd > 0 && c.OldEnd < old.Length && char.IsLowSurrogate(old[c.OldEnd]));
+                Assert.False(c.Start > 0 && c.Start < old.Length && old[c.Start - 1] == '\r' && old[c.Start] == '\n', "start inside a CRLF");
+                Assert.False(c.OldEnd > 0 && c.OldEnd < old.Length && old[c.OldEnd - 1] == '\r' && old[c.OldEnd] == '\n', "end inside a CRLF");
+            }
+            if (TextChange.Between(old, next) is { } whole)
+            {
+                Assert.Equal(next, whole.ApplyTo(old));
+                Assert.False(whole.Start > 0 && whole.Start < old.Length && old[whole.Start - 1] == '\r' && old[whole.Start] == '\n');
+                Assert.False(whole.OldEnd > 0 && whole.OldEnd < old.Length && old[whole.OldEnd - 1] == '\r' && old[whole.OldEnd] == '\n');
+            }
+        }
+    }
+
+    [Fact]
+    public async Task A_multi_caret_edit_reaches_the_server_as_one_range_per_caret_and_the_server_text_stays_the_editor_text_in_every_line_ending()
+    {
+        await using var rig = await Rig.CreateAsync();
+        var model = "é first\r\nsecond 😀\r\nthird\r\nfourth\r\nfifth\r\nsixth\r\n";
+        var doc = rig.Add("carets.fake", model);
+        Assert.Equal("ok", (await rig.RunAsync(doc, LspPlugin.StartCommand)).GetProperty("status").GetString());
+
+        // the editor applies all the carets as one revision; the server must get one range per caret and end with the same text
+        async Task Carets(int ranges, params (int Start, int End, string Text)[] edits)
+        {
+            var byteEdits = edits.Select(e => new ByteEdit(new ByteRange(Bytes(model[..e.Start]), Bytes(model[..e.End])), Encoding.UTF8.GetBytes(e.Text))).ToList();
+            foreach (var (start, end, text) in edits.OrderByDescending(e => e.Start)) model = model[..start] + text + model[end..];
+            Assert.True(await rig.Owner.InvokeAsync(() => doc.Apply(byteEdits).Applied));
+            Assert.Equal(model, Rig.TextOf(doc));
+            Assert.Equal(model, await rig.ServerTextAsync(doc));
+            Assert.Equal($"opens=1 incremental={ranges} full=0", rig.Stats(doc));
+        }
+
+        int third = model.IndexOf("third", StringComparison.Ordinal) + 5, fifth = model.IndexOf("fifth", StringComparison.Ordinal);
+        await Carets(3, (0, 0, "A"), (third, third, "!"), (fifth, fifth + 5, "5th")); // lines 1, 3 and 5: three ranges
+        int fourth = model.IndexOf("fourth", StringComparison.Ordinal);
+        await Carets(4, (fourth, fourth + 1, "F"), (fourth + 5, fourth + 6, "H")); // two carets on one line: one range
+        int crlf = model.IndexOf("\r\n", model.IndexOf("third", StringComparison.Ordinal), StringComparison.Ordinal);
+        await Carets(5, (crlf, crlf + 1, "")); // a CRLF becomes a lone line feed
+        int first = model.IndexOf("\r\n", StringComparison.Ordinal);
+        await Carets(6, (first + 1, first + 2, "")); // a CRLF becomes a lone carriage return, which is a line break too
+        await Carets(8, (0, 0, "<"), (model.Length, model.Length, ">"), (model.IndexOf('\r'), model.IndexOf('\r') + 1, "\r\n"));
+    }
+
+    [Fact]
     public void The_catalog_names_the_roslyn_launch_line_without_telemetry_and_every_text_has_four_languages()
     {
         // data only: no Roslyn or csharp-ls server is started by any test
