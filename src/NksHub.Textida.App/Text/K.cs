@@ -2688,6 +2688,7 @@ public static partial class K
     public const string TokensDocumentExact = "tokens.dialog.document.exact";
     public const string TokensExactNote = "tokens.dialog.exact.note";
     public const string AiTokens = "aicontext.tokens";
+    public const string AiTokensExact = "aicontext.tokens.exact";
     public const string AiLargeWarning = "aicontext.largeWarning";
     public const string HooksTitle = "hooks.title";
     public const string HooksFile = "hooks.file";

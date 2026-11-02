@@ -235,6 +235,24 @@ public class AiContextCommandTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Under_the_openai_rule_the_preview_counts_both_forms_exactly_with_o200k_base_and_marks_nothing_as_estimated()
+    {
+        OpenFile("A.cs", "int žlutý; // Příliš žluťoučký kůň\n");
+        _w.TokenRule = TokenEstimator.OpenAi;
+        var markdown = await CopyAsync("This file");
+        var xml = await CopyAsync("This file", answer: 1);
+
+        // TokenCountTests pins TokenEstimator.Count against tiktoken; here the preview must show that count of the very text that is copied
+        var md = TokenEstimator.Count(markdown!, TokenEstimator.OpenAi);
+        var x = TokenEstimator.Count(xml!, TokenEstimator.OpenAi);
+        Assert.True(md.Exact && x.Exact);
+        Assert.NotEqual(md.Tokens, x.Tokens);
+        string tokens = Loc.Get(K.AiTokensExact, ("markdown", MainWindow.FormatTokens(md.Tokens)), ("xml", MainWindow.FormatTokens(x.Tokens)), ("encoding", "o200k_base"));
+        Assert.All(_dialogs.Asked, a => Assert.EndsWith(" " + tokens, a.Message));
+        Assert.All(_dialogs.Asked, a => Assert.DoesNotContain("≈", a.Message));
+    }
+
+    [AvaloniaFact]
     public void The_size_limit_of_the_whole_copy_starts_at_8_MiB()
     {
         Assert.Equal(4L << 20, _w.AiContextMaxBytes);

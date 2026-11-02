@@ -70,8 +70,14 @@ internal sealed partial class MainWindow
             ? Loc.Get(K.AiOmitNamed, ("name", name), ("reason", ReasonText(o.Reason)))
             : Loc.Get(K.AiOmitCount, ("number", o.Count), ("reason", ReasonText(o.Reason)))).Take(AiPreviewLines).ToList();
         if (markdown.Omissions.Count > details.Count) details.Add(Loc.Get(K.PreviewMore, ("count", markdown.Omissions.Count - details.Count)));
+        var rule = _tokenRule;
+        // the exact count of the OpenAI rule takes time in proportion to the text, so both forms are counted off the UI thread
+        var (markdownTokens, xmlTokens) = markdown.Files > 0 ? await Task.Run(() => (TokenEstimator.Count(markdown.Text, rule), TokenEstimator.Count(xml.Text, rule))) : default;
+        string tokens = markdownTokens.Exact && xmlTokens.Exact
+            ? Loc.Get(K.AiTokensExact, ("markdown", FormatTokens(markdownTokens.Tokens)), ("xml", FormatTokens(xmlTokens.Tokens)), ("encoding", rule.Encoding!))
+            : Loc.Get(K.AiTokens, ("markdown", FormatTokens(TokenEstimator.Estimate(markdown.Text.Length, rule))), ("xml", FormatTokens(TokenEstimator.Estimate(xml.Text.Length, rule))), ("rule", TokenRuleName(rule)));
         var message = Loc.Get(K.AiPreview, ("files", markdown.Files), ("markdown", OpenDocument.FormatSize(markdown.Bytes)), ("xml", OpenDocument.FormatSize(xml.Bytes)))
-            + (markdown.Files > 0 ? " " + Loc.Get(K.AiTokens, ("markdown", FormatTokens(TokenEstimator.Estimate(markdown.Text.Length, _tokenRule))), ("xml", FormatTokens(TokenEstimator.Estimate(xml.Text.Length, _tokenRule))), ("rule", TokenRuleName(_tokenRule))) : "")
+            + (markdown.Files > 0 ? " " + tokens : "")
             + (details.Count > 0 ? " " + Loc.Get(K.AiLeftOut) : "")
             + (markdown.Bytes > AiContextWarnBytes ? " " + Loc.Get(K.AiLargeWarning, ("size", OpenDocument.FormatSize(AiContextWarnBytes))) : "");
         var buttons = markdown.Files == 0
