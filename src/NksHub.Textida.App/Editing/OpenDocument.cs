@@ -464,6 +464,7 @@ internal sealed class OpenDocument : IDisposable
     /// <summary>Recomputes the line ending summary now instead of after the typing pause.</summary>
     public void FlushEol()
     {
+        if (_disposed) return; // a completion posted from the index pool thread can arrive after the tab closed
         _eolTimer.Stop();
         RefreshEol();
         Changed?.Invoke();
@@ -551,8 +552,13 @@ internal sealed class OpenDocument : IDisposable
         Changed?.Invoke();
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
+        _disposed = true;
+        if (_indexWatch is not null) _indexWatch.IndexProgress -= OnIndexProgress;
+        _indexWatch = null;
         _eolTimer.Stop();
         Autosave?.Dispose();
         Lock?.Dispose();
