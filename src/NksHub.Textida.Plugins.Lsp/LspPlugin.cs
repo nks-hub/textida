@@ -293,7 +293,7 @@ public sealed class LspPlugin : PluginBase
     }
 
     /// <summary>
-    /// Brings the server to the text the editor has now: <c>didOpen</c> for a document it does not know, otherwise one <c>didChange</c> (a range, or the whole text for a server that
+    /// Brings the server to the text the editor has now: <c>didOpen</c> for a document it does not know, otherwise one <c>didChange</c> (the changed ranges, or the whole text for a server that
     /// wants that) with the revision as the version. The whole text is read for each synchronisation; a revision that moved meanwhile is a conflict and the next event repeats it.
     /// </summary>
     private async Task SyncAsync(Doc d, CancellationToken ct)
@@ -326,18 +326,22 @@ public sealed class LspPlugin : PluginBase
                 d.Version = revision;
                 d.Open = true;
             }
-            else if (TextChange.Between(d.Text, text) is { } change)
+            else if (d.Text != text)
             {
-                string edit;
+                string edits;
                 if (server.Incremental)
                 {
+                    // ranges against the text the server holds, in UTF-16 units (the one encoding the client announces); the last change goes first so that the earlier ranges stay valid
                     var map = new LineMap(d.Text);
-                    var (startLine, startCharacter) = map.PositionOf(change.Start);
-                    var (endLine, endCharacter) = map.PositionOf(change.OldEnd);
-                    edit = $"{{\"range\":{{\"start\":{{\"line\":{startLine},\"character\":{startCharacter}}},\"end\":{{\"line\":{endLine},\"character\":{endCharacter}}}}},\"text\":\"{Quote(change.Inserted)}\"}}";
+                    edits = string.Join(',', TextChange.Hunks(d.Text, text).Reverse().Select(change =>
+                    {
+                        var (startLine, startCharacter) = map.PositionOf(change.Start);
+                        var (endLine, endCharacter) = map.PositionOf(change.OldEnd);
+                        return $"{{\"range\":{{\"start\":{{\"line\":{startLine},\"character\":{startCharacter}}},\"end\":{{\"line\":{endLine},\"character\":{endCharacter}}}}},\"text\":\"{Quote(change.Inserted)}\"}}";
+                    }));
                 }
-                else edit = $"{{\"text\":\"{Quote(text)}\"}}";
-                await server.NotifyAsync("textDocument/didChange", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\",\"version\":{revision}}},\"contentChanges\":[{edit}]}}").ConfigureAwait(false);
+                else edits = $"{{\"text\":\"{Quote(text)}\"}}";
+                await server.NotifyAsync("textDocument/didChange", $"{{\"textDocument\":{{\"uri\":\"{Quote(d.Uri)}\",\"version\":{revision}}},\"contentChanges\":[{edits}]}}").ConfigureAwait(false);
                 d.Version = revision;
             }
             d.Text = text;

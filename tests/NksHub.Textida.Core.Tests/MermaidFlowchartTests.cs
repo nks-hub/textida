@@ -78,12 +78,36 @@ public class MermaidFlowchartTests
     [InlineData("graph TD")]
     [InlineData("sequenceDiagram\nA->>B: hi")]
     [InlineData("pie title Pets\n\"Dogs\" : 3")]
-    [InlineData("graph TD\nsubgraph s\nA-->B\nend")]
+    [InlineData("graph TD\nsubgraph s\nA-->B")]
+    [InlineData("graph TD\nA-->B\nend")]
+    [InlineData("graph TD\nsubgraph\nA-->B\nend")]
     [InlineData("graph TD\nA-->B:::red")]
     [InlineData("graph TD\nA--oB")]
     [InlineData("graph TD\nA[unterminated --> B")]
     [InlineData("---\ntitle: x\n---\ngraph TD\nA-->B")]
     public void Anything_outside_the_subset_is_not_read_so_the_preview_shows_the_source(string source) => Assert.Null(Parse(source));
+
+    [Fact]
+    public void The_common_node_shapes_are_read()
+    {
+        var chart = Chart("graph TD\nA(round) --> B([stadium])\nB --> C((circle))\nC --> D{diamond}\nD --> E{{hexagon}}\nE --> F[(cylinder)]\nF --> G[/para/]\nG --> H[\\back\\]\nH --> I[box]\nI --> J[/trapezoid\\]");
+        Assert.Equal("A=round/Rounded,B=stadium/Stadium,C=circle/Circle,D=diamond/Diamond,E=hexagon/Hexagon,F=cylinder/Cylinder,G=para/Parallelogram,H=back/ParallelogramBack,I=box/Rectangle,J=trapezoid/Rectangle", Names(chart));
+    }
+
+    [Fact]
+    public void Subgraphs_nest_with_their_title_and_hold_the_nodes_written_inside()
+    {
+        var chart = Chart("graph TD\nX --> A\nsubgraph one [First part]\nA --> B\nsubgraph two\nC & D --> B\nend\nend\nsubgraph \"Third one\"\nE\nend\nB --> F");
+        Assert.Equal("one/First part/-1/A,B", Group(chart, 0));
+        Assert.Equal("two/two/0/C,D", Group(chart, 1));
+        Assert.Equal("Third one/Third one/-1/E", Group(chart, 2));
+        Assert.Equal(3, chart.Groups.Count);
+        Assert.Equal("X=X/Rectangle,A=A/Rectangle,B=B/Rectangle,C=C/Rectangle,D=D/Rectangle,E=E/Rectangle,F=F/Rectangle", Names(chart));
+        Assert.Equal("X>A/Solid,A>B/Solid,C>B/Solid,D>B/Solid,B>F/Solid", Links(chart));
+    }
+
+    private static string Group(Flowchart chart, int g) =>
+        $"{chart.Groups[g].Id}/{chart.Groups[g].Title}/{chart.Groups[g].Parent}/{string.Join(",", chart.Groups[g].Nodes.Select(v => chart.Nodes[v].Id))}";
 
     [Fact]
     public void A_chart_over_the_limits_is_not_read()
@@ -214,5 +238,55 @@ public class MermaidFlowchartTests
         Near(new FlowPoint(50, 0), FlowchartLayout.Border(b, FlowShape.Circle, new FlowPoint(50, -300)));
         var onDiamond = FlowchartLayout.Border(b, FlowShape.Diamond, new FlowPoint(300, 300));
         Assert.Equal(1.0, Math.Abs(onDiamond.X - 50) / 50 + Math.Abs(onDiamond.Y - 30) / 30, 0.01);
+    }
+
+    [Fact]
+    public void A_subgraph_frame_encloses_its_nodes_and_title_and_leaves_the_others_outside()
+    {
+        var layout = Layout("graph TD\nsubgraph one [Part]\nA --> B\nsubgraph two\nC\nend\nend\nB --> C\nD --> A\nD --> E");
+        var (n, one, two) = (layout.Nodes, layout.Groups[0], layout.Groups[1]);
+        Assert.Equal([0, 1], layout.Groups.Select(g => g.Group));
+        bool Inside(FlowBox outer, FlowBox inner) => inner.X >= outer.X && inner.Y >= outer.Y && inner.X + inner.Width <= outer.X + outer.Width && inner.Y + inner.Height <= outer.Y + outer.Height;
+        Assert.True(Inside(one.Box, n[0]) && Inside(one.Box, n[1]) && Inside(one.Box, n[2]) && Inside(one.Box, two.Box));
+        Assert.True(Inside(two.Box, n[2]) && !Inside(two.Box, n[1]));
+        Assert.False(Overlap(one.Box, n[3]) || Overlap(one.Box, n[4]));
+        var titled = Layout("graph TD\nsubgraph one [A rather long title of the frame]\nA\nend").Groups[0];
+        Assert.True(titled.Box.Width >= "A rather long title of the frame".Length * FlowchartLayout.CharWidth);
+        Assert.True(one.Box.Y + FlowchartLayout.LineHeight <= n[0].Y);
+        Assert.True(layout.Groups.All(g => g.Box.X >= 0 && g.Box.Y >= 0 && g.Box.X + g.Box.Width <= layout.Width && g.Box.Y + g.Box.Height <= layout.Height));
+    }
+
+    [Fact]
+    public void The_nodes_of_a_subgraph_stay_together_in_a_layer()
+    {
+        var layout = Layout("graph LR\nS --> A\nS --> X\nS --> B\nsubgraph g\nA\nB\nend");
+        Assert.False(Overlap(layout.Groups[0].Box, layout.Nodes[2]), "X sits between A and B");
+    }
+
+    [Fact]
+    public void The_new_shapes_take_room_and_their_connections_end_on_their_outline()
+    {
+        var box = FlowchartLayout.Measure(new FlowNode("A", "Decide", FlowShape.Rectangle));
+        foreach (var shape in new[] { FlowShape.Stadium, FlowShape.Hexagon, FlowShape.Parallelogram, FlowShape.ParallelogramBack, FlowShape.Cylinder })
+        {
+            var m = FlowchartLayout.Measure(new FlowNode("A", "Decide", shape));
+            Assert.True(m.W >= box.W && m.H >= box.H, shape.ToString());
+        }
+        var (w, h) = FlowchartLayout.Measure(new FlowNode("A", "x", FlowShape.Stadium));
+        Assert.True(w > h);
+
+        var b = new FlowBox(0, 0, 100, 60);
+        Near(new FlowPoint(100, 30), FlowchartLayout.Border(b, FlowShape.Hexagon, new FlowPoint(300, 30)));
+        Near(new FlowPoint(50, 0), FlowchartLayout.Border(b, FlowShape.Hexagon, new FlowPoint(50, -300)));
+        Near(new FlowPoint(91, 30), FlowchartLayout.Border(b, FlowShape.Parallelogram, new FlowPoint(300, 30)));
+        Near(new FlowPoint(9, 30), FlowchartLayout.Border(b, FlowShape.Parallelogram, new FlowPoint(-300, 30)));
+        Near(new FlowPoint(91, 30), FlowchartLayout.Border(b, FlowShape.ParallelogramBack, new FlowPoint(300, 30)));
+        Near(new FlowPoint(100, 30), FlowchartLayout.Border(b, FlowShape.Stadium, new FlowPoint(300, 30)));
+        Near(new FlowPoint(50, 60), FlowchartLayout.Border(b, FlowShape.Stadium, new FlowPoint(50, 300)));
+        var cap = FlowchartLayout.Border(b, FlowShape.Stadium, new FlowPoint(300, 300)); // on the half circle of radius 30 around (70, 30)
+        Assert.Equal(30.0, Math.Sqrt((cap.X - 70) * (cap.X - 70) + (cap.Y - 30) * (cap.Y - 30)), 0.01);
+        Near(new FlowPoint(100, 30), FlowchartLayout.Border(b, FlowShape.Cylinder, new FlowPoint(300, 30)));
+        Assert.Equal(6, FlowchartLayout.Polygon(100, 60, FlowShape.Hexagon).Count);
+        Assert.Equal(4, FlowchartLayout.Polygon(100, 60, FlowShape.Parallelogram).Count);
     }
 }

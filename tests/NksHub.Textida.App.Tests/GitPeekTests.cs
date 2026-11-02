@@ -374,6 +374,28 @@ public class GitPeekTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_paste_of_more_lines_than_the_limit_is_marked_whole_as_one_range_that_follows_its_lines()
+    {
+        var tab = Open(Lines(60_000));
+        var map = tab.Minimap!;
+        var surface = tab.Surface!;
+        int pasted = EditorSurface.MaxEditedLines + 1_000;
+        surface.Document.Insert(surface.Document.GetLineByNumber(40_001).Offset, string.Concat(Enumerable.Range(1, pasted).Select(i => $"pasted {i}\n")));
+        Assert.Equal([(40_000L, 40_000L + pasted - 1)], surface.EditedRanges);
+        var lane = map.LaneKinds(100); // 111 000 lines: the paste covers the rows 36 to 81
+        Assert.All(lane.Skip(38).Take(42), k => Assert.Equal(MinimapMarkKind.Edited, k));
+        Assert.DoesNotContain(MinimapMarkKind.Edited, lane.Take(35));
+        Assert.DoesNotContain(MinimapMarkKind.Edited, lane.Skip(83));
+
+        surface.Document.Insert(0, "top\n"); // the range follows its lines; the new line is a run of its own
+        Assert.Equal([(0L, 0L), (40_001L, 40_001L + pasted - 1)], surface.EditedRanges);
+        surface.Document.Insert(surface.Document.GetLineByNumber(40_005).Offset, "inside "); // an edit inside it changes nothing
+        Assert.Equal([(0L, 0L), (40_001L, 40_001L + pasted - 1)], surface.EditedRanges);
+        surface.Document.Insert(surface.Document.GetLineByNumber(surface.Document.LineCount - 800).Offset, "far\n"); // a line apart from it is a run of its own
+        Assert.Equal(3, surface.EditedRanges.Count);
+    }
+
+    [AvaloniaFact]
     public void The_changes_are_in_the_gutter_the_minimap_and_the_strip_beside_the_scroll_bar_at_once()
     {
         var tab = Open(Lines(80));

@@ -30,6 +30,7 @@ internal static partial class PreviewRenderer
     {
         var layout = FlowchartLayout.Compute(chart);
         var canvas = new Canvas { Width = layout.Width, Height = layout.Height };
+        foreach (var frame in layout.Groups) canvas.Children.Add(DrawGroup(frame));
         foreach (var placed in layout.Edges)
         {
             var edge = placed.Edge;
@@ -50,11 +51,12 @@ internal static partial class PreviewRenderer
         for (int i = 0; i < chart.Nodes.Count; i++) canvas.Children.Add(DrawNode(chart.Nodes[i], layout.Nodes[i]));
 
         string Name(int node) => chart.Nodes[node].Text.ReplaceLineEndings(" ");
+        string Described(int node) => chart.Groups.FirstOrDefault(g => g.Nodes.Contains(node)) is { } group ? Name(node) + " (" + group.Title.ReplaceLineEndings(" ") + ")" : Name(node);
         var connections = chart.Edges.Select(e => e.Label is { } label
             ? Loc.Get(K.PreviewMermaidEdgeLabel, ("from", Name(e.From)), ("to", Name(e.To)), ("label", label))
             : Loc.Get(K.PreviewMermaidEdge, ("from", Name(e.From)), ("to", Name(e.To))));
         var scroll = new ScrollViewer { Content = canvas, Focusable = true, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalAlignment = HorizontalAlignment.Left };
-        AutomationProperties.SetName(scroll, Loc.Get(K.PreviewMermaidName, ("nodes", string.Join(", ", chart.Nodes.Select((_, i) => Name(i)))), ("edges", string.Join("; ", connections))));
+        AutomationProperties.SetName(scroll, Loc.Get(K.PreviewMermaidName, ("nodes", string.Join(", ", chart.Nodes.Select((_, i) => Described(i)))), ("edges", string.Join("; ", connections))));
         return scroll;
     }
 
@@ -70,6 +72,15 @@ internal static partial class PreviewRenderer
             case FlowShape.Circle:
                 shape = new Ellipse();
                 break;
+            case FlowShape.Hexagon or FlowShape.Parallelogram or FlowShape.ParallelogramBack:
+                shape = new Polygon { Points = [.. FlowchartLayout.Polygon(box.Width, box.Height, node.Shape).Select(p => new Point(p.X, p.Y))] };
+                break;
+            case FlowShape.Cylinder:
+                shape = new Avalonia.Controls.Shapes.Path { Data = Cylinder(box.Width, box.Height) };
+                break;
+            case FlowShape.Stadium:
+                shape = new Border { CornerRadius = new CornerRadius(box.Height / 2) };
+                break;
             default:
                 shape = new Border { CornerRadius = new CornerRadius(node.Shape == FlowShape.Rounded ? box.Height / 2.5 : 4) };
                 break;
@@ -79,6 +90,26 @@ internal static partial class PreviewRenderer
         Canvas.SetLeft(holder, box.X);
         Canvas.SetTop(holder, box.Y);
         return holder;
+    }
+
+    private static Geometry Cylinder(double width, double height)
+    {
+        double cap = FlowchartLayout.CylinderCap;
+        string F(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+        string rim = $"{F(width / 2)},{F(cap)} 0 0";
+        return Geometry.Parse($"M 0,{F(cap)} A {rim} 1 {F(width)},{F(cap)} L {F(width)},{F(height - cap)} A {F(width / 2)},{F(cap)} 0 0 1 0,{F(height - cap)} Z M 0,{F(cap)} A {rim} 0 {F(width)},{F(cap)}");
+    }
+
+    private static Control DrawGroup(PlacedGroup frame)
+    {
+        var box = frame.Box;
+        var title = new TextBlock { Text = frame.Title.ReplaceLineEndings(" "), Width = box.Width, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 2, 0, 0) };
+        title.Classes.Add("mermaidlabel");
+        var border = new Border { Width = box.Width, Height = box.Height, CornerRadius = new CornerRadius(6), Child = title, VerticalAlignment = VerticalAlignment.Top };
+        border.Classes.Add("mermaidgroup");
+        Canvas.SetLeft(border, box.X);
+        Canvas.SetTop(border, box.Y);
+        return border;
     }
 
     private static Polygon ArrowHead(FlowPoint from, FlowPoint tip)

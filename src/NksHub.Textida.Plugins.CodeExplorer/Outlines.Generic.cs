@@ -134,22 +134,42 @@ public static partial class Outlines
         return result;
     }
 
-    // shortcut: a def under an `if` or `try` at a deeper indent than a preceding class is taken as its member; fine for outlines, upgrade with a real block parser
+    /// <summary>
+    /// Every statement line closes the declarations whose indent it does not exceed, so a def under an <c>if</c>, <c>try</c>, <c>with</c> or <c>for</c> belongs to the nearest declaration still open.
+    /// Lines inside brackets or after a backslash continue the previous statement and close nothing.
+    /// </summary>
     private static List<Sym> Python(string source)
     {
         var masked = Mask(source, Hash with { Triple = true });
+        var declarations = PythonDeclaration().Matches(masked).ToDictionary(m => m.Index);
         var result = new List<Sym>();
         var stack = new List<(int Indent, int Symbol, string Kind)>();
-        foreach (Match m in PythonDeclaration().Matches(masked))
+        int depth = 0;
+        bool joined = false;
+        for (int start = 0; start < masked.Length;)
         {
-            int indent = m.Groups["i"].Length;
-            while (stack.Count > 0 && stack[^1].Indent >= indent) stack.RemoveAt(stack.Count - 1);
-            var n = m.Groups["n"];
-            bool isClass = m.Groups["k"].Value == "class";
-            string kind = isClass ? "class" : stack.Count > 0 && stack[^1].Kind == "class" ? "method" : "function";
-            string name = isClass ? n.Value : n.Value + "(" + (m.Groups["p"] is { Success: true } p ? Collapse(p.Value, 60) : "") + ")";
-            result.Add(new Sym(kind, name, n.Index, n.Index + n.Length, stack.Count > 0 ? stack[^1].Symbol : -1));
-            stack.Add((indent, result.Count - 1, kind));
+            int end = masked.IndexOf('\n', start);
+            end = end < 0 ? masked.Length : end;
+            var line = masked.AsSpan(start, end - start).TrimEnd("\r \t");
+            int indent = line.Length - line.TrimStart(" \t").Length;
+            if (line.Length > indent && depth == 0 && !joined)
+            {
+                while (stack.Count > 0 && stack[^1].Indent >= indent) stack.RemoveAt(stack.Count - 1);
+                if (declarations.TryGetValue(start, out var m))
+                {
+                    var n = m.Groups["n"];
+                    bool isClass = m.Groups["k"].Value == "class";
+                    string kind = isClass ? "class" : stack.Count > 0 && stack[^1].Kind == "class" ? "method" : "function";
+                    string name = isClass ? n.Value : n.Value + "(" + (m.Groups["p"] is { Success: true } p ? Collapse(p.Value, 60) : "") + ")";
+                    result.Add(new Sym(kind, name, n.Index, n.Index + n.Length, stack.Count > 0 ? stack[^1].Symbol : -1));
+                    stack.Add((indent, result.Count - 1, kind));
+                }
+            }
+            foreach (char c in line)
+                if (c is '(' or '[' or '{') depth++;
+                else if (c is ')' or ']' or '}') depth = Math.Max(0, depth - 1);
+            if (line.Length > 0) joined = line[^1] == '\\';
+            start = end + 1;
         }
         return result;
     }

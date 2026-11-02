@@ -5,7 +5,7 @@ namespace NksHub.Textida.Core.Markdown;
 
 public enum FlowDirection { TopDown, BottomUp, LeftRight, RightLeft }
 
-public enum FlowShape { Rectangle, Rounded, Diamond, Circle }
+public enum FlowShape { Rectangle, Rounded, Diamond, Circle, Stadium, Hexagon, Cylinder, Parallelogram, ParallelogramBack }
 
 public enum FlowLine { Solid, Dotted, Thick }
 
@@ -15,13 +15,17 @@ public sealed record FlowNode(string Id, string Text, FlowShape Shape);
 /// <summary>A connection between two nodes (indexes into <see cref="Flowchart.Nodes"/>), with an optional label, a line style and an arrow head at the end.</summary>
 public sealed record FlowEdge(int From, int To, string? Label, FlowLine Line, bool Arrow);
 
-public sealed record Flowchart(FlowDirection Direction, IReadOnlyList<FlowNode> Nodes, IReadOnlyList<FlowEdge> Edges);
+/// <summary>A <c>subgraph</c>: the title drawn on its frame, the enclosing subgraph (index into <see cref="Flowchart.Groups"/>, -1 at the top) and the nodes written directly in it.</summary>
+public sealed record FlowGroup(string Id, string Title, int Parent, IReadOnlyList<int> Nodes);
+
+/// <summary>A parsed flowchart. A subgraph comes after the subgraph that encloses it in <see cref="Groups"/>.</summary>
+public sealed record Flowchart(FlowDirection Direction, IReadOnlyList<FlowNode> Nodes, IReadOnlyList<FlowEdge> Edges, IReadOnlyList<FlowGroup> Groups);
 
 /// <summary>
 /// The flowchart subset of Mermaid that the preview draws without a script engine (P9.3.1, P9.3.3): <c>graph</c> or <c>flowchart</c> with the direction TD, TB, BT, LR or RL; nodes <c>A</c>,
-/// <c>A[text]</c>, <c>A(text)</c>, <c>A([text])</c>, <c>A((text))</c>, <c>A{text}</c>; connections <c>--&gt;</c>, <c>---</c>, <c>-.-&gt;</c>, <c>==&gt;</c> with a label as <c>--&gt;|text|</c> or
-/// <c>-- text --&gt;</c>; chains (<c>A --&gt; B --&gt; C</c>) and groups (<c>A &amp; B --&gt; C</c>). <c>style</c>, <c>classDef</c>, <c>class</c>, <c>linkStyle</c>, <c>click</c> and <c>direction</c> lines are skipped.
-/// shortcut: subgraphs, other node shapes and other diagram types make <see cref="Parse"/> return null and the preview shows the source; add them when a user needs them.
+/// <c>A[text]</c>, <c>A(text)</c>, <c>A([text])</c> (stadium), <c>A((text))</c>, <c>A{text}</c>, <c>A{{text}}</c> (hexagon), <c>A[(text)]</c> (cylinder), <c>A[/text/]</c> and <c>A[	ext\]</c> (parallelogram); connections <c>--&gt;</c>, <c>---</c>, <c>-.-&gt;</c>, <c>==&gt;</c> with a label as <c>--&gt;|text|</c> or
+/// <c>-- text --&gt;</c>; chains (<c>A --&gt; B --&gt; C</c>) and groups (<c>A &amp; B --&gt; C</c>); <c>subgraph id [title]</c> ... <c>end</c>, nested, around the nodes written inside. <c>style</c>, <c>classDef</c>, <c>class</c>, <c>linkStyle</c>, <c>click</c> and <c>direction</c> lines are skipped.
+/// shortcut: other diagram types and the trapezoid shapes make <see cref="Parse"/> return null or a plain box, and a connection to a subgraph id becomes a node of that name; add them when a user needs them.
 /// </summary>
 public static partial class MermaidFlowchart
 {
@@ -40,13 +44,19 @@ public static partial class MermaidFlowchart
     [GeneratedRegex(@"\G[\p{L}\p{N}_]+")]
     private static partial Regex NodeId();
 
+    [GeneratedRegex(@"^subgraph(?:\s+(?<r>.+))?$", RegexOptions.IgnoreCase)]
+    private static partial Regex SubgraphHead();
+
+    [GeneratedRegex(@"^(?<id>[\p{L}\p{N}_]+)\s*\[\s*(?<t>.*?)\s*\]$")]
+    private static partial Regex SubgraphTitle();
+
     [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase)]
     private static partial Regex LineBreak();
 
     private static readonly (string Open, string Close, FlowShape Shape)[] Shapes =
     [
-        ("((", "))", FlowShape.Circle), ("([", "])", FlowShape.Rounded), ("[[", "]]", FlowShape.Rectangle), ("{{", "}}", FlowShape.Rectangle),
-        ("[", "]", FlowShape.Rectangle), ("(", ")", FlowShape.Rounded), ("{", "}", FlowShape.Diamond), (">", "]", FlowShape.Rectangle),
+        ("((", "))", FlowShape.Circle), ("([", "])", FlowShape.Stadium), ("[[", "]]", FlowShape.Rectangle), ("{{", "}}", FlowShape.Hexagon), ("[(", ")]", FlowShape.Cylinder),
+        ("[/", "/]", FlowShape.Parallelogram), ("[\\", "\\]", FlowShape.ParallelogramBack), ("[", "]", FlowShape.Rectangle), ("(", ")", FlowShape.Rounded), ("{", "}", FlowShape.Diamond), (">", "]", FlowShape.Rectangle),
     ];
 
     private static readonly string[] Skipped = ["style ", "classDef ", "class ", "linkStyle ", "click ", "direction "];
@@ -63,13 +73,35 @@ public static partial class MermaidFlowchart
         var nodes = new List<FlowNode>();
         var edges = new List<FlowEdge>();
         var index = new Dictionary<string, int>(StringComparer.Ordinal);
+        var groups = new List<(string Id, string Title, int Parent, List<int> Nodes)>();
+        var open = new Stack<int>();
+        var owned = new HashSet<int>();
+        void Mention(int node)
+        {
+            if (open.Count > 0 && owned.Add(node)) groups[open.Peek()].Nodes.Add(node);
+        }
         var statements = Statements(string.Join('\n', headerParts.Skip(1).Concat(lines.Skip(1))));
         foreach (var statement in statements)
         {
             if (Skipped.Any(s => statement.StartsWith(s, StringComparison.OrdinalIgnoreCase))) continue;
-            if (!Statement(statement, nodes, edges, index, maxNodes, maxEdges)) return null;
+            if (statement.Equals("end", StringComparison.OrdinalIgnoreCase))
+            {
+                if (open.Count == 0) return null;
+                open.Pop();
+            }
+            else if (SubgraphHead().Match(statement) is { Success: true } head)
+            {
+                if (!head.Groups["r"].Success || groups.Count >= maxNodes) return null;
+                string rest = head.Groups["r"].Value.Trim();
+                var titled = SubgraphTitle().Match(rest);
+                string id = titled.Success ? titled.Groups["id"].Value : rest.Trim('"');
+                string title = LineBreak().Replace(titled.Success ? titled.Groups["t"].Value.Trim('"') : id, "\n");
+                groups.Add((id, title.Length == 0 ? id : title, open.Count > 0 ? open.Peek() : -1, []));
+                open.Push(groups.Count - 1);
+            }
+            else if (!Statement(statement, nodes, edges, index, maxNodes, maxEdges, Mention)) return null;
         }
-        return nodes.Count == 0 ? null : new Flowchart(direction, nodes, edges);
+        return nodes.Count == 0 || open.Count > 0 ? null : new Flowchart(direction, nodes, edges, [.. groups.Select(g => new FlowGroup(g.Id, g.Title, g.Parent, g.Nodes))]);
     }
 
     /// <summary>The statements of the body: split at line ends and at semicolons that are outside brackets and quotes.</summary>
@@ -93,9 +125,8 @@ public static partial class MermaidFlowchart
         if (current.ToString().Trim() is { Length: > 0 } last) yield return last;
     }
 
-    private static bool Statement(string s, List<FlowNode> nodes, List<FlowEdge> edges, Dictionary<string, int> index, int maxNodes, int maxEdges)
+    private static bool Statement(string s, List<FlowNode> nodes, List<FlowEdge> edges, Dictionary<string, int> index, int maxNodes, int maxEdges, Action<int> mention)
     {
-        if (s.StartsWith("subgraph", StringComparison.OrdinalIgnoreCase) || s.Equals("end", StringComparison.OrdinalIgnoreCase)) return false;
         int p = 0;
         List<int>? previous = null;
         FlowLine line = FlowLine.Solid;
@@ -109,6 +140,7 @@ public static partial class MermaidFlowchart
                 while (p < s.Length && char.IsWhiteSpace(s[p])) p++;
                 if (!Node(s, ref p, nodes, index, out int node) || nodes.Count > maxNodes) return false;
                 group.Add(node);
+                mention(node);
                 while (p < s.Length && char.IsWhiteSpace(s[p])) p++;
                 if (p < s.Length && s[p] == '&') p++;
                 else break;
@@ -174,7 +206,11 @@ public static partial class MermaidFlowchart
             else
             {
                 end = s.IndexOf(close, from, StringComparison.Ordinal);
-                if (end < 0) return false;
+                if (end < 0)
+                {
+                    if (open.Length == 2 && open[0] == '[' && open[1] is '/' or '\\') continue; // a trapezoid [/text\] is read as a plain box below
+                    return false;
+                }
                 text = s[from..end].Trim();
                 if (open == "[" && text.Length > 2 && text[0] is '/' or '\\' && text[^1] is '/' or '\\') text = text[1..^1].Trim();
             }

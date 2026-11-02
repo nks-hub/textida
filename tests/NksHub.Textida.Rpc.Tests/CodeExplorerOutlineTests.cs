@@ -123,6 +123,14 @@ public class CodeExplorerOutlineTests
         Assert.Empty(Outlines.Extract("lua", "function f() end"));
     }
 
+    [Fact]
+    public void Python_declarations_nest_by_open_block_at_any_depth_and_skip_strings_and_decorators()
+    {
+        const string py = "class A:\n    pass\nif x:\n    def f(): pass\ntry:\n    class B:\n        def m(self): pass\nexcept E:\n    def g(): pass\nclass C:\n    if y:\n        def h(self): pass\n    @deco(\n  1,\n)\n    def i(self): pass\ns = \"\"\"\ndef no(): pass\n\"\"\"\n";
+        Assert.Equal(["class A", "function f()", "class B", "  method m(self)", "function g()", "class C", "  method h(self)", "  method i(self)"],
+            Tree("python", py).Select(l => l[..l.LastIndexOf(" [", StringComparison.Ordinal)]));
+    }
+
     [Theory]
     [InlineData("javascript", "// function no() {}\nexport class A {\n  go(x) { return `}`; }\n}\nconst f = async (a) => { };\nfunction g(b) { }\n", new[] { "class A", "  method go(x)", "function f(a)", "function g(b)" })]
     [InlineData("python", "# def no(): pass\nclass A:\n    \"\"\"def no(): pass\"\"\"\n    def m(self): pass\ndef f(): pass\n", new[] { "class A", "  method m(self)", "function f()" })]
