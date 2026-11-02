@@ -112,6 +112,11 @@ public sealed class NetRecorder : EventListener
     /// <summary>The datagram counter has reported once, so a later report can be compared with it.</summary>
     public bool HasBaseline => Interlocked.Read(ref _datagrams) >= 0;
 
+    /// <summary>How many reports of the datagram counter arrived; a datagram sent before a report was sampled shows in the next one.</summary>
+    public long CounterReports => Interlocked.Read(ref _reports);
+
+    private long _reports;
+
     public void Emit(string kind, string target, string detail = "") =>
         _sink?.Invoke(new NetEvent(DateTime.UtcNow.Ticks, _pid, _process, kind, target, detail));
 
@@ -159,6 +164,7 @@ public sealed class NetRecorder : EventListener
                 long total = Convert.ToInt64(counter["Mean"], System.Globalization.CultureInfo.InvariantCulture);
                 long before = Interlocked.Exchange(ref _datagrams, total);
                 if (before >= 0 && total > before) Emit(NetKind.Datagram, "", $"+{total - before}");
+                Interlocked.Increment(ref _reports);
                 break;
         }
     }

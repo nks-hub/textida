@@ -113,8 +113,11 @@ internal sealed class NetworkHarness : IDisposable
     /// <summary>Waits for the datagram counters to report, then reads what this process and the hooked children recorded since <paramref name="since"/>.</summary>
     public async Task<NetReport> FinishAsync(long since = 0)
     {
-        // the counters report once a second; one more second makes sure a datagram sent just before is in a report
-        await Task.Delay(1200);
+        // the counters report about once a second, later on a loaded machine; the second report after now was sampled after every datagram sent before now
+        long reports = s_recorder!.CounterReports;
+        var wait = System.Diagnostics.Stopwatch.StartNew();
+        while (s_recorder.CounterReports < reports + 2 && wait.Elapsed < TimeSpan.FromSeconds(10)) await Task.Delay(50);
+        await Task.Delay(200); // the hooked children report on their own timers
         var all = _inProcess.Concat(NetLog.ReadAll(LogFolder)).Where(e => e.Ticks >= since || e.Kind == NetKind.Hello).OrderBy(e => e.Ticks).ToList();
         var report = new NetReport(
             [.. all.Where(e => e.Kind == NetKind.Hello)],
