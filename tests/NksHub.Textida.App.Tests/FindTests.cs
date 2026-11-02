@@ -474,6 +474,18 @@ public class FindTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_bracket_in_code_without_a_partner_is_marked_with_its_own_brush_and_outline()
+    {
+        var tab = _w.OpenFile(_temp.File("u.js", "f(\"a)\", b;\n"), null);
+        var editor = tab.Editor!;
+        editor.CaretOffset = 2; // behind the "(" that is never closed; the ")" in the string does not count
+        Assert.Equal((1, NksHub.Textida.App.Editing.EditorSurface.NoPartner), editor.MatchingBrackets());
+        Assert.NotNull(editor.UnmatchedBracketBrush);
+        Assert.NotNull(editor.UnmatchedBracketPen);
+        Assert.NotEqual(((Avalonia.Media.ISolidColorBrush)editor.BracketBrush!).Color, ((Avalonia.Media.ISolidColorBrush)editor.UnmatchedBracketBrush!).Color);
+    }
+
+    [AvaloniaFact]
     public void Go_to_bracket_jumps_between_the_block_tags_of_a_latte_template()
     {
         var tab = _w.OpenFile(_temp.File("t.latte", "{if $a}x{else}y{/if}\n"), null);

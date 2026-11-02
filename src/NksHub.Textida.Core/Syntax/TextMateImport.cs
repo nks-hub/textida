@@ -21,7 +21,9 @@ public sealed class TextMateImportException(string message) : Exception(message)
 /// <c>beginCaptures</c> and <c>endCaptures</c> (<c>captures</c> for both) colour their groups; a back-reference in an <c>end</c> pattern is replaced at run time by the escaped text the begin pattern matched; possessive quantifiers become atomic groups
 /// (<c>{n,m}+</c> repeats the interval, as in Oniguruma); POSIX classes, <c>\p{Alpha}</c> and <c>\p{Word}</c> follow the Oniguruma definitions; <c>\G</c> holds at the scan position of the engine.
 /// A <c>begin</c>/<c>while</c> rule becomes a region that goes on at the next line only while the <c>while</c> pattern matches at the line start (<c>whileCaptures</c> colour it); <c>\K</c> becomes a lookbehind for the part before it.
-/// Not carried over, and reported each time: <c>\K</c> inside a group or next to a top-level alternation, back-references in a match, begin or while pattern, nested or intersected character classes, the absence operator,
+/// Nested classes (<c>[a[bc]]</c>) and intersections (<c>[a-z&amp;&amp;[^aeiou]]</c>) become a class, alternation or lookahead that matches the same single characters; the absence operator <c>(?~abc)</c> of a literal text becomes a
+/// negative-lookahead loop with a tail that takes the prefix of the text.
+/// Not carried over, and reported each time: <c>\K</c> inside a group or next to a top-level alternation, back-references in a match, begin or while pattern, the absence operator of anything but a literal text,
 /// and includes of grammars that are not in the bundle. Extensions that a built-in grammar already serves are not taken over.
 /// </summary>
 public static class TextMateImport
@@ -357,6 +359,7 @@ public static class TextMateImport
         }
 
         private static readonly Regex Interval = new(@"\G\{(\d+(,\d*)?|,\d+)\}", RegexOptions.CultureInvariant);
+        private static readonly Regex Absence = new(@"\G\(\?~((?:[^\\()\[\]{}|*+?.^$]|\\[^A-Za-z0-9])+)\)", RegexOptions.CultureInvariant);
         private static readonly Regex LonePosix = new(@"\G\[(\^?)\[:(\^?)([A-Za-z]+):\]\]", RegexOptions.CultureInvariant);
 
         private Dictionary<string, int> _names = [];
@@ -453,7 +456,18 @@ public static class TextMateImport
                         if (i + 1 < onig.Length && onig[i + 1] == '?')
                         {
                             string rest = onig[(i + 2)..];
-                            if (rest.StartsWith('~')) { Warn("The absence operator (?~...) is not supported."); return false; }
+                            if (rest.StartsWith('~'))
+                            {
+                                if (Absence.Match(onig, i) is not { Success: true } absent) { Warn("The absence operator (?~...) is supported only for a literal text."); return false; }
+                                string literal = absent.Groups[1].Value;
+                                int length = Regex.Matches(literal, @"\\.|[\s\S]").Count;
+                                atom = o.Length;
+                                o.Append("(?:(?!").Append(literal).Append(@")[\s\S])*");
+                                if (length > 1) o.Append("(?:(?=").Append(literal).Append(@")[\s\S]{").Append(length - 1).Append("})?");
+                                o.Insert(atom, "(?:").Append(')');
+                                i += absent.Length - 1;
+                                continue;
+                            }
                             if (rest.StartsWith("#", StringComparison.Ordinal)) { int end = onig.IndexOf(')', i); if (end < 0) return false; i = end; continue; }
                             bool capturing = rest.StartsWith('\'') || rest.StartsWith("P<", StringComparison.Ordinal) || (rest.StartsWith('<') && rest.Length > 1 && rest[1] is not ('=' or '!'));
                             if (capturing)
@@ -519,18 +533,33 @@ public static class TextMateImport
                 o.Append(whole);
                 return start + lone.Length - 1;
             }
-            o.Append('[');
-            int i = start + 1;
-            if (i < onig.Length && onig[i] == '^') { o.Append('^'); i++; }
-            if (i < onig.Length && onig[i] == ']') { o.Append(@"\]"); i++; }
+            int i = start;
+            o.Append(Render(ParseClass(onig, ref i)));
+            return i;
+        }
+
+        /// <summary>A parsed class: operands joined by <c>&amp;&amp;</c>; members that .NET cannot hold in a class (a negated or intersected nested class, a negated POSIX class) are kept as single-character expressions.</summary>
+        private sealed class ClassNode
+        {
+            public bool Negated;
+            public List<(StringBuilder Body, List<string> Extra)> Operands = [(new StringBuilder(), [])];
+        }
+
+        private ClassNode ParseClass(string onig, ref int i)
+        {
+            var node = new ClassNode();
+            i++;
+            if (i < onig.Length && onig[i] == '^') { node.Negated = true; i++; }
+            var (body, extra) = node.Operands[0];
+            if (i < onig.Length && onig[i] == ']') { body.Append(@"\]"); i++; }
             for (; i < onig.Length; i++)
             {
                 char c = onig[i];
-                if (c == ']') { o.Append(']'); return i; }
+                if (c == ']') return node;
                 if (c == '\\' && i + 1 < onig.Length)
                 {
                     char n = onig[++i];
-                    if (n == 'h') o.Append("0-9a-fA-F");
+                    if (n == 'h') body.Append("0-9a-fA-F");
                     else if (n is 'p' or 'P' && i + 1 < onig.Length && onig[i + 1] == '{' && onig.IndexOf('}', i) is var close && close > 0)
                     {
                         string prop = onig[(i + 2)..close];
@@ -538,26 +567,45 @@ public static class TextMateImport
                         prop = prop.TrimStart('^');
                         if (Posix.TryGetValue(prop, out var set))
                         {
-                            if (!Express(set, negate, true, out var text)) { Warn($"The property {prop} negated among other members of a character class is not supported."); throw new ArgumentException("negated property"); }
-                            o.Append(text);
+                            if (Express(set, negate, true, out var text)) body.Append(text);
+                            else { Express(set, negate, false, out text); extra.Add(text); }
                         }
-                        else o.Append(negate ? @"\P{" : @"\p{").Append(prop).Append('}');
+                        else body.Append(negate ? @"\P{" : @"\p{").Append(prop).Append('}');
                         i = close;
                     }
-                    else o.Append('\\').Append(n);
+                    else body.Append('\\').Append(n);
                 }
-                else if (c == '[' && i + 1 < onig.Length && onig[i + 1] == ':')
+                else if (c == '[' && i + 1 < onig.Length && onig[i + 1] == ':' && onig.IndexOf(":]", i + 2, StringComparison.Ordinal) is var end && end > 0
+                    && Posix.TryGetValue(onig[(i + 2)..end].TrimStart('^'), out var posix))
                 {
-                    int close = onig.IndexOf(":]", i + 2, StringComparison.Ordinal);
-                    string posix = close < 0 ? "" : onig[(i + 2)..close];
-                    if (Posix.TryGetValue(posix.TrimStart('^'), out var set) && Express(set, posix.StartsWith('^'), true, out var text)) { o.Append(text); i = close + 1; }
-                    else { Warn("A nested character class or a negated POSIX class among other members of a class is not supported."); throw new ArgumentException("nested class"); }
+                    bool negate = onig[i + 2] == '^';
+                    if (Express(posix, negate, true, out var text)) body.Append(text);
+                    else { Express(posix, negate, false, out text); extra.Add(text); }
+                    i = end + 1;
                 }
-                else if (c == '[') { Warn("A nested character class is not supported."); throw new ArgumentException("nested class"); }
-                else if (c == '&' && i + 1 < onig.Length && onig[i + 1] == '&') { Warn("An intersection of character classes (&&) is not supported."); throw new ArgumentException("intersection"); }
-                else o.Append(c);
+                else if (c == '[')
+                {
+                    var child = ParseClass(onig, ref i);
+                    if (!child.Negated && child.Operands.Count == 1 && child.Operands[0].Extra.Count == 0) body.Append(child.Operands[0].Body);
+                    else extra.Add(Render(child));
+                }
+                else if (c == '&' && i + 1 < onig.Length && onig[i + 1] == '&')
+                {
+                    node.Operands.Add((body = new StringBuilder(), extra = []));
+                    i++;
+                }
+                else body.Append(c);
             }
             throw new ArgumentException("unterminated class");
+        }
+
+        /// <summary>The .NET text of a class: a plain class when it can be one, otherwise alternation, lookahead intersection or negative lookahead around single-character expressions.</summary>
+        private static string Render(ClassNode node)
+        {
+            if (node.Operands.Count == 1 && node.Operands[0].Extra.Count == 0) return "[" + (node.Negated ? "^" : "") + node.Operands[0].Body + "]";
+            string union = node.Operands.Select(op => op.Extra.Count == 0 ? "[" + op.Body + "]" : "(?:" + string.Join("|", op.Body.Length > 0 ? op.Extra.Prepend("[" + op.Body + "]") : op.Extra) + ")")
+                .Aggregate((left, right) => $"(?:(?={left}){right})");
+            return node.Negated ? $"(?:(?!{union})[\\s\\S])" : union;
         }
     }
 }

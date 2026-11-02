@@ -258,6 +258,27 @@ public class PrintAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Export_as_pdf_of_a_selection_carries_only_that_text_in_the_token_colours()
+    {
+        var w = _app.CreateWindow(null);
+        const string source = "// note\nfunction f() { return \"x\"; }\nlet zzq = 1;\n";
+        var tab = w.OpenFile(_temp.File("sel.js", source), null);
+        tab.Editor!.Select(0, source.IndexOf("let", StringComparison.Ordinal));
+        string pdf = Path.Combine(_temp.Path, "sel.pdf");
+        _dialogs.SaveFiles.Enqueue(pdf);
+
+        await w.ExportPdfAsync();
+
+        var bytes = await File.ReadAllBytesAsync(pdf);
+        var mapped = PrintLayoutTests.MappedText(bytes);
+        foreach (char c in "note") Assert.Contains(c.ToString(), mapped);
+        Assert.DoesNotContain("z", mapped); // the unselected line is the only place of z and q
+        Assert.DoesNotContain("q", mapped);
+        var colours = Regex.Matches(string.Join('\n', PrintLayoutTests.Streams(bytes)), @"[\d.]+ [\d.]+ [\d.]+ rg").Select(m => m.Value).Distinct().ToList();
+        Assert.True(colours.Count >= 3, string.Join(" | ", colours)); // grey numbers plus at least the comment and the keyword colour
+    }
+
+    [AvaloniaFact]
     public async Task Print_gives_the_pages_to_the_printer_and_says_so()
     {
         var w = _app.CreateWindow(null);
