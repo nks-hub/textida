@@ -2318,6 +2318,7 @@
   "tokens.dialog.document.exact": "Dokument: {tokens} tokenů ({chars} znaků).",
   "tokens.dialog.exact.note": "Spočítáno přesně na tomto počítači podle kódování {encoding} modelů OpenAI. Text delší než {size} znaků se jen odhadne na 4 znaky na token a označí se ≈. Nic se nikam neposílalo.",
   "aicontext.tokens": "Odhad velikosti: ≈ {markdown} tokenů jako Markdown, ≈ {xml} jako XML ({rule}).",
+  "aicontext.tokens.exact": "Velikost: {markdown} tokenů jako Markdown, {xml} jako XML, spočítáno přesně podle {encoding}.",
   "aicontext.largeWarning": "Pozor: text je větší než {size} a nemusí se vejít do kontextu modelu (běžně 128 až 200 tisíc tokenů). Zvažte menší výběr.",
   "hooks.title": "Hooky agentů",
   "hooks.file": "Soubor: {path}",

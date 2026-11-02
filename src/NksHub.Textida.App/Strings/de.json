@@ -2270,6 +2270,7 @@
   "tokens.dialog.document.exact": "Dokument: {tokens} Tokens ({chars} Zeichen).",
   "tokens.dialog.exact.note": "Exakt auf diesem Computer mit der Kodierung {encoding} der OpenAI-Modelle gezählt. Ein Text mit mehr als {size} Zeichen wird nur mit 4 Zeichen pro Token geschätzt und mit ≈ markiert. Es wurde nichts gesendet.",
   "aicontext.tokens": "Geschätzte Größe: ≈ {markdown} Tokens als Markdown, ≈ {xml} als XML ({rule}).",
+  "aicontext.tokens.exact": "Größe: {markdown} Tokens als Markdown, {xml} als XML, exakt mit {encoding} gezählt.",
   "aicontext.largeWarning": "Achtung: Der Text ist größer als {size} und passt womöglich nicht in das Kontextfenster eines Modells (üblich sind 128 bis 200 Tausend Tokens). Erwägen Sie eine kleinere Auswahl.",
   "hooks.title": "Agent-Hooks",
   "hooks.file": "Datei: {path}",
