@@ -32,6 +32,7 @@ internal sealed class NetworkRig : IDisposable
         App.Remote = new RemoteServices(App.ProfileDirectory, Secrets);
         if (proxy) NetworkPolicy.Save(App.Remote.NetworkPolicyPath, Net.Sinkhole.Settings, null, Secrets);
         Window = App.CreateWindow(null);
+        Window.AutoCheckDelay = TimeSpan.FromHours(1); // the automatic update check is on by default; a test that wants it shortens this
     }
 
     public string ProjectFile(string relativePath, string content)

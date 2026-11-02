@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -148,15 +149,15 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
         }
     }
 
-    /// <summary>Downloads the package into <paramref name="folder"/> and checks it against the signed size and SHA-256. A mismatch deletes it.</summary>
-    public async Task<string> DownloadAsync(UpdateRelease release, string folder, CancellationToken cancel)
+    /// <summary>Downloads the package into <paramref name="folder"/> and checks it against the signed size and SHA-256. A mismatch, a failure or a cancel deletes it.</summary>
+    public async Task<string> DownloadAsync(UpdateRelease release, string folder, CancellationToken cancel, Action<long>? progress = null)
     {
         Directory.CreateDirectory(folder);
         var zip = Path.Combine(folder, "Textida-" + release.Version + (Platform == UpdatePlatform.Linux ? ".tar.gz" : ".zip"));
         try
         {
             using var file = new FileStream(zip, FileMode.Create, FileAccess.ReadWrite);
-            await FetchAsync(RequireSecure(new Uri(release.Url)), release.Size, file, cancel);
+            await FetchAsync(RequireSecure(new Uri(release.Url)), release.Size, file, cancel, progress);
             file.Position = 0;
             var hash = Convert.ToHexString(await SHA256.HashDataAsync(file, cancel));
             if (file.Length == release.Size && hash.Equals(release.Sha256, StringComparison.OrdinalIgnoreCase)) return zip;
@@ -242,6 +243,13 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
         return Process.Start(start)!;
     }
 
+    /// <summary>The page a user can download the package from by hand: the release page of the package address on GitHub, else the releases page of the project.</summary>
+    public static string ReleasePage(UpdateRelease release)
+    {
+        string[] parts = Uri.TryCreate(release.Url, UriKind.Absolute, out var uri) && uri.Host == "github.com" ? uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries) : [];
+        return parts is [var owner, var repo, "releases", "download", var tag, ..] ? $"https://github.com/{owner}/{repo}/releases/tag/{tag}" : "https://github.com/nks-hub/textida/releases";
+    }
+
     /// <summary>The comparison of versions like 1.2.3 or 1.2.3-rc1: the numbers first, and a version without suffix is newer than the same numbers with one.</summary>
     public static int Compare(string a, string b)
     {
@@ -273,37 +281,86 @@ internal sealed partial class AppUpdater(HttpClient http, string feedUrl, string
         return buffer.ToArray();
     }
 
-    private async Task FetchAsync(Uri uri, long limit, Stream sink, CancellationToken cancel)
+    /// <summary>
+    /// Seconds without a single byte after which a download attempt is given up and resumed. Decided: a slow link still delivers something every few seconds, so 30 s of silence means a dead
+    /// connection; it is long enough not to cut a server that pauses to reconnect to its storage.
+    /// </summary>
+    public const int DefaultStallSeconds = 30;
+
+    /// <summary>Most attempts of one download (the first and the resumes). Decided: three resumes cover a flaky link; more only delay the message that points to the release page.</summary>
+    public const int MaxDownloadAttempts = 4;
+
+    /// <summary>The silence after which an attempt is abandoned; tests set a short one.</summary>
+    public TimeSpan StallTimeout { get; init; } = TimeSpan.FromSeconds(DefaultStallSeconds);
+
+    /// <summary>
+    /// Fills <paramref name="sink"/> (seekable) from <paramref name="uri"/>. A stall or a dropped connection resumes after the bytes already in the sink with a Range request; a server that
+    /// answers 200 instead of 206 starts the sink over. <paramref name="progress"/> is called with the bytes in the sink.
+    /// </summary>
+    private async Task FetchAsync(Uri uri, long limit, Stream sink, CancellationToken cancel, Action<long>? progress = null)
     {
-        try
+        for (int attempt = 1; ; attempt++)
         {
-            using var response = await FetchResponseAsync(uri, cancel);
-            response.EnsureSuccessStatusCode();
-            if (response.Content.Headers.ContentLength > limit) throw new UpdateException(UpdateError.BadPackage, "The server sent more than the signed size.");
-            await using var body = await response.Content.ReadAsStreamAsync(cancel);
-            var chunk = new byte[81920];
-            long total = 0;
-            int read;
-            while ((read = await body.ReadAsync(chunk, cancel)) > 0)
+            try { await FetchOnceAsync(uri, limit, sink, cancel, progress); return; }
+            catch (Exception e) when (e is HttpRequestException or IOException or TimeoutException)
             {
-                total += read;
-                if (total > limit) throw new UpdateException(UpdateError.BadPackage, "The server sent more than the signed size.");
-                await sink.WriteAsync(chunk.AsMemory(0, read), cancel);
+                if (e is HttpRequestException { StatusCode: HttpStatusCode.RequestedRangeNotSatisfiable }) sink.SetLength(0);
+                bool final = e is HttpRequestException { StatusCode: >= HttpStatusCode.MultipleChoices and < HttpStatusCode.InternalServerError and not HttpStatusCode.RequestedRangeNotSatisfiable };
+                if (final || attempt >= MaxDownloadAttempts || cancel.IsCancellationRequested) throw new UpdateException(UpdateError.Network, e.Message, e);
             }
         }
-        catch (Exception e) when (e is HttpRequestException or IOException) { throw new UpdateException(UpdateError.Network, e.Message, e); }
     }
 
-    private async Task<HttpResponseMessage> FetchResponseAsync(Uri uri, CancellationToken cancel)
+    private async Task FetchOnceAsync(Uri uri, long limit, Stream sink, CancellationToken cancel, Action<long>? progress)
     {
-        var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancel);
+        long offset = sink.Length;
+        using var stall = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        try
+        {
+            stall.CancelAfter(StallTimeout);
+            using var response = await FetchResponseAsync(uri, offset, stall.Token);
+            response.EnsureSuccessStatusCode();
+            if (offset > 0 && response.StatusCode != HttpStatusCode.PartialContent) { sink.SetLength(0); offset = 0; }
+            else if (offset > 0 && response.Content.Headers.ContentRange?.From != offset) { sink.SetLength(0); throw new IOException("The server answered a different part than the one asked for."); }
+            if (response.Content.Headers.ContentLength > limit - offset) throw new UpdateException(UpdateError.BadPackage, "The server sent more than the signed size.");
+            sink.Seek(offset, SeekOrigin.Begin);
+            await using var body = await response.Content.ReadAsStreamAsync(stall.Token);
+            var chunk = new byte[81920];
+            long total = offset;
+            progress?.Invoke(total);
+            while (true)
+            {
+                stall.CancelAfter(StallTimeout);
+                int read = await body.ReadAsync(chunk, stall.Token);
+                if (read == 0) break;
+                total += read;
+                if (total > limit) throw new UpdateException(UpdateError.BadPackage, "The server sent more than the signed size.");
+                await sink.WriteAsync(chunk.AsMemory(0, read), stall.Token);
+                progress?.Invoke(total);
+            }
+        }
+        catch (OperationCanceledException) when (!cancel.IsCancellationRequested)
+        {
+            throw new TimeoutException($"No data from the server for {StallTimeout.TotalSeconds:0.##} s.");
+        }
+    }
+
+    private async Task<HttpResponseMessage> FetchResponseAsync(Uri uri, long offset, CancellationToken cancel)
+    {
+        async Task<HttpResponseMessage> Get(Uri address)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, address);
+            if (offset > 0) request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(offset, null);
+            return await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        }
+        var response = await Get(uri);
         // GitHub serves release assets from a separate host; other redirects keep the network policy's same-host rule.
-        if (uri.Host == "github.com" && response.StatusCode is System.Net.HttpStatusCode.Found or System.Net.HttpStatusCode.SeeOther &&
+        if (uri.Host == "github.com" && response.StatusCode is HttpStatusCode.Found or HttpStatusCode.SeeOther &&
             response.Headers.Location is { IsAbsoluteUri: true } next && next.Scheme == "https" &&
             next.Host is "release-assets.githubusercontent.com" or "objects.githubusercontent.com")
         {
             response.Dispose();
-            return await http.GetAsync(next, HttpCompletionOption.ResponseHeadersRead, cancel);
+            return await Get(next);
         }
         return response;
     }
