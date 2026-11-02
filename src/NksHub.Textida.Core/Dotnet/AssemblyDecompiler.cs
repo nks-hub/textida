@@ -7,7 +7,10 @@ using ICSharpCode.Decompiler.TypeSystem;
 
 namespace NksHub.Textida.Core.Dotnet;
 
-/// <summary>What the decompiler may spend on one assembly. A module with more top-level types than <see cref="WholeModuleTypes"/> is decompiled type by type until <see cref="MaxChars"/> or <see cref="MaxTime"/> is reached.</summary>
+/// <summary>
+/// What the decompiler may spend on one assembly. A module with more top-level types than <see cref="WholeModuleTypes"/> is decompiled type by type until <see cref="MaxChars"/> or <see cref="MaxTime"/> is reached.
+/// <see cref="MaxTime"/> bounds work that closing the tab does not stop; System.Collections decompiles whole in about 3 s on the 2.4 GHz test machine with nothing else running.
+/// </summary>
 public sealed record DecompileLimits(long MaxFileBytes = 256L << 20, int WholeModuleTypes = 300, int MaxChars = 8_000_000, TimeSpan? Time = null)
 {
     public TimeSpan MaxTime => Time ?? TimeSpan.FromSeconds(60);
@@ -51,15 +54,25 @@ public static class AssemblyDecompiler
             string whole = decompiler.DecompileWholeModuleAsString();
             return whole.Length > limits.MaxChars ? new DecompiledAssembly(whole[..limits.MaxChars], true, types.Count, types.Count) : new DecompiledAssembly(whole, false, types.Count, types.Count);
         }
-        var text = new StringBuilder(decompiler.DecompileModuleAndAssemblyAttributesToString());
+        var text = new StringBuilder();
         int done = 0;
-        foreach (var type in types)
+        try
         {
-            if (text.Length >= limits.MaxChars || timeout.IsCancellationRequested) break;
-            ct.ThrowIfCancellationRequested();
-            text.AppendLine().Append(decompiler.DecompileTypesAsString([(TypeDefinitionHandle)type.MetadataToken]));
-            done++;
+            text.Append(decompiler.DecompileModuleAndAssemblyAttributesToString());
+            foreach (var type in types)
+            {
+                if (text.Length >= limits.MaxChars || timeout.IsCancellationRequested) break;
+                ct.ThrowIfCancellationRequested();
+                string part = decompiler.DecompileTypesAsString([(TypeDefinitionHandle)type.MetadataToken]);
+                text.AppendLine().Append(part);
+                done++;
+            }
         }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // the time limit ran out inside a type: the types written before it are the result, cut like one cut by its length
+        }
+        ct.ThrowIfCancellationRequested();
         return new DecompiledAssembly(text.ToString(), done < types.Count, done, types.Count);
     }
 }
