@@ -3214,6 +3214,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Maskování i pro Codex, index se stropem paměti. Neměřeno: 1,2GiB přepis.
   - **Ověření 2. 11. 2026:** plná sada na referenčním virtuálu referenční Windows VM nad main 4ad028a4 (Release, DOTNET_TieredCompilation=0, 2. 11. 2026): index 1,2GiB přepisu v Core drží strop paměti (`TranscriptPerfTests` prošly); okno v aplikaci s teplou cache index dokončí asi za 3 s a test prošel po opravě časovače v testu (viz P8b.3.3).
+  - **Oprava 2. 11. 2026 (c100bfe6, sloučeno 5a49a1fa):** při přetečení limitu čekajících volání nástrojů zapomněl `TranscriptParser` i `CodexTranscript` všechna naráz, takže výstup čtení souboru s tajnými hodnotami, který dorazil později, se ukázal nemaskovaný. Teď se zapomíná jen nejstarší volání. Test v `CodexTranscriptTests` (42/42 s `TranscriptTests`).
 
 ## P9 – použitelnost a vydání
 
