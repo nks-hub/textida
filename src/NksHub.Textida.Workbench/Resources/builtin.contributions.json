@@ -2400,6 +2400,13 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.file.exportTex",
+      "title": "cmd.file.exportTex",
+      "category": "cat.file",
+      "icon": "file-text",
+      "enablement": "hasDocument"
+    },
+    {
       "id": "nks.tools.emmetPreview",
       "title": "cmd.tools.emmetPreview",
       "category": "cat.tools",
@@ -5722,6 +5729,13 @@
       "group": "5_remote/02",
       "submenu": "export",
       "order": 20
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportTex",
+      "group": "5_remote/02",
+      "submenu": "export",
+      "order": 40
     },
     {
       "menu": "tools",

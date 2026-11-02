@@ -657,6 +657,7 @@
   "cmd.edit.copyHtmlSource": "Kopírovat jako zdroj HTML",
   "cmd.file.exportHtml": "Exportovat jako HTML...",
   "cmd.file.exportRtf": "Exportovat jako RTF...",
+  "cmd.file.exportTex": "Exportovat jako LaTeX...",
   "cmd.edit.repeatLast": "Opakovat poslední příkaz",
   "setting.editor.clipboardHistorySize.title": "Velikost historie schránky",
   "setting.editor.clipboardHistorySize.description": "Kolik zkopírovaných textů si historie schránky pamatuje. Je jen v paměti a po zavření programu se zapomene.",

@@ -15,10 +15,10 @@ using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>Export with highlighting (P9.3.2): HTML and RTF files, and a copy that puts text, HTML and RTF on the clipboard together.</summary>
+/// <summary>Export with highlighting (P9.3.2): HTML, RTF and LaTeX files, and a copy that puts text, HTML and RTF on the clipboard together.</summary>
 internal sealed partial class MainWindow
 {
-    internal enum ExportForm { Html, Rtf }
+    internal enum ExportForm { Html, Rtf, Tex }
 
     /// <summary>
     /// What an export takes: the text, the part of it chosen (null for all), and what colors it. A large file is taken by its selection and the start of the
@@ -113,7 +113,7 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>Writes the export of the source; the work runs off the UI thread. Null (with the reason in the status bar) when there is nothing to export or the text is over the limit.</summary>
-    private async Task<(string Html, string Rtf)?> BuildExportAsync(ExportSource? source, ExportForm? only)
+    private async Task<(string Html, string Rtf, string Tex)?> BuildExportAsync(ExportSource? source, ExportForm? only)
     {
         if (source is null || source.Problem is not null)
         {
@@ -127,11 +127,12 @@ internal sealed partial class MainWindow
         }
         var theme = CurrentExportTheme();
         return await Task.Run(() => (
-            only == ExportForm.Rtf ? "" : HighlightExport.Html(source.Text, source.Tokenizer, source.Levels, theme, only == ExportForm.Html ? source.Title : null, source.Range, default, source.StartState),
-            only == ExportForm.Html ? "" : HighlightExport.Rtf(source.Text, source.Tokenizer, source.Levels, theme, source.Range, default, source.StartState)));
+            only is ExportForm.Rtf or ExportForm.Tex ? "" : HighlightExport.Html(source.Text, source.Tokenizer, source.Levels, theme, only == ExportForm.Html ? source.Title : null, source.Range, default, source.StartState),
+            only is ExportForm.Html or ExportForm.Tex ? "" : HighlightExport.Rtf(source.Text, source.Tokenizer, source.Levels, theme, source.Range, default, source.StartState),
+            only == ExportForm.Tex ? HighlightExport.Tex(source.Text, source.Tokenizer, source.Levels, theme, source.Range, default, source.StartState) : ""));
     }
 
-    /// <summary>File → Export as HTML / RTF: asks for the file and writes the selection, or the whole document, with the colors of the editor.</summary>
+    /// <summary>File → Export as HTML / RTF / LaTeX: asks for the file and writes the selection, or the whole document, with the colors of the editor.</summary>
     internal CommandOutcome ExportHighlighted(ExportForm form)
     {
         if (Active is not { Custom: null, Hex: null }) return CommandOutcome.NotHandled;
@@ -143,12 +144,12 @@ internal sealed partial class MainWindow
     {
         string stem = Path.GetFileNameWithoutExtension(Active?.Doc.Title ?? "export");
         if (await BuildExportAsync(await ReadExportSourceAsync(), form) is not { } built) return;
-        string? path = await _app.Dialogs.PickSaveFileAsync(this, Loc.Get(K.ExportTitle), stem + (form == ExportForm.Html ? ".html" : ".rtf"));
+        string? path = await _app.Dialogs.PickSaveFileAsync(this, Loc.Get(K.ExportTitle), stem + form switch { ExportForm.Html => ".html", ExportForm.Rtf => ".rtf", _ => ".tex" });
         if (path is null) return;
         try
         {
-            if (form == ExportForm.Html) await File.WriteAllTextAsync(path, built.Html, new UTF8Encoding(false));
-            else await File.WriteAllTextAsync(path, built.Rtf, Encoding.ASCII);
+            if (form == ExportForm.Rtf) await File.WriteAllTextAsync(path, built.Rtf, Encoding.ASCII);
+            else await File.WriteAllTextAsync(path, form == ExportForm.Html ? built.Html : built.Tex, new UTF8Encoding(false));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

@@ -657,6 +657,7 @@
   "cmd.edit.copyHtmlSource": "Als HTML-Quelltext kopieren",
   "cmd.file.exportHtml": "Als HTML exportieren...",
   "cmd.file.exportRtf": "Als RTF exportieren...",
+  "cmd.file.exportTex": "Als LaTeX exportieren...",
   "cmd.edit.repeatLast": "Letzten Befehl wiederholen",
   "setting.editor.clipboardHistorySize.title": "Größe des Zwischenablage-Verlaufs",
   "setting.editor.clipboardHistorySize.description": "Wie viele kopierte Texte der Verlauf behält. Er liegt nur im Speicher und wird beim Beenden vergessen.",
