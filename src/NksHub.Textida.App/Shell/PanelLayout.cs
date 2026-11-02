@@ -8,8 +8,8 @@ using NksHub.Textida.App.Profile;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>The panels that stand beside or below the text: the open documents, the files of a folder and the panel a plug-in fills.</summary>
-internal enum SidePanel { Documents, Files, Plugin }
+/// <summary>The tool windows that stand beside or below the text: the open documents, the files of a folder, the panel a plug-in fills, the commit panel of a repository and the local history of a file.</summary>
+internal enum SidePanel { Documents, Files, Plugin, Commit, History }
 
 /// <summary>The sides of the window a panel is docked to.</summary>
 internal enum PanelDock { Left, Right, Bottom }
@@ -29,10 +29,13 @@ internal sealed class PanelLayout
     public const double MaxHeight = 480;
     public const double MaxShare = 0.5;
 
-    private readonly Dictionary<SidePanel, PanelDock> _docks = new() { [SidePanel.Documents] = PanelDock.Left, [SidePanel.Files] = PanelDock.Left, [SidePanel.Plugin] = PanelDock.Left };
+    private readonly Dictionary<SidePanel, PanelDock> _docks = Panels.ToDictionary(p => p, DefaultDock);
     private readonly Dictionary<PanelDock, double> _sizes = new() { [PanelDock.Left] = DefaultWidth, [PanelDock.Right] = DefaultWidth, [PanelDock.Bottom] = DefaultHeight };
 
-    public static IReadOnlyList<SidePanel> Panels { get; } = [SidePanel.Documents, SidePanel.Files, SidePanel.Plugin];
+    public static IReadOnlyList<SidePanel> Panels { get; } = [SidePanel.Documents, SidePanel.Files, SidePanel.Plugin, SidePanel.Commit, SidePanel.History];
+
+    /// <summary>The side a panel stands on until it is moved: the commit panel and the history are wide, so they start at the bottom.</summary>
+    public static PanelDock DefaultDock(SidePanel panel) => panel is SidePanel.Commit or SidePanel.History ? PanelDock.Bottom : PanelDock.Left;
 
     public static IReadOnlyList<PanelDock> Docks { get; } = [PanelDock.Left, PanelDock.Right, PanelDock.Bottom];
 
@@ -58,7 +61,7 @@ internal sealed class PanelLayout
         return _sizes[dock] = double.IsFinite(size) ? Math.Clamp(size, min, max) : min;
     }
 
-    public bool IsDefault => Docks.All(d => _sizes[d] == (d == PanelDock.Bottom ? DefaultHeight : DefaultWidth)) && Panels.All(p => _docks[p] == PanelDock.Left);
+    public bool IsDefault => Docks.All(d => _sizes[d] == (d == PanelDock.Bottom ? DefaultHeight : DefaultWidth)) && Panels.All(p => _docks[p] == DefaultDock(p));
 
     public PanelLayout Copy()
     {
@@ -73,6 +76,7 @@ internal sealed class PanelLayout
     public SavedPanels ToSaved() => new()
     {
         Documents = Name(_docks[SidePanel.Documents]), Files = Name(_docks[SidePanel.Files]), Plugin = Name(_docks[SidePanel.Plugin]),
+        Commit = Name(_docks[SidePanel.Commit]), History = Name(_docks[SidePanel.History]),
         LeftWidth = _sizes[PanelDock.Left], RightWidth = _sizes[PanelDock.Right], BottomHeight = _sizes[PanelDock.Bottom],
     };
 
@@ -81,9 +85,11 @@ internal sealed class PanelLayout
     {
         var layout = new PanelLayout();
         if (saved is null) return layout;
-        layout._docks[SidePanel.Documents] = Parse(saved.Documents);
-        layout._docks[SidePanel.Files] = Parse(saved.Files);
-        layout._docks[SidePanel.Plugin] = Parse(saved.Plugin);
+        layout._docks[SidePanel.Documents] = Parse(saved.Documents, SidePanel.Documents);
+        layout._docks[SidePanel.Files] = Parse(saved.Files, SidePanel.Files);
+        layout._docks[SidePanel.Plugin] = Parse(saved.Plugin, SidePanel.Plugin);
+        layout._docks[SidePanel.Commit] = Parse(saved.Commit, SidePanel.Commit);
+        layout._docks[SidePanel.History] = Parse(saved.History, SidePanel.History);
         layout.SetSize(PanelDock.Left, saved.LeftWidth);
         layout.SetSize(PanelDock.Right, saved.RightWidth);
         layout.SetSize(PanelDock.Bottom, saved.BottomHeight);
@@ -92,7 +98,7 @@ internal sealed class PanelLayout
 
     public static string Name(PanelDock dock) => dock switch { PanelDock.Right => "right", PanelDock.Bottom => "bottom", _ => "left" };
 
-    private static PanelDock Parse(string? name) => name switch { "right" => PanelDock.Right, "bottom" => PanelDock.Bottom, _ => PanelDock.Left };
+    private static PanelDock Parse(string? name, SidePanel panel) => name switch { "left" => PanelDock.Left, "right" => PanelDock.Right, "bottom" => PanelDock.Bottom, _ => DefaultDock(panel) };
 
     // ---- where a dragged panel is dropped ----
 

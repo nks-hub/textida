@@ -2867,4 +2867,19 @@ public static partial class K
     public const string A11yPanelSplitterLeft = "a11y.panel.splitter.left";
     public const string A11yPanelSplitterRight = "a11y.panel.splitter.right";
     public const string A11yPanelSplitterBottom = "a11y.panel.splitter.bottom";
+    public const string PanelCommitName = "panel.commit.name";
+    public const string PanelHistoryName = "panel.history.name";
+    public const string PanelToolHide = "panel.tool.hide";
+    public const string A11yPanelStripLeft = "a11y.panel.strip.left";
+    public const string A11yPanelStripRight = "a11y.panel.strip.right";
+    public const string A11yPanelStripBottom = "a11y.panel.strip.bottom";
+    public const string CommitGroupChanges = "commit.group.changes";
+    public const string CommitGroupUnversioned = "commit.group.unversioned";
+    public const string CommitGroupRow = "commit.group.row";
+    public const string CommitHunk = "commit.hunk";
+    public const string A11yCommitHunk = "a11y.commit.hunk";
+    public const string CommitChecks = "commit.checks";
+    public const string CommitCheckSave = "commit.check.save";
+    public const string CommitCheckFormat = "commit.check.format";
+    public const string CommitChecksFailed = "commit.checks.failed";
 }

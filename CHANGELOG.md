@@ -13,9 +13,12 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 ### Added
 
 - Insert Image reads the size of SVG, ICO, AVIF and HEIF files.
+- The commit panel and the local history are tool windows that dock left, right or at the bottom like the document, file and plug-in panels. Each edge has a strip of buttons that shows and hides the panels docked there, Alt+0 and Alt+9 show the commit panel and the history, and the layout is kept in `window.json`.
+- The commit panel lists new files apart from the changes, has a box for every change of the chosen file, and can save the open files and format the files of the commit before it commits.
 
 ### Changed
 
+- The commit panel and the local history open in a tool window and no longer in a tab.
 - With incremental sync, multi-caret edits of up to 2048 changed lines reach the language server as one range per run of changed lines.
 
 ## [0.1.5] - 2026-11-02

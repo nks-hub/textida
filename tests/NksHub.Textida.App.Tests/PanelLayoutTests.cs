@@ -93,7 +93,7 @@ public class PanelLayoutModelTests
         Assert.True(PanelLayout.FromSaved(old.Panels).IsDefault);
 
         var damaged = PanelLayout.FromSaved(new SavedPanels { Documents = "sideways", Files = "", Plugin = null!, LeftWidth = double.NaN, RightWidth = -40, BottomHeight = 1e9 });
-        Assert.All(PanelLayout.Panels, p => Assert.Equal(PanelDock.Left, damaged.DockOf(p)));
+        Assert.All(PanelLayout.Panels, p => Assert.Equal(PanelLayout.DefaultDock(p), damaged.DockOf(p)));
         Assert.Equal(140, damaged.SizeOf(PanelDock.Left));
         Assert.Equal(140, damaged.SizeOf(PanelDock.Right));
         Assert.Equal(480, damaged.SizeOf(PanelDock.Bottom));
@@ -159,10 +159,10 @@ public class PanelLayoutTests : IDisposable
     private Workbench.Commands.CommandOutcome Run(string id) => _app.Workbench.Commands.ExecuteAsync(id, new ShellContext(_w, forMenu: true)).AsTask().GetAwaiter().GetResult();
 
     [AvaloniaFact]
-    public void Every_panel_starts_on_the_left_at_the_default_size_and_only_the_one_asked_for_is_shown()
+    public void Every_panel_starts_on_its_default_side_at_the_default_size_and_only_the_one_asked_for_is_shown()
     {
         Show();
-        Assert.All(PanelLayout.Panels, p => Assert.Equal(PanelDock.Left, _w.SideLayout.DockOf(p)));
+        Assert.All(PanelLayout.Panels, p => Assert.Equal(PanelLayout.DefaultDock(p), _w.SideLayout.DockOf(p)));
         Assert.All(PanelLayout.Docks, d => Assert.Null(_w.PanelShown(d)));
         Assert.False(_w.PanelHost(PanelDock.Left).IsVisible);
 

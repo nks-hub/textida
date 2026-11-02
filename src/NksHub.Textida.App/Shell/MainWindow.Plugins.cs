@@ -205,6 +205,7 @@ internal sealed partial class MainWindow
     internal void ShowPluginPanel(string plugin, string panel, bool focus = true)
     {
         _pluginPanelKey = (plugin, panel);
+        RefreshStrips();
         RefreshPluginPanel(_app.Plugins.Ui);
         if (focus && _pluginPanelKey is not null) TogglePanel(SidePanel.Plugin, true);
     }
@@ -305,6 +306,7 @@ internal sealed partial class MainWindow
             if (_pluginPanelKey is not null)
             {
                 _pluginPanelKey = null;
+                RefreshStrips();
                 _pluginPanelDrawn = null;
                 _pluginCurrentNode = null;
                 _pluginTree.Items.Clear();

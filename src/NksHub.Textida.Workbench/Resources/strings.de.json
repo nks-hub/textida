@@ -808,6 +808,8 @@
   "cmd.panel.shrink": "Panel verkleinern",
   "cmd.panel.hide": "Panel ausblenden",
   "cmd.panel.resetLayout": "Panel-Layout zurücksetzen",
+  "cmd.view.toggleCommitPanel": "Commit-Panel",
+  "cmd.view.toggleHistoryPanel": "Verlaufspanel",
   "reason.panelOpen.false": "Kein Panel geöffnet",
   "reason.textView.false": "Das Dokument wird gerade nicht als Text angezeigt",
   "reason.hasPath.false": "Das Dokument hat keine Datei auf dem Datenträger",

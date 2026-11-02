@@ -85,6 +85,8 @@ internal sealed partial class MainWindow
         "nks.compare.ignoreCase" => (CompareIgnore.HasFlag(Core.Compare.DiffIgnore.Case), false),
         "nks.view.toggleDocumentList" => (DocumentsPanelOpen, false),
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
+        "nks.view.toggleCommitPanel" => (IsOpen(SidePanel.Commit), false),
+        "nks.view.toggleHistoryPanel" => (IsOpen(SidePanel.History), false),
         "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
         "nks.edit.toggleClipboardMonitor" => (_app.Workbench.Settings.GetBool("editor.clipboardMonitor"), false),

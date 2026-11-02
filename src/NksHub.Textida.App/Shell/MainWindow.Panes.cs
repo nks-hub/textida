@@ -53,6 +53,8 @@ internal sealed partial class MainWindow
             case SidePanel.Plugin:
                 FocusPluginTree();
                 return true;
+            case SidePanel.Commit: return _commitView is { } commit && commit.FocusMessage();
+            case SidePanel.History: return _historyView is { } history && history.FocusList();
             default: return false;
         }
     }

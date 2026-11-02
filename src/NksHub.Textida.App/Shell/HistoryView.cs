@@ -65,6 +65,8 @@ internal sealed class HistoryView : Grid, IDisposable
     private IReadOnlyList<HistoryRevision> _all = [];
     private CancellationTokenSource? _counting, _showing;
     private bool _disposed, _filling;
+    private readonly Control _paneLeft, _paneRight;
+    private readonly GridSplitter _paneSplitter;
 
     public HistoryView(FileHistory history, string path, Func<CompareSide> current, Func<EditorOptions> options, Func<TextCodec> codec, Func<DiffIgnore> ignore, HistoryPanelActions actions)
     {
@@ -76,7 +78,6 @@ internal sealed class HistoryView : Grid, IDisposable
         _codec = codec;
         _ignore = ignore;
         _actions = actions;
-        ColumnDefinitions = new ColumnDefinitions("340,Auto,*");
         Focusable = true; // the window gives the focus to the view of a tab; it passes it on to the list
         GotFocus += (_, e) =>
         {
@@ -96,8 +97,7 @@ internal sealed class HistoryView : Grid, IDisposable
         DockPanel.SetDock(footer, Dock.Bottom);
         var left = new DockPanel { Children = { filters, footer, _list } };
 
-        var splitter = new GridSplitter { Width = 4, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns };
-        SetColumn(splitter, 1);
+        var splitter = new GridSplitter { Background = Brushes.Transparent };
 
         foreach (var button in new[] { _restore, _label, _pin, _copy })
         {
@@ -110,10 +110,11 @@ internal sealed class HistoryView : Grid, IDisposable
         var top = new StackPanel { Spacing = 4, Margin = new Thickness(12, 8, 12, 4), Children = { _header, _details, buttons } };
         DockPanel.SetDock(top, Dock.Top);
         var right = new DockPanel { Children = { top, _diffHost } };
-        SetColumn(right, 2);
+        (_paneLeft, _paneSplitter, _paneRight) = (left, splitter, right);
         Children.Add(left);
         Children.Add(splitter);
         Children.Add(right);
+        SetWide(true);
 
         AutomationProperties.SetLiveSetting(_header, AutomationLiveSetting.Polite);
         AutomationProperties.SetLiveSetting(_details, AutomationLiveSetting.Polite);
@@ -476,11 +477,10 @@ internal sealed class HistoryView : Grid, IDisposable
     }
 
     /// <summary>Moves the keyboard focus into the list of revisions.</summary>
-    public void FocusList()
-    {
-        if (_list.SelectedItem is ListBoxItem item) item.Focus();
-        else _list.Focus();
-    }
+    public bool FocusList() => _list.SelectedItem is ListBoxItem item ? item.Focus() : _list.Focus();
+
+    /// <summary>Lays the list and the comparison side by side (the panel is wide) or one above the other (it stands at a side of the window).</summary>
+    public void SetWide(bool wide) => SplitPaneLayout.Apply(this, _paneLeft, _paneSplitter, _paneRight, wide, 340);
 
     public void Dispose()
     {

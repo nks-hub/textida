@@ -808,6 +808,8 @@
   "cmd.panel.shrink": "Make Panel Smaller",
   "cmd.panel.hide": "Hide Panel",
   "cmd.panel.resetLayout": "Reset Panel Layout",
+  "cmd.view.toggleCommitPanel": "Commit Panel",
+  "cmd.view.toggleHistoryPanel": "History Panel",
   "reason.panelOpen.false": "No panel is open",
   "reason.textView.false": "The document is not shown as text",
   "reason.hasPath.false": "The document has no file on disk",
