@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using NksHub.Textida.App.Shell;
+using NksHub.Textida.Core.Terminal;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -67,6 +69,78 @@ public class TerminalAppTests : IDisposable
         w.TerminalViewControl.Paste("exit\n");
         Assert.True(await Until(() => !first.Running), "the shell ends");
         Assert.True(await Until(() => w.StatusMessageText.Contains("0")), "the end is said");
+
+        w.StartTerminal();
+        Assert.NotSame(first, w.TerminalSessionNow);
+        Assert.True(w.TerminalSessionNow!.Running);
+        w.ToggleTerminal(false);
+
+        _app.Workbench.Set("terminal.shell", "no-such-shell-program-xyz");
+        w.ToggleTerminal(true);
+        Assert.Null(w.TerminalSessionNow);
+        Assert.Contains("no-such-shell-program-xyz", w.StatusMessageText);
+        w.ToggleTerminal(false);
+    }
+
+    /// <summary>The shell of the account ($SHELL, else /bin/sh) without its startup files, so the prompt and the output do not depend on the account.</summary>
+    private static string UnixShell()
+    {
+        string shell = Environment.GetEnvironmentVariable("SHELL") is { Length: > 0 } s && File.Exists(s) ? s : "/bin/sh";
+        return Path.GetFileName(shell) switch
+        {
+            "zsh" => $"\"{shell}\" -f",
+            "bash" => $"\"{shell}\" --norc --noprofile",
+            _ => $"\"{shell}\"",
+        };
+    }
+
+    /// <summary>Pastes a command and presses Enter as a key: zsh and bash 5.1 turn bracketed paste on, and there a pasted newline is text, not Enter.</summary>
+    private static void Run(MainWindow w, TerminalSession session, string command)
+    {
+        w.TerminalViewControl.Paste(command);
+        session.Send(TerminalKeys.Sequence(TerminalKey.Enter, TerminalModifiers.None, false));
+    }
+
+    [AvaloniaFact]
+    public async Task On_unix_the_panel_runs_the_shell_follows_a_resize_and_closing_it_ends_the_process()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the pty of macOS and Linux; Windows runs cmd.exe above");
+        _app.Workbench.Set("terminal.shell", UnixShell());
+        var w = _app.CreateWindow(null);
+        w.OpenFile(_temp.File("a.txt", "x"), null);
+
+        w.ToggleTerminal(true);
+        Assert.True(w.TerminalPanelOpen);
+        var session = w.TerminalSessionNow!;
+        Run(w, session, "echo from-$((6*7)); pwd");
+        Assert.True(await Until(() => session.Screen.ScreenText().Contains("from-42")), "the echo: " + session.Screen.ScreenText());
+        Assert.True(await Until(() => session.Screen.ScreenText().Contains(Path.GetFileName(_temp.Path))), "it started in the folder of the open file: " + session.Screen.ScreenText());
+
+        session.Resize(100, 30);
+        Run(w, session, "stty size");
+        Assert.True(await Until(() => session.Screen.ScreenText().Contains("30 100")), "the pty follows the resize: " + session.Screen.ScreenText());
+
+        int id = session.ProcessId;
+        w.ToggleTerminal(false);
+        Assert.Null(w.TerminalSessionNow);
+        Assert.False(w.TerminalPanelOpen);
+        Assert.True(await Until(() => !Process.GetProcesses().Any(p => p.Id == id)), "the shell is gone after the panel closed");
+    }
+
+    [AvaloniaFact]
+    public async Task On_unix_a_shell_that_exits_says_its_code_offers_a_restart_and_a_missing_shell_says_so()
+    {
+        Assert.SkipWhen(OperatingSystem.IsWindows(), "the pty of macOS and Linux; Windows runs cmd.exe above");
+        _app.Workbench.Set("terminal.shell", UnixShell());
+        var w = _app.CreateWindow(null);
+        w.ToggleTerminal(true);
+        var first = w.TerminalSessionNow!;
+
+        Run(w, first, "exit 5");
+        Assert.True(await Until(() => !first.Running), "the shell ends");
+        Assert.True(await Until(() => first.ExitCode is not null), "the exit code is reported");
+        Assert.Equal(5, first.ExitCode);
+        Assert.True(await Until(() => w.StatusMessageText.Contains('5')), "the end is said: " + w.StatusMessageText);
 
         w.StartTerminal();
         Assert.NotSame(first, w.TerminalSessionNow);
