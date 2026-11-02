@@ -4,7 +4,11 @@ using NksHub.Textida.Core.Tools;
 
 namespace NksHub.Textida.Core.Tests;
 
-/// <summary>The pipes of child processes are read on threads of their own, so a plugin, a language server or an agent that stays silent holds no thread of the pool.</summary>
+/// <summary>
+/// The pipes of child processes are read on threads of their own, so a plugin, a language server or an agent that stays silent holds no thread of the pool.
+/// The tests time how long a task waits for the pool, which other tests of this process would decide while they run beside them, and they lower the floor of the pool for the whole process: they run alone.
+/// </summary>
+[Collection("Latency")]
 public class ChildPipeTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     /// <summary>A source whose reads block like those of a pipe: it gives the chunks it is handed and waits for more.</summary>
@@ -16,11 +20,13 @@ public class ChildPipeTests(Xunit.Abstractions.ITestOutputHelper output)
         private int _reads;
 
         public int Reads => Volatile.Read(ref _reads);
+        public bool ReadOnPool { get; private set; }
         public void Give(byte[] bytes) => _chunks.Add(bytes);
         public void End() => _chunks.Add(null);
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (Thread.CurrentThread.IsThreadPoolThread) ReadOnPool = true;
             Interlocked.Increment(ref _reads);
             if (_at >= _current.Length)
             {
@@ -171,6 +177,28 @@ public class ChildPipeTests(Xunit.Abstractions.ITestOutputHelper output)
         info.ArgumentList.Add(dll);
         info.ArgumentList.Add("--sleep");
         return Process.Start(info)!;
+    }
+
+    /// <summary>What the pool test below measures, without timing: the blocking reads of many silent sources wait on threads of the pipes, none on a thread of the pool.</summary>
+    [Fact]
+    public async Task SilentSourcesAreReadOnThreadsOfThePipesNotOnThePool()
+    {
+        var sources = Enumerable.Range(0, 16).Select(_ => new BlockingSource()).ToList();
+        var pipes = sources.Select(s => new ChildPipeStream(s)).ToList();
+        try
+        {
+            var pending = pipes.Select(p => p.ReadAsync(new byte[10]).AsTask()).ToList();
+            Assert.True(SpinWait.SpinUntil(() => sources.All(s => s.Reads > 0), TimeSpan.FromSeconds(30)), "a pipe never started to read");
+            Assert.All(pending, t => Assert.False(t.IsCompleted));
+            Assert.All(sources, s => Assert.False(s.ReadOnPool, "a blocking read ran on a thread of the pool"));
+            foreach (var s in sources) s.End();
+            Assert.All(await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(30)), n => Assert.Equal(0, n));
+        }
+        finally
+        {
+            foreach (var p in pipes) p.Dispose();
+            foreach (var s in sources) s.Dispose();
+        }
     }
 
     /// <summary>

@@ -106,8 +106,9 @@ public sealed class TerminalSession : IDisposable
     public static TerminalSession Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string>? environment, int columns, int rows)
     {
         var screen = new TerminalScreen(columns, rows);
-        var pty = PseudoTerminal.Start(program, arguments, workingDirectory, environment, columns, rows);
-        return new TerminalSession(pty, screen);
+        TerminalSession? session = null;
+        PseudoTerminal.Start(program, arguments, workingDirectory, environment, columns, rows, pty => session = new TerminalSession(pty, screen));
+        return session!;
     }
 
     /// <summary>Sends typed text, or a sequence of <see cref="TerminalKeys"/>, to the program.</summary>

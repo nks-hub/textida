@@ -27,8 +27,11 @@ public static class PseudoTerminal
     /// <summary>
     /// Starts <paramref name="program"/> (a full path) with <paramref name="arguments"/> in <paramref name="workingDirectory"/>. The environment is that of this process plus <paramref name="environment"/> and the terminal type
     /// (<c>TERM=xterm-256color</c>, <c>COLORTERM=truecolor</c>). Throws <see cref="IOException"/> when the pseudo terminal or the program cannot be started.
+    /// <paramref name="attach"/> gets the terminal before its output is read, so the handlers it subscribes miss nothing the program writes at once (its first prompt);
+    /// output that arrives while no handler is subscribed is lost.
     /// </summary>
-    public static IPseudoTerminal Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string>? environment, int columns, int rows)
+    public static IPseudoTerminal Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string>? environment, int columns, int rows,
+        Action<IPseudoTerminal>? attach = null)
     {
         var merged = new Dictionary<string, string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables()) merged[(string)entry.Key] = (string?)entry.Value ?? "";
@@ -37,8 +40,8 @@ public static class PseudoTerminal
         if (environment is not null) foreach (var (name, value) in environment) merged[name] = value;
         if (!OperatingSystem.IsWindows() && !merged.ContainsKey("LANG") && !merged.ContainsKey("LC_ALL")) merged["LANG"] = "en_US.UTF-8";
         return OperatingSystem.IsWindows()
-            ? ConPtyProcess.Start(program, arguments, workingDirectory, merged, columns, rows)
-            : UnixPtyProcess.Start(program, arguments, workingDirectory, merged, columns, rows);
+            ? ConPtyProcess.Start(program, arguments, workingDirectory, merged, columns, rows, attach)
+            : UnixPtyProcess.Start(program, arguments, workingDirectory, merged, columns, rows, attach);
     }
 
     /// <summary>The program and arguments of the shell the setting names, or the default of the system: PowerShell on Windows, <c>$SHELL</c> (else zsh on macOS, bash elsewhere) on the others. Null when the program is not found.</summary>

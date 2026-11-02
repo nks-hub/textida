@@ -24,13 +24,14 @@ internal sealed class ConPtyProcess : IPseudoTerminal
     private bool _disposed;
     private int _exitReported;
 
-    private ConPtyProcess(IntPtr console, FileStream input, FileStream output, IntPtr process, int id)
+    private ConPtyProcess(IntPtr console, FileStream input, FileStream output, IntPtr process, int id, Action<IPseudoTerminal>? attach)
     {
         _console = console;
         _input = input;
         _output = output;
         _process = process;
         ProcessId = id;
+        attach?.Invoke(this); // before the reader starts: what the program writes at once must find its handlers
         _reader = new Thread(ReadLoop) { IsBackground = true, Name = "conpty-reader" };
         _reader.Start();
         new Thread(WaitForExit) { IsBackground = true, Name = "conpty-wait" }.Start();
@@ -56,7 +57,8 @@ internal sealed class ConPtyProcess : IPseudoTerminal
 
     private int? _exitCode;
 
-    internal static ConPtyProcess Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string> environment, int columns, int rows)
+    internal static ConPtyProcess Start(string program, IReadOnlyList<string> arguments, string workingDirectory, IReadOnlyDictionary<string, string> environment, int columns, int rows,
+        Action<IPseudoTerminal>? attach)
     {
         string commandLine = CommandLine(program, arguments);
         IntPtr block = Marshal.StringToHGlobalUni(string.Concat(environment.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase).Select(p => p.Key + "=" + p.Value + "\0")) + "\0");
@@ -83,7 +85,7 @@ internal sealed class ConPtyProcess : IPseudoTerminal
             inRead.Dispose();
             outWrite.Dispose();
             Tools.ChildJob.AssignHandle(info.hProcess);
-            return new ConPtyProcess(console, new FileStream(inWrite, FileAccess.Write, 1, false), new FileStream(outRead, FileAccess.Read, 4096, false), info.hProcess, info.dwProcessId);
+            return new ConPtyProcess(console, new FileStream(inWrite, FileAccess.Write, 1, false), new FileStream(outRead, FileAccess.Read, 4096, false), info.hProcess, info.dwProcessId, attach);
         }
         catch (Win32Exception e)
         {
