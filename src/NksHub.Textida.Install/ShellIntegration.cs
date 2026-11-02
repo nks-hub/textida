@@ -49,35 +49,50 @@ public sealed partial class ShellIntegration(RegistryKey classes, string exePath
         }
     }
 
+    /// <summary>The icon of a program id: the .ico of the group next to the program, or the icon of the program when that file is not there (a copy that was not installed by the setup).</summary>
+    private string IconOf(FileTypeGroup? group)
+    {
+        var ico = group is null ? null : Path.Combine(Path.GetDirectoryName(exePath) ?? "", FileTypeIcons.WindowsFolder, group.IcoFile);
+        return ico is not null && File.Exists(ico) ? $"\"{ico}\"" : $"\"{exePath}\",0";
+    }
+
+    private void WriteProgId(string progId, FileTypeGroup? group)
+    {
+        using var key = classes.CreateSubKey(progId);
+        key.SetValue("", group is null ? ProductName : $"{ProductName} {group.Name}");
+        using (var icon = key.CreateSubKey("DefaultIcon")) icon.SetValue("", IconOf(group));
+        using var open = key.CreateSubKey(@"shell\open");
+        open.SetValue("FriendlyAppName", ProductName);
+        using var command = open.CreateSubKey("command");
+        command.SetValue("", Command);
+    }
+
+    /// <summary>Registers the program id of the group of <paramref name="extension"/> (with its own icon) and lists it under the extension; <see cref="ProgId"/> stays the program id of an extension that has no group.</summary>
     public void Associate(string extension)
     {
-        using (var progId = classes.CreateSubKey(ProgId))
-        {
-            progId.SetValue("", ProductName);
-            using var icon = progId.CreateSubKey("DefaultIcon");
-            icon.SetValue("", $"\"{exePath}\",0");
-            using var open = progId.CreateSubKey(@"shell\open");
-            open.SetValue("FriendlyAppName", ProductName);
-            using var command = open.CreateSubKey("command");
-            command.SetValue("", Command);
-        }
+        var group = FileTypeIcons.GroupOf(extension);
+        var progId = group is null ? ProgId : FileTypeIcons.ProgIdOf(group, ProgId);
+        WriteProgId(progId, group);
         using var progIds = classes.CreateSubKey(extension + @"\OpenWithProgids");
-        progIds.SetValue(ProgId, Array.Empty<byte>(), RegistryValueKind.None);
+        progIds.SetValue(progId, Array.Empty<byte>(), RegistryValueKind.None);
+        if (group is not null && progIds.GetValue(ProgId) is not null) progIds.DeleteValue(ProgId); // the entry of an older version, which had one icon for all
     }
+
+    private static string ProgIdFor(string extension) => FileTypeIcons.GroupOf(extension) is { } g ? FileTypeIcons.ProgIdOf(g, ProgId) : ProgId;
 
     public bool IsAssociated(string extension)
     {
         using var progIds = classes.OpenSubKey(extension + @"\OpenWithProgids");
-        return progIds?.GetValue(ProgId) is not null;
+        return progIds?.GetValue(ProgIdFor(extension)) is not null || progIds?.GetValue(ProgId) is not null;
     }
 
-    /// <summary>Removes the value written by <see cref="Associate"/>, then the keys that this left empty; the last association also takes the program id.</summary>
+    /// <summary>Removes the values written by <see cref="Associate"/>, then the keys that this left empty; the last association of a group also takes its program id, the last of all <see cref="ProgId"/>.</summary>
     public void Dissociate(string extension)
     {
         using (var progIds = classes.OpenSubKey(extension + @"\OpenWithProgids", writable: true))
         {
-            if (progIds?.GetValue(ProgId) is null) return;
-            progIds.DeleteValue(ProgId);
+            if (progIds is null || !IsAssociated(extension)) return;
+            foreach (var id in new[] { ProgIdFor(extension), ProgId }) if (progIds.GetValue(id) is not null) progIds.DeleteValue(id);
             if (progIds.ValueCount == 0 && progIds.SubKeyCount == 0)
             {
                 progIds.Dispose();
@@ -90,15 +105,18 @@ public sealed partial class ShellIntegration(RegistryKey classes, string exePath
                 }
             }
         }
+        foreach (var group in FileTypeIcons.Groups)
+            if (!group.Extensions.Any(IsAssociated)) classes.DeleteSubKeyTree(FileTypeIcons.ProgIdOf(group, ProgId), throwOnMissingSubKey: false);
         if (!Extensions.Any(IsAssociated)) classes.DeleteSubKeyTree(ProgId, throwOnMissingSubKey: false);
     }
 
-    /// <summary>Removes the menu entry, every association and the program id; used by the Tools command and by the uninstaller.</summary>
+    /// <summary>Removes the menu entry, every association and the program ids; used by the Tools command and by the uninstaller.</summary>
     public void RemoveAll()
     {
         RemoveMenu();
         foreach (var extension in Extensions) Dissociate(extension);
         classes.DeleteSubKeyTree(ProgId, throwOnMissingSubKey: false);
+        foreach (var group in FileTypeIcons.Groups) classes.DeleteSubKeyTree(FileTypeIcons.ProgIdOf(group, ProgId), throwOnMissingSubKey: false);
     }
 
     /// <summary>Tells Explorer that associations changed so it does not wait for the next sign-in.</summary>

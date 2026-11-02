@@ -92,9 +92,9 @@ public class ShellIntegrationTests : IDisposable
         Assert.True(shell.IsAssociated(".log"));
         Assert.False(shell.IsAssociated(".txt"));
         using var progIds = _root!.OpenSubKey(@".log\OpenWithProgids")!;
-        Assert.Equal(RegistryValueKind.None, progIds.GetValueKind(ShellIntegration.ProgId));
+        Assert.Equal(RegistryValueKind.None, progIds.GetValueKind(ShellIntegration.ProgId + ".log"));
         Assert.Null(_root.OpenSubKey(".log")!.GetValue(""));
-        using var command = _root.OpenSubKey(ShellIntegration.ProgId + @"\shell\open\command")!;
+        using var command = _root.OpenSubKey(ShellIntegration.ProgId + @".log\shell\open\command")!;
         Assert.Equal($"\"{Exe}\" \"%1\"", command.GetValue(""));
     }
 
@@ -125,9 +125,48 @@ public class ShellIntegrationTests : IDisposable
         shell.Associate(".log");
         shell.Associate(".css");
         shell.Dissociate(".log");
-        Assert.NotNull(_root!.OpenSubKey(ShellIntegration.ProgId));
+        Assert.NotNull(_root!.OpenSubKey(ShellIntegration.ProgId + ".web"));
+        Assert.Null(_root.OpenSubKey(ShellIntegration.ProgId + ".log"));
         shell.Dissociate(".css");
         Assert.Equal(before, Snapshot());
+    }
+
+    [Fact]
+    public void Every_listed_extension_gets_the_program_id_and_icon_of_its_group_and_removing_it_leaves_nothing()
+    {
+        var folder = Path.Combine(_temp.Path, "app");
+        Directory.CreateDirectory(Path.Combine(folder, FileTypeIcons.WindowsFolder));
+        foreach (var g in FileTypeIcons.Groups) File.WriteAllBytes(Path.Combine(folder, FileTypeIcons.WindowsFolder, g.IcoFile), [0]);
+        var exe = Path.Combine(folder, "Textida.exe");
+        var before = Snapshot();
+        var shell = new ShellIntegration(_root!, exe);
+
+        foreach (var extension in FileTypeIcons.Groups.SelectMany(g => g.Extensions))
+        {
+            shell.Associate(extension);
+            var group = FileTypeIcons.GroupOf(extension)!;
+            using var progIds = _root!.OpenSubKey(extension + @"\OpenWithProgids")!;
+            Assert.NotNull(progIds.GetValue("Textida.File." + group.Id));
+            using var icon = _root.OpenSubKey($@"Textida.File.{group.Id}\DefaultIcon")!;
+            Assert.Equal($"\"{Path.Combine(folder, FileTypeIcons.WindowsFolder, group.Id + ".ico")}\"", icon.GetValue(""));
+        }
+        shell.RemoveAll();
+        Assert.Equal(before, Snapshot());
+    }
+
+    [Fact]
+    public void A_missing_icon_file_falls_back_to_the_icon_of_the_program_and_an_old_entry_is_replaced()
+    {
+        using (var old = _root!.CreateSubKey(@".md\OpenWithProgids")) old.SetValue(ShellIntegration.ProgId, Array.Empty<byte>(), RegistryValueKind.None);
+        var shell = new ShellIntegration(_root, Exe);
+        Assert.True(shell.IsAssociated(".md")); // the association of an older version still counts
+
+        shell.Associate(".md");
+
+        using (var icon = _root.OpenSubKey(@"Textida.File.md\DefaultIcon")!) Assert.Equal($"\"{Exe}\",0", icon.GetValue(""));
+        using (var progIds = _root.OpenSubKey(@".md\OpenWithProgids")!) Assert.Null(progIds.GetValue(ShellIntegration.ProgId));
+        shell.Dissociate(".md");
+        Assert.Null(_root.OpenSubKey("Textida.File.md"));
     }
 
     [Fact]

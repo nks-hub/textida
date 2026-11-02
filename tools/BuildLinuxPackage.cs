@@ -1,3 +1,4 @@
+#:project ../src/NksHub.Textida.Install/NksHub.Textida.Install.csproj
 // Builds a linux-x64 or linux-arm64 NativeAOT tar.gz with per-user install.sh/uninstall.sh,
 // and the matching amd64 or arm64 .deb with /opt/textida, /usr/bin/textida, a desktop entry and the icon.
 //
@@ -8,6 +9,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
+using NksHub.Textida.Install;
 
 var options = new Dictionary<string, string>();
 var flags = new HashSet<string>();
@@ -41,6 +43,7 @@ var dotnet = options.GetValueOrDefault("--dotnet", "dotnet");
 var version = options.TryGetValue("--version", out var v) ? v : "0.0.0-" + Capture("git", "-C", root, "rev-parse", "--short", "HEAD").Trim();
 var output = Path.GetFullPath(options.GetValueOrDefault("--output", Path.Combine(root, "artifacts")));
 var icon = Path.Combine(root, "src", "NksHub.Textida.App", "Assets", "textida-256.png");
+var typeIcons = Path.Combine(root, "src", "NksHub.Textida.App", "Assets", "FileTypes");
 var work = Path.Combine(Path.GetTempPath(), "textida-package-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(work);
 try
@@ -61,7 +64,8 @@ try
     CopyTree(publish, folder);
     File.WriteAllText(Path.Combine(folder, "version.txt"), version);
     File.Copy(icon, Path.Combine(folder, "textida.png"));
-    WriteScript(Path.Combine(folder, "install.sh"), InstallScript);
+    InstallShare(Path.Combine(folder, "share")); // the document icons and the MIME file, which install.sh copies under ~/.local/share
+    WriteScript(Path.Combine(folder, "install.sh"), InstallScript.Replace("@MIME@", DesktopMimeTypes()));
     WriteScript(Path.Combine(folder, "uninstall.sh"), UninstallScript);
     var tar = Path.Combine(output, name + ".tar.gz");
     File.Delete(tar);
@@ -82,6 +86,7 @@ try
         var iconDir = Path.Combine(deb, "usr", "share", "icons", "hicolor", "256x256", "apps");
         Directory.CreateDirectory(iconDir);
         File.Copy(icon, Path.Combine(iconDir, "textida.png"));
+        InstallShare(Path.Combine(deb, "usr", "share"));
         Directory.CreateDirectory(Path.Combine(deb, "DEBIAN"));
         File.WriteAllText(Path.Combine(deb, "DEBIAN", "control"), Control(DebVersion(version), debArch, DirectorySize(deb) / 1024));
         var debFile = Path.Combine(output, $"textida_{DebVersion(version)}_{debArch}.deb");
@@ -105,6 +110,19 @@ finally { Directory.Delete(work, recursive: true); }
 // Debian sorts "~" before the release, so 0.2.0~rc1 is older than 0.2.0; a "-" would start the Debian revision instead
 static string DebVersion(string version) => version.Replace('-', '~');
 
+// the document icons of the file types (hicolor, mimetypes) and mime/packages/textida.xml, relative to a "share" folder
+void InstallShare(string share)
+{
+    foreach (var (target, source) in FileTypeIcons.LinuxIconFiles(typeIcons))
+    {
+        var path = Path.Combine(share, target);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.Copy(source, path);
+    }
+    Directory.CreateDirectory(Path.Combine(share, "mime", "packages"));
+    File.WriteAllText(Path.Combine(share, "mime", "packages", "textida.xml"), FileTypeIcons.LinuxMimeXml());
+}
+
 static string Control(string version, string arch, long installedKiB) => $"""
     Package: textida
     Version: {version}
@@ -121,6 +139,8 @@ static string Control(string version, string arch, long installedKiB) => $"""
 
     """;
 
+static string DesktopMimeTypes() => "text/plain;" + string.Concat(FileTypeIcons.Groups.SelectMany(g => g.MimeTypes).Select(m => m + ";"));
+
 static string DesktopEntry(string exec, string icon) => $"""
     [Desktop Entry]
     Type=Application
@@ -131,7 +151,7 @@ static string DesktopEntry(string exec, string icon) => $"""
     Icon={icon}
     Terminal=false
     Categories=Utility;TextEditor;Development;
-    MimeType=text/plain;
+    MimeType={DesktopMimeTypes()}
     StartupWMClass=Textida
 
     """;
@@ -183,6 +203,9 @@ partial class Program
         mv "$target.new" "$target"
         ln -sf "$target/Textida" "$HOME/.local/bin/textida"
         cp "$here/textida.png" "$data/icons/hicolor/256x256/apps/textida.png"
+        mkdir -p "$data/mime/packages"
+        cp -R "$here/share/icons/." "$data/icons/"
+        cp "$here/share/mime/packages/textida.xml" "$data/mime/packages/textida.xml"
         cat > "$data/applications/textida.desktop" <<EOF
         [Desktop Entry]
         Type=Application
@@ -193,9 +216,11 @@ partial class Program
         Icon=textida
         Terminal=false
         Categories=Utility;TextEditor;Development;
-        MimeType=text/plain;
+        MimeType=@MIME@
         StartupWMClass=Textida
         EOF
+        command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$data/mime" || true
+        command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t "$data/icons/hicolor" || true
         command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$data/applications" || true
         echo "Textida $(cat "$target/version.txt") is installed in $target; start it from the menu or with: textida"
         case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) echo "Add $HOME/.local/bin to PATH to use the textida command." ;; esac
@@ -207,7 +232,8 @@ partial class Program
         set -eu
         data=${XDG_DATA_HOME:-$HOME/.local/share}
         rm -rf "$HOME/.local/opt/textida"
-        rm -f "$HOME/.local/bin/textida" "$data/applications/textida.desktop" "$data/icons/hicolor/256x256/apps/textida.png"
+        rm -f "$HOME/.local/bin/textida" "$data/applications/textida.desktop" "$data/icons/hicolor/256x256/apps/textida.png" "$data/mime/packages/textida.xml" "$data"/icons/hicolor/*/mimetypes/textida-*
+        command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$data/mime" || true
         command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$data/applications" || true
         echo "Textida is removed. The settings stay in the profile folder."
         """;

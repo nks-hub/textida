@@ -141,7 +141,7 @@ public class SystemIntegrationSettingsTests : IDisposable
         Box(view, ".log").IsChecked = true;
         Box(view, ".md").IsChecked = true;
         Assert.Equal([".log", ".md"], Integration.AssociatedExtensions());
-        using (var progIds = _root!.OpenSubKey(@"Classes\.log\OpenWithProgids")!) Assert.NotNull(progIds.GetValue(ShellIntegration.ProgId));
+        using (var progIds = _root!.OpenSubKey(@"Classes\.log\OpenWithProgids")!) Assert.NotNull(progIds.GetValue(ShellIntegration.ProgId + ".log"));
 
         Box(view, ".log").IsChecked = false;
         Assert.Equal([".md"], Integration.AssociatedExtensions());
