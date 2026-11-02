@@ -11,7 +11,7 @@ namespace NksHub.Textida.App.Services;
 internal sealed record ExportTheme(Color Background, Color Foreground, SyntaxPalette Palette, string FontFamily = "Consolas, monospace", double FontSize = 10);
 
 /// <summary>
-/// HTML and RTF with the colors the editor shows (P9.3.2). The tokens come from the grammar of the document and the colors from the palette of the editor, so an
+/// HTML, RTF and LaTeX with the colors the editor shows (P9.3.2). The tokens come from the grammar of the document and the colors from the palette of the editor, so an
 /// export and the editor cannot disagree; log lines take the color of their level the way the editor does.
 /// </summary>
 internal static class HighlightExport
@@ -138,6 +138,56 @@ internal static class HighlightExport
         }
         return sb.Append('}').ToString();
     }
+
+    /// <summary>
+    /// The colored text as a LaTeX document that compiles with pdfLaTeX, XeLaTeX or LuaLaTeX: the page and text colors of the theme, and the text in a <c>Verbatim</c> block
+    /// (fancyvrb) in which each colored stretch is a <c>\textcolor</c>. A stretch never spans a line, since the block reads line by line. Backslash and braces are written as macros,
+    /// every other character as it is (the file is UTF-8); control characters other than tab are left out.
+    /// </summary>
+    public static string Tex(string text, Tokenizer? tokenizer, LogLevelRules? levels, ExportTheme theme, (int Start, int Length)? range = null, CancellationToken cancel = default, LineState? startState = null)
+    {
+        var sb = new StringBuilder(text.Length * 3 + 512);
+        sb.Append("\\documentclass{article}\n\\usepackage[T1]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\usepackage[margin=1.5cm]{geometry}\n\\usepackage{xcolor}\n\\usepackage{fancyvrb}\n");
+        sb.Append(@"\newcommand{\TxBs}{\char`\\}").Append('\n').Append(@"\newcommand{\TxOb}{\char`\{}").Append('\n').Append(@"\newcommand{\TxCb}{\char`\}}").Append('\n');
+        sb.Append(@"\begin{document}").Append('\n');
+        sb.Append(@"\pagecolor[HTML]{").Append(TexHex(theme.Background)).Append(@"}\color[HTML]{").Append(TexHex(theme.Foreground)).Append('}').Append('\n');
+        sb.Append(@"\begin{Verbatim}[commandchars=\\\{\},obeytabs,tabsize=4,fontsize=\small]").Append('\n');
+
+        var line = new StringBuilder();
+        void Flush(Color? color)
+        {
+            if (line.Length == 0) return;
+            if (color is { } c) sb.Append(@"\textcolor[HTML]{").Append(TexHex(c)).Append("}{").Append(line).Append('}');
+            else sb.Append(line);
+            line.Clear();
+        }
+        foreach (var segment in Segments(text, tokenizer, levels, theme.Palette, range, cancel, startState))
+        {
+            var slice = text.AsSpan(segment.Start, segment.Length);
+            for (int i = 0; i < slice.Length; i++)
+            {
+                char c = slice[i];
+                switch (c)
+                {
+                    case '\r' or '\n':
+                        if (c == '\r' && i + 1 < slice.Length && slice[i + 1] == '\n') i++;
+                        Flush(segment.Color);
+                        sb.Append('\n');
+                        break;
+                    case '\\': line.Append(@"\TxBs{}"); break;
+                    case '{': line.Append(@"\TxOb{}"); break;
+                    case '}': line.Append(@"\TxCb{}"); break;
+                    case < ' ' and not '\t': break;
+                    default: line.Append(c); break;
+                }
+            }
+            Flush(segment.Color);
+        }
+        if (sb[^1] != '\n') sb.Append('\n');
+        return sb.Append(@"\end{Verbatim}").Append('\n').Append(@"\end{document}").Append('\n').ToString();
+    }
+
+    private static string TexHex(Color c) => Hex(c)[1..];
 
     private static void AppendRtf(StringBuilder sb, ReadOnlySpan<char> text)
     {

@@ -34,21 +34,21 @@ public sealed class SyntaxPalette
             foreach (string kind in kinds) colors.Add(kind, color);
         }
 
-        Add("#008000", "#6A9955", "comment");
+        Add("#008000", "#6C9B57", "comment");
         Add("#0451A5", "#CE9178", "string", "code", "regex");
         Add("#0000FF", "#569CD6", "keyword", "constant");
         Add("#800000", "#569CD6", "tag");
         Add("#C4321F", "#9CDCFE", "attribute");
-        Add("#098658", "#B5CEA8", "number");
-        Add("#267F99", "#4EC9B0", "type");
+        Add("#077A50", "#B5CEA8", "number");
+        Add("#1F7590", "#4EC9B0", "type");
         Add("#795E26", "#DCDCAA", "function");
         Add("#001080", "#9CDCFE", "variable", "property");
         Add("#AF00DB", "#C586C0", "preprocessor", "meta");
         Add("#0000FF", "#569CD6", "heading", "link");
         Add("#C0392B", "#F47067", "log.error");
-        Add("#9A6700", "#D29922", "log.warning");
+        Add("#8F5E00", "#D29922", "log.warning");
         Add("#0451A5", "#79C0FF", "log.info");
-        Add("#6E7781", "#8B949E", "log.debug");
+        Add("#656E77", "#8B949E", "log.debug");
         Add("#FFE58F", "#5C4B00", "log.highlight"); // background of the highlight expression of a log view
         return new SyntaxPalette(colors);
     }

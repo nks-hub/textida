@@ -384,6 +384,7 @@ internal static class AppCommands
         On("nks.log.previousError", w => w.LogStep(forward: false));
         On("nks.file.exportHtml", w => w.ExportHighlighted(MainWindow.ExportForm.Html));
         On("nks.file.exportRtf", w => w.ExportHighlighted(MainWindow.ExportForm.Rtf));
+        On("nks.file.exportTex", w => w.ExportHighlighted(MainWindow.ExportForm.Tex));
         On("nks.edit.copyFormatted", w => w.CopyHighlighted(htmlSource: false));
         On("nks.edit.copyHtmlSource", w => w.CopyHighlighted(htmlSource: true));
         On("nks.log.levels", w => w.ChooseLogLevels());

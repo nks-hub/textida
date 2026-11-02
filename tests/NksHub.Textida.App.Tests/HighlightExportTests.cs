@@ -182,6 +182,72 @@ public class HighlightExportTests
         foreach (Match m in Regex.Matches(rtf, @"\\cf(\d+) ")) Assert.InRange(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture), 1, colors);
     }
 
+    /// <summary>Reads the text and the color of every character back from the body of the Verbatim block of a LaTeX export.</summary>
+    internal static (string Text, Color?[] Colors) ReadTex(string tex)
+    {
+        int open = tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal);
+        string body = tex[(tex.IndexOf('\n', open) + 1)..tex.LastIndexOf("\\end{Verbatim}", StringComparison.Ordinal)];
+        body = body.Replace("\\TxBs{}", "\u0001").Replace("\\TxOb{}", "\u0002").Replace("\\TxCb{}", "\u0003");
+        var text = new StringBuilder();
+        var colors = new List<Color?>();
+        int consumed = 0;
+        foreach (Match m in Regex.Matches(body, @"\\textcolor\[HTML\]\{([0-9A-F]{6})\}\{([^{}]*)\}|([^\\]+)", RegexOptions.Singleline))
+        {
+            consumed += m.Length;
+            Color? color = m.Groups[1].Success ? Color.Parse("#" + m.Groups[1].Value) : null;
+            string piece = m.Groups[1].Success ? m.Groups[2].Value : m.Groups[3].Value;
+            text.Append(piece);
+            colors.AddRange(Enumerable.Repeat(color, piece.Length));
+        }
+        Assert.Equal(body.Length, consumed); // nothing but the commands of the export and the text is left
+        return (text.ToString().Replace('\u0001', '\\').Replace('\u0002', '{').Replace('\u0003', '}'), [.. colors]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void The_tex_has_the_color_the_editor_gives_each_character_and_the_text_of_the_document(bool dark)
+    {
+        var theme = Theme(dark);
+        string tex = HighlightExport.Tex(CSharp, LanguageModes.Tokenizer("csharp"), null, theme);
+        var (text, colors) = ReadTex(tex);
+        Assert.Equal(CSharp, text);
+        Assert.Equal(EditorColors(CSharp, "csharp", theme.Palette), colors);
+        Assert.StartsWith("\\documentclass{article}", tex);
+        var page = dark ? Colors.Black : Colors.White;
+        Assert.Contains($"\\pagecolor[HTML]{{{page.R:X2}{page.G:X2}{page.B:X2}}}", tex);
+        Assert.EndsWith("\\end{Verbatim}\n\\end{document}\n", tex);
+    }
+
+    [Fact]
+    public void The_tex_writes_backslash_and_braces_as_macros_and_keeps_every_colored_stretch_on_one_line()
+    {
+        string text = "path C:\\dir {x}\r\n\t\"Příliš žluťoučký\" \U0001F600\u0007\n/* a\nb */ int x;";
+        string tex = HighlightExport.Tex(text, LanguageModes.Tokenizer("csharp"), null, Theme());
+        string body = tex[tex.IndexOf("\\begin{Verbatim}", StringComparison.Ordinal)..];
+        Assert.Contains("C:\\TxBs{}dir \\TxOb{}x\\TxCb{}", body);
+        Assert.Contains("Příliš žluťoučký", body);
+        Assert.Contains("\U0001F600", body);
+        Assert.DoesNotContain('\u0007', tex);
+        Assert.DoesNotContain('\r', tex);
+        var (read, _) = ReadTex(tex);
+        Assert.Equal("path C:\\dir {x}\n\t\"Příliš žluťoučký\" \U0001F600\n/* a\nb */ int x;\n", read); // a last line gets its end of line
+        foreach (Match m in Regex.Matches(body, @"\\textcolor\[HTML\]\{[0-9A-F]{6}\}\{([^{}]*)\}")) Assert.DoesNotContain('\n', m.Value);
+
+        // the macros the text uses are defined in front of the document
+        foreach (string macro in new[] { "\\TxBs", "\\TxOb", "\\TxCb" }) Assert.Contains($"\\newcommand{{{macro}}}", tex[..tex.IndexOf("\\begin{document}", StringComparison.Ordinal)]);
+    }
+
+    [Fact]
+    public void The_tex_of_a_selection_is_colored_by_the_state_of_the_whole_document()
+    {
+        int from = CSharp.IndexOf("line */", StringComparison.Ordinal);
+        var theme = Theme();
+        var (text, colors) = ReadTex(HighlightExport.Tex(CSharp, LanguageModes.Tokenizer("csharp"), null, theme, range: (from, 7)));
+        Assert.Equal("line */\n", text);
+        Assert.All(colors[..7], c => Assert.Equal(((ISolidColorBrush)theme.Palette.GetBrush("comment")!).Color, c));
+    }
+
     [Fact]
     public void The_rtf_colors_follow_the_palette_of_the_theme()
     {
@@ -218,7 +284,7 @@ public class HighlightExportWindowTests : IDisposable
 
     private async Task<string> ExportToFile(DocTab tab, MainWindow.ExportForm form)
     {
-        string path = Path.Combine(_temp.Path, "out." + (form == MainWindow.ExportForm.Html ? "html" : "rtf"));
+        string path = Path.Combine(_temp.Path, "out." + form switch { MainWindow.ExportForm.Html => "html", MainWindow.ExportForm.Rtf => "rtf", _ => "tex" });
         _dialogs.SaveFiles.Enqueue(path);
         Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _w.ExportHighlighted(form));
         ToolTestKit.WaitFor(() => File.Exists(path) && _w.StatusMessageText == Loc.Get(K.ExportDone, ("name", Path.GetFileName(path))), "the export did not finish", 6000);
@@ -237,6 +303,13 @@ public class HighlightExportWindowTests : IDisposable
 
         string rtf = await ExportToFile(tab, MainWindow.ExportForm.Rtf);
         Assert.Equal(CSharp, DecodeRtf(rtf));
+
+        string tex = await ExportToFile(tab, MainWindow.ExportForm.Tex);
+        var (text, colors) = ReadTex(tex);
+        Assert.Equal(CSharp, text);
+        Assert.Equal(EditorColors(CSharp, "csharp", SyntaxPalette.Light), colors);
+        Assert.Equal("a.tex", _dialogs.SaveFileNames[^1]);
+        Assert.NotEqual((byte)0xEF, File.ReadAllBytes(Path.Combine(_temp.Path, "out.tex"))[0]); // UTF-8 without a byte order mark: inputenc reads it
     }
 
     [AvaloniaFact]
