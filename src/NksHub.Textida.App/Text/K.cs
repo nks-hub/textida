@@ -2239,6 +2239,13 @@ public static partial class K
     public const string PreviewMermaidEdge = "preview.mermaid.edge";
     public const string PreviewMermaidEdgeLabel = "preview.mermaid.edgeLabel";
     public const string PreviewTableName = "preview.table.name";
+    public const string PreviewAlertNote = "preview.alert.note";
+    public const string PreviewAlertTip = "preview.alert.tip";
+    public const string PreviewAlertImportant = "preview.alert.important";
+    public const string PreviewAlertWarning = "preview.alert.warning";
+    public const string PreviewAlertCaution = "preview.alert.caution";
+    public const string PreviewFootnoteName = "preview.footnote.name";
+    public const string PreviewFootnoteBack = "preview.footnote.back";
     public const string MarkdownNoTable = "markdown.noTable";
     public const string MarkdownNoTableBlock = "markdown.noTableBlock";
     public const string McpProposal = "mcp.proposal";

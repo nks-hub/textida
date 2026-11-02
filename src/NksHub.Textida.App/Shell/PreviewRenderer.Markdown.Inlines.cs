@@ -1,3 +1,4 @@
+using Markdig.Extensions.Footnotes;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax.Inlines;
 using Avalonia;
@@ -28,13 +29,21 @@ internal static partial class PreviewRenderer
                     into.Add(new Run(html.Tag) { FontWeight = weight, FontStyle = style });
                     break;
                 case CodeInline code:
-                    into.Add(new Run(code.Content) { FontFamily = ctx.Mono, FontWeight = weight, FontStyle = style });
+                    var mono = new Run(code.Content) { FontFamily = ctx.Mono, FontWeight = weight, FontStyle = style };
+                    mono.Classes.Add("previewinlinecode");
+                    into.Add(mono);
                     break;
                 case LineBreakInline { IsHard: true }:
                     into.Add(new LineBreak());
                     break;
                 case LineBreakInline:
                     into.Add(new Run(" ") { FontWeight = weight, FontStyle = style });
+                    break;
+                case EmphasisInline { DelimiterChar: '~' } struck:
+                    var strike = new Span { TextDecorations = TextDecorations.Strikethrough };
+                    strike.Classes.Add("previewstrike");
+                    MarkdownInlines(struck, strike.Inlines, weight, style, plan, ctx);
+                    into.Add(strike);
                     break;
                 case EmphasisInline emphasis:
                     MarkdownInlines(emphasis, into, emphasis.DelimiterCount >= 2 ? FontWeight.Bold : weight,
@@ -48,6 +57,9 @@ internal static partial class PreviewRenderer
                     break;
                 case AutolinkInline link:
                     MarkdownLink(null, link.IsEmail ? "mailto:" + link.Url : link.Url, link.Url, into, weight, style, plan, ctx);
+                    break;
+                case FootnoteLink note:
+                    FootnoteReference(note, into, weight, style, ctx);
                     break;
                 case TaskList task:
                     into.Add(new InlineUIContainer(new CheckBox { IsChecked = task.Checked, IsEnabled = false, Focusable = false }) { BaselineAlignment = BaselineAlignment.Center });
@@ -78,7 +90,7 @@ internal static partial class PreviewRenderer
         {
             if (label is not null) MarkdownInlines(label, into, weight, style, plan, ctx);
             else into.Add(new Run(plain) { FontWeight = weight, FontStyle = style });
-            into.Add(new Run(" (" + target + ")") { FontWeight = weight, FontStyle = style });
+            if (plain != target) into.Add(new Run(" (" + target + ")") { FontWeight = weight, FontStyle = style });
             return;
         }
         var text = new TextBlock { TextWrapping = TextWrapping.Wrap };
@@ -86,6 +98,26 @@ internal static partial class PreviewRenderer
         else text.Inlines!.Add(new Run(plain) { FontWeight = weight, FontStyle = style });
         var button = LinkButton(text, Loc.Get(K.PreviewPanelLink, ("text", plain), ("url", target)), open);
         ToolTip.SetTip(button, target);
+        into.Add(new InlineUIContainer(button) { BaselineAlignment = BaselineAlignment.Center });
+    }
+
+    /// <summary>
+    /// A footnote mark in the text or the back link after the note. Either jumps within the preview: the mark to the note, the back link to the first mark that cites it
+    /// (a note cited several times has one back link per mark, all to the first). Without a jump handler the mark stays plain text.
+    /// </summary>
+    private static void FootnoteReference(FootnoteLink link, InlineCollection into, FontWeight weight, FontStyle style, Ctx ctx)
+    {
+        string label = link.IsBackLink ? "\u21A9" : "[" + link.Index + "]";
+        int? line = link.IsBackLink ? link.Footnote.Links.FirstOrDefault(l => !l.IsBackLink)?.Line : link.Footnote.Line;
+        if (ctx.JumpToLine is not { } jump || line is not { } target)
+        {
+            into.Add(new Run(label) { FontWeight = weight, FontStyle = style });
+            return;
+        }
+        string name = link.IsBackLink ? Loc.Get(K.PreviewFootnoteBack) : Loc.Get(K.PreviewFootnoteName, ("number", link.Index));
+        var button = LinkButton(new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap }, name, () => jump(target));
+        button.Classes.Add("previewfootnote");
+        ToolTip.SetTip(button, name);
         into.Add(new InlineUIContainer(button) { BaselineAlignment = BaselineAlignment.Center });
     }
 }

@@ -1,5 +1,7 @@
 using System.Text;
 using Markdig;
+using Markdig.Extensions.AutoLinks;
+using Markdig.Extensions.EmphasisExtras;
 using Markdig.Extensions.Tables;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
@@ -31,7 +33,9 @@ public static class MarkdownSyntax
 {
     public static MarkdownDocument Parse(string source, int? maximumDepth = null)
     {
-        var builder = new MarkdownPipelineBuilder().UsePipeTables().UseTaskLists().UsePreciseSourceLocation();
+        // GFM: tables, task lists, ~~strikethrough~~, bare-URL autolinks, footnotes, [!NOTE] alerts and :emoji: shortcodes (no ":)" smileys)
+        var builder = new MarkdownPipelineBuilder().UsePipeTables().UseTaskLists().UseEmphasisExtras(EmphasisExtraOptions.Strikethrough)
+            .UseAutoLinks(new AutoLinkOptions { UseHttpsForWWWLinks = true }).UseFootnotes().UseAlertBlocks().UseEmojiAndSmiley(false).UsePreciseSourceLocation();
         builder.Extensions.Add(new TableExpansionLimit());
         if (maximumDepth is { } depth) builder.MaximumNestingDepth = depth;
         try { return Markdig.Markdown.Parse(source, builder.Build()); }
