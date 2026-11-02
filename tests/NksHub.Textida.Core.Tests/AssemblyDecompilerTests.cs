@@ -7,6 +7,9 @@ public class AssemblyDecompilerTests
 {
     private static string Assembly => typeof(System.Collections.Generic.SortedSet<int>).Assembly.Location;
 
+    /// <summary>The tests of the text take no time limit: beside the other test processes of a full run they took over 60 s, alone 3 s. The limit has a test of its own.</summary>
+    private static DecompileLimits NoTimeLimit => DecompileLimits.Default with { Time = Timeout.InfiniteTimeSpan };
+
     [Fact]
     public void A_managed_assembly_is_recognised_and_other_files_are_not()
     {
@@ -26,7 +29,7 @@ public class AssemblyDecompilerTests
     [Fact]
     public void A_module_is_decompiled_into_C_sharp_with_its_types()
     {
-        var result = AssemblyDecompiler.Decompile(Assembly, DecompileLimits.Default with { WholeModuleTypes = 100_000 });
+        var result = AssemblyDecompiler.Decompile(Assembly, NoTimeLimit with { WholeModuleTypes = 100_000 });
 
         Assert.False(result.Truncated);
         Assert.Contains("class SortedSet<T>", result.Text);
@@ -37,11 +40,21 @@ public class AssemblyDecompilerTests
     [Fact]
     public void A_big_module_is_written_type_by_type_and_cut_at_the_limit_with_the_count()
     {
-        var result = AssemblyDecompiler.Decompile(Assembly, DecompileLimits.Default with { WholeModuleTypes = 1, MaxChars = 4000 });
+        var result = AssemblyDecompiler.Decompile(Assembly, NoTimeLimit with { WholeModuleTypes = 1, MaxChars = 4000 });
 
         Assert.True(result.Truncated);
         Assert.InRange(result.TypesDone, 1, result.TypesTotal - 1);
         Assert.Contains("class ", result.Text);
+    }
+
+    [Fact]
+    public void A_time_limit_that_runs_out_in_a_big_module_gives_the_types_written_before_it_and_the_count()
+    {
+        var result = AssemblyDecompiler.Decompile(Assembly, DecompileLimits.Default with { WholeModuleTypes = 1, Time = TimeSpan.FromMilliseconds(1) });
+
+        Assert.True(result.Truncated);
+        Assert.InRange(result.TypesDone, 0, result.TypesTotal - 1);
+        Assert.True(result.TypesTotal > 1);
     }
 
     [Fact]
