@@ -85,11 +85,38 @@ public sealed partial class GitRepository
     /// <summary>The path of a file of the folder this repository was opened from, as git names it.</summary>
     public string RelativePath(string fileName) => Prefix + fileName;
 
+    /// <summary>
+    /// The .git/config of a folder opened from elsewhere is not the user's: these settings of it would start a program of its own from a command that only reads (a fsmonitor hook on every
+    /// status, the gpg program on a signed commit of the log). Turning them off changes no result.
+    /// </summary>
+    private static readonly string[] NoForeignPrograms = ["-c", "core.fsmonitor=false", "-c", "log.showSignature=false"];
+
+    /// <summary>A dirty submodule would be asked by a git status of its own, under its own config, with filters whose names <see cref="NoFiltersAsync"/> never saw.</summary>
+    private const string NoSubmoduleStatus = "--ignore-submodules=dirty";
+
+    /// <summary>
+    /// Options that turn off the clean filters the repository configures, for a command the editor runs by itself that reads files of the working tree: git status runs the filter of each
+    /// file whose stat data changed, and blame runs it on the text given with --contents.
+    /// </summary>
+    private async Task<List<string>> NoFiltersAsync(CancellationToken ct)
+    {
+        var (code, output, _) = await RunAsync(Root, ["config", "-z", "--name-only", "--get-regexp", @"^filter\..*\.(clean|process)$"], null, readOnly: true, ct).ConfigureAwait(false);
+        var options = new List<string>();
+        if (code != 0) return options; // none is configured
+        foreach (var name in Encoding.UTF8.GetString(output).Split('\0', StringSplitOptions.RemoveEmptyEntries))
+        {
+            // -c splits at the first '=': a driver named with one would set another key and leave the filter on
+            if (name.Contains('=')) throw new GitException($"The repository configures a filter git cannot be told to skip: {name}.");
+            options.AddRange(["-c", name + "=", "-c", name[..name.LastIndexOf('.')] + ".required=false"]);
+        }
+        return options;
+    }
+
     private async Task<(int Code, byte[] Output, string Error)> RunAsync(string directory, IReadOnlyList<string> args, byte[]? input, bool readOnly, CancellationToken ct, bool literalPathspecs = true)
     {
         ProcessStartInfo info;
         // a file named like a glob is that file; a command that finds its files itself (git stash -u lists the untracked ones with a pathspec of its own) must not have it
-        try { info = ProcessLaunch.CreateStartInfo(_git, literalPathspecs ? ["--literal-pathspecs", .. args] : [.. args]); }
+        try { info = ProcessLaunch.CreateStartInfo(_git, [.. NoForeignPrograms, .. literalPathspecs ? ["--literal-pathspecs", .. args] : args]); }
         catch (ToolException e) { throw new GitException(e.Message); }
         info.WorkingDirectory = directory;
         info.UseShellExecute = false;
@@ -144,7 +171,7 @@ public sealed partial class GitRepository
     /// <summary>The status of every path of the working tree, as <c>git status</c> shows it (untracked files one by one).</summary>
     public async Task<IReadOnlyList<StatusEntry>> StatusAsync(CancellationToken ct)
     {
-        var raw = await RunOrThrowAsync(["status", "--porcelain=v1", "-z", "--untracked-files=all"], null, readOnly: true, ct).ConfigureAwait(false);
+        var raw = await RunOrThrowAsync([.. await NoFiltersAsync(ct).ConfigureAwait(false), "status", "--porcelain=v1", "-z", "--untracked-files=all", NoSubmoduleStatus], null, readOnly: true, ct).ConfigureAwait(false);
         return ParseStatus(raw);
     }
 
@@ -154,7 +181,7 @@ public sealed partial class GitRepository
     /// </summary>
     public async Task<IReadOnlyList<StatusEntry>> TreeStatusAsync(CancellationToken ct)
     {
-        List<string> args = ["status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignored=matching"];
+        List<string> args = [.. await NoFiltersAsync(ct).ConfigureAwait(false), "status", "--porcelain=v1", "-z", "--untracked-files=normal", "--ignored=matching", NoSubmoduleStatus];
         if (Prefix.Length > 0) args.AddRange(["--", Prefix]);
         return ParseStatus(await RunOrThrowAsync(args, null, readOnly: true, ct).ConfigureAwait(false));
     }
@@ -262,7 +289,7 @@ public sealed partial class GitRepository
     /// </summary>
     public async Task<BlameLine?> BlameLineAsync(string path, int line, byte[] contents, CancellationToken ct)
     {
-        var (code, output, _) = await RunAsync(Root, ["blame", "--porcelain", "--contents", "-", "-L", $"{line},{line}", "--", path], contents, readOnly: true, ct).ConfigureAwait(false);
+        var (code, output, _) = await RunAsync(Root, [.. await NoFiltersAsync(ct).ConfigureAwait(false), "blame", "--porcelain", "--contents", "-", "-L", $"{line},{line}", "--", path], contents, readOnly: true, ct).ConfigureAwait(false);
         if (code != 0) return null;
         string? sha = null, author = null, summary = null;
         long time = 0;

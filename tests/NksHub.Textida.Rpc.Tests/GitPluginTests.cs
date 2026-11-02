@@ -310,6 +310,31 @@ public partial class GitPluginTests
     }
 
     [Fact]
+    public async Task The_status_the_editor_reads_by_itself_starts_no_program_the_config_of_the_repository_names()
+    {
+        using var repo = new Repo(("a.txt", "a\n"), (".gitattributes", "* filter=evil\n"));
+        string marker = Path.Combine(repo.Dir, "..", Path.GetFileName(repo.Dir) + ".marker").Replace('\\', '/');
+        repo.Run("config", "core.fsmonitor", $"echo fsmonitor >> '{marker}'");
+        repo.Run("config", "filter.evil.clean", $"echo clean >> '{marker}'; cat");
+        repo.Run("config", "filter.evil.required", "true");
+        try
+        {
+            File.SetLastWriteTimeUtc(repo.PathOf("a.txt"), new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc)); // stat data changed: git compares the content through the filter
+            repo.Run("status", "--porcelain"); // the attack works with a plain git
+            Assert.True(File.Exists(marker), "the repository is not set up to run its programs");
+            File.Delete(marker);
+
+            var git = await GitRepository.OpenAsync(repo.Dir, 20000, 1_000_000, default);
+            File.SetLastWriteTimeUtc(repo.PathOf("a.txt"), new DateTime(2002, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            Assert.Empty(await git!.StatusAsync(default));
+            Assert.Empty((await git.TreeStatusAsync(default)).Where(e => e.Index != '!'));
+            Assert.NotNull(await git.BlameLineAsync("a.txt", 1, "a\n"u8.ToArray(), default));
+            Assert.False(File.Exists(marker), File.Exists(marker) ? File.ReadAllText(marker) : "");
+        }
+        finally { File.Delete(marker); }
+    }
+
+    [Fact]
     public async Task A_conflict_is_the_heaviest_state_and_the_entries_over_the_limit_are_the_lightest_ones()
     {
         using var repo = ConflictRepo();
