@@ -1,148 +1,226 @@
-using System.Globalization;
+using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using System.Text;
+using HarfBuzzSharp;
+using SkiaSharp;
 
 namespace NksHub.Textida.App.Services;
 
 /// <summary>
-/// Writes pages as a PDF file (PZ.2.2): the way to print where the platform has no print dialog the editor can call. Text is set in Courier, one of the 14 fonts every PDF reader has, so no font is embedded;
-/// the colours and the page header are drawn, the characters outside Windows-1252 are looked up in a table of Central European letters and the rest print as a question mark.
+/// Writes pages as a PDF file (PZ.2.2): the way to print where the platform has no print dialog the editor can call. Skia's PDF backend draws the text in a monospaced system font
+/// with a ToUnicode map, so any character prints and can be copied back out; a character the main font lacks comes from the font the system offers for it.
+/// Each run starts at its column of the fixed grid, the same way the Windows printer places them.
 /// </summary>
-internal static class PdfExport
+internal static partial class PdfExport
 {
-    public const double PageWidth = 595.28, PageHeight = 841.89, Margin = 40, FontSize = 8.5, LineHeight = 10.5, HeaderSize = 9;
-    private const double CharWidth = 0.6 * FontSize;
+    public const float PageWidth = 595.28f, PageHeight = 841.89f, Margin = 40, FontSize = 8.5f, LineHeight = 10.5f, HeaderSize = 9;
+
+    private static readonly string[] MonospaceFamilies = ["Consolas", "Cascadia Mono", "Menlo", "SF Mono", "DejaVu Sans Mono", "Liberation Mono", "Noto Sans Mono"];
+
+    private static readonly Lazy<SKTypeface> MainTypeface = new(() =>
+    {
+        var manager = SKFontManager.Default;
+        foreach (string family in MonospaceFamilies)
+            if (manager.MatchFamily(family) is { IsFixedPitch: true } typeface) return typeface;
+        return manager.MatchFamily("monospace") ?? SKTypeface.Default;
+    });
+
+    private static float CharWidth
+    {
+        get
+        {
+            using var font = new SKFont(MainTypeface.Value, FontSize);
+            return font.MeasureText("M");
+        }
+    }
 
     /// <summary>The columns and rows of a page of this file; the header takes two rows.</summary>
     public static PrintOptions Options(bool lineNumbers) =>
         new((int)((PageWidth - 2 * Margin) / CharWidth), (int)((PageHeight - 2 * Margin) / LineHeight) - 2, lineNumbers);
 
-    private static readonly Dictionary<char, string> GlyphNames = new()
-    {
-        ['Ă'] = "Abreve", ['ă'] = "abreve", ['Ą'] = "Aogonek", ['ą'] = "aogonek", ['Ć'] = "Cacute", ['ć'] = "cacute", ['Č'] = "Ccaron", ['č'] = "ccaron",
-        ['Ď'] = "Dcaron", ['ď'] = "dcaron", ['Đ'] = "Dcroat", ['đ'] = "dcroat", ['Ę'] = "Eogonek", ['ę'] = "eogonek", ['Ě'] = "Ecaron", ['ě'] = "ecaron",
-        ['Ğ'] = "Gbreve", ['ğ'] = "gbreve", ['İ'] = "Idotaccent", ['ı'] = "dotlessi", ['Ĺ'] = "Lacute", ['ĺ'] = "lacute", ['Ľ'] = "Lcaron", ['ľ'] = "lcaron",
-        ['Ł'] = "Lslash", ['ł'] = "lslash", ['Ń'] = "Nacute", ['ń'] = "nacute", ['Ň'] = "Ncaron", ['ň'] = "ncaron", ['Ő'] = "Ohungarumlaut", ['ő'] = "ohungarumlaut",
-        ['Ŕ'] = "Racute", ['ŕ'] = "racute", ['Ř'] = "Rcaron", ['ř'] = "rcaron", ['Ś'] = "Sacute", ['ś'] = "sacute", ['Ş'] = "Scedilla", ['ş'] = "scedilla",
-        ['Ţ'] = "Tcommaaccent", ['ţ'] = "tcommaaccent", ['Ť'] = "Tcaron", ['ť'] = "tcaron", ['Ů'] = "Uring", ['ů'] = "uring", ['Ű'] = "Uhungarumlaut", ['ű'] = "uhungarumlaut",
-        ['Ź'] = "Zacute", ['ź'] = "zacute", ['Ż'] = "Zdotaccent", ['ż'] = "zdotaccent",
-    };
-
-    // the characters Windows-1252 has in 0x80..0x9F
-    private static readonly char[] Cp1252High =
-        ['€', '\0', '‚', 'ƒ', '„', '…', '†', '‡', 'ˆ', '‰', 'Š', '‹', 'Œ', '\0', 'Ž', '\0',
-         '\0', '‘', '’', '“', '”', '•', '–', '—', '˜', '™', 'š', '›', 'œ', '\0', 'ž', 'Ÿ'];
-
-    /// <summary>Which byte a character is written as, with the glyph names the file has to declare for the bytes it borrowed.</summary>
-    private sealed class Encoder
-    {
-        private readonly Dictionary<char, byte> _map = [];
-        private readonly Dictionary<byte, string> _differences = [];
-        private readonly Stack<byte> _free = new();
-
-        public Encoder(IEnumerable<char> used)
-        {
-            var distinct = used.Distinct().ToList();
-            var taken = new HashSet<byte>();
-            foreach (char c in distinct)
-            {
-                if (c < 0x80 || c is >= ' ' and <= 'ÿ') _map[c] = (byte)c;
-                else if (Array.IndexOf(Cp1252High, c) is var at and >= 0) { _map[c] = (byte)(0x80 + at); taken.Add((byte)(0x80 + at)); }
-            }
-            // codes of 0x80..0x9F that this text does not use are lent to the other letters
-            for (int code = 0x9F; code >= 0x80; code--)
-                if (!taken.Contains((byte)code)) _free.Push((byte)code);
-            foreach (char c in distinct)
-                if (!_map.ContainsKey(c) && GlyphNames.TryGetValue(c, out string? name) && _free.Count > 0)
-                {
-                    byte code = _free.Pop();
-                    _map[c] = code;
-                    _differences[code] = name;
-                }
-        }
-
-        public byte Of(char c) => _map.TryGetValue(c, out byte b) ? b : (byte)'?';
-        public IReadOnlyDictionary<byte, string> Differences => _differences;
-    }
-
-    private static string Number(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
-
-    private static void Escaped(StringBuilder sb, Encoder encoder, string text)
-    {
-        sb.Append('(');
-        foreach (char c in text)
-        {
-            byte b = encoder.Of(c);
-            if (b is (byte)'(' or (byte)')' or (byte)'\\') sb.Append('\\').Append((char)b);
-            else if (b < 0x20) sb.Append(' ');
-            else sb.Append((char)b); // the file is written as Latin-1, so a byte and a char are the same
-        }
-        sb.Append(')');
-    }
-
-    private static string Colour(int rgb) => $"{Number(((rgb >> 16) & 255) / 255.0)} {Number(((rgb >> 8) & 255) / 255.0)} {Number((rgb & 255) / 255.0)} rg";
-
     /// <summary>The PDF of the pages, with the title and the page number in the header of each.</summary>
     public static byte[] Write(IReadOnlyList<PrintPage> pages, string title)
     {
-        var encoder = new Encoder("0123456789 /".Concat(title).Concat(pages.SelectMany(p => p.Lines).SelectMany(l => l.Runs).SelectMany(r => r.Text)));
-        var objects = new List<string>();
-        int fontObject = 3, firstPage = 4;
-        objects.Add("<< /Type /Catalog /Pages 2 0 R >>");
-        objects.Add($"<< /Type /Pages /Kids [{string.Join(' ', Enumerable.Range(0, pages.Count).Select(i => $"{firstPage + 2 * i} 0 R"))}] /Count {pages.Count} >>");
-        var font = new StringBuilder("<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding << /Type /Encoding /BaseEncoding /WinAnsiEncoding");
-        if (encoder.Differences.Count > 0)
+        var numbers = pages.Select(p => $"{p.Number} / {pages.Count}").ToList();
+        using var fonts = new Fonts(MainTypeface.Value, numbers.Append(title).Concat(pages.SelectMany(p => p.Lines).SelectMany(l => l.Runs).Select(r => r.Text)));
+        using var stream = new SKDynamicMemoryWStream();
+        using (var document = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata { Title = title, Creator = "Textida", Producer = "Textida" })
+            ?? throw new InvalidOperationException("SkiaSharp has no PDF backend on this platform."))
+        using (var paint = new SKPaint { IsAntialias = true })
+        using (var rule = new SKPaint { Color = new SKColor(153, 153, 153), StrokeWidth = 0.5f, Style = SKPaintStyle.Stroke })
         {
-            font.Append(" /Differences [");
-            foreach (var (code, name) in encoder.Differences.OrderBy(d => d.Key)) font.Append(code).Append(" /").Append(name).Append(' ');
-            font.Append(']');
-        }
-        font.Append(" >> >>");
-        objects.Add(font.ToString());
-        var bodies = new List<string>();
-        for (int i = 0; i < pages.Count; i++)
-        {
-            var page = pages[i];
-            var s = new StringBuilder();
-            s.Append("BT\n/F1 ").Append(Number(HeaderSize)).Append(" Tf\n0 0 0 rg\n1 0 0 1 ").Append(Number(Margin)).Append(' ').Append(Number(PageHeight - Margin - HeaderSize)).Append(" Tm\n");
-            Escaped(s, encoder, title);
-            s.Append(" Tj\n");
-            string right = $"{page.Number} / {pages.Count}";
-            s.Append("1 0 0 1 ").Append(Number(PageWidth - Margin - right.Length * 0.6 * HeaderSize)).Append(' ').Append(Number(PageHeight - Margin - HeaderSize)).Append(" Tm\n");
-            Escaped(s, encoder, right);
-            s.Append(" Tj\nET\n0.6 G 0.5 w ").Append(Number(Margin)).Append(' ').Append(Number(PageHeight - Margin - HeaderSize - 4)).Append(" m ")
-                .Append(Number(PageWidth - Margin)).Append(' ').Append(Number(PageHeight - Margin - HeaderSize - 4)).Append(" l S\nBT\n/F1 ").Append(Number(FontSize)).Append(" Tf\n");
-            double y = PageHeight - Margin - 2 * LineHeight - FontSize;
-            foreach (var line in page.Lines)
+            float cell = CharWidth;
+            for (int i = 0; i < pages.Count; i++)
             {
-                s.Append("1 0 0 1 ").Append(Number(Margin)).Append(' ').Append(Number(y)).Append(" Tm\n");
-                foreach (var run in line.Runs)
+                var canvas = document.BeginPage(PageWidth, PageHeight);
+                paint.Color = SKColors.Black;
+                float headerBaseline = Margin + HeaderSize;
+                fonts.Draw(canvas, title, Margin, headerBaseline, HeaderSize, paint);
+                fonts.Draw(canvas, numbers[i], PageWidth - Margin - fonts.Measure(numbers[i], HeaderSize), headerBaseline, HeaderSize, paint);
+                canvas.DrawLine(Margin, headerBaseline + 4, PageWidth - Margin, headerBaseline + 4, rule);
+
+                float y = Margin + 2 * LineHeight + FontSize;
+                foreach (var line in pages[i].Lines)
                 {
-                    s.Append(Colour(run.Rgb)).Append(' ');
-                    Escaped(s, encoder, run.Text);
-                    s.Append(" Tj\n");
+                    int column = 0;
+                    foreach (var run in line.Runs)
+                    {
+                        paint.Color = new SKColor(0xFF000000u | (uint)(run.Rgb & 0xFFFFFF));
+                        fonts.Draw(canvas, run.Text, Margin + column * cell, y, FontSize, paint);
+                        column += run.Text.Length;
+                    }
+                    y += LineHeight;
                 }
-                y -= LineHeight;
+                document.EndPage();
             }
-            s.Append("ET\n");
-            bodies.Add(s.ToString());
-            objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {Number(PageWidth)} {Number(PageHeight)}] /Resources << /Font << /F1 {fontObject} 0 R >> >> /Contents {firstPage + 2 * i + 1} 0 R >>");
-            objects.Add($"<< /Length {s.Length} >>\nstream\n{s}endstream");
+            document.Close();
+        }
+        using var data = stream.DetachAsData();
+        return data.ToArray();
+    }
+
+    /// <summary>
+    /// The fonts of one file: for each character the main font or the system's fallback for it, each cut down to the characters the file uses.
+    /// The SkiaSharp build embeds whole fonts (it has no subsetter), which is megabytes for a CJK font, so HarfBuzz subsets them first.
+    /// </summary>
+    private sealed class Fonts : IDisposable
+    {
+        private readonly SKTypeface _main;
+        private readonly Dictionary<int, SKTypeface> _fallback = [];
+        private readonly Dictionary<SKTypeface, SKTypeface> _subsets = [];
+
+        public Fonts(SKTypeface main, IEnumerable<string> texts)
+        {
+            _main = main;
+            var used = new Dictionary<SKTypeface, HashSet<int>>();
+            foreach (string text in texts)
+                foreach (var rune in text.EnumerateRunes())
+                {
+                    var typeface = TypefaceFor(rune.Value);
+                    if (!used.TryGetValue(typeface, out var set)) used[typeface] = set = [];
+                    set.Add(rune.Value);
+                }
+            foreach (var (typeface, codePoints) in used)
+                if (Subset(typeface, codePoints) is { } subset) _subsets[typeface] = subset;
         }
 
-        var latin1 = Encoding.Latin1;
-        using var output = new MemoryStream();
-        void Write(string text) => output.Write(latin1.GetBytes(text));
-        Write("%PDF-1.4\n");
-        var offsets = new List<long>();
-        for (int i = 0; i < objects.Count; i++)
+        /// <summary>The font that draws the character: the main one when it has the glyph, otherwise the one the system matches for it (the main one again when none does).</summary>
+        private SKTypeface TypefaceFor(int codePoint)
         {
-            offsets.Add(output.Position);
-            Write($"{i + 1} 0 obj\n{objects[i]}\nendobj\n");
+            if (codePoint < 0x80 || _main.ContainsGlyph(codePoint)) return _main;
+            if (!_fallback.TryGetValue(codePoint, out var typeface))
+                _fallback[codePoint] = typeface = SKFontManager.Default.MatchCharacter(_main.FamilyName, SKFontStyle.Normal, null, codePoint) ?? _main;
+            return typeface;
         }
-        long xref = output.Position;
-        Write($"xref\n0 {objects.Count + 1}\n0000000000 65535 f \n");
-        foreach (long offset in offsets) Write($"{offset:D10} 00000 n \n");
-        Write($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n");
-        return output.ToArray();
+
+        /// <summary>The pieces of the text that one font draws, in order.</summary>
+        private IEnumerable<(string Text, SKTypeface Typeface)> Pieces(string text)
+        {
+            int start = 0;
+            SKTypeface? current = null;
+            for (int i = 0; i < text.Length;)
+            {
+                Rune.DecodeFromUtf16(text.AsSpan(i), out var rune, out int length); // a lone surrogate comes back as U+FFFD
+                var typeface = TypefaceFor(rune.Value);
+                if (current is not null && typeface != current)
+                {
+                    yield return (text[start..i], _subsets.GetValueOrDefault(current, current));
+                    start = i;
+                }
+                current = typeface;
+                i += length;
+            }
+            if (current is not null) yield return (text[start..], _subsets.GetValueOrDefault(current, current));
+        }
+
+        public float Measure(string text, float size)
+        {
+            float width = 0;
+            foreach (var (piece, typeface) in Pieces(text))
+            {
+                using var font = new SKFont(typeface, size);
+                width += font.MeasureText(piece);
+            }
+            return width;
+        }
+
+        public void Draw(SKCanvas canvas, string text, float x, float baseline, float size, SKPaint paint)
+        {
+            foreach (var (piece, typeface) in Pieces(text))
+            {
+                using var font = new SKFont(typeface, size);
+                canvas.DrawText(piece, x, baseline, font, paint);
+                x += font.MeasureText(piece);
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var typeface in _subsets.Values) typeface.Dispose();
+            foreach (var typeface in _fallback.Values.Distinct())
+                if (typeface != _main) typeface.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// The font cut down to the characters, or null to embed it whole: when HarfBuzz cannot read or cut it, or the font forbids subsetting (OS/2 fsType bit 8).
+    /// A font that forbids embedding at all is left to Skia, which then draws its glyphs as outlines.
+    /// </summary>
+    private static SKTypeface? Subset(SKTypeface typeface, HashSet<int> codePoints)
+    {
+        if (typeface.TryGetTableData(0x4F532F32 /* OS/2 */, out byte[] os2) && os2.Length >= 10 && (BinaryPrimitives.ReadUInt16BigEndian(os2.AsSpan(8)) & 0x0100) != 0) return null;
+        using var asset = typeface.OpenStream(out int index);
+        if (asset is null) return null;
+        using var data = SKData.Create(asset);
+        if (data is null) return null;
+        try
+        {
+            using var blob = new Blob(data.Data, (int)data.Size, MemoryMode.ReadOnly);
+            using var face = new Face(blob, index);
+            nint input = HarfBuzzSubset.hb_subset_input_create_or_fail();
+            if (input == 0) return null;
+            nint cut;
+            try
+            {
+                nint set = HarfBuzzSubset.hb_subset_input_unicode_set(input);
+                foreach (int codePoint in codePoints) HarfBuzzSubset.hb_set_add(set, (uint)codePoint);
+                cut = HarfBuzzSubset.hb_subset_or_fail(face.Handle, input);
+            }
+            finally { HarfBuzzSubset.hb_subset_input_destroy(input); }
+            if (cut == 0) return null;
+            try
+            {
+                nint result = HarfBuzzSubset.hb_face_reference_blob(cut);
+                try
+                {
+                    nint bytes = HarfBuzzSubset.hb_blob_get_data(result, out uint length);
+                    if (bytes == 0 || length == 0) return null;
+                    using var copy = SKData.CreateCopy(bytes, length);
+                    return SKTypeface.FromData(copy);
+                }
+                finally { HarfBuzzSubset.hb_blob_destroy(result); }
+            }
+            finally { HarfBuzzSubset.hb_face_destroy(cut); }
+        }
+        catch (Exception e) when (e is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>The subsetter of the HarfBuzz library Avalonia ships; HarfBuzzSharp has no managed API for it.</summary>
+    private static partial class HarfBuzzSubset
+    {
+        private const string Library = "libHarfBuzzSharp";
+
+        [LibraryImport(Library)] internal static partial nint hb_subset_input_create_or_fail();
+        [LibraryImport(Library)] internal static partial void hb_subset_input_destroy(nint input);
+        [LibraryImport(Library)] internal static partial nint hb_subset_input_unicode_set(nint input);
+        [LibraryImport(Library)] internal static partial void hb_set_add(nint set, uint codePoint);
+        [LibraryImport(Library)] internal static partial nint hb_subset_or_fail(nint face, nint input);
+        [LibraryImport(Library)] internal static partial nint hb_face_reference_blob(nint face);
+        [LibraryImport(Library)] internal static partial void hb_face_destroy(nint face);
+        [LibraryImport(Library)] internal static partial nint hb_blob_get_data(nint blob, out uint length);
+        [LibraryImport(Library)] internal static partial void hb_blob_destroy(nint blob);
     }
 }

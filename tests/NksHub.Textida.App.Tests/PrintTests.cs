@@ -50,7 +50,7 @@ public class PrintLayoutTests
     }
 
     [Fact]
-    public void The_pdf_has_a_page_for_each_page_the_header_the_colours_and_the_central_european_letters()
+    public void The_pdf_has_a_page_for_each_page_the_header_the_colours_and_an_embedded_font()
     {
         var text = string.Join('\n', Enumerable.Range(1, 200).Select(i => i == 3 ? "řešení (ě) \\ ů č ť €" : "line " + i));
         var pages = PrintLayout.Paginate(Lines(text, (0, 4, 0xFF0000), (4, text.Length - 4, null)), PdfExport.Options(true));
@@ -58,31 +58,88 @@ public class PrintLayoutTests
         var pdf = PdfExport.Write(pages, "demo.cs");
         string s = Encoding.Latin1.GetString(pdf);
 
-        Assert.StartsWith("%PDF-1.4", s);
-        Assert.EndsWith("%%EOF\n", s);
-        Assert.Equal(pages.Count, Regex.Matches(s, "/Type /Page /Parent").Count);
+        Assert.StartsWith("%PDF-", s);
+        Assert.Contains("%%EOF", s[^8..]);
+        Assert.Equal(pages.Count, Pages(s));
         Assert.Contains($"/Count {pages.Count}", s);
-        Assert.Contains("(demo.cs) Tj", s);
-        Assert.Contains($"(1 / {pages.Count}) Tj", s);
-        Assert.Contains("1 0 0 rg", s); // the red run
-        Assert.Contains("/Differences", s);
-        Assert.Contains("/rcaron", s);
-        Assert.Contains("/ecaron", s);
-        Assert.Contains("/uring", s);
-        Assert.Contains("/tcaron", s);
-        Assert.Contains("\\\\", s); // the backslash is escaped
-        // the xref offsets point at the objects
-        var xref = Regex.Match(s, @"startxref\n(\d+)\n");
-        Assert.StartsWith("xref", s[int.Parse(xref.Groups[1].Value)..]);
-        foreach (Match m in Regex.Matches(s, @"(\d{10}) 00000 n"))
-            Assert.Matches(@"^\d+ 0 obj", s[int.Parse(m.Groups[1].Value)..]);
+        Assert.Contains("/FontFile2", s);
+        Assert.Contains("/ToUnicode", s);
+        Assert.True(pdf.Length < 150_000, $"{pdf.Length} bytes: the font was not subset");
+        string content = string.Join('\n', Streams(pdf));
+        Assert.Contains("1 0 0 rg", content); // the red run
+        Assert.Contains(".502 .502 .502 rg", content); // the grey line numbers
+        var mapped = MappedText(pdf);
+        foreach (char c in "demo.cs/123řešení()\\ůčť€") Assert.Contains(c.ToString(), mapped);
     }
 
     [Fact]
-    public void Letters_the_font_cannot_show_print_as_a_question_mark()
+    public void Every_script_prints_in_an_embedded_font_and_maps_back_to_its_text()
     {
-        var pdf = Encoding.Latin1.GetString(PdfExport.Write(PrintLayout.Paginate(Lines("a中b"), new PrintOptions(40, 10, false)), "t"));
-        Assert.Contains("(a?b) Tj", pdf);
+        var pages = PrintLayout.Paginate(Lines(UnicodeSample), PdfExport.Options(true));
+        var pdf = PdfExport.Write(pages, "unicode.txt");
+        string s = Encoding.Latin1.GetString(pdf);
+
+        Assert.Single(pages);
+        Assert.Equal(1, Pages(s));
+        Assert.Contains("/FontFile2", s);
+        Assert.Contains("/ToUnicode", s);
+        Assert.True(pdf.Length < 1_000_000, $"{pdf.Length} bytes: a fallback font was not subset");
+        var mapped = MappedText(pdf);
+        var missing = UnicodeSample.EnumerateRunes().Select(r => r.ToString()).Where(r => r is not ("\n" or " ") && !mapped.Contains(r)).Distinct().ToList();
+        Assert.True(missing.Count == 0, "not mapped: " + string.Join(' ', missing));
+        Assert.DoesNotContain("?", mapped); // nothing was replaced by a question mark
+    }
+
+    [Fact]
+    public void A_surrogate_pair_never_splits_across_rows()
+    {
+        var pages = PrintLayout.Paginate(Lines("abc😀d"), new PrintOptions(4, 10, false));
+        Assert.All(pages.Single().Lines.SelectMany(l => l.Runs), r => Assert.False(char.IsHighSurrogate(r.Text[^1])));
+    }
+
+    internal const string UnicodeSample = "Příliš žluťoučký kůň\nGrüße, Straße\nПривет, мир\nΓειά σου κόσμε\n漢字かなカナ 中文\nمرحبا\n😀 🚀";
+
+    private static int Pages(string pdf) => Regex.Matches(pdf, @"/Type\s*/Page\b(?!s)").Count;
+
+    /// <summary>The streams of the file, inflated where they are compressed.</summary>
+    internal static List<string> Streams(byte[] pdf)
+    {
+        string s = Encoding.Latin1.GetString(pdf);
+        var streams = new List<string>();
+        foreach (Match m in Regex.Matches(s, @"/Length (\d+)[^>]*>>\s*stream\r?\n"))
+        {
+            var raw = pdf.AsSpan(m.Index + m.Length, int.Parse(m.Groups[1].Value)).ToArray();
+            try
+            {
+                using var z = new System.IO.Compression.ZLibStream(new MemoryStream(raw), System.IO.Compression.CompressionMode.Decompress);
+                using var o = new MemoryStream();
+                z.CopyTo(o);
+                streams.Add(Encoding.Latin1.GetString(o.ToArray()));
+            }
+            catch (InvalidDataException) { streams.Add(Encoding.Latin1.GetString(raw)); }
+        }
+        return streams;
+    }
+
+    /// <summary>Every text the ToUnicode maps of the file give back for its glyphs.</summary>
+    internal static HashSet<string> MappedText(byte[] pdf)
+    {
+        static string Utf16(string hex) => Encoding.BigEndianUnicode.GetString(Convert.FromHexString(hex));
+        var mapped = new HashSet<string>();
+        foreach (string cmap in Streams(pdf).Where(x => x.Contains("begincmap")))
+        {
+            foreach (Match block in Regex.Matches(cmap, "beginbfchar(.*?)endbfchar", RegexOptions.Singleline))
+                foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<[0-9A-Fa-f]+>\s*<([0-9A-Fa-f]+)>"))
+                    mapped.Add(Utf16(m.Groups[1].Value));
+            foreach (Match block in Regex.Matches(cmap, "beginbfrange(.*?)endbfrange", RegexOptions.Singleline))
+                foreach (Match m in Regex.Matches(block.Groups[1].Value, @"<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>"))
+                {
+                    int count = Convert.ToInt32(m.Groups[2].Value, 16) - Convert.ToInt32(m.Groups[1].Value, 16);
+                    string first = Utf16(m.Groups[3].Value);
+                    for (int i = 0; i <= count; i++) mapped.Add(first[..^1] + (char)(first[^1] + i));
+                }
+        }
+        return mapped;
     }
 }
 
@@ -111,11 +168,11 @@ public class PrintAppTests : IDisposable
 
         await w.ExportPdfAsync();
 
-        string s = Encoding.Latin1.GetString(await File.ReadAllBytesAsync(pdf));
+        var bytes = await File.ReadAllBytesAsync(pdf);
         Assert.Equal(["demo.pdf"], _dialogs.SaveFileNames);
-        Assert.Contains("(demo.js) Tj", s);
-        Assert.Contains("function", s);
-        Assert.Matches(@"\d\.?\d* \d\.?\d* \d\.?\d* rg", s);
+        var mapped = PrintLayoutTests.MappedText(bytes);
+        foreach (char c in "demo.jsfunction\"") Assert.Contains(c.ToString(), mapped);
+        Assert.Matches(@"\d\.?\d* \d\.?\d* \d\.?\d* rg", string.Join('\n', PrintLayoutTests.Streams(bytes)));
         Assert.Contains(Loc.Get(K.PrintPdfDone, ("name", "out.pdf")), w.StatusMessageText);
     }
 
