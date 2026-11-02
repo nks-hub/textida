@@ -66,6 +66,7 @@ Dnes v repozitáři žádné CI není. Bez něj nejde doložit sloupce Win a mac
   - **Hotovo, když:** pro každé vydání (MVP, 1.0) existuje záznam, ve kterém má každá buňka matice výsledek „prošlo“ s hashem balíku a datem; buňka bez běhu má stav **neověřeno** a vydání neprojde. Bez strojů z P1.1.6 (Windows 10 22H2 a macOS 14 dodá majitel) brána vydání neprojde. Výkonové brány R8 tato položka nenahrazuje.
   - **Závisí na:** P1.1.6, P1.1.8, PR.1.2, PR.3.1
   - **Odhad:** bez odhadu; zavedení prostředí v P1, opakované přijetí v P3 (P3.7.5), P9 a P10 (P10.1.4); ocení PR.8.1 a PR.8.2
+  - **Záznam 2. 11. 2026 (referenční Mac, macOS 15.7.4 arm64, před 0.1.5):** rychlé sady nad a57cc4cf: Rpc 1254/0, Core 3212 + 4 pády, App 2288 + 11 pádů. Porovnání s v0.1.4: všechny pády kromě jednoho existují už ve v0.1.4 — import z PSPadu na Unixu (zpětné lomítko v cestě projektu se nepřevádí, 5 testů), chybějící `python` v PATH (4 testy převodníků, prostředí), FSEvents (`ReviewFolderTests`, `FileTreeHiddenAndContentTests`), `FolderCompareTests` (nekopírovatelný soubor), `OccurrenceHighlightTests` o 1 px, `PagedSpillTests` jen jednou. Nový je jen `ViewOptionsTests.A_drag_that_moves_inside_the_window_of_the_colors…` (test z 19171d42): na macOS gramatika při tažení minimapy běží 9× místo 3× (výkon, ne správnost). Opravit po 0.1.5.
 
 ### PR.2 Testovací korpus a výkonové brány
 
