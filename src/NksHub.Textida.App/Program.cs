@@ -21,7 +21,7 @@ public static partial class Program
         if (OperatingSystem.IsWindows()) AttachConsole(-1);
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-        if (args is ["--elevated-install", ..] or ["--elevated-read", ..]) return Services.ElevatedHelper.Run(args); // the one job of the process the system let the user allow (PZ.4.2)
+        if (args is ["--elevated-install", ..] or ["--elevated-read", ..] or ["--elevated-read-as", ..]) return Services.ElevatedHelper.Run(args); // the one job of the process the system let the user allow (PZ.4.2)
         if (args is ["--unregister-shell"]) return UnregisterShell();
 
         var parsed = CommandLine.Parse(args, Directory.GetCurrentDirectory());

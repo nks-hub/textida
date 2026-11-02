@@ -54,10 +54,22 @@ internal sealed class SystemElevation : IElevation
 
     public void Read(string source, string destination, long maxBytes)
     {
-        if (OperatingSystem.IsWindows()) RunWindows("--elevated-read", source, destination, maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        else if (OperatingSystem.IsMacOS()) RunMac(MacReadScript(source, destination, maxBytes));
-        else if (OperatingSystem.IsLinux()) RunLinux("--elevated-read", source, destination, maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        else throw new ElevationException("This system has no way to ask for permission.");
+        string max = maxBytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (OperatingSystem.IsWindows()) { RunWindows("--elevated-read", source, destination, max); return; }
+        if (!OperatingSystem.IsMacOS() && !OperatingSystem.IsLinux()) throw new ElevationException("This system has no way to ask for permission.");
+
+        // root writes the copy only into a folder it makes itself in the shared temporary folder, then hands it over; the user copies it on from there
+        string name = "textida-read-" + Guid.NewGuid().ToString("N"), folder = Path.Combine(ElevatedHelper.SharedTemp, name);
+        try { source = File.ResolveLinkTarget(source, true)?.FullName ?? source; } // the helper opens no link, so a link of the user's is followed here
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the helper says what it finds */ }
+        try
+        {
+            string[] job = [source, name, max, ElevatedHelper.getuid().ToString(System.Globalization.CultureInfo.InvariantCulture)];
+            if (OperatingSystem.IsMacOS()) RunMacHelper("--elevated-read-as", job);
+            else RunLinux("--elevated-read-as", job);
+            File.Copy(Path.Combine(folder, ElevatedHelper.CopyName), destination);
+        }
+        finally { try { Directory.Delete(folder, true); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* in the temporary folder */ } }
     }
 
     private static void RunWindows(string verb, params string[] arguments)
@@ -97,21 +109,20 @@ internal sealed class SystemElevation : IElevation
     {
         string pkexec = FindPkexec() ?? throw new ElevationException("pkexec (polkit) is not installed, so there is nothing to ask the system for permission with. Install polkit, or open the file as root another way.");
         string program = Environment.ProcessPath ?? throw new ElevationException("The program of the editor is not known.");
-        string result = Path.Combine(Path.GetTempPath(), "textida-elevated-" + Guid.NewGuid().ToString("N") + ".result");
-        File.WriteAllText(result, ""); // made by the user, so the user can delete it after the helper wrote into it as root
-        var info = new ProcessStartInfo(pkexec) { UseShellExecute = false, RedirectStandardError = true, CreateNoWindow = true };
-        foreach (string a in LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, result)) info.ArgumentList.Add(a);
+        // the answer comes on the standard output ("-"): a result file in a folder of the user could be swapped for a link that root then writes through
+        var info = new ProcessStartInfo(pkexec) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true, CreateNoWindow = true };
+        foreach (string a in LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, "-")) info.ArgumentList.Add(a);
         try
         {
             using var process = Process.Start(info) ?? throw new ElevationException("pkexec did not start.");
-            string errors = process.StandardError.ReadToEnd();
+            var output = process.StandardOutput.ReadToEndAsync();
+            string errors = process.StandardError.ReadToEnd().Trim();
             if (!process.WaitForExit(Patience)) { try { process.Kill(); } catch (InvalidOperationException) { } throw new ElevationException("The authorization did not finish in time."); }
             if (process.ExitCode == 126) throw new ElevationCancelledException(); // pkexec: the user dismissed the dialog
-            string answer = File.ReadAllText(result);
-            if (process.ExitCode != 0 || answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : errors.Trim().Length > 0 ? errors.Trim() : $"pkexec ended with code {process.ExitCode}.");
+            string answer = output.GetAwaiter().GetResult().Trim();
+            if (process.ExitCode != 0 || answer != "ok") throw new ElevationException(errors.Length > 0 ? errors : answer.Length > 0 ? answer : $"pkexec ended with code {process.ExitCode}.");
         }
         catch (Win32Exception e) { throw new ElevationException(e.Message); }
-        finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
     }
 
     // ---- macOS: the script keeps every path out of the code of the shell by passing it through "quoted form of" ----
@@ -129,44 +140,42 @@ internal sealed class SystemElevation : IElevation
     private static void RunMacHelper(string verb, params string[] arguments)
     {
         string program = Environment.ProcessPath ?? throw new ElevationException("The program of the editor is not known.");
-        string result = Path.Combine(Path.GetTempPath(), "textida-elevated-" + Guid.NewGuid().ToString("N") + ".result");
-        File.WriteAllText(result, ""); // made by the user, so the user can delete it after the helper wrote into it as root
-        try
-        {
-            try { RunMac(MacHelperScript(LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, result))); }
-            catch (ElevationException) when (File.ReadAllText(result) is { Length: > 0 } reason && reason != "ok") { throw new ElevationException(reason); }
-            string answer = File.ReadAllText(result);
-            if (answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : "The helper did not say how the job went.");
-        }
-        finally { try { File.Delete(result); } catch (IOException) { /* in the temporary folder */ } }
+        // "-": the helper answers on its standard output, which do shell script returns; no result file that root would write through a link
+        string answer = RunMac(MacHelperScript(LinuxArguments(program, Environment.GetCommandLineArgs()[0], verb, arguments, "-"))).Trim();
+        if (answer != "ok") throw new ElevationException(answer.Length > 0 ? answer : "The helper did not say how the job went.");
     }
 
-    internal static string MacReadScript(string source, string destination, long maxBytes) =>
-        $"set src to {AppleString(source)}\nset dst to {AppleString(destination)}\nset who to {AppleString(Environment.UserName)}\n" +
-        $"do shell script \"test $(/usr/bin/stat -f %z \" & quoted form of src & \") -le {maxBytes} && /bin/cp \" & quoted form of src & \" \" & quoted form of dst & \" && /usr/sbin/chown \" & quoted form of who & \" \" & quoted form of dst with administrator privileges";
-
-    private static void RunMac(string script)
+    /// <summary>Runs the script and gives its standard output; a failed shell command comes back as "execution error: (its standard error) (code)", of which the reason is kept.</summary>
+    private static string RunMac(string script)
     {
         var info = new ProcessStartInfo("/usr/bin/osascript") { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true, CreateNoWindow = true };
         foreach (string line in script.Split('\n')) { info.ArgumentList.Add("-e"); info.ArgumentList.Add(line); }
         using var process = Process.Start(info) ?? throw new ElevationException("osascript did not start.");
-        string errors = process.StandardError.ReadToEnd();
+        var output = process.StandardOutput.ReadToEndAsync();
+        string errors = process.StandardError.ReadToEnd().Trim();
         if (!process.WaitForExit(Patience)) { try { process.Kill(); } catch (InvalidOperationException) { } throw new ElevationException("The authorization did not finish in time."); }
-        if (process.ExitCode == 0) return;
+        if (process.ExitCode == 0) return output.GetAwaiter().GetResult();
         if (errors.Contains("-128", StringComparison.Ordinal)) throw new ElevationCancelledException(); // errAECoercionFail / "User canceled"
-        throw new ElevationException(errors.Trim().Length > 0 ? errors.Trim() : $"osascript ended with code {process.ExitCode}.");
+        if (System.Text.RegularExpressions.Regex.Match(errors, @"execution error: (.+) \(-?\d+\)$", System.Text.RegularExpressions.RegexOptions.Singleline) is { Success: true } m) errors = m.Groups[1].Value;
+        throw new ElevationException(errors.Length > 0 ? errors : $"osascript ended with code {process.ExitCode}.");
     }
 }
 
 /// <summary>
-/// The job of the elevated process: it checks what it is asked, does one copy and says how it went. It runs in the same program file as the editor (<c>--elevated-install</c>, <c>--elevated-read</c>), takes no input but its arguments
+/// The job of the elevated process: it checks what it is asked, does one copy and says how it went. It runs in the same program file as the editor (<c>--elevated-install</c>, <c>--elevated-read</c> on Windows, <c>--elevated-read-as</c> on macOS and Linux), takes no input but its arguments
 /// and opens no window. The write keeps the file (its owner, rights and links) by overwriting it where it is, so it is not atomic: the bytes are all in memory and the hash is checked before the first one is written.
 /// </summary>
 internal static partial class ElevatedHelper
 {
     public const long MaxWriteBytes = 512L << 20;
 
-    /// <summary>Exit code 0 and the word <c>ok</c> in the result file, else code 1 and the reason there.</summary>
+    /// <summary>The file name of the copy in the folder of <see cref="ReadAs"/>.</summary>
+    public const string CopyName = "copy";
+
+    /// <summary>The temporary folder of the system on macOS and Linux: root's, sticky, so no user can rename or replace what root makes in it.</summary>
+    public static string SharedTemp => OperatingSystem.IsMacOS() ? "/private/tmp" : "/tmp";
+
+    /// <summary>Exit code 0 and the word <c>ok</c> in the result file, else code 1 and the reason there; a result file <c>-</c> means the standard output (ok) and the standard error (the reason).</summary>
     public static int Run(string[] args)
     {
         string? resultFile = args.Length > 1 ? args[^1] : null;
@@ -176,20 +185,25 @@ internal static partial class ElevatedHelper
             {
                 case ["--elevated-install", var temp, var target, var hash, _]: Install(temp, target, hash); break;
                 case ["--elevated-read", var source, var destination, var max, _] when long.TryParse(max, out long limit): Read(source, destination, limit); break;
+                case ["--elevated-read-as", var source, var name, var max, var user, _] when long.TryParse(max, out long limit) && uint.TryParse(user, out uint uid):
+                    if (name.Length == 0 || name != Path.GetFileName(name) || name is "." or "..") throw new ElevationException("The name of the folder for the copy is not a plain name.");
+                    ReadAs(source, Path.Combine(SharedTemp, name), limit, uid);
+                    break;
                 default: throw new ElevationException("The helper was called with arguments it does not know.");
             }
-            Report(resultFile, "ok");
+            Report(resultFile, "ok", Console.Out);
             return 0;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            Report(resultFile, e.Message);
+            Report(resultFile, e.Message, Console.Error);
             return 1;
         }
     }
 
-    private static void Report(string? resultFile, string text)
+    private static void Report(string? resultFile, string text, TextWriter stream)
     {
+        if (resultFile == "-") { stream.Write(text); stream.Flush(); return; }
         if (resultFile is null || !Path.IsPathRooted(resultFile)) return;
         try { File.WriteAllText(resultFile, text, new UTF8Encoding(false)); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the exit code still tells */ }
@@ -226,18 +240,61 @@ internal static partial class ElevatedHelper
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         input.CopyTo(output);
         output.Flush();
-        GiveToCaller(destination);
     }
 
-    /// <summary>Under pkexec the new file belongs to root; polkit names the user in PKEXEC_UID, and the copy is handed to them so the editor can read and delete it.</summary>
-    private static void GiveToCaller(string path)
+    /// <summary>
+    /// The read as root on macOS and Linux: reads <paramref name="source"/> (not a link) into memory, makes the new folder <paramref name="folder"/> (0700; anything already there, a link included, is refused),
+    /// writes the copy into it as a new file (0600) and hands the file, then the folder, to <paramref name="uid"/>. Root writes only in a folder it has just made and nobody else can enter.
+    /// </summary>
+    public static string ReadAs(string source, string folder, long maxBytes, uint uid)
     {
-        if (OperatingSystem.IsWindows() || !uint.TryParse(Environment.GetEnvironmentVariable("PKEXEC_UID"), out uint uid)) return;
-        if (chown(path, uid, uint.MaxValue) != 0) throw new ElevationException("The copy could not be handed to the user: error " + Marshal.GetLastPInvokeError());
+        RequireFile(source, "The source");
+        if (!Path.IsPathRooted(folder)) throw new ElevationException("The folder for the copy is not a full path.");
+        byte[] bytes = ReadNoFollow(source, maxBytes);
+        if (mkdir(folder, 0b111_000_000) != 0) throw new ElevationException($"The folder for the copy could not be made (error {Marshal.GetLastPInvokeError()}); something may already be in its place.");
+        string copy = Path.Combine(folder, CopyName);
+        using (var output = new FileStream(copy, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite }))
+        {
+            output.Write(bytes);
+            output.Flush(true);
+            if (fchown(output.SafeFileHandle, uid, uint.MaxValue) != 0) throw new ElevationException("The copy could not be handed to the user: error " + Marshal.GetLastPInvokeError());
+        }
+        // last: once the folder is the user's, root does nothing more in it
+        if (lchown(folder, uid, uint.MaxValue) != 0) throw new ElevationException("The folder of the copy could not be handed to the user: error " + Marshal.GetLastPInvokeError());
+        return copy;
     }
 
-    [LibraryImport("libc", EntryPoint = "chown", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int chown(string path, uint owner, uint group);
+    private static byte[] ReadNoFollow(string source, long maxBytes)
+    {
+        // O_RDONLY | O_NOFOLLOW: a link in the place of the file is refused (ELOOP) instead of read
+        int noFollow = OperatingSystem.IsMacOS() ? 0x100 : RuntimeInformation.ProcessArchitecture is Architecture.Arm64 or Architecture.Arm ? 0x8000 : 0x20000;
+        int fd = open(source, noFollow);
+        if (fd < 0) throw new ElevationException($"The source could not be opened (error {Marshal.GetLastPInvokeError()}); a link is not followed.");
+        using var input = new FileStream(new Microsoft.Win32.SafeHandles.SafeFileHandle(fd, true), FileAccess.Read, 1);
+        using var memory = new MemoryStream();
+        byte[] chunk = new byte[81920];
+        for (int n; (n = input.Read(chunk)) > 0;)
+        {
+            memory.Write(chunk, 0, n);
+            if (memory.Length > maxBytes) throw new ElevationException($"The file is larger than {maxBytes} bytes.");
+        }
+        return memory.ToArray();
+    }
+
+    [LibraryImport("libc", EntryPoint = "getuid")]
+    internal static partial uint getuid();
+
+    [LibraryImport("libc", EntryPoint = "open", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int open(string path, int flags);
+
+    [LibraryImport("libc", EntryPoint = "mkdir", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int mkdir(string path, uint mode);
+
+    [LibraryImport("libc", EntryPoint = "fchown", SetLastError = true)]
+    private static partial int fchown(Microsoft.Win32.SafeHandles.SafeFileHandle fd, uint owner, uint group);
+
+    [LibraryImport("libc", EntryPoint = "lchown", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int lchown(string path, uint owner, uint group);
 }
 
 /// <summary>Hands the file a save wrote to the elevation, for the one save the user confirmed.</summary>
