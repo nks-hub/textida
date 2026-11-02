@@ -3327,6 +3327,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu
   - **Umístění:** jádro
   - **Ověřeno 1. 11. 2026:** režimy Čtení / Úpravy / Zdroj, výchozí nastavení, obnovení relace, neuložený text, limity a pojmenování prvků prošly v cílené sadě 266/266 na Windows VM. Opravena ztráta pozice při prvním layoutu: původní test drží řádek 300 před přepnutím i po něm, pak pokračuje přes Zdroj a Úpravy se zachovaným výběrem. Skutečná NativeAOT aplikace ověřila kotvy, režimy, bajty i Undo; stejné 6bodové kontroly prošly ve všech 5 balících CI 0.1.4/9e2cbe78. Skutečná čtečka zůstává neověřená; nativní pomocník pro snímání nenašel skupinu modebar podle managed názvu, což není důkaz fungování čtečky.
+  - **Požadavek majitele 2. 11. 2026:** vykreslený Markdown je zhuštěný, bez odsazení a nehezký; upravit typografii náhledu po vzoru GitHubu (mezery mezi odstavci a bloky, výšky a odsazení nadpisů s linkou u H1/H2, odsazení seznamů a citací, kód s pozadím a vnitřním okrajem, tabulky s mřížkou a pruhováním, rozumná šířka řádku a okraje stránky, čitelné ve světlém, tmavém i kontrastním tématu). Doplnit GitHub Flavored Markdown: dnes parser zapíná jen tabulky a seznamy úkolů (`MarkdownSyntax.cs`, `UsePipeTables().UseTaskLists()`); chybí přeškrtnutí `~~`, automatické odkazy, poznámky pod čarou, bloky upozornění `> [!NOTE]`/`[!TIP]`/`[!IMPORTANT]`/`[!WARNING]`/`[!CAUTION]` a kotvy nadpisů.
 
 ### P9.4 Logy
 
