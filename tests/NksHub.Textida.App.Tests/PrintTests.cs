@@ -72,7 +72,7 @@ public class PrintLayoutTests
         foreach (char c in "demo.cs/123řešení()\\ůčť€") Assert.Contains(c.ToString(), mapped);
     }
 
-    [Fact]
+    [AvaloniaFact] // the bidi levels of the Arabic line come from Avalonia's text formatter
     public void Every_script_prints_in_an_embedded_font_and_maps_back_to_its_text()
     {
         var pages = PrintLayout.Paginate(Lines(UnicodeSample), PdfExport.Options(true));
@@ -85,10 +85,33 @@ public class PrintLayoutTests
         Assert.Contains("/ToUnicode", s);
         Assert.True(pdf.Length < 1_000_000, $"{pdf.Length} bytes: a fallback font was not subset");
         var mapped = MappedText(pdf);
-        var missing = UnicodeSample.EnumerateRunes().Select(r => r.ToString()).Where(r => r is not ("\n" or " ") && !mapped.Contains(r)).Distinct().ToList();
+        // the joined Arabic letters have no entry of their own in the cmap; their text is in the ActualText of the run
+        var missing = UnicodeSample.EnumerateRunes().Where(r => r.Value is < 0x0600 or > 0x06FF).Select(r => r.ToString()).Where(r => r is not ("\n" or " ") && !mapped.Contains(r)).Distinct().ToList();
         Assert.True(missing.Count == 0, "not mapped: " + string.Join(' ', missing));
+        Assert.Contains("مرحبا", ActualTexts(pdf).Select(a => a.Text));
         Assert.DoesNotContain("?", mapped); // nothing was replaced by a question mark
     }
+
+    [AvaloniaFact]
+    public void Arabic_and_hebrew_print_joined_right_to_left_and_read_back_in_logical_order()
+    {
+        const string sample = "مرحبا بالعالم\nשלום עולם\nlet s = \"مرحبا\";\nب ب";
+        var pdf = PdfExport.Write(PrintLayout.Paginate(Lines(sample), PdfExport.Options(true)), "rtl.txt");
+        var runs = ActualTexts(pdf);
+        Assert.Equal(["مرحبا بالعالم", "שלום עולם", "مرحبا", "ب ب"], runs.Select(r => r.Text));
+        // the beh inside the word is joined (medial form), not the isolated glyph of the last line (two letters, so that line gets an ActualText too); the word shapes the same in both lines it is in
+        var word = runs[2].Glyphs;
+        Assert.Equal(5, word.Count);
+        Assert.DoesNotContain(runs[3].Glyphs[0], word);
+        Assert.Equal(runs[0].Glyphs[^5..], word); // drawn right to left, so the first word of the line is the last glyphs
+    }
+
+    /// <summary>The ActualText spans of the content, each with the glyphs drawn inside it in the order they are drawn.</summary>
+    private static List<(string Text, List<int> Glyphs)> ActualTexts(byte[] pdf) =>
+        Regex.Matches(string.Join('\n', Streams(pdf)), @"/ActualText\s*<FEFF([0-9A-Fa-f]*)>(.*?)EMC", RegexOptions.Singleline)
+            .Select(m => (Encoding.BigEndianUnicode.GetString(Convert.FromHexString(m.Groups[1].Value)),
+                Regex.Matches(m.Groups[2].Value, @"<([0-9A-Fa-f]+)>\s*Tj").SelectMany(t => t.Groups[1].Value.Chunk(4).Select(c => Convert.ToInt32(new string(c), 16))).ToList()))
+            .ToList();
 
     [Fact]
     public void A_surrogate_pair_never_splits_across_rows()
