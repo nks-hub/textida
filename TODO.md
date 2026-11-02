@@ -1111,6 +1111,13 @@ Společné bajtové uložení, snapshot a žurnál pro hex vznikají tady (P3.5.
   - **Odhad:** v rámci F154 (viz P7.1.1); podíl určí PR.8.2 před zahájením P3
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. test hranice logu změn (8192) a pádu během streamovaného uložení 100 MiB po 5 000 úpravách (ASCII i UTF-8 CRLF) prošly, ověřeno mutací.
 
+- [ ] **P3.1.14** Velké JSON soubory: rychlé zobrazení a formátovaný pohled
+  - **Co a proč:** Požadavek majitele 2. 11. 2026: optimalizované zobrazení i velkých JSON souborů (stovky MiB až GiB, často na jednom řádku) včetně formátovaného (pretty) pohledu. Formátovaný pohled je jen zobrazení: odsazení a zalomení podle struktury bez přepsání souboru a bez načtení celého dokumentu do paměti, počítané po blocích na pozadí; rozbalování a sbalování objektů a polí, cesta ke klíči u kurzoru, skok na klíč, zvýraznění syntaxe a hledání fungují i v něm; přepnutí na původní text zachová polohu. Úprava ve formátovaném pohledu se zapíše do původního textu jen v daném rozsahu.
+  - **Funkce:** žádná (požadavek majitele 2. 11. 2026)
+  - **Hotovo, když:** JSON 1 GiB na jednom řádku se otevře a formátovaný pohled ukáže první obrazovku do 1 s bez nárůstu paměti nad limit stránkovaného režimu; posun, sbalení a skok na klíč mají psaní a posun do 33 ms p95; uložení beze změn nezmění bajty souboru; úprava hodnoty ve formátovaném pohledu změní jen její bajty; měřeno na referenčním stroji.
+  - **Závisí na:** P3.1.3, P4.6.4
+  - **Odhad:** bez odhadu
+
 ### P3.2 Zvýrazňování
 
 TextMate v P0 zvedl p95 psaní nad 33 ms, proto vlastní zvýrazňovač nad viditelnou částí. Stavový tokenizér a formát gramatiky vznikají v P2.7.1; tady se napojí renderer, přibudou gramatiky MVP a checkpointy stavu pro velké soubory.
@@ -3778,7 +3785,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P0 | 2 | 4 (hotovo) | 5–7 |
 | P1 | 8 | 43 | 13–20 (neúplné) |
 | P2 | 7 | 25 | 22–37 |
-| P3 | 7 | 54 | 18,5–30,5 (dolní mez, neúplné) |
+| P3 | 7 | 55 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
 | P4 | 11 | 30 | 19,5–31,5 |
 | P5 | 6 | 27 | 24–37 (neúplné) |
@@ -3789,7 +3796,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **348** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **349** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
