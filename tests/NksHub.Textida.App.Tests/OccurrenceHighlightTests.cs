@@ -116,6 +116,15 @@ public class OccurrenceHighlightTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Lone_carriage_returns_count_as_line_breaks_in_the_lines_of_the_occurrences()
+    {
+        var tab = Open("cr.txt", "x\rfoo\r\n\rfoo foo\rfoo");
+        var scan = await Select(tab, 2, 5);
+        Assert.Equal(3, scan.Count);
+        Assert.Equal([3L, 4L], Lines(scan));
+    }
+
+    [AvaloniaFact]
     public async Task Whole_words_and_case_change_what_is_found_as_soon_as_the_setting_changes()
     {
         var tab = Open("w.txt", "cat concat cat catalog\n");

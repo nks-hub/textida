@@ -256,6 +256,21 @@ public class ByteCaretsTests
         Assert.Equal((At(format, text, text.Length - 2), t.Length), (numberStart, numberEnd));
     }
 
+    [Fact]
+    public void TryWordAt_reads_on_past_the_first_window_until_a_long_word_ends()
+    {
+        var format = TestFormat.Utf8;
+        string word = new string('a', 3000) + "ž" + new string('b', 3000);
+        string text = "x " + word + " y";
+        using var doc = Open(format, text);
+        var t = ByteText.Of(doc);
+        foreach (int index in new[] { 2, 2 + 1500, 2 + 3001 + 2000, 2 + word.Length })
+        {
+            Assert.True(ByteCarets.TryWordAt(t, At(format, text, index), out long s, out long e));
+            Assert.Equal((At(format, text, 2), At(format, text, 2 + word.Length)), (s, e));
+        }
+    }
+
     private static List<long> FindAll(Doc doc, string needle, bool wholeWord)
     {
         var hits = new List<long>();

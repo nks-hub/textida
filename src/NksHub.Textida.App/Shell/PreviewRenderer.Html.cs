@@ -158,7 +158,7 @@ internal static partial class PreviewRenderer
         return panel;
     }
 
-    /// <summary>A table as a grid. A cell holds text-level content only and spans one column (shortcut: <c>colspan</c> and <c>rowspan</c> are not applied; add them when a page needs them).</summary>
+    /// <summary>A table as a grid. A cell holds text-level content only; <c>colspan</c> and <c>rowspan</c> are applied.</summary>
     private static Control HtmlTable(HtmlNode table, Ctx ctx)
     {
         var rows = new List<List<HtmlNode>>();
@@ -178,23 +178,45 @@ internal static partial class PreviewRenderer
             HtmlText(table.Children, empty, ctx);
             return empty;
         }
-        int columns = rows.Max(r => r.Count);
+        // each cell takes the first free column of its row, skipping slots held by a rowspan from above
+        var placed = new List<(HtmlNode Node, int Row, int Column, int ColSpan, int RowSpan)>();
+        var taken = new HashSet<(int, int)>();
+        int columns = 0;
+        for (int r = 0; r < rows.Count; r++)
+        {
+            int c = 0;
+            foreach (var node in rows[r])
+            {
+                while (taken.Contains((r, c))) c++;
+                int colSpan = Span(node, "colspan"), rowSpan = Math.Min(Span(node, "rowspan"), rows.Count - r);
+                for (int dr = 0; dr < rowSpan; dr++)
+                    for (int dc = 0; dc < colSpan; dc++) taken.Add((r + dr, c + dc));
+                placed.Add((node, r, c, colSpan, rowSpan));
+                c += colSpan;
+                columns = Math.Max(columns, c);
+            }
+        }
         var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Left };
         AutomationProperties.SetName(grid, Loc.Get(K.PreviewTableName, ("rows", rows.Count), ("columns", columns)));
         for (int c = 0; c < columns; c++) grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        for (int r = 0; r < rows.Count; r++)
+        for (int r = 0; r < rows.Count; r++) grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        foreach (var (node, r, c, colSpan, rowSpan) in placed)
         {
-            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-            bool head = rows[r].All(c => c.Tag == "th");
-            for (int c = 0; c < columns; c++)
-            {
-                var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 400 };
-                if (c < rows[r].Count) HtmlText(rows[r][c].Children, text, ctx, head ? FontWeight.SemiBold : FontWeight.Normal);
-                grid.Children.Add(Cell(text, head, r, c));
-            }
+            var text = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, MaxWidth = 400 };
+            bool head = rows[r].All(x => x.Tag == "th");
+            HtmlText(node.Children, text, ctx, head ? FontWeight.SemiBold : FontWeight.Normal);
+            var cell = Cell(text, head, r, c);
+            Grid.SetColumnSpan(cell, colSpan);
+            Grid.SetRowSpan(cell, rowSpan);
+            grid.Children.Add(cell);
         }
+        for (int r = 0; r < rows.Count; r++)
+            for (int c = 0; c < columns; c++)
+                if (!taken.Contains((r, c))) grid.Children.Add(Cell(new SelectableTextBlock(), rows[r].All(x => x.Tag == "th"), r, c));
         return grid;
     }
+
+    private static int Span(HtmlNode cell, string name) => int.TryParse(cell.Attribute(name), out int n) ? Math.Clamp(n, 1, 100) : 1;
 
     private static Control HtmlPre(HtmlNode pre, Ctx ctx)
     {

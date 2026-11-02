@@ -329,6 +329,17 @@ public class ConversionTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_preview_of_a_conversion_starts_at_the_column_of_the_first_selection()
+    {
+        var tab = Open("abc	d");
+        tab.Editor!.ApplyOptions(tab.Editor.Settings with { TabSize = 4 });
+        tab.Editor.SetCarets(AdapterCarets.Create([new Sel(2, 5)], 1));
+        var (text, column) = MainWindow.FirstSelectionPreview(tab.Editor);
+        Assert.Equal("c	d", text);
+        Assert.Equal(2, column);
+    }
+
+    [AvaloniaFact]
     public void The_start_columns_of_selections_count_tab_stops_per_line_and_stay_linear_for_many_selections_on_one_line()
     {
         var small = new AvaloniaEdit.Document.TextDocument("a\tb\nc\td");

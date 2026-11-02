@@ -9,8 +9,25 @@ public sealed class TranscriptContext(TranscriptLimits limits, TranscriptMasker 
     public TranscriptLimits Limits { get; } = limits;
     public TranscriptMasker Masker { get; } = masker;
 
-    /// <summary>Tool calls that read a secrets file, by id: the result that answers one is the content of that file.</summary>
-    internal Dictionary<string, bool> Pending { get; } = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _pending = new(StringComparer.Ordinal);
+    private readonly Queue<string> _order = new();
+
+    /// <summary>Remembers a tool call that reads a secrets file: the result that answers it is the content of that file. Past the limit the oldest waiting call is forgotten.</summary>
+    internal void Wait(string id)
+    {
+        if (!_pending.Add(id)) return;
+        _order.Enqueue(id);
+        while (_pending.Count > Limits.MaxPendingTools && _order.TryDequeue(out var oldest)) _pending.Remove(oldest);
+        if (_order.Count <= 2 * Limits.MaxPendingTools + 16) return;
+        for (int n = _order.Count; n > 0; n--)
+        {
+            var queued = _order.Dequeue();
+            if (_pending.Contains(queued)) _order.Enqueue(queued);
+        }
+    }
+
+    /// <summary>True when the result of the call <paramref name="id"/> is the content of a secrets file; the call stops waiting.</summary>
+    internal bool Answer(string id) => _pending.Remove(id);
 }
 
 /// <summary>
@@ -252,7 +269,7 @@ public static class TranscriptParser
 
     private static void ToolResult(long line, JsonElement block, TranscriptContext ctx, TurnContent? into)
     {
-        bool secret = Str(block, "tool_use_id") is { } id && ctx.Pending.Remove(id, out bool isSecret) && isSecret;
+        bool secret = Str(block, "tool_use_id") is { } id && ctx.Answer(id);
         if (!secret && into is null) return;
         string text = block.TryGetProperty("content", out var content) ? ResultText(content) : "";
         text = secret ? ctx.Masker.MaskSecretFile(text) : ctx.Masker.Mask(text);
@@ -269,11 +286,7 @@ public static class TranscriptParser
         string? command = Str(input, "command");
         bool secret = TranscriptMasker.TargetsSecretFile(path) || TranscriptMasker.TargetsSecretFile(command) || TranscriptMasker.TargetsSecretFile(Str(input, "pattern"));
         bool writes = name is "Edit" or "Write" or "NotebookEdit";
-        if (secret && !writes && id is not null)
-        {
-            if (ctx.Pending.Count >= ctx.Limits.MaxPendingTools) ctx.Pending.Clear(); // shortcut: the oldest waiting calls are forgotten together; upgrade to an ordered map when results come back late
-            ctx.Pending[id] = true;
-        }
+        if (secret && !writes && id is not null) ctx.Wait(id);
         string Text(string? s) => s is null || (into is null && !(secret && writes)) ? "" : secret && writes ? ctx.Masker.MaskSecretFile(s) : ctx.Masker.Mask(s);
 
         switch (name)
