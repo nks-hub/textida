@@ -36,6 +36,21 @@ The `.ksy` files in `src/NksHub.Textida.Core/Hex/Ksy/Templates` (BMP, PNG, ZIP, 
 
 The icons of the commands (menus, command palette, toolbar) are the SVG files in `src/NksHub.Textida.Workbench/Icons/svg`. They are Textida's own drawings, made for this program on a 16-unit grid as outlines with one marked colour; no shape was copied or traced from an icon library, font or other program, so no third-party licence applies to them. They are MIT, like the rest of this repository. The program converts the files to path data when it is built (`src/NksHub.Textida.IconGenerator`) and takes the colours from the theme, so a file never carries a colour of its own. An icon a plugin brings is the plugin author's work and licence.
 
+## Editor colour themes
+
+The built-in colour themes of the editor (`src/NksHub.Textida.App/Services/EditorColorTheme.cs`) take their colours from the published palettes below. Only the colour values are used; no theme file of these projects ships with Textida. Which colour goes to which token kind of Textida's grammars is Textida's choice. The current line, the selection and the line numbers come from the editor theme of the same project where it has one; otherwise Textida picks a nearby shade. Where a colour reads below 4.5 : 1 on the background or on the current line, Textida moves it towards white (dark themes) or black (light themes) until it reaches that ratio, so a few colours, comments most of all, are lighter or darker than published.
+
+| Theme | Source of the colours | Licence |
+|---|---|---|
+| Monokai | the Monokai theme of VS Code ([microsoft/vscode](https://github.com/microsoft/vscode), `extensions/theme-monokai`), after the original Monokai by Wimer Hazenberg | MIT |
+| Solarized Light, Solarized Dark | the Solarized palette by Ethan Schoonover ([altercation/solarized](https://github.com/altercation/solarized)) | MIT |
+| Dracula | the Dracula colour specification ([dracula/dracula-theme](https://github.com/dracula/dracula-theme)) | MIT |
+| One Dark | the One Dark syntax palette of Atom ([atom/atom](https://github.com/atom/atom), `packages/one-dark-syntax`) | MIT |
+| GitHub Light, GitHub Dark | the GitHub themes for VS Code ([primer/github-vscode-theme](https://github.com/primer/github-vscode-theme)) | MIT |
+| Nord | the Nord palette ([nordtheme/nord](https://github.com/nordtheme/nord)) | MIT |
+
+The Light and Dark themes are Textida's own. A theme the user imports keeps the licence of its author.
+
 ## Markdig
 
 Copyright (c) 2016-2026, Alexandre Mutel
