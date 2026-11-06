@@ -2,10 +2,15 @@
 
 Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular release. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
 
-## [Unreleased]
+## [0.1.6] - 2026-11-07
 
 ### Fixed
 
+- PSPad project files with backslash paths open on macOS and Linux.
+- Git file history works in a repository reached through a symbolic link, such as `/tmp` on macOS.
+- Plug-in bundles with backslashes in entry names unpack flat on macOS and Linux too.
+- On macOS a write into an existing file is no longer reported as a new file in the file panel and the agent review.
+- The status bar no longer rebuilds the accessible names of its items on every keystroke.
 - Open as New Copy reads a file without a byte order mark in its guessed encoding instead of UTF-8.
 - Mermaid subgraph frames no longer cover nodes of another subgraph, and an edge to a subgraph id ends on its frame.
 - After Re-read As in another character width, the line endings shown come from the new reading at once.
