@@ -7897,6 +7897,51 @@
       ]
     },
     {
+      "key": "editor.colorTheme",
+      "type": "string",
+      "default": "auto",
+      "title": "setting.editor.colorTheme.title",
+      "description": "setting.editor.colorTheme.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "format": "color-theme",
+      "tags": [
+        "color",
+        "colour",
+        "scheme",
+        "syntax",
+        "highlighting",
+        "monokai",
+        "solarized",
+        "dracula",
+        "nord",
+        "github",
+        "tmtheme",
+        "vscode"
+      ]
+    },
+    {
+      "key": "editor.themeColors",
+      "type": "string",
+      "default": "",
+      "title": "setting.editor.themeColors.title",
+      "description": "setting.editor.themeColors.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "format": "theme-colors",
+      "tags": [
+        "color",
+        "colour",
+        "token",
+        "keyword",
+        "comment",
+        "string",
+        "background",
+        "selection",
+        "syntax"
+      ]
+    },
+    {
       "key": "workbench.toolbar",
       "type": "boolean",
       "default": false,

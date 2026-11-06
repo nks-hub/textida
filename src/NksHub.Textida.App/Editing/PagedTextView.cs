@@ -313,6 +313,7 @@ internal sealed partial class PagedTextView : Grid
         _doc.LanguageChanged += RepaintLog;
         _doc.LogLevelsChanged += RepaintLog;
         _doc.LogHighlightChanged += RepaintLog;
+        if (Application.Current is App app) app.EditorColorsChanged += RepaintLog;
         WatchIndex();
         if (!Doc.LineIndexState.Complete) _indexTimer.Start();
         if (_others is not null) ResyncCarets();
@@ -329,6 +330,7 @@ internal sealed partial class PagedTextView : Grid
         _doc.LanguageChanged -= RepaintLog;
         _doc.LogLevelsChanged -= RepaintLog;
         _doc.LogHighlightChanged -= RepaintLog;
+        if (Application.Current is App app) app.EditorColorsChanged -= RepaintLog;
         if (_watched is not null) _watched.IndexProgress -= OnIndexProgress;
         _watched = null;
         _indexTimer.Stop();
@@ -2209,14 +2211,15 @@ internal sealed partial class PagedTextView : Grid
         private void Draw(DrawingContext context)
         {
             IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
-            var back = Brush("BgEditor", Brushes.White);
-            var fore = Brush("Fg", Brushes.Black);
-            var numbers = Brush("LineNumbers", Brushes.Gray);
-            var current = Brush("CurrentLine", Brushes.Transparent);
-            var palette = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+            var look = EditorLook.Of(this);
+            var back = new ImmutableSolidColorBrush(look[EditorColorTheme.Background]);
+            var fore = look.Id == EditorColorTheme.AutoId ? Brush("Fg", Brushes.Black) : new ImmutableSolidColorBrush(look[EditorColorTheme.Foreground]);
+            var numbers = new ImmutableSolidColorBrush(look[EditorColorTheme.LineNumbers]);
+            var current = new ImmutableSolidColorBrush(look[EditorColorTheme.CurrentLine]);
+            var palette = look.Palette;
             var options = owner._options;
             var levels = owner._doc.IsLog ? owner._doc.LogLevels : null;
-            var selection = Brush("SelectionBg", Brushes.LightBlue);
+            var selection = new ImmutableSolidColorBrush(look[EditorColorTheme.Selection]);
             var occurrences = BeginOccurrences(Brush);
             long occurrenceOwn = owner._occ?.Target?.Own ?? -1;
             var dim = new ImmutableSolidColorBrush(fore is ISolidColorBrush solid ? solid.Color : Colors.Gray, 0.4);

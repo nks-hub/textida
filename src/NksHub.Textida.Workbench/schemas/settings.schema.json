@@ -239,6 +239,18 @@
           "description": "Theme. Light, dark or follow the system.",
           "x-scope": "application"
         },
+        "editor.colorTheme": {
+          "type": "string",
+          "default": "auto",
+          "description": "Editor colour theme. Colours of the editor area and of syntax highlighting: Light, Dark, Monokai, Solarized, Dracula, One Dark, GitHub, Nord or a custom theme. Automatic takes Light or Dark to match the window theme. In high contrast the system colours apply.",
+          "x-scope": "application"
+        },
+        "editor.themeColors": {
+          "type": "string",
+          "default": "",
+          "description": "Custom colours. Colours of single tokens and editor areas that replace those of the chosen theme. They apply in the editor, in the preview and in the highlighted export.",
+          "x-scope": "application"
+        },
         "workbench.toolbar": {
           "type": "boolean",
           "default": false,

@@ -48,7 +48,7 @@ internal sealed partial class SettingsWindow
         string id = definition.Key;
         var control = SettingFormats.ControlOf(definition);
         wide = control is SettingControl.MultiSelect or SettingControl.FontList or SettingControl.File or SettingControl.Folder or SettingControl.Command or SettingControl.List
-            or SettingControl.IconSet or SettingControl.Text or SettingControl.FallbackText or SettingControl.Font;
+            or SettingControl.IconSet or SettingControl.Text or SettingControl.FallbackText or SettingControl.Font or SettingControl.ColorTheme or SettingControl.ThemeColors;
         Control editor = control switch
         {
             SettingControl.Toggle => ToggleEditor(id, resolved, error, title),
@@ -63,6 +63,8 @@ internal sealed partial class SettingsWindow
             SettingControl.File or SettingControl.Folder or SettingControl.Command => PathEditor(id, control, error, title),
             SettingControl.Shortcut => ShortcutEditor(id, error, title),
             SettingControl.IconSet => IconSetEditor(id, error, title),
+            SettingControl.ColorTheme => ColorThemeEditor(id, error, title),
+            SettingControl.ThemeColors => ThemeColorsEditor(id, error, title),
             _ => TextEditor(id, error, title),
         };
         return editor;
