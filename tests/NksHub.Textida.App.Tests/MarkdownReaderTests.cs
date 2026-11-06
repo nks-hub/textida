@@ -251,9 +251,10 @@ public class MarkdownReaderTests : IDisposable
         var host = Host(Todo);
         host.Scroller.Offset = new Vector(0, host.Scroller.Extent.Height / 2);
         host.Settle();
-        int top = host.Reader.BlockAtY(host.Scroller.Offset.Y + 10), bottom = host.Reader.BlockAtY(host.Scroller.Offset.Y + 700);
-        var from = host.At(host.Doc.Blocks[top].DocStart);
-        var to = host.At(host.Doc.Blocks[bottom].DocStart);
+        // points inside the view: a long TODO entry can start above it or reach below it
+        double x = host.Reader.Bounds.Width / 2;
+        var from = host.Reader.TranslatePoint(new Point(x, host.Scroller.Offset.Y + 10), host.Window)!.Value;
+        var to = host.Reader.TranslatePoint(new Point(x, host.Scroller.Offset.Y + 700), host.Window)!.Value;
         host.Window.MouseDown(from, MouseButton.Left);
         for (int i = 1; i <= 10; i++) host.Window.MouseMove(new Point(from.X + (to.X - from.X) * i / 10, from.Y + (to.Y - from.Y) * i / 10));
         host.Window.MouseUp(to, MouseButton.Left);
