@@ -55,7 +55,7 @@ internal sealed partial class MainWindow
         ReloadCommitViews();
         int behind = answer.Value.GetProperty("behind").GetInt32();
         if (behind > 0 && (upstream, behind) != _gitIncomingTold)
-            ShowNotice("git-incoming", Loc.Get(K.GitIncoming, ("upstream", upstream), ("branch", answer.Value.GetProperty("branch").GetString() ?? ""), ("count", behind)),
+            ShowNotice("git-incoming", Loc.Plural(K.GitIncoming, behind, ("upstream", upstream), ("branch", answer.Value.GetProperty("branch").GetString() ?? "")),
                 [(Loc.Get(K.GitUpdate), () => _ = PullAsync(path))]);
         _gitIncomingTold = (upstream, behind);
         return GitAutoFetch.Fetched;

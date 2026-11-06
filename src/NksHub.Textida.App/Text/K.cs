@@ -474,7 +474,6 @@ public static partial class K
     public const string SettingsValueSource = "settings.valueSource";
     public const string SettingsShortcutSource = "settings.shortcutSource";
     public const string SettingsReset = "settings.reset";
-    public const string SettingsInvalidNumber = "settings.invalidNumber";
     public const string SettingsRefused = "settings.refused";
     public const string SettingsFileProblem = "settings.fileProblem";
     public const string SettingsKeymapProblem = "settings.keymapProblem";
