@@ -4,6 +4,13 @@ using NksHub.Textida.Plugins.Lsp;
 
 namespace NksHub.Textida.Rpc.Tests;
 
+/// <summary>
+/// The tests that set the proxy variables of the process (<see cref="NetCanary"/>) run alone, whatever filter the suite was started with: a client that reads them at that moment
+/// (the default proxy of <see cref="System.Net.Http.HttpClient"/>, read once per process) would send every later loopback connection of another test to the canary.
+/// </summary>
+[CollectionDefinition("RealTools", DisableParallelization = true)]
+public sealed class RealToolsCollection;
+
 /// <summary>A test that needs real programs; it is skipped, with their names, where one of them is not found in PATH. The tests that use it have the category RealTools, which the quick suite leaves out.</summary>
 public sealed class RealToolFactAttribute : FactAttribute
 {
