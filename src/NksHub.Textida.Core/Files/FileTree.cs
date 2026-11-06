@@ -24,6 +24,7 @@ public sealed class FileTree : IDisposable
     private readonly List<FileSystemWatcher> _watchers = [];
     private Timer? _debounce;
     private Timer? _contentTimer;
+    private DateTime _watchedSince;
     private int _contentPending;
     private bool _showHidden = true;
     private readonly HashSet<string> _dirty = new(PathComparer);
@@ -156,6 +157,7 @@ public sealed class FileTree : IDisposable
     {
         if (_watchers.Count > 0) return;
         _debounce = new Timer(_ => Flush());
+        _watchedSince = DateTime.UtcNow;
         _contentTimer = new Timer(_ =>
         {
             Interlocked.Exchange(ref _contentPending, 0);
@@ -192,7 +194,11 @@ public sealed class FileTree : IDisposable
             try { _contentTimer!.Change(ContentDelayMilliseconds, Timeout.Infinite); }
             catch (ObjectDisposedException) { /* the tree ended while an event was on its way */ }
         }
-        watcher.Created += (_, e) => Poke(e.FullPath);
+        watcher.Created += (_, e) =>
+        {
+            if (Changes.FolderChangeWatcher.BornSince(e.FullPath, _watchedSince)) Poke(e.FullPath);
+            else PokeContent(); // a write that macOS reports as a creation
+        };
         watcher.Deleted += (_, e) => Poke(e.FullPath);
         watcher.Renamed += (_, e) => { Poke(e.OldFullPath); Poke(e.FullPath); };
         watcher.Changed += (_, _) => PokeContent(); // the names did not change: no listing to read again

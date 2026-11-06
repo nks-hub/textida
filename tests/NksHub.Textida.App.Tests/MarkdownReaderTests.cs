@@ -196,8 +196,8 @@ public class MarkdownReaderTests : IDisposable
     {
         var host = Host(Mixed);
         host.Click(host.At(host.Position("Last")));
-        host.Window.KeyPress(Key.A, RawInputModifiers.Control, PhysicalKey.A, "a");
-        host.Window.KeyPress(Key.C, RawInputModifiers.Control, PhysicalKey.C, "c");
+        host.Window.KeyPress(Key.A, TestApp.Mod, PhysicalKey.A, "a");
+        host.Window.KeyPress(Key.C, TestApp.Mod, PhysicalKey.C, "c");
         host.Settle();
         Assert.Equal((0, host.Doc.Length), host.Reader.SelectionRange);
         string expected = "Title\n\nFirst bold paragraph here.\n\none\ntwo\n\ncode line\n\na\tb\nc\td\n\nLast words.";

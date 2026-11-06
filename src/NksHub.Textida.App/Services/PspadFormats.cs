@@ -154,7 +154,7 @@ internal static class PspadProjects
         var files = new List<string>();
         foreach (string line in lines.Skip(1))
         {
-            string item = line.Trim();
+            string item = OperatingSystem.IsWindows() ? line.Trim() : line.Trim().Replace('\\', '/'); // PSPad writes Windows paths
             if (item.Length == 0 || item[0] is '+' or '-' || item == "***") continue;
             if (item.Contains('=') && !item.Contains(Path.DirectorySeparatorChar) && !item.Contains('/') && !item.Contains('\\')) continue;
             try { files.Add(Path.GetFullPath(item, folder)); }

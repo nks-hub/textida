@@ -224,7 +224,7 @@ public class PspadImportAppTests : IDisposable
 
     private void Write(string relative, string text, DateTime? when = null)
     {
-        string path = Path.Combine(_pspad, relative);
+        string path = Path.Combine(_pspad, relative.Replace('\\', Path.DirectorySeparatorChar)); // the folders of PSPad, also on a Unix copy of it
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, text, new UTF8Encoding(false));
         File.SetLastWriteTimeUtc(path, when ?? DateTime.UtcNow);

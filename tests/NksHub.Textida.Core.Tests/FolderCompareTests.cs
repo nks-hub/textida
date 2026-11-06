@@ -98,8 +98,15 @@ public sealed class FolderCompareTests : IDisposable
         Put(Left, "locked.txt", "locked", Base);
         var left = new LocalFolderSource(Left);
         var right = new LocalFolderSource(Right);
-        File.WriteAllText(Path.Combine(Right, "locked.txt"), "x");
-        using var hold = new FileStream(Path.Combine(Right, "locked.txt"), FileMode.Open, FileAccess.Read, FileShare.None);
+        string locked = Path.Combine(Right, "locked.txt");
+        FileStream? hold = null;
+        if (OperatingSystem.IsWindows())
+        {
+            File.WriteAllText(locked, "x");
+            hold = new FileStream(locked, FileMode.Open, FileAccess.Read, FileShare.None);
+        }
+        else File.WriteAllText(Path.Combine(Directory.CreateDirectory(locked).FullName, "inside.txt"), "x"); // an open file does not stop a replace on Unix; a folder in its place does
+        using var held = hold;
         var steps = new List<FolderCopyStep> { new("locked.txt", true, 6), new("ok.txt", false, 2) };
 
         var result = await FolderCompare.CopyAsync(left, right, steps, _ => null, null, default);

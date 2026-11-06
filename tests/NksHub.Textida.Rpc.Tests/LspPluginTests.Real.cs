@@ -10,6 +10,7 @@ namespace NksHub.Textida.Rpc.Tests;
 /// P8.5.1 and P8.5.2 against real language servers (category RealTools, skipped where the server is not installed): the Roslyn server renames through a solution of several files, gopls answers a completion that
 /// brings an import, the status bar follows a real server, a file over the limit starts none and a server that is killed is started again by the plugin.
 /// </summary>
+[Collection("RealTools")] // two of its tests set the proxy variables of the process (NetCanary)
 public partial class LspPluginTests
 {
     private static string? LastStatus(Rig rig)
@@ -205,6 +206,7 @@ public partial class LspPluginTests
 /// The launch lines of the catalog, run for real: every language server of the table that is installed here is started the way the plugin starts it and has to answer <c>initialize</c>.
 /// The test output lists what each one can do and which are not installed.
 /// </summary>
+[Collection("RealTools")]
 [Trait("Category", "RealTools")]
 public sealed class RealLanguageServerTests(ITestOutputHelper output)
 {

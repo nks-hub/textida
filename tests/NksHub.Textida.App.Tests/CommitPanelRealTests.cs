@@ -245,12 +245,12 @@ public class CommitPanelRealTests : IDisposable
         Assert.NotEqual(tracked, Git("rev-parse", "@{u}").Trim());
         Assert.False(File.Exists(Path.Combine(_repo, "t1.txt"))); // a fetch changes no file
         Assert.True(await Eventually(() => GitStatusText.Contains("↓1", StringComparison.Ordinal)));
-        var bar = Assert.Single(_w.Notices, n => n.Message.Contains("new commits", StringComparison.Ordinal));
+        var bar = Assert.Single(_w.Notices, n => n.Message.Contains("1 new commit for", StringComparison.Ordinal));
         Assert.Equal(GitAutoFetch.Fetched, await _w.AutoFetchOnceAsync());
-        Assert.Single(_w.Notices, n => n.Message.Contains("new commits", StringComparison.Ordinal)); // told once
+        Assert.Single(_w.Notices, n => n.Message.Contains("1 new commit for", StringComparison.Ordinal)); // told once
 
         bar.Buttons.Single(b => (string?)b.Content == "Update").RaiseEvent(new RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
-        Assert.True(await Eventually(() => File.Exists(Path.Combine(_repo, "t1.txt")) && !_w.Notices.Any(n => n.Message.Contains("new commits", StringComparison.Ordinal))));
+        Assert.True(await Eventually(() => File.Exists(Path.Combine(_repo, "t1.txt")) && !_w.Notices.Any(n => n.Message.Contains("1 new commit for", StringComparison.Ordinal))));
         Assert.True(await Eventually(() => !GitStatusText.Contains('↓')));
     }
 

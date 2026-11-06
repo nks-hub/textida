@@ -69,15 +69,11 @@ public static class Loc
     private static string Lookup(string key, string? fallbackKey = null) => Resolve(_current, Catalogs[DefaultLanguage], key, fallbackKey);
 
     /// <summary>Active language first, then the default language, then the key itself. <paramref name="fallbackKey"/> is tried within each language (plural "other").</summary>
-    internal static string Resolve(IReadOnlyDictionary<string, string> current, IReadOnlyDictionary<string, string> defaults, string key, string? fallbackKey = null)
-    {
-        foreach (var catalog in new[] { current, defaults })
-        {
-            if (catalog.TryGetValue(key, out var text)) return text;
-            if (fallbackKey is not null && catalog.TryGetValue(fallbackKey, out text)) return text;
-        }
-        return key;
-    }
+    internal static string Resolve(IReadOnlyDictionary<string, string> current, IReadOnlyDictionary<string, string> defaults, string key, string? fallbackKey = null) =>
+        Find(current, key, fallbackKey) ?? Find(defaults, key, fallbackKey) ?? key; // no array of the two: this runs for every text of every status update
+
+    private static string? Find(IReadOnlyDictionary<string, string> catalog, string key, string? fallbackKey) =>
+        catalog.TryGetValue(key, out var text) || fallbackKey is not null && catalog.TryGetValue(fallbackKey, out text) ? text : null;
 
     internal static string Format(string template, (string Name, object Value)[] args)
     {
