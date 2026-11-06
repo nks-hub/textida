@@ -741,8 +741,8 @@ commands: nks.view.toggleSecrets
 
 ## [view.toolbar] Symbolleiste
 commands: nks.view.toggleToolbar, nks.view.editToolbar
-Die Symbolleiste ist eine Reihe von Schaltflächen unter der Menüleiste für die Befehle, die Sie am häufigsten brauchen. Sie ist aus, bis Sie sie einschalten.
-1. Wählen Sie Ansicht und dann Symbolleiste. Die Reihe erscheint unter der Menüleiste; mit derselben Wahl blenden Sie sie wieder aus.
+Die Symbolleiste ist eine Reihe von Schaltflächen unter der Menüleiste für die Befehle, die Sie am häufigsten brauchen. Sie ist von Anfang an eingeschaltet.
+1. Wählen Sie Ansicht und dann Symbolleiste, um sie auszublenden; mit derselben Wahl blenden Sie sie wieder ein.
 2. Ein Klick auf eine Schaltfläche führt ihren Befehl aus. Eine Schaltfläche ist abgeblendet, solange ihr Befehl für das geöffnete Dokument nicht ausgeführt werden kann, zum Beispiel Speichern ohne Dokument. Zeigen Sie mit dem Zeiger auf eine Schaltfläche, sehen Sie ihren Namen und ihr Tastenkürzel.
 3. Die Schaltflächen ändern Sie mit Ansicht und Symbolleiste anpassen. Wählen Sie links einen Befehl (die Liste engen Sie durch Tippen im Feld ein) und drücken Sie Hinzufügen oder Enter; er kommt hinter die Schaltfläche, die rechts gewählt ist.
 4. Wählen Sie rechts eine Schaltfläche und drücken Sie Entfernen (oder Entf), um sie herauszunehmen, Nach oben oder Nach unten (oder Alt+Pfeil nach oben und Alt+Pfeil nach unten), um sie zu verschieben, oder Trennlinie hinzufügen für eine dünne Linie zwischen zwei Gruppen.

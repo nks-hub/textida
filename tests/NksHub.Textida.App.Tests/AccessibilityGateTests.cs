@@ -106,10 +106,8 @@ public class AccessibilityGateTests : IDisposable
 
         // the toolbar under the menu, with a button that has no icon and shows its name
         Assert.True(_app.Toolbar.Save([.. ToolbarLayout.Default, "nks.edit.tab"], out _));
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
-        Assert.NotEmpty(_w.ToolbarButtons);
+        Assert.NotEmpty(_w.ToolbarButtons); // on by default
         Walk(run, "main:toolbar", () => _w);
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
 
         // the files of a folder in the panel on the left
         Assert.True(await _w.ShowFolderAsync(_temp.Path));

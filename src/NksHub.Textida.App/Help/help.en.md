@@ -741,8 +741,8 @@ commands: nks.view.toggleSecrets
 
 ## [view.toolbar] Toolbar
 commands: nks.view.toggleToolbar, nks.view.editToolbar
-The toolbar is a row of buttons under the menu bar for the commands you use most. It is off until you switch it on.
-1. Choose View, then Toolbar. The row appears under the menu bar; choose it again to hide the row.
+The toolbar is a row of buttons under the menu bar for the commands you use most. It is on by default.
+1. Choose View, then Toolbar to hide the row; choose it again to show it.
 2. Click a button to run its command. A button is dimmed while its command cannot run for the open document, for example Save without a document. Hold the pointer over a button to see its name and shortcut.
 3. To change the buttons choose View, then Customize Toolbar. Choose a command on the left (type in the box to narrow the list) and press Add or Enter; it goes after the button chosen on the right.
 4. Choose a button on the right and press Remove (or Delete) to take it off, Move Up or Move Down (or Alt+Up and Alt+Down) to move it, or Add Separator for a thin line between two groups.

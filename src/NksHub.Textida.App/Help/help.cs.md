@@ -741,8 +741,8 @@ commands: nks.view.toggleSecrets
 
 ## [view.toolbar] Lišta nástrojů
 commands: nks.view.toggleToolbar, nks.view.editToolbar
-Lišta nástrojů je řada tlačítek pod nabídkou pro příkazy, které používáte nejčastěji. Dokud ji nezapnete, není vidět.
-1. Zvolte Zobrazit a Lišta nástrojů. Řada se ukáže pod nabídkou; dalším zvolením ji skryjete.
+Lišta nástrojů je řada tlačítek pod nabídkou pro příkazy, které používáte nejčastěji. Ve výchozím stavu je zapnutá.
+1. Zvolte Zobrazit a Lišta nástrojů a lišta se skryje; dalším zvolením ji znovu ukážete.
 2. Kliknutím na tlačítko spustíte jeho příkaz. Tlačítko je ztlumené, dokud se jeho příkaz s otevřeným dokumentem nedá použít, například Uložit bez dokumentu. Když na tlačítko ukážete myší, uvidíte jeho název a zkratku.
 3. Tlačítka změníte volbou Zobrazit a Upravit lištu nástrojů. Vlevo vyberte příkaz (seznam zúžíte psaním do pole) a stiskněte Přidat nebo Enter; příkaz se zařadí za tlačítko vybrané vpravo.
 4. Vpravo vyberte tlačítko a stiskněte Odebrat (nebo Delete), aby z lišty zmizelo, Posunout nahoru nebo Posunout dolů (nebo Alt+šipka nahoru a Alt+šipka dolů), aby se přesunulo, nebo Přidat oddělovač pro tenkou čáru mezi dvěma skupinami.

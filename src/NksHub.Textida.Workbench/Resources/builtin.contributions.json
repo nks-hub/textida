@@ -7899,7 +7899,7 @@
     {
       "key": "workbench.toolbar",
       "type": "boolean",
-      "default": false,
+      "default": true,
       "title": "setting.workbench.toolbar.title",
       "description": "setting.workbench.toolbar.description",
       "category": "cat.appearance",

@@ -17,7 +17,7 @@ using NksHub.Textida.Workbench.Toolbar;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P3.6.13: the user toolbar. Off by default, switched on in the View menu, buttons from toolbar.json with an editor, and a button whose command is missing stays hidden.</summary>
+/// <summary>P3.6.13: the user toolbar. On by default, switched off and on in the View menu, buttons from toolbar.json with an editor, and a button whose command is missing stays hidden.</summary>
 [Collection("LocState")]
 public class ToolbarTests : IDisposable
 {
@@ -68,46 +68,44 @@ public class ToolbarTests : IDisposable
     });
 
     [AvaloniaFact]
-    public void The_toolbar_is_off_until_the_view_menu_switches_it_on_and_off()
+    public void The_toolbar_is_on_by_default_and_the_view_menu_switches_it_off_and_on()
     {
-        Assert.False(_w.ToolbarShown);
-        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbar"));
-        Assert.False(_w.ToolbarHost.IsVisible);
-        Assert.Empty(_w.ToolbarButtons);
+        Assert.True(_w.ToolbarShown);
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbar"));
+        Assert.True(_w.ToolbarHost.IsVisible);
+        Assert.NotEmpty(_w.ToolbarButtons);
+        Assert.Equal(Loc.Get(K.ToolbarA11y), AutomationProperties.GetName(_w.ToolbarHost));
 
         var toggle = Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar");
-        Assert.Equal(false, toggle.Checked);
+        Assert.Equal(true, toggle.Checked);
         Assert.Contains(Commands(_w.MenuModel.SelectMany(g => g.Items)), c => c.CommandId == "nks.view.editToolbar");
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
+        Assert.False(_w.ToolbarShown);
+        Assert.False(_w.ToolbarHost.IsVisible);
+        Assert.Equal(false, Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar").Checked);
 
         Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
         Assert.True(_w.ToolbarShown);
         Assert.True(_w.ToolbarHost.IsVisible);
-        Assert.NotEmpty(_w.ToolbarButtons);
-        Assert.Equal(true, Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar").Checked);
-        Assert.Equal(Loc.Get(K.ToolbarA11y), AutomationProperties.GetName(_w.ToolbarHost));
-
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
-        Assert.False(_w.ToolbarShown);
-        Assert.False(_w.ToolbarHost.IsVisible);
     }
 
     [AvaloniaFact]
     public void The_setting_is_the_switch_and_a_second_window_follows_it()
     {
         var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        _app.Workbench.Set("workbench.toolbar", JsonValue.Create(false));
+        Assert.False(_w.ToolbarHost.IsVisible);
+        Assert.False(second.ToolbarHost.IsVisible);
         _app.Workbench.Set("workbench.toolbar", JsonValue.Create(true));
         Assert.True(_w.ToolbarHost.IsVisible);
         Assert.True(second.ToolbarHost.IsVisible);
         Assert.Equal(_w.ToolbarDrawn, second.ToolbarDrawn);
-        _app.Workbench.Set("workbench.toolbar", JsonValue.Create(false));
-        Assert.False(_w.ToolbarHost.IsVisible);
-        Assert.False(second.ToolbarHost.IsVisible);
     }
 
     [AvaloniaFact]
     public void The_first_buttons_are_drawn_in_order_with_their_icons_names_and_shortcuts()
     {
-        Run("nks.view.toggleToolbar");
         Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
         Assert.Equal(_w.ToolbarDrawn.Where(b => b != Sep), _w.ToolbarButtons.Select(b => (string)b.Tag!));
         // the Git commands come with the Git work: while one is not registered its button is not there
@@ -128,7 +126,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_button_is_greyed_while_its_command_cannot_run_for_the_open_document()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(ButtonOf("nks.file.new").IsEnabled);
         Assert.True(ButtonOf("nks.file.open").IsEnabled);
         Assert.False(ButtonOf("nks.file.save").IsEnabled); // needs a document
@@ -145,7 +142,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_click_runs_the_command_like_the_menu_does()
     {
-        Run("nks.view.toggleToolbar");
         int before = _w.Tabs.Count();
         Click(ButtonOf("nks.file.new"));
         Assert.Equal(before + 1, _w.Tabs.Count());
@@ -164,7 +160,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_mouse_click_hands_the_keyboard_back_to_the_document_and_a_key_press_keeps_it_on_the_button()
     {
-        Run("nks.view.toggleToolbar");
         var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         tab.Editor!.Document.Insert(0, "x");
@@ -189,7 +184,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_mouse_click_on_a_command_that_moves_the_keyboard_itself_leaves_it_there()
     {
-        Run("nks.view.toggleToolbar");
         _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
 
@@ -203,7 +197,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_toolbar_is_one_tab_stop_and_the_arrow_keys_move_between_its_buttons()
     {
-        Run("nks.view.toggleToolbar");
         _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         var enabled = _w.ToolbarButtons.Where(b => b.IsEnabled).ToList();
@@ -235,7 +228,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_remembered_button_is_the_tab_stop_until_it_is_greyed_and_the_buttons_keep_their_names()
     {
-        Run("nks.view.toggleToolbar");
         var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         var save = ButtonOf("nks.file.save");
@@ -255,7 +247,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_button_for_a_command_that_is_not_there_stays_in_the_file_and_stays_hidden()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(_app.Toolbar.Save(["nks.file.new", "acme.gone.run", Sep, "nks.file.open", Sep, "acme.gone.other"], out _));
         Assert.Equal(["nks.file.new", Sep, "nks.file.open"], _w.ToolbarDrawn);
         Assert.Contains("acme.gone.run", File.ReadAllText(_app.Toolbar.FilePath), StringComparison.Ordinal);
@@ -277,7 +268,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_command_without_an_icon_shows_its_name_on_the_button()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(_app.Toolbar.Save(["nks.edit.tab", "nks.file.new"], out _));
         var button = ButtonOf("nks.edit.tab");
         Assert.Equal(TitleOf("nks.edit.tab"), Assert.IsType<TextBlock>(button.Content).Text);
@@ -287,7 +277,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_buttons_are_named_in_every_language_and_follow_a_switch()
     {
-        Run("nks.view.toggleToolbar");
         var seen = new HashSet<string>();
         foreach (var lang in Loc.Languages)
         {
@@ -309,12 +298,13 @@ public class ToolbarTests : IDisposable
     public void A_file_that_cannot_be_read_is_ignored_and_the_reason_is_shown()
     {
         File.WriteAllText(_app.Toolbar.FilePath, "{ not json");
-        _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
-        Run("nks.view.toggleToolbar");
-        Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
+        // a window that starts with the toolbar on reads the file and says why it was skipped
+        var w = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Assert.Equal(ExpectedDefault(), w.ToolbarDrawn);
         Assert.NotNull(_app.Toolbar.Problem);
-        Assert.Contains(_app.Toolbar.Problem!, _w.StatusLeftText, StringComparison.Ordinal);
-        var editor = _w.ShowToolbarEditor();
+        Assert.Contains(_app.Toolbar.Problem!, w.StatusLeftText, StringComparison.Ordinal);
+        var editor = w.ShowToolbarEditor();
         Assert.Contains(_app.Toolbar.Problem!, editor.NoteText, StringComparison.Ordinal);
         editor.Close();
     }
@@ -478,7 +468,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void OK_saves_and_every_toolbar_changes_at_once()
     {
-        Run("nks.view.toggleToolbar");
         var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
         Assert.True(second.ToolbarHost.IsVisible);
         var editor = Editor();

@@ -14,7 +14,7 @@ using NksHub.Textida.Workbench.Toolbar;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The user toolbar: a row of buttons under the menu bar, off until View, Toolbar (the setting <c>workbench.toolbar</c>) switches it on. The buttons are the ones of <c>toolbar.json</c>;
+/// The user toolbar: a row of buttons under the menu bar, on by default and switched off and on with View, Toolbar (the setting <c>workbench.toolbar</c>). The buttons are the ones of <c>toolbar.json</c>;
 /// each runs a command of the registry like the menu does, shows the icon of the command (its title when it has none), and is greyed while the command is disabled for the open document.
 /// A button whose command is not registered is not drawn.
 /// </summary>
@@ -84,7 +84,11 @@ internal sealed partial class MainWindow
         if (!on) return;
         var wb = _app.Workbench;
         AutomationProperties.SetName(_toolbar, Loc.Get(K.ToolbarA11y));
-        _toolbarLayout ??= _app.Toolbar.Load();
+        if (_toolbarLayout is null)
+        {
+            _toolbarLayout = _app.Toolbar.Load();
+            if (_app.Toolbar.Problem is { } problem) SetStatusMessage(Loc.Get(K.ToolbarUnreadable, ("reason", problem)));
+        }
         var shown = ToolbarLayout.Shown(_toolbarLayout, id => wb.Commands.TryGet(id, out _) && wb.Commands.HasHandler(id));
         if (_toolbarLanguage != Loc.Language || !shown.SequenceEqual(_toolbarDrawn))
         {
