@@ -153,8 +153,6 @@
   "setting.files.insertFinalNewline.description": "Při ukládání přidá na konec souboru konec řádku.",
   "setting.files.autoSave.title": "Automatické ukládání",
   "setting.files.autoSave.description": "Uloží změněné soubory na jejich vlastní cestu.",
-  "setting.workbench.keymapProfile.title": "Profil klávesových zkratek",
-  "setting.workbench.keymapProfile.description": "Id profilu zkratek, který se vrství nad výchozí klávesy.",
   "setting.workbench.uiLanguage.title": "Jazyk rozhraní",
   "setting.workbench.uiLanguage.description": "Jazyk nabídek a zpráv. Automaticky se řídí systémem.",
   "cat.format": "Formát",

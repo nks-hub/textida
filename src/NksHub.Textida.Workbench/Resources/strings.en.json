@@ -153,8 +153,6 @@
   "setting.files.insertFinalNewline.description": "Adds a line ending at the end of the file when saving.",
   "setting.files.autoSave.title": "Auto save",
   "setting.files.autoSave.description": "Saves changed files to their own path.",
-  "setting.workbench.keymapProfile.title": "Keymap profile",
-  "setting.workbench.keymapProfile.description": "Id of the keymap profile layered over the default keys.",
   "setting.workbench.uiLanguage.title": "Interface language",
   "setting.workbench.uiLanguage.description": "Language of menus and messages. Auto follows the system.",
   "cat.format": "Format",

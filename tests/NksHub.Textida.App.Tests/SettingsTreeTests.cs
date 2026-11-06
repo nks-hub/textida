@@ -365,11 +365,10 @@ public class SettingsTreeTests : IDisposable
     // ---- shortcuts, system and plugins ----
 
     [AvaloniaFact]
-    public void The_shortcuts_page_lists_every_shortcut_and_the_keymap_profile()
+    public void The_shortcuts_page_lists_every_shortcut()
     {
         var view = Open();
         view.SelectCategory(SettingCategories.Keys);
-        Assert.Contains("workbench.keymapProfile", view.ShownIds);
         Assert.Contains("nks.file.save", view.ShownIds);
         Assert.True(view.ShownIds.Count > 80);
     }

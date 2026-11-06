@@ -33,7 +33,7 @@ public class SettingCategoryTests
         Assert.Equal(SettingControl.List, SettingFormats.ControlOf(Def(host, "files.secretFilePatterns")));
         Assert.Equal(SettingControl.Encoding, SettingFormats.ControlOf(Def(host, "tools.outputEncoding")));
         Assert.Equal(SettingControl.IconSet, SettingFormats.ControlOf(Def(host, "appearance.iconSkin")));
-        Assert.Equal(SettingControl.Select, SettingFormats.ControlOf(Def(host, "workbench.keymapProfile")));
+        Assert.Equal(SettingControl.Select, SettingFormats.ControlOf(Def(host, "editor.profile")));
         // free text is left only where the content is text: patterns, templates, addresses
         Assert.Equal(["editor.dateTimeFormat", "plugins.catalogUrl", "tools.diffArguments", "web.searchUrl"], byControl[SettingControl.Text].Order());
         Assert.All(host.Settings.Definitions.Where(d => d.Type == "boolean"), d => Assert.Equal(SettingControl.Toggle, SettingFormats.ControlOf(d)));
