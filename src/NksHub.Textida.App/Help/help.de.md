@@ -712,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Strg+0 stellt die Standardgröße wieder her.
 - Die Größe hat keine feste Obergrenze: Sie wächst, solange mindestens eine Zeile in die Ansicht passt, das Minimum ist 6 Punkt. Sie wird in der Einstellung Schriftgröße gespeichert.
 - Im Text ändert auch Strg+Mausrad die Größe, in Hex Strg+Umschalt+Mausrad.
+- Die Statusleiste zeigt den Textzoom in Prozent der Standardschriftgröße (zum Beispiel 114 %). Ein Klick darauf bietet Stufen von 50 bis 200 % und Ursprüngliche Größe (100 %). Eine Stufe wird auf ganze Schriftpunkte gerundet, daher kann die Zahl etwas von der erwarteten abweichen. Die ursprüngliche Größe gibt es auch im Menü Ansicht > Vergrößerung.
 
 ## [view.display] Verborgene Zeichen, Zeilennummern und Minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

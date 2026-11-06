@@ -712,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 vráti predvolenú veľkosť.
 - Veľkosť nemá pevný strop: rastie, kým sa do zobrazenia zmestí aspoň jeden riadok, najmenej je 6 bodov. Ukladá sa do nastavenia Veľkosť písma.
 - V texte mení veľkosť aj Ctrl+koliesko myši, v hexe Ctrl+Shift+koliesko.
+- Stavový riadok ukazuje priblíženie textu v percentách predvolenej veľkosti písma (napríklad 114 %). Kliknutím na údaj vyberiete úroveň od 50 do 200 % alebo Pôvodnú veľkosť (100 %). Úroveň sa zaokrúhli na celé body písma, preto pri nej môže byť trochu iné číslo, než ste čakali. Pôvodnú veľkosť nájdete aj v ponuke Zobraziť > Lupa.
 
 ## [view.display] Skryté znaky, čísla riadkov a minimapa
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

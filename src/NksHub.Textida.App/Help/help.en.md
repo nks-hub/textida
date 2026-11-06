@@ -712,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 restores the default size.
 - The size has no fixed upper limit: it grows as long as at least one line fits in the view, and the minimum is 6 points. It is stored in the setting Font size.
 - Ctrl+wheel changes the size in text, Ctrl+Shift+wheel in hex.
+- The status bar shows the text zoom in percent of the default font size (for example 114%). Click it to pick a level from 50 to 200% or Original Size (100%). A level is rounded to whole font points, so its number can differ a little from the one you expect. Original Size is also in View > Zoom.
 
 ## [view.display] Hidden characters, line numbers and minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

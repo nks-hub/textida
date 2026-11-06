@@ -357,6 +357,29 @@ internal sealed partial class MainWindow
         else _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
     }
 
+    /// <summary>The zoom levels the status bar offers, in percent of the default font size.</summary>
+    internal static readonly int[] ZoomPresets = [50, 75, 90, 100, 110, 125, 150, 200];
+
+    private double DefaultFontSize() =>
+        _app.Workbench.Settings.Registry.TryGet("editor.fontSize", out var d) && d.Default is { } v && NksHub.Textida.Workbench.Settings.SettingRules.ToNumber(v) is { } size and > 0 ? size : 14;
+
+    /// <summary>The zoom of the text in percent: the font size against the default one, which Reset Zoom returns to.</summary>
+    internal int ZoomPercent => (int)Math.Round(_app.Workbench.Settings.GetNumber("editor.fontSize") / DefaultFontSize() * 100);
+
+    /// <summary>The whole font size nearest to <paramref name="percent"/> of the default one, within the limits of <see cref="Zoom"/>.</summary>
+    private int FontSizeFor(int percent)
+    {
+        double current = Math.Round(_app.Workbench.Settings.GetNumber("editor.fontSize"));
+        return (int)Math.Clamp(Math.Round(DefaultFontSize() * percent / 100, MidpointRounding.AwayFromZero), 6, Math.Max(current, MaxFontSize(current)));
+    }
+
+    /// <summary>Zooms the text to <paramref name="percent"/> of the default font size; 100 is Reset Zoom.</summary>
+    internal void ZoomTo(int percent)
+    {
+        if (percent == 100) _app.Workbench.Set("editor.fontSize", (System.Text.Json.Nodes.JsonNode?)null);
+        else _app.Workbench.Set("editor.fontSize", System.Text.Json.Nodes.JsonValue.Create(FontSizeFor(percent)));
+    }
+
     /// <summary>Switches to the opposite of what the menu shows; when a giant line holds the wrap back, the setting stays on and the status bar says why.</summary>
     internal void ToggleWordWrap()
     {

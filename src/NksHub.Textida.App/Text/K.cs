@@ -2890,4 +2890,8 @@ public static partial class K
     public const string RecentRemoveMessage = "recent.removeMessage";
     public const string RecentRemove = "recent.remove";
     public const string RecentCleared = "recent.cleared";
+    public const string StatusZoom = "status.zoom";
+    public const string StatusZoomTip = "status.zoomTip";
+    public const string StatusZoomA11y = "a11y.status.zoom";
+    public const string ZoomResetItem = "zoom.resetItem";
 }

@@ -2935,5 +2935,9 @@
   "recent.removeTitle": "File missing",
   "recent.removeMessage": "{path} no longer exists. Remove it from the recent files list?",
   "recent.remove": "Remove from List",
-  "recent.cleared": "The recent files list is empty"
+  "recent.cleared": "The recent files list is empty",
+  "status.zoom": "{percent}%",
+  "status.zoomTip": "Text zoom. Click to pick a size or go back to the original one (100%).",
+  "a11y.status.zoom": "Text zoom {value}",
+  "zoom.resetItem": "Original Size (100%)"
 }

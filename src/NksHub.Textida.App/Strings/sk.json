@@ -2990,5 +2990,9 @@
   "recent.removeTitle": "Súbor chýba",
   "recent.removeMessage": "Súbor {path} už neexistuje. Odobrať ho zo zoznamu posledných súborov?",
   "recent.remove": "Odobrať zo zoznamu",
-  "recent.cleared": "Zoznam posledných súborov je prázdny"
+  "recent.cleared": "Zoznam posledných súborov je prázdny",
+  "status.zoom": "{percent} %",
+  "status.zoomTip": "Priblíženie textu. Kliknutím vyberiete veľkosť alebo vrátite pôvodnú (100 %).",
+  "a11y.status.zoom": "Priblíženie textu {value}",
+  "zoom.resetItem": "Pôvodná veľkosť (100 %)"
 }

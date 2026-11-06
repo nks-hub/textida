@@ -2935,5 +2935,9 @@
   "recent.removeTitle": "Datei fehlt",
   "recent.removeMessage": "Die Datei {path} existiert nicht mehr. Aus der Liste der zuletzt geöffneten Dateien entfernen?",
   "recent.remove": "Aus der Liste entfernen",
-  "recent.cleared": "Die Liste der zuletzt geöffneten Dateien ist leer"
+  "recent.cleared": "Die Liste der zuletzt geöffneten Dateien ist leer",
+  "status.zoom": "{percent} %",
+  "status.zoomTip": "Textzoom. Klicken Sie, um eine Größe zu wählen oder zur ursprünglichen (100 %) zurückzukehren.",
+  "a11y.status.zoom": "Textzoom {value}",
+  "zoom.resetItem": "Ursprüngliche Größe (100 %)"
 }
