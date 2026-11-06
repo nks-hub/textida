@@ -456,6 +456,13 @@ internal sealed class OpenDocument : IDisposable
         SetLanguage(mode);
     }
 
+    /// <summary>Drops the user's choice of the language; the file name decides it again.</summary>
+    public void ResetLanguage()
+    {
+        LanguageChosen = false;
+        SetLanguage(LanguageModes.ForPath(Path));
+    }
+
     private void SetLanguage(LanguageMode mode)
     {
         if (ReferenceEquals(Language, mode)) return;

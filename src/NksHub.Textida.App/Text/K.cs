@@ -40,6 +40,13 @@ public static partial class K
     public const string StatusIndentTip = "status.indent.tip";
     public const string StatusEolTip = "status.eol.tip";
     public const string StatusLanguageTip = "status.language.tip";
+    public const string LanguagePickWatermark = "language.pick.watermark";
+    public const string LanguagePickA11y = "a11y.language.pick";
+    public const string LanguagePickAuto = "language.pick.auto";
+    public const string LanguagePickRecent = "language.pick.recent";
+    public const string LanguagePickDetected = "language.pick.detected";
+    public const string LanguagePickCurrent = "language.pick.current";
+    public const string LanguagePickExtensions = "language.pick.extensions";
     public const string StatusEncodingA11y = "a11y.status.encoding";
     public const string StatusEolA11y = "a11y.status.eol";
     public const string StatusIndentA11y = "a11y.status.indent";

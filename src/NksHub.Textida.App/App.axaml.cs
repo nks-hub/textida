@@ -80,7 +80,8 @@ public sealed partial class App : Application
         WriteChoices = value => Workbench.Set("hex.structureTemplates", value),
     };
     internal WorkspaceStore Workspace { get; private set; } = null!;
-    internal RecentEncodings RecentEncodings { get; private set; } = null!;
+    internal RecentChoices RecentEncodings { get; private set; } = null!;
+    internal RecentChoices RecentLanguages { get; private set; } = null!;
     internal ClipboardHistory ClipboardHistory { get; private set; } = null!;
 
     /// <summary>The monitor that collects what other programs copy, once the user has switched it on; polled on a timer of the interface thread.</summary>
@@ -227,7 +228,8 @@ public sealed partial class App : Application
         string primary = settings.GetString("files.journalDirectory") is { Length: > 0 } p ? p : Path.Combine(ProfileDirectory, "journal");
         string fallback = settings.GetString("files.journalFallbackDirectory") is { Length: > 0 } f ? f : Path.Combine(Path.GetTempPath(), "Textida", "journal-" + Environment.UserName);
         Journal = JournalService.Start(primary, fallback);
-        RecentEncodings = new RecentEncodings(Path.Combine(ProfileDirectory, "recent-encodings.txt"));
+        RecentEncodings = new RecentChoices(Path.Combine(ProfileDirectory, "recent-encodings.txt"));
+        RecentLanguages = new RecentChoices(Path.Combine(ProfileDirectory, "recent-languages.txt"));
         Recent = RecentFiles.Load(ProfileDirectory, () => (int)Workbench.Settings.GetInt("advanced.recentFilesCount"));
         Workspace = WorkspaceStore.Load(ProfileDirectory);
         ClipboardHistory = new ClipboardHistory(() => (int)Workbench.Settings.GetInt("editor.clipboardHistorySize"));

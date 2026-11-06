@@ -324,7 +324,7 @@
   "cmd.format.normalizeNfd": "Unicode nach NFD normalisieren",
   "cmd.format.applyEditorConfig": "Codierung und Zeilenenden aus EditorConfig anwenden...",
   "cmd.file.convertEncodingBatch": "Codierung von Dateien in einem Ordner umwandeln...",
-  "cmd.format.language": "Sprachmodus...",
+  "cmd.format.language": "Sprache der Datei...",
   "cmd.view.toggleDocumentList": "Liste der geöffneten Dokumente",
   "cmd.search.gotoAnything": "Gehe zu Beliebigem...",
   "cmd.search.recentEdits": "Letzte Bearbeitungsorte...",

@@ -917,10 +917,12 @@ commands: nks.file.convertEncodingBatch
 - Jede Datei wird ganz ersetzt oder gar nicht, und nur wenn sie noch den Inhalt hat, aus dem die Vorschau entstand. Der Lauf wird protokolliert: Bleibt das Programm oder der Rechner mittendrin stehen, bietet der nächste Start an, den Stapel zu beenden oder die alten Dateien zurückzuholen.
 - Eine Datei in einer nur geratenen Codierung (niedrige Sicherheit) wird nie umgewandelt; öffnen Sie sie, wählen Sie Mit Codierung neu öffnen und wandeln Sie sie dort um.
 
-## [format.language] Sprachmodus
+## [format.language] Sprache der Datei
 commands: nks.format.language
-1. Wählen Sie Format und dann Sprachmodus oder klicken Sie in der Statusleiste auf die Sprache.
-2. Wählen Sie eine Sprache, zum Beispiel Nur-Text.
+1. Wählen Sie Format und dann Sprache der Datei oder klicken Sie in der Statusleiste auf die Sprache. Im Fenster öffnet sich eine Liste mit Suchfeld.
+2. Durch Tippen engen Sie die Liste nach Name oder Endung ein (zum Beispiel „pyth“ oder „.md“), mit den Pfeiltasten, Bild auf und Bild ab wählen Sie eine Sprache, Enter übernimmt sie; Esc schließt die Liste.
+- Oben steht Automatisch nach Dateiendung, dann die zuletzt verwendeten Sprachen, die aus der Endung erkannte Sprache und zuletzt alle Sprachen nach Namen. Bei jeder Sprache stehen ihre Endungen, und die aktuelle Wahl ist markiert.
+- Automatisch nach Dateiendung hebt die eigene Wahl auf: Die Sprache bestimmt wieder der Dateiname, auch nach dem Speichern unter einem anderen Namen.
 - Die Sprache bestimmt, welche Einstellungen nur für diese Sprache gelten (zum Beispiel Zeilenumbruch oder Einzug), und die Regeln der Hervorhebung.
 - Beim Öffnen wird die Sprache anhand der Dateiendung gewählt.
 - Blade färbt den Code zwischen `@php` und `@endphp` als PHP; `@php(...)` in einer Zeile ist eine Direktive. Visual Basic färbt XML-Literale (ein Element, einen Kommentar, einen CDATA-Abschnitt oder ein `<?xml ?>`-Dokument) nach `=`, `Return`, `Yield`, `Await` oder `In`, mit `<%= ... %>` als Visual-Basic-Code, sowie `Imports <xmlns:...>`. Ein Literal, das in der Zeile nach `=` beginnt, und die Eigenschaften `x.<name>` und `x.@name` werden nicht als XML gefärbt.
@@ -1388,7 +1390,7 @@ Unten sehen Sie Zeile und Spalte des Cursors (bei einer Auswahl die Zeichenzahl,
 - Ein Klick auf den Einzug bietet Leerzeichen oder Tabulatoren und die Größe an.
 - Ein Klick auf die Codierung öffnet die Auswahl der Codierung (Thema Codierung).
 - Ein Klick auf die Zeilenenden vereinheitlicht sie (Thema Zeilenenden).
-- Ein Klick auf die Sprache öffnet die Auswahl der Sprache (Thema Sprachmodus).
+- Ein Klick auf die Sprache öffnet die Auswahl der Sprache (Thema Sprache der Datei).
 - Die Hervorhebung wird noch berechnet: Bei einer langen Datei holt die Hervorhebung auf, der Text ist benutzbar. Die Zeile ist zu lang für die Hervorhebung: Eine solche Zeile bleibt ohne Farben.
 - Bei einer Datei, für die .editorconfig gilt, wird der Eintrag .editorconfig angezeigt; ein Klick öffnet die Datei.
 

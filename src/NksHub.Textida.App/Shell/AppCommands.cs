@@ -510,7 +510,7 @@ internal static class AppCommands
         Fire("nks.format.normalizeNfd", (w, t) => w.NormalizeAsync(t, NormalizationForm.FormD));
         Fire("nks.format.applyEditorConfig", (w, t) => w.ApplyEditorConfigFormatAsync(t));
         Do("nks.file.convertEncodingBatch", w => _ = w.ConvertFilesInFolderAsync());
-        Do("nks.format.language", w => _ = w.ShowLanguageMenu());
+        Do("nks.format.language", w => _ = w.ShowLanguagePicker());
 
         // window
         Do("nks.window.new", w => app.NewWindow(w));

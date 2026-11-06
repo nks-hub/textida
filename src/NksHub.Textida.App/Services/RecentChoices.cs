@@ -1,14 +1,14 @@
 namespace NksHub.Textida.App.Services;
 
-/// <summary>The encodings the user picked last, newest first, kept in the profile so the picker lists them on top after a restart.</summary>
-internal sealed class RecentEncodings(string file, int capacity = 6)
+/// <summary>The choices the user picked last (encodings, languages), newest first, kept in the profile so a picker lists them on top after a restart.</summary>
+internal sealed class RecentChoices(string file, int capacity = 6)
 {
     private List<string>? _names;
 
-    /// <summary>The names of the encodings picked last, newest first.</summary>
+    /// <summary>The names of the choices picked last, newest first.</summary>
     public IReadOnlyList<string> Names => Load();
 
-    /// <summary>Puts an encoding on top of the list.</summary>
+    /// <summary>Puts a choice on top of the list.</summary>
     public void Used(string name)
     {
         var names = Load();

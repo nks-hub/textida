@@ -324,7 +324,7 @@
   "cmd.format.normalizeNfd": "Normalizovat Unicode na NFD",
   "cmd.format.applyEditorConfig": "Použít kódování a konce řádků z EditorConfig...",
   "cmd.file.convertEncodingBatch": "Převést kódování souborů ve složce...",
-  "cmd.format.language": "Režim jazyka...",
+  "cmd.format.language": "Jazyk souboru...",
   "cmd.view.toggleDocumentList": "Seznam otevřených dokumentů",
   "cmd.search.gotoAnything": "Přejít na cokoli...",
   "cmd.search.recentEdits": "Nedávná místa úprav...",

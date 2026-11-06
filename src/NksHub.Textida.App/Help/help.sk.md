@@ -917,10 +917,12 @@ commands: nks.file.convertEncodingBatch
 - Každý súbor sa nahradí celý, alebo vôbec, a len keď má stále obsah, z ktorého vznikol náhľad. Beh sa zapisuje do žurnálu: keď sa program alebo počítač uprostred zastaví, ďalší štart ponúkne dokončenie dávky alebo vrátenie starých súborov.
 - Súbor v kódovaní, ktoré je len odhad (nízke percento istoty), sa nikdy neprevádza; otvorte ho, zvoľte Znova otvoriť v kódovaní a preveďte ho odtiaľ.
 
-## [format.language] Režim jazyka
+## [format.language] Jazyk súboru
 commands: nks.format.language
-1. Zvoľte Formát a Režim jazyka, alebo kliknite na jazyk v stavovom riadku.
-2. Vyberte jazyk, napríklad Obyčajný text.
+1. Zvoľte Formát a Jazyk súboru, alebo kliknite na jazyk v stavovom riadku. Vnútri okna sa otvorí zoznam s poľom hľadania.
+2. Písaním zúžite zoznam podľa názvu alebo prípony (napríklad „pyth“ alebo „.md“), šípkami, Page Up a Page Down vyberiete jazyk a Enter ho použije; Esc zoznam zavrie.
+- Hore je Automaticky podľa prípony, potom naposledy použité jazyky, jazyk zistený z prípony a nakoniec všetky jazyky abecedne. Pri každom jazyku sú jeho prípony a aktuálna voľba je označená.
+- Automaticky podľa prípony zruší ručnú voľbu: jazyk znova určuje názov súboru, aj po uložení pod iným názvom.
 - Jazyk určuje nastavenia platné len pre tento jazyk (napríklad zalamovanie riadkov alebo odsadenie) a pravidlá zvýrazňovania.
 - Pri otvorení sa jazyk určí podľa prípony súboru.
 - Blade zafarbí kód medzi `@php` a `@endphp` ako PHP; `@php(...)` na jednom riadku je direktíva. Visual Basic zafarbí literály XML (element, komentár, sekciu CDATA alebo dokument `<?xml ?>`) za `=`, `Return`, `Yield`, `Await` alebo `In`, s `<%= ... %>` ako kódom Visual Basicu, a `Imports <xmlns:...>`. Literál, ktorý začína na riadku po `=`, a vlastnosti `x.<name>` a `x.@name` sa ako XML nezafarbia.
@@ -1388,7 +1390,7 @@ Dole je vidieť riadok a stĺpec kurzora (pri výbere počet znakov, pri viacer�
 - Kliknutie na odsadenie ponúkne medzery alebo tabulátory a veľkosť.
 - Kliknutie na kódovanie otvorí výber kódovania (téma Kódovanie).
 - Kliknutie na konce riadkov ich zjednotí (téma Konce riadkov).
-- Kliknutie na jazyk otvorí výber jazyka (téma Režim jazyka).
+- Kliknutie na jazyk otvorí výber jazyka (téma Jazyk súboru).
 - Zvýraznenie sa dopočítava: pri dlhom súbore zvýraznenie dobieha, text je použiteľný. Riadok je príliš dlhý na zvýraznenie: takýto riadok zostane bez farieb.
 - Pri súbore, na ktorý sa vzťahuje .editorconfig, je vidieť položka .editorconfig; kliknutím sa súbor otvorí.
 

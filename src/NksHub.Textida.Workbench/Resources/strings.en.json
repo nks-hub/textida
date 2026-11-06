@@ -324,7 +324,7 @@
   "cmd.format.normalizeNfd": "Normalize Unicode to NFD",
   "cmd.format.applyEditorConfig": "Apply EditorConfig Encoding and Line Endings...",
   "cmd.file.convertEncodingBatch": "Convert Encoding of Files in a Folder...",
-  "cmd.format.language": "Language Mode...",
+  "cmd.format.language": "File Language...",
   "cmd.view.toggleDocumentList": "Open Documents List",
   "cmd.search.gotoAnything": "Go to Anything...",
   "cmd.search.recentEdits": "Recent Edit Locations...",

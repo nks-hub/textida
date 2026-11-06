@@ -917,10 +917,12 @@ commands: nks.file.convertEncodingBatch
 - Each file is replaced as a whole or not at all, and only if it still has the content the preview was made from. The run is journaled: if the program or the computer stops in the middle, the next start offers to finish the batch or to put the old files back.
 - A file in an encoding that is only a guess (the percentage is low) is never converted; open it, choose Reopen with Encoding and convert it from there.
 
-## [format.language] Language mode
+## [format.language] File language
 commands: nks.format.language
-1. Choose Format and then Language Mode, or click the language in the status bar.
-2. Choose a language, for example Plain text.
+1. Choose Format and then File Language, or click the language in the status bar. A list with a search box opens inside the window.
+2. Type to narrow the list by name or extension (for example "pyth" or ".md"), choose a language with the arrow keys, Page Up and Page Down, and press Enter to use it; Esc closes the list.
+- On top is Automatic by file extension, then the languages used last, the language the extension gives, and then every language by name. Each language shows its extensions, and the current choice is marked.
+- Automatic by file extension drops a choice made by hand: the file name decides the language again, also after saving under another name.
 - The language decides which settings apply only to that language (for example word wrap or indentation) and the highlighting rules.
 - When a file opens, the language is chosen from its extension.
 - Blade colors the code between `@php` and `@endphp` as PHP; `@php(...)` on one line is a directive. Visual Basic colors XML literals (an element, a comment, a CDATA section or an `<?xml ?>` document) that follow `=`, `Return`, `Yield`, `Await` or `In`, with `<%= ... %>` as Visual Basic code, and `Imports <xmlns:...>`. A literal that starts on the line after `=` and the properties `x.<name>` and `x.@name` are not colored as XML.
@@ -1388,7 +1390,7 @@ At the bottom you see the line and column of the caret (the number of characters
 - Clicking the indentation offers spaces or tabs and the size.
 - Clicking the encoding opens the choice of encoding (topic Encoding).
 - Clicking the line endings unifies them (topic Line endings).
-- Clicking the language opens the choice of language (topic Language mode).
+- Clicking the language opens the choice of language (topic File language).
 - Highlighting is still being computed: in a long file the highlighting catches up, the text is usable. The line is too long to highlight: such a line stays without colours.
 - For a file covered by .editorconfig the item .editorconfig is shown; clicking it opens the file.
 
