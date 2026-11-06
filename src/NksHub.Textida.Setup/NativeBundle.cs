@@ -45,9 +45,12 @@ internal static partial class NativeBundle
         zipStream.Position = 0;
         Directory.CreateDirectory(folder);
         using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read, leaveOpen: true);
-        foreach (var entry in zip.Entries.Where(e => e.Name.Length > 0))
+        foreach (var entry in zip.Entries)
         {
-            var path = Path.Combine(folder, entry.Name); // flat: the libraries have no folders, and a name from the ZIP cannot leave this one
+            // Flat: the libraries have no folders, and a name from the ZIP cannot leave this one. ZipArchiveEntry.Name splits at '\' only for entries made on Windows.
+            var name = entry.FullName[(entry.FullName.LastIndexOfAny(['/', '\\']) + 1)..];
+            if (name.Length == 0) continue;
+            var path = Path.Combine(folder, name);
             if (File.Exists(path) && new FileInfo(path).Length == entry.Length) continue; // already there, maybe in use by a setup that is running
             entry.ExtractToFile(path, overwrite: true);
         }
