@@ -17,7 +17,11 @@ internal sealed record AboutPlugin(string Name, string Version, PluginOrigin Ori
 internal sealed record AboutInfo(string Version, string Commit, string BuildDate, string Runtime, string Compilation, string Os, string Architecture,
     string Language, ProfileKind Profile, string ProfileFolder, string LogFolder, IReadOnlyList<AboutPlugin> Plugins, string Copyright)
 {
-    public const string ProjectUrl = "https://github.com/nks-hub/textida";
+    public const string PublisherName = "NKS Hub";
+    public const string PublisherUrl = "https://nks-hub.cz";
+    public const string OrganizationUrl = "https://github.com/nks-hub";
+    public const string ContactEmail = "dev@nks-hub.cz";
+    public const string ProjectUrl = OrganizationUrl + "/textida";
     public const string IssuesUrl = ProjectUrl + "/issues";
     public const string NoticesFile = "THIRD-PARTY-NOTICES.md";
     public const string LicenseFile = "LICENSE";

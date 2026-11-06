@@ -79,7 +79,7 @@
   "dialog.about.notices": "Third-party components and their licenses",
   "dialog.about.noticesMissing": "The file {file} is missing next to the program.",
   "dialog.about.link.project": "Project page",
-  "dialog.about.link.issues": "Bug reports",
+  "dialog.about.link.issues": "Bug reports (GitHub Issues)",
   "dialog.about.copy": "Copy information",
   "dialog.about.copied": "The information is on the clipboard.",
   "dialog.about.includePaths": "Include folder paths (they may contain your user name)",
@@ -2939,5 +2939,8 @@
   "status.zoom": "{percent}%",
   "status.zoomTip": "Text zoom. Click to pick a size or go back to the original one (100%).",
   "a11y.status.zoom": "Text zoom {value}",
-  "zoom.resetItem": "Original Size (100%)"
+  "zoom.resetItem": "Original Size (100%)",
+  "dialog.about.link.publisher": "Author and publisher",
+  "dialog.about.link.organization": "NKS Hub on GitHub",
+  "dialog.about.link.contact": "Contact"
 }

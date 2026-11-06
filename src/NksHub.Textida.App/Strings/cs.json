@@ -79,7 +79,7 @@
   "dialog.about.notices": "Součásti třetích stran a jejich licence",
   "dialog.about.noticesMissing": "Soubor {file} vedle programu chybí.",
   "dialog.about.link.project": "Stránka projektu",
-  "dialog.about.link.issues": "Hlášení chyb",
+  "dialog.about.link.issues": "Hlášení chyb (GitHub Issues)",
   "dialog.about.copy": "Kopírovat informace",
   "dialog.about.copied": "Informace jsou ve schránce.",
   "dialog.about.includePaths": "Přidat cesty ke složkám (mohou obsahovat vaše uživatelské jméno)",
@@ -2994,5 +2994,8 @@
   "status.zoom": "{percent} %",
   "status.zoomTip": "Přiblížení textu. Kliknutím vyberete velikost nebo vrátíte původní (100 %).",
   "a11y.status.zoom": "Přiblížení textu {value}",
-  "zoom.resetItem": "Původní velikost (100 %)"
+  "zoom.resetItem": "Původní velikost (100 %)",
+  "dialog.about.link.publisher": "Autor a vydavatel",
+  "dialog.about.link.organization": "GitHub NKS Hub",
+  "dialog.about.link.contact": "Kontakt"
 }

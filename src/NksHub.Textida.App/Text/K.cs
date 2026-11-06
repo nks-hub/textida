@@ -2894,4 +2894,7 @@ public static partial class K
     public const string StatusZoomTip = "status.zoomTip";
     public const string StatusZoomA11y = "a11y.status.zoom";
     public const string ZoomResetItem = "zoom.resetItem";
+    public const string DialogAboutLinkPublisher = "dialog.about.link.publisher";
+    public const string DialogAboutLinkOrganization = "dialog.about.link.organization";
+    public const string DialogAboutLinkContact = "dialog.about.link.contact";
 }
