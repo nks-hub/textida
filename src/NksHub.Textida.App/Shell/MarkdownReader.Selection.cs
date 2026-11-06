@@ -12,7 +12,8 @@ namespace NksHub.Textida.App.Shell;
 /// <summary>
 /// Selecting, copying and links of <see cref="MarkdownReader"/>, as on a web page: drag across any blocks, Shift+click extends, a double click takes a word and a triple click the block, Ctrl+A everything;
 /// the page scrolls while the pointer is dragged past its edge. Copy gives the plain text (cells of a table separated by tabs); "Copy as Markdown" gives the part of the source the selection covers.
-/// A link is followed by a click that did not drag, or from the keyboard: Tab moves between the links and Enter follows one.
+/// A link is followed by a click that did not drag, or from the keyboard: Tab moves between the links and Enter follows one. A code block whose lines reach past its box scrolls sideways with
+/// Left and Right, and Home and End take it to its start and end, while the caret (the place of the last click or of the selection's end) stands in it.
 /// </summary>
 internal sealed partial class MarkdownReader
 {
@@ -165,18 +166,18 @@ internal sealed partial class MarkdownReader
         double top = _tops[index];
         if (point.Y < top) return b.DocStart;
         var box = laid.Boxes[0];
-        double best = double.MaxValue;
+        (double Y, double X) best = (double.MaxValue, double.MaxValue);
         foreach (var candidate in laid.Boxes)
         {
+            // the boxes of a row of cells stand side by side, those of a paragraph cut at a tall picture one under the other
+            double y = point.Y - top, dy = y < candidate.Origin.Y ? candidate.Origin.Y - y : Math.Max(0, y - (candidate.Origin.Y + candidate.Layout.Height));
             double dx = point.X < candidate.Origin.X ? candidate.Origin.X - point.X : Math.Max(0, point.X - (candidate.Origin.X + Math.Max(candidate.Layout.WidthIncludingTrailingWhitespace, candidate.Clip > 0 ? candidate.Clip : candidate.Layout.MaxWidth)));
-            if (dx < best) { best = dx; box = candidate; }
+            if (dy < best.Y || dy == best.Y && dx < best.X) { best = (dy, dx); box = candidate; }
         }
         double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
         var local = new Point(point.X - box.Origin.X + scroll, point.Y - top - box.Origin.Y);
         if (local.Y > box.Layout.Height) local = new Point(local.X, box.Layout.Height - 1);
-        var hit = box.Layout.HitTestPoint(local);
-        int offset = Math.Clamp(hit.CharacterHit.FirstCharacterIndex + hit.CharacterHit.TrailingLength, 0, box.Length);
-        return b.DocStart + box.Start + offset;
+        return b.DocStart + box.Start + box.Hit(local);
     }
 
     /// <summary>The link under a point, or -1.</summary>
@@ -195,7 +196,7 @@ internal sealed partial class MarkdownReader
                 if (span.Link < 0) continue;
                 int from = Math.Max(span.Start, box.Start), to = Math.Min(span.Start + span.Length, box.Start + box.Length);
                 if (to <= from) continue;
-                foreach (var r in box.Layout.HitTestTextRange(from - box.Start, to - from))
+                foreach (var r in box.Range(from - box.Start, to - box.Start))
                     if (new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height).Contains(point)) return span.Link;
             }
         }
@@ -223,7 +224,7 @@ internal sealed partial class MarkdownReader
                     {
                         int from = Math.Max(span.Start, box.Start), to = Math.Min(span.Start + span.Length, box.Start + box.Length);
                         if (to <= from) continue;
-                        foreach (var r in box.Layout.HitTestTextRange(from - box.Start, to - from))
+                        foreach (var r in box.Range(from - box.Start, to - box.Start))
                             return new Point(box.Origin.X + r.X + r.Width / 2, _tops[index] + box.Origin.Y + r.Y + r.Height / 2);
                     }
         }
@@ -448,10 +449,24 @@ internal sealed partial class MarkdownReader
             case Key.Enter or Key.Space when e.KeyModifiers == KeyModifiers.None && _focusedLink >= 0:
                 ActivateLink(_focusedLink);
                 break;
+            case Key.Left or Key.Right or Key.Home or Key.End when e.KeyModifiers == KeyModifiers.None && CodeGroupAtCaret() is >= 0 and var group:
+                ScrollCode(group, e.Key switch { Key.Left => -CodeKeyStep, Key.Right => CodeKeyStep, Key.Home => double.NegativeInfinity, _ => double.PositiveInfinity });
+                break;
             default:
                 return;
         }
         e.Handled = true;
+    }
+
+    /// <summary>How far Left and Right scroll a code block: three characters of the code font.</summary>
+    private double CodeKeyStep => 3 * 0.85 * Em * 0.6;
+
+    /// <summary>The code block the caret stands in when its lines reach past its box, or -1.</summary>
+    internal int CodeGroupAtCaret()
+    {
+        if (_doc.Blocks.Count == 0) return -1;
+        var b = _doc.Blocks[_doc.BlockAt(_caret)];
+        return b.Kind == ReaderBlockKind.Code && CodeOverflow(b.Group).Overflow > 0 ? b.Group : -1;
     }
 
     /// <summary>The keys the page handles itself, which the window then does not pass to its commands: copy, select all, and Tab and Enter while there are links.</summary>
@@ -464,6 +479,7 @@ internal sealed partial class MarkdownReader
             Key.Insert => control,
             Key.Tab => e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift && _doc.Links.Count > 0,
             Key.Enter or Key.Space => e.KeyModifiers == KeyModifiers.None && _focusedLink >= 0,
+            Key.Left or Key.Right or Key.Home or Key.End => e.KeyModifiers == KeyModifiers.None && CodeGroupAtCaret() >= 0,
             _ => false,
         };
     }

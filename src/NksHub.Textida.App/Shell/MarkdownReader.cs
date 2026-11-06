@@ -52,11 +52,16 @@ internal sealed partial class MarkdownReader : Control
         public double Height;
         public readonly List<Box> Boxes = [];
         public Control? Embed;
+        /// <summary>The pictures that stand in the text of the block; each is placed where its run is in the layout.</summary>
+        public readonly List<(Control Control, Box Box, int Position, Size Size)> Pictures = [];
         /// <summary>A text layout of each marker of the block, beside its first line.</summary>
         public readonly List<(int Depth, TextLayout Layout)> Markers = [];
     }
 
-    /// <summary>A laid-out run of text: a paragraph, a heading, the lines of a code slice or one cell, placed relative to the left of the page and the top of its block.</summary>
+    /// <summary>
+    /// A laid-out run of text: a paragraph, a heading, the lines of a code slice or one cell, placed relative to the left of the page and the top of its block. Its layout may hold runs that are not
+    /// text (the side padding of inline code, a picture in a sentence): <see cref="Inserts"/> keeps where they stand, so the offsets of the text, and with them the selection, stay those of the block.
+    /// </summary>
     private sealed class Box
     {
         public required TextLayout Layout { get; init; }
@@ -65,6 +70,60 @@ internal sealed partial class MarkdownReader : Control
         public required int Length { get; init; }
         /// <summary>The width a code slice is clipped to (it scrolls sideways instead of wrapping); 0 for text that wraps.</summary>
         public double Clip { get; init; }
+        /// <summary>For each run that is not text, the offset in the text of the box it stands before; in the order of the layout, where each takes one position.</summary>
+        public int[] Inserts { get; init; } = [];
+        /// <summary>The runs of <see cref="Inserts"/>, in the same order.</summary>
+        public DrawableTextRun[] Runs { get; init; } = [];
+
+        /// <summary>The position in the layout of the run of a picture in a sentence.</summary>
+        public int PicturePosition(Control control)
+        {
+            for (int i = 0; i < Runs.Length; i++)
+                if (Runs[i] is PictureRun run && ReferenceEquals(run.Control, control)) return Inserts[i] + i;
+            return -1;
+        }
+
+        /// <summary>The position in the layout of the character at <paramref name="offset"/> of the box (a run that stands before it comes first).</summary>
+        public int ToLayout(int offset)
+        {
+            int n = 0;
+            while (n < Inserts.Length && Inserts[n] <= offset) n++;
+            return offset + n;
+        }
+
+        /// <summary>The end in the layout of a range of the box's text that ends at <paramref name="offset"/>: runs that stand right after it are not part of it.</summary>
+        public int EndToLayout(int offset)
+        {
+            int n = 0;
+            while (n < Inserts.Length && Inserts[n] < offset) n++;
+            return offset + n;
+        }
+
+        /// <summary>The offset in the box's text of a position in the layout; a run that is not text gives the offset it stands before.</summary>
+        public int FromLayout(int position)
+        {
+            for (int i = 0; i < Inserts.Length; i++)
+            {
+                int at = Inserts[i] + i;
+                if (position == at) return Inserts[i];
+                if (position < at) return position - i;
+            }
+            return position - Inserts.Length;
+        }
+
+        public Rect Caret(int offset) => Layout.HitTestTextPosition(ToLayout(offset));
+
+        public IEnumerable<Rect> Range(int from, int to)
+        {
+            int start = ToLayout(from);
+            return Layout.HitTestTextRange(start, Math.Max(0, EndToLayout(to) - start));
+        }
+
+        public int Hit(Point local)
+        {
+            var hit = Layout.HitTestPoint(local);
+            return Math.Clamp(FromLayout(hit.CharacterHit.FirstCharacterIndex + hit.CharacterHit.TrailingLength), 0, Length);
+        }
     }
 
     public MarkdownReader(MarkdownReaderDocument document, PreviewRenderer.Ctx ctx)
@@ -177,7 +236,7 @@ internal sealed partial class MarkdownReader : Control
 
     private static bool Same(ReaderBlock a, ReaderBlock b) =>
         a.Kind == b.Kind && a.Text == b.Text && a.Level == b.Level && a.Path.Length == b.Path.Length && a.Small == b.Small && a.Markers.Length == b.Markers.Length
-        && a.GroupFirst == b.GroupFirst && a.GroupLast == b.GroupLast && a.Kind is not (ReaderBlockKind.TableRow or ReaderBlockKind.Images or ReaderBlockKind.Diagram);
+        && a.GroupFirst == b.GroupFirst && a.GroupLast == b.GroupLast && a.Pictures.Length == 0 && b.Pictures.Length == 0 && a.Kind is not (ReaderBlockKind.TableRow or ReaderBlockKind.Images or ReaderBlockKind.Diagram);
 
     // ---- geometry ----
 
@@ -267,6 +326,34 @@ internal sealed partial class MarkdownReader : Control
     /// <summary>The text layout of a laid-out block (a table row has one per cell), or null while the block is not laid out.</summary>
     internal TextLayout? LayoutOf(int index, int box = 0) => _laid.TryGetValue(index, out var laid) && box < laid.Boxes.Count ? laid.Boxes[box].Layout : null;
 
+    /// <summary>The backgrounds of the inline code of a laid-out block, on the page.</summary>
+    internal IReadOnlyList<Rect> InlineCodeBounds(int index)
+    {
+        if (!_laid.TryGetValue(index, out var laid)) return [];
+        var b = _doc.Blocks[index];
+        return [.. laid.Boxes.SelectMany(box => InlineCodeRects(b, box).Select(r => r.Translate(new Vector(box.Origin.X, _tops[index] + box.Origin.Y))))];
+    }
+
+    /// <summary>The selection rectangles of a range of a laid-out block (offsets of its text), on the page.</summary>
+    internal IReadOnlyList<Rect> RangeBounds(int index, int from, int to)
+    {
+        if (!_laid.TryGetValue(index, out var laid)) return [];
+        var rects = new List<Rect>();
+        foreach (var box in laid.Boxes)
+        {
+            int s = Math.Max(from, box.Start), e = Math.Min(to, box.Start + box.Length);
+            if (e > s) rects.AddRange(box.Range(s - box.Start, e - box.Start).Select(r => r.Translate(new Vector(box.Origin.X, _tops[index] + box.Origin.Y))));
+        }
+        return rects;
+    }
+
+    /// <summary>The pictures that stand in the text of a laid-out block, with where they are on the page.</summary>
+    internal IReadOnlyList<(Control Control, Rect Bounds)> InlinePictures(int index) =>
+        _laid.TryGetValue(index, out var laid) ? [.. laid.Pictures.Select(p => (p.Control, p.Control.Bounds))] : [];
+
+    /// <summary>The widths of the columns of a table (by its index in the document) as the page lays them out.</summary>
+    internal IReadOnlyList<double> ColumnWidths(int table) => _columns.TryGetValue(table, out var widths) ? widths : [];
+
     /// <summary>Where the text of a box of a laid-out block starts, relative to the page.</summary>
     internal Point? BoxOrigin(int index, int box = 0) => _laid.TryGetValue(index, out var laid) && box < laid.Boxes.Count ? laid.Boxes[box].Origin + new Point(0, _tops[index]) : null;
 
@@ -280,7 +367,7 @@ internal sealed partial class MarkdownReader : Control
         foreach (var box in laid.Boxes)
             if (offset >= box.Start && offset <= box.Start + box.Length)
             {
-                var r = box.Layout.HitTestTextPosition(offset - box.Start);
+                var r = box.Caret(offset - box.Start);
                 double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
                 return new Point(box.Origin.X - scroll + r.X + 1, _tops[index] + box.Origin.Y + r.Y + r.Height / 2);
             }
@@ -352,6 +439,7 @@ internal sealed partial class MarkdownReader : Control
             }
             _topsDirty = true;
         }
+        DropResizedPictures(width);
         EnsureTops();
         var view = View;
         var (from, to) = RealizeRange(view);
@@ -369,7 +457,7 @@ internal sealed partial class MarkdownReader : Control
         }
         _realized = (first, last);
         // drop what is far away: the layouts of blocks beyond a few screens, and every child control outside the laid-out range
-        foreach (int key in _laid.Keys.Where(k => k < first - 200 || k > last + 200 || (_laid[k].Embed is not null && (k < first || k > last))).ToList())
+        foreach (int key in _laid.Keys.Where(k => k < first - 200 || k > last + 200 || ((_laid[k].Embed is not null || _laid[k].Pictures.Count > 0) && (k < first || k > last))).ToList())
         {
             Detach(_laid[key]);
             _laid.Remove(key);
@@ -383,12 +471,40 @@ internal sealed partial class MarkdownReader : Control
     protected override Size ArrangeOverride(Size finalSize)
     {
         foreach (var (index, laid) in _laid)
+        {
             if (laid.Embed is { } embed)
             {
                 var b = _doc.Blocks[index];
                 embed.Arrange(new Rect(Left(b), _tops[index], BlockWidth(b), laid.Height));
             }
+            foreach (var (control, box, position, size) in laid.Pictures)
+            {
+                // the bottom of the picture on the baseline of its line, as a browser puts an image in a sentence
+                var run = box.Layout.HitTestTextRange(position, 1).FirstOrDefault();
+                var line = box.Layout.TextLines[Math.Clamp(box.Layout.GetLineIndexFromCharacterIndex(position, false), 0, box.Layout.TextLines.Count - 1)];
+                control.Arrange(new Rect(new Point(box.Origin.X + run.X, _tops[index] + box.Origin.Y + run.Y + line.Baseline - size.Height), size));
+            }
+        }
         return finalSize;
+    }
+
+    /// <summary>A picture in a sentence that got another size (it finished loading, or the site was allowed) is laid out again with its block.</summary>
+    private void DropResizedPictures(double width)
+    {
+        List<int>? stale = null;
+        foreach (var (index, laid) in _laid)
+            foreach (var (control, _, _, size) in laid.Pictures)
+            {
+                control.Measure(new Size(BlockWidth(_doc.Blocks[index]), double.PositiveInfinity));
+                if (Math.Abs(control.DesiredSize.Width - size.Width) > 0.5 || Math.Abs(control.DesiredSize.Height - size.Height) > 0.5) (stale ??= []).Add(index);
+            }
+        if (stale is null || width <= 0) return;
+        foreach (int index in stale.Distinct())
+        {
+            Detach(_laid[index]);
+            _laid.Remove(index);
+            _measured[index] = false;
+        }
     }
 
     /// <summary>Keeps the block at the top of the view where it was after blocks above it got their measured height.</summary>
@@ -403,6 +519,12 @@ internal sealed partial class MarkdownReader : Control
 
     private void Detach(Laid laid)
     {
+        foreach (var (control, _, _, _) in laid.Pictures)
+        {
+            VisualChildren.Remove(control);
+            LogicalChildren.Remove(control);
+        }
+        laid.Pictures.Clear();
         if (laid.Embed is not { } embed) return;
         VisualChildren.Remove(embed);
         LogicalChildren.Remove(embed);
@@ -429,7 +551,7 @@ internal sealed partial class MarkdownReader : Control
             }
             case ReaderBlockKind.TableRow:
             {
-                var widths = Columns(b);
+                var widths = Columns(b, measure: false);
                 double tallest = 1;
                 for (int c = 0; c < b.Cells.Length; c++) tallest = Math.Max(tallest, LinesOf(b.Text.AsSpan(b.Cells[c], b.CellEnd(c) - b.Cells[c]), widths[c] - 26 / 16.0 * Em, Em));
                 return tallest * 1.5 * Em + 0.75 * Em;
@@ -452,13 +574,20 @@ internal sealed partial class MarkdownReader : Control
         return Math.Max(1, lines);
     }
 
-    /// <summary>The column widths of a table: each column as wide as its longest cell (estimated from its characters) and the table no wider than the column of text.</summary>
-    private double[] Columns(ReaderBlock row)
+    /// <summary>Rows of a table whose cells are measured for the widths of its columns; a longer table measures, in each column, the cells with the most characters.</summary>
+    internal const int TableMeasuredRows = 256;
+
+    /// <summary>
+    /// The column widths of a table: each column as wide as its widest cell laid out on one line with the fonts and styles of the page, and the table no wider than the column of text.
+    /// <paramref name="measure"/> false (the estimate of a row that is not laid out) takes the widths from the characters until the table has been measured.
+    /// </summary>
+    private double[] Columns(ReaderBlock row, bool measure = true)
     {
         if (_columns.TryGetValue(row.Level, out var widths)) return widths;
         var table = _doc.Tables[row.Level];
-        double available = BlockWidth(row), padding = 26 / 16.0 * Em, charWidth = 0.55 * Em;
-        widths = [.. table.Chars.Select(chars => Math.Max(3 * Em, Math.Min(chars, 80) * charWidth + padding + 2))];
+        double available = BlockWidth(row), padding = 26 / 16.0 * Em;
+        if (!measure) return [.. table.Chars.Select(chars => Math.Max(3 * Em, Math.Min(chars, 80) * 0.55 * Em + padding + 2))];
+        widths = [.. MeasureColumns(row.Level).Select(natural => Math.Max(3 * Em, Math.Ceiling(natural) + padding + 2))];
         double sum = widths.Sum();
         if (sum > available)
         {
@@ -469,6 +598,30 @@ internal sealed partial class MarkdownReader : Control
                 for (int c = 0; c < widths.Length; c++) widths[c] -= Math.Max(0, widths[c] - minimum) * Math.Min(1, room / shrinkable);
         }
         return _columns[row.Level] = widths;
+    }
+
+    /// <summary>The width of the widest cell of each column of a table, its text laid out on one line.</summary>
+    private double[] MeasureColumns(int tableIndex)
+    {
+        var table = _doc.Tables[tableIndex];
+        var rows = new List<ReaderBlock>(table.Rows);
+        foreach (var b in _doc.Blocks)
+            if (b.Kind == ReaderBlockKind.TableRow && b.Level == tableIndex) rows.Add(b);
+        var natural = new double[table.Columns];
+        for (int c = 0; c < table.Columns; c++)
+        {
+            int column = c;
+            var cells = rows.Count <= TableMeasuredRows ? rows : rows.Where(r => r.Header).Concat(rows.OrderByDescending(r => column < r.Cells.Length ? r.CellEnd(column) - r.Cells[column] : 0).Take(TableMeasuredRows));
+            foreach (var r in cells)
+            {
+                if (c >= r.Cells.Length) continue;
+                int start = r.Cells[c], length = r.CellEnd(c) - start;
+                if (length == 0) continue;
+                var box = TextBox(r, start, length, double.PositiveInfinity, TextWrapping.NoWrap, Palette.Fg, Sans, r.Header ? FontWeight.SemiBold : FontWeight.Normal, default);
+                natural[c] = Math.Max(natural[c], box.Layout.WidthIncludingTrailingWhitespace);
+            }
+        }
+        return natural;
     }
 
     private void Realize(int index)
@@ -512,9 +665,9 @@ internal sealed partial class MarkdownReader : Control
             case ReaderBlockKind.Code:
             {
                 double pad = Em;
-                var layout = Layout(b, 0, b.Text.Length, double.PositiveInfinity, TextWrapping.NoWrap, p.Fg, Monospace, FontWeight.Normal);
-                laid.Boxes.Add(new Box { Layout = layout, Origin = new Point(left + pad, b.GroupFirst ? pad : 0), Start = 0, Length = b.Text.Length, Clip = Math.Max(1, width - 2 * pad) });
-                laid.Height = Math.Max(layout.Height, LineHeight(b)) + (b.GroupFirst ? pad : 0) + (b.GroupLast ? pad : 0);
+                var box = TextBox(b, 0, b.Text.Length, double.PositiveInfinity, TextWrapping.NoWrap, p.Fg, Monospace, FontWeight.Normal, new Point(left + pad, b.GroupFirst ? pad : 0), clip: Math.Max(1, width - 2 * pad));
+                laid.Boxes.Add(box);
+                laid.Height = Math.Max(box.Layout.Height, LineHeight(b)) + (b.GroupFirst ? pad : 0) + (b.GroupLast ? pad : 0);
                 break;
             }
             case ReaderBlockKind.TableRow:
@@ -527,9 +680,9 @@ internal sealed partial class MarkdownReader : Control
                 {
                     int start = b.Cells[c], end = b.CellEnd(c);
                     var align = table.Align[c] switch { Markdig.Extensions.Tables.TableColumnAlign.Center => TextAlignment.Center, Markdig.Extensions.Tables.TableColumnAlign.Right => TextAlignment.Right, _ => TextAlignment.Left };
-                    var layout = Layout(b, start, end - start, Math.Max(1, widths[c] - 2 * padX - 1), TextWrapping.Wrap, p.Fg, Sans, b.Header ? FontWeight.SemiBold : FontWeight.Normal, align);
-                    cells.Add(new Box { Layout = layout, Origin = new Point(x + padX + 1, padY + 1), Start = start, Length = end - start });
-                    tallest = Math.Max(tallest, layout.Height);
+                    var box = TextBox(b, start, end - start, Math.Max(1, widths[c] - 2 * padX - 1), TextWrapping.Wrap, p.Fg, Sans, b.Header ? FontWeight.SemiBold : FontWeight.Normal, new Point(x + padX + 1, padY + 1), align);
+                    cells.Add(box);
+                    tallest = Math.Max(tallest, box.Layout.Height);
                     x += widths[c];
                 }
                 laid.Boxes.AddRange(cells);
@@ -539,18 +692,31 @@ internal sealed partial class MarkdownReader : Control
             case ReaderBlockKind.AlertTitle:
             {
                 var colour = p.Alert(b.Path.LastOrDefault(c => c.Kind == ReaderContainerKind.Alert)?.AlertKind);
-                var layout = Layout(b, 0, b.Text.Length, Math.Max(1, width - 1.5 * Em), TextWrapping.Wrap, colour, Sans, FontWeight.Medium);
-                laid.Boxes.Add(new Box { Layout = layout, Origin = new Point(left + 1.5 * Em, 0), Start = 0, Length = b.Text.Length });
-                laid.Height = Math.Max(layout.Height, Em);
+                var box = TextBox(b, 0, b.Text.Length, Math.Max(1, width - 1.5 * Em), TextWrapping.Wrap, colour, Sans, FontWeight.Medium, new Point(left + 1.5 * Em, 0));
+                laid.Boxes.Add(box);
+                laid.Height = Math.Max(box.Layout.Height, Em);
                 break;
             }
             default:
             {
                 bool heading = b.Kind == ReaderBlockKind.Heading;
                 bool muted = b.Small || heading && b.Level == 6 || b.Path.Any(c => c.Kind == ReaderContainerKind.Quote);
-                var layout = Layout(b, 0, b.Text.Length, width, TextWrapping.Wrap, muted ? p.Muted : p.Fg, Sans, heading ? FontWeight.SemiBold : FontWeight.Normal);
-                laid.Boxes.Add(new Box { Layout = layout, Origin = new Point(left, 0), Start = 0, Length = b.Text.Length });
-                laid.Height = Math.Max(layout.Height, LineHeight(b));
+                var pictures = b.Pictures.Select(picture => (picture.Offset, Control: PictureControl(picture.Image))).ToList();
+                foreach (var (_, control) in pictures)
+                {
+                    LogicalChildren.Add(control);
+                    VisualChildren.Add(control);
+                    control.Measure(new Size(width, double.PositiveInfinity));
+                }
+                var brush = muted ? p.Muted : p.Fg;
+                var face = heading ? FontWeight.SemiBold : FontWeight.Normal;
+                var box = TextBox(b, 0, b.Text.Length, width, TextWrapping.Wrap, brush, Sans, face, new Point(left, 0), pictures: pictures);
+                var boxes = box.Layout.TextLines.Any(l => l.Extent > l.Height + 0.5) ? SplitTallLines(b, box, pictures, width, brush, face) : [box];
+                laid.Boxes.AddRange(boxes);
+                foreach (var part in boxes)
+                    foreach (var (_, control) in pictures)
+                        if (part.PicturePosition(control) is >= 0 and var position) laid.Pictures.Add((control, part, position, control.DesiredSize));
+                laid.Height = Math.Max(boxes[^1].Origin.Y + boxes[^1].Layout.Height, LineHeight(b));
                 if (heading && b.Level <= 2) laid.Height += 0.3 * FontSize(b) + 1;
                 break;
             }
@@ -565,14 +731,22 @@ internal sealed partial class MarkdownReader : Control
         return laid;
     }
 
-    /// <summary>A text layout of part of a block with the styles of its runs: bold, italic, struck through, inline code in the code font at 85 %, links in the link colour.</summary>
-    private TextLayout Layout(ReaderBlock b, int start, int length, double width, TextWrapping wrapping, IBrush foreground, FontFamily family, FontWeight weight, TextAlignment alignment = TextAlignment.Left)
+    /// <summary>
+    /// A laid-out box of part of a block with the styles of its runs: bold, italic, struck through, inline code in the code font at 85 % with GitHub's 0.4em of padding at its sides, links in the
+    /// link colour. <paramref name="pictures"/> are the controls of pictures that stand in the text, each before the character at its offset of the block.
+    /// </summary>
+    private Box TextBox(ReaderBlock b, int start, int length, double width, TextWrapping wrapping, IBrush foreground, FontFamily family, FontWeight weight, Point origin,
+        TextAlignment alignment = TextAlignment.Left, double clip = 0, IReadOnlyList<(int Offset, Control Control)>? pictures = null, double? lineHeight = null)
     {
         var p = Palette;
         double size = FontSize(b);
         bool code = b.Kind == ReaderBlockKind.Code;
         string text = b.Text.Substring(start, length);
         var overrides = new List<ValueSpan<TextRunProperties>>();
+        // runs that are not text, by the offset they stand before; at one offset the end of a code span comes first, then pictures, then the start of the next code span
+        var inserts = new List<(int Offset, int Order, DrawableTextRun Run)>();
+        double codePad = InlineCodePadEm * 0.85 * size;
+        var defaults = new GenericTextRunProperties(new Typeface(family, FontStyle.Normal, weight), size, null, foreground);
         foreach (var span in b.Spans)
         {
             int from = Math.Max(span.Start, start), to = Math.Min(span.Start + span.Length, start + length);
@@ -585,9 +759,106 @@ internal sealed partial class MarkdownReader : Control
             var brush = (style & ReaderStyle.Link) != 0 ? p.Link : foreground;
             overrides.Add(new ValueSpan<TextRunProperties>(from - start, to - from,
                 new GenericTextRunProperties(typeface, runSize, (style & ReaderStyle.Strike) != 0 ? TextDecorations.Strikethrough : null, brush)));
+            if ((style & ReaderStyle.Code) != 0)
+            {
+                if (from == span.Start) inserts.Add((from - start, 2, new Spacer(codePad, defaults)));
+                if (to == span.Start + span.Length) inserts.Add((to - start, 0, new Spacer(codePad, defaults)));
+            }
         }
-        return new TextLayout(text, new Typeface(family, FontStyle.Normal, weight), size, foreground, alignment, wrapping, TextTrimming.None, null, FlowDirection.LeftToRight,
-            width, double.PositiveInfinity, LineHeight(b), 0, 0, null, overrides.Count > 0 ? overrides : null);
+        if (pictures is not null)
+            foreach (var (offset, control) in pictures)
+                if (offset >= start && offset <= start + length) inserts.Add((offset - start, 1, new PictureRun(control, control.DesiredSize, defaults)));
+        TextLayout layout;
+        int[] at = [];
+        DrawableTextRun[] runs = [];
+        if (inserts.Count == 0)
+            layout = new TextLayout(text, defaults.Typeface, size, foreground, alignment, wrapping, TextTrimming.None, null, FlowDirection.LeftToRight,
+                width, double.PositiveInfinity, lineHeight ?? LineHeight(b), 0, 0, null, overrides.Count > 0 ? overrides : null);
+        else
+        {
+            var ordered = inserts.OrderBy(i => i.Offset).ThenBy(i => i.Order).ToList();
+            at = [.. ordered.Select(i => i.Offset)];
+            runs = [.. ordered.Select(i => i.Run)];
+            var paragraph = new GenericTextParagraphProperties(FlowDirection.LeftToRight, alignment, true, false, defaults, wrapping, lineHeight ?? LineHeight(b), 0, 0);
+            layout = new TextLayout(new InsertedSource(text, defaults, overrides, at, runs), paragraph, TextTrimming.None, width, double.PositiveInfinity, 0);
+        }
+        return new Box { Layout = layout, Origin = origin, Start = start, Length = length, Clip = clip, Inserts = at, Runs = runs };
+    }
+
+    /// <summary>
+    /// A paragraph with a picture taller than its line, cut into boxes stacked one under the other: runs of ordinary lines keep the line height of the page, and a line with a tall picture gets the
+    /// height it needs (as in a browser, only that line grows). The cuts follow the lines of the whole paragraph, so the text wraps where it did.
+    /// </summary>
+    private List<Box> SplitTallLines(ReaderBlock b, Box whole, IReadOnlyList<(int Offset, Control Control)> pictures, double width, IBrush brush, FontWeight weight)
+    {
+        var parts = new List<Box>();
+        var lines = whole.Layout.TextLines;
+        double y = 0;
+        for (int first = 0; first < lines.Count;)
+        {
+            bool tall = lines[first].Extent > lines[first].Height + 0.5;
+            int last = first;
+            while (!tall && last + 1 < lines.Count && lines[last + 1].Extent <= lines[last + 1].Height + 0.5) last++;
+            int from = lines[first].FirstTextSourceIndex, to = lines[last].FirstTextSourceIndex + lines[last].Length;
+            int start = whole.FromLayout(from), end = last == lines.Count - 1 ? whole.Length : whole.FromLayout(to);
+            var own = pictures.Where(x => whole.PicturePosition(x.Control) is var at && at >= from && at < to).ToList();
+            var part = TextBox(b, start, end - start, width, TextWrapping.Wrap, brush, Sans, weight, new Point(whole.Origin.X, y), pictures: own, lineHeight: tall ? double.NaN : null);
+            parts.Add(part);
+            y += part.Layout.Height;
+            first = last + 1;
+        }
+        return parts;
+    }
+
+    /// <summary>The side padding of inline code in multiples of its font size (github-markdown-css: <c>padding: .2em .4em</c>).</summary>
+    internal const double InlineCodePadEm = 0.4;
+
+    /// <summary>Empty room in a line: the padding at a side of inline code.</summary>
+    private sealed class Spacer(double width, TextRunProperties properties) : DrawableTextRun
+    {
+        public override TextRunProperties Properties => properties;
+        public override Size Size => new(width, 0);
+        public override double Baseline => 0;
+        public override void Draw(DrawingContext drawingContext, Point origin) { }
+    }
+
+    /// <summary>The room of a picture in a sentence; the picture is a child control placed over it, so the run draws nothing.</summary>
+    private sealed class PictureRun(Control control, Size size, TextRunProperties properties) : DrawableTextRun
+    {
+        public Control Control => control;
+        public override TextRunProperties Properties => properties;
+        public override Size Size => size;
+        public override double Baseline => size.Height;
+        public override void Draw(DrawingContext drawingContext, Point origin) { }
+    }
+
+    /// <summary>The text of a box with its runs that are not text placed between the characters; positions count those runs as one each (<see cref="Box.Inserts"/>).</summary>
+    private sealed class InsertedSource(string text, TextRunProperties defaults, IReadOnlyList<ValueSpan<TextRunProperties>> overrides, int[] inserts, DrawableTextRun[] runs) : ITextSource
+    {
+        public TextRun GetTextRun(int textSourceIndex)
+        {
+            int i = 0;
+            for (; i < inserts.Length; i++)
+            {
+                int at = inserts[i] + i;
+                if (textSourceIndex == at) return runs[i];
+                if (textSourceIndex < at) break;
+            }
+            int offset = textSourceIndex - i;
+            if (offset >= text.Length) return new TextEndOfParagraph();
+            int end = i < inserts.Length ? inserts[i] : text.Length;
+            var properties = defaults;
+            foreach (var o in overrides)
+            {
+                if (offset >= o.Start && offset < o.Start + o.Length)
+                {
+                    properties = o.Value;
+                    end = Math.Min(end, o.Start + o.Length);
+                }
+                else if (o.Start > offset) end = Math.Min(end, o.Start);
+            }
+            return new TextCharacters(text.AsMemory(offset, end - offset), properties);
+        }
     }
 
     /// <summary>The child control of a row of pictures or of a diagram; a picture inside a link opens it like a link of the text.</summary>
@@ -595,22 +866,22 @@ internal sealed partial class MarkdownReader : Control
     {
         if (b.Chart is { } chart) return PreviewRenderer.DrawFlowchart(chart);
         var row = new WrapPanel { Orientation = Orientation.Horizontal, ItemSpacing = 4, LineSpacing = 4 };
-        foreach (var image in b.Images)
-        {
-            Control picture = PreviewRenderer.ImageControl(image.Target, image.Alt, _ctx) ?? PreviewImages.Note(Text.K.PreviewPanelImage, image.Alt);
-            if (image.Link >= 0 && image.Link < _doc.Links.Count)
-            {
-                int link = image.Link;
-                var button = new Button { Content = picture };
-                button.Classes.Add("previewlink");
-                Avalonia.Automation.AutomationProperties.SetName(button, Text.Loc.Get(Text.K.PreviewPanelLink, ("text", image.Alt), ("url", _doc.Links[link].Target)));
-                ToolTip.SetTip(button, _doc.Links[link].Target);
-                button.Click += (_, _) => ActivateLink(link);
-                picture = button;
-            }
-            row.Children.Add(picture);
-        }
+        foreach (var image in b.Images) row.Children.Add(PictureControl(image));
         return row;
+    }
+
+    /// <summary>The control of one picture, or the note that stands for it; inside a link it is a button that follows the link.</summary>
+    private Control PictureControl(ReaderImage image)
+    {
+        Control picture = PreviewRenderer.ImageControl(image.Target, image.Alt, _ctx) ?? PreviewImages.Note(Text.K.PreviewPanelImage, image.Alt);
+        if (image.Link < 0 || image.Link >= _doc.Links.Count) return picture;
+        int link = image.Link;
+        var button = new Button { Content = picture };
+        button.Classes.Add("previewlink");
+        Avalonia.Automation.AutomationProperties.SetName(button, Text.Loc.Get(Text.K.PreviewPanelLink, ("text", image.Alt), ("url", _doc.Links[link].Target)));
+        ToolTip.SetTip(button, _doc.Links[link].Target);
+        button.Click += (_, _) => ActivateLink(link);
+        return button;
     }
 
     // ---- drawing ----
@@ -691,17 +962,11 @@ internal sealed partial class MarkdownReader : Control
         var origin = new Point(box.Origin.X - scroll, top + box.Origin.Y);
         using var clip = box.Clip > 0 ? dc.PushClip(new Rect(box.Origin.X, top, box.Clip, _heights[index])) : default(DrawingContext.PushedState?);
         if (b.Kind != ReaderBlockKind.Code)
-            foreach (var span in b.Spans)
-            {
-                if ((span.Style & ReaderStyle.Code) == 0) continue;
-                int from = Math.Max(span.Start, box.Start), to = Math.Min(span.Start + span.Length, box.Start + box.Length);
-                if (to <= from) continue;
-                foreach (var r in box.Layout.HitTestTextRange(from - box.Start, to - from))
-                    dc.DrawRectangle(p.InlineCode, null, new RoundedRect(new Rect(origin.X + r.X - 0.2 * Em * 0.85, origin.Y + r.Y + r.Height * 0.12, r.Width + 0.4 * Em * 0.85, r.Height * 0.8), 6));
-            }
+            foreach (var r in InlineCodeRects(b, box))
+                dc.DrawRectangle(p.InlineCode, null, new RoundedRect(new Rect(origin.X + r.X, origin.Y + r.Y, r.Width, r.Height), 6));
         int s = Math.Max(selStart - b.DocStart, box.Start), e = Math.Min(selEnd - b.DocStart, box.Start + box.Length);
         if (e > s)
-            foreach (var r in box.Layout.HitTestTextRange(s - box.Start, e - s))
+            foreach (var r in box.Range(s - box.Start, e - box.Start))
                 dc.FillRectangle(p.Selection, new Rect(origin.X + r.X, origin.Y + r.Y, Math.Max(r.Width, 3), r.Height));
         box.Layout.Draw(dc, origin);
         foreach (var span in b.Spans)
@@ -709,11 +974,31 @@ internal sealed partial class MarkdownReader : Control
             if (span.Link < 0 || (span.Link != _hoverLink && !(span.Link == _focusedLink && IsFocused))) continue;
             int from = Math.Max(span.Start, box.Start), to = Math.Min(span.Start + span.Length, box.Start + box.Length);
             if (to <= from) continue;
-            foreach (var r in box.Layout.HitTestTextRange(from - box.Start, to - from))
+            foreach (var r in box.Range(from - box.Start, to - box.Start))
             {
                 if (span.Link == _hoverLink) dc.FillRectangle(p.Link, new Rect(origin.X + r.X, origin.Y + r.Bottom - r.Height * 0.18, r.Width, 1));
                 if (span.Link == _focusedLink && IsFocused) dc.DrawRectangle(null, new Pen(p.Link, 1), new Rect(origin.X + r.X - 1, origin.Y + r.Y, r.Width + 2, r.Height));
             }
+        }
+    }
+
+    /// <summary>
+    /// The backgrounds of the inline code of a box relative to its origin, one per line the code stands on: over the text and its side padding, 0.2em of the code font above and below its glyphs,
+    /// centred on the line.
+    /// </summary>
+    private IEnumerable<Rect> InlineCodeRects(ReaderBlock b, Box box)
+    {
+        double codeSize = 0.85 * FontSize(b), height = (1.2 + 2 * 0.2) * codeSize;
+        foreach (var span in b.Spans)
+        {
+            if ((span.Style & ReaderStyle.Code) == 0) continue;
+            int from = Math.Max(span.Start, box.Start) - box.Start, to = Math.Min(span.Start + span.Length, box.Start + box.Length) - box.Start;
+            if (to <= from) continue;
+            int first = box.ToLayout(from), last = box.EndToLayout(to);
+            if (span.Start >= box.Start) first--; // the padding before the code
+            if (span.Start + span.Length <= box.Start + box.Length) last++; // and after it
+            foreach (var r in box.Layout.HitTestTextRange(first, last - first))
+                yield return new Rect(r.X, r.Y + Math.Max(0, (r.Height - height) / 2), r.Width, Math.Min(r.Height, height));
         }
     }
 

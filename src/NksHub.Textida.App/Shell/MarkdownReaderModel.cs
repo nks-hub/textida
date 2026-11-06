@@ -40,6 +40,9 @@ internal sealed class ReaderContainer
 
 internal sealed record ReaderImage(string Target, string Alt, int Link);
 
+/// <summary>A picture that stands in a sentence: it is drawn in the flow of the text before the character at <see cref="Offset"/> and adds no character of its own.</summary>
+internal readonly record struct ReaderPicture(int Offset, ReaderImage Image);
+
 /// <summary>A link of the page: a web or mail address the policy allows (<see cref="External"/>) or a line of the source to jump to (<see cref="Line"/>).</summary>
 internal sealed record ReaderLink(string Target, string Label, Uri? External, int? Line);
 
@@ -84,6 +87,8 @@ internal sealed class ReaderBlock
     /// <summary>Where each cell of a table row starts in <see cref="Text"/>; the cells are separated by a tab.</summary>
     public int[] Cells { get; init; } = [];
     public ReaderImage[] Images { get; init; } = [];
+    /// <summary>The pictures of a paragraph that has text as well, in the order they stand.</summary>
+    public ReaderPicture[] Pictures { get; set; } = [];
     public Flowchart? Chart { get; init; }
 
     public int CellEnd(int cell) => cell + 1 < Cells.Length ? Cells[cell + 1] - 1 : Text.Length;
@@ -286,18 +291,22 @@ internal static class MarkdownReaderModel
             return roman.ToString();
         }
 
+        /// <summary>A paragraph of pictures only is a row of pictures (GitHub's badges); pictures in a sentence stay in its flow.</summary>
         private void Paragraph(ParagraphBlock paragraph, ReaderContainer[] path)
         {
-            var images = new List<ReaderImage>();
+            var images = new List<ReaderPicture>();
             var block = new ReaderBlock { Kind = ReaderBlockKind.Paragraph, Path = path, Tight = TightIn(path), Small = SmallIn(path) };
             var inlines = new Inlines(this, images);
             inlines.Walk(paragraph.Inline, ReaderStyle.None, -1);
-            bool onlyPictures = images.Count > 0 && string.IsNullOrWhiteSpace(inlines.Text.ToString());
-            if (!onlyPictures) Finish(block, paragraph, inlines);
-            if (images.Count == 0) return;
+            if (images.Count == 0 || !string.IsNullOrWhiteSpace(inlines.Text.ToString()))
+            {
+                block.Pictures = [.. images];
+                Finish(block, paragraph, inlines);
+                return;
+            }
             Add(new ReaderBlock
             {
-                Kind = ReaderBlockKind.Images, Path = path, Images = [.. images], Tight = block.Tight, Small = block.Small,
+                Kind = ReaderBlockKind.Images, Path = path, Images = [.. images.Select(p => p.Image)], Tight = block.Tight, Small = block.Small,
                 Line = paragraph.Line, EndLine = LineOf(paragraph.Span.End), SourceStart = paragraph.Span.Start, SourceEnd = paragraph.Span.End,
             });
         }
@@ -518,8 +527,8 @@ internal static class MarkdownReaderModel
             };
         }
 
-        /// <summary>Collects the text and styled runs of inlines; pictures go to <c>images</c> when a list is given, else they stay their alt text.</summary>
-        private sealed class Inlines(Builder owner, List<ReaderImage>? images)
+        /// <summary>Collects the text and styled runs of inlines; pictures go to <c>images</c> with the place they stand at when a list is given, else they stay their alt text.</summary>
+        private sealed class Inlines(Builder owner, List<ReaderPicture>? images)
         {
             public readonly StringBuilder Text = new();
             public readonly List<ReaderSpan> Spans = [];
@@ -584,7 +593,7 @@ internal static class MarkdownReaderModel
                             Walk(emphasis, style | (emphasis.DelimiterCount >= 2 ? ReaderStyle.Bold : ReaderStyle.None) | (emphasis.DelimiterCount % 2 == 1 ? ReaderStyle.Italic : ReaderStyle.None), link, inCell);
                             break;
                         case LinkInline { IsImage: true } image:
-                            if (images is not null) images.Add(new ReaderImage(image.Url ?? "", MarkdownSyntax.Text(image), link));
+                            if (images is not null) images.Add(new ReaderPicture(Text.Length, new ReaderImage(image.Url ?? "", MarkdownSyntax.Text(image), link)));
                             else Emit(MarkdownSyntax.Text(image), style, link, -1);
                             break;
                         case LinkInline target:

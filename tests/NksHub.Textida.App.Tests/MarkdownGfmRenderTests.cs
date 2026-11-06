@@ -258,6 +258,171 @@ public class MarkdownGfmRenderTests(ITestOutputHelper output) : IDisposable
         Assert.Equal((colour.R, colour.G, colour.B), drawn);
     }
 
+    // ---- inline code padding, measured tables, code scrolled from the keyboard, pictures in a sentence ----
+
+    /// <summary>A 32 by 16 and a 24 by 48 pixel picture.</summary>
+    private const string Wide = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAQCAYAAAB3AH1ZAAAAJElEQVR42mPgzLz1fyAxw6gDRh0w6oBRB4w6YNQBow4YaAcAAHo2lj2DhktHAAAAAElFTkSuQmCC";
+    private const string Tall = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAwCAYAAAALiLqjAAAAMUlEQVR42u3NMQkAAAgAMDsJ9s9hGU3hIezYvejKuRQCgUAgEAgEAoFAIBAIBIJPwQJhVymXNfXQ4gAAAABJRU5ErkJggg==";
+
+    [AvaloniaFact]
+    public void Inline_code_has_the_side_padding_of_github_and_keeps_the_offsets_of_the_text()
+    {
+        var host = Host("say `code` now and `more` end");
+        var b = host.Doc.Blocks[0];
+        Assert.Equal("say code now and more end", b.Text);
+        double pad = MarkdownReader.InlineCodePadEm * 0.85 * 16;
+        var space = Assert.Single(host.Reader.RangeBounds(0, 3, 4));
+        var word = Assert.Single(host.Reader.RangeBounds(0, 4, 8));
+        var after = Assert.Single(host.Reader.RangeBounds(0, 8, 9));
+        Assert.Equal(pad, word.Left - space.Right, 2); // room between the space and the code
+        Assert.Equal(pad, after.Left - word.Right, 2);
+        var background = host.Reader.InlineCodeBounds(0);
+        Assert.Equal(2, background.Count);
+        Assert.Equal(word.Left - pad, background[0].Left, 2);
+        Assert.Equal(word.Right + pad, background[0].Right, 2);
+        Assert.True(background[0].Height < word.Height && background[0].Center.Y > word.Top && background[0].Center.Y < word.Bottom);
+
+        host.Reader.Select(b.DocStart + 4, b.DocStart + 8);
+        Assert.Equal("code", host.Reader.SelectedText());
+        for (int offset = 0; offset < b.Text.Length; offset++)
+            Assert.Equal(b.DocStart + offset, host.Reader.PositionAt(host.Reader.PointAt(b.DocStart + offset)!.Value));
+    }
+
+    [AvaloniaFact]
+    public void Inline_code_that_wraps_keeps_its_background_on_each_line_and_every_position()
+    {
+        var host = Host("Some words before `a rather long piece of inline code that has to wrap over lines` and after.", width: 300);
+        var b = host.Doc.Blocks[0];
+        var layout = host.Reader.LayoutOf(0)!;
+        Assert.True(layout.TextLines.Count >= 3);
+        Assert.True(host.Reader.InlineCodeBounds(0).Count >= 2);
+        Assert.All(layout.TextLines, line => Assert.True(line.Width <= host.Reader.BlockBounds(0).Width + 0.5));
+        for (int offset = 0; offset < b.Text.Length; offset++)
+            Assert.Equal(b.DocStart + offset, host.Reader.PositionAt(host.Reader.PointAt(b.DocStart + offset)!.Value));
+    }
+
+    [AvaloniaFact]
+    public void Table_columns_are_as_wide_as_their_text_laid_out_not_as_their_characters()
+    {
+        var host = Host("| A | B |\n|---|---|\n| WWWWWWWWWWWW | iiiiiiiiiiii |\n| x | y |\n");
+        int row = host.Find(b => b.Kind == ReaderBlockKind.TableRow && b.Text.StartsWith('W'));
+        var widths = host.Reader.ColumnWidths(0);
+        Assert.Equal(2, widths.Count);
+        Assert.Equal(host.Doc.Tables[0].Chars[0], host.Doc.Tables[0].Chars[1]); // the same number of characters
+        Assert.True(widths[0] > 2 * widths[1], $"{widths[0]} against {widths[1]}");
+        double padding = 26 + 2;
+        for (int c = 0; c < 2; c++)
+        {
+            var cell = host.Reader.LayoutOf(row, c)!;
+            Assert.Single(cell.TextLines); // the widest cell fits its column on one line
+            Assert.True(widths[c] - padding - cell.WidthIncludingTrailingWhitespace is >= -0.01 and < 2, $"column {c}: {widths[c]} for {cell.WidthIncludingTrailingWhitespace}");
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_long_code_line_scrolls_sideways_with_the_keys_while_the_caret_is_in_its_block()
+    {
+        var host = Host("Intro text.\n\n```\n" + string.Concat(Enumerable.Repeat("token ", 80)) + "\n```\n", width: 600);
+        int code = host.Find(b => b.Kind == ReaderBlockKind.Code);
+        int group = host.Doc.Blocks[code].Group;
+        host.Reader.Focus();
+        host.Settle();
+        void Press(Avalonia.Input.Key key, Avalonia.Input.PhysicalKey physical)
+        {
+            host.Window.KeyPress(key, Avalonia.Input.RawInputModifiers.None, physical, null);
+            host.Settle();
+        }
+
+        host.Reader.Select(2, 2); // the caret in the paragraph: the keys leave the code alone
+        Assert.Equal(-1, host.Reader.CodeGroupAtCaret());
+        Press(Avalonia.Input.Key.Right, Avalonia.Input.PhysicalKey.ArrowRight);
+        Assert.Equal(0, host.Reader.CodeScroll(group));
+
+        int inCode = host.Doc.Blocks[code].DocStart + 3;
+        host.Reader.Select(inCode, inCode);
+        Assert.Equal(group, host.Reader.CodeGroupAtCaret());
+        Press(Avalonia.Input.Key.Right, Avalonia.Input.PhysicalKey.ArrowRight);
+        double step = host.Reader.CodeScroll(group);
+        Assert.True(step > 0);
+        Press(Avalonia.Input.Key.Right, Avalonia.Input.PhysicalKey.ArrowRight);
+        Assert.Equal(2 * step, host.Reader.CodeScroll(group), 3);
+        Press(Avalonia.Input.Key.Left, Avalonia.Input.PhysicalKey.ArrowLeft);
+        Assert.Equal(step, host.Reader.CodeScroll(group), 3);
+        Press(Avalonia.Input.Key.End, Avalonia.Input.PhysicalKey.End);
+        var box = host.Reader.LayoutOf(code)!;
+        double clip = host.Reader.BlockBounds(code).Width - 32;
+        Assert.Equal(box.WidthIncludingTrailingWhitespace - clip, host.Reader.CodeScroll(group), 1); // the end of the line at the right edge
+        Press(Avalonia.Input.Key.Home, Avalonia.Input.PhysicalKey.Home);
+        Assert.Equal(0, host.Reader.CodeScroll(group));
+        Assert.True(host.Reader.OwnsKey(new Avalonia.Input.KeyEventArgs { Key = Avalonia.Input.Key.End }));
+    }
+
+    [AvaloniaFact]
+    public void A_picture_in_a_sentence_stands_between_its_words_and_adds_no_text()
+    {
+        var host = Host($"Before ![dot]({Wide}) after the picture.\n\n![one]({Wide}) ![two]({Wide})\n");
+        var b = host.Doc.Blocks[0];
+        Assert.Equal("Before  after the picture.", b.Text);
+        Assert.Equal(7, Assert.Single(b.Pictures).Offset);
+        Assert.Equal(2, Assert.Single(host.Doc.Blocks, x => x.Kind == ReaderBlockKind.Images).Images.Length); // pictures alone stay a row
+        Assert.DoesNotContain(host.Doc.Blocks, x => x.Kind == ReaderBlockKind.Images && x.Images.Any(i => i.Alt == "dot"));
+
+        var (control, bounds) = Assert.Single(host.Reader.InlinePictures(0));
+        Assert.Equal("dot", Avalonia.Automation.AutomationProperties.GetName(control));
+        Assert.Equal((32.0, 16.0), (bounds.Width, bounds.Height));
+        var before = Assert.Single(host.Reader.RangeBounds(0, 0, 6));
+        var after = Assert.Single(host.Reader.RangeBounds(0, 8, 13));
+        Assert.True(bounds.Left >= before.Right && bounds.Right <= after.Left, $"{bounds} between {before} and {after}");
+        Assert.True(bounds.Top >= before.Top && bounds.Bottom <= before.Bottom, $"{bounds} on the line {before}");
+        Assert.Equal(24, host.Reader.LayoutOf(0)!.TextLines[0].Height, 3); // a small picture does not change the line
+        Assert.Equal(b.DocStart + 8, host.Reader.PositionAt(new Point(after.Left + 1, after.Center.Y)));
+        host.Reader.SelectAll();
+        Assert.StartsWith("Before  after the picture.", host.Reader.SelectedText(), StringComparison.Ordinal);
+    }
+
+    [AvaloniaFact]
+    public void A_tall_picture_makes_its_line_taller_and_stays_inside_its_block()
+    {
+        var host = Host($"First paragraph.\n\nA tall ![bar]({Tall}) picture in the text.\n\nLast paragraph.\n");
+        int p = host.Find(b => b.Text.StartsWith("A tall", StringComparison.Ordinal));
+        var (_, bounds) = Assert.Single(host.Reader.InlinePictures(p));
+        var block = host.Reader.BlockBounds(p);
+        Assert.Equal(48, bounds.Height, 3);
+        Assert.True(bounds.Top >= block.Top - 0.5 && bounds.Bottom <= block.Bottom + 0.5, $"{bounds} inside {block}");
+        Assert.True(block.Height >= 48);
+        var word = Assert.Single(host.Reader.RangeBounds(p, 0, 6));
+        Assert.True(Math.Abs(bounds.Bottom - (word.Top + host.Reader.LayoutOf(p)!.TextLines[0].Baseline)) < 1, "the picture sits on the baseline");
+
+        // in a paragraph of several lines only the line of the picture grows, and every place of the text is still found where it is drawn
+        var wrapped = Host("Words that fill the first line of this narrow page and then a tall ![bar](" + Tall + ") picture stands in a later line, followed by more words to wrap.", 320);
+        var text = wrapped.Doc.Blocks[0];
+        var parts = Enumerable.Range(0, 8).Select(i => wrapped.Reader.LayoutOf(0, i)).OfType<Avalonia.Media.TextFormatting.TextLayout>().ToList();
+        Assert.True(parts.Count >= 2, "the paragraph is cut at the tall line");
+        var lines = parts.SelectMany(l => l.TextLines).ToList();
+        Assert.Equal(1, lines.Count(l => l.Height > 40));
+        Assert.All(lines.Where(l => l.Height <= 40), l => Assert.Equal(24, l.Height, 3));
+        Assert.Equal(lines.Sum(l => l.Height), wrapped.Reader.BlockBounds(0).Height, 1);
+        var (_, picture) = Assert.Single(wrapped.Reader.InlinePictures(0));
+        Assert.True(picture.Top >= wrapped.Reader.BlockBounds(0).Top - 0.5);
+        for (int offset = 0; offset < text.Text.Length; offset++)
+            Assert.Equal(text.DocStart + offset, wrapped.Reader.PositionAt(wrapped.Reader.PointAt(text.DocStart + offset)!.Value));
+    }
+
+    [AvaloniaFact]
+    public void The_follow_ups_render_to_a_picture()
+    {
+        var host = Host("Text with `inline code` and a picture ![dot](" + Wide + ") in the line, then more `code`.\n\n"
+            + "| Wide column | n |\n|---|---|\n| WWWWWWWWWWWW | iiiiiiiiiiii |\n\n```\n" + string.Concat(Enumerable.Repeat("long ", 60)) + "\n```\n", 700, 500);
+        var frame = host.Window.CaptureRenderedFrame();
+        Assert.NotNull(frame);
+        string folder = Environment.GetEnvironmentVariable("TEXTIDA_MD_RENDER_OUT") is { Length: > 0 } wanted ? wanted : Path.Combine(Path.GetTempPath(), "textida-md-render");
+        Directory.CreateDirectory(folder);
+        string file = Path.Combine(folder, "follow-ups.png");
+        frame!.Save(file);
+        output.WriteLine(file);
+        Assert.True(new FileInfo(file).Length > 5_000);
+    }
+
     [AvaloniaTheory, InlineData("Light"), InlineData("Dark")]
     public void The_text_bars_and_links_of_the_page_stand_out_in_both_themes(string name)
     {
