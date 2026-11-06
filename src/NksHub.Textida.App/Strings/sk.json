@@ -3053,5 +3053,15 @@
   "zoom.resetItem": "Pôvodná veľkosť (100 %)",
   "dialog.about.link.publisher": "Autor a vydavateľ",
   "dialog.about.link.organization": "GitHub NKS Hub",
-  "dialog.about.link.contact": "Kontakt"
+  "dialog.about.link.contact": "Kontakt",
+  "json.pretty.status": "Formátovaný JSON, riadok {line}: {path}",
+  "json.pretty.scanning": "prechádza sa súbor, {percent} %",
+  "json.pretty.invalid": "Neplatný JSON od bajtu {offset}, ďalej sa ukazuje pôvodný text",
+  "json.pretty.encoding": "Formátovaný pohľad vie len kódovanie UTF-8 a jednobajtové kódovania. Preveďte súbor alebo použite textový pohľad.",
+  "json.pretty.notHere": "Sem nemožno písať: vo formátovanom pohľade sa upravujú len kľúče a hodnoty. Štruktúru meňte v textovom pohľade.",
+  "json.pretty.notScanned": "Koniec tohto bloku ešte nebol načítaný. Skúste to znova, keď sa súbor prejde.",
+  "json.goToKey.title": "Prejsť na kľúč",
+  "json.goToKey.label": "Názov kľúča bez úvodzoviek. Hľadá sa presná zhoda od kurzora ďalej, potom od začiatku súboru.",
+  "json.goToKey.notFound": "Kľúč „{key}“ v súbore nie je.",
+  "a11y.jsonPretty": "Formátovaný JSON"
 }

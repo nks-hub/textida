@@ -13,7 +13,7 @@ internal sealed partial class MainWindow
     private string? _menuPathSeen;
 
     /// <summary>The tab shows its document as text in an editor: not as hex, a picture, a rendered page, a table or a comparison.</summary>
-    internal static bool TextViewShown(DocTab? tab) => tab is { Custom: null, Hex: null, TableShown: false } && (tab.Surface is not null || tab.Paged is not null);
+    internal static bool TextViewShown(DocTab? tab) => tab is { Custom: null, Hex: null, OverlayShown: false } && (tab.Surface is not null || tab.Paged is not null);
 
     /// <summary>The document of the tab is shown with a rendered Markdown page: reading, editing with the page beside it, or the live preview under the editor.</summary>
     internal bool MarkdownPreviewShown(DocTab? tab) => tab is not null && (tab.Doc.Mode is ViewMode.Read or ViewMode.Edit || ReferenceEquals(_liveTab, tab));

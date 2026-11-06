@@ -510,6 +510,8 @@
   "cat.hex": "Hex",
   "cmd.view.hex": "Hex-Ansicht umschalten",
   "cmd.view.table": "Tabellenansicht umschalten",
+  "cmd.view.jsonPretty": "Formatiertes JSON umschalten",
+  "cmd.json.goToKey": "Zu JSON-Schlüssel springen...",
   "cmd.view.cycleMode": "Anzeigemodus wechseln",
   "cmd.view.modeRead": "Markdown: Lesen",
   "cmd.view.modeEdit": "Markdown: Bearbeiten",

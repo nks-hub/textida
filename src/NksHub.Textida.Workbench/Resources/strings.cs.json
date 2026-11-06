@@ -510,6 +510,8 @@
   "cat.hex": "Hex",
   "cmd.view.hex": "Přepnout hex a text",
   "cmd.view.table": "Přepnout tabulku a text",
+  "cmd.view.jsonPretty": "Přepnout formátovaný JSON a text",
+  "cmd.json.goToKey": "Přejít na klíč JSON...",
   "cmd.view.cycleMode": "Přepnout režim zobrazení",
   "cmd.view.modeRead": "Markdown: čtení",
   "cmd.view.modeEdit": "Markdown: úpravy",

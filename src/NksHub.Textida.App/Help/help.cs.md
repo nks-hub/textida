@@ -1813,6 +1813,17 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Když je znak uvozovek vypnutý v Oddělovač a záhlaví tabulky, hodnota s oddělovačem nebo zalomením řádku se odmítne.
 - Dokud je zapnutý filtr, nelze přidat řádek.
 
+## [json.pretty] Formátovaný JSON
+commands: nks.view.jsonPretty, nks.json.goToKey
+Soubor JSON, i stovky MiB až GiB velký a celý na jednom řádku, lze zobrazit formátovaně: každý klíč, hodnota a závorka na vlastním řádku, odsazené podle hloubky. Je to jen zobrazení stejného dokumentu, soubor se nepřepisuje a uložení beze změn nezmění jediný bajt.
+1. Ctrl+K a pak Ctrl+J (nabídka Zobrazit, Režim zobrazení, Přepnout formátovaný JSON a text) přepíná mezi formátovaným pohledem a textem. Kurzor zůstane na stejném místě souboru.
+2. Klepnutí na trojúhelník u čísla řádku nebo Ctrl+Shift+[ sbalí objekt či pole, Ctrl+Shift+] ho zase rozbalí.
+3. Zobrazit, Režim zobrazení, Přejít na klíč JSON se zeptá na název klíče a přesune kurzor na jeho další výskyt; stavový řádek ukazuje cestu ke klíči u kurzoru, například $.items[3].name.
+- Soubor se prochází na pozadí, první obrazovka je hned. Dokud se nedojde na konec, stavový řádek ukazuje, kolik procent je prošlé, a sbalit lze jen blok, jehož konec už je načtený („Konec tohoto bloku ještě nebyl načten“).
+- Psát lze jen do klíčů a hodnot; změní se jen jejich bajty. Na odsazení, závorky a čárky se psát nedá („Sem nelze psát“), strukturu měňte v textovém pohledu.
+- Od místa, kde JSON přestává být platný, se ukazuje původní text a v rohu hlášení „Neplatný JSON od bajtu…“ s místem chyby. Komentáře (JSONC) se berou jako chyba.
+- Hodnota delší než 4 KiB se ukáže zkrácená se třemi tečkami. Formátovaný pohled umí jen UTF-8 a jednobajtová kódování.
+
 ## [table.copyAs] Kopírování buněk jako Markdown, SQL, JSON nebo HTML
 commands: nks.table.copyAs
 Označte buňky v tabulkovém pohledu a zvolte Zobrazit, Tabulka, Kopírovat tabulku jako a pak podobu. Do schránky se uloží označené sloupce a řádky v té podobě.

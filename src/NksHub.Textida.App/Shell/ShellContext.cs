@@ -20,7 +20,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.HasDocument => Bool(tab is not null),
             ContextKeys.Language => tab?.Doc.Language.Id ?? "",
             ContextKeys.HasSelection => Bool(tab?.Surface?.HasSelection == true || tab?.Paged?.HasSelection == true),
-            ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.TableShown), // the paged view takes only the edits it implements
+            ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.OverlayShown), // the paged view takes only the edits it implements
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),

@@ -94,10 +94,10 @@ internal static class AppCommands
         registry.SetHandler("nks.edit.paste", (_, _) =>
         {
             if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
-            bool text = w.ActiveTable is null && w.ActiveHex is null && w.Active?.Paged is null && w.ActiveEditor is not null;
+            bool text = w.ActiveTable is null && w.ActiveHex is null && w.ActivePaged is null && w.ActiveEditor is not null;
             var pasting = w.PasteAsync();
             if (text) return new ValueTask<CommandOutcome>(pasting);
-            return done(w.ActiveEditor is null && w.ActiveHex is null && w.Active?.Paged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled);
+            return done(w.ActiveEditor is null && w.ActiveHex is null && w.ActivePaged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled);
         });
         foreach (var (id, step, extend) in EditorSurface.StepCommands)
             On(id, w => w.ActiveEditor is { } s && s.Step(step, extend) ? CommandOutcome.Handled : CommandOutcome.NotHandled);
@@ -105,7 +105,7 @@ internal static class AppCommands
         {
             if (w.ActiveTable is { } table) { table.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveHex is { } hex) { hex.SelectAll(); return CommandOutcome.Handled; }
-            if (w.Active?.Paged is { } paged) { paged.SelectAll(); return CommandOutcome.Handled; }
+            if (w.ActivePaged is { } paged) { paged.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled;
             s.SelectAll();
             return CommandOutcome.Handled;
@@ -116,7 +116,7 @@ internal static class AppCommands
             On(id, w =>
             {
                 if (w.ActiveEditor is { } s) { surface(s); return CommandOutcome.Handled; }
-                if (w.Active is not { TableShown: false, Paged: { } p }) return CommandOutcome.NotHandled;
+                if (w.Active is not { OverlayShown: false, Paged: { } p }) return CommandOutcome.NotHandled;
                 _ = paged(p);
                 return CommandOutcome.Handled;
             });
@@ -456,6 +456,8 @@ internal static class AppCommands
         Do("nks.compare.ignoreCase", w => w.ToggleCompareIgnoreCase());
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());
         On("nks.view.table", w => w.ToggleTable());
+        On("nks.view.jsonPretty", w => w.ToggleJsonPretty());
+        On("nks.json.goToKey", w => { if (w.Active is not { Custom: null, Hex: null }) return CommandOutcome.NotHandled; _ = w.GoToJsonKeyAsync(); return CommandOutcome.Handled; });
         On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
         On("nks.table.dialect", w => { w.ShowTableDialectMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.table.insertRow", w => w.TableCommand(t => t.InsertRow()));

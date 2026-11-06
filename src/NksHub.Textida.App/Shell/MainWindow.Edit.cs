@@ -17,7 +17,10 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed partial class MainWindow
 {
-    internal EditorSurface? ActiveEditor => Active is { TableShown: false } tab ? tab.Surface : null;
+    internal EditorSurface? ActiveEditor => Active is { OverlayShown: false } tab ? tab.Surface : null;
+
+    /// <summary>The paged view of the active tab unless the formatted JSON view lies over it.</summary>
+    internal PagedTextView? ActivePaged => Active is { JsonShown: false } tab ? tab.Paged : null;
 
     // ---- keys ----
 
@@ -113,12 +116,17 @@ internal sealed partial class MainWindow
             table.UndoRedo(redo);
             return;
         }
+        if (ActiveJson is { } json)
+        {
+            json.UndoRedo(redo);
+            return;
+        }
         if (Active?.Hex is { } hex)
         {
             hex.UndoRedo(redo);
             return;
         }
-        if (Active?.Paged is { } paged)
+        if (ActivePaged is { } paged)
         {
             paged.UndoRedo(redo);
             return;
@@ -242,7 +250,7 @@ internal sealed partial class MainWindow
 
     private CommandOutcome? PagedCopy(bool cut)
     {
-        if (Active?.Paged is not { } paged) return null;
+        if (ActivePaged is not { } paged) return null;
         _ = paged.CopyAsync(cut);
         return CommandOutcome.Handled;
     }
@@ -277,7 +285,7 @@ internal sealed partial class MainWindow
     {
         if (ActiveTable is { } table) return await TablePasteAsync(table);
         if (ActiveHex is not null) return HexPaste();
-        if (Active?.Paged is { } paged)
+        if (ActivePaged is { } paged)
         {
             await paged.PasteAsync();
             return CommandOutcome.Handled;

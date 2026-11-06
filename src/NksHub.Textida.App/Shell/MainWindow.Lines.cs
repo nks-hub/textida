@@ -27,7 +27,7 @@ internal sealed partial class MainWindow
     /// <summary>Ctrl+Shift+V: the last copied texts with a preview; the chosen one is pasted at every caret as one undo step.</summary>
     internal CommandOutcome ShowClipboardHistory()
     {
-        bool canPaste = Active?.Paged is not null || ActiveEditor is { IsReadOnly: false };
+        bool canPaste = ActivePaged is not null || ActiveEditor is { IsReadOnly: false };
         if (!canPaste) return CommandOutcome.NotHandled;
         var rows = _app.ClipboardHistory.Items.Select(text =>
         {
@@ -42,7 +42,7 @@ internal sealed partial class MainWindow
 
     private void PasteFromHistory(string text)
     {
-        if (Active?.Paged is { } paged) paged.PasteText(text);
+        if (ActivePaged is { } paged) paged.PasteText(text);
         else if (ActiveEditor is { IsReadOnly: false } surface) PasteText(surface, text);
     }
 

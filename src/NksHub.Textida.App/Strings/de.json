@@ -2997,5 +2997,15 @@
   "zoom.resetItem": "Ursprüngliche Größe (100 %)",
   "dialog.about.link.publisher": "Autor und Herausgeber",
   "dialog.about.link.organization": "GitHub von NKS Hub",
-  "dialog.about.link.contact": "Kontakt"
+  "dialog.about.link.contact": "Kontakt",
+  "json.pretty.status": "Formatiertes JSON, Zeile {line}: {path}",
+  "json.pretty.scanning": "Datei wird gelesen, {percent} %",
+  "json.pretty.invalid": "Ungültiges JSON ab Byte {offset}, danach wird der Originaltext gezeigt",
+  "json.pretty.encoding": "Die formatierte Ansicht liest nur UTF-8 und Ein-Byte-Kodierungen. Konvertieren Sie die Datei oder nutzen Sie die Textansicht.",
+  "json.pretty.notHere": "Hier kann nicht geschrieben werden: In der formatierten Ansicht lassen sich nur Schlüssel und Werte bearbeiten. Die Struktur ändern Sie in der Textansicht.",
+  "json.pretty.notScanned": "Das Ende dieses Blocks wurde noch nicht gelesen. Versuchen Sie es erneut, wenn die Datei gelesen ist.",
+  "json.goToKey.title": "Zu Schlüssel springen",
+  "json.goToKey.label": "Name des Schlüssels ohne Anführungszeichen. Gesucht wird die genaue Übereinstimmung ab dem Cursor, dann ab dem Dateianfang.",
+  "json.goToKey.notFound": "Der Schlüssel „{key}“ kommt in der Datei nicht vor.",
+  "a11y.jsonPretty": "Formatiertes JSON"
 }
