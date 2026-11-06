@@ -27,6 +27,7 @@ public sealed class FolderChangeWatcher : IDisposable
     private Timer? _timer;
     private int _dropped;
     private bool _disposed;
+    private DateTime _started;
 
     public FolderChangeWatcher(IEnumerable<string> roots, TimeSpan delay, int maxFiles)
     {
@@ -49,6 +50,7 @@ public sealed class FolderChangeWatcher : IDisposable
         {
             if (_disposed || _timer is not null) return;
             _timer = new Timer(_ => Flush());
+            _started = DateTime.UtcNow;
             for (int i = 0; i < _filters.Length; i++)
                 if (Directory.Exists(_filters[i].Root)) Watch(i);
         }
@@ -71,10 +73,21 @@ public sealed class FolderChangeWatcher : IDisposable
             return;
         }
         watcher.Changed += (_, e) => Poke(e.FullPath, index, created: false);
-        watcher.Created += (_, e) => Poke(e.FullPath, index, created: true);
+        watcher.Created += (_, e) => Poke(e.FullPath, index, created: BornSince(e.FullPath, _started));
         watcher.Renamed += (_, e) => Poke(e.FullPath, index, created: false);
         watcher.EnableRaisingEvents = true;
         _watchers.Add(watcher);
+    }
+
+    /// <summary>
+    /// False for a file that existed before <paramref name="sinceUtc"/>. FSEvents of macOS keeps the "created" flag of a file in the events of the writes that follow soon after,
+    /// so a write into a file made a moment before the watch began arrives as a creation; its birth time tells the two apart. Elsewhere, and for a path that is gone, true.
+    /// </summary>
+    internal static bool BornSince(string path, DateTime sinceUtc)
+    {
+        if (!OperatingSystem.IsMacOS()) return true;
+        try { return !Path.Exists(path) || File.GetCreationTimeUtc(path) >= sinceUtc; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return true; }
     }
 
     private void Poke(string path, int index, bool created)
