@@ -6,6 +6,9 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Platform;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -17,7 +20,7 @@ using NksHub.Textida.Workbench.Toolbar;
 
 namespace NksHub.Textida.App.Tests;
 
-/// <summary>P3.6.13: the user toolbar. Off by default, switched on in the View menu, buttons from toolbar.json with an editor, and a button whose command is missing stays hidden.</summary>
+/// <summary>P3.6.13: the user toolbar. On by default, switched off and on in the View menu, buttons from toolbar.json with an editor, and a button whose command is missing stays hidden.</summary>
 [Collection("LocState")]
 public class ToolbarTests : IDisposable
 {
@@ -35,6 +38,8 @@ public class ToolbarTests : IDisposable
 
     public void Dispose()
     {
+        _app.Contrast.Restore();
+        _app.RequestedThemeVariant = ThemeVariant.Default;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
@@ -68,46 +73,44 @@ public class ToolbarTests : IDisposable
     });
 
     [AvaloniaFact]
-    public void The_toolbar_is_off_until_the_view_menu_switches_it_on_and_off()
+    public void The_toolbar_is_on_by_default_and_the_view_menu_switches_it_off_and_on()
     {
-        Assert.False(_w.ToolbarShown);
-        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbar"));
-        Assert.False(_w.ToolbarHost.IsVisible);
-        Assert.Empty(_w.ToolbarButtons);
+        Assert.True(_w.ToolbarShown);
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbar"));
+        Assert.True(_w.ToolbarHost.IsVisible);
+        Assert.NotEmpty(_w.ToolbarButtons);
+        Assert.Equal(Loc.Get(K.ToolbarA11y), AutomationProperties.GetName(_w.ToolbarHost));
 
         var toggle = Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar");
-        Assert.Equal(false, toggle.Checked);
+        Assert.Equal(true, toggle.Checked);
         Assert.Contains(Commands(_w.MenuModel.SelectMany(g => g.Items)), c => c.CommandId == "nks.view.editToolbar");
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
+        Assert.False(_w.ToolbarShown);
+        Assert.False(_w.ToolbarHost.IsVisible);
+        Assert.Equal(false, Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar").Checked);
 
         Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
         Assert.True(_w.ToolbarShown);
         Assert.True(_w.ToolbarHost.IsVisible);
-        Assert.NotEmpty(_w.ToolbarButtons);
-        Assert.Equal(true, Commands(_w.MenuModel.SelectMany(g => g.Items)).Single(c => c.CommandId == "nks.view.toggleToolbar").Checked);
-        Assert.Equal(Loc.Get(K.ToolbarA11y), AutomationProperties.GetName(_w.ToolbarHost));
-
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
-        Assert.False(_w.ToolbarShown);
-        Assert.False(_w.ToolbarHost.IsVisible);
     }
 
     [AvaloniaFact]
     public void The_setting_is_the_switch_and_a_second_window_follows_it()
     {
         var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        _app.Workbench.Set("workbench.toolbar", JsonValue.Create(false));
+        Assert.False(_w.ToolbarHost.IsVisible);
+        Assert.False(second.ToolbarHost.IsVisible);
         _app.Workbench.Set("workbench.toolbar", JsonValue.Create(true));
         Assert.True(_w.ToolbarHost.IsVisible);
         Assert.True(second.ToolbarHost.IsVisible);
         Assert.Equal(_w.ToolbarDrawn, second.ToolbarDrawn);
-        _app.Workbench.Set("workbench.toolbar", JsonValue.Create(false));
-        Assert.False(_w.ToolbarHost.IsVisible);
-        Assert.False(second.ToolbarHost.IsVisible);
     }
 
     [AvaloniaFact]
     public void The_first_buttons_are_drawn_in_order_with_their_icons_names_and_shortcuts()
     {
-        Run("nks.view.toggleToolbar");
         Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
         Assert.Equal(_w.ToolbarDrawn.Where(b => b != Sep), _w.ToolbarButtons.Select(b => (string)b.Tag!));
         // the Git commands come with the Git work: while one is not registered its button is not there
@@ -128,7 +131,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_button_is_greyed_while_its_command_cannot_run_for_the_open_document()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(ButtonOf("nks.file.new").IsEnabled);
         Assert.True(ButtonOf("nks.file.open").IsEnabled);
         Assert.False(ButtonOf("nks.file.save").IsEnabled); // needs a document
@@ -145,7 +147,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_click_runs_the_command_like_the_menu_does()
     {
-        Run("nks.view.toggleToolbar");
         int before = _w.Tabs.Count();
         Click(ButtonOf("nks.file.new"));
         Assert.Equal(before + 1, _w.Tabs.Count());
@@ -164,7 +165,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_mouse_click_hands_the_keyboard_back_to_the_document_and_a_key_press_keeps_it_on_the_button()
     {
-        Run("nks.view.toggleToolbar");
         var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         tab.Editor!.Document.Insert(0, "x");
@@ -189,7 +189,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_mouse_click_on_a_command_that_moves_the_keyboard_itself_leaves_it_there()
     {
-        Run("nks.view.toggleToolbar");
         _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
 
@@ -203,7 +202,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_toolbar_is_one_tab_stop_and_the_arrow_keys_move_between_its_buttons()
     {
-        Run("nks.view.toggleToolbar");
         _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         var enabled = _w.ToolbarButtons.Where(b => b.IsEnabled).ToList();
@@ -235,7 +233,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_remembered_button_is_the_tab_stop_until_it_is_greyed_and_the_buttons_keep_their_names()
     {
-        Run("nks.view.toggleToolbar");
         var tab = _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
         Dispatcher.UIThread.RunJobs();
         var save = ButtonOf("nks.file.save");
@@ -255,7 +252,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_button_for_a_command_that_is_not_there_stays_in_the_file_and_stays_hidden()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(_app.Toolbar.Save(["nks.file.new", "acme.gone.run", Sep, "nks.file.open", Sep, "acme.gone.other"], out _));
         Assert.Equal(["nks.file.new", Sep, "nks.file.open"], _w.ToolbarDrawn);
         Assert.Contains("acme.gone.run", File.ReadAllText(_app.Toolbar.FilePath), StringComparison.Ordinal);
@@ -277,7 +273,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void A_command_without_an_icon_shows_its_name_on_the_button()
     {
-        Run("nks.view.toggleToolbar");
         Assert.True(_app.Toolbar.Save(["nks.edit.tab", "nks.file.new"], out _));
         var button = ButtonOf("nks.edit.tab");
         Assert.Equal(TitleOf("nks.edit.tab"), Assert.IsType<TextBlock>(button.Content).Text);
@@ -287,7 +282,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void The_buttons_are_named_in_every_language_and_follow_a_switch()
     {
-        Run("nks.view.toggleToolbar");
         var seen = new HashSet<string>();
         foreach (var lang in Loc.Languages)
         {
@@ -309,12 +303,13 @@ public class ToolbarTests : IDisposable
     public void A_file_that_cannot_be_read_is_ignored_and_the_reason_is_shown()
     {
         File.WriteAllText(_app.Toolbar.FilePath, "{ not json");
-        _w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
-        Run("nks.view.toggleToolbar");
-        Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
+        // a window that starts with the toolbar on reads the file and says why it was skipped
+        var w = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        w.OpenFile(_temp.File("a.txt", "alpha\n"), null);
+        Assert.Equal(ExpectedDefault(), w.ToolbarDrawn);
         Assert.NotNull(_app.Toolbar.Problem);
-        Assert.Contains(_app.Toolbar.Problem!, _w.StatusLeftText, StringComparison.Ordinal);
-        var editor = _w.ShowToolbarEditor();
+        Assert.Contains(_app.Toolbar.Problem!, w.StatusLeftText, StringComparison.Ordinal);
+        var editor = w.ShowToolbarEditor();
         Assert.Contains(_app.Toolbar.Problem!, editor.NoteText, StringComparison.Ordinal);
         editor.Close();
     }
@@ -330,6 +325,280 @@ public class ToolbarTests : IDisposable
         ConfigBackup.Export(_app.ProfileDirectory, zip, []);
         using var archive = System.IO.Compression.ZipFile.OpenRead(zip);
         Assert.Contains(archive.Entries, e => e.FullName == ToolbarLayout.FileName);
+    }
+
+    // ---- the context menu ----
+
+    private static IReadOnlyList<string> Headers(ContextMenu menu) => [.. menu.Items.OfType<MenuItem>().Select(i => (string)i.Header!)];
+
+    private static MenuItem ItemOf(ContextMenu menu, string key) => menu.Items.OfType<MenuItem>().Single(i => (string)i.Header! == Loc.Get(key));
+
+    private void RightClick(Control target)
+    {
+        var at = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), _w)!.Value;
+        _w.MouseMove(at);
+        _w.MouseDown(at, MouseButton.Right);
+        _w.MouseUp(at, MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    private static void Pick(MenuItem item)
+    {
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public void The_right_button_on_a_button_opens_the_menu_with_remove_and_beside_the_buttons_without_it()
+    {
+        RightClick(ButtonOf("nks.file.new"));
+        var menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Assert.Equal([Loc.Get(K.ToolbarMenuEdit), Loc.Get(K.ToolbarMenuHide), Loc.Get(K.ToolbarMenuRemove), Loc.Get(K.ToolbarMenuReset), Loc.Get(K.ToolbarMenuSmall), Loc.Get(K.ToolbarMenuLarge), Loc.Get(K.ToolbarMenuColors)], Headers(menu));
+        Assert.Equal(Loc.Get(K.ToolbarMenuA11y), AutomationProperties.GetName(menu));
+        Assert.True(ItemOf(menu, K.ToolbarMenuSmall).IsChecked);
+        Assert.False(ItemOf(menu, K.ToolbarMenuLarge).IsChecked);
+        menu.Close();
+
+        // the free end of the row is the toolbar itself
+        var host = _w.ToolbarHost;
+        var end = host.TranslatePoint(new Point(host.Bounds.Width - 4, host.Bounds.Height / 2), _w)!.Value;
+        _w.MouseMove(end);
+        _w.MouseDown(end, MouseButton.Right);
+        _w.MouseUp(end, MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+        menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Assert.DoesNotContain(Loc.Get(K.ToolbarMenuRemove), Headers(menu));
+        menu.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(Key.F10, RawInputModifiers.Shift)]
+    [InlineData(Key.Apps, RawInputModifiers.None)]
+    public void Shift_F10_and_the_menu_key_open_the_menu_of_the_button_the_keyboard_is_on(Key key, RawInputModifiers modifiers)
+    {
+        var open = ButtonOf("nks.file.open");
+        Assert.True(open.Focus(NavigationMethod.Tab));
+        TestApp.Press(_w, key, modifiers);
+        Dispatcher.UIThread.RunJobs();
+        var menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Pick(ItemOf(menu, K.ToolbarMenuRemove));
+        Assert.DoesNotContain("nks.file.open", _w.ToolbarDrawn);
+        Assert.Contains("nks.file.new", _w.ToolbarDrawn);
+    }
+
+    [AvaloniaFact]
+    public void Remove_takes_the_button_off_every_toolbar_and_restore_brings_the_first_set_back()
+    {
+        var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        Pick(ItemOf(_w.OpenToolbarMenu(ButtonOf("nks.file.save")), K.ToolbarMenuRemove));
+        Assert.DoesNotContain("nks.file.save", _app.Toolbar.Load());
+        Assert.DoesNotContain("nks.file.save", _w.ToolbarDrawn);
+        Assert.DoesNotContain("nks.file.save", second.ToolbarDrawn);
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuReset));
+        Assert.Equal(ToolbarLayout.Default, _app.Toolbar.Load());
+        Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
+        Assert.Equal(ExpectedDefault(), second.ToolbarDrawn);
+    }
+
+    [AvaloniaFact]
+    public void Hide_switches_the_toolbar_off_and_customize_opens_the_editor()
+    {
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuEdit));
+        var editor = Assert.Single(_w.OwnedWindows.OfType<ToolbarEditorWindow>());
+        editor.Close();
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuHide));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbar"));
+        Assert.False(_w.ToolbarHost.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void Large_icons_draw_the_buttons_with_24_pixel_icons_and_small_icons_go_back_to_16()
+    {
+        static double Side(Button b) => Assert.IsType<IconView>(b.Content).Width;
+        Assert.Equal(CommandIcons.Size, Side(ButtonOf("nks.file.save")));
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuLarge));
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons"));
+        Assert.Equal(MainWindow.LargeToolbarIcon, Side(ButtonOf("nks.file.save")));
+        Assert.True(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuLarge).IsChecked);
+        _w.ToolbarMenu!.Close();
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuSmall));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons"));
+        Assert.Equal(CommandIcons.Size, Side(ButtonOf("nks.file.save")));
+    }
+
+    [AvaloniaFact]
+    public void The_menu_follows_the_language()
+    {
+        foreach (var lang in Loc.Languages)
+        {
+            _app.SetLanguage(lang);
+            Dispatcher.UIThread.RunJobs();
+            var menu = _w.OpenToolbarMenu(ButtonOf("nks.file.new"));
+            Assert.Equal(Loc.Get(K.ToolbarMenuHide), Headers(menu)[1]);
+            Assert.All(Headers(menu), h => Assert.DoesNotContain("toolbar.menu", h, StringComparison.Ordinal));
+            menu.Close();
+        }
+    }
+
+    // ---- coloured icons ----
+
+    private IconView IconOf(string id) => Assert.IsType<IconView>(ButtonOf(id).Content);
+
+    private static Color Of(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
+
+    [AvaloniaFact]
+    public void The_toolbar_icons_are_coloured_by_the_kind_of_command_in_the_light_and_the_dark_theme()
+    {
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbarColorIcons"));
+        var expected = new Dictionary<string, IconKind>
+        {
+            ["nks.file.new"] = IconKind.File, ["nks.file.save"] = IconKind.File, ["nks.file.saveAll"] = IconKind.File, ["nks.file.open"] = IconKind.Folder,
+            ["nks.edit.undo"] = IconKind.History, ["nks.edit.redo"] = IconKind.History, ["nks.search.find"] = IconKind.Search, ["nks.search.replace"] = IconKind.Search,
+        };
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            _app.RequestedThemeVariant = variant;
+            Dispatcher.UIThread.RunJobs();
+            foreach (var (id, kind) in expected)
+            {
+                var icon = IconOf(id);
+                Assert.True(icon.Colored, id);
+                var pair = IconTints.Colors[kind];
+                Assert.Equal(variant == ThemeVariant.Dark ? pair.Dark : pair.Light, Of(icon.TintBrush));
+            }
+        }
+        // the first set has a colour for every button, and every Git icon is orange
+        foreach (var id in ToolbarLayout.Default.Where(id => id != Sep && Registered(id))) Assert.NotNull(IconTints.KindOf(IconSkin.NameOf(_app.Workbench.Commands.IconOf(id)!)));
+        foreach (var name in BuiltinIcons.All.Keys.Where(n => n.StartsWith("git-", StringComparison.Ordinal))) Assert.Equal(IconKind.Git, IconTints.KindOf(name));
+        Assert.Null(IconTints.KindOf("align-left")); // an icon of no kind keeps the text colour
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Black")]
+    [InlineData("White")]
+    public void In_high_contrast_the_toolbar_icons_stay_in_the_colours_of_the_theme(string theme)
+    {
+        var colors = theme == "Black" ? ContrastColors.Black : ContrastColors.White;
+        _app.Contrast.Apply(colors);
+        Dispatcher.UIThread.RunJobs();
+        var icon = IconOf("nks.file.new");
+        Assert.True(icon.Colored); // the setting is on...
+        Assert.Null(icon.TintBrush); // ...and high contrast wins
+        Assert.Equal(colors.WindowText, Of(icon.LineBrush));
+        _app.Contrast.Restore();
+        Dispatcher.UIThread.RunJobs();
+        Assert.NotNull(icon.TintBrush);
+    }
+
+    [AvaloniaFact]
+    public void The_setting_and_the_menu_switch_the_toolbar_to_monochrome_icons_and_back()
+    {
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuColors));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbarColorIcons"));
+        Assert.False(IconOf("nks.file.save").Colored);
+        Assert.Null(IconOf("nks.file.save").TintBrush);
+        var item = ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuColors);
+        Assert.False(item.IsChecked);
+        Pick(item);
+        Assert.True(IconOf("nks.file.save").Colored);
+    }
+
+    [AvaloniaFact]
+    public void Every_icon_colour_has_3_to_1_against_every_surface_of_a_toolbar_button()
+    {
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Color Brush(string key)
+            {
+                Assert.True(_app.TryFindResource(key, variant, out var value), key);
+                return Of((IBrush)value!);
+            }
+            foreach (var (kind, pair) in IconTints.Colors)
+            {
+                var colour = variant == ThemeVariant.Dark ? pair.Dark : pair.Light;
+                // the toolbar, a hovered and a pressed button, and the chrome around them
+                foreach (var surface in new[] { "Bg1", "BgHover", "AccentSoft", "Bg0", "ChromeBg" })
+                    Assert.True(ContrastColors.Ratio(colour, Brush(surface)) >= 3, $"{variant} {kind} on {surface} is {ContrastColors.Ratio(colour, Brush(surface)):0.0} : 1");
+            }
+        }
+    }
+
+    /// <summary>The toolbar as it is drawn; with TEXTIDA_RENDER_DIR set the picture is saved there for a look by eye.</summary>
+    private (byte[] Data, int RowBytes, PixelFormat? Format) Frame(string name)
+    {
+        _w.Width = 900;
+        _w.Height = 300;
+        _w.UpdateLayout();
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            _w.CaptureRenderedFrame();
+            Thread.Sleep(5);
+        }
+        var frame = _w.CaptureRenderedFrame()!;
+        if (Environment.GetEnvironmentVariable("TEXTIDA_RENDER_DIR") is { Length: > 0 } dir)
+        {
+            Directory.CreateDirectory(dir);
+            frame.Save(Path.Combine(dir, name + ".png"));
+        }
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        return (data, buffer.RowBytes, frame.Format);
+    }
+
+    private bool Drawn(string id, Color colour, (byte[] Data, int RowBytes, PixelFormat? Format) frame)
+    {
+        var button = ButtonOf(id);
+        var at = button.TranslatePoint(new Point(0, 0), _w)!.Value;
+        for (int y = (int)at.Y; y < (int)(at.Y + button.Bounds.Height); y++)
+            for (int x = (int)at.X; x < (int)(at.X + button.Bounds.Width); x++)
+            {
+                int i = y * frame.RowBytes + x * 4;
+                var c = frame.Format == PixelFormat.Bgra8888 ? Color.FromRgb(frame.Data[i + 2], frame.Data[i + 1], frame.Data[i]) : Color.FromRgb(frame.Data[i], frame.Data[i + 1], frame.Data[i + 2]);
+                if (Math.Abs(c.R - colour.R) + Math.Abs(c.G - colour.G) + Math.Abs(c.B - colour.B) < 30) return true;
+            }
+        return false;
+    }
+
+    [AvaloniaFact]
+    public void The_coloured_icons_are_drawn_in_their_colours_and_high_contrast_draws_them_in_the_text_colour()
+    {
+        _w.OpenFile(_temp.File("a.txt", "alpha"), null); // Save and Undo can run, so they are not dimmed
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            _app.RequestedThemeVariant = variant;
+            foreach (var large in new[] { false, true })
+            {
+                _app.Workbench.Set("workbench.toolbarLargeIcons", JsonValue.Create(large));
+                var frame = Frame($"toolbar-{variant}-{(large ? "large" : "small")}");
+                bool dark = variant == ThemeVariant.Dark;
+                Assert.True(Drawn("nks.file.save", dark ? IconTints.Colors[IconKind.File].Dark : IconTints.Colors[IconKind.File].Light, frame), $"{variant}: save is not blue");
+                Assert.True(Drawn("nks.search.find", dark ? IconTints.Colors[IconKind.Search].Dark : IconTints.Colors[IconKind.Search].Light, frame), $"{variant}: find is not teal");
+                Assert.True(Drawn("nks.file.open", dark ? IconTints.Colors[IconKind.Folder].Dark : IconTints.Colors[IconKind.Folder].Light, frame), $"{variant}: open is not yellow");
+            }
+        }
+        _app.Workbench.Set("workbench.toolbarLargeIcons", JsonValue.Create(false));
+        _app.Workbench.Set("workbench.toolbarColorIcons", JsonValue.Create(false));
+        _app.RequestedThemeVariant = ThemeVariant.Light;
+        var mono = Frame("toolbar-Light-monochrome");
+        Assert.False(Drawn("nks.file.new", IconTints.Colors[IconKind.File].Light, mono));
+        _app.Workbench.Set("workbench.toolbarColorIcons", JsonValue.Create(true));
+        foreach (var (name, colors) in new[] { ("Black", ContrastColors.Black), ("White", ContrastColors.White) })
+        {
+            _app.Contrast.Apply(colors);
+            var frame = Frame("toolbar-contrast-" + name);
+            Assert.True(Drawn("nks.file.new", colors.WindowText, frame), $"{name}: New is not in the text colour");
+            Assert.False(Drawn("nks.file.new", IconTints.Colors[IconKind.File].Light, frame) || Drawn("nks.file.new", IconTints.Colors[IconKind.File].Dark, frame), $"{name}: New is still blue");
+            _app.Contrast.Restore();
+        }
     }
 
     // ---- the editor ----
@@ -478,7 +747,6 @@ public class ToolbarTests : IDisposable
     [AvaloniaFact]
     public void OK_saves_and_every_toolbar_changes_at_once()
     {
-        Run("nks.view.toggleToolbar");
         var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
         Assert.True(second.ToolbarHost.IsVisible);
         var editor = Editor();

@@ -385,10 +385,15 @@ internal sealed partial class MainWindow
         {
             case Key.Down: MovePalette(1); e.Handled = true; break;
             case Key.Up: MovePalette(-1); e.Handled = true; break;
+            case Key.PageDown: MovePalette(PalettePage); e.Handled = true; break;
+            case Key.PageUp: MovePalette(-PalettePage); e.Handled = true; break;
             case Key.Enter: RunPaletteSelection(); e.Handled = true; break;
             case Key.Escape: ClosePalette(); e.Handled = true; break;
         }
     }
+
+    /// <summary>Rows that Page Up and Page Down move by.</summary>
+    internal const int PalettePage = 10;
 
     internal void MovePalette(int step)
     {

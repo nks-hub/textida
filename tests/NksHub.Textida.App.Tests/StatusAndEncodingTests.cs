@@ -4,6 +4,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -126,6 +127,7 @@ public class StatusAndEncodingTests : IDisposable
         Click(_w.EolItem);
         Click(_w.IndentItem);
         Click(_w.LanguageItem);
+        Assert.True(_w.IsPaletteOpen); // the language is chosen in the palette, inside the window
         Assert.NotNull(tab);
     }
 
@@ -312,15 +314,124 @@ public class StatusAndEncodingTests : IDisposable
         Assert.False(_app.Workbench.Settings.GetBool("editor.insertSpaces"));
     }
 
+    private QuickRow LanguageRow(string title) => _w.QuickResults.First(r => r.Title == title);
+
+    private void PickLanguage(string title)
+    {
+        int at = _w.QuickResults.ToList().IndexOf(LanguageRow(title));
+        Assert.True(at >= 0, title);
+        _w.MovePalette(at);
+        _w.RunPaletteSelection();
+        Dispatcher.UIThread.RunJobs();
+    }
+
     [AvaloniaFact]
-    public void Language_menu_sets_the_mode_of_the_tab()
+    public void Language_picker_sets_the_mode_of_the_tab()
     {
         var tab = _w.NewDocument();
-        var flyout = _w.ShowLanguageMenu()!;
-        var js = flyout.Items.OfType<MenuItem>().First(m => (string)m.Header! == "JavaScript");
-        js.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Assert.True(_w.ShowLanguagePicker());
+        Assert.True(_w.IsPaletteOpen);
+        Assert.Equal(PaletteMode.Choice, _w.PaletteModeNow);
+        PickLanguage("JavaScript");
+        Assert.False(_w.IsPaletteOpen);
         Assert.Equal("javascript", tab.Doc.Language.Id);
         Assert.EndsWith("JavaScript · 100 %", _w.StatusRightText);
+    }
+
+    [AvaloniaFact]
+    public void The_picker_lists_automatic_then_the_recent_then_the_detected_language_and_then_all_by_name_with_their_extensions()
+    {
+        _app.RecentLanguages.Used("python");
+        _app.RecentLanguages.Used("json"); // newest first
+        var tab = _w.OpenFile(_temp.File("notes.md", "# a\n"), null);
+        Assert.True(_w.ShowLanguagePicker());
+        var rows = _w.QuickResults;
+        Assert.Equal(Loc.Get(K.LanguagePickAuto), rows[0].Title);
+        Assert.Equal("Markdown", rows[0].Detail);
+        Assert.Equal(Loc.Get(K.LanguagePickCurrent), rows[0].Reason); // nothing was chosen by hand yet
+        Assert.Equal(["JSON", "Python"], rows.Skip(1).Take(2).Select(r => r.Title));
+        Assert.All(rows.Skip(1).Take(2), r => Assert.Equal(Loc.Get(K.LanguagePickRecent), r.Category));
+        Assert.Equal("Markdown", rows[3].Title);
+        Assert.Equal(Loc.Get(K.LanguagePickDetected), rows[3].Category);
+        Assert.Contains(".md", rows[3].Detail!, StringComparison.Ordinal);
+        var rest = rows.Skip(4).ToList();
+        Assert.Equal(LanguageModes.All.Count - 3, rest.Count); // every language once
+        Assert.Equal(rest.Select(r => r.Title).Order(StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo(Loc.Language), true)), rest.Select(r => r.Title));
+        Assert.Contains(rest, r => r.Title == Loc.Get(K.LanguagePlain));
+        Assert.DoesNotContain(rows, r => r.Title is "JSON" or "Python" or "Markdown" && rows.Count(o => o.Title == r.Title) > 1);
+        var xml = rest.Single(r => r.Title == "XML");
+        Assert.Contains(".xml", xml.Detail!, StringComparison.Ordinal);
+        Assert.Contains(".csproj", xml.AutomationName, StringComparison.Ordinal);
+        Assert.NotNull(tab);
+    }
+
+    [AvaloniaFact]
+    public void The_search_finds_a_language_by_name_or_by_extension_and_the_keys_choose_it()
+    {
+        var tab = _w.OpenFile(_temp.File("a.txt", "x\n"), null);
+        Assert.True(_w.ShowLanguagePicker());
+        _w.SetPaletteQuery("pyth");
+        Assert.Contains(_w.QuickResults, r => r.Title == "Python");
+        Assert.DoesNotContain(_w.QuickResults, r => r.Title == "JavaScript");
+        _w.SetPaletteQuery(".csproj");
+        Assert.Equal("XML", Assert.Single(_w.QuickResults).Title);
+        _w.SetPaletteQuery("zzzqqq");
+        Assert.Empty(_w.QuickResults);
+
+        _w.SetPaletteQuery("");
+        int count = _w.QuickResults.Count;
+        Assert.True(count > MainWindow.PalettePage + 2);
+        TestApp.Press(_w, Key.PageDown);
+        TestApp.Press(_w, Key.Down);
+        TestApp.Press(_w, Key.PageUp);
+        TestApp.Press(_w, Key.Down);
+        TestApp.Press(_w, Key.Down);
+        var chosen = _w.QuickResults[3]; // 0, Page Down 10, Down 11, Page Up 1, Down 2, Down 3
+        TestApp.Press(_w, Key.Enter);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(_w.IsPaletteOpen);
+        Assert.Equal(chosen.Title, tab.Doc.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : tab.Doc.Language.Name);
+        Assert.True(tab.Doc.LanguageChosen);
+
+        Assert.True(_w.ShowLanguagePicker());
+        TestApp.Press(_w, Key.Escape);
+        Assert.False(_w.IsPaletteOpen);
+    }
+
+    [AvaloniaFact]
+    public void Automatic_drops_the_choice_and_the_extension_decides_again()
+    {
+        var tab = _w.OpenFile(_temp.File("a.py", "x = 1\n"), null);
+        Assert.True(_w.ShowLanguagePicker());
+        PickLanguage("JavaScript");
+        Assert.Equal("javascript", tab.Doc.Language.Id);
+        Assert.True(tab.Doc.LanguageChosen);
+        Assert.Equal("javascript", _app.RecentLanguages.Names[0]); // and it is on top next time
+
+        Assert.True(_w.ShowLanguagePicker());
+        Assert.Null(_w.QuickResults[0].Reason); // a hand-made choice is in force...
+        Assert.Equal(Loc.Get(K.LanguagePickCurrent), LanguageRow("JavaScript").Reason); // ...and marked
+        Assert.Equal("JavaScript", _w.QuickResults[1].Title);
+        PickLanguage(Loc.Get(K.LanguagePickAuto));
+        Assert.Equal("python", tab.Doc.Language.Id);
+        Assert.False(tab.Doc.LanguageChosen);
+        Assert.EndsWith("Python · 100 %", _w.StatusRightText);
+    }
+
+    [AvaloniaFact]
+    public void The_status_item_and_the_command_are_named_as_the_file_language_in_every_language()
+    {
+        _w.NewDocument();
+        foreach (var lang in Loc.Languages)
+        {
+            _app.SetLanguage(lang);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Loc.Get(K.StatusLanguageTip), ToolTip.GetTip(_w.LanguageItem));
+            Assert.True(_w.ShowLanguagePicker());
+            Assert.Equal(Loc.Get(K.LanguagePickWatermark), _w.PaletteInput.PlaceholderText);
+            _w.ClosePalette();
+            Assert.DoesNotContain(_app.Workbench.Strings.Get("cmd.format.language"), new[] { "Režim jazyka...", "Sprachmodus...", "Language Mode..." });
+        }
     }
 
     [AvaloniaFact]

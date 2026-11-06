@@ -188,9 +188,7 @@ public class PseudoLocalizationTests : IDisposable
         // the main window: menu, tabs, status bar and the panels and bars around the text
         _w.NewDocument();
         Look("main window", _w);
-        Run("nks.view.toggleToolbar");
-        Look("toolbar", _w);
-        Run("nks.view.toggleToolbar");
+        Look("toolbar", _w); // the toolbar is on by default
         _w.ToggleDocuments(true);
         Look("documents panel", _w);
         _w.ToggleDocuments(false);

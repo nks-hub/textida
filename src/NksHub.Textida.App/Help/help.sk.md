@@ -741,12 +741,14 @@ commands: nks.view.toggleSecrets
 
 ## [view.toolbar] Lišta nástrojov
 commands: nks.view.toggleToolbar, nks.view.editToolbar
-Lišta nástrojov je rad tlačidiel pod ponukou pre príkazy, ktoré používate najčastejšie. Kým ju nezapnete, nie je vidieť.
-1. Zvoľte Zobraziť a Lišta nástrojov. Rad sa ukáže pod ponukou; ďalšou voľbou ho skryjete.
+Lišta nástrojov je rad tlačidiel pod ponukou pre príkazy, ktoré používate najčastejšie. V predvolenom stave je zapnutá.
+1. Zvoľte Zobraziť a Lišta nástrojov a lišta sa skryje; ďalšou voľbou ju znova ukážete.
 2. Kliknutím na tlačidlo spustíte jeho príkaz. Tlačidlo je stlmené, kým sa jeho príkaz s otvoreným dokumentom nedá použiť, napríklad Uložiť bez dokumentu. Keď na tlačidlo ukážete myšou, uvidíte jeho názov a skratku.
 3. Tlačidlá zmeníte voľbou Zobraziť a Upraviť lištu nástrojov. Vľavo vyberte príkaz (zoznam zúžite písaním do poľa) a stlačte Pridať alebo Enter; príkaz sa zaradí za tlačidlo vybrané vpravo.
 4. Vpravo vyberte tlačidlo a stlačte Odobrať (alebo Delete), aby z lišty zmizlo, Posunúť nahor alebo Posunúť nadol (alebo Alt+šípka nahor a Alt+šípka nadol), aby sa presunulo, alebo Pridať oddeľovač pre tenkú čiaru medzi dvoma skupinami.
 5. Tlačidlom OK lištu uložíte; zmení sa vo všetkých oknách naraz. Zrušiť nechá všetko, ako to bolo; Predvolené tlačidlá vrátia prvú sadu.
+- Pravým tlačidlom myši na lište, klávesom Menu alebo Shift+F10 na tlačidle otvoríte ponuku lišty: Upraviť lištu…, Skryť lištu, Odobrať toto tlačidlo (len nad tlačidlom), Obnoviť predvolené tlačidlá a Malé alebo Veľké ikony (16 alebo 24 px).
+- Ikony lišty majú farbu podľa druhu príkazu: súbory modrú, priečinky žltú, späť a znova fialovú, hľadanie tyrkysovú, Git oranžovú. Voľba Farebné ikony v ponuke lišty alebo nastavenie Farebné ikony na lište nástrojov vo Vzhľade ich prepne na jednofarebné. Vo vysokom kontraste sú ikony vždy jednofarebné vo farbách systému.
 - Prvá sada je Nový, Otvoriť, Uložiť, Uložiť všetko, Späť, Znova, Nájsť a Nahradiť a tlačidlá Git commit, pull a push, keď príkazy Gitu existujú. Tlačidlo, ktorého príkaz neexistuje, napríklad príkaz odobraného pluginu, sa nekreslí; zostáva v zozname a vráti sa spolu s príkazom.
 - Lišta má najviac 40 položiek (tlačidiel a oddeľovačov); editor oznámi, že je lišta plná. Príkaz môže byť na lište iba raz.
 - Tlačidlá sa ukladajú do súboru toolbar.json v priečinku profilu a sú v zálohe konfigurácie. Súbor, ktorý sa nedá prečítať, sa preskočí: ukáže sa prvá sada a dôvod stojí v stavovom riadku a v editore. Uložením sa zo súboru odstránia komentáre.
@@ -915,10 +917,12 @@ commands: nks.file.convertEncodingBatch
 - Každý súbor sa nahradí celý, alebo vôbec, a len keď má stále obsah, z ktorého vznikol náhľad. Beh sa zapisuje do žurnálu: keď sa program alebo počítač uprostred zastaví, ďalší štart ponúkne dokončenie dávky alebo vrátenie starých súborov.
 - Súbor v kódovaní, ktoré je len odhad (nízke percento istoty), sa nikdy neprevádza; otvorte ho, zvoľte Znova otvoriť v kódovaní a preveďte ho odtiaľ.
 
-## [format.language] Režim jazyka
+## [format.language] Jazyk súboru
 commands: nks.format.language
-1. Zvoľte Formát a Režim jazyka, alebo kliknite na jazyk v stavovom riadku.
-2. Vyberte jazyk, napríklad Obyčajný text.
+1. Zvoľte Formát a Jazyk súboru, alebo kliknite na jazyk v stavovom riadku. Vnútri okna sa otvorí zoznam s poľom hľadania.
+2. Písaním zúžite zoznam podľa názvu alebo prípony (napríklad „pyth“ alebo „.md“), šípkami, Page Up a Page Down vyberiete jazyk a Enter ho použije; Esc zoznam zavrie.
+- Hore je Automaticky podľa prípony, potom naposledy použité jazyky, jazyk zistený z prípony a nakoniec všetky jazyky abecedne. Pri každom jazyku sú jeho prípony a aktuálna voľba je označená.
+- Automaticky podľa prípony zruší ručnú voľbu: jazyk znova určuje názov súboru, aj po uložení pod iným názvom.
 - Jazyk určuje nastavenia platné len pre tento jazyk (napríklad zalamovanie riadkov alebo odsadenie) a pravidlá zvýrazňovania.
 - Pri otvorení sa jazyk určí podľa prípony súboru.
 - Blade zafarbí kód medzi `@php` a `@endphp` ako PHP; `@php(...)` na jednom riadku je direktíva. Visual Basic zafarbí literály XML (element, komentár, sekciu CDATA alebo dokument `<?xml ?>`) za `=`, `Return`, `Yield`, `Await` alebo `In`, s `<%= ... %>` ako kódom Visual Basicu, a `Imports <xmlns:...>`. Literál, ktorý začína na riadku po `=`, a vlastnosti `x.<name>` a `x.@name` sa ako XML nezafarbia.
@@ -1386,7 +1390,7 @@ Dole je vidieť riadok a stĺpec kurzora (pri výbere počet znakov, pri viacer�
 - Kliknutie na odsadenie ponúkne medzery alebo tabulátory a veľkosť.
 - Kliknutie na kódovanie otvorí výber kódovania (téma Kódovanie).
 - Kliknutie na konce riadkov ich zjednotí (téma Konce riadkov).
-- Kliknutie na jazyk otvorí výber jazyka (téma Režim jazyka).
+- Kliknutie na jazyk otvorí výber jazyka (téma Jazyk súboru).
 - Zvýraznenie sa dopočítava: pri dlhom súbore zvýraznenie dobieha, text je použiteľný. Riadok je príliš dlhý na zvýraznenie: takýto riadok zostane bez farieb.
 - Pri súbore, na ktorý sa vzťahuje .editorconfig, je vidieť položka .editorconfig; kliknutím sa súbor otvorí.
 

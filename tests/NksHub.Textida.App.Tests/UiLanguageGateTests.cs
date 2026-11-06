@@ -79,7 +79,7 @@ public class UiLanguageGateTests : IDisposable
     /// <summary>The items of the menus that are not part of the menu bar: the status bar flyouts and the menu of a tab. Each is read while its flyout is open and closed again.</summary>
     private IEnumerable<(string Label, KeyGesture? Gesture, bool Submenu)> OtherMenuRows()
     {
-        foreach (var open in new Func<MenuFlyout?>[] { _w.ShowIndentMenu, _w.ShowEolMenu, _w.ShowLanguageMenu })
+        foreach (var open in new Func<MenuFlyout?>[] { _w.ShowIndentMenu, _w.ShowEolMenu })
         {
             var flyout = open();
             Assert.NotNull(flyout);

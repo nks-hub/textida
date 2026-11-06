@@ -7899,7 +7899,7 @@
     {
       "key": "workbench.toolbar",
       "type": "boolean",
-      "default": false,
+      "default": true,
       "title": "setting.workbench.toolbar.title",
       "description": "setting.workbench.toolbar.description",
       "category": "cat.appearance",
@@ -7908,6 +7908,36 @@
         "toolbar",
         "buttons",
         "icons",
+        "appearance"
+      ]
+    },
+    {
+      "key": "workbench.toolbarLargeIcons",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.workbench.toolbarLargeIcons.title",
+      "description": "setting.workbench.toolbarLargeIcons.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "tags": [
+        "toolbar",
+        "icons",
+        "size",
+        "appearance"
+      ]
+    },
+    {
+      "key": "workbench.toolbarColorIcons",
+      "type": "boolean",
+      "default": true,
+      "title": "setting.workbench.toolbarColorIcons.title",
+      "description": "setting.workbench.toolbarColorIcons.description",
+      "category": "cat.appearance",
+      "scope": "application",
+      "tags": [
+        "toolbar",
+        "icons",
+        "color",
         "appearance"
       ]
     },

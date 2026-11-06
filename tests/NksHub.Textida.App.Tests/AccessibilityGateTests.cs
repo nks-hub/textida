@@ -106,10 +106,8 @@ public class AccessibilityGateTests : IDisposable
 
         // the toolbar under the menu, with a button that has no icon and shows its name
         Assert.True(_app.Toolbar.Save([.. ToolbarLayout.Default, "nks.edit.tab"], out _));
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
-        Assert.NotEmpty(_w.ToolbarButtons);
+        Assert.NotEmpty(_w.ToolbarButtons); // on by default
         Walk(run, "main:toolbar", () => _w);
-        Assert.Equal(CommandOutcome.Handled, Run("nks.view.toggleToolbar"));
 
         // the files of a folder in the panel on the left
         Assert.True(await _w.ShowFolderAsync(_temp.Path));
@@ -186,6 +184,9 @@ public class AccessibilityGateTests : IDisposable
         Walk(run, "palette:edits", () => _w.PaletteHost);
         _w.ClosePalette();
 
+        Walk(run, "palette:language", () => _w.PaletteHost, _ => _w.ShowLanguagePicker());
+        _w.ClosePalette();
+
         // the texts of a choice are the caller's, written in the language of the moment they are asked, so each language asks again
         Walk(run, "palette:choice", () => _w.PaletteHost, _ => _w.ShowChoice(Loc.Get(K.PaletteWatermark), Loc.Get(K.A11yPalette),
             [new QuickRow(Loc.Get(K.DialogOk), null, null, null, true, null, Loc.Get(K.DialogOk), () => { }), new QuickRow(Loc.Get(K.DialogCancel), null, null, null, true, null, Loc.Get(K.DialogCancel), () => { })]));
@@ -206,7 +207,7 @@ public class AccessibilityGateTests : IDisposable
             Tick();
             if (_w.MenuModel.Count == 0) run.Problems.Add($"[menu/{lang}] the window has no menu");
             run.Audit("menu:bar", lang, A11yAudit.CollectMenu(MenuRenderer.ToMenu(_w.MenuModel).Items));
-            foreach (var (scenario, open) in new (string, Func<MenuFlyout?>)[] { ("menu:indent", _w.ShowIndentMenu), ("menu:eol", _w.ShowEolMenu), ("menu:language", _w.ShowLanguageMenu) })
+            foreach (var (scenario, open) in new (string, Func<MenuFlyout?>)[] { ("menu:indent", _w.ShowIndentMenu), ("menu:eol", _w.ShowEolMenu) })
             {
                 var flyout = open();
                 Assert.NotNull(flyout);

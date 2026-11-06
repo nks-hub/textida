@@ -56,7 +56,7 @@ internal sealed partial class MainWindow
         _indentItem.Click += (_, _) => ShowIndentMenu();
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);
         _eolItem.Click += (_, _) => ShowEolMenu();
-        _languageItem.Click += (_, _) => ShowLanguageMenu();
+        _languageItem.Click += (_, _) => ShowLanguagePicker();
         _zoomItem.Click += (_, _) => ShowZoomMenu();
         _configItem.Click += (_, _) => ShowConfigFiles();
         _tokensItem.Click += (_, _) => ShowTokenMenu();
@@ -270,19 +270,41 @@ internal sealed partial class MainWindow
         return flyout;
     }
 
-    internal MenuFlyout? ShowLanguageMenu()
+    /// <summary>
+    /// The choice of the file language in the palette: Automatic by file extension (it drops a choice made before), the languages picked last, the one the extension gives,
+    /// and then every language by name. Each row shows the extensions of its language, and typing narrows the list by name or extension.
+    /// </summary>
+    internal bool ShowLanguagePicker()
     {
-        if (Active is not { } tab) return null;
-        var flyout = new MenuFlyout();
-        foreach (var mode in LanguageModes.All)
+        if (Active is not { } tab) return false;
+        var od = tab.Doc;
+        var detected = LanguageModes.ForPath(od.Path);
+        string current = Loc.Get(K.LanguagePickCurrent);
+        static string NameOf(LanguageMode mode) => mode.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : mode.Name;
+        QuickRow Row(LanguageMode mode, string? category)
         {
-            var m = mode;
-            var mi = new MenuItem { Header = mode.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : mode.Name, ToggleType = MenuItemToggleType.Radio, IsChecked = tab.Doc.Language == mode, GroupName = "language" };
-            mi.Click += (_, _) => SetLanguage(tab, m);
-            flyout.Items.Add(mi);
+            string name = NameOf(mode), extensions = string.Join(" ", mode.Extensions.Concat(mode.FileNames));
+            string? reason = od.LanguageChosen && od.Language == mode ? current : null;
+            string spoken = string.Join(", ", new[] { category, name, extensions.Length == 0 ? null : Loc.Get(K.LanguagePickExtensions, ("list", extensions)), reason }.Where(t => !string.IsNullOrEmpty(t)));
+            return new QuickRow(name, category, extensions.Length == 0 ? null : extensions, null, true, reason, spoken, () =>
+            {
+                _app.RecentLanguages.Used(mode.Id);
+                SetLanguage(tab, mode);
+            });
         }
-        flyout.ShowAt(_languageItem);
-        return flyout;
+        string auto = Loc.Get(K.LanguagePickAuto), detectedName = NameOf(detected);
+        var rows = new List<QuickRow>
+        {
+            new(auto, null, detectedName, null, true, od.LanguageChosen ? null : current, string.Join(", ", new[] { auto, detectedName, od.LanguageChosen ? null : current }.Where(t => t is not null)), () => ResetLanguage(tab)),
+        };
+        var listed = new HashSet<LanguageMode>();
+        foreach (var mode in _app.RecentLanguages.Names.Select(id => LanguageModes.All.FirstOrDefault(m => m.Id == id)).OfType<LanguageMode>())
+            if (listed.Add(mode)) rows.Add(Row(mode, Loc.Get(K.LanguagePickRecent)));
+        if (listed.Add(detected)) rows.Add(Row(detected, Loc.Get(K.LanguagePickDetected)));
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(Loc.Language);
+        rows.AddRange(LanguageModes.All.Where(m => !listed.Contains(m)).OrderBy(NameOf, StringComparer.Create(culture, ignoreCase: true)).Select(m => Row(m, null)));
+        ShowChoice(Loc.Get(K.LanguagePickWatermark), Loc.Get(K.LanguagePickA11y), rows);
+        return true;
     }
 
     /// <summary>Reset Zoom and the zoom levels of <see cref="ZoomPresets"/>; a level reads as the zoom its whole font size gives, and levels that give the same size are one row.</summary>
@@ -311,6 +333,18 @@ internal sealed partial class MainWindow
     public void SetLanguage(DocTab tab, LanguageMode mode)
     {
         tab.Doc.ChooseLanguage(mode);
+        LanguageApplied(tab);
+    }
+
+    /// <summary>Automatic by file extension: the language the file name gives, now and after a save under another name.</summary>
+    public void ResetLanguage(DocTab tab)
+    {
+        tab.Doc.ResetLanguage();
+        LanguageApplied(tab);
+    }
+
+    private void LanguageApplied(DocTab tab)
+    {
         ApplyLanguageOptions();
         tab.Doc.NotifyChanged();
         UpdateStatus();
