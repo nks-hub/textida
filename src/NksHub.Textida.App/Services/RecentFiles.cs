@@ -66,6 +66,14 @@ internal sealed class RecentFiles
         if (_data.Files.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) > 0) Save();
     }
 
+    /// <summary>Empties the list of files; the last folder of the file panel stays.</summary>
+    public void Clear()
+    {
+        if (_data.Files.Count == 0) return;
+        _data.Files.Clear();
+        Save();
+    }
+
     /// <summary>A file or a folder was renamed or moved: the list follows it.</summary>
     public void Rename(string oldPath, string newPath)
     {

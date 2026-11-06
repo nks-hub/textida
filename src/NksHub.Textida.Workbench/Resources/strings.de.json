@@ -789,7 +789,7 @@
   "setting.advanced.wrapIndent.title": "Einzug umbrochener Zeilen (Spalten)",
   "setting.advanced.wrapIndent.description": "Um wie viele Spalten die Fortsetzung einer umbrochenen Zeile zusätzlich zum Einzug der Zeile selbst eingerückt wird. Gilt bei eingeschaltetem Umbruch.",
   "setting.advanced.recentFilesCount.title": "Anzahl gemerkter zuletzt geöffneter Dateien",
-  "setting.advanced.recentFilesCount.description": "Wie viele zuletzt geöffnete Dateien die Liste behält. 0 behält keine. Eine kleinere Zahl kürzt die Liste beim nächsten Öffnen einer Datei.",
+  "setting.advanced.recentFilesCount.description": "Wie viele zuletzt geöffnete Dateien die Liste behält (Menü Datei > Zuletzt geöffnet und Strg+P), 0 bis 30. 0 behält keine. Eine kleinere Zahl kürzt die Liste beim nächsten Öffnen einer Datei.",
   "setting.advanced.autosaveIntervalSeconds.title": "Intervall der automatischen Speicherung (Sekunden)",
   "setting.advanced.autosaveIntervalSeconds.description": "Wie oft ein geändertes Dokument in seine eigene Datei geschrieben wird, wenn die automatische Speicherung an ist.",
   "setting.advanced.caretBlinkMilliseconds.title": "Blinkzeit des Textcursors (Millisekunden)",
@@ -820,5 +820,7 @@
   "reason.textView.false": "Das Dokument wird gerade nicht als Text angezeigt",
   "reason.hasPath.false": "Das Dokument hat keine Datei auf dem Datenträger",
   "reason.multipleCarets.false": "Es gibt nur einen Cursor",
-  "reason.fileType": "Der Befehl ist für eine andere Dateiart"
+  "reason.fileType": "Der Befehl ist für eine andere Dateiart",
+  "cmd.file.clearRecent": "Liste der zuletzt geöffneten Dateien leeren",
+  "submenu.recent": "Zuletzt geöffnet"
 }

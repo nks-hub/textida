@@ -2884,4 +2884,10 @@ public static partial class K
     public const string CommitCheckSave = "commit.check.save";
     public const string CommitCheckFormat = "commit.check.format";
     public const string CommitChecksFailed = "commit.checks.failed";
+    public const string RecentEmpty = "recent.empty";
+    public const string RecentMissing = "recent.missing";
+    public const string RecentRemoveTitle = "recent.removeTitle";
+    public const string RecentRemoveMessage = "recent.removeMessage";
+    public const string RecentRemove = "recent.remove";
+    public const string RecentCleared = "recent.cleared";
 }

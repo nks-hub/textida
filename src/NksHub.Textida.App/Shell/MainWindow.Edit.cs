@@ -46,7 +46,7 @@ internal sealed partial class MainWindow
     private List<MenuGroup> BuildMenuModel()
     {
         var wb = _app.Workbench;
-        var groups = MenuBuilder.Build(wb, new ShellContext(this, forMenu: true), CheckState, id => _ = wb.Commands.ExecuteAsync(id, new ShellContext(this, forMenu: true)));
+        var groups = WithRecentFiles(MenuBuilder.Build(wb, new ShellContext(this, forMenu: true), CheckState, id => _ = wb.Commands.ExecuteAsync(id, new ShellContext(this, forMenu: true))));
         _menuSignature = MenuSignature();
         _menuPathSeen = Active?.Doc.Path;
         RefreshToolbar();

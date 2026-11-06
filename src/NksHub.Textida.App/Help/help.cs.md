@@ -52,7 +52,7 @@ commands: nks.file.new
 - Text se hned zapisuje do žurnálu obnovy, takže se neztratí ani při pádu (téma Obnova po pádu). Název a místo dostane dokument při prvním uložení.
 
 ## [file.open] Otevření souboru
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Stiskněte Ctrl+O, nebo zvolte Soubor a Otevřít.
 2. V systémovém okně vyberte jeden nebo více souborů a potvrďte.
 3. Každý soubor se otevře na vlastní kartě. Soubor, který už je otevřený, se jen zobrazí.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - Kódování se pozná samo. Je-li to jen odhad, ukáže to stavový řádek s procentem jistoty; kliknutím na kódování ho změníte (téma Kódování).
 - Soubor větší než hranice velkého souboru (výchozí 6 MiB) se otevře ve stránkovaném režimu s omezenou editací (téma Velké soubory).
 - Soubor, který nejde přečíst, se neotevře a ve stavovém řádku je důvod (téma Chybová hlášení).
+- Soubor a Otevřít poslední ukáže naposledy otevřené soubory, nejnovější nahoře; jsou to tytéž soubory, které nabízí Ctrl+P. Prvních deset řádků otevřete klávesami 1 až 9 a 0. Řádek ukazuje název a složku, celá cesta se ukáže po najetí myší. Soubor, který už neexistuje, má u sebe (chybí) a po kliknutí nabídne odebrání ze seznamu. Pod seznamem je Znovu otevřít naposledy zavřenou kartu a Vymazat seznam posledních souborů, který seznam vyprázdní. Kolik souborů si seznam pamatuje (výchozí 15, nejvýš 30), určuje nastavení Počet pamatovaných posledních souborů.
 
 ## [file.openFolder] Otevření složky
 commands: nks.file.openFolder

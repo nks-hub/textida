@@ -52,7 +52,7 @@ commands: nks.file.new
 - Text sa hneď zapisuje do žurnálu obnovy, takže sa nestratí ani pri páde (téma Obnova po páde). Názov a miesto dostane dokument pri prvom uložení.
 
 ## [file.open] Otvorenie súboru
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Stlačte Ctrl+O, alebo zvoľte Súbor a Otvoriť.
 2. V systémovom okne vyberte jeden alebo viac súborov a potvrďte.
 3. Každý súbor sa otvorí na vlastnej karte. Súbor, ktorý je už otvorený, sa len zobrazí.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - Kódovanie sa pozná samo. Ak je to len odhad, ukáže to stavový riadok s percentom istoty; kliknutím na kódovanie ho zmeníte (téma Kódovanie).
 - Súbor väčší ako hranica veľkého súboru (predvolene 6 MiB) sa otvorí v stránkovanom režime s obmedzenou editáciou (téma Veľké súbory).
 - Súbor, ktorý sa nedá prečítať, sa neotvorí a v stavovom riadku je dôvod (téma Chybové hlásenia).
+- Súbor a Otvoriť posledné ukáže naposledy otvorené súbory, najnovší hore; sú to tie isté súbory, ktoré ponúka Ctrl+P. Prvých desať riadkov otvoríte klávesmi 1 až 9 a 0. Riadok ukazuje názov a priečinok, celá cesta sa ukáže po prejdení myšou. Súbor, ktorý už neexistuje, má pri sebe (chýba) a po kliknutí ponúkne odobratie zo zoznamu. Pod zoznamom je Znova otvoriť naposledy zatvorenú kartu a Vymazať zoznam posledných súborov, ktorý zoznam vyprázdni. Koľko súborov si zoznam pamätá (predvolene 15, najviac 30), určuje nastavenie Počet pamätaných posledných súborov.
 
 ## [file.openFolder] Otvorenie priečinka
 commands: nks.file.openFolder

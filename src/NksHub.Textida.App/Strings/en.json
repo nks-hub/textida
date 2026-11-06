@@ -2929,5 +2929,11 @@
   "commit.checks": "Before the commit:",
   "commit.check.save": "Save all files and run the save actions",
   "commit.check.format": "Format the open files of the commit (EditorConfig)",
-  "commit.checks.failed": "The checks before the commit did not pass, nothing was committed."
+  "commit.checks.failed": "The checks before the commit did not pass, nothing was committed.",
+  "recent.empty": "No recent files",
+  "recent.missing": "{name} (missing)",
+  "recent.removeTitle": "File missing",
+  "recent.removeMessage": "{path} no longer exists. Remove it from the recent files list?",
+  "recent.remove": "Remove from List",
+  "recent.cleared": "The recent files list is empty"
 }

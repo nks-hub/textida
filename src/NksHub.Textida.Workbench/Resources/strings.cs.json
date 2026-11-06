@@ -789,7 +789,7 @@
   "setting.advanced.wrapIndent.title": "Odsazení zalomených řádků (sloupce)",
   "setting.advanced.wrapIndent.description": "O kolik sloupců je odsazeno pokračování zalomeného řádku navíc k odsazení řádku samotného. Platí při zapnutém zalamování.",
   "setting.advanced.recentFilesCount.title": "Počet pamatovaných posledních souborů",
-  "setting.advanced.recentFilesCount.description": "Kolik naposledy otevřených souborů si seznam pamatuje. 0 znamená žádný. Nižší číslo seznam zkrátí při dalším otevření souboru.",
+  "setting.advanced.recentFilesCount.description": "Kolik naposledy otevřených souborů si seznam pamatuje (nabídka Soubor > Otevřít poslední a Ctrl+P), 0 až 30. 0 znamená žádný. Nižší číslo seznam zkrátí při dalším otevření souboru.",
   "setting.advanced.autosaveIntervalSeconds.title": "Interval automatického ukládání (sekundy)",
   "setting.advanced.autosaveIntervalSeconds.description": "Jak často se změněný dokument zapíše do svého souboru, když je zapnuté automatické ukládání.",
   "setting.advanced.caretBlinkMilliseconds.title": "Doba blikání textového kurzoru (milisekundy)",
@@ -820,5 +820,7 @@
   "reason.textView.false": "Dokument se teď nezobrazuje jako text",
   "reason.hasPath.false": "Dokument nemá soubor na disku",
   "reason.multipleCarets.false": "Je jen jeden kurzor",
-  "reason.fileType": "Příkaz je pro jiný druh souboru"
+  "reason.fileType": "Příkaz je pro jiný druh souboru",
+  "cmd.file.clearRecent": "Vymazat seznam posledních souborů",
+  "submenu.recent": "Otevřít poslední"
 }

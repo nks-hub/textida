@@ -52,7 +52,7 @@ commands: nks.file.new
 - Der Text wird sofort ins Wiederherstellungsjournal geschrieben und geht deshalb auch bei einem Absturz nicht verloren (Thema Wiederherstellung nach Absturz). Namen und Ort bekommt das Dokument beim ersten Speichern.
 
 ## [file.open] Eine Datei öffnen
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Drücken Sie Strg+O oder wählen Sie Datei und dann Öffnen.
 2. Wählen Sie im Systemfenster eine oder mehrere Dateien und bestätigen Sie.
 3. Jede Datei öffnet sich in einem eigenen Tab. Eine Datei, die schon offen ist, wird nur angezeigt.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - Die Codierung wird automatisch erkannt. Ist es nur eine Schätzung, zeigt die Statusleiste den Prozentwert der Sicherheit; ein Klick auf die Codierung ändert sie (Thema Codierung).
 - Eine Datei über der Grenze für große Dateien (standardmäßig 6 MiB) öffnet sich im Seitenmodus mit eingeschränkter Bearbeitung (Thema Große Dateien).
 - Eine Datei, die sich nicht lesen lässt, wird nicht geöffnet, und die Statusleiste nennt den Grund (Thema Fehlermeldungen).
+- Datei und Zuletzt geöffnet zeigt die zuletzt geöffneten Dateien, die neueste oben; es sind dieselben Dateien, die Strg+P anbietet. Die ersten zehn Zeilen öffnen Sie mit den Tasten 1 bis 9 und 0. Eine Zeile zeigt den Namen und den Ordner, der ganze Pfad erscheint, wenn die Maus darauf ruht. Eine Datei, die nicht mehr existiert, trägt (fehlt) und bietet beim Klick an, sie aus der Liste zu entfernen. Unter der Liste stehen Zuletzt geschlossenen Tab erneut öffnen und Liste der zuletzt geöffneten Dateien leeren, das die Liste leert. Wie viele Dateien die Liste behält (standardmäßig 15, höchstens 30), legt die Einstellung Anzahl gemerkter zuletzt geöffneter Dateien fest.
 
 ## [file.openFolder] Einen Ordner öffnen
 commands: nks.file.openFolder

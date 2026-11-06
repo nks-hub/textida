@@ -706,10 +706,10 @@
         },
         "advanced.recentFilesCount": {
           "type": "integer",
-          "default": 50,
+          "default": 15,
           "minimum": 0,
-          "maximum": 200,
-          "description": "Recent files kept. How many recently opened files the list keeps. 0 keeps none. A lower number cuts the list the next time a file is opened.",
+          "maximum": 30,
+          "description": "Recent files kept. How many recently opened files the list keeps (File > Open Recent and Ctrl+P), 0 to 30. 0 keeps none. A lower number cuts the list the next time a file is opened.",
           "x-scope": "application"
         },
         "advanced.autosaveIntervalSeconds": {

@@ -52,7 +52,7 @@ commands: nks.file.new
 - The text is written to the recovery journal at once, so it is not lost even in a crash (topic Crash recovery). The document gets its name and place when you first save it.
 
 ## [file.open] Opening a file
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Press Ctrl+O, or choose File and then Open.
 2. In the system window select one or more files and confirm.
 3. Each file opens in its own tab. A file that is already open is just shown.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - The encoding is detected automatically. If it is only a guess, the status bar shows the percentage of certainty; click the encoding to change it (topic Encoding).
 - A file larger than the large file threshold (6 MiB by default) opens in paged mode with limited editing (topic Large files).
 - A file that cannot be read does not open and the status bar gives the reason (topic Error messages).
+- File and then Open Recent shows the recently opened files, the newest on top; they are the same files Ctrl+P offers. Open one of the first ten rows with the keys 1 to 9 and 0. A row shows the name and the folder, and the whole path appears when the mouse rests on it. A file that no longer exists is marked (missing) and a click offers to remove it from the list. Below the list are Reopen Last Closed Tab and Clear Recent Files List, which empties the list. How many files the list keeps (15 by default, at most 30) is set by the setting Recent files kept.
 
 ## [file.openFolder] Opening a folder
 commands: nks.file.openFolder

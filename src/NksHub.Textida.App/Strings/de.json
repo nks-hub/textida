@@ -2929,5 +2929,11 @@
   "commit.checks": "Vor dem Commit:",
   "commit.check.save": "Alle Dateien speichern und Speicheraktionen ausführen",
   "commit.check.format": "Geöffnete Dateien des Commits formatieren (EditorConfig)",
-  "commit.checks.failed": "Die Prüfungen vor dem Commit sind fehlgeschlagen, es wurde nichts committet."
+  "commit.checks.failed": "Die Prüfungen vor dem Commit sind fehlgeschlagen, es wurde nichts committet.",
+  "recent.empty": "Keine zuletzt geöffneten Dateien",
+  "recent.missing": "{name} (fehlt)",
+  "recent.removeTitle": "Datei fehlt",
+  "recent.removeMessage": "Die Datei {path} existiert nicht mehr. Aus der Liste der zuletzt geöffneten Dateien entfernen?",
+  "recent.remove": "Aus der Liste entfernen",
+  "recent.cleared": "Die Liste der zuletzt geöffneten Dateien ist leer"
 }
