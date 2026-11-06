@@ -21,6 +21,7 @@
   "options.startMenu": "Zástupca v ponuke Štart",
   "options.desktop": "Zástupca na ploche",
   "options.menu": "Položka „{label}“ v kontextovej ponuke Prieskumníka",
+  "options.folderMenu": "Položka „{label}“ v kontextovej ponuke priečinkov",
   "options.assoc": "Ponúkať Textidu v Otvoriť pomocou pre tieto typy súborov",
   "options.assocAll": "Všetko",
   "options.assocNone": "Nič",
@@ -57,5 +58,6 @@
   "uninstall.progress": "Odstraňuje sa Textida…",
   "uninstall.done": "Textida bola odstránená. Vaše nastavenia v {data} zostali.",
   "uninstall.doneAll": "Textida aj s nastaveniami bola odstránená.",
-  "menu.label": "Otvoriť v Textide"
+  "menu.label": "Otvoriť v Textide",
+  "menu.folderLabel": "Otvoriť v Textide ako projekt"
 }

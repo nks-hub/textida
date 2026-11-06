@@ -54,7 +54,7 @@ internal sealed partial class MainWindow
 {
     private WorkspaceIndex? _workspace;
 
-    private string? FileRootFolder => _fileTree?.Root;
+    internal string? FileRootFolder => _fileTree?.Root;
 
     private void EnsureWorkspaceIndex()
     {

@@ -343,6 +343,7 @@ internal sealed class SetupWindow : Window
                 Option("startMenu", text.Get(S.OptionsStartMenu), _model.StartMenu, on => _model.StartMenu = on),
                 Option("desktop", text.Get(S.OptionsDesktop), _model.Desktop, on => _model.Desktop = on),
                 Option("menu", text.Get(S.OptionsMenu, ("label", text.Get(S.MenuLabel))), _model.ContextMenu, on => _model.ContextMenu = on),
+                Option("folderMenu", text.Get(S.OptionsFolderMenu, ("label", text.Get(S.FolderMenuLabel))), _model.FolderMenu, on => _model.FolderMenu = on),
                 assocHeader,
                 extensions,
                 Option("launch", text.Get(S.OptionsLaunch), _model.Launch, on => { _model.Launch = on; _launchAfter = on; }),

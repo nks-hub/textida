@@ -1965,6 +1965,7 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
 4. Choose Settings, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
 5. The same switches are in Settings, under System integration (search for "integration" or "shortcut"): the menu entry, the file types, a shortcut in the Start menu and on the desktop, and a button that opens the default apps page of Windows. A switch writes the registry at once and shows what the registry says.
+- The entry Open in Textida as project in the context menu of a folder, and on the background of an open folder, opens a window with the folder as the root of the project: the file panel, Git and search in the folder work on it. It has a switch of its own in the settings and in the setup (`--folder-menu`, `--no-folder-menu`). From the command line, `textida --project folder` or `textida folder` does the same; a window that has the folder already only comes to the front.
 - The setup program TextidaSetup.exe offers the same choices when it installs and takes them back when it uninstalls.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
@@ -1979,6 +1980,7 @@ macOS only, in the installed Textida (Textida.app). Textida adds nothing to your
 5. Choose Settings, System Integration, Remove Textida from macOS (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
 - A link or an action is removed only when it is Textida's own: a textida command that leads to another program, and an action that Textida did not write, are left alone.
 - A type that no other application opens stays with Textida after it is switched off, because the Mac has nobody to give it back to.
+- The quick action Open in Textida as project is offered on folders only and opens the folder as the root of the project in a Textida window, like `textida --project folder`. It has a switch of its own.
 - The quick action and the file types need Textida to run from Textida.app; a program started from a build folder offers only the command.
 - Deleting Textida.app removes the program only. Choose Remove first, so the link, the quick action and the file types go too; your settings stay until you delete the folder Textida in ~/Library/Application Support.
 

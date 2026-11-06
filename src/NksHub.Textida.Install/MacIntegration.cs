@@ -92,18 +92,37 @@ public sealed class MacIntegration(MacLocations locations, string executablePath
     /// <summary>The folder name of the quick action, the same in every language; the name Finder shows is the label.</summary>
     public const string ActionFolderName = "Open in Textida";
 
-    private string ActionFolder => Path.Combine(locations.ServicesDir, ActionFolderName + ".workflow");
+    /// <summary>The folder name of the quick action that opens a folder as the project of a window.</summary>
+    public const string ProjectActionFolderName = "Open in Textida as Project";
+
+    private string ActionFolder(string name) => Path.Combine(locations.ServicesDir, name + ".workflow");
 
     /// <summary>Whether the quick action is there and was written by Textida.</summary>
-    public bool HasFinderAction() => File.Exists(Path.Combine(ActionFolder, "Contents", "document.wflow")) && File.ReadAllText(Path.Combine(ActionFolder, "Contents", "document.wflow")).Contains(MacBundle.ActionMarker, StringComparison.Ordinal);
+    public bool HasFinderAction() => HasAction(ActionFolderName);
+
+    public bool HasProjectAction() => HasAction(ProjectActionFolderName);
+
+    private bool HasAction(string name)
+    {
+        var workflow = Path.Combine(ActionFolder(name), "Contents", "document.wflow");
+        return File.Exists(workflow) && File.ReadAllText(workflow).Contains(MacBundle.ActionMarker, StringComparison.Ordinal);
+    }
 
     /// <summary>Writes (or writes again, pointing at this program) the quick action, which Finder shows as <paramref name="label"/>. Needs the application bundle; <see cref="InvalidOperationException"/> when the program runs from elsewhere.</summary>
     public void AddFinderAction(string label)
     {
         var bundle = BundlePath ?? throw new InvalidOperationException("The program does not run from an application bundle.");
-        var folder = ActionFolder;
-        if (Directory.Exists(folder) && !HasFinderAction()) throw new IOException($"{folder} exists and was not made by Textida.");
-        foreach (var (relative, text) in MacBundle.FinderActionFiles(label, bundle))
+        WriteAction(ActionFolderName, MacBundle.FinderActionFiles(label, bundle));
+    }
+
+    /// <summary>Writes the quick action "Open in Textida as project" for folders, shown as <paramref name="label"/>; it runs this program with <c>--project</c>.</summary>
+    public void AddProjectAction(string label) => WriteAction(ProjectActionFolderName, MacBundle.ProjectActionFiles(label, executablePath));
+
+    private void WriteAction(string name, IReadOnlyDictionary<string, string> files)
+    {
+        var folder = ActionFolder(name);
+        if (Directory.Exists(folder) && !HasAction(name)) throw new IOException($"{folder} exists and was not made by Textida.");
+        foreach (var (relative, text) in files)
         {
             var path = Path.Combine(folder, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -112,10 +131,14 @@ public sealed class MacIntegration(MacLocations locations, string executablePath
         RefreshServices();
     }
 
-    public void RemoveFinderAction()
+    public void RemoveFinderAction() => RemoveAction(ActionFolderName);
+
+    public void RemoveProjectAction() => RemoveAction(ProjectActionFolderName);
+
+    private void RemoveAction(string name)
     {
-        if (!HasFinderAction()) return;
-        Directory.Delete(ActionFolder, recursive: true);
+        if (!HasAction(name)) return;
+        Directory.Delete(ActionFolder(name), recursive: true);
         RefreshServices();
     }
 
@@ -183,11 +206,12 @@ public sealed class MacIntegration(MacLocations locations, string executablePath
 
     // ---- everything ----
 
-    /// <summary>Takes back everything this class added: the command, the quick action and every association (each extension goes back to the application it had).</summary>
+    /// <summary>Takes back everything this class added: the command, the quick actions and every association (each extension goes back to the application it had).</summary>
     public void RemoveAll()
     {
         RemoveCommand();
         RemoveFinderAction();
+        RemoveProjectAction();
         foreach (var extension in IntegrationExtensions.All) SetAssociated(extension, false);
         foreach (var extension in LoadPrevious().Keys.ToList()) SetAssociated(extension, false);
     }

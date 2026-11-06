@@ -1965,6 +1965,7 @@ Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho 
 3. Aby bola Textida predvoleným programom prípony, použite v Prieskumníku Otvoriť v programe, Vybrať inú aplikáciu. Túto voľbu si Windows drží sám.
 4. Zvoľte Nastavenia, Integrácia do systému, Odobrať Textidu z Prieskumníka: zmaže položku ponuky a všetky asociácie, ktoré Textida pridala. To isté urobí odinštalátor.
 5. Rovnaké prepínače sú v Nastaveniach v oddiele Integrácia so systémom (hľadajte „integrácia“ alebo „zástupca“): položka v ponuke Prieskumníka, typy súborov, zástupca v ponuke Štart a na ploche a tlačidlo, ktoré vo Windows otvorí stránku s predvolenými aplikáciami. Prepínač zapíše register hneď a ukazuje, čo v registri je.
+- Položka Otvoriť v Textide ako projekt v kontextovej ponuke priečinka aj na pozadí otvoreného priečinka otvorí okno, v ktorom je priečinok koreňom projektu: panel súborov, Git a hľadanie v priečinku pracujú s ním. Má vlastný prepínač v Nastaveniach aj v inštalátore (`--folder-menu`, `--no-folder-menu`). Z príkazového riadka to isté urobí `textida --project priečinok` alebo `textida priečinok`; okno, ktoré priečinok už má, sa len prepne do popredia.
 - Inštalátor TextidaSetup.exe ponúka tie isté voľby pri inštalácii a pri odinštalovaní ich vráti.
 - Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
 - Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.
@@ -1979,6 +1980,7 @@ Len pre macOS, v nainštalovanej Textide (Textida.app). Textida nepridá do Macu
 5. Zvoľte Nastavenia, Integrácia do systému, Odobrať Textidu z macOS (alebo Odobrať všetko v okne) a zmažete odkaz, rýchlu akciu aj všetky priradenia, ktoré Textida pridala.
 - Odkaz alebo akcia sa odoberie len vtedy, keď je naozaj od Textidy: príkaz textida, ktorý vedie k inému programu, a akcia, ktorú Textida nenapísala, zostanú.
 - Typ, ktorý žiadna iná aplikácia neotvára, zostane po vypnutí Textide, pretože Mac nemá komu ho vrátiť.
+- Rýchla akcia Otvoriť v Textide ako projekt je len pri priečinkoch a otvorí priečinok ako koreň projektu v okne Textidy, rovnako ako `textida --project priečinok`. Zapína sa vlastným prepínačom.
 - Rýchla akcia a typy súborov vyžadujú, aby Textida bežala z Textida.app; program spustený z priečinka zostavenia ponúkne len príkaz.
 - Zmazanie Textida.app odstráni len program. Najprv zvoľte Odobrať, aby zmizol aj odkaz, akcia a typy súborov; nastavenia zostanú, kým nezmažete priečinok Textida v ~/Library/Application Support.
 

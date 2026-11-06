@@ -115,6 +115,31 @@ public class SystemIntegrationSettingsTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void The_folder_switch_writes_the_entry_of_folders_and_of_their_background_at_once()
+    {
+        var view = Open();
+        var label = Loc.Get(K.SettingsSystemFolderMenu, ("label", Loc.Get(K.ShellFolderMenuLabel)));
+        Assert.Equal("Položka „Otevřít v Textidě jako projekt“ v místní nabídce složek", label);
+        Assert.False(Box(view, label).IsChecked);
+
+        Box(view, label).IsChecked = true;
+        Assert.True(Integration.HasFolderMenu());
+        Assert.False(Integration.HasMenu());
+        using (var command = _root!.OpenSubKey(@"Classes\Directory\Background\shell\Textida.Project\command")!)
+            Assert.Equal($"\"{_exe}\" --project \"%V\"", command.GetValue(""));
+        using (var verb = _root.OpenSubKey(@"Classes\Directory\shell\Textida.Project")!) Assert.Equal("Otevřít v Textidě jako projekt", verb.GetValue(""));
+
+        Box(view, label).IsChecked = false;
+        Assert.False(Integration.HasFolderMenu());
+        Assert.Null(_root.OpenSubKey(@"Classes\Directory"));
+    }
+
+    [AvaloniaTheory]
+    [InlineData("projekt")]
+    [InlineData("slozka")]
+    public void The_section_is_found_by_the_words_of_the_folder_entry(string query) => Assert.Contains(SettingsWindow.SystemSectionId, Open(query).ShownIds);
+
+    [AvaloniaFact]
     public void The_state_is_read_from_the_registry_when_the_view_is_built_not_remembered()
     {
         var view = Open();

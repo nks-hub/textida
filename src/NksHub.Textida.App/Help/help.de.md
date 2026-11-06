@@ -1965,6 +1965,7 @@ Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers
 3. Damit Textida das Standardprogramm einer Endung wird, nutzen Sie im Explorer Öffnen mit, Andere App auswählen. Diese Wahl verwaltet Windows selbst.
 4. Wählen Sie Einstellungen, Systemintegration, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
 5. Dieselben Schalter finden Sie in den Einstellungen unter Systemintegration (suchen Sie „Integration“ oder „Verknüpfung“): der Eintrag im Explorer-Menü, die Dateitypen, eine Verknüpfung im Startmenü und auf dem Desktop sowie eine Schaltfläche, die in Windows die Seite der Standard-Apps öffnet. Ein Schalter schreibt die Registrierung sofort und zeigt, was dort steht.
+- Der Eintrag In Textida als Projekt öffnen im Kontextmenü eines Ordners und im Hintergrund eines geöffneten Ordners öffnet ein Fenster, in dem der Ordner die Wurzel des Projekts ist: Dateibereich, Git und die Suche im Ordner arbeiten mit ihm. Er hat einen eigenen Schalter in den Einstellungen und im Setup (`--folder-menu`, `--no-folder-menu`). In der Befehlszeile tut `textida --project Ordner` oder `textida Ordner` dasselbe; ein Fenster, das den Ordner schon hat, kommt nur nach vorn.
 - Das Setup TextidaSetup.exe bietet dieselben Wahlmöglichkeiten bei der Installation an und nimmt sie bei der Deinstallation zurück.
 - Der Text des Menüeintrags steht in der Sprache von Textida zum Zeitpunkt des Hinzufügens. Fügen Sie ihn nach einem Sprachwechsel erneut hinzu.
 - Wird Textida.exe in einen anderen Ordner verschoben, bleibt der alte Pfad in den Einträgen. Fügen Sie den Eintrag erneut hinzu oder entfernen Sie ihn vorher.
@@ -1979,6 +1980,7 @@ Nur für macOS, in der installierten Textida (Textida.app). Textida fügt Ihrem 
 5. Wählen Sie Einstellungen, Systemintegration, Textida aus macOS entfernen (oder Alles entfernen im Fenster), um den Link, die Schnellaktion und jede Zuordnung zu löschen, die Textida hinzugefügt hat.
 - Ein Link oder eine Aktion wird nur entfernt, wenn sie wirklich von Textida stammt: Ein Befehl textida, der zu einem anderen Programm führt, und eine Aktion, die Textida nicht geschrieben hat, bleiben unberührt.
 - Ein Typ, den keine andere Anwendung öffnet, bleibt nach dem Ausschalten bei Textida, weil der Mac niemanden hat, dem er ihn zurückgeben könnte.
+- Die Schnellaktion In Textida als Projekt öffnen gibt es nur für Ordner; sie öffnet den Ordner als Wurzel des Projekts in einem Fenster von Textida, wie `textida --project Ordner`. Sie hat einen eigenen Schalter.
 - Die Schnellaktion und die Dateitypen setzen voraus, dass Textida aus Textida.app läuft; ein aus einem Build-Ordner gestartetes Programm bietet nur den Befehl an.
 - Das Löschen von Textida.app entfernt nur das Programm. Wählen Sie zuerst Entfernen, damit auch Link, Aktion und Dateitypen verschwinden; Ihre Einstellungen bleiben, bis Sie den Ordner Textida in ~/Library/Application Support löschen.
 

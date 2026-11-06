@@ -19,7 +19,7 @@ internal sealed class MacIntegrationSection : StackPanel
     private readonly MacIntegration _integration;
     private readonly TextBlock _description = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
     private readonly TextBlock _notInBundle = new() { TextWrapping = TextWrapping.Wrap };
-    private readonly CheckBox _command = new(), _finder = new();
+    private readonly CheckBox _command = new(), _finder = new(), _project = new();
     private readonly TextBlock _commandLink = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
     private readonly TextBlock _commandHint = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
     private readonly TextBlock _finderNote = new() { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
@@ -53,13 +53,18 @@ internal sealed class MacIntegrationSection : StackPanel
             if (_finder.IsChecked == true) _integration.AddFinderAction(Loc.Get(K.MacActionLabel));
             else _integration.RemoveFinderAction();
         });
+        _project.IsCheckedChanged += (_, _) => Apply(() =>
+        {
+            if (_project.IsChecked == true) _integration.AddProjectAction(Loc.Get(K.ShellFolderMenuLabel));
+            else _integration.RemoveProjectAction();
+        });
         _removeAll.Click += (_, _) =>
         {
             if (!Apply(_integration.RemoveAll)) return;
             _result.Text = Loc.Get(K.MacRemoved);
             _result.IsVisible = true;
         };
-        foreach (var child in new Control[] { _description, _notInBundle, _command, _commandLink, _commandHint, _finder, _finderNote, _typesTitle, _types, _typesNote, _removeAll, _problem, _result })
+        foreach (var child in new Control[] { _description, _notInBundle, _command, _commandLink, _commandHint, _finder, _finderNote, _project, _typesTitle, _types, _typesNote, _removeAll, _problem, _result })
             Children.Add(child);
         ApplyTexts();
         Refresh();
@@ -67,6 +72,7 @@ internal sealed class MacIntegrationSection : StackPanel
 
     internal CheckBox CommandBox => _command;
     internal CheckBox FinderBox => _finder;
+    internal CheckBox ProjectBox => _project;
     internal Button RemoveAllButton => _removeAll;
     internal IReadOnlyList<(string Extension, CheckBox Box)> Extensions => _extensions;
     internal string CommandLinkText => _commandLink.IsVisible ? _commandLink.Text ?? "" : "";
@@ -83,12 +89,14 @@ internal sealed class MacIntegrationSection : StackPanel
         _command.Content = Loc.Get(K.MacCli);
         _finder.Content = Loc.Get(K.MacFinder);
         _finderNote.Text = Loc.Get(K.MacFinderNote);
+        _project.Content = Loc.Get(K.MacProjectFinder, ("label", Loc.Get(K.ShellFolderMenuLabel)));
         _typesTitle.Text = Loc.Get(K.MacAssoc);
         _typesNote.Text = Loc.Get(K.MacAssocNote);
         _removeAll.Content = Loc.Get(K.MacRemoveAll);
         AutomationProperties.SetName(this, Loc.Get(K.A11yMacWindow));
         AutomationProperties.SetName(_command, Loc.Get(K.MacCli));
         AutomationProperties.SetName(_finder, Loc.Get(K.MacFinder));
+        AutomationProperties.SetName(_project, Loc.Get(K.MacProjectFinder, ("label", Loc.Get(K.ShellFolderMenuLabel))));
         AutomationProperties.SetName(_removeAll, Loc.Get(K.MacRemoveAll));
         AutomationProperties.SetName(_types, Loc.Get(K.MacAssoc));
         foreach (var (extension, box) in _extensions) AutomationProperties.SetName(box, Loc.Get(K.MacAssocItem, ("extension", extension)));
@@ -135,6 +143,8 @@ internal sealed class MacIntegrationSection : StackPanel
             _finder.IsEnabled = bundle;
             _finder.IsChecked = bundle && _integration.HasFinderAction();
             _finderNote.IsVisible = bundle;
+            _project.IsEnabled = bundle;
+            _project.IsChecked = bundle && _integration.HasProjectAction();
             var associated = bundle ? _integration.AssociatedExtensions().ToHashSet(StringComparer.Ordinal) : [];
             foreach (var (extension, box) in _extensions)
             {

@@ -2579,6 +2579,7 @@ public static partial class K
     public const string RecipeFilesNothing = "recipeFiles.nothing";
     public const string RecipeFilesSkipped = "recipeFiles.skipped";
     public const string ShellMenuLabel = "shell.menu.label";
+    public const string ShellFolderMenuLabel = "shell.folderMenu.label";
     public const string ShellMenuAdded = "shell.menu.added";
     public const string ShellRemoved = "shell.removed";
     public const string ShellFailed = "shell.failed";
@@ -2591,6 +2592,7 @@ public static partial class K
     public const string SettingsSystemDescription = "settings.system.description";
     public const string SettingsSystemKeywords = "settings.system.keywords";
     public const string SettingsSystemMenu = "settings.system.menu";
+    public const string SettingsSystemFolderMenu = "settings.system.folderMenu";
     public const string SettingsSystemAssoc = "settings.system.assoc";
     public const string SettingsSystemStartMenu = "settings.system.startMenu";
     public const string SettingsSystemDesktop = "settings.system.desktop";
@@ -2606,6 +2608,7 @@ public static partial class K
     public const string MacFinder = "mac.finder";
     public const string MacFinderNote = "mac.finderNote";
     public const string MacActionLabel = "mac.actionLabel";
+    public const string MacProjectFinder = "mac.projectFinder";
     public const string MacAssoc = "mac.assoc";
     public const string MacAssocItem = "mac.assocItem";
     public const string MacAssocNote = "mac.assocNote";

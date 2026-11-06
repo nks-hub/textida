@@ -170,6 +170,52 @@ public class ShellIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void The_folder_entry_opens_the_clicked_folder_or_the_open_folder_as_a_project()
+    {
+        var shell = new ShellIntegration(_root!, Exe);
+        Assert.False(shell.HasFolderMenu());
+        shell.AddFolderMenu("Open in Textida as project");
+
+        Assert.True(shell.HasFolderMenu());
+        foreach (var (key, argument) in new[] { (@"Directory\shell\Textida.Project", "%1"), (@"Directory\Background\shell\Textida.Project", "%V") })
+        {
+            using var verb = _root!.OpenSubKey(key)!;
+            Assert.Equal("Open in Textida as project", verb.GetValue(""));
+            Assert.Equal($"\"{Exe}\",0", verb.GetValue("Icon"));
+            using var command = verb.OpenSubKey("command")!;
+            Assert.Equal($"\"{Exe}\" --project \"{argument}\"", command.GetValue(""));
+        }
+        Assert.False(shell.HasMenu()); // the entry of files is a switch of its own
+    }
+
+    [Fact]
+    public void Removing_the_folder_entry_leaves_the_root_as_it_was_and_keeps_the_entries_of_others()
+    {
+        using (var other = _root!.CreateSubKey(@"Directory\shell\git_shell\command")) other.SetValue("", "git-bash.exe");
+        var before = Snapshot();
+        var shell = new ShellIntegration(_root, Exe);
+
+        shell.AddFolderMenu("x");
+        shell.RemoveFolderMenu();
+        Assert.Equal(before, Snapshot());
+        Assert.False(shell.HasFolderMenu());
+
+        shell.AddFolderMenu("x");
+        shell.AddMenu("y");
+        shell.RemoveAll(); // the uninstaller and Remove Explorer Menu take it too
+        Assert.Equal(before, Snapshot());
+    }
+
+    [Fact]
+    public void Removing_the_folder_entry_from_an_empty_root_removes_every_key_it_made()
+    {
+        var shell = new ShellIntegration(_root!, Exe);
+        shell.AddFolderMenu("x");
+        shell.RemoveFolderMenu();
+        Assert.Null(_root!.OpenSubKey("Directory"));
+    }
+
+    [Fact]
     public void Removing_when_nothing_was_added_changes_nothing()
     {
         var before = Snapshot();

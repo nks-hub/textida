@@ -1965,6 +1965,7 @@ Jen Windows. Textida se umí přidat do místní nabídky Průzkumníka vašeho 
 3. Aby byla Textida výchozím programem přípony, použijte v Průzkumníku Otevřít v programu, Vybrat jinou aplikaci. Tuto volbu si Windows drží sám.
 4. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z Průzkumníka: smaže položku nabídky a všechny asociace, které Textida přidala. Totéž udělá odinstalátor.
 5. Stejné přepínače jsou v Nastavení v oddílu Integrace se systémem (hledejte „integrace“ nebo „zástupce“): položka v nabídce Průzkumníka, typy souborů, zástupce v nabídce Start a na ploše a tlačítko, které otevře ve Windows stránku s výchozími aplikacemi. Přepínač zapíše registr hned a ukazuje, co v registru je.
+- Položka Otevřít v Textidě jako projekt v místní nabídce složky i na pozadí otevřené složky otevře okno, ve kterém je složka kořenem projektu: panel souborů, Git a hledání ve složce pracují s ní. Má vlastní přepínač v Nastavení i v instalátoru (`--folder-menu`, `--no-folder-menu`). Z příkazové řádky totéž udělá `textida --project složka` nebo `textida složka`; okno, které složku už má, se jen přepne do popředí.
 - Instalátor TextidaSetup.exe nabízí stejné volby při instalaci a při odinstalaci je vrátí.
 - Text položky nabídky je v jazyce Textidy v okamžiku přidání. Po změně jazyka ji přidejte znovu.
 - Přesunutí Textida.exe do jiné složky nechá v položkách starou cestu. Přidejte položku znovu, nebo ji nejdřív odeberte.
@@ -1979,6 +1980,7 @@ Jen pro macOS, v nainstalované Textidě (Textida.app). Textida nepřidá do Mac
 5. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z macOS (nebo Odebrat vše v okně) a smažete odkaz, rychlou akci i všechna přidružení, která Textida přidala.
 - Odkaz nebo akce se odebere jen tehdy, když je opravdu od Textidy: příkaz textida, který vede k jinému programu, a akce, kterou Textida nenapsala, zůstanou.
 - Typ, který žádná jiná aplikace neotevírá, zůstane po vypnutí Textidě, protože Mac nemá komu ho vrátit.
+- Rychlá akce Otevřít v Textidě jako projekt je jen u složek a otevře složku jako kořen projektu v okně Textidy, stejně jako `textida --project složka`. Zapíná se vlastním přepínačem.
 - Rychlá akce a typy souborů vyžadují, aby Textida běžela z Textida.app; program spuštěný ze složky sestavení nabídne jen příkaz.
 - Smazání Textida.app odstraní jen program. Nejdřív zvolte Odebrat, aby zmizel i odkaz, akce a typy souborů; nastavení zůstane, dokud nesmažete složku Textida v ~/Library/Application Support.
 
