@@ -21,6 +21,7 @@
   "options.startMenu": "Start menu shortcut",
   "options.desktop": "Desktop shortcut",
   "options.menu": "Entry “{label}” in the Explorer context menu",
+  "options.folderMenu": "Entry “{label}” in the context menu of folders",
   "options.assoc": "Offer Textida under Open with for these file types",
   "options.assocAll": "All",
   "options.assocNone": "None",
@@ -57,5 +58,6 @@
   "uninstall.progress": "Removing Textida…",
   "uninstall.done": "Textida was removed. Your settings in {data} were kept.",
   "uninstall.doneAll": "Textida and its settings were removed.",
-  "menu.label": "Open with Textida"
+  "menu.label": "Open with Textida",
+  "menu.folderLabel": "Open in Textida as project"
 }

@@ -47,10 +47,25 @@ public class SilentModeTests : IDisposable
         Assert.Equal(0, Run(["--silent", "--dir", _box.Dir]));
 
         Assert.True(Integration.HasMenu());
+        Assert.True(Integration.HasFolderMenu());
         Assert.True(Integration.HasStartMenuShortcut());
         Assert.False(Integration.HasDesktopShortcut());
         Assert.Empty(Integration.AssociatedExtensions());
         Assert.Empty(_recorder.Launched);
+    }
+
+    [Fact]
+    public void The_folder_entry_follows_its_switch_and_an_update_keeps_it_unless_the_line_names_it()
+    {
+        Assert.Equal(0, Run(["--silent", "--dir", _box.Dir, "--no-folder-menu"]));
+        Assert.False(Integration.HasFolderMenu());
+        Assert.True(Integration.HasMenu());
+
+        Assert.Equal(0, Run(["--silent", "--folder-menu"], package: () => Sandbox.Package("2.0.0", "new")));
+        Assert.True(Integration.HasFolderMenu());
+
+        Assert.Equal(0, Run(["--silent"], package: () => Sandbox.Package("3.0.0", "newer")));
+        Assert.True(Integration.HasFolderMenu());
     }
 
     [Fact]
@@ -102,6 +117,8 @@ public class SilentModeTests : IDisposable
         Run(["--silent", "--dir", _box.Dir, "--menu"], language: "de");
         using var verb = _box.Key.OpenSubKey(@"Classes\*\shell\Textida")!;
         Assert.Equal("Mit Textida öffnen", verb.GetValue(""));
+        using var folder = _box.Key.OpenSubKey(@"Classes\Directory\Background\shell\Textida.Project")!;
+        Assert.Equal("In Textida als Projekt öffnen", folder.GetValue(""));
     }
 
     [Fact]

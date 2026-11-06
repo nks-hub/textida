@@ -120,6 +120,21 @@ public class MacBundleTests
     }
 
     [Fact]
+    public void The_project_action_is_offered_on_folders_and_runs_the_program_with_project_for_each_one()
+    {
+        var files = MacBundle.ProjectActionFiles("Open in Textida as project", "/Applications/Text ida.app/Contents/MacOS/Textida");
+        foreach (var xml in files.Values) AssertPropertyList(xml);
+
+        var entries = Entries(Entries(XDocument.Parse(files["Contents/Info.plist"]).Root!.Element("dict")!)["NSServices"].Element("dict")!);
+        Assert.Equal("Open in Textida as project", Entries(entries["NSMenuItem"])["default"].Value);
+        Assert.Equal(["public.folder"], entries["NSSendFileTypes"].Elements().Select(e => e.Value));
+        var workflow = Entries(XDocument.Parse(files["Contents/document.wflow"]).Root!.Element("dict")!);
+        var script = Entries(Entries(Entries(workflow["actions"].Element("dict")!)["action"])["ActionParameters"])["COMMAND_STRING"].Value;
+        Assert.StartsWith(MacBundle.ActionMarker, script, StringComparison.Ordinal);
+        Assert.Contains("for f in \"$@\"; do\n  '/Applications/Text ida.app/Contents/MacOS/Textida' --project \"$f\" >/dev/null 2>&1 &\ndone", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_label_or_a_path_with_markup_characters_stays_text_and_a_quote_in_a_path_stays_one_word_of_the_shell()
     {
         var files = MacBundle.FinderActionFiles("Open <in> \"T&T\"", "/Users/o'brien/Apps/T&T.app");
@@ -264,6 +279,26 @@ public class MacIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void The_project_action_is_a_second_workflow_beside_the_first_and_is_taken_away_on_its_own()
+    {
+        var integration = Integration();
+        integration.AddFinderAction("Open in Textida");
+        Assert.False(integration.HasProjectAction());
+
+        integration.AddProjectAction("Open in Textida as project");
+
+        var folder = Path.Combine(_locations.Home, "Library", "Services", "Open in Textida as Project.workflow");
+        Assert.True(integration.HasProjectAction());
+        var workflow = File.ReadAllText(Path.Combine(folder, "Contents", "document.wflow"));
+        Assert.Contains(MacBundle.ShellQuote(_exe) + " --project", workflow.Replace("&apos;", "'"), StringComparison.Ordinal);
+        Assert.Contains("public.folder", File.ReadAllText(Path.Combine(folder, "Contents", "Info.plist")), StringComparison.Ordinal);
+
+        integration.RemoveProjectAction();
+        Assert.False(Directory.Exists(folder));
+        Assert.True(integration.HasFinderAction());
+    }
+
+    [Fact]
     public void An_action_of_that_name_that_Textida_did_not_write_is_left_alone_and_a_program_outside_a_bundle_has_no_action()
     {
         var foreign = Path.Combine(_locations.Home, "Library", "Services", "Open in Textida.workflow", "Contents");
@@ -340,6 +375,7 @@ public class MacIntegrationTests : IDisposable
         bool linked = CanLink();
         if (linked) integration.AddCommand();
         integration.AddFinderAction("Open in Textida");
+        integration.AddProjectAction("Open in Textida as project");
         integration.SetAssociated(".md", true);
         integration.SetAssociated(".json", true);
         integration.SetAssociated(".txt", true);
@@ -348,6 +384,7 @@ public class MacIntegrationTests : IDisposable
 
         Assert.False(integration.HasCommand());
         Assert.False(integration.HasFinderAction());
+        Assert.False(integration.HasProjectAction());
         Assert.Equal("com.apple.TextEdit", services.Handlers[".md"]);
         Assert.Equal("com.microsoft.VSCode", services.Handlers[".json"]);
         Assert.Empty(integration.AssociatedExtensions().Except([".txt"])); // .txt had no other application
@@ -427,6 +464,14 @@ public class MacIntegrationWindowTests : IDisposable
         Assert.Contains("Open in Textida", File.ReadAllText(Path.Combine(folder, "Contents", "Info.plist")));
         window.Section.FinderBox.IsChecked = false;
         Assert.False(Directory.Exists(folder));
+
+        var project = Path.Combine(_temp.Path, "home", "Library", "Services", "Open in Textida as Project.workflow");
+        Assert.Equal("Quick action “Open in Textida as project” on folders in Finder", window.Section.ProjectBox.Content);
+        Assert.Equal(window.Section.ProjectBox.Content, AutomationProperties.GetName(window.Section.ProjectBox));
+        window.Section.ProjectBox.IsChecked = true;
+        Assert.Contains("Open in Textida as project", File.ReadAllText(Path.Combine(project, "Contents", "Info.plist")));
+        window.Section.ProjectBox.IsChecked = false;
+        Assert.False(Directory.Exists(project));
 
         var markdown = window.Section.Extensions.Single(e => e.Extension == ".md").Box;
         _services.Handlers[".md"] = "com.apple.TextEdit";

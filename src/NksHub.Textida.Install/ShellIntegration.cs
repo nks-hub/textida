@@ -21,28 +21,58 @@ public sealed partial class ShellIntegration(RegistryKey classes, string exePath
 
     private const string MenuPath = @"*\shell\" + ProductName;
 
+    private const string FolderVerb = ProductName + ".Project";
+
+    private const string FolderMenuPath = @"Directory\shell\" + FolderVerb;
+
+    private const string BackgroundMenuPath = @"Directory\Background\shell\" + FolderVerb;
+
     /// <summary>The command Explorer runs: the program and the clicked file, quoted so a path with spaces stays one argument.</summary>
     public string Command => $"\"{exePath}\" \"%1\"";
 
+    /// <summary>The command of the folder entry: <c>%1</c> is the clicked folder, <c>%V</c> the open folder whose background was clicked.</summary>
+    public string FolderCommand(bool background) => $"\"{exePath}\" --project \"{(background ? "%V" : "%1")}\"";
+
     public static RegistryKey OpenUserClasses() => Registry.CurrentUser.CreateSubKey(@"Software\Classes");
 
-    public void AddMenu(string label)
-    {
-        using var verb = classes.CreateSubKey(MenuPath);
-        verb.SetValue("", label);
-        verb.SetValue("Icon", $"\"{exePath}\",0");
-        using var command = verb.CreateSubKey("command");
-        command.SetValue("", Command);
-    }
+    public void AddMenu(string label) => WriteVerb(MenuPath, label, Command);
 
     public bool HasMenu() { using var verb = classes.OpenSubKey(MenuPath); return verb is not null; }
 
-    public void RemoveMenu()
+    public void RemoveMenu() => RemoveVerb(MenuPath, @"*\shell", "*");
+
+    /// <summary>The entry "Open in Textida as project" on a folder and on the background of an open folder: the folder becomes the root of the window (<c>--project</c>).</summary>
+    public void AddFolderMenu(string label)
     {
-        classes.DeleteSubKeyTree(MenuPath, throwOnMissingSubKey: false);
-        foreach (var parent in new[] { @"*\shell", "*" }) // the parents that were created for the entry go too, when nothing else lives in them
+        WriteVerb(FolderMenuPath, label, FolderCommand(background: false));
+        WriteVerb(BackgroundMenuPath, label, FolderCommand(background: true));
+    }
+
+    public bool HasFolderMenu() { using var verb = classes.OpenSubKey(FolderMenuPath); return verb is not null; }
+
+    public void RemoveFolderMenu()
+    {
+        RemoveVerb(BackgroundMenuPath, @"Directory\Background\shell", @"Directory\Background", @"Directory\shell", "Directory");
+        RemoveVerb(FolderMenuPath, @"Directory\shell", "Directory");
+    }
+
+    private void WriteVerb(string path, string label, string commandLine)
+    {
+        using var verb = classes.CreateSubKey(path);
+        verb.SetValue("", label);
+        verb.SetValue("Icon", $"\"{exePath}\",0");
+        using var command = verb.CreateSubKey("command");
+        command.SetValue("", commandLine);
+    }
+
+    /// <summary>Deletes the entry, then each of <paramref name="parents"/> (innermost first) that nothing else lives in any more.</summary>
+    private void RemoveVerb(string path, params string[] parents)
+    {
+        classes.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+        foreach (var parent in parents)
         {
             using var key = classes.OpenSubKey(parent);
+            if (key is null) continue;
             if (key is not { ValueCount: 0, SubKeyCount: 0 }) return;
             key.Dispose();
             classes.DeleteSubKey(parent, throwOnMissingSubKey: false);
@@ -110,10 +140,11 @@ public sealed partial class ShellIntegration(RegistryKey classes, string exePath
         if (!Extensions.Any(IsAssociated)) classes.DeleteSubKeyTree(ProgId, throwOnMissingSubKey: false);
     }
 
-    /// <summary>Removes the menu entry, every association and the program ids; used by the Tools command and by the uninstaller.</summary>
+    /// <summary>Removes the menu entries, every association and the program ids; used by the Tools command and by the uninstaller.</summary>
     public void RemoveAll()
     {
         RemoveMenu();
+        RemoveFolderMenu();
         foreach (var extension in Extensions) Dissociate(extension);
         classes.DeleteSubKeyTree(ProgId, throwOnMissingSubKey: false);
         foreach (var group in FileTypeIcons.Groups) classes.DeleteSubKeyTree(FileTypeIcons.ProgIdOf(group, ProgId), throwOnMissingSubKey: false);

@@ -29,11 +29,21 @@ public class CommandAndTextTests
     }
 
     [Fact]
+    public void The_folder_entry_has_a_switch_of_its_own()
+    {
+        Assert.True(SetupCommand.Parse(["--folder-menu"]).FolderMenu);
+        var off = SetupCommand.Parse(["--no-folder-menu", "--menu"]);
+        Assert.False(off.FolderMenu);
+        Assert.True(off.ContextMenu);
+    }
+
+    [Fact]
     public void A_choice_the_line_does_not_name_stays_open()
     {
         var c = SetupCommand.Parse(["--silent"]);
         Assert.Null(c.Dir);
         Assert.Null(c.ContextMenu);
+        Assert.Null(c.FolderMenu);
         Assert.Null(c.StartMenu);
         Assert.Null(c.Desktop);
         Assert.Null(c.Launch);

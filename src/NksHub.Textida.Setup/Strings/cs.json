@@ -21,6 +21,7 @@
   "options.startMenu": "Zástupce v nabídce Start",
   "options.desktop": "Zástupce na ploše",
   "options.menu": "Položka „{label}“ v místní nabídce Průzkumníka",
+  "options.folderMenu": "Položka „{label}“ v místní nabídce složek",
   "options.assoc": "Nabízet Textidu v Otevřít pomocí pro tyto typy souborů",
   "options.assocAll": "Vše",
   "options.assocNone": "Nic",
@@ -57,5 +58,6 @@
   "uninstall.progress": "Odebírá se Textida…",
   "uninstall.done": "Textida byla odebrána. Vaše nastavení v {data} zůstalo.",
   "uninstall.doneAll": "Textida i s nastavením byla odebrána.",
-  "menu.label": "Otevřít v Textidě"
+  "menu.label": "Otevřít v Textidě",
+  "menu.folderLabel": "Otevřít v Textidě jako projekt"
 }

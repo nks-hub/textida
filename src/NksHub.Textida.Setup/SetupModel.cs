@@ -81,6 +81,7 @@ internal sealed class SetupModel
     public bool StartMenu { get; set; } = true;
     public bool Desktop { get; set; }
     public bool ContextMenu { get; set; } = true;
+    public bool FolderMenu { get; set; } = true;
     public bool Launch { get; set; } = true;
     public bool DeleteSettings { get; set; }
     public HashSet<string> Extensions { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -101,6 +102,7 @@ internal sealed class SetupModel
             StartMenu = integration.HasStartMenuShortcut();
             Desktop = integration.HasDesktopShortcut();
             ContextMenu = integration.HasMenu();
+            FolderMenu = integration.HasFolderMenu();
             Extensions.UnionWith(integration.AssociatedExtensions());
         }
         if (env.SetupExe is { } self && Path.GetDirectoryName(Path.GetFullPath(self)) is { } own && File.Exists(Path.Combine(own, Installer.ProgramFile))) OwnDir = own;
@@ -119,6 +121,7 @@ internal sealed class SetupModel
         if (command.StartMenu is { } startMenu) StartMenu = startMenu;
         if (command.Desktop is { } desktop) Desktop = desktop;
         if (command.ContextMenu is { } menu) ContextMenu = menu;
+        if (command.FolderMenu is { } folderMenu) FolderMenu = folderMenu;
         if (command.Extensions is { } extensions) { Extensions.Clear(); Extensions.UnionWith(extensions); }
         Launch = command.Launch ?? (!command.Silent && Launch);
         DeleteSettings = command.DeleteSettings;
@@ -139,7 +142,7 @@ internal sealed class SetupModel
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return e.Message; }
     }
 
-    public InstallOptions ToOptions() => new(Dir, StartMenu, Desktop, ContextMenu, [.. ShellIntegration.Extensions.Where(Extensions.Contains)], Text.Get(S.MenuLabel), Env.SetupExe);
+    public InstallOptions ToOptions() => new(Dir, StartMenu, Desktop, ContextMenu, [.. ShellIntegration.Extensions.Where(Extensions.Contains)], Text.Get(S.MenuLabel), Env.SetupExe, FolderMenu, Text.Get(S.FolderMenuLabel));
 
     public InstallResult Install(Action<SetupStage, double>? progress = null)
     {

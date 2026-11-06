@@ -21,6 +21,7 @@
   "options.startMenu": "Verknüpfung im Startmenü",
   "options.desktop": "Verknüpfung auf dem Desktop",
   "options.menu": "Eintrag „{label}“ im Kontextmenü des Explorers",
+  "options.folderMenu": "Eintrag „{label}“ im Kontextmenü von Ordnern",
   "options.assoc": "Textida unter „Öffnen mit“ für diese Dateitypen anbieten",
   "options.assocAll": "Alle",
   "options.assocNone": "Keine",
@@ -57,5 +58,6 @@
   "uninstall.progress": "Textida wird entfernt…",
   "uninstall.done": "Textida wurde entfernt. Ihre Einstellungen in {data} blieben erhalten.",
   "uninstall.doneAll": "Textida und seine Einstellungen wurden entfernt.",
-  "menu.label": "Mit Textida öffnen"
+  "menu.label": "Mit Textida öffnen",
+  "menu.folderLabel": "In Textida als Projekt öffnen"
 }

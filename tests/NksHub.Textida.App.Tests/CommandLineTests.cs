@@ -17,6 +17,39 @@ public class CommandLineTests
         Assert.False(a.NewWindow || a.Wait || a.Smoke);
     }
 
+    [Theory]
+    [InlineData("--project", "proj")]
+    [InlineData("--project=proj")]
+    public void Project_names_the_folder_of_the_window_resolved_against_the_callers_directory(params string[] args)
+    {
+        var a = CommandLine.Parse([.. args, "a.txt"], Cwd);
+        Assert.Null(a.Error);
+        Assert.Equal(Full("proj"), a.Project);
+        Assert.Equal([new OpenRequest(Full("a.txt"), null)], a.Files);
+        Assert.Null(CommandLine.Parse(["a.txt"], Cwd).Project);
+    }
+
+    [Fact]
+    public void A_path_that_is_an_existing_folder_is_the_project_and_a_file_stays_a_file()
+    {
+        using var temp = new TempDir();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "proj"));
+        var file = temp.File("a.txt", "x");
+
+        var a = CommandLine.Parse(["proj", "a.txt"], temp.Path);
+
+        Assert.Null(a.Error);
+        Assert.Equal(Path.Combine(temp.Path, "proj"), a.Project);
+        Assert.Equal([new OpenRequest(file, null)], a.Files);
+        Assert.NotNull(CommandLine.Parse(["proj", "--project", "other"], temp.Path).Error);
+    }
+
+    [Theory]
+    [InlineData("--project")]
+    [InlineData("--project=")]
+    [InlineData("--project", "a", "--project", "b")]
+    public void Project_needs_one_folder(params string[] args) => Assert.NotNull(CommandLine.Parse(args, Cwd).Error);
+
     [Fact]
     public void Relative_paths_are_resolved_against_the_callers_directory()
     {

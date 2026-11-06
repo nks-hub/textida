@@ -15,6 +15,7 @@ internal sealed class SetupCommand
           --silent                   no window; the result is the exit code (0 done, 1 failed, 2 wrong usage)
           --dir PATH                 install folder (default: the installed one, else %LOCALAPPDATA%\Programs\Textida)
           --menu | --no-menu         Explorer context menu entry
+          --folder-menu | --no-folder-menu   folder entry "Open in Textida as project"
           --start-menu | --no-start-menu   Start menu shortcut
           --desktop | --no-desktop   desktop shortcut
           --assoc LIST | all | none  file types offered under Open with, like .txt,.md
@@ -34,6 +35,7 @@ internal sealed class SetupCommand
     public bool? StartMenu { get; private set; }
     public bool? Desktop { get; private set; }
     public bool? ContextMenu { get; private set; }
+    public bool? FolderMenu { get; private set; }
     public bool? Launch { get; private set; }
     public IReadOnlyList<string>? Extensions { get; private set; }
     public string? Language { get; private set; }
@@ -70,6 +72,8 @@ internal sealed class SetupCommand
                 case "--dir": command.Dir = Value(); break;
                 case "--menu": command.ContextMenu = true; break;
                 case "--no-menu": command.ContextMenu = false; break;
+                case "--folder-menu": command.FolderMenu = true; break;
+                case "--no-folder-menu": command.FolderMenu = false; break;
                 case "--start-menu": command.StartMenu = true; break;
                 case "--no-start-menu": command.StartMenu = false; break;
                 case "--desktop": command.Desktop = true; break;

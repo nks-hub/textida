@@ -129,9 +129,18 @@ public static class MacBundle
     /// The files of the quick action "Open in Textida" for Finder (a <c>.workflow</c> bundle, the form of a quick action made in Automator): relative path to text. It runs one shell script that opens
     /// the chosen files and folders with the application at <paramref name="bundlePath"/>; Finder offers it in the context menu under Quick Actions and in the Services menu.
     /// </summary>
-    public static IReadOnlyDictionary<string, string> FinderActionFiles(string label, string bundlePath)
+    public static IReadOnlyDictionary<string, string> FinderActionFiles(string label, string bundlePath) =>
+        ActionFiles(label, $"{ActionMarker}\nfor f in \"$@\"; do\n  open -a {ShellQuote(bundlePath)} \"$f\"\ndone\n", "public.item");
+
+    /// <summary>
+    /// The files of the quick action "Open in Textida as project", offered on folders only. It runs the program with <c>--project</c> for each chosen folder: a running Textida gets the folder through
+    /// its single-instance channel and opens it in a window of its own, otherwise the program starts with it. <c>open -a</c> is not used because it drops the arguments of a running application.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> ProjectActionFiles(string label, string executablePath) =>
+        ActionFiles(label, $"{ActionMarker}\nfor f in \"$@\"; do\n  {ShellQuote(executablePath)} --project \"$f\" >/dev/null 2>&1 &\ndone\n", "public.folder");
+
+    private static IReadOnlyDictionary<string, string> ActionFiles(string label, string script, string sendType)
     {
-        string script = $"{ActionMarker}\nfor f in \"$@\"; do\n  open -a {ShellQuote(bundlePath)} \"$f\"\ndone\n";
         var info = new StringBuilder(Header);
         info.Append("\t<key>NSServices</key>\n\t<array>\n\t\t<dict>\n");
         info.Append("\t\t\t<key>NSBackgroundColorName</key>\n\t\t\t<string>background</string>\n");
@@ -140,7 +149,7 @@ public static class MacBundle
         info.Append("\t\t\t<key>NSMessage</key>\n\t\t\t<string>runWorkflowAsService</string>\n");
         info.Append("\t\t\t<key>NSRequiredContext</key>\n\t\t\t<dict>\n\t\t\t\t<key>NSApplicationIdentifier</key>\n\t\t\t\t<string>com.apple.finder</string>\n\t\t\t</dict>\n");
         info.Append("\t\t\t<key>NSSendFileTypes</key>\n");
-        Strings(info, "\t\t\t", ["public.item"]);
+        Strings(info, "\t\t\t", [sendType]);
         info.Append("\t\t</dict>\n\t</array>\n</dict>\n</plist>\n");
         return new Dictionary<string, string>
         {

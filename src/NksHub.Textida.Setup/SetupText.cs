@@ -33,6 +33,7 @@ internal static class S
     public const string OptionsStartMenu = "options.startMenu";
     public const string OptionsDesktop = "options.desktop";
     public const string OptionsMenu = "options.menu";
+    public const string OptionsFolderMenu = "options.folderMenu";
     public const string OptionsAssoc = "options.assoc";
     public const string OptionsAssocAll = "options.assocAll";
     public const string OptionsAssocNone = "options.assocNone";
@@ -70,6 +71,7 @@ internal static class S
     public const string UninstallDone = "uninstall.done";
     public const string UninstallDoneAll = "uninstall.doneAll";
     public const string MenuLabel = "menu.label";
+    public const string FolderMenuLabel = "menu.folderLabel";
 }
 
 /// <summary>The texts of the setup in one of the four languages. The language of the system is the first choice; the user can switch.</summary>

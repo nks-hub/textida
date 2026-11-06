@@ -542,7 +542,7 @@ A Markdown file (.md, .markdown) has three modes. Reading draws the page over th
 - A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
 - In reading the keys of the editor do nothing: the page is only for reading. Switch to editing or source to change the text. F6 moves the focus to the page; the arrow keys, Page Up, Page Down, Home and End scroll it.
 - Select the text of the page with the mouse as on a web page: drag across paragraphs, lists, code and table cells. Shift+click extends the selection, a double click selects a word and a triple click a paragraph; dragging past the edge scrolls the page. Ctrl+A selects everything, Ctrl+C copies the text (table cells separated by tabs), and Ctrl+Shift+C or Copy as Markdown in the context menu copies the matching part of the source. Tab moves between the links and Enter opens one. A long line of code does not wrap; Shift+wheel scrolls it.
-- View, Headings Panel (or Tools, Show Markdown Outline) opens a panel beside the document with the tree of the headings H1 to H6. It stays open in reading, editing and source, the heading of the place you are at is bold, a click or Enter shows the heading at the top of the editor or the page, and after typing the tree is updated shortly after the last key. The buttons 1 to 6 show the headings down to that level and fold the deeper ones, and the box at the top keeps only the headings that contain the text typed in it. The panel moves and hides like the other panels.
+- View, Headings Panel (or Tools, Show Markdown Outline, key Alt+8) opens a panel beside the document with the tree of the headings H1 to H6. It stays open in reading, editing and source, the heading of the place you are at is bold, a click or Enter shows the heading at the top of the editor or the page, and after typing the tree is updated shortly after the last key. The buttons 1 to 6 show the headings down to that level and fold the deeper ones, and the box at the top keeps only the headings that contain the text typed in it. The panel moves and hides like the other panels.
 - Ctrl+K then Ctrl+V on a file in hex goes to reading. The Markdown commands of the Tools menu need the editor, so use editing or source for them.
 - Text cannot be changed directly in the drawn page.
 
@@ -788,7 +788,7 @@ The Open Documents, Files, commit, local history and plugin panels can stand on 
 - The layout is kept with the window and comes back after a restart; which panels are open is not kept.
 - A panel is at least 140 pixels wide (80 high at the bottom) and at most half of the window; at a limit the program says so.
 - A screen reader is told the side and the size after every change.
-- Every panel docked to an edge has a button in the strip on that edge; the button shows and hides the panel. Alt+0 shows the commit panel and Alt+9 the local history and put the keyboard in them; pressed again with the keyboard inside, they hide the panel.
+- Every panel docked to an edge has a button in the strip on that edge; the button shows and hides the panel. Alt+0 shows the commit panel, Alt+9 the local history and Alt+8 the Markdown headings panel and put the keyboard in them; pressed again with the keyboard inside, they hide the panel.
 - The commands work on the panel that has the keyboard, or else on the one opened last; without an open panel they are off.
 
 ## [files.create] New file and new folder
@@ -1969,6 +1969,7 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
 4. Choose Settings, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
 5. The same switches are in Settings, under System integration (search for "integration" or "shortcut"): the menu entry, the file types, a shortcut in the Start menu and on the desktop, and a button that opens the default apps page of Windows. A switch writes the registry at once and shows what the registry says.
+- The entry Open in Textida as project in the context menu of a folder, and on the background of an open folder, opens a window with the folder as the root of the project: the file panel, Git and search in the folder work on it. It has a switch of its own in the settings and in the setup (`--folder-menu`, `--no-folder-menu`). From the command line, `textida --project folder` or `textida folder` does the same; a window that has the folder already only comes to the front.
 - The setup program TextidaSetup.exe offers the same choices when it installs and takes them back when it uninstalls.
 - The text of the menu entry is in the language of Textida at the time you add it. Add it again after you change the language.
 - Moving Textida.exe to another folder leaves the old path in the entries. Add the menu entry again, or remove it first.
@@ -1983,6 +1984,7 @@ macOS only, in the installed Textida (Textida.app). Textida adds nothing to your
 5. Choose Settings, System Integration, Remove Textida from macOS (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
 - A link or an action is removed only when it is Textida's own: a textida command that leads to another program, and an action that Textida did not write, are left alone.
 - A type that no other application opens stays with Textida after it is switched off, because the Mac has nobody to give it back to.
+- The quick action Open in Textida as project is offered on folders only and opens the folder as the root of the project in a Textida window, like `textida --project folder`. It has a switch of its own.
 - The quick action and the file types need Textida to run from Textida.app; a program started from a build folder offers only the command.
 - Deleting Textida.app removes the program only. Choose Remove first, so the link, the quick action and the file types go too; your settings stay until you delete the folder Textida in ~/Library/Application Support.
 

@@ -10,13 +10,15 @@ public sealed record CommandLineArgs(
     bool Wait,
     bool Smoke,
     string? Error,
-    IReadOnlyList<string>? Diff = null);
+    IReadOnlyList<string>? Diff = null,
+    string? Project = null);
 
 /// <summary>
 /// Parses <c>[--new-window] [--wait] [--line N] [--hex] [--offset N] [--smoke] [--diff left right] [--] path...</c>. <c>--line N</c> (or <c>--line=N</c>)
 /// applies to the nearest path without a line: the previous one, otherwise the next one. <c>--hex</c> opens that path in the hex view and
 /// <c>--offset N</c> (decimal or <c>0x</c> hex, also <c>--offset=N</c>) puts the caret on a byte; an offset implies <c>--hex</c>.
 /// <c>--diff left right</c> opens the comparison of two files: the left one in a tab of its own, the right one read-only.
+/// <c>--project folder</c> (or <c>--project=folder</c>) opens a window with the folder as its root: the file panel, Git, search in the folder. A path that is an existing folder is taken the same way.
 /// </summary>
 public static class CommandLine
 {
@@ -28,6 +30,7 @@ public static class CommandLine
         bool pendingHex = false;
         long? pendingOffset = null;
         string[]? diff = null;
+        string? project = null;
 
         CommandLineArgs Fail(string error) => new([], false, false, false, error);
 
@@ -44,7 +47,14 @@ public static class CommandLine
             var a = args[i];
             if (onlyPaths || !a.StartsWith("--", StringComparison.Ordinal))
             {
-                files.Add(new OpenRequest(Path.GetFullPath(a, workingDirectory), pendingLine, pendingHex || pendingOffset is not null, pendingOffset));
+                var full = Path.GetFullPath(a, workingDirectory);
+                if (pendingLine is null && !pendingHex && pendingOffset is null && Directory.Exists(full))
+                {
+                    if (project is not null) return Fail("only one folder can be opened as the project");
+                    project = full;
+                    continue;
+                }
+                files.Add(new OpenRequest(full, pendingLine, pendingHex || pendingOffset is not null, pendingOffset));
                 pendingLine = null;
                 pendingHex = false;
                 pendingOffset = null;
@@ -69,6 +79,14 @@ public static class CommandLine
                     break;
                 default:
                     string? value = null;
+                    if (a == "--project" || a.StartsWith("--project=", StringComparison.Ordinal))
+                    {
+                        value = a == "--project" ? (i + 1 < args.Count ? args[++i] : null) : a["--project=".Length..];
+                        if (string.IsNullOrWhiteSpace(value)) return Fail("--project needs a folder");
+                        if (project is not null) return Fail("only one folder can be opened as the project");
+                        project = Path.GetFullPath(value, workingDirectory);
+                        break;
+                    }
                     if (a == "--offset" || a.StartsWith("--offset=", StringComparison.Ordinal))
                     {
                         value = a == "--offset" ? (i + 1 < args.Count ? args[++i] : null) : a["--offset=".Length..];
@@ -91,6 +109,6 @@ public static class CommandLine
         if (pendingLine is not null) return Fail("--line has no path to apply to");
         if (pendingHex || pendingOffset is not null) return Fail("--hex and --offset need a path to apply to");
         if (wait && files.Count == 0 && diff is null) return Fail("--wait needs at least one path");
-        return new CommandLineArgs(files, newWindow, wait, smoke, null, diff);
+        return new CommandLineArgs(files, newWindow, wait, smoke, null, diff, project);
     }
 }

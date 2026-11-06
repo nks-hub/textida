@@ -76,4 +76,19 @@ public class FileTypeIconTests
         Assert.Equal("textida-data", icons["application/json"]);
         Assert.Equal(FileTypeIcons.Groups.SelectMany(g => g.MimeTypes).Count(), icons.Count);
     }
+
+    [Fact]
+    public void The_linux_folder_entry_handles_only_folders_stays_out_of_the_menus_and_opens_the_folder_as_a_project()
+    {
+        var lines = LinuxDesktop.ProjectEntry("/opt/textida/Textida").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Equal("[Desktop Entry]", lines[0]);
+        var keys = lines.Skip(1).Select(l => l.Split('=', 2)).ToDictionary(p => p[0], p => p[1]);
+        Assert.Equal("Application", keys["Type"]);
+        Assert.Equal("Open in Textida as project", keys["Name"]);
+        Assert.Equal("Otevřít v Textidě jako projekt", keys["Name[cs]"]);
+        Assert.Equal("/opt/textida/Textida --project %f", keys["Exec"]);
+        Assert.Equal("inode/directory;", keys["MimeType"]);
+        Assert.Equal("true", keys["NoDisplay"]);
+    }
 }

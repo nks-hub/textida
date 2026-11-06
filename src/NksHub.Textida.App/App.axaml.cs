@@ -296,17 +296,19 @@ public sealed partial class App : Application
 
     private void RunStartupOpen(CommandLineArgs args)
     {
-        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList(), Diff = args.Diff?.ToList() };
+        var request = new IpcRequest { NewWindow = false, Wait = false, Files = args.Files.Select(f => new IpcFile { Path = f.Path, Line = f.Line, Hex = f.Hex, Offset = f.Offset }).ToList(), Diff = args.Diff?.ToList(), Project = args.Project };
         _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } e) _active?.SetStatusMessage(e.InnerException?.Message ?? e.Message); }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
-    /// <summary>The system asked the running program to open files (macOS: <c>open</c>, a double click, a drop on the icon). They open in the window that was used last.</summary>
+    /// <summary>The system asked the running program to open files (macOS: <c>open</c>, a double click, a drop on the icon). They open in the window that was used last; a folder opens as the root of a window.</summary>
     private void OpenFromSystem(ActivatedEventArgs e)
     {
         if (e is not FileActivatedEventArgs activated) return;
-        var files = activated.Files.Select(f => Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(f)).OfType<string>().Select(p => new IpcFile { Path = p }).ToList();
-        if (files.Count == 0) return;
-        var request = new IpcRequest { Files = files };
+        var paths = activated.Files.Select(f => Avalonia.Platform.Storage.StorageProviderExtensions.TryGetLocalPath(f)).OfType<string>().ToList();
+        var folder = paths.FirstOrDefault(Directory.Exists);
+        var files = paths.Where(p => !Directory.Exists(p)).Select(p => new IpcFile { Path = p }).ToList();
+        if (files.Count == 0 && folder is null) return;
+        var request = new IpcRequest { Files = files, Project = folder };
         Dispatcher.UIThread.Post(() => _ = OpenRequestAsync(request).ContinueWith(t => { if (t.Exception is { } failure) _active?.SetStatusMessage(failure.InnerException?.Message ?? failure.Message); }, TaskScheduler.FromCurrentSynchronizationContext()));
     }
 
@@ -413,8 +415,11 @@ public sealed partial class App : Application
     /// </summary>
     internal Task OpenRequestAsync(IpcRequest request)
     {
-        var window = request.NewWindow || _active is null ? NewWindow(_active) : _active;
+        var project = request.Project is { } asked ? Path.GetFullPath(asked) : null;
+        if (project is not null && !Directory.Exists(project)) return Task.FromException(new DirectoryNotFoundException(Loc.Get(K.FilesErrorOpenFolder, ("reason", project))));
+        var window = project is not null ? WindowForProject(project, request.NewWindow) : request.NewWindow || _active is null ? NewWindow(_active) : _active;
         var waits = new List<Task>();
+        if (project is not null && !string.Equals(window.FileRootFolder, project, MainWindow.PathComparison)) waits.Add(window.ShowFolderAsync(project));
         Exception? failure = null;
         foreach (var f in request.Files)
         {
@@ -444,6 +449,14 @@ public sealed partial class App : Application
         Dispatcher.UIThread.Post(window.FocusActiveView, DispatcherPriority.Background); // the keyboard goes to the document, not to the menu
         if (failure is not null) return Task.FromException(failure);
         return waits.Count == 0 ? Task.CompletedTask : Task.WhenAll(waits);
+    }
+
+    /// <summary>The window for a folder opened as a project: the one that has it as its root already, else the active window while it shows no folder and no file, else a new one.</summary>
+    private MainWindow WindowForProject(string folder, bool newWindow)
+    {
+        if (_windows.FirstOrDefault(w => string.Equals(w.FileRootFolder, folder, MainWindow.PathComparison)) is { } shown) return shown;
+        if (!newWindow && _active is { FileRootFolder: null } active && active.Tabs.All(t => t.Path is null)) return active;
+        return NewWindow(_active);
     }
 
     // ---- settings ----

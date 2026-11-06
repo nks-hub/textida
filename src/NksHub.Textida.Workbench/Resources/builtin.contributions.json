@@ -7186,6 +7186,10 @@
       "command": "nks.view.toggleHistoryPanel"
     },
     {
+      "key": "alt+8",
+      "command": "nks.tools.markdownOutline"
+    },
+    {
       "key": "mod+k mod+left",
       "command": "nks.panel.dockLeft"
     },

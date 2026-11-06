@@ -542,7 +542,7 @@ Soubor Markdown (.md, .markdown) má tři režimy. Čtení vykreslí stránku p�
 - Soubor delší než limit náhledu nebo otevřený jako velký soubor se otevře jako zdroj a stavový řádek to řekne; lišta pak nenabízí čtení ani úpravy.
 - Ve čtení klávesy editoru nic nedělají: stránka je jen ke čtení. Pro změnu textu přepněte na úpravy nebo zdroj. F6 přesune fokus na stránku; šipky, Page Up, Page Down, Home a End ji posouvají.
 - Text stránky jde vybírat myší jako na webu: tažením přes odstavce, seznamy, kód i buňky tabulek. Shift+klik výběr rozšíří, dvojklik vybere slovo a trojklik odstavec; při tažení za okraj se stránka posouvá. Ctrl+A vybere vše, Ctrl+C zkopíruje text (buňky tabulky oddělí tabulátor) a Ctrl+Shift+C nebo Kopírovat jako Markdown v místní nabídce zkopíruje odpovídající část zdroje. Tab přechází mezi odkazy a Enter odkaz otevře. Dlouhý řádek kódu se nezalamuje, posouvá se Shift+kolečkem.
-- Zobrazit, Rejstřík nadpisů (nebo Nástroje, Zobrazit osnovu Markdownu) otevře vedle dokumentu panel se stromem nadpisů H1 až H6. Zůstává otevřený ve čtení, úpravách i zdroji, nadpis místa, kde stojíte, je tučně, kliknutí nebo Enter nadpis ukáže nahoře v editoru či na stránce a po psaní se strom chvíli po poslední klávese obnoví. Tlačítka 1 až 6 ukážou nadpisy do zvolené úrovně a hlubší sbalí, pole nahoře nechá jen nadpisy, které obsahují zadaný text. Panel jde přesunout a skrýt jako ostatní panely.
+- Zobrazit, Rejstřík nadpisů (nebo Nástroje, Zobrazit osnovu Markdownu, klávesa Alt+8) otevře vedle dokumentu panel se stromem nadpisů H1 až H6. Zůstává otevřený ve čtení, úpravách i zdroji, nadpis místa, kde stojíte, je tučně, kliknutí nebo Enter nadpis ukáže nahoře v editoru či na stránce a po psaní se strom chvíli po poslední klávese obnoví. Tlačítka 1 až 6 ukážou nadpisy do zvolené úrovně a hlubší sbalí, pole nahoře nechá jen nadpisy, které obsahují zadaný text. Panel jde přesunout a skrýt jako ostatní panely.
 - Ctrl+K a pak Ctrl+V v souboru v hexu přejde do čtení. Příkazy Markdownu v nabídce Nástroje potřebují editor, použijte pro ně úpravy nebo zdroj.
 - Text nejde měnit přímo ve vykreslené stránce.
 
@@ -788,7 +788,7 @@ Panely Otevřené dokumenty, Soubory, commit, místní historie a panely plugin�
 - Rozložení se pamatuje s oknem a po restartu se vrátí; které panely jsou otevřené, se nepamatuje.
 - Panel je široký nejméně 140 pixelů (dole vysoký 80) a nejvýše polovinu okna; na mezi to program oznámí.
 - Čtečka obrazovky se po každé změně dozví stranu a velikost.
-- Každý panel ukotvený k okraji má tlačítko v pruhu na tomto okraji; tlačítko panel ukáže a skryje. Alt+0 ukáže panel commitu a Alt+9 místní historii a dají do nich klávesnici; stisknuté znovu s klávesnicí uvnitř panel skryjí.
+- Každý panel ukotvený k okraji má tlačítko v pruhu na tomto okraji; tlačítko panel ukáže a skryje. Alt+0 ukáže panel commitu, Alt+9 místní historii a Alt+8 rejstřík nadpisů Markdownu a dají do nich klávesnici; stisknuté znovu s klávesnicí uvnitř panel skryjí.
 - Příkazy působí na panel, který má klávesnici, jinak na naposledy otevřený; bez otevřeného panelu jsou vypnuté.
 
 ## [files.create] Nový soubor a nová složka
@@ -1969,6 +1969,7 @@ Jen Windows. Textida se umí přidat do místní nabídky Průzkumníka vašeho 
 3. Aby byla Textida výchozím programem přípony, použijte v Průzkumníku Otevřít v programu, Vybrat jinou aplikaci. Tuto volbu si Windows drží sám.
 4. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z Průzkumníka: smaže položku nabídky a všechny asociace, které Textida přidala. Totéž udělá odinstalátor.
 5. Stejné přepínače jsou v Nastavení v oddílu Integrace se systémem (hledejte „integrace“ nebo „zástupce“): položka v nabídce Průzkumníka, typy souborů, zástupce v nabídce Start a na ploše a tlačítko, které otevře ve Windows stránku s výchozími aplikacemi. Přepínač zapíše registr hned a ukazuje, co v registru je.
+- Položka Otevřít v Textidě jako projekt v místní nabídce složky i na pozadí otevřené složky otevře okno, ve kterém je složka kořenem projektu: panel souborů, Git a hledání ve složce pracují s ní. Má vlastní přepínač v Nastavení i v instalátoru (`--folder-menu`, `--no-folder-menu`). Z příkazové řádky totéž udělá `textida --project složka` nebo `textida složka`; okno, které složku už má, se jen přepne do popředí.
 - Instalátor TextidaSetup.exe nabízí stejné volby při instalaci a při odinstalaci je vrátí.
 - Text položky nabídky je v jazyce Textidy v okamžiku přidání. Po změně jazyka ji přidejte znovu.
 - Přesunutí Textida.exe do jiné složky nechá v položkách starou cestu. Přidejte položku znovu, nebo ji nejdřív odeberte.
@@ -1983,6 +1984,7 @@ Jen pro macOS, v nainstalované Textidě (Textida.app). Textida nepřidá do Mac
 5. Zvolte Nastavení, Integrace do systému, Odebrat Textidu z macOS (nebo Odebrat vše v okně) a smažete odkaz, rychlou akci i všechna přidružení, která Textida přidala.
 - Odkaz nebo akce se odebere jen tehdy, když je opravdu od Textidy: příkaz textida, který vede k jinému programu, a akce, kterou Textida nenapsala, zůstanou.
 - Typ, který žádná jiná aplikace neotevírá, zůstane po vypnutí Textidě, protože Mac nemá komu ho vrátit.
+- Rychlá akce Otevřít v Textidě jako projekt je jen u složek a otevře složku jako kořen projektu v okně Textidy, stejně jako `textida --project složka`. Zapíná se vlastním přepínačem.
 - Rychlá akce a typy souborů vyžadují, aby Textida běžela z Textida.app; program spuštěný ze složky sestavení nabídne jen příkaz.
 - Smazání Textida.app odstraní jen program. Nejdřív zvolte Odebrat, aby zmizel i odkaz, akce a typy souborů; nastavení zůstane, dokud nesmažete složku Textida v ~/Library/Application Support.
 

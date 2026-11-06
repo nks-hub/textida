@@ -29,7 +29,9 @@ public enum SetupStage { Preparing, Files, Switching, Integration, Finishing }
 /// <param name="Extensions">The extensions Textida is offered for under Open with; the others are removed.</param>
 /// <param name="MenuLabel">The text of the context menu entry, in the language of the user.</param>
 /// <param name="SetupExe">The running setup; a copy without its package stays in the install folder as the uninstaller. Null leaves no uninstaller.</param>
-public sealed record InstallOptions(string Dir, bool StartMenu, bool Desktop, bool ContextMenu, IReadOnlyList<string> Extensions, string MenuLabel, string? SetupExe);
+/// <param name="FolderMenu">The entry "Open in Textida as project" on folders and on the background of an open folder.</param>
+/// <param name="FolderMenuLabel">The text of that entry, in the language of the user.</param>
+public sealed record InstallOptions(string Dir, bool StartMenu, bool Desktop, bool ContextMenu, IReadOnlyList<string> Extensions, string MenuLabel, string? SetupExe, bool FolderMenu = false, string FolderMenuLabel = "");
 
 /// <param name="PreviousDir">The folder that keeps the version that was replaced; null for a first install.</param>
 /// <param name="Warnings">Things that did not work but do not undo the install, like a shortcut that could not be written.</param>
@@ -143,6 +145,7 @@ public sealed class Installer(SystemLocations locations)
             WriteUninstallKey(dir, version, exe, total);
             var integration = new SystemIntegration(locations, exe);
             integration.SetMenu(options.ContextMenu, options.MenuLabel);
+            integration.SetFolderMenu(options.FolderMenu, options.FolderMenuLabel);
             integration.SetAssociations(options.Extensions);
             Shortcut(warnings, () => integration.SetStartMenuShortcut(options.StartMenu));
             Shortcut(warnings, () => integration.SetDesktopShortcut(options.Desktop));

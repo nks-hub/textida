@@ -34,6 +34,16 @@ public sealed class SystemIntegration(SystemLocations locations, string exePath)
         return 0;
     });
 
+    public bool HasFolderMenu() => WithShell(s => s.HasFolderMenu());
+
+    /// <summary>Adds the entry "Open in Textida as project" on folders with <paramref name="label"/>, or removes it.</summary>
+    public void SetFolderMenu(bool enabled, string label) => WithShell(s =>
+    {
+        if (enabled) s.AddFolderMenu(label);
+        else s.RemoveFolderMenu();
+        return 0;
+    });
+
     public bool IsAssociated(string extension) => WithShell(s => s.IsAssociated(extension));
 
     public IReadOnlyList<string> AssociatedExtensions() => WithShell<IReadOnlyList<string>>(s => [.. ShellIntegration.Extensions.Where(s.IsAssociated)]);
@@ -72,7 +82,7 @@ public sealed class SystemIntegration(SystemLocations locations, string exePath)
         if (File.Exists(path)) File.Delete(path);
     }
 
-    /// <summary>Removes the Explorer menu entry, every association and the program id; the shortcuts stay.</summary>
+    /// <summary>Removes the Explorer menu entries, every association and the program id; the shortcuts stay.</summary>
     public void RemoveExplorerIntegration() => WithShell(s =>
     {
         s.RemoveAll();

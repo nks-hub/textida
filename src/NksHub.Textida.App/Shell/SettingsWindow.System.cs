@@ -56,6 +56,8 @@ internal sealed partial class SettingsWindow
         {
             stack.Children.Add(Toggle(Loc.Get(K.SettingsSystemMenu, ("label", Loc.Get(K.ShellMenuLabel))), integration.HasMenu(), integration, problem,
                 on => integration.SetMenu(on, Loc.Get(K.ShellMenuLabel))));
+            stack.Children.Add(Toggle(Loc.Get(K.SettingsSystemFolderMenu, ("label", Loc.Get(K.ShellFolderMenuLabel))), integration.HasFolderMenu(), integration, problem,
+                on => integration.SetFolderMenu(on, Loc.Get(K.ShellFolderMenuLabel))));
 
             stack.Children.Add(new TextBlock { Text = Loc.Get(K.SettingsSystemAssoc), Margin = new Thickness(0, 6, 0, 0) });
             var extensions = new WrapPanel { Orientation = Orientation.Horizontal };

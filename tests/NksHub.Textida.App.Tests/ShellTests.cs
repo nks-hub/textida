@@ -285,6 +285,58 @@ public partial class ShellTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_project_request_makes_the_folder_the_root_of_an_empty_window_and_files_open_beside_it()
+    {
+        var app = TestApp.Prepare(_temp);
+        var w = app.CreateWindow(null);
+        var folder = Path.Combine(_temp.Path, "proj");
+        Directory.CreateDirectory(folder);
+        var file = _temp.File(Path.Combine("proj", "readme.txt"), "x");
+
+        await app.OpenRequestAsync(new IpcRequest { Project = folder, Files = [new IpcFile { Path = file }] }).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Single(app.Windows);
+        Assert.Equal(folder, w.FileRootFolder);
+        Assert.Equal(file, w.Tabs.Single().Path);
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task A_project_request_opens_a_window_of_its_own_beside_a_window_in_use_and_comes_back_to_it()
+    {
+        var app = TestApp.Prepare(_temp);
+        var first = app.CreateWindow(null);
+        first.OpenFile(_temp.File("other.txt", "x"), null);
+        var folder = Path.Combine(_temp.Path, "proj");
+        Directory.CreateDirectory(folder);
+
+        await app.OpenRequestAsync(new IpcRequest { Project = folder }).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, app.Windows.Count);
+        Assert.Null(first.FileRootFolder);
+        Assert.Equal(folder, app.Windows[1].FileRootFolder);
+
+        first.Activate();
+        await app.OpenRequestAsync(new IpcRequest { Project = folder + Path.DirectorySeparatorChar + "." }).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, app.Windows.Count); // the window that has the folder already is used again
+        foreach (var window in app.Windows.ToList()) window.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task A_project_request_for_a_missing_folder_fails_and_opens_no_window()
+    {
+        var app = TestApp.Prepare(_temp);
+        var w = app.CreateWindow(null);
+        var missing = Path.Combine(_temp.Path, "gone");
+
+        var ex = await Assert.ThrowsAsync<DirectoryNotFoundException>(() => app.OpenRequestAsync(new IpcRequest { Project = missing }));
+
+        Assert.Contains(missing, ex.Message);
+        Assert.Single(app.Windows);
+        Assert.Null(w.FileRootFolder);
+        w.Close();
+    }
+
+    [AvaloniaFact]
     public void Single_byte_file_is_decoded_and_editable()
     {
         var app = TestApp.Prepare(_temp);

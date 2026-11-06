@@ -65,7 +65,7 @@ try
     File.WriteAllText(Path.Combine(folder, "version.txt"), version);
     File.Copy(icon, Path.Combine(folder, "textida.png"));
     InstallShare(Path.Combine(folder, "share")); // the document icons and the MIME file, which install.sh copies under ~/.local/share
-    WriteScript(Path.Combine(folder, "install.sh"), InstallScript.Replace("@MIME@", DesktopMimeTypes()));
+    WriteScript(Path.Combine(folder, "install.sh"), InstallScript.Replace("@MIME@", DesktopMimeTypes()).Replace("@PROJECT@", LinuxDesktop.ProjectEntry("$target/Textida").TrimEnd('\n')));
     WriteScript(Path.Combine(folder, "uninstall.sh"), UninstallScript);
     var tar = Path.Combine(output, name + ".tar.gz");
     File.Delete(tar);
@@ -83,6 +83,7 @@ try
         File.CreateSymbolicLink(Path.Combine(deb, "usr", "bin", "textida"), "/opt/textida/Textida");
         Directory.CreateDirectory(Path.Combine(deb, "usr", "share", "applications"));
         File.WriteAllText(Path.Combine(deb, "usr", "share", "applications", "textida.desktop"), DesktopEntry("/opt/textida/Textida", "textida"));
+        File.WriteAllText(Path.Combine(deb, "usr", "share", "applications", LinuxDesktop.ProjectEntryFile), LinuxDesktop.ProjectEntry("/opt/textida/Textida"));
         var iconDir = Path.Combine(deb, "usr", "share", "icons", "hicolor", "256x256", "apps");
         Directory.CreateDirectory(iconDir);
         File.Copy(icon, Path.Combine(iconDir, "textida.png"));
@@ -188,10 +189,18 @@ static string Capture(string program, params string[] arguments)
 
 partial class Program
 {
-    // per user, no root: the program in ~/.local/opt/textida, the command in ~/.local/bin, the desktop entry and the icon under ~/.local/share
+    // per user, no root: the program in ~/.local/opt/textida, the command in ~/.local/bin, the desktop entries and the icon under ~/.local/share;
+    // --no-folder-action leaves out "Open in Textida as project" on folders
     const string InstallScript = """
         #!/bin/sh
         set -eu
+        folder_action=1
+        for arg in "$@"; do
+          case "$arg" in
+            --no-folder-action) folder_action=0 ;;
+            *) echo "usage: install.sh [--no-folder-action]" >&2; exit 2 ;;
+          esac
+        done
         here=$(cd "$(dirname "$0")" && pwd)
         data=${XDG_DATA_HOME:-$HOME/.local/share}
         target=$HOME/.local/opt/textida
@@ -219,6 +228,13 @@ partial class Program
         MimeType=@MIME@
         StartupWMClass=Textida
         EOF
+        if [ "$folder_action" = 1 ]; then
+        cat > "$data/applications/textida-project.desktop" <<EOF
+        @PROJECT@
+        EOF
+        else
+          rm -f "$data/applications/textida-project.desktop"
+        fi
         command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$data/mime" || true
         command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q -t "$data/icons/hicolor" || true
         command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$data/applications" || true
@@ -232,7 +248,7 @@ partial class Program
         set -eu
         data=${XDG_DATA_HOME:-$HOME/.local/share}
         rm -rf "$HOME/.local/opt/textida"
-        rm -f "$HOME/.local/bin/textida" "$data/applications/textida.desktop" "$data/icons/hicolor/256x256/apps/textida.png" "$data/mime/packages/textida.xml" "$data"/icons/hicolor/*/mimetypes/textida-*
+        rm -f "$HOME/.local/bin/textida" "$data/applications/textida.desktop" "$data/applications/textida-project.desktop" "$data/icons/hicolor/256x256/apps/textida.png" "$data/mime/packages/textida.xml" "$data"/icons/hicolor/*/mimetypes/textida-*
         command -v update-mime-database >/dev/null 2>&1 && update-mime-database "$data/mime" || true
         command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$data/applications" || true
         echo "Textida is removed. The settings stay in the profile folder."
