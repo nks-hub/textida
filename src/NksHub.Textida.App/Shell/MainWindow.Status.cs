@@ -168,12 +168,15 @@ internal sealed partial class MainWindow
         Core.TypingTrace.End("win.status.position", part);
         part = Core.TypingTrace.Begin();
 
-        _indentItem.Content = Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize));
+        // the accessible name of an item is formatted again only when its text or the language changes: the status update runs on every keystroke
+        bool relabel = !ReferenceEquals(_statusLanguage, Loc.Language);
+        _statusLanguage = Loc.Language;
+        SetStatusItem(_indentItem, Loc.Get(opts.InsertSpaces ? K.StatusIndentSpaces : K.StatusIndentTabs, ("size", opts.InsertSpaces ? opts.IndentSize : opts.TabSize)), K.StatusIndentA11y, relabel);
         var codec = od.Doc.Codec;
-        _encodingItem.Content = codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : "");
-        _eolItem.Content = EolLabel(od, opts);
-        _languageItem.Content = od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name;
-        _zoomItem.Content = Loc.Get(K.StatusZoom, ("percent", ZoomPercent));
+        SetStatusItem(_encodingItem, codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : ""), K.StatusEncodingA11y, relabel);
+        SetStatusItem(_eolItem, EolLabel(od, opts), K.StatusEolA11y, relabel);
+        SetStatusItem(_languageItem, od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name, K.StatusLanguageA11y, relabel);
+        SetStatusItem(_zoomItem, Loc.Get(K.StatusZoom, ("percent", ZoomPercent)), K.StatusZoomA11y, relabel);
         var configs = ConfigHitsOf(od).Where(h => h.Path is not null).ToList();
         _configItem.Content = ConfigLabel(configs);
         _configItem.IsVisible = configs.Count > 0;
@@ -187,11 +190,6 @@ internal sealed partial class MainWindow
         ToolTip.SetTip(_eolItem, Loc.Get(K.StatusEolTip));
         ToolTip.SetTip(_languageItem, Loc.Get(K.StatusLanguageTip));
         ToolTip.SetTip(_zoomItem, Loc.Get(K.StatusZoomTip));
-        AutomationProperties.SetName(_encodingItem, Loc.Get(K.StatusEncodingA11y, ("value", (string)_encodingItem.Content)));
-        AutomationProperties.SetName(_eolItem, Loc.Get(K.StatusEolA11y, ("value", (string)_eolItem.Content)));
-        AutomationProperties.SetName(_indentItem, Loc.Get(K.StatusIndentA11y, ("value", (string)_indentItem.Content)));
-        AutomationProperties.SetName(_languageItem, Loc.Get(K.StatusLanguageA11y, ("value", (string)_languageItem.Content)));
-        AutomationProperties.SetName(_zoomItem, Loc.Get(K.StatusZoomA11y, ("value", (string)_zoomItem.Content)));
 
         Core.TypingTrace.End("win.status.tips", part);
         var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem, _zoomItem };
@@ -213,6 +211,14 @@ internal sealed partial class MainWindow
     }
 
     private readonly List<Border> _statusDots = [];
+    private string? _statusLanguage;
+
+    private static void SetStatusItem(Button item, string text, string a11yKey, bool relabel)
+    {
+        if (!relabel && item.Content is string old && old == text) return;
+        item.Content = text;
+        AutomationProperties.SetName(item, Loc.Get(a11yKey, ("value", text)));
+    }
 
     private static Border StatusDot()
     {
