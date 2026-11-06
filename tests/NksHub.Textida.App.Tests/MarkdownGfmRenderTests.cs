@@ -405,7 +405,11 @@ public class MarkdownGfmRenderTests(ITestOutputHelper output) : IDisposable
         var (_, picture) = Assert.Single(wrapped.Reader.InlinePictures(0));
         Assert.True(picture.Top >= wrapped.Reader.BlockBounds(0).Top - 0.5);
         for (int offset = 0; offset < text.Text.Length; offset++)
-            Assert.Equal(text.DocStart + offset, wrapped.Reader.PositionAt(wrapped.Reader.PointAt(text.DocStart + offset)!.Value));
+        {
+            var point = wrapped.Reader.PointAt(text.DocStart + offset)!.Value;
+            if (offset > 0 && point == wrapped.Reader.PointAt(text.DocStart + offset - 1)) continue; // inside a ligature ("fi" in the fonts of macOS): one place, found at its start
+            Assert.Equal(text.DocStart + offset, wrapped.Reader.PositionAt(point));
+        }
     }
 
     [AvaloniaFact]
