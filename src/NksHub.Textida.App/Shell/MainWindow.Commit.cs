@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Avalonia.Controls;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
@@ -79,10 +81,22 @@ internal sealed partial class MainWindow
             return shown;
         }
         var view = new CommitView(root, CommitActionsOf(root), () => Options);
+        RememberCheck(view.SaveCheckBox, "git.commitSaveAll");
+        RememberCheck(view.FormatCheckBox, "git.commitFormat");
         HostCommit(view);
         await view.ReloadAsync();
         view.FocusMessage();
         return view;
+    }
+
+    /// <summary>A check box before the commit starts as the setting says, and what the user ticks is kept in it for the next commit.</summary>
+    private void RememberCheck(CheckBox box, string setting)
+    {
+        box.IsChecked = _app.Workbench.Settings.GetBool(setting);
+        box.IsCheckedChanged += (_, _) =>
+        {
+            if (box.IsChecked == true != _app.Workbench.Settings.GetBool(setting)) _app.Workbench.Set(setting, JsonValue.Create(box.IsChecked == true));
+        };
     }
 
     /// <summary>What the commit panel of <paramref name="root"/> asks of the plugin; the reads say nothing to the user, the commit and the writes let the plugin tell how they went.</summary>
@@ -150,21 +164,21 @@ internal sealed partial class MainWindow
     /// Runs one Git command on the repository (see <see cref="GitRepoPath"/>), or on <paramref name="path"/>. One such command runs at a time; a second one is refused with a message in the status line.
     /// Afterwards the commit panels and the change marks of the open files are read again.
     /// </summary>
-    internal async Task RunGitRepoCommandAsync(string command, string? path = null, string extra = "")
+    internal async Task<JsonElement?> RunGitRepoCommandAsync(string command, string? path = null, string extra = "")
     {
         path ??= GitRepoPath();
         if (path is null)
         {
             SetStatusMessage(Loc.Get(K.GitNoRepository));
-            return;
+            return null;
         }
         if (_gitCommandRunning)
         {
             SetStatusMessage(Loc.Get(K.GitBusy));
-            return;
+            return null;
         }
         _gitCommandRunning = true;
-        try { await _app.Plugins.RunGitRepoAsync(this, command, path, extra); }
+        try { return await _app.Plugins.RunGitRepoAsync(this, command, path, extra); }
         finally
         {
             _gitCommandRunning = false;
@@ -180,9 +194,30 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    /// <summary>"Git: Pull": the setting <c>git.pullMode</c> says how the new commits are brought in; <c>ask</c> lets the plugin ask each time.</summary>
-    internal CommandOutcome GitPull() =>
-        GitCommand("git.pull", _app.Workbench.Settings.GetString("git.pullMode") is "merge" or "rebase" ? $",\"mode\":\"{_app.Workbench.Settings.GetString("git.pullMode")}\"" : "");
+    /// <summary>"Git: Pull" (see <see cref="PullAsync"/>).</summary>
+    internal CommandOutcome GitPull()
+    {
+        _ = PullAsync();
+        return CommandOutcome.Handled;
+    }
+
+    /// <summary>
+    /// Updates the branch of the repository from its upstream. The plugin fetches first and says when there is nothing new; the setting <c>git.pullMode</c> says how the commits are combined when the
+    /// configuration of git does not, and <c>ask</c> lets the plugin ask. An answer the user chose to remember is kept in that setting, so the next pull does not ask.
+    /// </summary>
+    internal async Task<JsonElement?> PullAsync(string? path = null)
+    {
+        string setting = _app.Workbench.Settings.GetString("git.pullMode");
+        var answer = await RunGitRepoCommandAsync("git.pull", path, setting is "merge" or "rebase" ? $",\"mode\":\"{setting}\"" : "");
+        if (answer is { } a && a.TryGetProperty("remember", out var remember) && remember.ValueKind == JsonValueKind.True && a.GetProperty("mode").GetString() is "merge" or "rebase")
+            _app.Workbench.Set("git.pullMode", a.GetProperty("mode").GetString()!);
+        if (StatusOf(answer) is "pulled" or "upToDate")
+        {
+            _gitIncomingTold = default;
+            DismissNotice("git-incoming");
+        }
+        return answer;
+    }
 
     /// <summary>"Git: History of the File": the file of the active tab; a folder in its place is refused by the plugin with a notice.</summary>
     internal CommandOutcome GitFileHistory() => GitCommand("git.logFile");

@@ -253,6 +253,8 @@
   "git.noRepository": "There is no Git repository for the active file or the open folder.",
   "git.busy": "Another Git command is still running.",
   "git.branchHint": "Click to switch the branch.",
+  "git.incoming": "{upstream} has new commits for branch {branch}: {count}.",
+  "git.update": "Update",
   "loss.title": "Characters the Encoding Cannot Hold",
   "loss.message.one": "{count} character cannot be written in {encoding}: {groups}.",
   "loss.message.other": "{count} characters cannot be written in {encoding}: {groups}.",

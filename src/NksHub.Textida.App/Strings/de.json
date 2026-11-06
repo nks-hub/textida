@@ -252,6 +252,8 @@
   "git.noRepository": "Für die aktive Datei und den geöffneten Ordner gibt es kein Git-Repository.",
   "git.busy": "Ein anderer Git-Befehl läuft noch.",
   "git.branchHint": "Klicken, um den Branch zu wechseln.",
+  "git.incoming": "{upstream} hat neue Commits für den Branch {branch}: {count}.",
+  "git.update": "Aktualisieren",
   "loss.title": "Zeichen, die die Codierung nicht darstellen kann",
   "loss.message.one": "{count} Zeichen lässt sich nicht in {encoding} schreiben: {groups}.",
   "loss.message.other": "{count} Zeichen lassen sich nicht in {encoding} schreiben: {groups}.",

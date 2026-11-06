@@ -183,19 +183,27 @@ public sealed partial class GitPlugin : PluginBase
         return shown.Count;
     }
 
-    /// <summary>The status bar item: the branch and how many files are staged, changed, untracked and in conflict. A status that cannot be shown must not break the command.</summary>
+    /// <summary>
+    /// The status bar item: the branch, the commits that are coming in (↓) and going out (↑) against its upstream as of the last fetch, and how many files are staged, changed, untracked and in
+    /// conflict. A branch without an upstream shows no arrows; the tooltip says why. A status that cannot be shown must not break the command.
+    /// </summary>
     private async Task ShowStatusBarAsync(string ui, GitRepository repo, IReadOnlyList<StatusEntry>? entries, CancellationToken ct)
     {
         try
         {
             var c = StatusCounts.Of(entries ?? await repo.StatusAsync(ct));
             var branch = await repo.BranchAsync(ct);
+            var upstream = await repo.UpstreamAsync(ct);
+            var (ahead, behind) = upstream is null ? (0, 0) : await repo.AheadBehindAsync(ct);
             var parts = new List<string> { branch.Length > 0 ? branch : "Git" };
+            if (behind > 0) parts.Add("↓" + behind);
+            if (ahead > 0) parts.Add("↑" + ahead);
             if (c.Staged > 0) parts.Add("+" + c.Staged);
             if (c.Changed > 0) parts.Add("~" + c.Changed);
             if (c.Untracked > 0) parts.Add("?" + c.Untracked);
             if (c.Conflicts > 0) parts.Add("!" + c.Conflicts);
-            var tip = Texts.Get(ui, "statusTip", ("branch", branch), ("staged", c.Staged.ToString()), ("changed", c.Changed.ToString()), ("untracked", c.Untracked.ToString()), ("conflicts", c.Conflicts.ToString()));
+            var tip = Texts.Get(ui, "statusTip", ("branch", branch), ("staged", c.Staged.ToString()), ("changed", c.Changed.ToString()), ("untracked", c.Untracked.ToString()), ("conflicts", c.Conflicts.ToString()))
+                + "\n" + (upstream is null ? Texts.Get(ui, "statusNoUpstream") : Texts.Get(ui, "statusUpstream", ("upstream", upstream), ("behind", behind.ToString()), ("ahead", ahead.ToString())));
             await CallAsync(UiMethods.StatusSet, $"{{\"text\":\"{Quote(string.Join(' ', parts))}\",\"tooltip\":\"{Quote(tip)}\"}}", ct);
         }
         catch (Exception e) when (e is RpcException or GitException or IOException) { }

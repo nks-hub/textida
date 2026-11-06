@@ -8202,6 +8202,53 @@
       ]
     },
     {
+      "key": "git.autoFetchMinutes",
+      "type": "integer",
+      "default": 10,
+      "title": "setting.git.autoFetchMinutes.title",
+      "description": "setting.git.autoFetchMinutes.description",
+      "category": "cat.git",
+      "scope": "application",
+      "minimum": 0,
+      "maximum": 1440,
+      "tags": [
+        "git",
+        "fetch",
+        "background",
+        "incoming",
+        "status bar"
+      ]
+    },
+    {
+      "key": "git.commitSaveAll",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.git.commitSaveAll.title",
+      "description": "setting.git.commitSaveAll.description",
+      "category": "cat.git",
+      "scope": "application",
+      "tags": [
+        "git",
+        "commit",
+        "save"
+      ]
+    },
+    {
+      "key": "git.commitFormat",
+      "type": "boolean",
+      "default": false,
+      "title": "setting.git.commitFormat.title",
+      "description": "setting.git.commitFormat.description",
+      "category": "cat.git",
+      "scope": "application",
+      "tags": [
+        "git",
+        "commit",
+        "format",
+        "editorconfig"
+      ]
+    },
+    {
       "key": "tools.makeProgram",
       "type": "string",
       "default": "",

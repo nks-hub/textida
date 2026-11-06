@@ -68,9 +68,10 @@ public sealed partial class GitPlugin
 
     private string Cut(string text) => text.Length <= TextLimit ? text : text[..Math.Max(0, TextLimit - 1)] + "…";
 
+    /// <summary>Tells the user how the command went, except for a fetch the editor started by itself (<c>background</c>): that one only answers.</summary>
     private async Task<byte[]> TellRepoAsync(RepoRequest r, string status, string key, NoticeLevel level, CancellationToken ct, params (string, string)[] arguments)
     {
-        await NotifyAsync(level, Cut(Texts.Get(r.Ui, key, arguments)), ct);
+        if (!r.Flag("background")) await NotifyAsync(level, Cut(Texts.Get(r.Ui, key, arguments)), ct);
         return Status(status);
     }
 
@@ -299,7 +300,7 @@ public sealed partial class GitPlugin
             {
                 last = fraction ?? last;
                 _ = SafeReportAsync(task, last, message);
-            }, task.Cancellation);
+            }, task.Cancellation, interactive: !r.Flag("background"));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -324,51 +325,112 @@ public sealed partial class GitPlugin
     private static async Task<string?> CurrentBranchAsync(GitRepository repo, CancellationToken ct) =>
         (await repo.BranchesAsync(ct)).FirstOrDefault(b => b is { Current: true, Remote: false })?.Name;
 
-    private async Task<byte[]> FetchAsync(RepoRequest r, GitRepository repo, CancellationToken ct)
+    /// <summary>
+    /// Fetches from the remote of the upstream (or <c>origin</c>, or the only remote). The answer says how far the branch is from its upstream afterwards. With <c>background</c> (the editor fetches by
+    /// itself every few minutes) a branch without an upstream is not fetched, nothing is told and no sign-in window may open. <paramref name="then"/> goes on after a fetch that went through, in place of the answer.
+    /// </summary>
+    private async Task<byte[]> FetchAsync(RepoRequest r, GitRepository repo, CancellationToken ct, Func<Task<byte[]>>? then = null)
     {
         var remotes = await repo.RemotesAsync(ct);
         if (remotes.Count == 0) return await TellRepoAsync(r, "noRemote", "noRemote", NoticeLevel.Warning, ct);
-        string remote = (await repo.UpstreamAsync(ct))?.Split('/')[0] is { } known && remotes.Contains(known) ? known : remotes.Contains("origin") ? "origin" : remotes[0];
+        string? upstream = await repo.UpstreamAsync(ct);
+        if (upstream is null && r.Flag("background")) return Status("noUpstream");
+        string remote = upstream?.Split('/')[0] is { } known && remotes.Contains(known) ? known : remotes.Contains("origin") ? "origin" : remotes[0];
         return await RunNetworkAsync(r, repo, "taskFetch", [("remote", remote)], ["fetch", "--progress", "--prune", remote], async _ =>
         {
-            await NotifyAsync(NoticeLevel.Info, Cut(Texts.Get(r.Ui, "fetchDone", ("remote", remote))), ct);
+            if (then is not null) return await then();
+            if (!r.Flag("background")) await NotifyAsync(NoticeLevel.Info, Cut(Texts.Get(r.Ui, "fetchDone", ("remote", remote))), ct);
             await RefreshAfterAsync(r.Ui, repo, ct);
-            return Status("fetched");
+            var (ahead, behind) = upstream is null ? (0, 0) : await repo.AheadBehindAsync(ct);
+            return Bytes($"{{\"status\":\"fetched\",\"branch\":\"{Quote(await repo.BranchAsync(ct))}\",\"upstream\":{(upstream is null ? "null" : $"\"{Quote(upstream)}\"")},\"ahead\":{ahead},\"behind\":{behind}}}");
         }, null, ct);
     }
 
-    /// <summary>Brings the commits of the upstream into the current branch (git pull). How: the request says merge or rebase, or the user is asked. A stop at conflicts leaves them for the status panel.</summary>
+    private const string FastForward = "ffonly", RebaseMerges = "rebaseMerges";
+
+    /// <summary>
+    /// How <c>git pull</c> would combine by the configuration of git: <c>branch.&lt;name&gt;.rebase</c>, else <c>pull.rebase</c>; when that is not a rebase, <c>pull.ff=only</c> allows only a fast-forward.
+    /// Null when the configuration of the repository and of the user says nothing (see <see cref="GitRepository.UserConfigAsync"/>).
+    /// </summary>
+    private static async Task<string?> ConfiguredPullModeAsync(GitRepository repo, string branch, CancellationToken ct)
+    {
+        var rebase = (await repo.UserConfigAsync($"branch.{branch}.rebase", ct) ?? await repo.UserConfigAsync("pull.rebase", ct))?.ToLowerInvariant();
+        if (rebase is "true" or "yes" or "on" or "1" or "interactive" or "i" or "preserve" or "p") return "rebase"; // an interactive rebase has nobody to edit its list here
+        if (rebase is "merges" or "m") return RebaseMerges;
+        if (await repo.UserConfigAsync("pull.ff", ct) is "only") return FastForward;
+        return rebase is "false" or "no" or "off" or "0" ? "merge" : null;
+    }
+
+    /// <summary>
+    /// Brings the commits of the upstream into the current branch, like Update Project of an IDE: a fetch first, and when the upstream has nothing new the user is only told so. How the commits are
+    /// combined: the configuration of git (<see cref="ConfiguredPullModeAsync"/>), else the <c>mode</c> of the request (the setting of the editor), else a fast-forward when the branch has no commit of its
+    /// own, else the user is asked, with a choice to remember the answer (the answer then carries <c>remember</c> and the editor keeps it). Afterwards the user is told how many commits and files came
+    /// in and the commits are listed in the log panel. A stop at conflicts leaves them for the status panel.
+    /// </summary>
     private async Task<byte[]> PullAsync(RepoRequest r, GitRepository repo, CancellationToken ct)
     {
         string? branch = await CurrentBranchAsync(repo, ct);
         if (branch is null) return await TellRepoAsync(r, "noBranch", "noBranch", NoticeLevel.Warning, ct);
-        if (await repo.UpstreamAsync(ct) is null) return await TellRepoAsync(r, "noUpstream", "pullNoUpstream", NoticeLevel.Warning, ct, ("branch", branch));
-        string? mode = r.Text("mode") is "merge" or "rebase" ? r.Text("mode") : null;
-        if (mode is null)
-        {
-            var picked = await CallAsync(UiMethods.QuickPick,
-                $"{{\"title\":\"{Quote(Texts.Get(r.Ui, "pullModeTitle"))}\",\"placeholder\":\"{Quote(Texts.Get(r.Ui, "pullModePlaceholder"))}\",\"items\":[" +
-                $"{{\"id\":\"merge\",\"label\":\"{Quote(Texts.Get(r.Ui, "pullModeMerge"))}\",\"detail\":\"{Quote(Texts.Get(r.Ui, "pullModeMergeDetail"))}\"}}," +
-                $"{{\"id\":\"rebase\",\"label\":\"{Quote(Texts.Get(r.Ui, "pullModeRebase"))}\",\"detail\":\"{Quote(Texts.Get(r.Ui, "pullModeRebaseDetail"))}\"}}]}}", ct);
-            mode = picked.GetProperty("id").ValueKind == JsonValueKind.String ? picked.GetProperty("id").GetString() : null;
-            if (mode is null) return Status("dismissed");
-        }
-        List<string> args = ["pull", "--progress", "--no-edit", .. mode == "rebase" ? (string[])["--rebase", "--autostash"] : ["--no-rebase"]];
-        return await RunNetworkAsync(r, repo, "taskPull", [("branch", branch)], args, async result =>
+        if (await repo.UpstreamAsync(ct) is not { } upstream) return await TellRepoAsync(r, "noUpstream", "pullNoUpstream", NoticeLevel.Warning, ct, ("branch", branch));
+        return await FetchAsync(r, repo, ct, () => IntegrateAsync(r, repo, branch, upstream, ct));
+    }
+
+    private async Task<byte[]> IntegrateAsync(RepoRequest r, GitRepository repo, string branch, string upstream, CancellationToken ct)
+    {
+        var (ahead, behind) = await repo.AheadBehindAsync(ct);
+        if (behind == 0)
         {
             await RefreshAfterAsync(r.Ui, repo, ct);
-            bool same = result.Output.Contains("Already up to date", StringComparison.OrdinalIgnoreCase) || result.Output.Contains("Already up-to-date", StringComparison.OrdinalIgnoreCase);
-            await NotifyAsync(NoticeLevel.Info, Cut(Texts.Get(r.Ui, same ? "pullUpToDate" : "pullDone", ("branch", branch))), ct);
-            return Status(same ? "upToDate" : "pulled");
+            return await TellRepoAsync(r, "upToDate", "pullUpToDate", NoticeLevel.Info, ct, ("branch", branch), ("upstream", upstream));
+        }
+        string? mode = await ConfiguredPullModeAsync(repo, branch, ct) ?? (r.Text("mode") is "merge" or "rebase" ? r.Text("mode") : null) ?? (ahead == 0 ? FastForward : null);
+        bool remember = false;
+        if (mode is null)
+        {
+            string rememberDetail = Texts.Get(r.Ui, "pullModeRememberDetail");
+            var picked = await PickAsync(Texts.Get(r.Ui, "pullModeTitle"), Texts.Get(r.Ui, "pullModePlaceholder"),
+            [
+                ("merge", Texts.Get(r.Ui, "pullModeMerge"), Texts.Get(r.Ui, "pullModeMergeDetail")),
+                ("rebase", Texts.Get(r.Ui, "pullModeRebase"), Texts.Get(r.Ui, "pullModeRebaseDetail")),
+                ("merge:remember", Texts.Get(r.Ui, "pullModeMergeRemember"), rememberDetail),
+                ("rebase:remember", Texts.Get(r.Ui, "pullModeRebaseRemember"), rememberDetail),
+            ], ct);
+            if (picked is null) return Status("dismissed");
+            remember = picked.EndsWith(":remember", StringComparison.Ordinal);
+            mode = picked.Split(':')[0];
+        }
+        string how = mode;
+        var commits = await repo.LogRangeAsync("HEAD..@{upstream}", LogLimit, ct);
+        var files = await repo.IncomingFilesAsync(ct);
+        List<string> args = how switch
+        {
+            "rebase" => ["rebase", "--autostash", "@{upstream}"],
+            RebaseMerges => ["rebase", "--autostash", "--rebase-merges", "@{upstream}"],
+            FastForward => ["merge", "--ff-only", "--autostash", "@{upstream}"],
+            _ => ["merge", "--no-edit", "--autostash", "@{upstream}"],
+        };
+        return await RunNetworkAsync(r, repo, "taskPull", [("branch", branch)], args, async _ =>
+        {
+            await RefreshAfterAsync(r.Ui, repo, ct);
+            const int Named = 5;
+            string names = files.Count == 0 ? "-" : string.Join(", ", files.Take(Named)) + (files.Count > Named ? ", …" : "");
+            await NotifyAsync(NoticeLevel.Info, Cut(Texts.Get(r.Ui, "pullSummary", ("branch", branch), ("commits", Num(behind)), ("files", Num(files.Count)), ("names", names))), ct);
+            if (commits.Count > 0)
+            {
+                _log = new LogContext(repo.Root, null);
+                await ShowLogPanelAsync(Texts.Get(r.Ui, "pullPanel", ("name", Path.GetFileName(repo.Root.TrimEnd('/', '\\')))), commits, ct);
+            }
+            return Bytes($"{{\"status\":\"pulled\",\"mode\":\"{how}\",\"remember\":{Bool(remember)},\"commits\":{behind},\"files\":{files.Count}}}");
         }, async _ =>
         {
             var entries = await repo.StatusAsync(ct);
             int conflicts = entries.Count(StatusCounts.IsConflict);
-            if (conflicts == 0) return null;
+            if (conflicts == 0)
+                return how == FastForward ? await TellRepoAsync(r, "notFastForward", "pullNotFastForward", NoticeLevel.Warning, ct, ("branch", branch), ("upstream", upstream)) : null;
             await SetPanelAsync(r.Ui, repo, entries, reveal: true, ct);
             _panelRoot = repo.Root;
             await ShowStatusBarAsync(r.Ui, repo, entries, ct);
-            await NotifyAsync(NoticeLevel.Warning, Cut(Texts.Get(r.Ui, mode == "rebase" ? "pullRebaseStopped" : "pullConflicts", ("count", Num(conflicts)))), ct);
+            await NotifyAsync(NoticeLevel.Warning, Cut(Texts.Get(r.Ui, how.StartsWith("rebase", StringComparison.Ordinal) ? "pullRebaseStopped" : "pullConflicts", ("count", Num(conflicts)))), ct);
             return Bytes($"{{\"status\":\"conflicts\",\"count\":{conflicts}}}");
         }, ct);
     }
@@ -548,14 +610,22 @@ public sealed partial class GitPlugin
     {
         if (file && Directory.Exists(r.Path)) return await TellRepoAsync(r, "noFile", "noFile", NoticeLevel.Warning, ct);
         string? rel = file ? Relative(repo, r.Path!) : null;
-        var commits = await repo.LogAsync(rel, _settings.LogEntries > 0 ? _settings.LogEntries : _settings.MaxEntries, ct);
+        var commits = await repo.LogAsync(rel, LogLimit, ct);
         if (commits.Count == 0) return await TellRepoAsync(r, "empty", "logNone", NoticeLevel.Info, ct);
         string name = file ? Path.GetFileName(rel!) : Path.GetFileName(repo.Root.TrimEnd('/', '\\'));
         _log = new LogContext(repo.Root, rel);
+        await ShowLogPanelAsync(Texts.Get(r.Ui, file ? "logPanelFile" : "logPanelRepo", ("name", name)), commits, ct);
+        return Bytes($"{{\"status\":\"log\",\"count\":{commits.Count}}}");
+    }
+
+    private int LogLimit => _settings.LogEntries > 0 ? _settings.LogEntries : _settings.MaxEntries;
+
+    /// <summary>Lists commits in the log panel; opening one shows what it changed (by <see cref="_log"/>).</summary>
+    private async Task ShowLogPanelAsync(string title, IReadOnlyList<CommitInfo> commits, CancellationToken ct)
+    {
         var items = string.Join(',', commits.Select(c =>
             $"{{\"id\":\"{Quote(c.Sha)}\",\"label\":\"{Quote(Cut(c.Short + " " + c.Subject))}\",\"detail\":\"{Quote(Cut(c.Author + ", " + DateTimeOffset.FromUnixTimeSeconds(c.Time).LocalDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)))}\"}}"));
-        await CallAsync(UiMethods.PanelSet, $"{{\"panel\":\"{LogPanel}\",\"title\":\"{Quote(Cut(Texts.Get(r.Ui, file ? "logPanelFile" : "logPanelRepo", ("name", name))))}\",\"kind\":\"list\",\"items\":[{items}],\"reveal\":true}}", ct);
-        return Bytes($"{{\"status\":\"log\",\"count\":{commits.Count}}}");
+        await CallAsync(UiMethods.PanelSet, $"{{\"panel\":\"{LogPanel}\",\"title\":\"{Quote(Cut(title))}\",\"kind\":\"list\",\"items\":[{items}],\"reveal\":true}}", ct);
     }
 
     /// <summary>The user opened a commit of the log: its change of the file (log of a file), or of a file of the commit chosen from a list (log of the repository), in a comparison.</summary>

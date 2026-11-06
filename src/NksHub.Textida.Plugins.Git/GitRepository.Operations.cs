@@ -71,6 +71,24 @@ public sealed partial class GitRepository
         return result.Ok && parts.Length == 2 && int.TryParse(parts[0], out int ahead) && int.TryParse(parts[1], out int behind) ? (ahead, behind) : (0, 0);
     }
 
+    /// <summary>
+    /// A value of the git configuration that the user chose: the one git takes in this repository, when it comes from the file of the repository or of the user. Null when it is not set, or set only in
+    /// the system file, which holds what the installer chose (Git for Windows writes <c>pull.rebase=false</c> there for everyone).
+    /// </summary>
+    public async Task<string?> UserConfigAsync(string key, CancellationToken ct)
+    {
+        var result = await ExecAsync(["config", "--show-scope", "--get", key], true, ct).ConfigureAwait(false);
+        var parts = result.Output.Trim().Split('\t', 2);
+        return result.Ok && parts.Length == 2 && parts[0] != "system" && parts[1].Length > 0 ? parts[1] : null;
+    }
+
+    /// <summary>The paths the upstream changed since the current branch left it (<c>HEAD...@{upstream}</c>), by what was fetched last.</summary>
+    public async Task<IReadOnlyList<string>> IncomingFilesAsync(CancellationToken ct)
+    {
+        var result = await ExecAsync(["diff", "--name-only", "-z", "HEAD...@{upstream}"], true, ct).ConfigureAwait(false);
+        return result.Ok ? result.Output.Split('\0', StringSplitOptions.RemoveEmptyEntries) : [];
+    }
+
     /// <summary>The names of the remotes.</summary>
     public async Task<IReadOnlyList<string>> RemotesAsync(CancellationToken ct) =>
         [.. (await ExecAsync(["remote"], true, ct).ConfigureAwait(false)).Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
@@ -120,12 +138,25 @@ public sealed partial class GitRepository
     /// <summary>The newest <paramref name="max"/> commits of the repository, or of one file (followed through renames).</summary>
     public async Task<IReadOnlyList<CommitInfo>> LogAsync(string? path, int max, CancellationToken ct)
     {
-        List<string> args = ["log", $"-n{max}", "--no-color", "--format=%H%x09%h%x09%an%x09%at%x09%s"];
+        List<string> args = ["log", $"-n{max}", "--no-color", LogFormat];
         if (path is not null) args.AddRange(["--follow", "--", path]);
         var result = await ExecAsync(args, true, ct).ConfigureAwait(false);
+        return result.Ok ? ParseLog(result.Output) : []; // a repository without a commit has no log
+    }
+
+    /// <summary>The newest <paramref name="max"/> commits of a range such as <c>HEAD..@{upstream}</c>.</summary>
+    public async Task<IReadOnlyList<CommitInfo>> LogRangeAsync(string range, int max, CancellationToken ct)
+    {
+        var result = await ExecAsync(["log", $"-n{max}", "--no-color", LogFormat, range], true, ct).ConfigureAwait(false);
+        return result.Ok ? ParseLog(result.Output) : [];
+    }
+
+    private const string LogFormat = "--format=%H%x09%h%x09%an%x09%at%x09%s";
+
+    private static List<CommitInfo> ParseLog(string output)
+    {
         var list = new List<CommitInfo>();
-        if (!result.Ok) return list; // a repository without a commit has no log
-        foreach (var line in result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
             var f = line.Split('\t', 5);
             if (f.Length == 5 && long.TryParse(f[3], out long time)) list.Add(new CommitInfo(f[0], f[1], f[2], time, f[4].TrimEnd('\r')));
@@ -241,16 +272,11 @@ public sealed partial class GitRepository
         foreach (var branch in (await BranchesAsync(ct).ConfigureAwait(false)).Where(b => !b.Remote))
         {
             var range = branch.Upstream is not null ? $"{branch.Upstream}..{branch.Name}" : branch.Name;
-            List<string> args = ["log", $"-n{max}", "--no-color", "--format=%H%x09%h%x09%an%x09%at%x09%s", range];
+            List<string> args = ["log", $"-n{max}", "--no-color", LogFormat, range];
             if (branch.Upstream is null) args.AddRange(["--not", "--remotes"]);
             var result = await ExecAsync(args, true, ct).ConfigureAwait(false);
             if (!result.Ok) continue;
-            var commits = new List<CommitInfo>();
-            foreach (var line in result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var f = line.Split('\t', 5);
-                if (f.Length == 5 && long.TryParse(f[3], out long time)) commits.Add(new CommitInfo(f[0], f[1], f[2], time, f[4].TrimEnd('\r')));
-            }
+            var commits = ParseLog(result.Output);
             if (commits.Count > 0 || branch.Name == current) groups.Add((branch.Name, branch.Upstream, commits));
         }
         return groups;
@@ -271,7 +297,7 @@ public sealed partial class GitRepository
     /// never sees), reports how far it is as git prints it (<paramref name="progress"/>: a fraction from 0 to 1 or null, and the line), ends at <paramref name="timeout"/> (zero is no limit)
     /// and is killed with all it started when <paramref name="ct"/> fires, which throws <see cref="OperationCanceledException"/>.
     /// </summary>
-    public async Task<GitResult> NetworkAsync(IReadOnlyList<string> args, TimeSpan timeout, Action<double?, string>? progress, CancellationToken ct)
+    public async Task<GitResult> NetworkAsync(IReadOnlyList<string> args, TimeSpan timeout, Action<double?, string>? progress, CancellationToken ct, bool interactive = true)
     {
         ProcessStartInfo info;
         try { info = ProcessLaunch.CreateStartInfo(_git, ["--literal-pathspecs", .. args]); }
@@ -285,6 +311,7 @@ public sealed partial class GitRepository
         info.StandardErrorEncoding = Encoding.UTF8;
         info.Environment["GIT_TERMINAL_PROMPT"] = "0";
         info.Environment["GIT_EDITOR"] = ":";
+        if (!interactive) info.Environment["GCM_INTERACTIVE"] = "never"; // a fetch nobody asked for must not open a sign-in window of Git Credential Manager
         using var process = new Process { StartInfo = info };
         try { process.Start(); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { throw new GitException(e.Message); }

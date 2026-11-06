@@ -183,6 +183,7 @@ public sealed partial class App : Application
                 first.StartWorkspace();
                 Plugins.ActivateStartup();
                 first.CheckUpdatesOnStart();
+                first.StartGitAutoFetch();
                 if (ctx.Args.Files.Count > 0 || ctx.Args.Diff is not null) RunStartupOpen(ctx.Args);
                 else if (first.Active is null) first.NewDocument(); // nothing to open or restore: start with an empty document, not an empty window
                 _ = Remote.PruneCopiesAsync(PathsInUse());

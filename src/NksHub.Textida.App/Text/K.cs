@@ -259,6 +259,8 @@ public static partial class K
     public const string GitNoRepository = "git.noRepository";
     public const string GitBusy = "git.busy";
     public const string GitBranchHint = "git.branchHint";
+    public const string GitIncoming = "git.incoming";
+    public const string GitUpdate = "git.update";
     public const string LossTitle = "loss.title";
     public const string LossMessage = "loss.message";
     public const string LossReplacement = "loss.replacement";
