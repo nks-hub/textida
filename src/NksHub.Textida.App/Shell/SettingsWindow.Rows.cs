@@ -41,8 +41,6 @@ internal sealed partial class SettingsWindow
         [("workbench.uiLanguage", "en")] = K.SettingsValueLanguageEn,
         [("workbench.uiLanguage", "sk")] = K.SettingsValueLanguageSk,
         [("workbench.uiLanguage", "de")] = K.SettingsValueLanguageDe,
-        [("workbench.keymapProfile", "default")] = K.SettingsValueEditorProfileDefault,
-        [("workbench.keymapProfile", "pspad")] = K.SettingsValueEditorProfilePspad,
         [("editor.wordWrap", "off")] = K.SettingsValueEditorWordWrapOff,
         [("editor.wordWrap", "on")] = K.SettingsValueEditorWordWrapOn,
         [("editor.renderWhitespace", "none")] = K.SettingsValueEditorRenderWhitespaceNone,

@@ -303,6 +303,32 @@ public class McpServerTests
         await T.Until(() => rig.Server.ConnectionCount == 1);
     }
 
+    [Fact]
+    public async Task A_plugin_tool_is_switched_off_like_a_built_in_one_and_a_restored_switch_holds_before_the_plugin_comes()
+    {
+        var offered = new List<McpPluginTool>();
+        await using var rig = Rig.Create(o => o with { PluginTools = () => offered });
+        rig.Server.RestoreDisabled(["acme_count", "editor_outline"]);
+        Assert.False(rig.Server.IsEnabled("editor_outline"));
+        Assert.False(rig.Server.IsEnabled("acme_count")); // not offered yet
+        Assert.Throws<ArgumentException>(() => rig.Server.SetEnabled("acme_count", true));
+
+        offered.Add(new McpPluginTool("acme_count", "Count", "Counts.", "{\"type\":\"object\"}", true, (_, _) => Task.FromResult("3")));
+        offered.Add(new McpPluginTool("acme_sum", "Sum", "Sums.", "{\"type\":\"object\"}", true, (_, _) => Task.FromResult("5")));
+        Assert.Equal([.. McpServer.AllTools.Select(t => t.Name), "acme_count", "acme_sum"], rig.Server.CurrentTools().Select(t => t.Name));
+        var names = (await rig.ModernAsync("tools/list")).Result.GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
+        Assert.DoesNotContain("acme_count", names);
+        Assert.DoesNotContain("editor_outline", names);
+        Assert.Contains("acme_sum", names);
+        Assert.Equal(-32602, (await rig.ModernAsync("tools/call", "\"name\":\"acme_count\",\"arguments\":{}")).Code);
+
+        rig.Server.SetEnabled("acme_count", true);
+        rig.Server.SetEnabled("acme_sum", false);
+        Assert.Equal("3", (await rig.ToolAsync("acme_count")).Text);
+        Assert.Equal(-32602, (await rig.ModernAsync("tools/call", "\"name\":\"acme_sum\",\"arguments\":{}")).Code);
+        Assert.Equal(["acme_sum", "editor_outline"], rig.Server.DisabledTools());
+    }
+
     // ---- P6.3.1 ----
 
     [Fact]

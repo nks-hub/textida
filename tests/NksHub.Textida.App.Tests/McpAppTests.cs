@@ -469,7 +469,13 @@ public class McpAppTests : IDisposable
         _app.Plugins.Mcp.Server.SetEnabled("editor_read_bytes", false);
         var after = await Pump(client.RequestAsync("tools/list", $"{{{Meta}}}"), "list again");
         Assert.DoesNotContain("editor_read_bytes", after.GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()));
+
+        // the switch is kept in the profile: the server of the next run starts with the tool off
+        await using (var nextRun = new McpService(_app.Plugins, "mcp-next-run-test", _app.ProfileDirectory))
+            Assert.False(nextRun.Server.IsEnabled("editor_read_bytes"));
         _app.Plugins.Mcp.Server.SetEnabled("editor_read_bytes", true);
+        await using (var nextRun = new McpService(_app.Plugins, "mcp-next-run-test", _app.ProfileDirectory))
+            Assert.True(nextRun.Server.IsEnabled("editor_read_bytes"));
     }
 
     [AvaloniaFact]

@@ -33,16 +33,18 @@ public class SettingsMigrationTests
         var expected = JsonNode.Parse(Original);
         var migrator = SettingsMigrator.Default;
 
-        Assert.Equal(1, migrator.CurrentVersion);
+        Assert.Equal(2, migrator.CurrentVersion);
         for (int version = 1; version <= migrator.CurrentVersion; version++)
         {
             var settings = SettingsFile.Load(path).MigrateTo(version);
             Assert.Equal(SettingsSaveResult.Saved, settings.Save(path));
-            Assert.Equal(version, SettingsFile.Load(path).Version);
+            Assert.Equal(version, SettingsFile.Load(path).MigratedFrom ?? version);
+            expected!["schemaVersion"] = version;
             Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(File.ReadAllText(path))));
             Assert.Equal(journalHash, SHA256.HashData(File.ReadAllBytes(journal)));
         }
-        Assert.Empty(Directory.GetFiles(dir.Path, "*.bak"));
+        // only the upgrade from version 1 keeps a copy of the original
+        Assert.Equal(["settings.json.v1.bak"], Directory.GetFiles(dir.Path, "*.bak").Select(Path.GetFileName));
     }
 
     [Theory]
@@ -81,7 +83,7 @@ public class SettingsMigrationTests
         var returned = SettingsFile.Load(path, ThreeVersions()).MigrateTo(1);
         Assert.Equal(SettingsSaveResult.Saved, returned.Save(path));
 
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(Original), SettingsFile.Load(path).Root));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(Original), JsonNode.Parse(File.ReadAllText(path))));
         Assert.Equal(previousHash, SHA256.HashData(File.ReadAllBytes(path + ".v3.bak")));
         Assert.Equal(journalHash, SHA256.HashData(File.ReadAllBytes(journal)));
         Assert.True(JsonNode.DeepEquals(latest.Root, SettingsFile.Load(path, ThreeVersions()).Root));
@@ -169,7 +171,7 @@ public class SettingsMigrationTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(2)]
+    [InlineData(3)]
     public void The_current_build_refuses_an_unknown_target_version(int version)
     {
         var file = SettingsFile.Parse(Original);
@@ -178,10 +180,41 @@ public class SettingsMigrationTests
 
     [Theory]
     [InlineData("{ broken")]
-    [InlineData("{ \"schemaVersion\": 2, \"settings\": { \"future.key\": 3 } }")]
+    [InlineData("{ \"schemaVersion\": 3, \"settings\": { \"future.key\": 3 } }")]
     public void Broken_or_newer_files_cannot_be_forced_into_the_current_schema(string json)
     {
         var file = SettingsFile.Parse(json);
         Assert.Throws<InvalidOperationException>(() => file.MigrateTo(1));
+    }
+
+    [Fact]
+    public void The_unread_keymap_profile_moves_into_the_behaviour_profile()
+    {
+        var file = SettingsFile.Parse("""{ "schemaVersion": 1, "settings": { "workbench.keymapProfile": "pspad", "editor.tabSize": 2 } }""");
+
+        Assert.Equal((2, (int?)1), (file.Version, file.MigratedFrom));
+        Assert.Equal("pspad", file.Get("editor.profile")!.GetValue<string>());
+        Assert.Null(file.Get("workbench.keymapProfile"));
+        Assert.Equal(2, file.Get("editor.tabSize")!.GetValue<int>());
+    }
+
+    [Fact]
+    public void A_behaviour_profile_already_set_wins_over_the_unread_keymap_profile()
+    {
+        var file = SettingsFile.Parse("""{ "schemaVersion": 1, "settings": { "workbench.keymapProfile": "pspad", "editor.profile": "default" } }""");
+
+        Assert.Equal("default", file.Get("editor.profile")!.GetValue<string>());
+        Assert.Null(file.Get("workbench.keymapProfile"));
+    }
+
+    [Fact]
+    public void Returning_to_version_1_keeps_the_behaviour_profile()
+    {
+        var file = SettingsFile.Parse("""{ "schemaVersion": 2, "settings": { "editor.profile": "pspad" } }""");
+
+        var returned = file.MigrateTo(1);
+
+        Assert.Equal("pspad", returned.Get("editor.profile")!.GetValue<string>());
+        Assert.Null(returned.Get("workbench.keymapProfile"));
     }
 }

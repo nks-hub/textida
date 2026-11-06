@@ -46,8 +46,23 @@ public sealed class SettingsMigrator
     /// <summary>Latest format this build reads and writes.</summary>
     public int CurrentVersion { get; }
 
-    /// <summary>The migrator of this build.</summary>
-    public static SettingsMigrator Default { get; } = new(1, []);
+    /// <summary>
+    /// 1 → 2: <c>workbench.keymapProfile</c> was never read; the keys of a profile come from <c>editor.profile</c>. Its value moves there unless
+    /// <c>editor.profile</c> is already set, then it is dropped. The reverse changes nothing: version 1 reads <c>editor.profile</c> as well.
+    /// </summary>
+    internal static SettingsMigration KeymapProfileIntoBehaviourProfile { get; } = new(1, root =>
+    {
+        foreach (var section in SettingsFile.Sections(root))
+        {
+            if (section.Remove("workbench.keymapProfile", out var value) && !section.ContainsKey("editor.profile"))
+            {
+                section["editor.profile"] = value;
+            }
+        }
+    }, _ => { });
+
+    /// <summary>The migrator of this build. Declared after its steps, which static initialisation needs.</summary>
+    public static SettingsMigrator Default { get; } = new(2, [KeymapProfileIntoBehaviourProfile]);
 
     internal void Migrate(JsonObject root, int from, int target)
     {

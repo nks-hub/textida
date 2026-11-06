@@ -7808,25 +7808,6 @@
       ]
     },
     {
-      "key": "workbench.keymapProfile",
-      "type": "string",
-      "default": "default",
-      "title": "setting.workbench.keymapProfile.title",
-      "description": "setting.workbench.keymapProfile.description",
-      "category": "cat.keys",
-      "scope": "application",
-      "enum": [
-        "default",
-        "pspad"
-      ],
-      "tags": [
-        "keys",
-        "shortcuts",
-        "keybindings",
-        "profile"
-      ]
-    },
-    {
       "key": "workbench.uiLanguage",
       "type": "string",
       "default": "auto",

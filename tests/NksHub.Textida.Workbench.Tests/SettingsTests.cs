@@ -189,7 +189,7 @@ public class SettingsFileTests
     public void Missing_version_is_treated_as_current_and_is_stamped()
     {
         var file = SettingsFile.Parse("""{ "settings": { "editor.tabSize": 3 } }""");
-        Assert.Equal(1, file.Version);
+        Assert.Equal(SettingsMigrator.Default.CurrentVersion, file.Version);
         Assert.Null(file.LoadError);
     }
 

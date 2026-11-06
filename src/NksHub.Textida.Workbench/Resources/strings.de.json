@@ -153,8 +153,6 @@
   "setting.files.insertFinalNewline.description": "Fügt beim Speichern am Ende der Datei ein Zeilenende an.",
   "setting.files.autoSave.title": "Automatisch speichern",
   "setting.files.autoSave.description": "Speichert geänderte Dateien unter ihrem eigenen Pfad.",
-  "setting.workbench.keymapProfile.title": "Tastenkürzelprofil",
-  "setting.workbench.keymapProfile.description": "Id des Tastenkürzelprofils, das über den Standardtasten liegt.",
   "setting.workbench.uiLanguage.title": "Sprache der Oberfläche",
   "setting.workbench.uiLanguage.description": "Sprache der Menüs und Meldungen. Automatisch folgt dem System.",
   "cat.format": "Format",
