@@ -542,7 +542,7 @@ Soubor Markdown (.md, .markdown) má tři režimy. Čtení vykreslí stránku p�
 - Soubor delší než limit náhledu nebo otevřený jako velký soubor se otevře jako zdroj a stavový řádek to řekne; lišta pak nenabízí čtení ani úpravy.
 - Ve čtení klávesy editoru nic nedělají: stránka je jen ke čtení. Pro změnu textu přepněte na úpravy nebo zdroj. F6 přesune fokus na stránku; šipky, Page Up, Page Down, Home a End ji posouvají.
 - Text stránky jde vybírat myší jako na webu: tažením přes odstavce, seznamy, kód i buňky tabulek. Shift+klik výběr rozšíří, dvojklik vybere slovo a trojklik odstavec; při tažení za okraj se stránka posouvá. Ctrl+A vybere vše, Ctrl+C zkopíruje text (buňky tabulky oddělí tabulátor) a Ctrl+Shift+C nebo Kopírovat jako Markdown v místní nabídce zkopíruje odpovídající část zdroje. Tab přechází mezi odkazy a Enter odkaz otevře. Dlouhý řádek kódu se nezalamuje, posouvá se Shift+kolečkem.
-- Zobrazit, Rejstřík nadpisů (nebo Nástroje, Zobrazit osnovu Markdownu) otevře vedle dokumentu panel se stromem nadpisů H1 až H6. Zůstává otevřený ve čtení, úpravách i zdroji, nadpis místa, kde stojíte, je tučně, kliknutí nebo Enter nadpis ukáže nahoře v editoru či na stránce a po psaní se strom chvíli po poslední klávese obnoví. Tlačítka 1 až 6 ukážou nadpisy do zvolené úrovně a hlubší sbalí, pole nahoře nechá jen nadpisy, které obsahují zadaný text. Panel jde přesunout a skrýt jako ostatní panely.
+- Zobrazit, Rejstřík nadpisů (nebo Nástroje, Zobrazit osnovu Markdownu, klávesa Alt+8) otevře vedle dokumentu panel se stromem nadpisů H1 až H6. Zůstává otevřený ve čtení, úpravách i zdroji, nadpis místa, kde stojíte, je tučně, kliknutí nebo Enter nadpis ukáže nahoře v editoru či na stránce a po psaní se strom chvíli po poslední klávese obnoví. Tlačítka 1 až 6 ukážou nadpisy do zvolené úrovně a hlubší sbalí, pole nahoře nechá jen nadpisy, které obsahují zadaný text. Panel jde přesunout a skrýt jako ostatní panely.
 - Ctrl+K a pak Ctrl+V v souboru v hexu přejde do čtení. Příkazy Markdownu v nabídce Nástroje potřebují editor, použijte pro ně úpravy nebo zdroj.
 - Text nejde měnit přímo ve vykreslené stránce.
 
@@ -786,7 +786,7 @@ Panely Otevřené dokumenty, Soubory, commit, místní historie a panely plugin�
 - Rozložení se pamatuje s oknem a po restartu se vrátí; které panely jsou otevřené, se nepamatuje.
 - Panel je široký nejméně 140 pixelů (dole vysoký 80) a nejvýše polovinu okna; na mezi to program oznámí.
 - Čtečka obrazovky se po každé změně dozví stranu a velikost.
-- Každý panel ukotvený k okraji má tlačítko v pruhu na tomto okraji; tlačítko panel ukáže a skryje. Alt+0 ukáže panel commitu a Alt+9 místní historii a dají do nich klávesnici; stisknuté znovu s klávesnicí uvnitř panel skryjí.
+- Každý panel ukotvený k okraji má tlačítko v pruhu na tomto okraji; tlačítko panel ukáže a skryje. Alt+0 ukáže panel commitu, Alt+9 místní historii a Alt+8 rejstřík nadpisů Markdownu a dají do nich klávesnici; stisknuté znovu s klávesnicí uvnitř panel skryjí.
 - Příkazy působí na panel, který má klávesnici, jinak na naposledy otevřený; bez otevřeného panelu jsou vypnuté.
 
 ## [files.create] Nový soubor a nová složka

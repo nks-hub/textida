@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
@@ -89,6 +90,29 @@ public class HeadingsPanelTests : IDisposable
             Assert.True(_w.IsPanelOpen(SidePanel.Headings), $"open in {mode}");
             Assert.Equal(9, view.Headings.Count);
         }
+    }
+
+    [AvaloniaFact]
+    public async Task Alt_8_shows_the_panel_with_the_keyboard_in_it_and_hides_it_again()
+    {
+        var binding = Assert.Single(_app.Workbench.Keymap.Bindings, b => b.CommandId == "nks.tools.markdownOutline");
+        Assert.Equal("Alt+8", binding.Sequence.Display(NksHub.Textida.Workbench.Keys.Platform.Windows));
+        Assert.DoesNotContain(_app.Workbench.Keymap.Bindings, b => b.CommandId != binding.CommandId && b.Sequence.ToString() == binding.Sequence.ToString());
+
+        var (_, view) = await Open(Doc);
+        _w.TogglePanel(SidePanel.Headings, false);
+        _w.FocusActiveView();
+        Settle();
+        Assert.False(_w.IsPanelOpen(SidePanel.Headings));
+
+        _w.KeyPress(Avalonia.Input.Key.D8, Avalonia.Input.RawInputModifiers.Alt, Avalonia.Input.PhysicalKey.Digit8, null);
+        Settle();
+        Assert.True(_w.IsPanelOpen(SidePanel.Headings));
+        Assert.True(view.IsKeyboardFocusWithin);
+
+        _w.KeyPress(Avalonia.Input.Key.D8, Avalonia.Input.RawInputModifiers.Alt, Avalonia.Input.PhysicalKey.Digit8, null);
+        Settle();
+        Assert.False(_w.IsPanelOpen(SidePanel.Headings));
     }
 
     [AvaloniaFact]
