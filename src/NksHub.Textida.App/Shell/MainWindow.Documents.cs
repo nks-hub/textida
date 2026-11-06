@@ -216,6 +216,12 @@ internal sealed partial class MainWindow
             bool wasActive = Active == tab;
             tab.ShowBar(null);
             tab.Table?.Rebind();
+            if (tab.Json is not null)
+            {
+                bool shown = tab.JsonShown;
+                tab.DropJson(OptionsFor(tab));
+                if (shown) SetJsonPretty(tab, true);
+            }
             if (tab.Surface is { } s && !od.IsLarge && (tab.SidePreview is null) == (od.Mode != ViewMode.Edit))
             {
                 s.BindDocument();

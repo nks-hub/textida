@@ -177,6 +177,19 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_reload_formats_the_new_content_of_the_file()
+    {
+        var tab = Open(Sample);
+        Show();
+        File.WriteAllText(tab.Doc.Path!, "{\"fresh\":[1]}");
+        Assert.True(await _w.ReloadAsync(tab));
+        var view = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Scan(view);
+        Assert.Equal("  \"fresh\": [", view.RowText(1));
+        Assert.Equal("}", view.RowText(4));
+    }
+
+    [AvaloniaFact]
     public void Broken_json_shows_the_source_text_from_the_error_and_says_where()
     {
         Open("{\"a\":1,\"b\":tru}");

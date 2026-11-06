@@ -168,6 +168,15 @@ internal sealed class DocTab
         _automation?.IsVisible = !on;
     }
 
+    /// <summary>Releases the formatted view, which reads the document it was made for (a reload swaps the document); the text view is shown again.</summary>
+    public void DropJson(EditorOptions options)
+    {
+        if (Json is null) return;
+        ShowJson(false, options);
+        Json.Dispose();
+        Json = null;
+    }
+
     /// <summary>The rendered page beside the editor in the editing mode of a Markdown file (P9.3.4); null in every other mode.</summary>
     public MarkdownPreview? SidePreview { get; private set; }
 
