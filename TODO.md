@@ -1493,6 +1493,7 @@ Funkce s vydáním MVP, které kap. 6 nejmenuje a P3 je bere jako „zbytek funk
   - **Požadavek majitele 2. 11. 2026 (důrazně):** kompletní redesign celého okna nastavení. Ne seznam řádků „jeden řádek = jedna věc“, ale přehledné rozvržení položek po skupinách a kartách s popisem a náhledem. Žádná volná textová pole tam, kde uživatel nemá co psát ručně: projít VŠECHNA nastavení, ne jen písma, a každé dát vhodný ovládací prvek — výběr písma ze seznamu nainstalovaných písem s náhledem (ne psaní názvu), výběr barvy, rozbalovací seznam platných hodnot (enum), přepínač pro ano/ne, číslo s rozsahem nebo posuvník, výběr souboru nebo složky dialogem, zachycení klávesové zkratky stiskem, výběr jazyka a kódování ze seznamu, seznamy (cesty, přípony, vzory) jako editovatelný seznam položek s přidat/odebrat. Volný text jen tam, kde je obsah opravdu text (vzor, šablona, příkaz). Každá položka s popisem, výchozí hodnotou a vrácením na výchozí; zachovat hledání, přístupné názvy a 4 jazyky.
   - **Upřesnění majitele 2. 11. 2026:** všechny vstupy v nastavení budou interaktivní prvky: výběr souboru a složky přes prohlížeč souborů, select pro jednu hodnotu, multiselect pro více hodnot, tag input pro seznamy (přípony, vzory, cesty), číselné pole s rozsahem a krokem, přepínače, výběr barvy a písma, zachycení zkratky; volné textové pole jen u skutečného textu.
   - **Stav 6. 11. 2026 (94a67907, 40fc14a6):** pravá strana okna nastavení je přepracovaná. Nastavení jsou v kartách po oddílech, každé má název, popis, výchozí hodnotu, rozsah, značku „změněno“ a návrat na výchozí. Na stránkách Vzhled a Editor › Zobrazení je živý náhled písma, velikosti, čísel řádků, aktuálního řádku a bílých znaků v barvách tématu. Ovládací prvek se volí podle deklarace; ve schématu přibyly údaje `format`, `step` a `separator` (platí i pro pluginy, neznámý formát se odmítne): přepínač, rozbalovací výběr, výběr více hodnot, číslo s rozsahem a krokem, výběr písma ze seznamu nainstalovaných písem s náhledem a filtrem na neproporcionální písma, seznam náhradních písem, výběr barvy, soubor a složka přes systémový dialog, příkaz s Procházet, seznamy jako štítky, výběr kódování, zachycení zkratky stiskem (i na stránce Klávesové zkratky). Volné textové pole zůstalo jen u formátu data a času, argumentů nástroje pro porovnání, adresy webového hledání a katalogu pluginů; test padne na vestavěné nastavení s textovým polem bez označení `text`. Číslo se uloží po šipkách, Enteru nebo opuštění pole. Testy: SettingsControlsTests 10/10, SettingsViewTests, SettingsTreeTests, IconSkinTests 43/43, TranslationGateTests 8/8, SchemaTests, SettingCategoryTests, SettingsSearchTests. Zbývá: neověřeno v běžící aplikaci; `workbench.keymapProfile` nic nečte (profil zkratek jde z `editor.profile`); žádné vestavěné nastavení zatím není barva ani zkratka (prvky ověřené testovacím pluginem); dvoukrokovou zkratku (Ctrl+K Ctrl+U) zachycení nezapíše.
+  - **Stav 6. 11. 2026 (9b5cbce1):** mrtvé nastavení `workbench.keymapProfile` je odstraněné. Rozhodnuto 6. 11. 2026 (autonomně): odstranit, ne napojit, protože profil je podle `BehaviourProfiles` jedna vrstva nastavení a jedna vrstva kláves a samostatný výběr jen pro klávesy by zdvojoval `editor.profile`. Formát souboru nastavení přešel z verze 1 na 2: hodnota se přesune do `editor.profile`, pokud tam už nic není; při prvním uložení vznikne záloha `user-settings.json.v1.bak`. Starší build soubor verze 2 přečte, ale nezapíše. Profil se volí v Editor › Psaní. Testy: SettingsMigrationTests (3 nové), SettingsTests, SettingCategoryTests, SchemaTests 29/29, SettingsTreeTests a SettingsViewTests 29/29.
 - [ ] **P3.6.16** Menu podle typu souboru
   - **Co a proč:** Majitel 28. 10. 2026: volby v menu mají být aktivní podle zjištěného typu souboru, podobně jako to má hex.
   - **Dnešní stav:**
@@ -1725,6 +1726,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Stav 27. 10. 2026 (noc):** částečně. Klávesy pluginu v mapě kláves (vestavěná vyhrává, konflikt ve Správci pluginů), nastavení pluginu ve vyhledávání pod jeho názvem a v `initialize`/`settings.changed`, datové příkazy spouštějí externí nástroj s potvrzením, limit gramatiky kontrolovaný na otevřeném souboru. Chybí: schválení tvaru převodníků a klipů, datové příkazy u pluginu s procesem, odebrání bez restartu.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Datové příkazy i u pluginu s procesem, odebrání a vypnutí bez restartu. Tvar převodníků a klipů čeká na rozhodnutí majitele.
   - **Rozhodnuto 1. 11. 2026 (autonomně):** tvar převodníků podle kontraktu PZ.5.2, tvar klipů zůstává `{id, title, text, language?, command?, fields[]}`; klip s `language` se nabízí jen v dokumentech toho jazyka, stejně jako v doplňování (3cd7f9b2).
+  - **Kontrola 6. 11. 2026:** rozhodnutí z 1. 11. je zapojené (3cd7f9b2, ccec8f2d) a kritéria pokrývají testy; v kódu nic nezbývá, položka čeká na kontrolu a uzavření.
 - [ ] **P3b.2.2** UI příspěvky ve vzhledu D5
   - **Co a proč:** Editor kreslí z dat pluginu panel se stromem nebo seznamem, nejvýš jednu položku stavového řádku na plugin, výběr ze seznamu, vstup, potvrzení, oznámení a úlohy s průběhem a zrušením. Plugin nekreslí vlastní UI, nemá webview ani příspěvek do horní lišty.
   - **Funkce:** F200
@@ -1759,6 +1761,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
   - **Umístění:** jádro
   - **Stav 28. 10. 2026:** částečně. `document/mapPositions`, rozpočet snapshotů v bajtech, uvolnění při konci pluginu, strop hledání s `next`.
   - **Rozhodnuto 1. 11. 2026 (autonomně):** kvóta snapshotů 64 MiB na plugin (řádově hranice, nad kterou VS Code soubor rozšířením nepředá), nejvýš 4 snapshoty, doba života 30 s (doba, po které hostitel plugin považuje za ztracený); test `DecidedLimitsTests` (07a4e86c).
+  - **Kontrola 6. 11. 2026:** hodnoty rozhodnuté 1. 11. pokrývá `DecidedLimitsTests`; v kódu nic nezbývá, položka čeká na kontrolu a uzavření.
 - [ ] **P3b.3.4** Události dokumentů a jejich obnova
   - **Co a proč:** Události s rozsahy a revizemi, ne s textem. Plugin, který události nestíhá nebo je ztratil po restartu, dostane signál k nové synchronizaci.
   - **Funkce:** F198 (částečně: události)
@@ -2184,6 +2187,7 @@ Odhad etapy 24–37 ČT, **neúplný**: položky s číslem dávají 21–32 ČT
   - **Umístění:** jádro
   - **Stav 27. 10. 2026 (noc):** částečně. Automatická detekce oddělovače z prvních 64 KiB (čárka, středník, tabulátor, svislítko; shoda vyhrává přípona), ruční volba má přednost. Chybí: víceřádkové buňky ve vzorku, ověření v aplikaci.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Detekce oddělovače bere víceřádkovou buňku v uvozovkách jako jeden řádek. Zbývá čtečka obrazovky.
+  - **Kontrola 6. 11. 2026:** čtečka obrazovky (`CsvAutomationPeer`) a test `A_reader_gets_the_cell_the_row_and_the_column` existují; v kódu nic nezbývá. Zbývá ověření se skutečnou čtečkou, vzhled D5 a výkon nad 1 GiB.
 - [x] **P5.1.5** Editace buněk a filtr
   - **Co a proč:** Úprava buňky, přidání a smazání řádku a sloupce, filtr podle hodnoty; každá změna je krok undo.
   - **Funkce:** F160 (částečně: editace a filtr)
@@ -2558,6 +2562,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** v rámci odhadu P6.2.2
   - **Umístění:** jádro
   - **Rozhodnuto 1. 11. 2026 (autonomně):** jedna aktualizace panelu agenta nejvýš 64 Ki znaků; test (07a4e86c).
+  - **Kontrola 6. 11. 2026:** klávesnice a přístupné názvy jsou testované headless; zbývá ověření se skutečnou čtečkou.
 - [ ] **P6.2.6** Virtuální dokumenty v API
   - **Co a proč:** Dokument, který plugin dodá jako pohled na data (přepisy agentů F257, výsledky), jen pro čtení, s identitou a revizí, nad bajtovým API P3b.3.1. Maskování tajemství (P4.6.2) platí i tady.
   - **Funkce:** žádná (infrastruktura API)
@@ -2581,6 +2586,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Nástroj `editor_get_selection`, příkaz Sdílet výběr s MCP, strop 10 čekajících návrhů, stažení návrhu při vypnutí a zavření. Chybí oprávnění po klientech (rozhodnutí majitele).
   - **Rozhodnuto 31. 10. 2026 (autonomně, majitel může změnit):** klient MCP se pozná podle `clientInfo`; nový klient nevidí žádný nástroj, dokud ho uživatel nepovolí; rozhodnutí se ukládá do profilu a příkaz Nástroje › MCP › Klienti MCP… klienta odebere, vrátí nebo zapomene (93921f28). Název si volí klient sám, není to důkaz totožnosti; most `/ide` má vlastní token.
+  - **Stav 6. 11. 2026 (866d5d18):** částečně. Vypnout a zapnout jde každý nástroj, nově i nástroje pluginů (v seznamu Nástroje MCP i ve výčtu při zapnutí serveru); vypnutý se nevypíše a jeho volání se odmítne. Vypnuté nástroje se ukládají do `mcp-tools.json` v profilu a platí i po restartu, i když plugin mezitím chybí. Rozhodnuto 6. 11. 2026 (autonomně): samostatný soubor `mcp-tools.json`, protože `mcp-clients.json` patří oprávněním klientů; poškozený soubor nic nevypne. Testy: McpServerTests 3/3, McpAppTests 2/2. Zbývá: AOT publish a distribuce `textida-mcp` (ověření na referenčním stroji).
 - [x] **P6.3.2** Nástroje MCP serveru navíc
   - **Co a proč:** `editor_outline` (osnova i neuložené karty), `editor_find_in_files` (worker F151 i nad živými buffery), `editor_file_facts` (kódování, BOM, EOL, neplatné sekvence, velký režim), `editor_log_query` nad režimem logu. Malá sada nástrojů s přesnými popisy, odpovědi jako úryvky se stropem.
   - **Funkce:** F256
@@ -2684,6 +2690,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** v rámci F180 (viz P6.6.1)
   - **Umístění:** vestavěný plugin
   - **Rozhodnuto 1. 11. 2026 (autonomně):** `initialize` a `session/new` 30 s (agent přes npx se může nejdřív stahovat), nečinnost tahu 300 s, strop čteného souboru 512 KiB (asi 128 tisíc tokenů); test `DecidedLimitsTests` (07a4e86c).
+  - **Kontrola 6. 11. 2026:** v kódu nic nezbývá; zbývá skutečný agent a AOT.
 - [ ] **P6.6.3** Soubory, návrhy, oprávnění a hranice záruky
   - **Co a proč:** `fs/read_text_file` vrací kartu i s neuloženými změnami; `fs/write_text_file` jde jako návrh do F178. `session/request_permission` se ukáže jako dialog s volbami agenta. Brána API není sandbox: editor hlídá jen zápis, který jde přes něj. Agent jako podproces může zapisovat vlastními nástroji mimo editor. Úkol určí a v UI řekne režim oprávnění každého podporovaného adaptéru a ověří zákaz přímého zápisu jen v rozsahu, který editor skutečně řídí.
   - **Funkce:** F180 (částečně: soubory a oprávnění)
@@ -2693,6 +2700,7 @@ Aby F170, F171, F179 a F180 byly skutečné vestavěné pluginy (rozhodnutí maj
   - **Odhad:** v rámci F180 (viz P6.6.1)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Hranice záruky v panelu s počty, upozornění u nástrojů mimo editor, maskování v hlášení pádu.
+  - **Kontrola 6. 11. 2026:** zápis do neotevřeného souboru a `session/set_mode` jsou rozhodnutí majitele; testovaní agenti (claude-agent-acp, codex-acp) `fs/*` nevolají.
 - [ ] **P6.6.4** Adaptéry podporovaných agentů
   - **Co a proč:** Verzovaná tabulka podporovaných agentů a jejich adaptérů: Gemini CLI, Codex přes `codex-acp`, Claude přes `claude-agent-acp`, Junie, GitHub Copilot, OpenCode přes `opencode acp`. U každého připnutá verze a výsledek sady scénářů.
   - **Funkce:** F180 (částečně: adaptéry)
@@ -2844,6 +2852,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** 3–5 ČT za P8.4.1–P8.4.3
   - **Umístění:** jádro
   - **Rozhodnuto 1. 11. 2026 (autonomně):** debounce diagnostiky 300 ms, nejvýš 1000 diagnostik na dokument a zdroj (výchozí `maxNumberOfProblems` ukázkového LSP serveru); test (07a4e86c).
+  - **Kontrola 6. 11. 2026:** limity rozhodnuté 1. 11. jsou v `PluginLimits`; v kódu nic nezbývá, zbývá vykreslení v běžící aplikaci.
 - [ ] **P8.4.2** Doplňování v API
   - **Co a proč:** Nabídka doplnění od pluginu s revizí, dodatečnými úpravami (import, `use`) a zrušením zastaralé odpovědi.
   - **Funkce:** žádná (infrastruktura API)
@@ -2853,6 +2862,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Odhad:** v rámci odhadu P8.4.1
   - **Umístění:** jádro
   - **Rozhodnuto 1. 11. 2026 (autonomně):** čekání na doplňování 1000 ms (hranice, po které se přeruší tok myšlenek), nejvýš 200 položek na plugin (07a4e86c).
+  - **Kontrola 6. 11. 2026:** limity rozhodnuté 1. 11. jsou v `PluginLimits`; v kódu nic nezbývá, zbývá vykreslení v běžící aplikaci.
 - [x] **P8.4.3** Workspace edit v API
   - **Co a proč:** Dávka úprav ve více souborech včetně vytvoření, přejmenování a smazání souboru, přes službu náhledu P2.5.2.
   - **Funkce:** žádná (infrastruktura API)
@@ -2878,6 +2888,7 @@ Odhad etapy 38–64,5 ČT. Hotovo, když: opakovaná úprava a návrat výsledku
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026:** částečně. Jeden server na projekt (kořen podle značek jazyka), `workspace/configuration` z initializationOptions.
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Rename upravuje i soubory na disku s BOM. Neověřeno se skutečným Roslyn LSP; síťový test PR.6.4.
+  - **Kontrola 6. 11. 2026:** jeden server na projekt a soubory mimo UTF-8 jsou hotové. Zbývá rename se skutečným Roslyn LSP, síťový test PR.6.4 a rozhodnutí majitele, kdo uděluje `workspace.files`.
 - [x] **P8.5.4** LSP: životní cyklus a synchronizace dokumentu
   - **Co a proč:** Spuštění serveru na vyžádání, `initialize`, synchronizace změn s revizemi, restart a ukončení přes adaptér LSP z P3b.1.1.
   - **Funkce:** F157 (částečně: životní cyklus)
@@ -3203,6 +3214,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** F203 1 ČT (matice); revize ho pro široké API považuje za optimistický
   - **Umístění:** jádro (vývojová infrastruktura)
   - **Stav 28. 10. 2026 (odpoledne):** částečně. `textida-plugin-validate` a kontraktové testy sedmi rozhraní. Zbývá běh na všech třech RID.
+  - **Kontrola 6. 11. 2026:** v kódu nic nezbývá; zbývá běh na všech třech RID.
 - [ ] **P8b.2.3** Ověřovací sada vlastních pluginů
   - **Co a proč:** JSON formátovač, statistika, osnova Markdownu a datový balíček (klip, převodník, gramatika) proti distribuovanému AOT buildu. Převodník typu souboru F138 se nedělá, kontrakt není navržený.
   - **Funkce:** F205
@@ -3228,6 +3240,7 @@ Odhad etapy 12,5–20 ČT. Položky F202, F203 a F205 dávají 5–7 ČT, AI fun
   - **Odhad:** F253 1,5–2,5 ČT (matice)
   - **Umístění:** vestavěný plugin
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Editor hooků s formulářem, validací proti schématu z dokumentace Claude Code (33 událostí) a Codexu (12), zkouškou bez spuštění; tabulka exit kódů jen tam, kde ji dokumentace uvádí.
+  - **Kontrola 6. 11. 2026:** v kódu nic nezbývá; tabulka návratových kódů potřebuje běhy proti skutečnému Claude Code a Codexu.
 - [x] **P8b.3.2** Odhad tokenů
   - **Co a proč:** Položka stavového řádku „≈ 1 240 tok.“ pro výběr. Pro OpenAI místní tokenizér o200k (`Microsoft.ML.Tokenizers`, pod AOT neověřeno), pro Claude jen „≈“. Přesný počet přes count_tokens jen po kliknutí, s klíčem z klíčenky.
   - **Funkce:** F255
@@ -3313,6 +3326,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu; cenu určí PR.8.2 po inventáři P1.1.7
   - **Umístění:** jádro, texty jako data
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Evidence kontrol `TranslationReview.json` (všechny záznamy OPEN), kontroly ořezu, kolizí v menu, palety a přepnutí jazyka; testy prošly. Zbývá kontrola rodilým mluvčím.
+  - **Kontrola 6. 11. 2026:** v kódu nic nezbývá; zbývá kontrola rodilým mluvčím.
 - [ ] **P9.2.3** Nápověda pro 1.0
   - **Co a proč:** P3.6.5 přijímá nápovědu jen pro příkazy MVP. Verze 1.0 přidá pluginy, vzdálené soubory, MCP, agenty, velkou editaci a další funkce; nápověda F142 se rozšíří o ně a její přejímka se váže na vydání.
   - **Funkce:** žádná (rozšíření nápovědy z P3.6.5)
@@ -3321,6 +3335,7 @@ Odhad etapy 10,5–16 ČT, **neúplný**: pochází z doby před R10 a nemá dol
   - **Odhad:** bez odhadu; ocení PR.8.2
   - **Umístění:** jádro, texty jako data
   - **Stav 28. 10. 2026 (odpoledne):** částečně. Každý příkaz registru má v nápovědě kroky ve 4 jazycích, 86 hlášení doslovně; testy prošly. Zbývá ověření na buildu 1.0.
+  - **Kontrola 6. 11. 2026:** v kódu nic nezbývá; zbývá kontrola na buildu 1.0.
 
 ### P9.3 Náhledy a export
 
