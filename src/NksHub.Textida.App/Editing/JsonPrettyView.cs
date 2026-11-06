@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -20,10 +21,26 @@ namespace NksHub.Textida.App.Editing;
 /// The formatted (pretty) view of a JSON document (P3.1.14): every key, value and bracket on a line of its own, indented by depth, drawn from a
 /// <see cref="JsonOutline"/> that reads only the lines on screen and scans the rest in the background. Nothing is reformatted in the file: the view
 /// lies over the text view of the tab like the table view, and a key or value typed here replaces only its own bytes of the same document.
+/// One long value at a time can be wrapped over several rows (<see cref="ToggleExpand"/>), so it can be read and edited past the cut of a line.
 /// </summary>
 internal sealed class JsonPrettyView : Grid, IDisposable
 {
     private const string Indent = "  ", FoldMark = " … ";
+
+    /// <summary>The most a copy, a cut or select all takes, counted in bytes of the document.</summary>
+    public const long MaxCopyBytes = 16L << 20;
+
+    /// <summary>The limit this view applies; tests lower it to stay small.</summary>
+    internal long CopyLimit { get; set; } = MaxCopyBytes;
+
+    /// <summary>
+    /// A place in the formatted text that stays put when a value is wrapped or unwrapped: in the text before the value of the line (region 0, a column),
+    /// inside the value (region 1, a document offset) or in the comma after it (region 2, a column of the tail). Lines without a value use region 0 only.
+    /// </summary>
+    internal readonly record struct Pos(long Line, int Region, long At) : IComparable<Pos>
+    {
+        public int CompareTo(Pos other) => Line != other.Line ? Line.CompareTo(other.Line) : Region != other.Region ? Region.CompareTo(other.Region) : At.CompareTo(other.At);
+    }
 
     private readonly OpenDocument _od;
     private readonly JsonOutline? _outline;
@@ -32,10 +49,11 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     private readonly ScrollBar _vbar = new() { Orientation = Orientation.Vertical, Minimum = 0, SmallChange = 1, AllowAutoHide = false };
     private readonly ScrollBar _hbar = new() { Orientation = Orientation.Horizontal, Minimum = 0, SmallChange = 20, AllowAutoHide = false };
     private EditorOptions _options;
-    private long _top, _caretLine;
+    private long _top, _caretLine, _caretPart, _expanded = -1;
     private int _caretColumn;
     private double _hScroll;
     private ByteRange? _mark;
+    private Pos? _anchor;
     private bool _syncing, _refreshPosted;
     private CancellationTokenSource? _keySearch;
 
@@ -69,7 +87,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         LostFocus += (_, _) => _canvas.InvalidateVisual();
         if (JsonOutline.Supports(doc.Doc.Codec))
         {
-            _outline = new JsonOutline(doc.Doc);
+            _outline = new JsonOutline(doc.Doc, JsonDataReader.IsJsoncFile(doc.Path));
             _outline.Progress += (_, _) => PostRefresh();
             _outline.Edited += OnEdited;
             _outline.Start();
@@ -87,9 +105,16 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     internal JsonOutline? Outline => _outline;
     internal JsonFolds Folds => _folds;
     public long CaretLine => _caretLine;
+    public long CaretPart => _caretPart;
     public int CaretColumn => _caretColumn;
     public long TopRow => _top;
     public int VisibleRows => _canvas.VisibleRows;
+
+    /// <summary>The line whose long value is wrapped over several rows; -1 when none is.</summary>
+    public long ExpandedLine => _expanded;
+
+    /// <summary>Bytes of a long value per row while it is wrapped: as many as fit the width of the view.</summary>
+    internal int PartBytes => Math.Clamp((int)(_canvas.TextWidth / Math.Max(1, _canvas.CharWidth)) - 8, 64, JsonOutline.MaxShownBytes);
 
     public void Dispose()
     {
@@ -118,7 +143,31 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         }
     }
 
-    private long RowCount => Math.Max(0, LineCount - _folds.Hidden);
+    /// <summary>Rows the wrapped value takes beyond its first one.</summary>
+    private long ExtraRows => _expanded >= 0 && LineAt(_expanded) is { } l ? JsonOutline.PartCount(l, PartBytes) - 1 : 0;
+
+    private long RowCount => Math.Max(0, LineCount - _folds.Hidden + ExtraRows);
+
+    /// <summary>The line and the part of a wrapped value shown in visible row <paramref name="row"/>.</summary>
+    private (long Line, long Part) At(long row)
+    {
+        long extra = ExtraRows;
+        if (extra > 0)
+        {
+            long first = _folds.RowOfLine(_expanded);
+            if (row > first) return row <= first + extra ? (_expanded, row - first) : (_folds.LineOfRow(row - extra), 0);
+        }
+        return (_folds.LineOfRow(row), 0);
+    }
+
+    /// <summary>The visible row of a line (and part of the wrapped value); a hidden line gives the row of the fold that hides it.</summary>
+    private long RowOf(long line, long part = 0)
+    {
+        long row = _folds.RowOfLine(line), extra = ExtraRows;
+        if (extra > 0 && line == _expanded) row += Math.Clamp(part, 0, extra);
+        else if (extra > 0 && line > _expanded) row += extra;
+        return row;
+    }
 
     private JsonLine? LineAt(long line) => line < 0 ? null : _outline?.GetLine(line);
 
@@ -137,11 +186,213 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         return rendered;
     }
 
-    /// <summary>The text of a visible row (for tests and the reader); null past the known lines.</summary>
-    internal string? RowText(long row) => Rendered(_folds.LineOfRow(row))?.Text;
+    /// <summary>What a row shows: a part of the wrapped value, or the line with the marks of a collapsed container.</summary>
+    private JsonRenderedLine? RowRendered(long line, long part)
+    {
+        if (line == _expanded && _outline is not null && LineAt(line) is { } l) return _outline.RenderPart(l, part, PartBytes, Indent);
+        return Rendered(line);
+    }
 
-    /// <summary>The length of the editable part of a line: the rendered text without the marks of a collapsed container.</summary>
-    private int TextLength(long line) => _outline is not null && LineAt(line) is { } l ? _outline.Render(l, Indent).Text.Length : 0;
+    /// <summary>The row as editing sees it: without the marks of a collapsed container.</summary>
+    private JsonRenderedLine? EditRendered(long line, long part)
+    {
+        if (_outline is null || LineAt(line) is not { } l) return null;
+        return line == _expanded ? _outline.RenderPart(l, part, PartBytes, Indent) : _outline.Render(l, Indent);
+    }
+
+    /// <summary>The text of a visible row (for tests and the reader); null past the known lines.</summary>
+    internal string? RowText(long row)
+    {
+        var (line, part) = At(row);
+        return RowRendered(line, part)?.Text;
+    }
+
+    private int RowLength(long line, long part) => EditRendered(line, part)?.Text.Length ?? 0;
+
+    private bool IsLastPart(JsonLine line, long part) => line.Number != _expanded || part + 1 >= JsonOutline.PartCount(line, PartBytes);
+
+    // ---- places ----
+
+    /// <summary>The place a column of a row shows.</summary>
+    internal Pos PosOf(long line, long part, int column)
+    {
+        if (EditRendered(line, part) is not { } r) return new Pos(line, 0, 0);
+        column = Math.Clamp(column, 0, r.Text.Length);
+        if (r.Line.Kind != JsonLineKind.Value) return new Pos(line, 0, column);
+        var span = r.Spans[^1];
+        int end = span.Column + span.Length;
+        if (column < span.Column) return part == 0 ? new Pos(line, 0, column) : new Pos(line, 1, span.Source);
+        if (column <= end) return new Pos(line, 1, _outline!.SourceOffsetAt(r, column));
+        if (!IsLastPart(r.Line, part)) return new Pos(line, 1, span.End);
+        int tail = end + (span.End < r.Line.ValueEnd ? 1 : 0); // after the ellipsis of a cut value
+        return column < tail ? new Pos(line, 1, r.Line.ValueEnd) : new Pos(line, 2, column - tail);
+    }
+
+    /// <summary>The column of row (<paramref name="line"/>, <paramref name="part"/>) where <paramref name="p"/> falls: 0 when it is before the row, the length when after.</summary>
+    private int ColumnIn(Pos p, long line, long part, JsonRenderedLine r)
+    {
+        if (p.Line < line) return 0;
+        if (p.Line > line) return r.Text.Length;
+        if (r.Line.Kind != JsonLineKind.Value) return (int)Math.Clamp(p.At, 0, r.Text.Length);
+        var span = r.Spans[^1];
+        int end = span.Column + span.Length;
+        bool last = IsLastPart(r.Line, part);
+        int tail = end + (last && span.End < r.Line.ValueEnd ? 1 : 0);
+        return p.Region switch
+        {
+            0 => part == 0 ? (int)Math.Min(p.At, span.Column) : 0,
+            1 when p.At < span.Source => 0,
+            1 when p.At > span.End => last ? tail : r.Text.Length,
+            1 => Math.Max(span.Column, _outline!.ColumnOfOffset(r, p.At)),
+            _ => last ? (int)Math.Min(r.Text.Length, tail + p.At) : r.Text.Length,
+        };
+    }
+
+    private Pos CaretPos => PosOf(_caretLine, _caretPart, _caretColumn);
+
+    /// <summary>Puts the caret on <paramref name="p"/>, in the part of the wrapped value that shows it.</summary>
+    private void PlaceCaret(Pos p, bool reveal = true)
+    {
+        long part = 0;
+        if (p.Line == _expanded && LineAt(p.Line) is { } l)
+            part = p.Region == 1 ? _outline!.PartOf(l, p.At, PartBytes) : p.Region == 2 ? JsonOutline.PartCount(l, PartBytes) - 1 : 0;
+        if (RowRendered(p.Line, part) is not { } r) return;
+        MoveCaret(p.Line, ColumnIn(p, p.Line, part, r), reveal, part);
+    }
+
+    /// <summary>Puts the caret on the document <paramref name="offset"/> inside a piece of the line; past the cut of a long value the value is wrapped first.</summary>
+    private void CaretToOffset(long line, long offset)
+    {
+        if (_outline is null || LineAt(line) is not { } l) return;
+        if (line != _expanded && JsonOutline.IsLong(l) && _outline.ColumnOfOffset(_outline.Render(l, Indent), offset) < 0) _expanded = line;
+        long part = line == _expanded ? _outline.PartOf(l, offset, PartBytes) : 0;
+        int column = EditRendered(line, part) is { } r ? _outline.ColumnOfOffset(r, offset) : -1;
+        MoveCaret(line, column < 0 ? _caretColumn : column, part: part);
+    }
+
+    /// <summary>The document offset a place stands for; <paramref name="end"/> takes the comma and the space before the next line.</summary>
+    private long SourceOf(Pos p, bool end)
+    {
+        if (_outline is null || LineAt(p.Line) is not { } l) return Doc.ByteLength;
+        if (p.Region == 1) return p.At;
+        if (p.Region == 2) return end ? l.End : l.ValueEnd;
+        var r = _outline.Render(l, Indent);
+        long at = _outline.SourceOffsetAt(r, (int)Math.Min(p.At, r.Text.Length));
+        if (at >= 0) return at;
+        if (r.Spans.Count == 0 || p.At <= r.Spans[0].Column) return l.HasKey ? l.KeyStart : l.ValueStart;
+        return end ? l.End : l.ValueStart;
+    }
+
+    // ---- selection and clipboard ----
+
+    /// <summary>The selected range in order, or null when nothing is selected.</summary>
+    internal (Pos Start, Pos End)? Selection
+    {
+        get
+        {
+            if (_anchor is not { } a) return null;
+            var c = CaretPos;
+            if (a == c) return null;
+            return a.CompareTo(c) < 0 ? (a, c) : (c, a);
+        }
+    }
+
+    public bool HasSelection => Selection is not null;
+
+    /// <summary>Selects from row <paramref name="fromLine"/> (part, column) to the caret placed at the second place; for tests and the reader.</summary>
+    internal void Select(long fromLine, int fromColumn, long toLine, int toColumn, long fromPart = 0, long toPart = 0)
+    {
+        _anchor = PosOf(fromLine, fromPart, fromColumn);
+        MoveCaret(toLine, toColumn, part: toPart);
+    }
+
+    /// <summary>Ctrl+A: selects the whole document when it is at most <see cref="CopyLimit"/> and scanned to the end.</summary>
+    public bool SelectAll()
+    {
+        if (_outline is null) return false;
+        if (Doc.ByteLength > CopyLimit) return Refuse(K.JsonPrettySelectAllTooLarge, ("limit", LimitText));
+        if (!_outline.State.Complete) return Refuse(K.JsonPrettySelectAllScanning);
+        _anchor = new Pos(0, 0, 0);
+        MoveCaret(Math.Max(0, LineCount - 1), int.MaxValue, reveal: false, part: long.MaxValue);
+        return true;
+    }
+
+    private string LimitText => CopyLimit >= 1 << 20 ? $"{CopyLimit >> 20} MiB" : $"{CopyLimit} B";
+
+    /// <summary>
+    /// The text the clipboard gets: the formatted text of the selection with the whole values even where the screen cuts them, or with
+    /// <paramref name="source"/> the document text it came from. Null with a refusal when nothing is selected or the selection is over the limit.
+    /// </summary>
+    public string? CopyText(bool source)
+    {
+        if (_outline is null || Selection is not { } sel) return null;
+        long from = SourceOf(sel.Start, end: false), to = SourceOf(sel.End, end: true);
+        if (to - from > CopyLimit) { Refuse(K.JsonPrettyTooLarge, ("limit", LimitText)); return null; }
+        if (source) return _outline.ReadText(from, to);
+        var text = new StringBuilder();
+        for (long n = sel.Start.Line; n <= sel.End.Line; n++)
+        {
+            if (LineAt(n) is not { } l) break;
+            if (n > sel.Start.Line) text.Append('\n');
+            AppendLine(text, l, n == sel.Start.Line ? sel.Start : null, n == sel.End.Line ? sel.End : null);
+            if (text.Length > 4 * CopyLimit) { Refuse(K.JsonPrettyTooLarge, ("limit", LimitText)); return null; } // deep indents of tiny tokens
+        }
+        return text.ToString();
+    }
+
+    private void AppendLine(StringBuilder text, JsonLine l, Pos? from, Pos? to)
+    {
+        var r = _outline!.Render(l, Indent);
+        if (l.Kind != JsonLineKind.Value)
+        {
+            int a = from is { } f ? (int)Math.Min(f.At, r.Text.Length) : 0, b = to is { } t ? (int)Math.Min(t.At, r.Text.Length) : r.Text.Length;
+            if (b > a) text.Append(r.Text, a, b - a);
+            return;
+        }
+        var span = r.Spans[^1];
+        string head = r.Text[..span.Column], tail = l.Comma ? "," : "";
+        int ha = from is { } f0 ? (f0.Region == 0 ? (int)Math.Min(f0.At, head.Length) : head.Length) : 0;
+        int hb = to is { } t0 ? (t0.Region == 0 ? (int)Math.Min(t0.At, head.Length) : head.Length) : head.Length;
+        if (hb > ha) text.Append(head, ha, hb - ha);
+        long va = from is { } f1 ? (f1.Region == 0 ? l.ValueStart : f1.Region == 1 ? f1.At : l.ValueEnd) : l.ValueStart;
+        long vb = to is { } t1 ? (t1.Region == 0 ? l.ValueStart : t1.Region == 1 ? t1.At : l.ValueEnd) : l.ValueEnd;
+        if (vb > va) text.Append(_outline.ReadText(va, vb));
+        int ta = from is { Region: 2 } f2 ? (int)Math.Min(f2.At, tail.Length) : 0;
+        int tb = to is { } t2 ? (t2.Region == 2 ? (int)Math.Min(t2.At, tail.Length) : 0) : tail.Length;
+        if (tb > ta) text.Append(tail, ta, tb - ta);
+    }
+
+    /// <summary>The document bytes of a selection that lies inside one key, value, raw or comment piece: the only selections an edit may replace.</summary>
+    private bool EditRange(out long a, out long b)
+    {
+        a = b = -1;
+        if (_outline is null || Selection is not { } sel || sel.Start.Line != sel.End.Line || LineAt(sel.Start.Line) is not { } l) return false;
+        if (sel.Start.Region == 1 && sel.End.Region == 1)
+        {
+            (a, b) = (sel.Start.At, sel.End.At);
+            return true;
+        }
+        if (sel.Start.Region != 0 || sel.End.Region != 0) return false;
+        var r = _outline.Render(l, Indent);
+        int from = (int)sel.Start.At, to = (int)sel.End.At;
+        if (r.SpanAt(from) is not { } s1 || r.SpanAt(to) is not { } s2 || s1 != s2) return false;
+        (a, b) = (_outline.SourceOffsetAt(r, from), _outline.SourceOffsetAt(r, to));
+        return a >= 0 && b >= a;
+    }
+
+    /// <summary>True when the selection can be cut; otherwise says why.</summary>
+    public bool CanCut() => HasSelection && CanEdit(out _) && (EditRange(out _, out _) || Refuse(K.JsonPrettyCutNotHere));
+
+    /// <summary>Deletes the selection inside one key or value (the second half of a cut).</summary>
+    public bool DeleteSelection() => EditRange(out long a, out long b) ? ReplaceBytes(a, b, []) : Refuse(K.JsonPrettyCutNotHere);
+
+    /// <summary>Pastes text into the key or value under the caret, or over a selection inside one; a line break or another control character is refused.</summary>
+    public bool Paste(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return false;
+        if (text.Any(char.IsControl)) return Refuse(K.JsonPrettyPasteControl);
+        return TypeText(text);
+    }
 
     // ---- scanning and edits ----
 
@@ -158,11 +409,18 @@ internal sealed class JsonPrettyView : Grid, IDisposable
 
     private void OnEdited(object? sender, JsonOutlineEdit e)
     {
-        if (!e.Shifted) _folds.DropFrom(e.FirstLine);
+        if (!e.Shifted)
+        {
+            _folds.DropFrom(e.FirstLine);
+            if (_expanded >= e.FirstLine) _expanded = -1;
+        }
         long last = Math.Max(0, LineCount - 1);
         _caretLine = Math.Min(_caretLine, last);
-        _caretColumn = Math.Min(_caretColumn, TextLength(_caretLine));
+        if (_caretLine != _expanded) _caretPart = 0;
+        _caretPart = Math.Min(_caretPart, ExtraRows);
+        _caretColumn = Math.Min(_caretColumn, RowLength(_caretLine, _caretPart));
         _mark = null;
+        _anchor = null;
         Refresh();
     }
 
@@ -203,18 +461,17 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         get
         {
             if (_outline is null || LineAt(_caretLine) is not { } line) return Doc.BomLength;
-            long at = _outline.SourceOffsetAt(_outline.Render(line, Indent), _caretColumn);
+            long at = EditRendered(_caretLine, _caretPart) is { } r ? _outline.SourceOffsetAt(r, _caretColumn) : -1;
             return at >= 0 ? at : JsonOutline.SourceOffsetOf(line);
         }
     }
 
-    public void MoveCaret(long line, int column, bool reveal = true)
+    public void MoveCaret(long line, int column, bool reveal = true, long part = 0)
     {
         long last = Math.Max(0, LineCount - 1);
-        _caretLine = Math.Clamp(line, 0, last);
-        long row = _folds.RowOfLine(_caretLine);
-        _caretLine = _folds.LineOfRow(row);
-        _caretColumn = Math.Clamp(column, 0, TextLength(_caretLine));
+        long row = RowOf(Math.Clamp(line, 0, last), part);
+        (_caretLine, _caretPart) = At(row);
+        _caretColumn = Math.Clamp(column, 0, RowLength(_caretLine, _caretPart));
         if (reveal)
         {
             int visible = Math.Max(1, VisibleRows);
@@ -227,8 +484,44 @@ internal sealed class JsonPrettyView : Grid, IDisposable
 
     private void MoveRows(long delta)
     {
-        long row = Math.Clamp(_folds.RowOfLine(_caretLine) + delta, 0, Math.Max(0, RowCount - 1));
-        MoveCaret(_folds.LineOfRow(row), _caretColumn);
+        long row = Math.Clamp(RowOf(_caretLine, _caretPart) + delta, 0, Math.Max(0, RowCount - 1));
+        var (line, part) = At(row);
+        MoveCaret(line, _caretColumn, part: part);
+    }
+
+    /// <summary>The column where the value piece of the caret row starts: on a continuation row of a wrapped value the caret does not go into the indent.</summary>
+    private int RowStart(long line, long part) => part > 0 && EditRendered(line, part) is { Spans.Count: > 0 } r ? r.Spans[^1].Column : 0;
+
+    private void StepRight()
+    {
+        if (_caretColumn < RowLength(_caretLine, _caretPart))
+        {
+            if (_caretLine != _expanded && LineAt(_caretLine) is { } l && JsonOutline.IsLong(l) && EditRendered(_caretLine, 0) is { } r
+                && _caretColumn == r.Spans[^1].Column + r.Spans[^1].Length)
+            {
+                // at the cut of a long value: wrap it and go on inside
+                _expanded = _caretLine;
+                CaretToOffset(_caretLine, r.Spans[^1].End);
+            }
+            MoveCaret(_caretLine, _caretColumn + 1, part: _caretPart);
+            return;
+        }
+        MoveRows(1);
+        MoveCaret(_caretLine, RowStart(_caretLine, _caretPart) + (_caretPart > 0 ? 1 : 0), part: _caretPart);
+    }
+
+    private void StepLeft()
+    {
+        if (_caretColumn > RowStart(_caretLine, _caretPart))
+        {
+            MoveCaret(_caretLine, _caretColumn - 1, part: _caretPart);
+            return;
+        }
+        // the start of a continuation row is the end of the row above: step over that character as well
+        long from = _caretPart;
+        MoveRows(-1);
+        int end = RowLength(_caretLine, _caretPart);
+        MoveCaret(_caretLine, from > 0 ? end - 1 : end, part: _caretPart);
     }
 
     /// <summary>Puts the caret on the line that shows the document offset, expanding the containers that hide it, and marks the range.</summary>
@@ -237,31 +530,30 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         if (_outline is null) return;
         long line = _outline.LineOfOffset(start);
         while (UnfoldAround(line)) { }
-        int column = 0;
-        if (LineAt(line) is { } l)
+        _mark = end > start ? new ByteRange(start, end) : null;
+        _anchor = null;
+        if (LineAt(line) is { } l && EditRendered(line, 0) is { } r && r.Spans.Any(s => s.Kind != JsonTokenKind.Punctuation && s.Source <= start))
         {
-            var rendered = _outline.Render(l, Indent);
-            foreach (var span in rendered.Spans.Where(s => s.Kind != JsonTokenKind.Punctuation && s.Source <= start).TakeLast(1))
+            if (JsonOutline.IsLong(l) && start >= l.ValueStart) CaretToOffset(line, Math.Min(start, l.ValueEnd));
+            else
             {
-                column = span.Column + span.Length;
-                for (int c = span.Column; c <= span.Column + span.Length; c++)
-                    if (_outline.SourceOffsetAt(rendered, c) >= start) { column = c; break; }
+                int column = _outline.ColumnOfOffset(r, start);
+                var last = r.Spans.Last(s => s.Kind != JsonTokenKind.Punctuation && s.Source <= start);
+                MoveCaret(line, column >= 0 ? column : last.Column + last.Length);
             }
         }
-        _mark = end > start ? new ByteRange(start, end) : null;
-        MoveCaret(line, column);
-        _top = Math.Max(0, _folds.RowOfLine(_caretLine) - VisibleRows / 3);
+        else MoveCaret(line, 0);
+        _top = Math.Max(0, RowOf(_caretLine, _caretPart) - VisibleRows / 3);
         Refresh();
     }
 
     private bool UnfoldAround(long line)
     {
-        long row = _folds.RowOfLine(line);
-        long open = _folds.LineOfRow(row);
+        long open = _folds.LineOfRow(_folds.RowOfLine(line));
         return open != line && _folds.Unfold(open);
     }
 
-    // ---- folds ----
+    // ---- folds and long values ----
 
     /// <summary>Collapses the container opened on the caret line (or the one the caret is in); false when there is none or its end is not scanned yet.</summary>
     public bool Fold()
@@ -283,6 +575,8 @@ internal sealed class JsonPrettyView : Grid, IDisposable
             Refused?.Invoke(Loc.Get(K.JsonPrettyNotScanned));
             return false;
         }
+        if (_expanded > open && _expanded <= close) _expanded = -1;
+        _anchor = null;
         _folds.Fold(open, close);
         MoveCaret(open, _caretColumn);
         return true;
@@ -299,7 +593,24 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     {
         if (_folds.Unfold(line)) { Refresh(); return true; }
         _caretLine = line;
+        _caretPart = 0;
         return Fold();
+    }
+
+    /// <summary>
+    /// Wraps the long value on the caret line over rows as wide as the view, so all of it can be read and edited, or unwraps it again; the caret
+    /// keeps its place. One value is wrapped at a time. A value of at most <see cref="JsonOutline.MaxShownBytes"/> has nothing to wrap.
+    /// </summary>
+    public bool ToggleExpand()
+    {
+        if (_outline is null || LineAt(_caretLine) is not { } line) return false;
+        var caret = CaretPos;
+        if (_expanded == _caretLine) _expanded = -1;
+        else if (JsonOutline.IsLong(line)) _expanded = _caretLine;
+        else return Refuse(K.JsonPrettyNotLong);
+        _anchor = null;
+        PlaceCaret(caret);
+        return true;
     }
 
     // ---- editing ----
@@ -310,51 +621,65 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         _ = redo ? Doc.Redo() : Doc.Undo();
     }
 
-    /// <summary>Types into the key or value under the caret; the bytes go into the document at the place the caret shows.</summary>
+    /// <summary>Types into the key or value under the caret, or over a selection inside one; the bytes go into the document at the place the caret shows.</summary>
     public bool TypeText(string text)
     {
         if (!CanEdit(out var rendered)) return false;
-        long at = _outline!.SourceOffsetAt(rendered!, _caretColumn);
-        if (at < 0) return Refuse(K.JsonPrettyNotHere);
+        long a, b;
+        if (HasSelection)
+        {
+            if (!EditRange(out a, out b)) return Refuse(K.JsonPrettyNotHere);
+        }
+        else
+        {
+            a = b = _outline!.SourceOffsetAt(rendered!, _caretColumn);
+            if (a < 0) return Refuse(K.JsonPrettyNotHere);
+        }
         byte[] bytes;
         try { bytes = Doc.Codec.Encode(text); }
-        catch (UnrepresentableCharactersException) { return Refuse(K.HexNotEncodable, Doc.Codec.Name); }
-        long line = _caretLine;
-        int column = _caretColumn + text.Length;
-        if (!Doc.Insert(at, bytes, new EditOptions { CoalesceKey = "json.pretty.typing", Source = "user" }).Applied) return Refuse(K.HexRejected);
-        MoveCaret(line, column);
-        return true;
+        catch (UnrepresentableCharactersException) { return Refuse(K.HexNotEncodable, ("encoding", Doc.Codec.Name)); }
+        return ReplaceBytes(a, b, bytes);
     }
 
-    /// <summary>Deletes the character before (Backspace) or after (Delete) the caret inside a key or value.</summary>
+    /// <summary>Deletes the selection inside one key or value, or the character before (Backspace) or after (Delete) the caret.</summary>
     public bool DeleteChar(bool forward)
     {
         if (!CanEdit(out var rendered)) return false;
+        if (HasSelection) return EditRange(out long sa, out long sb) ? ReplaceBytes(sa, sb, []) : Refuse(K.JsonPrettyNotHere);
         int from = forward ? _caretColumn : _caretColumn - 1, to = forward ? _caretColumn + 1 : _caretColumn;
         if (from >= 0 && from < rendered!.Text.Length && char.IsLowSurrogate(rendered.Text[from])) from--;
         if (to < rendered!.Text.Length && to > 0 && char.IsLowSurrogate(rendered.Text[to])) to++;
         if (from < 0 || rendered.SpanAt(from) is not { } span || to > span.Column + span.Length || from < span.Column) return Refuse(K.JsonPrettyNotHere);
         long a = _outline!.SourceOffsetAt(rendered, from), b = _outline.SourceOffsetAt(rendered, to);
         if (a < 0 || b <= a) return Refuse(K.JsonPrettyNotHere);
+        return ReplaceBytes(a, b, []);
+    }
+
+    /// <summary>Replaces the document bytes from <paramref name="a"/> to <paramref name="b"/> in one undo step that merges with typing, and puts the caret after them.</summary>
+    private bool ReplaceBytes(long a, long b, byte[] bytes)
+    {
         long line = _caretLine;
-        if (!Doc.Delete(new ByteRange(a, b), new EditOptions { CoalesceKey = "json.pretty.typing", Source = "user" }).Applied) return Refuse(K.HexRejected);
-        MoveCaret(line, from);
+        var options = new EditOptions { CoalesceKey = "json.pretty.typing", Source = "user" };
+        var result = b > a ? (bytes.Length > 0 ? Doc.Replace(new ByteRange(a, b), bytes, options) : Doc.Delete(new ByteRange(a, b), options)) : Doc.Insert(a, bytes, options);
+        if (!result.Applied) return Refuse(K.HexRejected);
+        _anchor = null;
+        CaretToOffset(line, a + bytes.Length);
         return true;
     }
 
     private bool CanEdit(out JsonRenderedLine? rendered)
     {
         rendered = null;
-        if (_outline is null || LineAt(_caretLine) is not { } line) return false;
+        if (_outline is null || LineAt(_caretLine) is null) return false;
         if (_od.ReadOnly) return Refuse(K.HexReadOnly);
         if (Doc.IsSaving && !Doc.EditsDuringSave) return Refuse(K.HexBusy);
-        rendered = _outline.Render(line, Indent);
-        return true;
+        rendered = EditRendered(_caretLine, _caretPart);
+        return rendered is not null;
     }
 
-    private bool Refuse(string key, string? encoding = null)
+    private bool Refuse(string key, params (string Name, object Value)[] args)
     {
-        Refused?.Invoke(encoding is null ? Loc.Get(key) : Loc.Get(key, ("encoding", encoding)));
+        Refused?.Invoke(Loc.Get(key, args));
         return false;
     }
 
@@ -379,9 +704,10 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         }
         // the containers that hide the line open, as after a search
         while (UnfoldAround(found)) { }
+        _anchor = null;
         var rendered = LineAt(found) is { } l ? outline.Render(l, Indent) : null;
         MoveCaret(found, rendered?.Spans.FirstOrDefault(s => s.Kind == JsonTokenKind.Key).Column ?? 0);
-        _top = Math.Max(0, _folds.RowOfLine(found) - VisibleRows / 3);
+        _top = Math.Max(0, RowOf(found) - VisibleRows / 3);
         Refresh();
         return true;
     }
@@ -415,6 +741,11 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         bool command = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta);
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         int page = Math.Max(1, VisibleRows - 1);
+        if (e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End or Key.Left or Key.Right)
+        {
+            if (shift) _anchor ??= CaretPos;
+            else _anchor = null;
+        }
         switch (e.Key)
         {
             case Key.Up: MoveRows(-1); break;
@@ -422,18 +753,22 @@ internal sealed class JsonPrettyView : Grid, IDisposable
             case Key.PageUp: MoveRows(-page); break;
             case Key.PageDown: MoveRows(page); break;
             case Key.Home when command: MoveCaret(0, 0); break;
-            case Key.End when command: MoveCaret(LineCount - 1, int.MaxValue); break;
+            case Key.End when command: MoveCaret(LineCount - 1, int.MaxValue, part: long.MaxValue); break;
             case Key.Home:
             {
-                int indent = Rendered(_caretLine)?.Line.Depth * Indent.Length ?? 0;
-                MoveCaret(_caretLine, _caretColumn == indent ? 0 : indent);
+                int indent = _caretPart > 0 ? RowStart(_caretLine, _caretPart) : (LineAt(_caretLine)?.Depth ?? 0) * Indent.Length;
+                MoveCaret(_caretLine, _caretColumn == indent && _caretPart == 0 ? 0 : indent, part: _caretPart);
                 break;
             }
-            case Key.End: MoveCaret(_caretLine, int.MaxValue); break;
-            case Key.Left when _caretColumn > 0: MoveCaret(_caretLine, _caretColumn - 1); break;
-            case Key.Left: MoveRows(-1); MoveCaret(_caretLine, int.MaxValue); break;
-            case Key.Right when _caretColumn < TextLength(_caretLine): MoveCaret(_caretLine, _caretColumn + 1); break;
-            case Key.Right: MoveRows(1); MoveCaret(_caretLine, 0); break;
+            case Key.End:
+            {
+                // the end of a long value is past its cut: the value is wrapped and the caret goes to its last row
+                if (_caretLine != _expanded && LineAt(_caretLine) is { } l && JsonOutline.IsLong(l)) _expanded = _caretLine;
+                MoveCaret(_caretLine, int.MaxValue, part: _caretLine == _expanded ? long.MaxValue : 0);
+                break;
+            }
+            case Key.Left: StepLeft(); break;
+            case Key.Right: StepRight(); break;
             case Key.OemOpenBrackets when command && shift: Fold(); break;
             case Key.OemCloseBrackets when command && shift: Unfold(); break;
             case Key.Back when !command: DeleteChar(forward: false); break;
@@ -443,17 +778,41 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         e.Handled = true;
     }
 
-    private void Pressed(Point p, bool gutter)
+    private (long Line, long Part, int Column) HitTest(Point p)
+    {
+        long row = Math.Clamp(_top + (long)Math.Floor(p.Y / _canvas.LineHeight), 0, Math.Max(0, RowCount - 1));
+        var (line, part) = At(row);
+        int column = RowRendered(line, part) is { } r ? _canvas.IndexAtX(r.Text, p.X - _canvas.TextLeft + _hScroll) : 0;
+        return (line, part, column);
+    }
+
+    private void Pressed(Point p, bool gutter, bool extend)
     {
         Focus();
-        long row = _top + (long)Math.Floor(Math.Max(0, p.Y) / _canvas.LineHeight);
-        long line = _folds.LineOfRow(Math.Min(row, Math.Max(0, RowCount - 1)));
+        var (line, part, column) = HitTest(p);
         if (gutter)
         {
-            if (LineAt(line) is { Kind: JsonLineKind.Open }) ToggleFold(line);
+            if (part == 0 && LineAt(line) is { Kind: JsonLineKind.Open }) ToggleFold(line);
             return;
         }
-        MoveCaret(line, Rendered(line) is { } r ? _canvas.IndexAtX(r.Text, p.X - _canvas.TextLeft + _hScroll) : 0);
+        if (extend) _anchor ??= CaretPos;
+        else _anchor = null;
+        if (line != _expanded && LineAt(line) is { } l && JsonOutline.IsLong(l) && EditRendered(line, 0) is { } r && column > r.Spans[^1].Column + r.Spans[^1].Length
+            && column <= r.Spans[^1].Column + r.Spans[^1].Length + 1)
+        {
+            // a click on the ellipsis of a cut value wraps the value
+            _expanded = line;
+            CaretToOffset(line, r.Spans[^1].End);
+        }
+        else MoveCaret(line, column, part: part);
+        if (!extend) _anchor = CaretPos;
+    }
+
+    private void Dragged(Point p)
+    {
+        var (line, part, column) = HitTest(p);
+        _anchor ??= CaretPos;
+        MoveCaret(line, column, part: part);
     }
 
     // ---- drawing ----
@@ -462,9 +821,11 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     {
         private const double Pad = 6;
         private double _lineHeight = 18, _charWidth = 8, _gutter = 40;
+        private bool _dragging;
 
         public int VisibleRows => Bounds.Height < 1 ? 30 : (int)Math.Ceiling(Bounds.Height / _lineHeight);
         public double LineHeight => _lineHeight;
+        public double CharWidth => _charWidth;
         public double TextLeft => _gutter + Pad;
         public double TextWidth => Math.Max(0, Bounds.Width - TextLeft);
         public double WidestLine { get; private set; }
@@ -489,7 +850,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         /// <summary>Scrolls sideways so the caret column is in view.</summary>
         public void RevealColumn()
         {
-            if (owner.Rendered(owner._caretLine) is not { } r || TextWidth <= 0) return;
+            if (owner.RowRendered(owner._caretLine, owner._caretPart) is not { } r || TextWidth <= 0) return;
             double x = XOf(r.Text, owner._caretColumn);
             if (x < owner._hScroll) owner._hScroll = Math.Max(0, x - 4 * _charWidth);
             else if (x > owner._hScroll + TextWidth - _charWidth) owner._hScroll = x - TextWidth + 4 * _charWidth;
@@ -514,8 +875,26 @@ internal sealed class JsonPrettyView : Grid, IDisposable
             base.OnPointerPressed(e);
             if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
             var p = e.GetPosition(this);
-            owner.Pressed(p, p.X < _gutter);
+            owner.Pressed(p, p.X < _gutter, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+            _dragging = p.X >= _gutter;
+            if (_dragging) e.Pointer.Capture(this);
             e.Handled = true;
+        }
+
+        protected override void OnPointerMoved(PointerEventArgs e)
+        {
+            base.OnPointerMoved(e);
+            if (!_dragging || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+            owner.Dragged(e.GetPosition(this));
+            e.Handled = true;
+        }
+
+        protected override void OnPointerReleased(PointerReleasedEventArgs e)
+        {
+            base.OnPointerReleased(e);
+            if (!_dragging) return;
+            _dragging = false;
+            e.Pointer.Capture(null);
         }
 
         protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -533,6 +912,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
             JsonTokenKind.String => "string",
             JsonTokenKind.Number => "number",
             JsonTokenKind.Literal => "constant",
+            JsonTokenKind.Comment => "comment",
             _ => null,
         };
 
@@ -562,36 +942,36 @@ internal sealed class JsonPrettyView : Grid, IDisposable
             long lines = owner.LineCount;
             int digits = Math.Max(3, lines.ToString(CultureInfo.InvariantCulture).Length);
             _gutter = owner._options.LineNumbers ? (digits + 2) * _charWidth + Pad : 2 * _charWidth;
+            var selected = owner.Selection;
             double widest = 0;
             for (int i = 0; i < VisibleRows; i++)
             {
-                long line = owner._folds.LineOfRow(owner._top + i);
-                if (owner.Rendered(line) is not { } r) break;
+                var (line, part) = owner.At(owner._top + i);
+                if (owner.RowRendered(line, part) is not { } r) break;
                 double y = i * _lineHeight;
-                bool caretHere = line == owner._caretLine;
+                bool caretLine = line == owner._caretLine, caretHere = caretLine && part == owner._caretPart;
                 if (caretHere && owner._options.CurrentLine) context.FillRectangle(current, new Rect(0, y, Bounds.Width, _lineHeight));
-                if (owner._options.LineNumbers)
+                if (owner._options.LineNumbers && part == 0)
                 {
-                    var number = Format((line + 1).ToString(CultureInfo.InvariantCulture), caretHere ? accent : numbers);
+                    var number = Format((line + 1).ToString(CultureInfo.InvariantCulture), caretLine ? accent : numbers);
                     context.DrawText(number, new Point(_gutter - 2 * _charWidth - number.Width, y));
                 }
-                if (r.Line.Kind == JsonLineKind.Open)
+                if (part == 0 && r.Line.Kind == JsonLineKind.Open)
                     context.DrawText(Format(owner._folds.IsFolded(line) ? "▸" : "▾", numbers), new Point(_gutter - 1.5 * _charWidth, y));
                 using (context.PushClip(new Rect(_gutter, y, Math.Max(0, Bounds.Width - _gutter), _lineHeight)))
                 {
                     double left = TextLeft - owner._hScroll;
+                    void Fill(int a, int b)
+                    {
+                        if (b > a) context.FillRectangle(selection, new Rect(left + XOf(r.Text, a), y, XOf(r.Text, b) - XOf(r.Text, a), _lineHeight));
+                    }
+                    if (selected is { } sel && line >= sel.Start.Line && line <= sel.End.Line)
+                        Fill(owner.ColumnIn(sel.Start, line, part, r), owner.ColumnIn(sel.End, line, part, r));
                     if (owner._mark is { } mark)
                         foreach (var span in r.Spans)
                         {
-                            if (span.Kind == JsonTokenKind.Punctuation) continue;
-                            int a = -1, b = -1;
-                            for (int c = span.Column; c <= span.Column + span.Length; c++)
-                            {
-                                long at = outline.SourceOffsetAt(r, c);
-                                if (a < 0 && at >= mark.Start) a = c;
-                                if (at <= mark.End) b = c;
-                            }
-                            if (a >= 0 && b > a) context.FillRectangle(selection, new Rect(left + XOf(r.Text, a), y, XOf(r.Text, b) - XOf(r.Text, a), _lineHeight));
+                            long a = Math.Max(mark.Start, span.Source), b = Math.Min(mark.End, span.End);
+                            if (span.Kind != JsonTokenKind.Punctuation && b > a) Fill(outline.ColumnOfOffset(r, a), outline.ColumnOfOffset(r, b));
                         }
                     var text = Format(r.Text, r.Line.Kind == JsonLineKind.Raw ? dim : fore);
                     foreach (var span in r.Spans)

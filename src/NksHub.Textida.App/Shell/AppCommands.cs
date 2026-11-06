@@ -94,7 +94,7 @@ internal static class AppCommands
         registry.SetHandler("nks.edit.paste", (_, _) =>
         {
             if (app.ActiveWindow is not { } w) return done(CommandOutcome.NotHandled);
-            bool text = w.ActiveTable is null && w.ActiveHex is null && w.ActivePaged is null && w.ActiveEditor is not null;
+            bool text = w.ActiveJson is not null || (w.ActiveTable is null && w.ActiveHex is null && w.ActivePaged is null && w.ActiveEditor is not null);
             var pasting = w.PasteAsync();
             if (text) return new ValueTask<CommandOutcome>(pasting);
             return done(w.ActiveEditor is null && w.ActiveHex is null && w.ActivePaged is null ? CommandOutcome.NotHandled : CommandOutcome.Handled);
@@ -105,6 +105,7 @@ internal static class AppCommands
         {
             if (w.ActiveTable is { } table) { table.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveHex is { } hex) { hex.SelectAll(); return CommandOutcome.Handled; }
+            if (w.ActiveJson is { } json) { json.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActivePaged is { } paged) { paged.SelectAll(); return CommandOutcome.Handled; }
             if (w.ActiveEditor is not { } s) return CommandOutcome.NotHandled;
             s.SelectAll();
@@ -457,6 +458,8 @@ internal static class AppCommands
         On("nks.view.syncScroll", w => w.ToggleSyncScroll());
         On("nks.view.table", w => w.ToggleTable());
         On("nks.view.jsonPretty", w => w.ToggleJsonPretty());
+        OnAsync("nks.json.copySource", w => w.ActiveJson is { } json ? w.JsonCopyAsync(json, cut: false, source: true) : Task.FromResult(CommandOutcome.NotHandled));
+        On("nks.json.expandValue", w => { if (w.ActiveJson is not { } json) return CommandOutcome.NotHandled; json.ToggleExpand(); return CommandOutcome.Handled; });
         On("nks.json.goToKey", w => { if (w.Active is not { Custom: null, Hex: null }) return CommandOutcome.NotHandled; _ = w.GoToJsonKeyAsync(); return CommandOutcome.Handled; });
         On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
         On("nks.table.dialect", w => { w.ShowTableDialectMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });

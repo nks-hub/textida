@@ -1818,15 +1818,18 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Rows cannot be added while a filter is on.
 
 ## [json.pretty] Formatted JSON
-commands: nks.view.jsonPretty, nks.json.goToKey
+commands: nks.view.jsonPretty, nks.json.goToKey, nks.json.expandValue, nks.json.copySource
 A JSON file, even hundreds of MiB to GiB in size and all on one line, can be shown formatted: every key, value and bracket on a line of its own, indented by depth. It is only a view of the same document; the file is not rewritten, and saving without changes leaves every byte as it was.
 1. Ctrl+K then Ctrl+J (View menu, View Mode, Toggle Formatted JSON View) switches between the formatted view and the text. The caret stays at the same place in the file.
 2. Clicking the triangle next to the line number, or Ctrl+Shift+[, collapses an object or array; Ctrl+Shift+] expands it again.
 3. View, View Mode, Go to JSON Key asks for a key name and moves the caret to its next occurrence; the status bar shows the path to the key at the caret, for example $.items[3].name.
 - The file is read in the background and the first screen appears at once. Until the end is reached, the status bar shows the percentage read, and only a block whose end has been read can be collapsed (“The end of this block has not been read yet”).
 - You can type only into keys and values, and only their bytes change. Typing into the indent, brackets or commas is refused (“You cannot type here”); change the structure in the text view.
-- From the point where the JSON stops being valid, the source text is shown with the note “Invalid JSON at byte…” in the corner. Comments (JSONC) count as errors.
-- A value longer than 4 KiB is shown shortened with an ellipsis. The formatted view reads only UTF-8 and single-byte encodings.
+- From the point where the JSON stops being valid, the source text is shown with the note “Invalid JSON at byte…” in the corner.
+- Files ending in .jsonc and known files with comments (tsconfig.json, VS Code settings in the .vscode folder, appsettings.json and others) are read as JSONC: every comment gets a line of its own, and a comma before a closing bracket is accepted. In a plain JSON file a comment is an error.
+- A value longer than 4 KiB is shown shortened with an ellipsis. Clicking the ellipsis, pressing End, or Ctrl+K then Ctrl+Y (Expand or Collapse Long JSON Value) wraps it into rows as wide as the window, so all of it can be read and edited. Only one value is wrapped at a time.
+- Select text with the mouse or with Shift and the arrow keys. Ctrl+C copies the selected lines as the view shows them, with long values in full. Copy as Original JSON copies the matching part of the file unchanged. Ctrl+A selects the whole file up to 16 MiB; the view does not copy more at once. Cut and paste work only inside one key or value, and pasted text cannot contain a line break.
+- The formatted view reads only UTF-8 and single-byte encodings.
 
 ## [table.copyAs] Copying cells as Markdown, SQL, JSON or HTML
 commands: nks.table.copyAs

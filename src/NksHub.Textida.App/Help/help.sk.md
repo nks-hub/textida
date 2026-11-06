@@ -1818,15 +1818,18 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Kým je zapnutý filter, nemožno pridať riadok.
 
 ## [json.pretty] Formátovaný JSON
-commands: nks.view.jsonPretty, nks.json.goToKey
+commands: nks.view.jsonPretty, nks.json.goToKey, nks.json.expandValue, nks.json.copySource
 Súbor JSON, aj stovky MiB až GiB veľký a celý na jednom riadku, možno zobraziť formátovane: každý kľúč, hodnota a zátvorka na vlastnom riadku, odsadené podľa hĺbky. Je to len zobrazenie toho istého dokumentu, súbor sa neprepisuje a uloženie bez zmien nezmení jediný bajt.
 1. Ctrl+K a potom Ctrl+J (ponuka Zobraziť, Režim zobrazenia, Prepnúť formátovaný JSON a text) prepína medzi formátovaným pohľadom a textom. Kurzor zostane na tom istom mieste súboru.
 2. Kliknutie na trojuholník pri čísle riadku alebo Ctrl+Shift+[ zbalí objekt či pole, Ctrl+Shift+] ho znova rozbalí.
 3. Zobraziť, Režim zobrazenia, Prejsť na kľúč JSON sa spýta na názov kľúča a presunie kurzor na jeho ďalší výskyt; stavový riadok ukazuje cestu ku kľúču pri kurzore, napríklad $.items[3].name.
 - Súbor sa prechádza na pozadí, prvá obrazovka je hneď. Kým sa nedôjde na koniec, stavový riadok ukazuje, koľko percent je prejdených, a zbaliť možno len blok, ktorého koniec je už načítaný („Koniec tohto bloku ešte nebol načítaný“).
 - Písať možno len do kľúčov a hodnôt; zmenia sa len ich bajty. Na odsadenie, zátvorky a čiarky sa písať nedá („Sem nemožno písať“), štruktúru meňte v textovom pohľade.
-- Od miesta, kde JSON prestáva byť platný, sa ukazuje pôvodný text a v rohu hlásenie „Neplatný JSON od bajtu…“ s miestom chyby. Komentáre (JSONC) sa berú ako chyba.
-- Hodnota dlhšia ako 4 KiB sa ukáže skrátená s tromi bodkami. Formátovaný pohľad vie len UTF-8 a jednobajtové kódovania.
+- Od miesta, kde JSON prestáva byť platný, sa ukazuje pôvodný text a v rohu hlásenie „Neplatný JSON od bajtu…“ s miestom chyby.
+- Súbory .jsonc a známe súbory s komentármi (tsconfig.json, nastavenia VS Code v priečinku .vscode, appsettings.json a ďalšie) sa čítajú ako JSONC: každý komentár má vlastný riadok a čiarka pred uzatváracou zátvorkou nevadí. V obyčajnom súbore JSON je komentár chyba.
+- Hodnota dlhšia ako 4 KiB sa ukáže skrátená s tromi bodkami. Kliknutie na tri bodky, kláves End alebo Ctrl+K a potom Ctrl+Y (Rozbaliť alebo zbaliť dlhú hodnotu JSON) ju zalomí do riadkov podľa šírky okna, takže sa dá prečítať aj upraviť celá. Zalomená je vždy len jedna hodnota.
+- Text sa označuje myšou alebo klávesom Shift so šípkami. Ctrl+C skopíruje označené riadky tak, ako ich pohľad ukazuje, dlhé hodnoty celé. Kopírovať ako pôvodný JSON skopíruje zodpovedajúci kus súboru bez zmeny. Ctrl+A vyberie celý súbor do 16 MiB; viac sa z pohľadu naraz nekopíruje. Vystrihnúť a vložiť sa dá len vnútri jedného kľúča alebo hodnoty a vložený text nesmie obsahovať zalomenie riadka.
+- Formátovaný pohľad vie len UTF-8 a jednobajtové kódovania.
 
 ## [table.copyAs] Kopírovanie buniek ako Markdown, SQL, JSON alebo HTML
 commands: nks.table.copyAs

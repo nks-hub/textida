@@ -518,6 +518,8 @@
   "cmd.view.table": "Toggle Table View",
   "cmd.view.jsonPretty": "Toggle Formatted JSON View",
   "cmd.json.goToKey": "Go to JSON Key...",
+  "cmd.json.copySource": "Copy as Original JSON",
+  "cmd.json.expandValue": "Expand or Collapse Long JSON Value",
   "cmd.view.cycleMode": "Cycle View Mode",
   "cmd.view.modeRead": "Markdown: Reading",
   "cmd.view.modeEdit": "Markdown: Editing",

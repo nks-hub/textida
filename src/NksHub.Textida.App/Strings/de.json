@@ -3077,5 +3077,11 @@
   "json.goToKey.title": "Zu Schlüssel springen",
   "json.goToKey.label": "Name des Schlüssels ohne Anführungszeichen. Gesucht wird die genaue Übereinstimmung ab dem Cursor, dann ab dem Dateianfang.",
   "json.goToKey.notFound": "Der Schlüssel „{key}“ kommt in der Datei nicht vor.",
+  "json.pretty.tooLarge": "Die Auswahl ist größer als {limit}. So viel kopiert die formatierte Ansicht nicht; kopieren Sie größere Teile in der Textansicht.",
+  "json.pretty.selectAllTooLarge": "Die Datei ist größer als {limit} und lässt sich in der formatierten Ansicht nicht ganz auswählen. Markieren Sie einen kleineren Teil mit der Maus oder mit Umschalt und den Pfeiltasten.",
+  "json.pretty.selectAllScanning": "Die Datei wird noch gelesen. Alles auswählen geht, sobald sie bis zum Ende gelesen ist.",
+  "json.pretty.cutNotHere": "Ausschneiden geht nur innerhalb eines Schlüssels oder Werts. Eine Auswahl über Einrückung, Klammern oder Kommas nur kopieren (Strg+C).",
+  "json.pretty.pasteControl": "In einen Schlüssel oder Wert lassen sich weder ein Zeilenumbruch noch ein anderes Steuerzeichen einfügen. Fügen Sie solchen Text in der Textansicht ein.",
+  "json.pretty.notLong": "Der Wert in der Zeile des Cursors ist nicht länger als 4 KiB und ganz zu sehen.",
   "a11y.jsonPretty": "Formatiertes JSON"
 }

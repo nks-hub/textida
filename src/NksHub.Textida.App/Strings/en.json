@@ -3077,5 +3077,11 @@
   "json.goToKey.title": "Go to Key",
   "json.goToKey.label": "Key name without quotes. The exact match is searched from the caret on, then from the start of the file.",
   "json.goToKey.notFound": "The key “{key}” is not in the file.",
+  "json.pretty.tooLarge": "The selection is larger than {limit}. The formatted view does not copy that much; copy a larger part in the text view.",
+  "json.pretty.selectAllTooLarge": "The file is larger than {limit}, so the formatted view cannot select all of it. Select a smaller part with the mouse or with Shift and the arrow keys.",
+  "json.pretty.selectAllScanning": "The file is still being read. Select All works once it has been read to the end.",
+  "json.pretty.cutNotHere": "Only part of one key or value can be cut. Copy a selection across indents, brackets or commas instead (Ctrl+C).",
+  "json.pretty.pasteControl": "A line break or another control character cannot be pasted into a key or value. Paste such text in the text view.",
+  "json.pretty.notLong": "The value on the caret line is not longer than 4 KiB; all of it is shown.",
   "a11y.jsonPretty": "Formatted JSON"
 }

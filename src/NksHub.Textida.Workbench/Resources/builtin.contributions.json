@@ -2915,6 +2915,20 @@
       "enablement": "hasDocument && !hexMode"
     },
     {
+      "id": "nks.json.copySource",
+      "title": "cmd.json.copySource",
+      "category": "cat.view",
+      "icon": "copy",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
+      "id": "nks.json.expandValue",
+      "title": "cmd.json.expandValue",
+      "category": "cat.view",
+      "icon": "unfold",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
       "id": "nks.table.editRegion",
       "title": "cmd.table.editRegion",
       "category": "cat.view",
@@ -6210,6 +6224,20 @@
     },
     {
       "menu": "view",
+      "command": "nks.json.expandValue",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 27
+    },
+    {
+      "menu": "view",
+      "command": "nks.json.copySource",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 28
+    },
+    {
+      "menu": "view",
       "command": "nks.table.editRegion",
       "group": "4_special/02.01",
       "submenu": "table",
@@ -7356,6 +7384,10 @@
     {
       "key": "mod+k mod+j",
       "command": "nks.view.jsonPretty"
+    },
+    {
+      "key": "mod+k mod+y",
+      "command": "nks.json.expandValue"
     },
     {
       "key": "f7",

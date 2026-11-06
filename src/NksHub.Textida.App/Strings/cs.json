@@ -3133,5 +3133,11 @@
   "json.goToKey.title": "Přejít na klíč",
   "json.goToKey.label": "Název klíče bez uvozovek. Hledá se přesná shoda od kurzoru dál, pak od začátku souboru.",
   "json.goToKey.notFound": "Klíč „{key}“ v souboru není.",
+  "json.pretty.tooLarge": "Výběr je větší než {limit}. Tolik se z formátovaného pohledu nekopíruje; větší část zkopírujte v textovém pohledu.",
+  "json.pretty.selectAllTooLarge": "Soubor je větší než {limit}, ve formátovaném pohledu nejde vybrat celý. Označte menší část myší nebo klávesou Shift se šipkami.",
+  "json.pretty.selectAllScanning": "Soubor se ještě prochází. Vybrat vše půjde, až se projde celý.",
+  "json.pretty.cutNotHere": "Vyjmout lze jen část jednoho klíče nebo hodnoty. Výběr přes odsazení, závorky nebo čárky jen zkopírujte (Ctrl+C).",
+  "json.pretty.pasteControl": "Do klíče ani hodnoty nelze vložit zalomení řádku ani jiný řídicí znak. Takový text vložte v textovém pohledu.",
+  "json.pretty.notLong": "Hodnota na řádku kurzoru není delší než 4 KiB, je vidět celá.",
   "a11y.jsonPretty": "Formátovaný JSON"
 }

@@ -1818,15 +1818,18 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Solange ein Filter aktiv ist, können keine Zeilen hinzugefügt werden.
 
 ## [json.pretty] Formatiertes JSON
-commands: nks.view.jsonPretty, nks.json.goToKey
+commands: nks.view.jsonPretty, nks.json.goToKey, nks.json.expandValue, nks.json.copySource
 Eine JSON-Datei, auch Hunderte MiB bis GiB groß und ganz in einer Zeile, lässt sich formatiert anzeigen: jeder Schlüssel, jeder Wert und jede Klammer in einer eigenen Zeile, eingerückt nach Tiefe. Es ist nur eine Ansicht desselben Dokuments, die Datei wird nicht umgeschrieben, und Speichern ohne Änderungen ändert kein einziges Byte.
 1. Strg+K und dann Strg+J (Menü Ansicht, Anzeigemodus, Formatiertes JSON umschalten) wechselt zwischen formatierter Ansicht und Text. Der Cursor bleibt an derselben Stelle der Datei.
 2. Ein Klick auf das Dreieck neben der Zeilennummer oder Strg+Umschalt+[ klappt ein Objekt oder Array zu, Strg+Umschalt+] klappt es wieder auf.
 3. Ansicht, Anzeigemodus, Zu JSON-Schlüssel springen fragt nach dem Namen des Schlüssels und setzt den Cursor auf sein nächstes Vorkommen; die Statusleiste zeigt den Pfad zum Schlüssel am Cursor, zum Beispiel $.items[3].name.
 - Die Datei wird im Hintergrund gelesen, der erste Bildschirm erscheint sofort. Bis das Ende erreicht ist, zeigt die Statusleiste den gelesenen Anteil in Prozent, und zuklappen lässt sich nur ein Block, dessen Ende schon gelesen ist („Das Ende dieses Blocks wurde noch nicht gelesen“).
 - Schreiben lässt sich nur in Schlüssel und Werte; geändert werden nur deren Bytes. In Einrückung, Klammern und Kommas kann nicht geschrieben werden („Hier kann nicht geschrieben werden“), die Struktur ändern Sie in der Textansicht.
-- Ab der Stelle, an der das JSON ungültig wird, erscheint der Originaltext und in der Ecke die Meldung „Ungültiges JSON ab Byte…“ mit der Fehlerstelle. Kommentare (JSONC) gelten als Fehler.
-- Ein Wert länger als 4 KiB wird gekürzt mit Auslassungspunkten gezeigt. Die formatierte Ansicht liest nur UTF-8 und Ein-Byte-Kodierungen.
+- Ab der Stelle, an der das JSON ungültig wird, erscheint der Originaltext und in der Ecke die Meldung „Ungültiges JSON ab Byte…“ mit der Fehlerstelle.
+- Dateien mit der Endung .jsonc und bekannte Dateien mit Kommentaren (tsconfig.json, VS-Code-Einstellungen im Ordner .vscode, appsettings.json und weitere) werden als JSONC gelesen: Jeder Kommentar steht in einer eigenen Zeile, und ein Komma vor der schließenden Klammer stört nicht. In einer gewöhnlichen JSON-Datei ist ein Kommentar ein Fehler.
+- Ein Wert länger als 4 KiB wird gekürzt mit Auslassungspunkten gezeigt. Ein Klick auf die Auslassungspunkte, die Taste Ende oder Strg+K und dann Strg+Y (Langen JSON-Wert auf- oder zuklappen) bricht ihn nach der Fensterbreite in Zeilen um, sodass er ganz gelesen und bearbeitet werden kann. Umgebrochen ist immer nur ein Wert.
+- Text wird mit der Maus oder mit Umschalt und den Pfeiltasten markiert. Strg+C kopiert die markierten Zeilen so, wie die Ansicht sie zeigt, lange Werte vollständig. Als ursprüngliches JSON kopieren kopiert das entsprechende Stück der Datei unverändert. Strg+A wählt die ganze Datei bis 16 MiB aus; mehr kopiert die Ansicht nicht auf einmal. Ausschneiden und Einfügen geht nur innerhalb eines Schlüssels oder Werts, und eingefügter Text darf keinen Zeilenumbruch enthalten.
+- Die formatierte Ansicht liest nur UTF-8 und Ein-Byte-Kodierungen.
 
 ## [table.copyAs] Zellen als Markdown, SQL, JSON oder HTML kopieren
 commands: nks.table.copyAs

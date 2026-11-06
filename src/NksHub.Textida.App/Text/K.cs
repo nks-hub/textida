@@ -3030,5 +3030,11 @@ public static partial class K
     public const string JsonGoToKeyTitle = "json.goToKey.title";
     public const string JsonGoToKeyLabel = "json.goToKey.label";
     public const string JsonGoToKeyNotFound = "json.goToKey.notFound";
+    public const string JsonPrettyTooLarge = "json.pretty.tooLarge";
+    public const string JsonPrettySelectAllTooLarge = "json.pretty.selectAllTooLarge";
+    public const string JsonPrettySelectAllScanning = "json.pretty.selectAllScanning";
+    public const string JsonPrettyCutNotHere = "json.pretty.cutNotHere";
+    public const string JsonPrettyPasteControl = "json.pretty.pasteControl";
+    public const string JsonPrettyNotLong = "json.pretty.notLong";
     public const string A11yJsonPretty = "a11y.jsonPretty";
 }

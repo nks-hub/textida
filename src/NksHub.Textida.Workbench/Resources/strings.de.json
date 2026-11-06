@@ -518,6 +518,8 @@
   "cmd.view.table": "Tabellenansicht umschalten",
   "cmd.view.jsonPretty": "Formatiertes JSON umschalten",
   "cmd.json.goToKey": "Zu JSON-Schlüssel springen...",
+  "cmd.json.copySource": "Als ursprüngliches JSON kopieren",
+  "cmd.json.expandValue": "Langen JSON-Wert auf- oder zuklappen",
   "cmd.view.cycleMode": "Anzeigemodus wechseln",
   "cmd.view.modeRead": "Markdown: Lesen",
   "cmd.view.modeEdit": "Markdown: Bearbeiten",
