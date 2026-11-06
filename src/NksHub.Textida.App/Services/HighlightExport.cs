@@ -16,8 +16,8 @@ internal sealed record ExportTheme(Color Background, Color Foreground, SyntaxPal
 /// </summary>
 internal static class HighlightExport
 {
-    /// <summary>A stretch of the text that has one color; null is the plain text color.</summary>
-    internal readonly record struct Segment(int Start, int Length, Color? Color);
+    /// <summary>A stretch of the text that has one color and one style; a null color is the plain text color.</summary>
+    internal readonly record struct Segment(int Start, int Length, Color? Color, TokenStyle Style = TokenStyle.None);
 
     /// <summary>
     /// Splits the text into colored stretches, line by line, carrying the grammar state from one line to the next. Equal neighbours are joined.
@@ -32,7 +32,7 @@ internal static class HighlightExport
         foreach (var s in all)
         {
             int from = Math.Max(s.Start, r.Start), to = Math.Min(s.Start + s.Length, r.Start + r.Length);
-            if (from < to) part.Add(new Segment(from, to - from, s.Color));
+            if (from < to) part.Add(s with { Start = from, Length = to - from });
         }
         return part;
     }
@@ -40,11 +40,11 @@ internal static class HighlightExport
     private static List<Segment> Tokenized(string text, Tokenizer? tokenizer, LogLevelRules? levels, SyntaxPalette palette, CancellationToken cancel, LineState? startState)
     {
         var result = new List<Segment>();
-        void Add(int start, int end, Color? color)
+        void Add(int start, int end, Color? color, TokenStyle style = TokenStyle.None)
         {
             if (end <= start) return;
-            if (result.Count > 0 && result[^1] is { } last && last.Color == color && last.Start + last.Length == start) result[^1] = last with { Length = last.Length + end - start };
-            else result.Add(new Segment(start, end - start, color));
+            if (result.Count > 0 && result[^1] is { } last && last.Color == color && last.Style == style && last.Start + last.Length == start) result[^1] = last with { Length = last.Length + end - start };
+            else result.Add(new Segment(start, end - start, color, style));
         }
         Color? Of(string kind) => palette.GetBrush(kind) is ISolidColorBrush solid ? solid.Color : null;
 
@@ -68,7 +68,7 @@ internal static class HighlightExport
                     int from = Math.Max(token.Start, at), to = Math.Min(token.End, end - pos);
                     if (from >= to) continue;
                     Add(pos + at, pos + from, null);
-                    Add(pos + from, pos + to, Of(token.Kind));
+                    Add(pos + from, pos + to, Of(token.Kind), palette.GetStyle(token.Kind));
                     at = to;
                 }
                 Add(pos + at, end, null);
@@ -109,9 +109,18 @@ internal static class HighlightExport
         foreach (var segment in Segments(text, tokenizer, levels, theme.Palette, range, cancel, startState))
         {
             var slice = text.AsSpan(segment.Start, segment.Length);
-            if (segment.Color is { } color) sb.Append("<span style=\"color:").Append(Hex(color)).Append("\">");
+            bool span = segment.Color is not null || segment.Style != TokenStyle.None;
+            if (span)
+            {
+                sb.Append("<span style=\"");
+                if (segment.Color is { } color) sb.Append("color:").Append(Hex(color)).Append(';');
+                if (segment.Style.HasFlag(TokenStyle.Bold)) sb.Append("font-weight:bold;");
+                if (segment.Style.HasFlag(TokenStyle.Italic)) sb.Append("font-style:italic;");
+                sb.Length--;
+                sb.Append("\">");
+            }
             AppendHtml(sb, slice);
-            if (segment.Color is not null) sb.Append("</span>");
+            if (span) sb.Append("</span>");
         }
         sb.Append("</pre>");
         if (title is not null) sb.Append("\n</body>\n</html>\n");
@@ -132,9 +141,17 @@ internal static class HighlightExport
         sb.Append(CultureInfo.InvariantCulture, $"}}\\f0\\fs{(int)Math.Round(theme.FontSize * 2)}\\chcbpat1\\cf2 ");
         foreach (var segment in segments)
         {
-            if (segment.Color is { } color) sb.Append(CultureInfo.InvariantCulture, $"{{\\cf{colors.IndexOf(color) + 1} ");
+            bool group = segment.Color is not null || segment.Style != TokenStyle.None;
+            if (group)
+            {
+                sb.Append('{');
+                if (segment.Color is { } color) sb.Append(CultureInfo.InvariantCulture, $"\\cf{colors.IndexOf(color) + 1}");
+                if (segment.Style.HasFlag(TokenStyle.Bold)) sb.Append("\\b");
+                if (segment.Style.HasFlag(TokenStyle.Italic)) sb.Append("\\i");
+                sb.Append(' ');
+            }
             AppendRtf(sb, text.AsSpan(segment.Start, segment.Length));
-            if (segment.Color is not null) sb.Append('}');
+            if (group) sb.Append('}');
         }
         return sb.Append('}').ToString();
     }
@@ -158,11 +175,26 @@ internal static class HighlightExport
         sb.Append(@"\begin{Verbatim}[commandchars=\\\{\},fontsize=\small]").Append('\n');
 
         var line = new StringBuilder();
-        void Flush(Color? color)
+        void Flush(Segment segment)
         {
             if (line.Length == 0) return;
-            if (color is { } c) sb.Append(@"\textcolor[HTML]{").Append(TexHex(c)).Append("}{").Append(line).Append('}');
-            else sb.Append(line);
+            int close = 0;
+            if (segment.Color is { } c)
+            {
+                sb.Append(@"\textcolor[HTML]{").Append(TexHex(c)).Append("}{");
+                close++;
+            }
+            if (segment.Style.HasFlag(TokenStyle.Bold))
+            {
+                sb.Append(@"\textbf{");
+                close++;
+            }
+            if (segment.Style.HasFlag(TokenStyle.Italic))
+            {
+                sb.Append(@"\textit{");
+                close++;
+            }
+            sb.Append(line).Append('}', close);
             line.Clear();
         }
         int column = 0; // a tab is written as spaces: obeytabs cannot measure the column inside the argument of \textcolor
@@ -176,7 +208,7 @@ internal static class HighlightExport
                 {
                     case '\r' or '\n':
                         if (c == '\r' && i + 1 < slice.Length && slice[i + 1] == '\n') i++;
-                        Flush(segment.Color);
+                        Flush(segment);
                         sb.Append('\n');
                         column = 0;
                         break;
@@ -199,9 +231,10 @@ internal static class HighlightExport
                         break;
                 }
             }
-            Flush(segment.Color);
+            Flush(segment);
         }
         if (sb[^1] != '\n') sb.Append('\n');
+
         return sb.Append(@"\end{Verbatim}").Append('\n').Append(@"\end{document}").Append('\n').ToString();
     }
 

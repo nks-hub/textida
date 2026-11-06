@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using NksHub.Textida.App.Services;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -13,7 +14,7 @@ internal sealed partial class CsvView
     internal readonly record struct Hit(int Row, int Column, bool Gutter, bool Header);
 
     /// <summary>Draws the grid. Geometry is in character cells of the editor font; only the rows and columns on screen are read.</summary>
-    private sealed class CsvSurface(CsvView owner) : Control
+    private sealed class CsvSurface(CsvView owner) : EditorThemedSurface
     {
         private const double Pad = 8, CellPad = 6;
         private const int FallbackRows = 20;
@@ -117,7 +118,6 @@ internal sealed partial class CsvView
             owner.CellReleased();
         }
 
-        private IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
 
         public override void Render(DrawingContext context)
         {

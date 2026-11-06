@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Hex;
 using NksHub.Textida.Core.Secrets;
@@ -34,7 +35,7 @@ internal sealed partial class HexView
     }
 
     /// <summary>Draws the grid. All geometry is in character cells of the monospace font, so the three columns line up whatever the font is.</summary>
-    private sealed class HexSurface(HexView owner) : Control
+    private sealed class HexSurface(HexView owner) : EditorThemedSurface
     {
         private const double Pad = 10;
         private double _cw = 8, _rh = 18;
@@ -186,7 +187,6 @@ internal sealed partial class HexView
             RenderMs = (ended - started) * 1000.0 / Stopwatch.Frequency;
         }
 
-        private IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
 
         private void Draw(DrawingContext context)
         {

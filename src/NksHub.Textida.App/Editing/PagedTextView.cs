@@ -2141,8 +2141,18 @@ internal sealed partial class PagedTextView : Grid
             foreach (var token in tokens)
             {
                 long from = Math.Max(token.Start, column) - column, to = Math.Min(token.End, column + length) - column;
-                if (to > from && palette.GetBrush(token.Kind) is { } brush) text.SetForegroundBrush(brush, (int)from, (int)(to - from));
+                if (to > from) Paint(text, palette, token.Kind, (int)from, (int)(to - from));
             }
+        }
+
+        /// <summary>Gives a stretch of the text the colour, bold and italic the palette has for a token kind.</summary>
+        private static void Paint(FormattedText text, SyntaxPalette palette, string kind, int from, int length)
+        {
+            if (palette.GetBrush(kind) is not { } brush) return;
+            text.SetForegroundBrush(brush, from, length);
+            var style = palette.GetStyle(kind);
+            if (style.HasFlag(TokenStyle.Bold)) text.SetFontWeight(FontWeight.Bold, from, length);
+            if (style.HasFlag(TokenStyle.Italic)) text.SetFontStyle(FontStyle.Italic, from, length);
         }
 
         /// <summary>Applies the colors, bold and underline of the ANSI sequences of a log line (<paramref name="spans"/>, which include the style the lines before it left open); backgrounds are filled now, before the text is drawn over them.</summary>
@@ -2322,7 +2332,8 @@ internal sealed partial class PagedTextView : Grid
                                     if (end > at) to += insertLength;
                                 }
                             }
-                            if (palette.GetBrush(token.Kind) is { } brush && to > from) text.SetForegroundBrush(brush, from, to - from);
+                            if (to > from) Paint(text, palette, token.Kind, from, to - from);
+
                         }
                     if (owner.HideAnsi && _composed.Count == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
                     for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);

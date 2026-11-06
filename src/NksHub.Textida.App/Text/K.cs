@@ -555,6 +555,7 @@ public static partial class K
     public const string ColorThemeExportTitle = "colorTheme.export.title";
     public const string ColorThemeImported = "colorTheme.imported";
     public const string ColorThemeImportFailed = "colorTheme.importFailed";
+    public const string ColorThemeSemanticIgnored = "colorTheme.semanticIgnored";
     public const string ColorThemeExported = "colorTheme.exported";
     public const string ColorThemeWriteFailed = "colorTheme.writeFailed";
     public const string ColorThemeSaved = "colorTheme.saved";
@@ -592,6 +593,10 @@ public static partial class K
     public const string ThemeColorLogDebug = "themeColor.log.debug";
     public const string ThemeColorLogHighlight = "themeColor.log.highlight";
     public const string ThemeColorsSwatchesA11y = "a11y.themeColors.swatches";
+    public const string ThemeStyleBold = "themeStyle.bold";
+    public const string ThemeStyleItalic = "themeStyle.italic";
+    public const string ThemeStyleBoldA11y = "a11y.themeStyle.bold";
+    public const string ThemeStyleItalicA11y = "a11y.themeStyle.italic";
     public const string SettingsSectionClipboard = "settings.section.editor.clipboard";
     public const string SettingsSectionIndent = "settings.section.editor.indent";
     public const string SettingsSectionOnSave = "settings.section.editor.onSave";
