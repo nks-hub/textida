@@ -127,8 +127,25 @@ public sealed partial class GitPlugin
         if (string.IsNullOrWhiteSpace(path)) throw new GitException("A path is empty.");
         var full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(repo.Root, path));
         var rel = Path.GetRelativePath(repo.Root, full).Replace('\\', '/');
-        if (rel == ".." || rel.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(rel)) throw new GitException($"{path} is outside the repository.");
+        // git names the top of the tree with every link followed (on macOS the temporary folder is below /var, a link to /private/var); the file itself stays as it is, git tracks a link as a link
+        if (Leaves(rel) && Path.GetDirectoryName(full) is { } folder) rel = Path.GetRelativePath(repo.Root, Path.Combine(RealFolder(folder), Path.GetFileName(full))).Replace('\\', '/');
+        if (Leaves(rel)) throw new GitException($"{path} is outside the repository.");
         return rel;
+
+        static bool Leaves(string rel) => rel == ".." || rel.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(rel);
+    }
+
+    /// <summary>The folder with every link on the way followed; the folder as it is when a part cannot be read.</summary>
+    private static string RealFolder(string folder)
+    {
+        string root = Path.GetPathRoot(folder) ?? "", current = root;
+        foreach (var part in folder[root.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            try { if (new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true) is { } target) current = target.FullName; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return folder; }
+        }
+        return current;
     }
 
     private static List<string> PathsOf(RepoRequest r, GitRepository repo)
