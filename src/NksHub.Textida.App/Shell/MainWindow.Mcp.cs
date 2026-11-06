@@ -37,7 +37,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.McpOffStatus));
             return;
         }
-        var tools = McpServer.AllTools.Where(t => mcp.Server.IsEnabled(t.Name)).Select(t => "• " + McpToolLabel(t.Name)).ToList();
+        var tools = mcp.Server.CurrentTools().Where(t => mcp.Server.IsEnabled(t.Name)).Select(t => "• " + McpToolLabel(t)).ToList();
         var buttons = new[] { new DialogButton(Loc.Get(K.McpOnConfirm), IsDefault: true), new DialogButton(Loc.Get(K.DialogCancel), IsCancel: true) };
         int answer = await _app.Dialogs.ChooseAsync(this, new ChoiceRequest(Loc.Get(K.McpOnTitle), Loc.Get(K.McpOnMessage, ("program", McpService.BridgeProgram)), buttons, tools));
         if (answer != 0) return;
@@ -299,7 +299,7 @@ internal sealed partial class MainWindow
         var server = _app.Plugins.Mcp.Server;
         while (true)
         {
-            var items = McpServer.AllTools.Select(t => new PickItem(t.Name, McpToolLabel(t.Name), Loc.Get(server.IsEnabled(t.Name) ? K.McpToolsOn : K.McpToolsOff))).ToList();
+            var items = server.CurrentTools().Select(t => new PickItem(t.Name, McpToolLabel(t), Loc.Get(server.IsEnabled(t.Name) ? K.McpToolsOn : K.McpToolsOff))).ToList();
             var chosen = await PluginPickAsync(new QuickPickRequest(Loc.Get(K.McpToolsTitle), Loc.Get(K.McpToolsWatermark), items), CancellationToken.None);
             if (chosen is null) return;
             server.SetEnabled(chosen, !server.IsEnabled(chosen));
@@ -351,6 +351,9 @@ internal sealed partial class MainWindow
 
     /// <summary>The name of a client as the user reads it; a client that gave none is stored under a fixed name, which is shown in the language of the interface.</summary>
     internal static string McpClientLabel(string name) => name == McpServer.UnknownClient ? Loc.Get(K.McpClientUnknown) : name;
+
+    /// <summary>The label of a built-in tool in the language of the interface; a tool of a plugin has the title its plugin gave it.</summary>
+    internal static string McpToolLabel(McpToolInfo tool) => McpServer.AllTools.Any(t => t.Name == tool.Name) ? McpToolLabel(tool.Name) : tool.Title;
 
     internal static string McpToolLabel(string tool) => Loc.Get(tool switch
     {

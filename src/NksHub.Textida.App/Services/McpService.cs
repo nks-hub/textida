@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
@@ -11,6 +13,7 @@ using NksHub.Textida.Core.Tools;
 using NksHub.Textida.PluginHost.Documents;
 using NksHub.Textida.PluginHost.Mcp;
 using NksHub.Textida.PluginHost.Permissions;
+using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Services;
 
@@ -39,6 +42,34 @@ internal sealed class McpService : IProposalReviewer, IAsyncDisposable
         Clients = new McpClients(Path.Combine(profileDirectory, "mcp-clients.json"));
         Server = new McpServer(PluginLimits.Mcp(plugins.Documents, Ledger, TitleOf, EnsureOutlineAsync) with { ClientGate = Clients.IsAllowed, PluginTools = plugins.McpPluginTools });
         Clients.Asked += name => Dispatcher.UIThread.Post(() => ClientAsked?.Invoke(name));
+        _toolsFile = Path.Combine(profileDirectory, "mcp-tools.json");
+        Server.RestoreDisabled(LoadDisabledTools(_toolsFile));
+        Server.ToolsChanged += SaveDisabledTools;
+    }
+
+    private readonly string _toolsFile;
+
+    /// <summary>The tools the user switched off, from <c>mcp-tools.json</c> of the profile; a missing or damaged file switches nothing off.</summary>
+    private static IEnumerable<string> LoadDisabledTools(string file)
+    {
+        try
+        {
+            if (File.Exists(file) && JsonNode.Parse(File.ReadAllText(file)) is JsonObject root && root["disabled"] is JsonArray names)
+                return [.. names.OfType<JsonValue>().Select(v => v.TryGetValue<string>(out var name) ? name : null).OfType<string>()];
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { /* a damaged file switches nothing off */ }
+        return [];
+    }
+
+    private void SaveDisabledTools()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_toolsFile)!);
+            var root = new JsonObject { ["disabled"] = new JsonArray([.. Server.DisabledTools().Select(n => (JsonNode)JsonValue.Create(n))]) };
+            AtomicFile.WriteAllText(_toolsFile, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* the switch holds for this run */ }
     }
 
     /// <summary>The permissions of the clients (who may use the editor, by the name they give).</summary>

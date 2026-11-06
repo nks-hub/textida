@@ -81,14 +81,31 @@ public sealed class McpServer
 
     public static IReadOnlyList<McpToolInfo> AllTools { get; } = [.. McpTools.All.Select(t => new McpToolInfo(t.Name, t.Title, t.Description, t.ReadOnly))];
 
+    /// <summary>The built-in tools and the tools plugins offer now, switched on or off.</summary>
+    public IReadOnlyList<McpToolInfo> CurrentTools() =>
+        [.. AllTools, .. (Options.PluginTools?.Invoke() ?? []).Where(t => McpTools.Find(t.Name) is null).Select(t => new McpToolInfo(t.Name, t.Title, t.Description, t.ReadOnly))];
+
+    /// <summary>Names of the tools the user switched off, built-in or of plugins; a plugin tool keeps its state while the plugin is away.</summary>
+    public IReadOnlyList<string> DisabledTools()
+    {
+        lock (_gate) return [.. _disabled.Order(StringComparer.Ordinal)];
+    }
+
+    /// <summary>Switches off the tools the user switched off in an earlier run, before any client connects; names of tools that are not offered now are kept for when they are.</summary>
+    public void RestoreDisabled(IEnumerable<string> tools)
+    {
+        lock (_gate) _disabled.UnionWith(tools);
+    }
+
     public bool IsEnabled(string tool)
     {
-        lock (_gate) return McpTools.Find(tool) is not null && !_disabled.Contains(tool);
+        if (McpTools.Find(tool) is null && !IsPluginTool(tool)) return false;
+        lock (_gate) return !_disabled.Contains(tool);
     }
 
     public void SetEnabled(string tool, bool enabled)
     {
-        if (McpTools.Find(tool) is null) throw new ArgumentException($"There is no tool '{tool}'.", nameof(tool));
+        if (McpTools.Find(tool) is null && !IsPluginTool(tool)) throw new ArgumentException($"There is no tool '{tool}'.", nameof(tool));
         lock (_gate)
         {
             if (!(enabled ? _disabled.Remove(tool) : _disabled.Add(tool))) return;
@@ -155,13 +172,15 @@ public sealed class McpServer
 
     internal IReadOnlyList<McpToolDefinition> EnabledTools()
     {
-        lock (_gate) return [.. McpTools.All.Where(t => !_disabled.Contains(t.Name)).Concat(PluginDefinitions())];
+        lock (_gate) return [.. McpTools.All.Concat(PluginDefinitions()).Where(t => !_disabled.Contains(t.Name))];
     }
 
     internal McpToolDefinition? FindEnabled(string name)
     {
-        lock (_gate) return McpTools.Find(name) is { } tool ? (!_disabled.Contains(name) ? tool : null) : PluginDefinitions().FirstOrDefault(t => t.Name == name);
+        lock (_gate) return _disabled.Contains(name) ? null : McpTools.Find(name) ?? PluginDefinitions().FirstOrDefault(t => t.Name == name);
     }
+
+    private bool IsPluginTool(string name) => McpTools.Find(name) is null && (Options.PluginTools?.Invoke() ?? []).Any(t => t.Name == name);
 
     /// <summary>The tools of plugins as definitions of the server; a name that a built-in tool has is not offered.</summary>
     private IEnumerable<McpToolDefinition> PluginDefinitions() =>
