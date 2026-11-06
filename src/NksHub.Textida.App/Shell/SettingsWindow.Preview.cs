@@ -8,6 +8,8 @@ using Avalonia.Media.Immutable;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
+
 
 namespace NksHub.Textida.App.Shell;
 
@@ -61,8 +63,11 @@ internal sealed partial class SettingsWindow
         internal EditorColorTheme? Look { get; private set; }
 
         /// <summary>The text colour of the first piece of the preview that holds <paramref name="fragment"/>, for tests.</summary>
-        internal Color? ForegroundOf(string fragment) =>
-            _lines.Children.OfType<TextBlock>().SelectMany(t => t.Inlines ?? []).OfType<Run>().FirstOrDefault(r => (r.Text ?? "").Contains(fragment, StringComparison.Ordinal))?.Foreground is ISolidColorBrush b ? b.Color : null;
+        internal Color? ForegroundOf(string fragment) => RunOf(fragment)?.Foreground is ISolidColorBrush b ? b.Color : null;
+
+        /// <summary>The first piece of the preview that holds <paramref name="fragment"/>, for tests.</summary>
+        internal Run? RunOf(string fragment) =>
+            _lines.Children.OfType<TextBlock>().SelectMany(t => t.Inlines ?? []).OfType<Run>().FirstOrDefault(r => (r.Text ?? "").Contains(fragment, StringComparison.Ordinal));
 
         public void Refresh()
         {
@@ -86,9 +91,9 @@ internal sealed partial class SettingsWindow
             Background = Solid(look[EditorColorTheme.Background]);
             // one colour per character from the grammar, as the editor and the export colour it
             string all = string.Join("\n", code);
-            var colors = new Color?[all.Length];
+            var colors = new (Color? Color, TokenStyle Style)[all.Length];
             foreach (var segment in HighlightExport.Segments(all, LanguageModes.Tokenizer("javascript"), null, look.Palette))
-                for (int k = segment.Start; k < segment.Start + segment.Length; k++) colors[k] = segment.Color;
+                for (int k = segment.Start; k < segment.Start + segment.Length; k++) colors[k] = (segment.Color, segment.Style);
             int lineStart = 0;
             _lines.Children.Clear();
             _lines.RowDefinitions.Clear();
@@ -116,11 +121,13 @@ internal sealed partial class SettingsWindow
                 // the word "text" of the fourth line stands for a selection
                 int selected = i == 3 ? code[i].IndexOf("text", StringComparison.Ordinal) : -1;
                 var run = new System.Text.StringBuilder();
-                (Color? Color, bool Selected) runKey = default;
+                (Color? Color, TokenStyle Style, bool Selected) runKey = default;
                 void Flush()
                 {
                     if (run.Length == 0) return;
                     var piece = new Run(run.ToString()) { Foreground = Solid(runKey.Color ?? look[EditorColorTheme.Foreground]) };
+                    if (runKey.Style.HasFlag(TokenStyle.Bold)) piece.FontWeight = FontWeight.Bold;
+                    if (runKey.Style.HasFlag(TokenStyle.Italic)) piece.FontStyle = FontStyle.Italic;
                     if (runKey.Selected) piece.Background = Solid(look[EditorColorTheme.Selection]);
                     text.Inlines!.Add(piece);
                     run.Clear();
@@ -128,7 +135,7 @@ internal sealed partial class SettingsWindow
                 for (int c = 0; c < code[i].Length; c++)
                 {
                     char ch = code[i][c];
-                    var key = (colors[lineStart + c], selected >= 0 && c >= selected && c < selected + 4);
+                    var key = (colors[lineStart + c].Color, colors[lineStart + c].Style, selected >= 0 && c >= selected && c < selected + 4);
                     if (key != runKey) Flush();
                     runKey = key;
                     run.Append(ch switch { '\t' => whitespace ? "→   " : "    ", ' ' when whitespace => "·", _ => ch.ToString() });

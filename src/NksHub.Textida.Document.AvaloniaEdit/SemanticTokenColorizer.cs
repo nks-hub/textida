@@ -5,7 +5,7 @@ namespace NksHub.Textida.AvaloniaEditAdapter;
 
 /// <summary>
 /// Colours stretches of text by the type a language server gave them (<c>keyword</c>, <c>class</c>, <c>parameter</c>, ...) with the colours of the syntax palette, over the colours of the
-/// syntax colorizer. Only the foreground changes; the text and its offsets are untouched.
+/// syntax colorizer. Only the foreground changes, with the bold or italic the theme gives the kind; the text and its offsets are untouched.
 /// </summary>
 public sealed class SemanticTokenColorizer(Func<SyntaxPalette> palette) : DocumentColorizingTransformer
 {
@@ -50,7 +50,12 @@ public sealed class SemanticTokenColorizer(Func<SyntaxPalette> palette) : Docume
             var (start, end, kind) = _tokens[i];
             int from = Math.Max(start, line.Offset), to = Math.Min(end, line.EndOffset);
             if (to <= from || colors.GetBrush(kind) is not { } brush) continue;
-            ChangeLinePart(from, to, element => element.TextRunProperties.SetForegroundBrush(brush));
+            var style = colors.GetStyle(kind);
+            ChangeLinePart(from, to, element =>
+            {
+                element.TextRunProperties.SetForegroundBrush(brush);
+                SyntaxPalette.ApplyStyle(element.TextRunProperties, style);
+            });
         }
     }
 }

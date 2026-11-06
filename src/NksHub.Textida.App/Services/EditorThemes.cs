@@ -44,6 +44,9 @@ internal sealed class EditorThemes
 
     public IReadOnlyDictionary<string, Color> Overrides => EditorColorTheme.ParseOverrides(_app.Workbench.Settings.GetString(ColorsSetting));
 
+    /// <summary>The bold and italic of <c>editor.themeColors</c> over the theme.</summary>
+    public IReadOnlyDictionary<string, TokenStyle> StyleOverrides => EditorColorTheme.ParseStyleOverrides(_app.Workbench.Settings.GetString(ColorsSetting));
+
     public EditorColorTheme? Find(string id) => All.FirstOrDefault(t => t.Id == id);
 
     /// <summary>The name of a theme as the list shows it.</summary>
@@ -66,7 +69,7 @@ internal sealed class EditorThemes
         else
         {
             var chosen = Find(SelectedId);
-            theme = (chosen ?? FromResources(variant)).With(Overrides);
+            theme = (chosen ?? FromResources(variant)).With(Overrides, StyleOverrides);
         }
         return _active[variant] = theme;
     }
@@ -129,10 +132,14 @@ internal sealed class EditorThemes
         return EditorColorTheme.UserPrefix + file;
     }
 
-    /// <summary>Reads a TextMate or VS Code theme and keeps it as a custom theme; a name already taken gets a number. Throws <see cref="FormatException"/> or an I/O error.</summary>
-    public string Import(string path)
+    /// <summary>
+    /// Reads a TextMate or VS Code theme and keeps it as a custom theme; a name already taken gets a number. Throws <see cref="FormatException"/> or an I/O error.
+    /// <paramref name="semanticIgnored"/> tells that the theme had semantic token colours, which were left out.
+    /// </summary>
+    public string Import(string path, out bool semanticIgnored)
     {
         var theme = EditorColorTheme.Load(path, "import");
+        semanticIgnored = theme.SemanticColorsIgnored;
         string name = theme.Name.Trim().Length > 0 ? theme.Name.Trim() : Path.GetFileNameWithoutExtension(path);
         string unique = name;
         for (int n = 2; File.Exists(Path.Combine(Folder, FileNameOf(unique) + ".json")); n++) unique = $"{name} ({n})";

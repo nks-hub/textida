@@ -9,7 +9,9 @@ using Avalonia.Media.Immutable;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Colors;
+
 
 namespace NksHub.Textida.App.Shell;
 
@@ -135,7 +137,8 @@ internal sealed partial class SettingsWindow
         string? picked = await _app.Dialogs.PickFileAsync(this, Loc.Get(K.ColorThemeImportTitle), Loc.Get(K.ColorThemeImportFilter), ["*.tmTheme", "*.json"]);
         if (picked is null) return;
         string id;
-        try { id = _app.EditorThemes.Import(picked); }
+        bool semanticIgnored;
+        try { id = _app.EditorThemes.Import(picked, out semanticIgnored); }
         catch (Exception e) when (e is FormatException or IOException or UnauthorizedAccessException)
         {
             _themeNotice = Loc.Get(K.ColorThemeImportFailed, ("reason", e.Message));
@@ -144,6 +147,7 @@ internal sealed partial class SettingsWindow
             return;
         }
         _themeNotice = Loc.Get(K.ColorThemeImported, ("name", ThemeLabel(id)));
+        if (semanticIgnored) _themeNotice += " " + Loc.Get(K.ColorThemeSemanticIgnored);
         ChooseTheme(id);
     }
 
@@ -216,15 +220,45 @@ internal sealed partial class SettingsWindow
         var panel = new StackPanel { Spacing = 4 };
         AutomationProperties.SetName(panel, title);
         var cells = new Dictionary<string, (Border Swatch, Button Reset)>(StringComparer.Ordinal);
+        var toggles = new Dictionary<string, (ToggleButton Bold, ToggleButton Italic)>(StringComparer.Ordinal);
+        bool showing = false;
         void Show()
         {
             var theme = _app.EditorThemes.Active(_app.ActualThemeVariant);
             var overrides = _app.EditorThemes.Overrides;
+            var styles = _app.EditorThemes.StyleOverrides;
+            showing = true;
             foreach (var (key, (swatch, reset)) in cells)
             {
                 swatch.Background = Solid(theme[key]);
-                reset.IsVisible = overrides.ContainsKey(key);
+                reset.IsVisible = overrides.ContainsKey(key) || styles.ContainsKey(key);
+                if (toggles.TryGetValue(key, out var pair))
+                {
+                    pair.Bold.IsChecked = theme.Style(key).HasFlag(TokenStyle.Bold);
+                    pair.Italic.IsChecked = theme.Style(key).HasFlag(TokenStyle.Italic);
+                }
             }
+            showing = false;
+        }
+        ToggleButton StyleToggle(string key, string label, TokenStyle flag)
+        {
+            bool bold = flag == TokenStyle.Bold;
+            var toggle = new ToggleButton
+            {
+                Content = new TextBlock { Text = Loc.Get(bold ? K.ThemeStyleBold : K.ThemeStyleItalic), FontWeight = bold ? FontWeight.Bold : FontWeight.Normal, FontStyle = bold ? FontStyle.Normal : FontStyle.Italic },
+                Padding = new Thickness(6, 0), MinWidth = 24, MinHeight = 20, VerticalAlignment = VerticalAlignment.Center, Tag = key,
+            };
+            toggle.Classes.Add("themestyle");
+            string name = Loc.Get(bold ? K.ThemeStyleBoldA11y : K.ThemeStyleItalicA11y, ("title", label));
+            AutomationProperties.SetName(toggle, name);
+            ToolTip.SetTip(toggle, name);
+            toggle.IsCheckedChanged += (_, _) =>
+            {
+                if (showing) return;
+                var now = _app.EditorThemes.Active(_app.ActualThemeVariant).Style(key);
+                SetThemeStyle(key, toggle.IsChecked == true ? now | flag : now & ~flag, error);
+            };
+            return toggle;
         }
         void Group(string heading, IEnumerable<string> keys)
         {
@@ -261,9 +295,19 @@ internal sealed partial class SettingsWindow
                     FlyoutBase.SetAttachedFlyout(button, flyout);
                     FlyoutBase.ShowAttachedFlyout(button);
                 };
-                reset.Click += (_, _) => SetThemeColor(key, null, error);
+                reset.Click += (_, _) => ResetThemeKey(key, error);
                 cells[key] = (swatch, reset);
-                wrap.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Width = 250, Margin = new Thickness(0, 0, 8, 6), Children = { button, reset } });
+                var cell = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, Width = 250, Margin = new Thickness(0, 0, 8, 6), Children = { button } };
+                if (EditorColorTheme.StyleKinds.Contains(key))
+                {
+                    var pair = (StyleToggle(key, label, TokenStyle.Bold), StyleToggle(key, label, TokenStyle.Italic));
+                    toggles[key] = pair;
+                    cell.Width = 310;
+                    cell.Children.Add(pair.Item1);
+                    cell.Children.Add(pair.Item2);
+                }
+                cell.Children.Add(reset);
+                wrap.Children.Add(cell);
             }
             panel.Children.Add(wrap);
         }
@@ -282,7 +326,30 @@ internal sealed partial class SettingsWindow
         var overrides = _app.EditorThemes.Overrides.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
         if (color is { } c) overrides[key] = c;
         else overrides.Remove(key);
-        string value = EditorColorTheme.FormatOverrides(overrides);
+        CommitThemeOverrides(overrides, _app.EditorThemes.StyleOverrides, error);
+    }
+
+    /// <summary>Makes a token kind bold, italic, both or plain over the theme, as the B and I toggles do; the style the chosen theme has itself needs no custom entry.</summary>
+    internal void SetThemeStyle(string key, TokenStyle style, TextBlock? error = null)
+    {
+        var styles = _app.EditorThemes.StyleOverrides.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        var own = _app.EditorThemes.Find(_app.EditorThemes.SelectedId)?.Style(key) ?? TokenStyle.None;
+        if (style == own) styles.Remove(key);
+        else styles[key] = style;
+        CommitThemeOverrides(_app.EditorThemes.Overrides, styles, error);
+    }
+
+    /// <summary>Takes the custom colour and style of a key off, back to the theme.</summary>
+    private void ResetThemeKey(string key, TextBlock? error)
+    {
+        var overrides = _app.EditorThemes.Overrides.Where(p => p.Key != key).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        var styles = _app.EditorThemes.StyleOverrides.Where(p => p.Key != key).ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
+        CommitThemeOverrides(overrides, styles, error);
+    }
+
+    private void CommitThemeOverrides(IReadOnlyDictionary<string, Color> colors, IReadOnlyDictionary<string, TokenStyle> styles, TextBlock? error)
+    {
+        string value = EditorColorTheme.FormatOverrides(colors, styles);
         if (value == CurrentText(EditorThemes.ColorsSetting)) return;
         Commit(EditorThemes.ColorsSetting, value.Length == 0 ? null : System.Text.Json.Nodes.JsonValue.Create(value), error ?? new TextBlock());
         _themeColorsShow?.Invoke();

@@ -105,8 +105,12 @@ public sealed class SyntaxColorizer : DocumentColorizingTransformer, IDisposable
             var brush = palette.GetBrush(token.Kind);
             int end = Math.Min(token.End, line.Length);
             if (brush is null || token.Start >= end) continue;
-            ChangeLinePart(line.Offset + token.Start, line.Offset + end,
-                element => element.TextRunProperties.SetForegroundBrush(brush));
+            var style = palette.GetStyle(token.Kind);
+            ChangeLinePart(line.Offset + token.Start, line.Offset + end, element =>
+            {
+                element.TextRunProperties.SetForegroundBrush(brush);
+                SyntaxPalette.ApplyStyle(element.TextRunProperties, style);
+            });
         }
     }
 

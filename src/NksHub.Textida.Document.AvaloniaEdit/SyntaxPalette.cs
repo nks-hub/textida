@@ -1,14 +1,28 @@
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using AvaloniaEdit.Rendering;
 
 namespace NksHub.Textida.AvaloniaEditAdapter;
+
+/// <summary>Bold and italic of a token kind, as a colour theme declares them.</summary>
+[Flags]
+public enum TokenStyle
+{
+    None = 0,
+    Bold = 1,
+    Italic = 2,
+}
 
 public sealed class SyntaxPalette
 {
     private readonly IReadOnlyDictionary<string, IBrush> brushes;
+    private readonly IReadOnlyDictionary<string, TokenStyle> styles;
 
-    public SyntaxPalette(IReadOnlyDictionary<string, Color> colors) =>
+    public SyntaxPalette(IReadOnlyDictionary<string, Color> colors, IReadOnlyDictionary<string, TokenStyle>? styles = null)
+    {
         brushes = colors.ToDictionary(pair => pair.Key, pair => (IBrush)new ImmutableSolidColorBrush(pair.Value), StringComparer.Ordinal);
+        this.styles = styles ?? new Dictionary<string, TokenStyle>();
+    }
 
     public static SyntaxPalette Light { get; } = Create(false);
     public static SyntaxPalette Dark { get; } = Create(true);
@@ -23,6 +37,27 @@ public sealed class SyntaxPalette
             if (dot < 0) return null;
             kind = kind[..dot];
         }
+    }
+
+    /// <summary>Bold and italic of a kind; a dotted kind takes the style of the nearest kind the palette colours, as <see cref="GetBrush"/> takes its colour.</summary>
+    public TokenStyle GetStyle(string kind)
+    {
+        if (styles.Count == 0) return TokenStyle.None;
+        while (true)
+        {
+            if (brushes.ContainsKey(kind)) return styles.GetValueOrDefault(kind);
+            int dot = kind.LastIndexOf('.');
+            if (dot < 0) return TokenStyle.None;
+            kind = kind[..dot];
+        }
+    }
+
+    /// <summary>Makes the text of an editor element bold or italic as <paramref name="style"/> asks; what the style leaves out keeps the face of the editor.</summary>
+    public static void ApplyStyle(VisualLineElementTextRunProperties properties, TokenStyle style)
+    {
+        if (style == TokenStyle.None) return;
+        var face = properties.Typeface;
+        properties.SetTypeface(new Typeface(face.FontFamily, style.HasFlag(TokenStyle.Italic) ? FontStyle.Italic : face.Style, style.HasFlag(TokenStyle.Bold) ? FontWeight.Bold : face.Weight, face.Stretch));
     }
 
     private static SyntaxPalette Create(bool dark)
