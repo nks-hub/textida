@@ -469,7 +469,8 @@ public class OccurrenceHighlightTests : IDisposable
 
         var map = tab.Minimap!;
         int height = (int)Math.Round(map.Bounds.Height);
-        var expectedRows = new[] { (int)(1500L * height / 3000), (int)(2900L * height / 3000) };
+        long lines = surface.Document.LineCount; // 3001: the text ends with a line break
+        var expectedRows = new[] { (int)(1500L * height / lines), (int)(2900L * height / lines) };
         Assert.Equal(expectedRows, OccurrenceStrip.Rows(scan.Lines, surface.Document.LineCount, height));
 
         var on = Capture();
