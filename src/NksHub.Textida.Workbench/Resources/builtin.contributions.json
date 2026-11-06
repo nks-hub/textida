@@ -17,7 +17,8 @@
     {
       "id": "nks.file.clearRecent",
       "title": "cmd.file.clearRecent",
-      "category": "cat.file"
+      "category": "cat.file",
+      "icon": "trash"
     },
     {
       "id": "nks.file.save",
@@ -306,7 +307,7 @@
       "id": "nks.view.commandPalette",
       "title": "cmd.view.commandPalette",
       "category": "cat.view",
-      "icon": "palette"
+      "icon": "command-palette"
     },
     {
       "id": "nks.view.toggleWordWrap",
