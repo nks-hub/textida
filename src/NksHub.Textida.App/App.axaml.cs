@@ -508,6 +508,10 @@ public sealed partial class App : Application
                 ApplySecretFilePatterns();
                 foreach (var w in _windows) w.RefreshSecrets();
                 break;
+            case MainWindow.IconSkinSetting:
+                IconSkin.Use(Workbench.Settings.GetString(MainWindow.IconSkinSetting));
+                foreach (var w in _windows) w.RefreshToolbar();
+                break;
         }
     }
 

@@ -196,6 +196,10 @@
         "workbench.keymapProfile": {
           "type": "string",
           "default": "default",
+          "enum": [
+            "default",
+            "pspad"
+          ],
           "description": "Keymap profile. Id of the keymap profile layered over the default keys.",
           "x-scope": "application"
         },
@@ -645,7 +649,7 @@
         "appearance.iconSkin": {
           "type": "string",
           "default": "",
-          "description": "Bitmap icon skin. A folder of icon pictures (see the help Bitmap icon skin). Empty means the vector icons. The command View, Bitmap Icon Skin sets it.",
+          "description": "Icon set. The built-in vector icons, or a folder of your own icon pictures. Empty means the built-in icons.",
           "x-scope": "application"
         },
         "plugins.sandbox": {

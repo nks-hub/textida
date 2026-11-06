@@ -3,15 +3,19 @@ using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Workbench.Contributions;
+using NksHub.Textida.Workbench.Keys;
 using NksHub.Textida.Workbench.Settings;
 
 namespace NksHub.Textida.App.Shell;
 
-/// <summary>The rows of the settings page: one setting with its editor, or one shortcut.</summary>
+/// <summary>
+/// The rows of the settings page. A setting is a row of a card: on the left its title with a mark when the user changed it, its description and a line with the default value, the range and where the
+/// value comes from; its control on the right (or under the texts for a control that needs the width) with the way back to the default beside it. A shortcut is a row with a button that catches a new one.
+/// </summary>
 internal sealed partial class SettingsWindow
 {
     private static string SourceName(SettingSource source) => source switch
@@ -37,6 +41,8 @@ internal sealed partial class SettingsWindow
         [("workbench.uiLanguage", "en")] = K.SettingsValueLanguageEn,
         [("workbench.uiLanguage", "sk")] = K.SettingsValueLanguageSk,
         [("workbench.uiLanguage", "de")] = K.SettingsValueLanguageDe,
+        [("workbench.keymapProfile", "default")] = K.SettingsValueEditorProfileDefault,
+        [("workbench.keymapProfile", "pspad")] = K.SettingsValueEditorProfilePspad,
         [("editor.wordWrap", "off")] = K.SettingsValueEditorWordWrapOff,
         [("editor.wordWrap", "on")] = K.SettingsValueEditorWordWrapOn,
         [("editor.renderWhitespace", "none")] = K.SettingsValueEditorRenderWhitespaceNone,
@@ -85,26 +91,127 @@ internal sealed partial class SettingsWindow
 
     internal static string ValueLabel(string key, string value) => ValueLabels.TryGetValue((key, value), out var textKey) ? Loc.Get(textKey) : value;
 
+    /// <summary>A value as the user reads it: on and off for a switch, the label of a choice, the name of an encoding, "empty" for an empty text.</summary>
+    internal static string ValueWords(SettingDefinition definition, JsonNode? value)
+    {
+        if (value is JsonValue v && v.TryGetValue<bool>(out var on)) return Loc.Get(on ? K.SettingsOn : K.SettingsOff);
+        if (value is JsonValue n && SettingRules.ToNumber(n) is { } number) return number.ToString(CultureInfo.CurrentCulture);
+        string text = value is JsonValue s && s.TryGetValue<string>(out var str) ? str : SettingRules.ToText(value);
+        if (text.Length == 0) return definition.Format switch
+        {
+            SettingFormats.IconSet => Loc.Get(K.SettingsIconSetBuiltin),
+            SettingFormats.Encoding => Loc.Get(K.SettingsEncodingDefault),
+            _ => Loc.Get(K.SettingsEmptyValue),
+        };
+        if (definition.Format == SettingFormats.Multi) return string.Join(", ", SettingFormats.Split(definition, text).Select(item => ValueLabel(definition.Key, item)));
+        return ValueLabel(definition.Key, text);
+    }
+
     private static TextBlock Marked(string text, IReadOnlyList<string> words, TextBlock block)
     {
         SearchHighlight.Fill(block, text, words, ThemeColors.Mark);
         return block;
     }
 
-    private Control KeyRow(SearchHit hit, IReadOnlyList<string> words)
+    /// <summary>The parts of a setting row that follow its value without building the page again.</summary>
+    private sealed record RowView(Border Row, string Title, TextBlock Mark, TextBlock Source, Button Reset, TextBlock Error);
+
+    private readonly Dictionary<string, RowView> _rowViews = new(StringComparer.Ordinal);
+
+    // ---- cards ----
+
+    /// <summary>A card of the page: an optional section heading and rows divided by thin lines.</summary>
+    private static (Border Card, StackPanel Body) Card(string? heading, string headingClass = "settingsection")
     {
-        var title = Marked(hit.Title, words, new TextBlock { FontWeight = FontWeight.SemiBold });
-        var shortcut = Marked(hit.Shortcut ?? "", words, new TextBlock { FontFamily = new FontFamily("Cascadia Mono, Consolas, Menlo, monospace") });
-        var info = new TextBlock { Text = Loc.Get(K.SettingsShortcutSource, ("source", hit.ShortcutSource ?? ""), ("id", hit.Id)), Opacity = 0.65, FontSize = 12 };
-        var stack = new StackPanel { Spacing = 2, Children = { new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { title, shortcut } }, info } };
+        var body = new StackPanel();
+        if (heading is not null)
+        {
+            var header = new TextBlock { Text = heading, Margin = new Thickness(14, 10, 14, 4), TextWrapping = TextWrapping.Wrap };
+            header.Classes.Add(headingClass);
+            body.Children.Add(header);
+        }
+        var card = new Border { Child = body, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Margin = new Thickness(0, 2, 0, 6) };
+        card.Classes.Add("settingcard");
+        return (card, body);
+    }
+
+    private static void AddRow(StackPanel body, Control row)
+    {
+        if (body.Children.OfType<Border>().Any(b => b.Classes.Contains("settingrow")))
+        {
+            var divider = new Border { Height = 1, Margin = new Thickness(14, 0) };
+            divider.Classes.Add("settingdivider");
+            body.Children.Add(divider);
+        }
+        body.Children.Add(row);
+    }
+
+    private static Border RowFrame(Control content, string id)
+    {
+        var row = new Border { Child = content, Padding = new Thickness(14, 10), Tag = id, CornerRadius = new CornerRadius(6) };
+        row.Classes.Add("settingrow");
+        return row;
+    }
+
+    // ---- a shortcut ----
+
+    private Control KeyRow(SearchHit hit, IReadOnlyList<string> words, HashSet<string> userShortcuts)
+    {
+        var wb = _app.Workbench;
+        var title = Marked(hit.Title, words, new TextBlock { FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
+        var info = new TextBlock { Text = Loc.Get(K.SettingsShortcutSource, ("source", hit.ShortcutSource ?? ""), ("id", hit.Id)), Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        var texts = new StackPanel { Spacing = 2, Children = { title, info } };
         if (hit.HasConflict)
             foreach (var c in hit.Conflicts.Where(c => c.IsAmbiguous))
-                stack.Children.Add(Banner(Loc.Get(K.SettingsRowConflict, ("other", c.Winner.CommandId == hit.Id ? c.Loser.CommandId : c.Winner.CommandId))));
-        var row = new Border { Child = stack, Padding = new Thickness(12, 8), Tag = hit.Id, CornerRadius = new CornerRadius(6) };
-        row.Classes.Add("settingrow");
+                texts.Children.Add(Banner(Loc.Get(K.SettingsRowConflict, ("other", c.Winner.CommandId == hit.Id ? c.Loser.CommandId : c.Winner.CommandId))));
+        var error = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };
+        texts.Children.Add(error);
+
+        var shortcut = Marked(hit.Shortcut is { Length: > 0 } s ? s : Loc.Get(K.SettingsShortcutNone), words, new TextBlock { FontFamily = new FontFamily("Cascadia Mono, Consolas, Menlo, monospace"), VerticalAlignment = VerticalAlignment.Center });
+        var capture = ShortcutCapture(Loc.Get(K.SettingsShortcutChange), Loc.Get(K.SettingsShortcutChangeA11y, ("title", hit.Title)), sequence =>
+        {
+            if (wb.SetUserShortcut(hit.Id, sequence) is { } problem) ShowError(error, Loc.Get(K.SettingsShortcutFailed, ("reason", problem)));
+            else ShortcutsChanged(hit.Id);
+        });
+        var reset = new Button { Content = Loc.Get(K.SettingsShortcutReset), IsVisible = userShortcuts.Contains(hit.Id), Padding = new Thickness(8, 2), MinHeight = 24, VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(reset, Loc.Get(K.SettingsShortcutResetA11y, ("title", hit.Title)));
+        reset.Click += (_, _) =>
+        {
+            if (wb.SetUserShortcut(hit.Id, null) is { } problem) ShowError(error, Loc.Get(K.SettingsShortcutFailed, ("reason", problem)));
+            else ShortcutsChanged(hit.Id);
+        };
+        var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center, Children = { shortcut, capture, reset } };
+
+        var row = RowFrame(TwoColumns(texts, controls), hit.Id);
         AutomationProperties.SetName(row, $"{hit.Title} {hit.Shortcut}");
         return row;
     }
+
+    /// <summary>The keymap changed: the menus show the new shortcut and the page lists it, framed.</summary>
+    private void ShortcutsChanged(string commandId)
+    {
+        foreach (var window in _app.Windows) window.ApplyTexts();
+        ShowKey(commandId, keepSearch: true);
+    }
+
+    private static void ShowError(TextBlock error, string text)
+    {
+        error.Text = text;
+        error.IsVisible = true;
+    }
+
+    /// <summary>Texts on the left, controls on the right; the texts wrap and the controls keep their width.</summary>
+    private static Grid TwoColumns(Control texts, Control controls)
+    {
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        Grid.SetColumn(controls, 1);
+        controls.Margin = new Thickness(16, 0, 0, 0);
+        grid.Children.Add(texts);
+        grid.Children.Add(controls);
+        return grid;
+    }
+
+    // ---- a setting ----
 
     private Control SettingRow(SearchHit hit, IReadOnlyList<string> words, List<string> changedKeys)
     {
@@ -114,70 +221,70 @@ internal sealed partial class SettingsWindow
         bool changed = resolved.Source is SettingSource.User or SettingSource.UserLanguage;
         if (changed) changedKeys.Add(hit.Id);
 
-        var title = Marked(hit.Title, words, new TextBlock { FontWeight = FontWeight.SemiBold });
-        var key = Marked(hit.Id, words, new TextBlock { Opacity = 0.55, FontSize = 12, VerticalAlignment = VerticalAlignment.Bottom });
-        var mark = new TextBlock { Text = Loc.Get(K.SettingsChanged), IsVisible = changed, VerticalAlignment = VerticalAlignment.Bottom };
+        var title = Marked(hit.Title, words, new TextBlock { FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap });
+        var mark = new TextBlock { Text = Loc.Get(K.SettingsChanged), IsVisible = changed, VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(6, 0) };
         mark.Classes.Add("settingchanged");
-        var description = Marked(hit.Description ?? "", words, new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.8 });
-        var source = new TextBlock { Text = Loc.Get(K.SettingsValueSource, ("source", SourceName(resolved.Source) + (resolved.Source == SettingSource.EditorConfig && resolved.LayerName is { } layer ? " (" + layer + ")" : ""))), Opacity = 0.65, FontSize = 12 };
+        var header = new WrapPanel { Orientation = Orientation.Horizontal, Children = { title, mark } };
+        var description = Marked(hit.Description ?? "", words, new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.8, IsVisible = !string.IsNullOrEmpty(hit.Description) });
+
+        var meta = new List<string> { Loc.Get(K.SettingsDefaultValue, ("value", ValueWords(definition, definition.Default))) };
+        if (RangeText(definition) is { } range) meta.Add(range);
+        var defaults = new TextBlock { Text = string.Join(" · ", meta), Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        var source = new TextBlock { Text = SourceText(resolved), Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        var key = Marked(hit.Id, words, new TextBlock { Opacity = 0.5, FontSize = 11, TextWrapping = TextWrapping.Wrap });
         var error = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };
 
-        var editor = MakeEditor(definition, resolved, error, hit.Title);
-        var reset = new Button { Content = Loc.Get(K.SettingsReset), IsVisible = changed, Padding = new Thickness(8, 2), MinHeight = 24 };
+        var editor = MakeEditor(definition, resolved, error, hit.Title, out bool wide);
+        var reset = new Button { Content = Loc.Get(K.SettingsReset), IsVisible = changed, Padding = new Thickness(8, 2), MinHeight = 24, VerticalAlignment = VerticalAlignment.Top };
         AutomationProperties.SetName(reset, Loc.Get(K.SettingsResetRowA11y, ("title", hit.Title)));
-        reset.Click += (_, _) => Commit(hit.Id, null, error);
+        reset.Click += (_, _) => Commit(hit.Id, null, error, rebuild: true);
 
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { title, key, mark } };
-        var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { editor, reset } };
-        var stack = new StackPanel { Spacing = 3, Children = { header, description, controls, source, error } };
-        var row = new Border { Child = stack, Padding = new Thickness(12, 8), Tag = hit.Id, CornerRadius = new CornerRadius(6) };
-        row.Classes.Add("settingrow");
-        AutomationProperties.SetName(row, changed ? Loc.Get(K.SettingsRowChanged, ("title", hit.Title), ("value", resolved.ValueText)) : $"{hit.Title}: {resolved.ValueText}");
+        var texts = new StackPanel { Spacing = 3, Children = { header, description } };
+        Control content;
+        if (wide)
+        {
+            texts.Children.Add(editor);
+            editor.Margin = new Thickness(0, 6, 0, 0);
+            texts.Children.Add(defaults);
+            texts.Children.Add(new WrapPanel { Children = { source, Spacer(), key } });
+            texts.Children.Add(error);
+            content = TwoColumns(texts, reset);
+        }
+        else
+        {
+            texts.Children.Add(defaults);
+            texts.Children.Add(new WrapPanel { Children = { source, Spacer(), key } });
+            texts.Children.Add(error);
+            var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Top, Children = { editor, reset } };
+            content = TwoColumns(texts, controls);
+        }
+        var row = RowFrame(content, hit.Id);
+        _rowViews[hit.Id] = new RowView(row, hit.Title, mark, source, reset, error);
+        AutomationProperties.SetName(row, RowName(hit.Title, resolved, changed));
         return row;
     }
 
-    private Control MakeEditor(Workbench.Contributions.SettingDefinition definition, ResolvedSetting resolved, TextBlock error, string title)
+    private static TextBlock Spacer() => new() { Text = "  ", FontSize = 11 };
+
+    private static string RowName(string title, ResolvedSetting resolved, bool changed) =>
+        changed ? Loc.Get(K.SettingsRowChanged, ("title", title), ("value", resolved.ValueText)) : $"{title}: {resolved.ValueText}";
+
+    private static string SourceText(ResolvedSetting resolved) =>
+        Loc.Get(K.SettingsValueSource, ("source", SourceName(resolved.Source) + (resolved.Source == SettingSource.EditorConfig && resolved.LayerName is { } layer ? " (" + layer + ")" : "")));
+
+    private static string? RangeText(SettingDefinition d)
     {
-        string id = definition.Key;
-        if (definition.Type == "boolean")
+        string N(double v) => v.ToString(CultureInfo.CurrentCulture);
+        return (d.Minimum, d.Maximum) switch
         {
-            var box = new CheckBox { IsChecked = resolved.Value.GetValue<bool>() };
-            AutomationProperties.SetName(box, title);
-            box.IsCheckedChanged += (_, _) => Commit(id, JsonValue.Create(box.IsChecked == true), error);
-            return box;
-        }
-        if (definition.Values is { Count: > 0 } values)
-        {
-            var combo = new ComboBox { ItemsSource = values, SelectedItem = resolved.Value.GetValue<string>(), MinWidth = 180 };
-            if (values.Any(v => ValueLabels.ContainsKey((id, v))))
-                combo.ItemTemplate = new FuncDataTemplate<string>((tag, _) => new TextBlock { Text = ValueLabel(id, tag ?? "") }, supportsRecycling: true);
-            AutomationProperties.SetName(combo, title);
-            combo.SelectionChanged += (_, _) => { if (combo.SelectedItem is string s && s != resolved.Value.GetValue<string>()) Commit(id, JsonValue.Create(s), error); };
-            return combo;
-        }
-        string current = resolved.Value is JsonValue jv && jv.TryGetValue<string>(out var str) ? str : resolved.ValueText;
-        var text = new TextBox { Text = current, MinWidth = 260 };
-        AutomationProperties.SetName(text, title);
-        void Apply()
-        {
-            string value = text.Text ?? "";
-            JsonNode? node = definition.Type switch
-            {
-                "integer" when long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l) => JsonValue.Create(l),
-                "number" when double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) => JsonValue.Create(d),
-                "string" => JsonValue.Create(value),
-                _ => null,
-            };
-            if (node is null) { error.Text = Loc.Get(K.SettingsInvalidNumber, ("text", value)); error.IsVisible = true; return; }
-            if (value == current) return;
-            Commit(id, node, error);
-        }
-        text.LostFocus += (_, _) => Apply();
-        text.KeyDown += (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) { Apply(); e.Handled = true; } };
-        return text;
+            ({ } min, { } max) => Loc.Get(K.SettingsRange, ("min", N(min)), ("max", N(max))),
+            ({ } min, null) => Loc.Get(K.SettingsRangeMin, ("min", N(min))),
+            _ => null,
+        };
     }
 
-    private void Commit(string key, JsonNode? value, TextBlock error)
+    /// <summary>Writes a value (null: back to the default). The row follows in place, so a control the user is in keeps the keyboard; <paramref name="rebuild"/> builds the page again (the editors show the new value).</summary>
+    private void Commit(string key, JsonNode? value, TextBlock error, bool rebuild = false)
     {
         _editing = true;
         string? problem;
@@ -185,10 +292,27 @@ internal sealed partial class SettingsWindow
         finally { _editing = false; }
         if (problem is not null)
         {
-            error.Text = Loc.Get(K.SettingsRefused, ("reason", problem));
-            error.IsVisible = true;
+            ShowError(error, Loc.Get(K.SettingsRefused, ("reason", problem)));
             return;
         }
-        RefreshKeepingPlace();
+        error.IsVisible = false;
+        // the profile puts values of its own into many settings
+        if (rebuild || key == "editor.profile") RefreshKeepingPlace();
+        else UpdateRow(key);
+    }
+
+    private void UpdateRow(string key)
+    {
+        _preview?.Refresh();
+        if (!_rowViews.TryGetValue(key, out var view)) return;
+        var resolved = _app.Workbench.Settings.Resolve(key)!;
+        bool changed = resolved.Source is SettingSource.User or SettingSource.UserLanguage;
+        view.Mark.IsVisible = changed;
+        view.Reset.IsVisible = changed;
+        view.Source.Text = SourceText(resolved);
+        AutomationProperties.SetName(view.Row, RowName(view.Title, resolved, changed));
+        _pendingReset.Remove(key);
+        if (changed) _pendingReset.Add(key);
+        _resetCategory.IsVisible = (_search.Text ?? "").Trim().Length == 0 && _pendingReset.Count > 0;
     }
 }

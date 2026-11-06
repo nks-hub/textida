@@ -5468,18 +5468,6 @@
       "order": 40
     },
     {
-      "menu": "view",
-      "command": "nks.view.iconSkin",
-      "group": "7_skin/01",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.iconSkinOff",
-      "group": "7_skin/01",
-      "order": 20
-    },
-    {
       "menu": "tools",
       "command": "nks.lsp.expandMacro",
       "group": "1_text/04",
@@ -7539,6 +7527,7 @@
       "description": "setting.editor.fontFamily.description",
       "category": "cat.appearance",
       "scope": "application",
+      "format": "font",
       "tags": [
         "font"
       ]
@@ -7565,6 +7554,8 @@
       "description": "setting.editor.fallbackFontFamily.description",
       "category": "cat.appearance",
       "scope": "application",
+      "format": "font-list",
+      "separator": ",",
       "tags": [
         "font",
         "unicode",
@@ -7820,6 +7811,10 @@
       "description": "setting.workbench.keymapProfile.description",
       "category": "cat.keys",
       "scope": "application",
+      "enum": [
+        "default",
+        "pspad"
+      ],
       "tags": [
         "keys",
         "shortcuts",
@@ -7924,6 +7919,7 @@
       "description": "setting.files.journalDirectory.description",
       "category": "cat.files",
       "scope": "application",
+      "format": "folder",
       "tags": [
         "journal",
         "recovery",
@@ -7967,6 +7963,7 @@
       "description": "setting.files.secretFilePatterns.description",
       "category": "cat.files",
       "scope": "application",
+      "format": "glob-list",
       "tags": [
         "secrets",
         "env",
@@ -7982,6 +7979,7 @@
       "description": "setting.history.maxRevisionsPerFile.description",
       "category": "cat.history",
       "scope": "application",
+      "step": 10,
       "minimum": 0,
       "tags": [
         "history",
@@ -7997,6 +7995,7 @@
       "description": "setting.history.maxAgeDays.description",
       "category": "cat.history",
       "scope": "application",
+      "step": 10,
       "minimum": 0,
       "tags": [
         "history",
@@ -8012,6 +8011,7 @@
       "description": "setting.history.maxMiBPerFile.description",
       "category": "cat.history",
       "scope": "application",
+      "step": 10,
       "minimum": 0,
       "tags": [
         "history",
@@ -8027,6 +8027,7 @@
       "description": "setting.history.maxTotalMiB.description",
       "category": "cat.history",
       "scope": "application",
+      "step": 256,
       "minimum": 0,
       "tags": [
         "history",
@@ -8042,6 +8043,7 @@
       "description": "setting.files.journalFallbackDirectory.description",
       "category": "cat.files",
       "scope": "application",
+      "format": "folder",
       "tags": [
         "journal",
         "recovery",
@@ -8057,6 +8059,7 @@
       "description": "setting.files.relatedFileRules.description",
       "category": "cat.files",
       "scope": "application",
+      "format": "list",
       "tags": [
         "related",
         "header",
@@ -8091,6 +8094,7 @@
       "description": "setting.search.regexTimeoutMs.description",
       "category": "cat.search",
       "scope": "application",
+      "step": 100,
       "minimum": 50,
       "maximum": 60000,
       "tags": [
@@ -8109,6 +8113,7 @@
       "description": "setting.tools.diffTool.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "file",
       "tags": [
         "diff",
         "compare",
@@ -8124,6 +8129,7 @@
       "description": "setting.tools.diffArguments.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "text",
       "tags": [
         "diff",
         "compare",
@@ -8236,6 +8242,7 @@
       "description": "setting.git.autoFetchMinutes.description",
       "category": "cat.git",
       "scope": "application",
+      "step": 5,
       "minimum": 0,
       "maximum": 1440,
       "tags": [
@@ -8283,6 +8290,7 @@
       "description": "setting.tools.makeProgram.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "command",
       "tags": [
         "make",
         "makefile",
@@ -8298,6 +8306,7 @@
       "description": "setting.tools.timeoutSeconds.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "step": 10,
       "minimum": 0,
       "maximum": 86400,
       "tags": [
@@ -8315,6 +8324,7 @@
       "description": "setting.tools.outputEncoding.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "encoding",
       "tags": [
         "tool",
         "output",
@@ -8615,6 +8625,7 @@
       "description": "setting.editor.dateTimeFormat.description",
       "category": "cat.editor.typing",
       "scope": "application",
+      "format": "text",
       "tags": [
         "date",
         "time",
@@ -8651,6 +8662,7 @@
       "description": "setting.schema.mappings.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "list",
       "tags": [
         "schema",
         "json",
@@ -8668,6 +8680,7 @@
       "description": "setting.html.tidyPath.description",
       "category": "cat.editor.format",
       "scope": "application",
+      "format": "file",
       "tags": [
         "html",
         "tidy",
@@ -8683,6 +8696,7 @@
       "description": "setting.hex.wildcardMaxBytes.description",
       "category": "cat.hex",
       "scope": "application",
+      "step": 1024,
       "minimum": 0,
       "maximum": 1048576,
       "tags": [
@@ -8701,6 +8715,8 @@
       "description": "setting.hex.structureTemplates.description",
       "category": "cat.hex",
       "scope": "application",
+      "format": "list",
+      "separator": ",",
       "tags": [
         "hex",
         "structure",
@@ -8717,6 +8733,7 @@
       "description": "setting.web.searchUrl.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "text",
       "tags": [
         "web",
         "browser",
@@ -8731,6 +8748,7 @@
       "description": "setting.web.pathMap.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "list",
       "tags": [
         "web",
         "browser",
@@ -8760,6 +8778,7 @@
       "description": "setting.plugins.catalogUrl.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "text",
       "tags": [
         "plugins",
         "catalog",
@@ -8789,6 +8808,7 @@
       "description": "setting.spell.dictionary.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "file",
       "tags": [
         "spelling",
         "dictionary",
@@ -8831,6 +8851,7 @@
       "description": "setting.appearance.iconSkin.description",
       "category": "cat.appearance",
       "scope": "application",
+      "format": "icon-set",
       "tags": [
         "icons",
         "skin",
@@ -8859,6 +8880,7 @@
       "description": "setting.terminal.shell.description",
       "category": "cat.toolsLanguages",
       "scope": "application",
+      "format": "command",
       "tags": [
         "terminal",
         "shell",
@@ -8983,6 +9005,7 @@
       "description": "setting.advanced.recentFilesCount.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 5,
       "minimum": 0,
       "maximum": 30,
       "tags": [
@@ -9000,6 +9023,7 @@
       "description": "setting.advanced.autosaveIntervalSeconds.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 5,
       "minimum": 1,
       "maximum": 3600,
       "tags": [
@@ -9018,6 +9042,7 @@
       "description": "setting.advanced.caretBlinkMilliseconds.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 50,
       "minimum": 0,
       "maximum": 2000,
       "tags": [
@@ -9051,6 +9076,7 @@
       "description": "setting.advanced.undoLimit.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 100,
       "minimum": 0,
       "maximum": 1000000,
       "tags": [
@@ -9069,6 +9095,7 @@
       "description": "setting.advanced.highlightMaxLines.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 100,
       "minimum": 100,
       "maximum": 1024,
       "tags": [
@@ -9087,6 +9114,7 @@
       "description": "setting.advanced.highlightMaxColumns.description",
       "category": "cat.advanced",
       "scope": "application",
+      "step": 1000,
       "minimum": 1000,
       "maximum": 65536,
       "tags": [

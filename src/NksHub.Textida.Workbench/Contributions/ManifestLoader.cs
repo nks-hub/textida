@@ -236,6 +236,16 @@ public static class ManifestLoader
             errors.Add($"Setting '{s.Key}': minimum and maximum are only allowed for numbers.");
         }
 
+        if (s.Step is { } step && (step <= 0 || s.Type is not ("integer" or "number")))
+        {
+            errors.Add($"Setting '{s.Key}': step must be positive and is only allowed for numbers.");
+        }
+
+        if (SettingFormats.Problem(s) is { } formatProblem)
+        {
+            errors.Add(formatProblem);
+        }
+
         if (s.Default is null)
         {
             errors.Add($"Setting '{s.Key}' has no default.");

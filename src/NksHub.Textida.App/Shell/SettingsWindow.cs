@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -327,6 +328,8 @@ internal sealed partial class SettingsWindow : Window
         _page.Children.Clear();
         _rows.Clear();
         _groups.Clear();
+        _rowViews.Clear();
+        _preview = null;
         // the nodes whose rows are listed, in the order of the tree: the selected one and what is under it, or every node with a match
         bool IsShown(Node n) => (byNode.ContainsKey(n.Id) && (searching || IsUnder(nodes, n.Id, _selected)))
             || (n.Id == SettingCategories.System && (searching ? systemHit : IsUnder(nodes, n.Id, _selected)));
@@ -338,27 +341,28 @@ internal sealed partial class SettingsWindow : Window
         AutomationProperties.SetName(_scroller, Loc.Get(K.SettingsPageA11y, ("category", searching ? selectedTitle : path)));
 
         var changed = new List<string>();
+        var userShortcuts = shown.Any(n => n.Id == SettingCategories.Keys) ? _app.Workbench.UserShortcutCommands() : [];
         foreach (var node in shown)
         {
             if (shown.Count > 1) _page.Children.Add(GroupHeader(node, PathText(nodes, node.Id)));
-            var (list, sections) = Sectioned(byNode.GetValueOrDefault(node.Id) ?? []);
-            string? section = null;
-            foreach (var hit in list)
+            if (!searching && PreviewNodes.Contains(node.Id)) _page.Children.Add(PreviewCard());
+            foreach (var (section, hits) in Sectioned(byNode.GetValueOrDefault(node.Id) ?? []))
             {
-                string name = sections.GetValueOrDefault(hit.Id, "");
-                if (sections.Count > 0 && name != section)
+                var (card, body) = Card(section);
+                foreach (var hit in hits)
                 {
-                    section = name;
-                    _page.Children.Add(SectionHeader(name));
+                    var row = hit.Kind == SearchHitKind.Setting ? SettingRow(hit, words, changed) : KeyRow(hit, words, userShortcuts);
+                    AddRow(body, row);
+                    _rows.Add(row);
                 }
-                var row = hit.Kind == SearchHitKind.Setting ? SettingRow(hit, words, changed) : KeyRow(hit, words);
-                _page.Children.Add(row);
-                _rows.Add(row);
+                _page.Children.Add(card);
             }
             if (node.Id == SettingCategories.System && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && systemHit)
             {
                 var system = SystemSection();
-                _page.Children.Add(system);
+                var (card, body) = Card(null);
+                AddRow(body, system);
+                _page.Children.Add(card);
                 _rows.Add(system);
             }
         }
@@ -375,41 +379,57 @@ internal sealed partial class SettingsWindow : Window
 
     private TextBlock GroupHeader(Node node, string text)
     {
-        var header = new TextBlock { Text = text, Margin = new Thickness(2, 10, 0, 2), TextWrapping = TextWrapping.Wrap };
+        var header = new TextBlock { Text = text, Margin = new Thickness(2, 12, 0, 4), TextWrapping = TextWrapping.Wrap };
         header.Classes.Add("settinggroup");
         AutomationProperties.SetName(header, text);
         _groups[node.Id] = header;
         return header;
     }
 
-    private static TextBlock SectionHeader(string name)
-    {
-        var header = new TextBlock { Text = name, Margin = new Thickness(2, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
-        header.Classes.Add("settingsection");
-        return header;
-    }
-
-    /// <summary>The prefixes of keys that name a section of their own, with the text of the section.</summary>
-    private static readonly (string Prefix, string TextKey)[] SectionTexts =
+    /// <summary>
+    /// The sections of the pages: a setting whose key is listed (or starts with a listed prefix ending in a dot or an asterisk) belongs to the first section that lists it. The settings of a page
+    /// that no section lists make the general section, which comes first; the others follow in the order of the table.
+    /// </summary>
+    private static readonly (string TextKey, string[] Keys)[] SectionTable =
     [
-        ("editor.occurrences.", K.SettingsSectionOccurrences),
-        ("editor.smartKeys.", K.SettingsSectionSmartKeys),
-        ("tools.", K.SettingsSectionTools),
+        (K.SettingsSectionTheme, ["workbench.theme", "workbench.uiLanguage"]),
+        (K.SettingsSectionFont, ["editor.fontFamily", "editor.fontSize", "editor.fallbackFontFamily"]),
+        (K.SettingsSectionIcons, ["appearance.iconSkin", "workbench.toolbar"]),
+        (K.SettingsSectionOccurrences, ["editor.occurrences."]),
+        (K.SettingsSectionSmartKeys, ["editor.smartKeys.", "editor.emmet"]),
+        (K.SettingsSectionClipboard, ["editor.clipboardHistorySize", "editor.clipboardMonitor"]),
+        (K.SettingsSectionIndent, ["editor.tabSize", "editor.indentSize", "editor.insertSpaces", "editor.detectIndentation"]),
+        (K.SettingsSectionOnSave, ["files.trimTrailingWhitespace", "files.insertFinalNewline"]),
+        (K.SettingsSectionLanguages, ["sql.dialect", "html.tidyPath"]),
+        (K.SettingsSectionOpening, ["files.binaryAsHex", "files.imageOpen", "markdown.defaultMode", "files.largeFileThreshold", "files.decompileAssemblies", "files.relatedFileRules", "files.showHidden"]),
+        (K.SettingsSectionSaving, ["files.autoSave", "files.journalDirectory", "files.journalFallbackDirectory"]),
+        (K.SettingsSectionRemote, ["remote."]),
+        (K.SettingsSectionSecrets, ["files.secretFilePatterns"]),
+        (K.SettingsSectionGitGutter, ["git.gutter", "git.gutterBase", "git.blame", "files.gitStatus"]),
+        (K.SettingsSectionGitSync, ["git.pullMode", "git.autoFetchMinutes"]),
+        (K.SettingsSectionGitCommit, ["git.commit*"]),
+        (K.SettingsSectionHistoryLimits, ["history.max*"]),
+        (K.SettingsSectionCompare, ["tools.diffTool", "tools.diffArguments", "compare."]),
+        (K.SettingsSectionTools, ["tools."]),
+        (K.SettingsSectionSpell, ["spell."]),
+        (K.SettingsSectionWeb, ["web."]),
     ];
 
-    /// <summary>
-    /// The settings of a category in sections: a prefix of <see cref="SectionTexts"/> makes a section when at least three settings of the category share it, the others make the general section, which
-    /// comes first; the others follow in the order of the table. Nothing is divided (the second value is empty) when no prefix qualifies or no setting is left for the general section.
-    /// </summary>
-    private static (List<SearchHit> Hits, Dictionary<string, string> Sections) Sectioned(List<SearchHit> hits)
+    private static int SectionOf(SearchHit hit)
     {
-        bool InSection((string Prefix, string TextKey) s, SearchHit h) => h.Kind == SearchHitKind.Setting && h.Id.StartsWith(s.Prefix, StringComparison.Ordinal);
-        var named = SectionTexts.Where(s => hits.Count(h => InSection(s, h)) >= 3).ToList();
-        if (named.Count == 0 || hits.All(h => named.Any(s => InSection(s, h)))) return (hits, []);
-        int Rank(SearchHit h) => named.FindIndex(s => InSection(s, h)) + 1;
-        var ordered = hits.OrderBy(Rank).ToList();
-        var sections = ordered.ToDictionary(h => h.Id, h => Rank(h) == 0 ? Loc.Get(K.SettingsSectionGeneral) : Loc.Get(named[Rank(h) - 1].TextKey), StringComparer.Ordinal);
-        return (ordered, sections);
+        if (hit.Kind != SearchHitKind.Setting) return -1;
+        static bool Fits(string key, string entry) => entry.EndsWith('*') ? key.StartsWith(entry[..^1], StringComparison.Ordinal)
+            : entry.EndsWith('.') ? key.StartsWith(entry, StringComparison.Ordinal) : key == entry;
+        return Array.FindIndex(SectionTable, s => s.Keys.Any(entry => Fits(hit.Id, entry)));
+    }
+
+    /// <summary>The settings of a category in sections; one section without a heading when the category has none of the table.</summary>
+    private static List<(string? Heading, List<SearchHit> Hits)> Sectioned(List<SearchHit> hits)
+    {
+        if (hits.Count == 0) return [];
+        var groups = hits.GroupBy(SectionOf).OrderBy(g => g.Key).ToList();
+        if (groups.Count == 1 && groups[0].Key < 0) return [(null, hits)];
+        return [.. groups.Select(g => ((string?)Loc.Get(g.Key < 0 ? K.SettingsSectionGeneral : SectionTable[g.Key].TextKey), g.ToList()))];
     }
 
     private void BuildBanners()
@@ -446,7 +466,7 @@ internal sealed partial class SettingsWindow : Window
     private static InputElement? FindEditor(Control row)
     {
         foreach (var visual in row.GetVisualDescendants())
-            if (visual is TextBox or CheckBox or ComboBox && visual is InputElement { Focusable: true, IsEnabled: true } input) return input;
+            if (visual is TextBox or ToggleButton or ComboBox or NumericUpDown or Button && visual is InputElement { Focusable: true, IsEnabled: true } input) return input;
         return null;
     }
 

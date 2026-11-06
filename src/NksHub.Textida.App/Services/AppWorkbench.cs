@@ -120,6 +120,54 @@ internal sealed class AppWorkbench
         }
     }
 
+    /// <summary>
+    /// Gives a command one shortcut of the user (the settings window catches it from a key press): the keymap file of the user loses what it had for the command, unbinds the shortcuts the lower layers
+    /// give it and binds <paramref name="sequence"/>. Null takes the command back to the shortcuts of the lower layers. Returns why the file could not be changed, or null.
+    /// </summary>
+    public string? SetUserShortcut(string commandId, KeySequence? sequence)
+    {
+        var path = Path.Combine(_profileDirectory, UserKeymapFile);
+        try
+        {
+            var file = File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), ContributionJson.Default.KeymapFile) ?? new KeymapFile() : new KeymapFile();
+            file.Bindings.RemoveAll(b => b.Command == commandId || b.Command == "-" + commandId);
+            if (sequence is not null)
+            {
+                var profileLayer = BehaviourProfiles.KeymapLayerOf(Profile);
+                var lower = profileLayer is null ? Host.BuildKeymap(Platform) : Host.BuildKeymap(Platform, profileLayer);
+                foreach (var key in lower.Bindings.Where(b => b.CommandId == commandId).Select(b => b.Sequence.ToString()).Distinct())
+                    file.Bindings.Add(new KeybindingContribution { Key = key, Command = "-" + commandId });
+                file.Bindings.Add(new KeybindingContribution { Key = sequence.ToString(), Command = commandId });
+            }
+            Directory.CreateDirectory(_profileDirectory);
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(file, ContributionJson.Default.KeymapFile), new UTF8Encoding(false));
+            File.Move(temp, path, overwrite: true);
+            RebuildKeymap();
+            return null;
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return e.Message;
+        }
+    }
+
+    /// <summary>The commands the keymap file of the user binds or unbinds; empty when the file is missing or unreadable.</summary>
+    public HashSet<string> UserShortcutCommands()
+    {
+        var path = Path.Combine(_profileDirectory, UserKeymapFile);
+        try
+        {
+            return File.Exists(path) && JsonSerializer.Deserialize(File.ReadAllText(path), ContributionJson.Default.KeymapFile) is { } file
+                ? [.. file.Bindings.Select(b => b.Command.TrimStart('-'))]
+                : [];
+        }
+        catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     private void RebuildKeymap()
     {
         Keymap = BuildKeymap(out var problem);

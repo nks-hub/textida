@@ -205,6 +205,24 @@
               "null"
             ]
           },
+          "step": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "separator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "tags": {
             "type": "array",
             "items": {

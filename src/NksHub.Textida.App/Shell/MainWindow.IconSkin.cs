@@ -37,10 +37,6 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
-    private void ApplyIconSkin(string folder)
-    {
-        IconSkin.Use(folder);
-        _app.Workbench.Set(IconSkinSetting, JsonValue.Create(folder));
-        foreach (var window in _app.Windows) window.RefreshToolbar();
-    }
+    /// <summary>Stores the folder; the app applies the skin and rebuilds the toolbars when the setting changes, as it does for a change made in the settings.</summary>
+    private void ApplyIconSkin(string folder) => _app.Workbench.Set(IconSkinSetting, JsonValue.Create(folder));
 }
