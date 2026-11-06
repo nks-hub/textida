@@ -19,6 +19,10 @@ public enum SettingControl
     Encoding,
     Shortcut,
     IconSet,
+    /// <summary>The colour theme of the editor: the list of themes with import, export and save as custom.</summary>
+    ColorTheme,
+    /// <summary>The colours of the editor areas and the token kinds over the chosen colour theme, each with a colour picker.</summary>
+    ThemeColors,
     /// <summary>Free text the setting declares as such (<c>"format": "text"</c>): a pattern, a template, an address.</summary>
     Text,
     /// <summary>A string setting that says nothing about its content: a plain text box. Built-in settings never land here (a test checks it).</summary>
@@ -41,8 +45,10 @@ public static class SettingFormats
     public const string Shortcut = "shortcut";
     public const string IconSet = "icon-set";
     public const string Multi = "multi";
+    public const string ColorTheme = "color-theme";
+    public const string ThemeColors = "theme-colors";
 
-    public static IReadOnlyList<string> All { get; } = [Text, Font, FontList, Color, File, Folder, Command, List, GlobList, Encoding, Shortcut, IconSet, Multi];
+    public static IReadOnlyList<string> All { get; } = [Text, Font, FontList, Color, File, Folder, Command, List, GlobList, Encoding, Shortcut, IconSet, Multi, ColorTheme, ThemeColors];
 
     public static bool IsList(string? format) => format is List or GlobList or FontList or Multi;
 
@@ -78,6 +84,8 @@ public static class SettingFormats
             Encoding => SettingControl.Encoding,
             Shortcut => SettingControl.Shortcut,
             IconSet => SettingControl.IconSet,
+            ColorTheme => SettingControl.ColorTheme,
+            ThemeColors => SettingControl.ThemeColors,
             _ => SettingControl.FallbackText,
         },
     };

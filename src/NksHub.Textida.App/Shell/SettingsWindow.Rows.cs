@@ -101,6 +101,7 @@ internal sealed partial class SettingsWindow
             SettingFormats.Encoding => Loc.Get(K.SettingsEncodingDefault),
             _ => Loc.Get(K.SettingsEmptyValue),
         };
+        if (definition.Format == SettingFormats.ColorTheme) return ThemeLabel(text);
         if (definition.Format == SettingFormats.Multi) return string.Join(", ", SettingFormats.Split(definition, text).Select(item => ValueLabel(definition.Key, item)));
         return ValueLabel(definition.Key, text);
     }

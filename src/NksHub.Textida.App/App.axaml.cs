@@ -222,6 +222,7 @@ public sealed partial class App : Application
         Loc.SetLanguage(Settings.Language);
         ApplyThemeVariant();
         WatchContrast();
+        EditorThemesOrNull = new EditorThemes(this);
         ApplyRegexTimeout();
         ApplySecretFilePatterns();
 
@@ -523,6 +524,9 @@ public sealed partial class App : Application
                 ApplySecretFilePatterns();
                 foreach (var w in _windows) w.RefreshSecrets();
                 break;
+            case EditorThemes.ThemeSetting or EditorThemes.ColorsSetting:
+                EditorThemes.Reload();
+                break;
             case MainWindow.IconSkinSetting:
                 IconSkin.Use(Workbench.Settings.GetString(MainWindow.IconSkinSetting));
                 foreach (var w in _windows) w.RefreshToolbar();
@@ -575,7 +579,28 @@ public sealed partial class App : Application
     private bool _contrastWatched;
 
     /// <summary>The colours of high contrast, while the system asks for it.</summary>
-    internal ContrastTheme Contrast => _contrast ??= new ContrastTheme(this);
+    internal ContrastTheme Contrast
+    {
+        get
+        {
+            if (_contrast is null)
+            {
+                _contrast = new ContrastTheme(this);
+                _contrast.Changed += () => EditorThemesOrNull?.Reload();
+            }
+            return _contrast;
+        }
+    }
+
+    /// <summary>The colour themes of the editor (P3.2.5); null before the first <see cref="Configure"/>.</summary>
+    internal EditorThemes? EditorThemesOrNull { get; private set; }
+
+    internal EditorThemes EditorThemes => EditorThemesOrNull!;
+
+    /// <summary>Raised when the colours the editors draw in changed: another colour theme, other custom colours, high contrast on or off.</summary>
+    internal event Action? EditorColorsChanged;
+
+    internal void NotifyEditorColors() => EditorColorsChanged?.Invoke();
 
     /// <summary>Tests set this to ask for high contrast, or to refuse it, without the system doing so; null follows the system.</summary>
     internal bool? ForceContrast { get; set; }

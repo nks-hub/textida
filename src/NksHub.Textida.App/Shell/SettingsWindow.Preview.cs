@@ -1,15 +1,19 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
+using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>
-/// The preview at the top of the Appearance and Editor › Display pages: a few lines of code drawn with the font, size and fallback fonts of the editor, the line numbers, the current line and the
-/// whitespace marks as the settings have them now, in the colours of the theme in use. It follows every change made on the page.
+/// The preview at the top of the Appearance and Editor › Display pages: a few lines of code drawn with the font, size and fallback fonts of the editor, the line numbers, the current line, a selection and
+/// the whitespace marks as the settings have them now, highlighted in the colour theme of the editor with its custom colours. It follows every change made on the page.
 /// </summary>
 internal sealed partial class SettingsWindow
 {
@@ -53,6 +57,13 @@ internal sealed partial class SettingsWindow
 
         internal bool ShowsLineNumbers { get; private set; }
 
+        /// <summary>The colour theme the preview drew in last.</summary>
+        internal EditorColorTheme? Look { get; private set; }
+
+        /// <summary>The text colour of the first piece of the preview that holds <paramref name="fragment"/>, for tests.</summary>
+        internal Color? ForegroundOf(string fragment) =>
+            _lines.Children.OfType<TextBlock>().SelectMany(t => t.Inlines ?? []).OfType<Run>().FirstOrDefault(r => (r.Text ?? "").Contains(fragment, StringComparison.Ordinal))?.Foreground is ISolidColorBrush b ? b.Color : null;
+
         public void Refresh()
         {
             var s = _app.Workbench.Settings;
@@ -67,9 +78,18 @@ internal sealed partial class SettingsWindow
                 "// " + Loc.Get(K.SettingsPreviewComment),
                 "function greet(name) {",
                 "\tconst text = `Hello, ${name}!`;",
-                "\treturn text;   ",
+                "\treturn text.repeat(2);   ",
                 "}",
             ];
+            var look = Look = _app.EditorThemes.Active(_app.ActualThemeVariant);
+            static IBrush Solid(Color c) => new ImmutableSolidColorBrush(c);
+            Background = Solid(look[EditorColorTheme.Background]);
+            // one colour per character from the grammar, as the editor and the export colour it
+            string all = string.Join("\n", code);
+            var colors = new Color?[all.Length];
+            foreach (var segment in HighlightExport.Segments(all, LanguageModes.Tokenizer("javascript"), null, look.Palette))
+                for (int k = segment.Start; k < segment.Start + segment.Length; k++) colors[k] = segment.Color;
+            int lineStart = 0;
             _lines.Children.Clear();
             _lines.RowDefinitions.Clear();
             for (int i = 0; i < code.Length; i++)
@@ -77,19 +97,44 @@ internal sealed partial class SettingsWindow
                 _lines.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
                 if (currentLine && i == 2)
                 {
-                    var band = new Border();
+                    var band = new Border { Background = Solid(look[EditorColorTheme.CurrentLine]) };
                     band.Classes.Add("settingpreviewcurrent");
                     Grid.SetRow(band, i);
                     Grid.SetColumnSpan(band, 2);
                     _lines.Children.Add(band);
                 }
-                var number = new TextBlock { Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), FontFamily = family, FontSize = FontSizeValue, Margin = new Thickness(12, 0, 14, 0), TextAlignment = TextAlignment.Right, MinWidth = 18, IsVisible = ShowsLineNumbers };
+                var number = new TextBlock
+                {
+                    Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), FontFamily = family, FontSize = FontSizeValue, Margin = new Thickness(12, 0, 14, 0),
+                    TextAlignment = TextAlignment.Right, MinWidth = 18, IsVisible = ShowsLineNumbers, Foreground = Solid(look[EditorColorTheme.LineNumbers]),
+                };
                 number.Classes.Add("settingpreviewnumber");
                 Grid.SetRow(number, i);
                 _lines.Children.Add(number);
-                string line = whitespace ? code[i].Replace("\t", "→   ", StringComparison.Ordinal).Replace(' ', '·') : code[i].Replace("\t", "    ", StringComparison.Ordinal);
-                var text = new TextBlock { Text = line, FontFamily = family, FontSize = FontSizeValue, Margin = new Thickness(ShowsLineNumbers ? 0 : 12, 0, 12, 0) };
+                var text = new TextBlock { FontFamily = family, FontSize = FontSizeValue, Margin = new Thickness(ShowsLineNumbers ? 0 : 12, 0, 12, 0), Foreground = Solid(look[EditorColorTheme.Foreground]) };
                 text.Classes.Add("settingpreviewtext");
+                // the word "text" of the fourth line stands for a selection
+                int selected = i == 3 ? code[i].IndexOf("text", StringComparison.Ordinal) : -1;
+                var run = new System.Text.StringBuilder();
+                (Color? Color, bool Selected) runKey = default;
+                void Flush()
+                {
+                    if (run.Length == 0) return;
+                    var piece = new Run(run.ToString()) { Foreground = Solid(runKey.Color ?? look[EditorColorTheme.Foreground]) };
+                    if (runKey.Selected) piece.Background = Solid(look[EditorColorTheme.Selection]);
+                    text.Inlines!.Add(piece);
+                    run.Clear();
+                }
+                for (int c = 0; c < code[i].Length; c++)
+                {
+                    char ch = code[i][c];
+                    var key = (colors[lineStart + c], selected >= 0 && c >= selected && c < selected + 4);
+                    if (key != runKey) Flush();
+                    runKey = key;
+                    run.Append(ch switch { '\t' => whitespace ? "→   " : "    ", ' ' when whitespace => "·", _ => ch.ToString() });
+                }
+                Flush();
+                lineStart += code[i].Length + 1;
                 Grid.SetRow(text, i);
                 Grid.SetColumn(text, 1);
                 _lines.Children.Add(text);

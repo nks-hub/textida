@@ -3,11 +3,13 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.Editing;
 using AvaloniaEdit.Rendering;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Syntax;
@@ -120,7 +122,7 @@ internal sealed partial class EditorSurface : TextEditor
         foreach (var edge in TextArea.LeftMargins.OfType<Avalonia.Controls.Shapes.Line>())
         {
             edge.StrokeDashArray = null;
-            edge.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, this.GetResourceObservable("Border"));
+            edge.Stroke = new ImmutableSolidColorBrush(EditorLook.Edge(this));
         }
     }
     /// <summary>Keeps the syntax colors of this view current.</summary>
@@ -140,7 +142,7 @@ internal sealed partial class EditorSurface : TextEditor
     {
         base.OnAttachedToVisualTree(e);
         ApplyTheme();
-        if (Application.Current is App app) app.Contrast.Changed += ApplyTheme;
+        if (Application.Current is App app) app.EditorColorsChanged += ApplyTheme;
     }
 
     // a tab switch takes the editor out of the window; a composition it showed is gone with it
@@ -148,7 +150,7 @@ internal sealed partial class EditorSurface : TextEditor
     {
         EndComposition();
         CloseGitPeek();
-        if (Application.Current is App app) app.Contrast.Changed -= ApplyTheme;
+        if (Application.Current is App app) app.EditorColorsChanged -= ApplyTheme;
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -272,21 +274,25 @@ internal sealed partial class EditorSurface : TextEditor
     private void ApplyTheme()
     {
         IBrush? Find(string key) => this.TryFindResource(key, ActualThemeVariant, out var value) ? value as IBrush : null;
-        Background = Find("BgEditor");
-        Foreground = Find("EditorFg") ?? Find("Fg");
-        LineNumbersForeground = Find("LineNumbers");
-        TextArea.TextView.CurrentLineBackground = Find("CurrentLine");
+        var look = EditorLook.Of(this);
+        static IBrush Solid(Color c) => new ImmutableSolidColorBrush(c);
+        Background = Solid(look[EditorColorTheme.Background]);
+        Foreground = Solid(look[EditorColorTheme.Foreground]);
+        LineNumbersForeground = Solid(look[EditorColorTheme.LineNumbers]);
+        TextArea.TextView.CurrentLineBackground = Solid(look[EditorColorTheme.CurrentLine]);
         TextArea.TextView.CurrentLineBorder = new Pen(null, 0);
-        TextArea.SelectionBrush = Find("SelectionBg");
+        TextArea.SelectionBrush = Solid(look[EditorColorTheme.Selection]);
         TextArea.SelectionForeground = null;
         TextArea.SelectionBorder = null;
         BracketBrush = Find("BracketMatch");
         UnmatchedBracketBrush = Find("BracketUnmatched");
         UnmatchedBracketPen = Find("Danger") is { } danger ? new Pen(danger, 1) : null;
         ApplyOccurrenceBrushes(Find);
-        _caretBrush = Find("Fg");
+        _caretBrush = look.Id == EditorColorTheme.AutoId ? Find("Fg") : Foreground; // the caret of the window theme, or the text colour of a chosen theme
         UpdateNativeCaret();
-        _colorizer.Palette = _levels.Palette = _highlight.Palette = ActualThemeVariant == ThemeVariant.Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+        _colorizer.Palette = _levels.Palette = _highlight.Palette = look.Palette;
+        TuneGutter();
+        TextArea.TextView.Redraw();
     }
 
     // ---- selections ----

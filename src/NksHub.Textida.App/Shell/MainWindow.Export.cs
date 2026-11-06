@@ -104,12 +104,11 @@ internal sealed partial class MainWindow
 
     private ExportTheme CurrentExportTheme()
     {
-        var variant = ActualThemeVariant;
-        bool dark = variant == ThemeVariant.Dark;
-        Color Pick(string key, Color fallback) => this.TryFindResource(key, variant, out var v) && v is ISolidColorBrush brush ? brush.Color : fallback;
+        var look = EditorLook.Of(this);
+        Color Pick(string key, Color fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is ISolidColorBrush brush ? brush.Color : fallback;
         var options = Options;
-        return new ExportTheme(Pick("BgEditor", dark ? Colors.Black : Colors.White), Pick("Fg", dark ? Colors.White : Colors.Black),
-            dark ? SyntaxPalette.Dark : SyntaxPalette.Light, options.FullFontFamily, options.FontSize * 0.75);
+        var text = look.Id == EditorColorTheme.AutoId ? Pick("Fg", look[EditorColorTheme.Foreground]) : look[EditorColorTheme.Foreground];
+        return new ExportTheme(look[EditorColorTheme.Background], text, look.Palette, options.FullFontFamily, options.FontSize * 0.75);
     }
 
     /// <summary>Writes the export of the source; the work runs off the UI thread. Null (with the reason in the status bar) when there is nothing to export or the text is over the limit.</summary>

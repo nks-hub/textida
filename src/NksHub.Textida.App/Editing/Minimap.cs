@@ -389,6 +389,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _doc.LanguageChanged += Invalidate;
         _doc.LogLevelsChanged += Invalidate;
         ActualThemeVariantChanged += OnThemeChanged;
+        if (Application.Current is App app) app.EditorColorsChanged += OnEditorColorsChanged;
         UpdateName();
         Invalidate();
     }
@@ -412,6 +413,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         _doc.LanguageChanged -= Invalidate;
         _doc.LogLevelsChanged -= Invalidate;
         ActualThemeVariantChanged -= OnThemeChanged;
+        if (Application.Current is App app) app.EditorColorsChanged -= OnEditorColorsChanged;
         _textTimer.Stop();
     }
 
@@ -420,6 +422,8 @@ internal sealed unsafe class Minimap : Control, IDisposable
         base.OnSizeChanged(e);
         Schedule(DispatcherPriority.Render);
     }
+
+    private void OnEditorColorsChanged() => OnThemeChanged(null, EventArgs.Empty);
 
     private void OnThemeChanged(object? sender, EventArgs e)
     {
@@ -512,7 +516,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private Color KindColor(string kind, Color plain)
     {
         if (_kindColors.TryGetValue(kind, out var known)) return known;
-        var palette = Dark ? SyntaxPalette.Dark : SyntaxPalette.Light;
+        var palette = EditorLook.PaletteOf(this);
         return _kindColors[kind] = palette.GetBrush(kind) is ISolidColorBrush brush ? brush.Color : plain;
     }
 
@@ -584,7 +588,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
                 else _back = new WriteableBitmap(size, new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
             }
         }
-        var plain = Resource("Fg", Dark ? Colors.White : Colors.Black);
+        var plain = EditorLook.Of(this)[EditorColorTheme.Foreground];
         long started = Stopwatch.GetTimestamp();
         using (var buffer = _back.Lock())
         {
@@ -720,13 +724,13 @@ internal sealed unsafe class Minimap : Control, IDisposable
     private void RenderCore(DrawingContext context)
     {
         var bounds = new Rect(Bounds.Size);
-        var plain = Resource("Fg", Dark ? Colors.White : Colors.Black);
-        context.FillRectangle(new ImmutableSolidColorBrush(Resource("BgEditor", Dark ? Colors.Black : Colors.White)), bounds);
+        var plain = EditorLook.Of(this)[EditorColorTheme.Foreground];
+        context.FillRectangle(new ImmutableSolidColorBrush(EditorLook.Of(this)[EditorColorTheme.Minimap]), bounds);
         double scale = Scale;
         using var _ = context.PushTransform(Matrix.CreateScale(1 / scale, 1 / scale));
         int width = PixelWidth, height = PixelHeight;
         if (_shown is not null) context.DrawImage(_shown, new Rect(_shown.Size), new Rect(_shown.Size));
-        context.DrawLine(new Pen(new ImmutableSolidColorBrush(Resource("Border", plain)), 1), new Point(0.5, 0), new Point(0.5, height));
+        context.DrawLine(new Pen(new ImmutableSolidColorBrush(EditorLook.Edge(this)), 1), new Point(0.5, 0), new Point(0.5, height));
         if (Wanted() is not { } wanted) return;
         var layout = wanted.Layout;
         var thumb = new Rect(0, layout.ThumbTop, width, layout.ThumbHeight);
