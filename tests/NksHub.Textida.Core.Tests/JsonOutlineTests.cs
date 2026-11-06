@@ -274,6 +274,175 @@ public class JsonOutlineTests
         Assert.Equal(100_000 * 5 + 2, outline.State.Lines);
     }
 
+    /// <summary><c>{"k":"aaa…a","n":1}</c> with a string of any length, read on demand.</summary>
+    private sealed class LongString(long length) : IByteSnapshot
+    {
+        private static readonly byte[] Head = "{\"k\":\""u8.ToArray(), Tail = "\",\"n\":1}"u8.ToArray();
+        public long ByteLength { get; } = Head.Length + length + Tail.Length;
+        public long Reads;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            int n = (int)Math.Max(0, Math.Min(destination.Length, ByteLength - offset));
+            Interlocked.Add(ref Reads, n);
+            destination[..n].Fill((byte)'a');
+            for (long at = offset; at < Math.Min(offset + n, Head.Length); at++) destination[(int)(at - offset)] = Head[at];
+            long tail = ByteLength - Tail.Length;
+            for (long at = Math.Max(offset, tail); at < offset + n; at++) destination[(int)(at - offset)] = Tail[at - tail];
+            return n;
+        }
+    }
+
+    /// <summary>A snapshot with <paramref name="bytes"/> inserted at <paramref name="at"/>, counting what is read.</summary>
+    private sealed class Inserted(IByteSnapshot inner, long at, byte[] bytes) : IByteSnapshot
+    {
+        public long ByteLength => inner.ByteLength + bytes.Length;
+        public long Reads;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            int n = (int)Math.Max(0, Math.Min(destination.Length, ByteLength - offset));
+            Interlocked.Add(ref Reads, n);
+            for (int i = 0; i < n;)
+            {
+                long p = offset + i;
+                if (p < at) i += inner.Read(p, destination[i..(int)Math.Min(n, i + at - p)]);
+                else if (p < at + bytes.Length) destination[i++] = bytes[p - at];
+                else i += inner.Read(p - bytes.Length, destination[i..n]);
+            }
+            return n;
+        }
+    }
+
+    [Fact]
+    public void Typing_into_a_huge_string_reads_a_few_bytes_and_not_the_string()
+    {
+        var source = new LongString(64L << 20);
+        using var outline = new JsonOutline(source, 0, TextCodec.Utf8);
+        outline.ScanToEnd();
+        Assert.Equal(["{", "  \"k\": \"" + new string('a', JsonOutline.MaxShownBytes - 1) + "…,", "  \"n\": 1", "}"], outline.GetLines(0, 10).Select(l => outline.Render(l).Text));
+        long at = 6 + 1000;
+        var next = new Inserted(source, at, "xé"u8.ToArray());
+        long before = source.Reads;
+        Assert.True(outline.Update(next, at, 0, 3));
+        long read = source.Reads - before + next.Reads;
+        Assert.True(read < 4096, $"the edit read {read} bytes");
+        var lines = outline.GetLines(0, 10);
+        Assert.Equal(4, lines.Count);
+        Assert.Equal("  \"n\": 1", outline.Render(lines[2]).Text);
+        Assert.Equal(source.ByteLength + 3 - 1, lines[3].ValueStart);
+        Assert.StartsWith("  \"k\": \"" + new string('a', 1000) + "xéa", outline.Render(lines[1]).Text);
+        Assert.Equal("$.n", outline.PathOf(lines[2]));
+        Assert.True(outline.State.Complete);
+    }
+
+    [Theory]
+    [InlineData("\"", 0)] // a quote ends the string
+    [InlineData("\\", -1)] // a backslash escapes the next byte (here a space, so the lines keep their shape)
+    [InlineData("q", 1)]
+    public void An_edit_inside_a_string_that_could_change_the_structure_rescans(string typed, int shifted)
+    {
+        string json = "{\"a\":\"x\\\"y z\",\"b\":[1]}";
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc);
+        outline.ScanToEnd();
+        outline.GetLines(0, 100);
+        var shifts = new List<bool>();
+        outline.Edited += (_, e) => shifts.Add(e.Shifted);
+        doc.Insert(json.IndexOf(" z", StringComparison.Ordinal), Encoding.UTF8.GetBytes(typed));
+        outline.ScanToEnd();
+        if (shifted >= 0) Assert.Equal([shifted == 1], shifts);
+        AssertSameAsFresh(doc, outline);
+
+        // between a backslash and the quote it escapes: the quote would end the string
+        shifts.Clear();
+        doc.Insert(Text(doc).IndexOf("\\\"", StringComparison.Ordinal) + 1, "q"u8.ToArray());
+        outline.ScanToEnd();
+        Assert.Equal([false], shifts);
+        AssertSameAsFresh(doc, outline);
+    }
+
+    private static string Text(Doc doc) => Encoding.UTF8.GetString(doc.ReadBytes(new ByteRange(0, doc.ByteLength)));
+
+    private static void AssertSameAsFresh(Doc doc, JsonOutline outline, bool comments = false)
+    {
+        using var fresh = new JsonOutline(doc.GetSnapshot(), 0, TextCodec.Utf8, comments);
+        fresh.ScanToEnd();
+        Assert.Equal(fresh.State, outline.State);
+        Assert.Equal(fresh.Error, outline.Error);
+        Assert.Equal(fresh.GetLines(0, int.MaxValue).Select(l => fresh.Render(l).Text), outline.GetLines(0, int.MaxValue).Select(l => outline.Render(l).Text));
+    }
+
+    [Fact]
+    public void A_long_value_wraps_into_parts_that_cover_it_whole()
+    {
+        string value = string.Concat(Enumerable.Range(0, 3000).Select(i => i % 7 == 0 ? "ž" : "ab"));
+        string json = "{\"k\":\"" + value + "\",\"n\":1}";
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc);
+        outline.ScanToEnd();
+        var line = outline.GetLine(1)!.Value;
+        Assert.True(JsonOutline.IsLong(line));
+        long parts = JsonOutline.PartCount(line, 100);
+        Assert.True(parts > 50);
+        var rows = Enumerable.Range(0, (int)parts).Select(p => outline.RenderPart(line, p, 100)).ToList();
+        Assert.StartsWith("  \"k\": \"", rows[0].Text);
+        Assert.All(rows.Skip(1), r => Assert.StartsWith("    ", r.Text));
+        Assert.EndsWith("\",", rows[^1].Text);
+        Assert.Equal("\"" + value + "\"", string.Concat(rows.Select(r => r.Text[r.Spans[^1].Column..(r.Spans[^1].Column + r.Spans[^1].Length)])));
+        for (int p = 1; p < parts; p++) Assert.Equal(rows[p - 1].Spans[^1].End, rows[p].Spans[^1].Source);
+        int column = rows[7].Spans[^1].Column + 5;
+        long inside = outline.SourceOffsetAt(rows[7], column);
+        Assert.Equal(7, outline.PartOf(line, inside, 100));
+        Assert.Equal(column, outline.ColumnOfOffset(rows[7], inside));
+        Assert.Equal(parts - 1, outline.PartOf(line, line.ValueEnd, 100));
+        Assert.Equal("  \"k\": \"" + value + "\",", outline.RenderFull(line).Text);
+    }
+
+    [Fact]
+    public void Jsonc_comments_get_lines_of_their_own_and_trailing_commas_pass()
+    {
+        string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* hidden */ : [1, 2,],\n  \"c\": {\"d\": true,},\r\n}\n";
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc, comments: true);
+        Assert.Equal(["// top", "{", "  \"a\": 1,", "  // after a", "  /* block", "  second line */", "  \"b\": [", "    1,", "    2,", "  ],", "  \"c\": {", "    \"d\": true,", "  },", "}"], Pretty(outline));
+        Assert.Null(outline.Error);
+        var comment = outline.GetLine(3)!.Value;
+        Assert.Equal(JsonLineKind.Comment, comment.Kind);
+        Assert.Equal(JsonTokenKind.Comment, outline.Render(comment).Spans[0].Kind);
+        Assert.Equal("$", outline.PathOf(comment));
+        Assert.Equal(13, outline.FindClose(1));
+
+        using var strict = new JsonOutline(doc);
+        strict.ScanToEnd();
+        Assert.Equal(0, strict.Error!.Value.Offset);
+
+        // an edit that closes the block comment early rescans like a fresh outline
+        doc.Insert(json.IndexOf("block", StringComparison.Ordinal), "*/"u8.ToArray());
+        outline.ScanToEnd();
+        AssertSameAsFresh(doc, outline, comments: true);
+    }
+
+    [Theory]
+    [InlineData("[1 /* not closed", 3)]
+    [InlineData("[1, 2 // last\n", 14)]
+    public void Jsonc_errors_are_found_where_they_are(string json, long at)
+    {
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc, comments: true);
+        Pretty(outline);
+        Assert.Equal(at, outline.Error!.Value.Offset);
+    }
+
+    [Theory]
+    [InlineData("C:/work/app/tsconfig.json", true)]
+    [InlineData("/home/u/project/.vscode/settings.json", true)]
+    [InlineData("C:\\Users\\u\\AppData\\Roaming\\Code\\User\\settings.json", true)]
+    [InlineData("notes.jsonc", true)]
+    [InlineData("data/package.json", false)]
+    [InlineData("settings.json", false)]
+    public void Jsonc_files_are_known_by_extension_and_name(string path, bool jsonc) => Assert.Equal(jsonc, JsonDataReader.IsJsoncFile(path));
+
     [Fact]
     public void A_whole_gibibyte_is_scanned_in_bounded_memory()
     {

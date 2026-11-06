@@ -6,6 +6,17 @@ namespace NksHub.Textida.Core.Data;
 /// <summary>Reads JSON (strict) or JSONC (comments and trailing commas) into <see cref="DataNode"/>s with offsets.</summary>
 public static class JsonDataReader
 {
+    /// <summary>Masks of JSON files whose tools accept comments and trailing commas (JSONC), besides the <c>.jsonc</c> extension.</summary>
+    public static readonly IReadOnlyList<string> JsoncMasks =
+    [
+        "tsconfig.json", "tsconfig.*.json", "jsconfig.json", ".eslintrc.json", ".stylelintrc.json", "appsettings.json", "appsettings.*.json", "global.json",
+        "launchSettings.json", "opencode.json", ".vscode/*.json", "Code/User/*.json", "*.code-workspace", "devcontainer.json", ".devcontainer.json",
+    ];
+
+    /// <summary>True for a file read as JSONC: the <c>.jsonc</c> extension or one of <see cref="JsoncMasks"/>.</summary>
+    public static bool IsJsoncFile(string? path) =>
+        path is not null && (path.EndsWith(".jsonc", StringComparison.OrdinalIgnoreCase) || JsoncMasks.Any(m => Glob.IsMatch(m, path)));
+
     /// <param name="jsonc">Accept <c>//</c> and <c>/* */</c> comments and trailing commas.</param>
     /// <param name="maxDepth">Deepest nesting accepted; there is no default, the caller decides.</param>
     public static bool TryParse(string text, bool jsonc, int maxDepth, out DataNode? node, out DataSyntaxException? error)

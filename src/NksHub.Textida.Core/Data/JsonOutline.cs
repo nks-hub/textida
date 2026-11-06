@@ -20,10 +20,12 @@ public enum JsonLineKind : byte
     Empty,
     /// <summary>Source text from the point where the JSON stopped being valid, one source line (or one slice of a long one) per line.</summary>
     Raw,
+    /// <summary>A comment of a JSONC file between members, one source line of it (or one slice of a long one) per line.</summary>
+    Comment,
 }
 
 /// <summary>Kind of a piece of a rendered line, for colors and for the edits it takes.</summary>
-public enum JsonTokenKind : byte { Punctuation, Key, String, Number, Literal, Raw }
+public enum JsonTokenKind : byte { Punctuation, Key, String, Number, Literal, Raw, Comment }
 
 /// <summary>A container open at some point of the text. Frames hold no offsets, so they stay true when an edit before them shifts the text.</summary>
 public sealed class JsonFrame
@@ -147,8 +149,8 @@ public sealed class JsonFolds
     }
 }
 
-/// <summary>A piece of a rendered line: <see cref="Length"/> characters from <see cref="Column"/> show the bytes of the document from <see cref="Source"/>.</summary>
-public readonly record struct JsonSpan(int Column, int Length, long Source, JsonTokenKind Kind);
+/// <summary>A piece of a rendered line: <see cref="Length"/> characters from <see cref="Column"/> show the bytes of the document from <see cref="Source"/> to <see cref="End"/>.</summary>
+public readonly record struct JsonSpan(int Column, int Length, long Source, JsonTokenKind Kind, long End);
 
 /// <summary>The text of a formatted line and where its pieces come from.</summary>
 public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<JsonSpan> Spans)
@@ -168,22 +170,26 @@ public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<
 /// every <see cref="SegmentLines"/>-th line (offset, open containers, what comes next); a line is found by decoding its segment from that point,
 /// so the memory follows the number of segments and a screen of lines reads a few blocks of the file whatever its size. The containers the
 /// noted states share are kept once. Several values in a row (JSON Lines) are accepted; from the first error on the lines show the source text.
+/// With comments on (JSONC) a comment between members gets lines of its own and a comma before a closing bracket is accepted.
 /// An edit inside one value shifts the noted states after it; any other edit drops the states after it and the scan resumes from the last one before it.
+/// An edit inside a string that adds or removes no quote, backslash or control byte shifts the decoded lines too, so it reads a few bytes whatever the length of the string.
 /// </summary>
 public sealed class JsonOutline : IDisposable
 {
     public const int SegmentLines = 512;
-    /// <summary>A raw line or a value is shown up to this many bytes; the rest is marked by an ellipsis.</summary>
+    /// <summary>A raw or comment line holds up to this many bytes; a value longer than that is shown cut with an ellipsis unless it is wrapped by <see cref="RenderPart"/>.</summary>
     public const int MaxShownBytes = 4096;
     private const int BlockSize = 1 << 16, KeyChars = 256, CachedSegments = 8;
 
     private enum Expect : byte { TopLevel, Value, ValueOrClose, Key, KeyOrClose, CommaOrClose }
 
-    private record struct ScanState(long Offset, Expect Expect, JsonFrame? Frame, long Count, bool Raw, long ErrorAt, string? Error);
+    /// <summary><see cref="Comment"/>: 0 outside a comment, 1 inside a line comment cut by the length limit, 2 inside a block comment.</summary>
+    private record struct ScanState(long Offset, Expect Expect, JsonFrame? Frame, long Count, bool Raw, long ErrorAt, string? Error, byte Comment = 0);
 
     private readonly object _gate = new();
     private readonly Document? _doc;
     private readonly TextCodec _codec;
+    private readonly bool _comments;
     private IByteSnapshot _source;
     private readonly List<ScanState> _points = [];
     private readonly List<int> _minDepth = []; // per segment; int.MaxValue while the segment is not complete
@@ -196,20 +202,21 @@ public sealed class JsonOutline : IDisposable
     private long _bytesRead;
     private bool _started;
 
-    /// <summary>Formats a document and follows its edits; call <see cref="Start"/> to scan it in the background.</summary>
-    public JsonOutline(Document document)
-        : this(document.GetSnapshot(), document.BomLength, document.Codec)
+    /// <summary>Formats a document and follows its edits; call <see cref="Start"/> to scan it in the background. <paramref name="comments"/>: the file is JSONC.</summary>
+    public JsonOutline(Document document, bool comments = false)
+        : this(document.GetSnapshot(), document.BomLength, document.Codec, comments)
     {
         _doc = document;
         document.Changed += OnChanged;
     }
 
     /// <summary>Formats fixed bytes (tests, previews).</summary>
-    public JsonOutline(IByteSnapshot source, int bomLength, TextCodec codec)
+    public JsonOutline(IByteSnapshot source, int bomLength, TextCodec codec, bool comments = false)
     {
         if (!Supports(codec)) throw new NotSupportedException("The formatted JSON view reads UTF-8 and single-byte encodings only.");
         _source = source;
         _codec = codec;
+        _comments = comments;
         _points.Add(new ScanState(Math.Min(bomLength, source.ByteLength), Expect.TopLevel, null, 0, false, -1, null));
         _minDepth.Add(int.MaxValue);
     }
@@ -243,6 +250,9 @@ public sealed class JsonOutline : IDisposable
 
     /// <summary>Bytes read by the calls of this thread-unaware counter outside the background scan: what showing lines cost.</summary>
     public long BytesRead => Interlocked.Read(ref _bytesRead);
+
+    /// <summary>True when comments and trailing commas are read as JSONC.</summary>
+    public bool Comments => _comments;
 
     /// <summary>Noted scanner states, one per segment.</summary>
     public int SegmentCount
@@ -299,7 +309,7 @@ public sealed class JsonOutline : IDisposable
             number = (_points.Count - 1) * (long)SegmentLines;
             source = _source;
         }
-        var cursor = new Cursor(source, _codec, null);
+        var cursor = new Cursor(source, _codec, null, _comments);
         int minDepth = int.MaxValue;
         var clock = Stopwatch.StartNew();
         while (true)
@@ -401,7 +411,7 @@ public sealed class JsonOutline : IDisposable
 
     private JsonLine[] Decode(IByteSnapshot source, ScanState state, long number, int count, out ScanState end, out bool ended)
     {
-        var cursor = new Cursor(source, _codec, this);
+        var cursor = new Cursor(source, _codec, this, _comments);
         var lines = new List<JsonLine>(count);
         ended = false;
         while (lines.Count < count)
@@ -477,7 +487,7 @@ public sealed class JsonOutline : IDisposable
         if (line.Kind == JsonLineKind.Raw) return null;
         var parts = new List<string>();
         JsonFrame? chain;
-        if (line.Kind == JsonLineKind.Close) chain = line.Frame;
+        if (line.Kind is JsonLineKind.Close or JsonLineKind.Comment) chain = line.Frame;
         else
         {
             if (line.HasKey) parts.Add(KeyPart(ReadKey(_source, line.KeyStart, line.KeyEnd)));
@@ -565,7 +575,7 @@ public sealed class JsonOutline : IDisposable
 
     private long ScanKeys(IByteSnapshot source, ScanState state, long number, long from, long until, string key, byte[] plain, CancellationToken ct)
     {
-        var cursor = new Cursor(source, _codec, null);
+        var cursor = new Cursor(source, _codec, null, _comments);
         var buffer = new byte[plain.Length + 2];
         for (; number < until; number++)
         {
@@ -586,50 +596,118 @@ public sealed class JsonOutline : IDisposable
     // ---- rendering ----
 
     /// <summary>The text of a line with <paramref name="indent"/> per level; values and raw text longer than <see cref="MaxShownBytes"/> end with an ellipsis.</summary>
-    public JsonRenderedLine Render(JsonLine line, string indent = "  ")
+    public JsonRenderedLine Render(JsonLine line, string indent = "  ") => Build(line, indent, MaxShownBytes, line.ValueStart, line.ValueEnd, head: true, tail: true);
+
+    /// <summary>The text of a line with the whole value, for copying; the caller keeps the value within a size it can hold.</summary>
+    public JsonRenderedLine RenderFull(JsonLine line, string indent = "  ") => Build(line, indent, int.MaxValue, line.ValueStart, line.ValueEnd, head: true, tail: true);
+
+    /// <summary>True when the line holds a value longer than <see cref="MaxShownBytes"/>, which <see cref="Render"/> shows cut.</summary>
+    public static bool IsLong(JsonLine line) => line.Kind == JsonLineKind.Value && line.ValueEnd - line.ValueStart > MaxShownBytes;
+
+    /// <summary>How many rows a value takes when it is wrapped by <paramref name="partBytes"/> bytes; 1 for every line that holds no value.</summary>
+    public static long PartCount(JsonLine line, int partBytes)
+    {
+        partBytes = Math.Max(16, partBytes);
+        return line.Kind == JsonLineKind.Value ? Math.Max(1, (line.ValueEnd - line.ValueStart + partBytes - 1) / partBytes) : 1;
+    }
+
+    /// <summary>Where part <paramref name="part"/> of a wrapped value starts: every <paramref name="partBytes"/> bytes, moved back to the start of a character.</summary>
+    public long PartStart(JsonLine line, long part, int partBytes)
+    {
+        partBytes = Math.Max(16, partBytes);
+        if (part <= 0) return line.ValueStart;
+        if (part >= PartCount(line, partBytes)) return line.ValueEnd;
+        long at = line.ValueStart + part * partBytes;
+        if (_codec.Kind != CodecKind.Utf8) return at;
+        Span<byte> bytes = stackalloc byte[4];
+        int n = _source.Read(at - 3, bytes);
+        Interlocked.Add(ref _bytesRead, n);
+        int k = 3;
+        while (k > 0 && (bytes[k] & 0xC0) == 0x80) k--;
+        return at - 3 + k;
+    }
+
+    /// <summary>The part of a wrapped value that shows <paramref name="offset"/>; the end of the value is in the last part.</summary>
+    public long PartOf(JsonLine line, long offset, int partBytes)
+    {
+        long count = PartCount(line, partBytes);
+        if (count <= 1) return 0;
+        long part = Math.Clamp((offset - line.ValueStart) / Math.Max(16, partBytes), 0, count - 1);
+        if (part > 0 && PartStart(line, part, partBytes) > offset) part--;
+        else if (part + 1 < count && PartStart(line, part + 1, partBytes) <= offset) part++;
+        return part;
+    }
+
+    /// <summary>
+    /// One row of a value wrapped by <paramref name="partBytes"/> bytes: the first holds the key and the start of the value, the next ones the rest of
+    /// the value indented one level deeper, and the last one the comma. A line without a long value comes back whole.
+    /// </summary>
+    public JsonRenderedLine RenderPart(JsonLine line, long part, int partBytes, string indent = "  ")
+    {
+        long count = PartCount(line, partBytes);
+        if (count <= 1) return Build(line, indent, int.MaxValue, line.ValueStart, line.ValueEnd, head: true, tail: true);
+        part = Math.Clamp(part, 0, count - 1);
+        long to = part + 1 >= count ? line.ValueEnd : PartStart(line, part + 1, partBytes);
+        return Build(line, indent, int.MaxValue, PartStart(line, part, partBytes), to, head: part == 0, tail: part + 1 >= count);
+    }
+
+    /// <summary>The decoded text of the document bytes from <paramref name="start"/> to <paramref name="end"/>; the caller keeps the range within a size it can hold.</summary>
+    public string ReadText(long start, long end)
+    {
+        if (end <= start) return "";
+        var bytes = new byte[end - start];
+        int n = _source.Read(start, bytes);
+        Interlocked.Add(ref _bytesRead, n);
+        return _codec.GetString(bytes.AsSpan(0, n));
+    }
+
+    private JsonRenderedLine Build(JsonLine line, string indent, int max, long valueFrom, long valueTo, bool head, bool tail)
     {
         var text = new StringBuilder();
         var spans = new List<JsonSpan>(4);
-        for (int i = 0; i < line.Depth; i++) text.Append(indent);
+        for (int i = head ? 0 : -1; i < line.Depth; i++) text.Append(indent);
         void Piece(long start, long end, JsonTokenKind kind)
         {
-            long length = Math.Min(end - start, MaxShownBytes);
+            long length = Math.Min(end - start, max);
             var bytes = new byte[length];
             int n = _source.Read(start, bytes);
             Interlocked.Add(ref _bytesRead, n);
             int complete = n < end - start ? _codec.CompleteLength(bytes.AsSpan(0, n)) : n;
             string s = _codec.GetString(bytes.AsSpan(0, complete));
-            spans.Add(new JsonSpan(text.Length, s.Length, start, kind));
+            spans.Add(new JsonSpan(text.Length, s.Length, start, kind, start + complete));
             text.Append(s);
             if (complete < end - start) text.Append('…');
         }
-        void Mark(string s, long source)
+        void Mark(string s, long source, long end)
         {
-            spans.Add(new JsonSpan(text.Length, s.Length, source, JsonTokenKind.Punctuation));
+            spans.Add(new JsonSpan(text.Length, s.Length, source, JsonTokenKind.Punctuation, end));
             text.Append(s);
         }
-        if (line.Kind == JsonLineKind.Raw)
+        if (line.Kind is JsonLineKind.Raw or JsonLineKind.Comment)
         {
             long end = line.ValueEnd;
-            var tail = new byte[Math.Min(2, end - line.ValueStart)];
-            _source.Read(end - tail.Length, tail);
-            if (tail is [.., 10]) end -= tail is [13, 10] ? 2 : 1;
-            Piece(line.ValueStart, end, JsonTokenKind.Raw);
+            if (line.Kind == JsonLineKind.Raw)
+            {
+                var last = new byte[Math.Min(2, end - line.ValueStart)];
+                _source.Read(end - last.Length, last);
+                if (last is [.., 10]) end -= last is [13, 10] ? 2 : 1;
+            }
+            Piece(line.ValueStart, end, line.Kind == JsonLineKind.Raw ? JsonTokenKind.Raw : JsonTokenKind.Comment);
             return new JsonRenderedLine(line, text.ToString(), spans);
         }
-        if (line.HasKey)
+        if (line.HasKey && head)
         {
             Piece(line.KeyStart, line.KeyEnd, JsonTokenKind.Key);
             text.Append(": ");
         }
         switch (line.Kind)
         {
-            case JsonLineKind.Value: Piece(line.ValueStart, line.ValueEnd, line.ValueKind); break;
-            case JsonLineKind.Open: Mark(line.Frame?.IsObject == true ? "{" : "[", line.ValueStart); break;
-            case JsonLineKind.Close: Mark(line.Frame?.IsObject == true ? "}" : "]", line.ValueStart); break;
-            case JsonLineKind.Empty: Mark(line.ValueKind == JsonTokenKind.Punctuation && IsObjectByte(line.ValueStart) ? "{}" : "[]", line.ValueStart); break;
+            case JsonLineKind.Value: Piece(valueFrom, valueTo, line.ValueKind); break;
+            case JsonLineKind.Open: Mark(line.Frame?.IsObject == true ? "{" : "[", line.ValueStart, line.ValueStart + 1); break;
+            case JsonLineKind.Close: Mark(line.Frame?.IsObject == true ? "}" : "]", line.ValueStart, line.ValueEnd); break;
+            case JsonLineKind.Empty: Mark(line.ValueKind == JsonTokenKind.Punctuation && IsObjectByte(line.ValueStart) ? "{}" : "[]", line.ValueStart, line.ValueEnd); break;
         }
-        if (line.Comma) text.Append(',');
+        if (line.Comma && tail) text.Append(',');
         return new JsonRenderedLine(line, text.ToString(), spans);
     }
 
@@ -644,6 +722,25 @@ public sealed class JsonOutline : IDisposable
     {
         if (rendered.SpanAt(column) is not { } span) return -1;
         return span.Source + _codec.EncodeLossy(rendered.Text.AsSpan(span.Column, column - span.Column)).Length;
+    }
+
+    /// <summary>The column that shows the document <paramref name="offset"/> inside a key, value, raw or comment piece of the line; -1 when no piece shows it.</summary>
+    public int ColumnOfOffset(JsonRenderedLine rendered, long offset)
+    {
+        foreach (var span in rendered.Spans)
+        {
+            if (span.Kind == JsonTokenKind.Punctuation || offset < span.Source || offset > span.End) continue;
+            int column = span.Column, end = span.Column + span.Length;
+            long at = span.Source;
+            while (column < end && at < offset)
+            {
+                int width = char.IsHighSurrogate(rendered.Text[column]) && column + 1 < end ? 2 : 1;
+                at += _codec.Kind == CodecKind.Utf8 ? Encoding.UTF8.GetByteCount(rendered.Text.AsSpan(column, width)) : 1;
+                column += width;
+            }
+            return column;
+        }
+        return -1;
     }
 
     // ---- edits ----
@@ -667,20 +764,14 @@ public sealed class JsonOutline : IDisposable
     /// <returns>True when the lines kept their numbers and shape and only the offsets after the edit moved.</returns>
     public bool Update(IByteSnapshot next, long start, long deleted, long inserted)
     {
+        if (deleted >= 0 && ShiftInsideString(next, start, deleted, inserted)) return true;
         IByteSnapshot old;
         int segment;
         ScanState from;
         lock (_gate)
         {
             old = _source;
-            int lo = 0, hi = _points.Count - 1;
-            while (lo < hi)
-            {
-                int mid = (lo + hi + 1) / 2;
-                if (_points[mid].Offset < start) lo = mid;
-                else hi = mid - 1;
-            }
-            segment = lo;
+            segment = SegmentBefore(start);
             from = _points[segment];
         }
         bool shifted = false;
@@ -701,10 +792,7 @@ public sealed class JsonOutline : IDisposable
             _source = next;
             if (shifted)
             {
-                for (int i = segment + 1; i < _points.Count; i++) _points[i] = _points[i] with { Offset = _points[i].Offset + delta, ErrorAt = Shift(_points[i].ErrorAt, start, delta) };
-                if (_error is { } error && error.Offset >= start) _error = (error.Offset + delta, error.Message);
-                if (_complete) _scanned = next.ByteLength;
-                else _scanned += delta;
+                ShiftPoints(segment, start, delta, next);
                 return true;
             }
             _points.RemoveRange(segment + 1, _points.Count - segment - 1);
@@ -729,6 +817,104 @@ public sealed class JsonOutline : IDisposable
         }
     }
 
+    /// <summary>The last segment whose noted state lies before <paramref name="offset"/>. Call under the gate.</summary>
+    private int SegmentBefore(long offset)
+    {
+        int lo = 0, hi = _points.Count - 1;
+        while (lo < hi)
+        {
+            int mid = (lo + hi + 1) / 2;
+            if (_points[mid].Offset < offset) lo = mid;
+            else hi = mid - 1;
+        }
+        return lo;
+    }
+
+    /// <summary>Moves the noted states after <paramref name="segment"/> by <paramref name="delta"/>. Call under the gate.</summary>
+    private void ShiftPoints(int segment, long start, long delta, IByteSnapshot next)
+    {
+        for (int i = segment + 1; i < _points.Count; i++) _points[i] = _points[i] with { Offset = _points[i].Offset + delta, ErrorAt = Shift(_points[i].ErrorAt, start, delta) };
+        if (_error is { } error && error.Offset >= start) _error = (error.Offset + delta, error.Message);
+        if (_complete) _scanned = next.ByteLength;
+        else _scanned += delta;
+    }
+
+    /// <summary>
+    /// The fast path of an edit inside the quotes of one string (a value, or a key that opens no container): when neither the removed nor the added bytes
+    /// hold a quote, a backslash or a control byte and no backslash stands before the edit, the structure cannot change, so the decoded lines and the noted
+    /// states only shift. It needs the segment of the edit decoded already (the screen did that) and reads the edited bytes and one more, so typing into
+    /// a string of hundreds of MiB does not scan the string again.
+    /// </summary>
+    private bool ShiftInsideString(IByteSnapshot next, long start, long deleted, long inserted)
+    {
+        IByteSnapshot old;
+        int segment;
+        JsonLine[]? lines = null;
+        lock (_gate)
+        {
+            old = _source;
+            segment = SegmentBefore(start);
+            foreach (var c in _cache)
+                if (c.Generation == _generation && c.Segment == segment) lines = c.Lines;
+        }
+        if (lines is null || start < 1) return false;
+        long end = start + deleted;
+        bool inside = false;
+        foreach (var l in lines)
+            if ((l.Kind == JsonLineKind.Value && l.ValueKind == JsonTokenKind.String && l.ValueStart < start && end < l.ValueEnd)
+                || (l.HasKey && l.Kind != JsonLineKind.Open && l.KeyStart < start && end < l.KeyEnd)) { inside = true; break; }
+        if (!inside) return false;
+        Span<byte> before = stackalloc byte[1];
+        if (old.Read(start - 1, before) != 1 || before[0] == '\\') return false;
+        if (!Plain(old, start, deleted) || !Plain(next, start, inserted)) return false;
+        long delta = inserted - deleted;
+        lock (_gate)
+        {
+            if (!ReferenceEquals(old, _source)) return false;
+            int generation = ++_generation;
+            _cts?.Cancel();
+            var kept = _cache.Where(c => c.Generation == generation - 1).Select(c => (generation, c.Segment, c.Segment < segment ? c.Lines : ShiftLines(c.Lines, start, delta))).ToList();
+            _cache.Clear();
+            _cache.AddRange(kept);
+            _source = next;
+            ShiftPoints(segment, start, delta, next);
+        }
+        return true;
+    }
+
+    /// <summary>True when the bytes hold no quote, backslash or control byte, so they cannot end a string or start an escape.</summary>
+    private bool Plain(IByteSnapshot source, long start, long length)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent((int)Math.Min(Math.Max(1, length), BlockSize));
+        try
+        {
+            for (long at = start; at < start + length;)
+            {
+                int n = source.Read(at, buffer.AsSpan(0, (int)Math.Min(buffer.Length, start + length - at)));
+                Interlocked.Add(ref _bytesRead, n);
+                if (n <= 0 || buffer.AsSpan(0, n).IndexOfAny(StringStops) >= 0) return false;
+                at += n;
+            }
+            return true;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private static JsonLine[] ShiftLines(JsonLine[] lines, long start, long delta)
+    {
+        long S(long o) => o > start ? o + delta : o;
+        var shifted = new JsonLine[lines.Length];
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var l = lines[i];
+            shifted[i] = l with { KeyStart = S(l.KeyStart), KeyEnd = S(l.KeyEnd), ValueStart = S(l.ValueStart), ValueEnd = S(l.ValueEnd), End = S(l.End) };
+        }
+        return shifted;
+    }
+
     private static long Shift(long offset, long start, long delta) => offset >= start ? offset + delta : offset;
 
     private static bool SameShape(JsonLine[] before, JsonLine[] after, long start, long deleted, long delta)
@@ -748,7 +934,7 @@ public sealed class JsonOutline : IDisposable
 
     private static bool SameState(ScanState a, ScanState b, long start, long deleted, long delta)
     {
-        if (a.Expect != b.Expect || a.Count != b.Count || a.Raw != b.Raw || a.Error != b.Error) return false;
+        if (a.Expect != b.Expect || a.Count != b.Count || a.Raw != b.Raw || a.Error != b.Error || a.Comment != b.Comment) return false;
         if ((a.Offset >= start + deleted ? a.Offset + delta : a.Offset) != b.Offset) return false;
         for (JsonFrame? x = a.Frame, y = b.Frame; x != y; x = x.Parent, y = y.Parent)
             if (x is null || y is null || x.IsObject != y.IsObject || x.Key != y.Key || x.Index != y.Index || x.Depth != y.Depth) return false;
@@ -762,8 +948,10 @@ public sealed class JsonOutline : IDisposable
     private static readonly SearchValues<byte> NumberBytes = SearchValues.Create("0123456789+-.eE"u8);
 
     /// <summary>A window of the source read in blocks; it can go back inside the block it holds without reading again.</summary>
-    private sealed class Cursor(IByteSnapshot source, TextCodec codec, JsonOutline? counter)
+    private sealed class Cursor(IByteSnapshot source, TextCodec codec, JsonOutline? counter, bool comments)
     {
+        public bool Comments => comments;
+
         private readonly byte[] _buffer = new byte[BlockSize];
         private long _start = -1;
         private int _length;
@@ -799,6 +987,51 @@ public sealed class JsonOutline : IDisposable
                 Position += w.Length;
             }
         }
+
+        public int PeekAt(long at)
+        {
+            long keep = Position;
+            Position = at;
+            int b = Peek();
+            Position = keep;
+            return b;
+        }
+
+        /// <summary>Skips white space and, in JSONC, comments too; an unclosed block comment stays for the caller to report.</summary>
+        public void SkipGap()
+        {
+            while (true)
+            {
+                SkipSpace();
+                long p = Position;
+                if (!comments || Peek() != '/') return;
+                int kind = PeekAt(p + 1);
+                if (kind == '/')
+                {
+                    Position = p + 2;
+                    while (Window is { IsEmpty: false } w)
+                    {
+                        int i = w.IndexOf((byte)'\n');
+                        if (i >= 0) { Position += i; break; }
+                        Position += w.Length;
+                    }
+                }
+                else if (kind == '*')
+                {
+                    Position = p + 2;
+                    bool closed = false;
+                    while (!closed && Window is { IsEmpty: false } w)
+                    {
+                        int i = w.IndexOf((byte)'*');
+                        if (i < 0) { Position += w.Length; continue; }
+                        Position += i + 1;
+                        if (Peek() == '/') { Position++; closed = true; }
+                    }
+                    if (!closed) { Position = p; return; }
+                }
+                else return;
+            }
+        }
     }
 
     /// <summary>Reads the next line from <paramref name="s"/>; false at the end of the text.</summary>
@@ -807,6 +1040,7 @@ public sealed class JsonOutline : IDisposable
         line = default;
         c.Position = s.Offset;
         if (s.Raw) return NextRaw(ref s, c, number, out line);
+        if (s.Comment != 0) return NextComment(ref s, c, number, fresh: false, out line);
         while (true)
         {
             c.SkipSpace();
@@ -816,6 +1050,12 @@ public sealed class JsonOutline : IDisposable
             {
                 if (s.Frame is null && s.Expect is Expect.TopLevel) return false;
                 return Fail(ref s, c, p, p, s.Frame is null ? "a value is missing at the end" : "the text ends inside an object or array", number, out line);
+            }
+            if (b == '/' && c.Comments && c.PeekAt(p + 1) is '/' or '*')
+            {
+                s.Comment = (byte)(c.PeekAt(p + 1) == '/' ? 1 : 2);
+                s.Offset = p;
+                return NextComment(ref s, c, number, fresh: true, out line);
             }
             switch (s.Expect)
             {
@@ -832,16 +1072,18 @@ public sealed class JsonOutline : IDisposable
                     return Fail(ref s, c, p, p, "a comma or a closing bracket is missing", number, out line);
                 case Expect.KeyOrClose when b == '}':
                 case Expect.ValueOrClose when b == ']':
+                case Expect.Key when b == '}' && c.Comments: // a trailing comma of JSONC
+                case Expect.Value when b == ']' && c.Comments && s.Frame is { IsObject: false }:
                     return Close(ref s, c, p, (byte)b, number, out line);
                 case Expect.Key or Expect.KeyOrClose:
                 {
                     if (b != '"') return Fail(ref s, c, p, p, "a key in quotes is expected", number, out line);
                     if (!ScanString(c)) return Fail(ref s, c, p, c.AtEnd ? p : c.Position, "the string is not closed or holds a control character", number, out line);
                     long keyEnd = c.Position;
-                    c.SkipSpace();
+                    c.SkipGap();
                     if (c.Peek() != ':') return Fail(ref s, c, p, c.Position, "a colon is missing after the key", number, out line);
                     c.Position++;
-                    c.SkipSpace();
+                    c.SkipGap();
                     return Value(ref s, c, p, p, keyEnd, number, out line);
                 }
                 default:
@@ -1022,19 +1264,86 @@ public sealed class JsonOutline : IDisposable
             c.Position += take;
             scanned += take;
         }
-        if (end < 0)
-        {
-            end = Math.Min(c.Length, start + MaxShownBytes);
-            // do not cut a UTF-8 character
-            for (int k = 0; k < 3 && end < c.Length && end > start + 1; k++)
-            {
-                c.Position = end;
-                if ((c.Peek() & 0xC0) != 0x80) break;
-                end--;
-            }
-        }
+        if (end < 0) end = CharStart(c, Math.Min(c.Length, start + MaxShownBytes), start);
         line = new JsonLine(number, 0, JsonLineKind.Raw, -1, -1, start, end, JsonTokenKind.Raw, false, end, null, -1);
         s.Offset = end;
+        return true;
+    }
+
+    /// <summary>Moves a cut at <paramref name="end"/> back so it does not split a UTF-8 character.</summary>
+    private static long CharStart(Cursor c, long end, long start)
+    {
+        for (int k = 0; k < 3 && end < c.Length && end > start + 1; k++)
+        {
+            c.Position = end;
+            if ((c.Peek() & 0xC0) != 0x80) break;
+            end--;
+        }
+        return end;
+    }
+
+    /// <summary>
+    /// One line of a JSONC comment: a line comment, or one source line of a block comment (its leading spaces dropped); a piece longer than
+    /// <see cref="MaxShownBytes"/> goes on in the next line. <paramref name="fresh"/>: the comment starts at the state offset with its two marks.
+    /// </summary>
+    private static bool NextComment(ref ScanState s, Cursor c, long number, bool fresh, out JsonLine line)
+    {
+        line = default;
+        bool block = s.Comment == 2;
+        long start = s.Offset;
+        c.Position = start;
+        if (!fresh && block)
+        {
+            while (c.Peek() is ' ' or '\t') c.Position++;
+            start = c.Position;
+            if (c.AtEnd) return Fail(ref s, c, s.Offset, s.Offset, "the comment is not closed", number, out line);
+        }
+        long limit = Math.Min(c.Length, start + MaxShownBytes), textEnd = -1, next = -1;
+        bool ended = false, newline = false;
+        for (long at = fresh ? start + 2 : start; at < limit;)
+        {
+            c.Position = at;
+            var w = c.Window;
+            if (w.IsEmpty) break;
+            int take = (int)Math.Min(w.Length, limit - at);
+            int i = block ? w[..take].IndexOfAny((byte)'\n', (byte)'*') : w[..take].IndexOf((byte)'\n');
+            if (i < 0) { at += take; continue; }
+            long q = at + i;
+            if (w[i] == '\n')
+            {
+                textEnd = q;
+                next = block ? q + 1 : q;
+                ended = !block;
+                newline = true;
+                break;
+            }
+            if (c.PeekAt(q + 1) == '/')
+            {
+                textEnd = next = q + 2;
+                ended = true;
+                break;
+            }
+            at = q + 1;
+        }
+        if (textEnd < 0)
+        {
+            if (limit >= c.Length)
+            {
+                if (block) return Fail(ref s, c, start, start, "the comment is not closed", number, out line);
+                textEnd = next = c.Length;
+                ended = true;
+            }
+            else
+            {
+                textEnd = CharStart(c, limit, start);
+                if (block && textEnd - 1 > start && c.PeekAt(textEnd - 1) == '*') textEnd--; // keep "*/" together
+                next = textEnd;
+            }
+        }
+        if (newline && textEnd > start && c.PeekAt(textEnd - 1) == '\r') textEnd--;
+        line = new JsonLine(number, s.Frame?.Depth ?? 0, JsonLineKind.Comment, -1, -1, start, textEnd, JsonTokenKind.Comment, false, next, s.Frame, -1);
+        s.Offset = next;
+        if (ended) s.Comment = 0;
         return true;
     }
 }
