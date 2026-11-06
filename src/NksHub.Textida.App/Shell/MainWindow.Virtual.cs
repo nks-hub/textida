@@ -85,7 +85,7 @@ internal sealed partial class MainWindow
         (string, string)? keyed = request is { PluginId: { } plugin, Key: { } key } ? (plugin, key) : null;
         TabGroup? group = null;
         int? index = null;
-        int keepHunk = -1;
+        int keepHunk = 0;
         if (keyed is { } known && _keyedDiffs.Remove(known, out var old) && old.Group is { } oldGroup && oldGroup.Tabs.Contains(old))
         {
             (group, index) = (oldGroup, oldGroup.Tabs.ToList().IndexOf(old));

@@ -212,14 +212,51 @@ public class CompareTests : IDisposable
         var tab = NewWith("1\n2\n3\n4\n5\n6\n7\n");
         var view = await OpenWithClipboard(tab, "1\nx\n3\n4\ny\n6\n7\n");
 
-        Assert.True(view.NextDifference());
-        Assert.Equal(0, view.CurrentHunk);
+        Assert.Equal(0, view.CurrentHunk); // a new comparison starts on the first difference
         Assert.True(view.NextDifference());
         Assert.Equal(1, view.CurrentHunk);
         Assert.True(view.NextDifference());
         Assert.Equal(0, view.CurrentHunk);
         Assert.True(view.PreviousDifference());
         Assert.Equal(1, view.CurrentHunk);
+    }
+
+    [AvaloniaFact]
+    public async Task A_comparison_from_the_changed_on_disk_bar_scrolls_to_the_first_difference_and_selects_it()
+    {
+        var lines = Enumerable.Range(0, 400).Select(i => "l" + i).ToList();
+        var tab = _w.OpenFile(_temp.File("far.txt", string.Join("\n", lines) + "\n"), null);
+        var editor = tab.Editor!;
+        editor.Document.Replace(editor.Document.GetLineByNumber(301).Offset, 4, "MINE");
+
+        Assert.Null(_w.CompareWithDisk(tab));
+        var view = Assert.IsType<DiffView>(_w.Active!.Custom);
+        Assert.Equal("Porovnání: far.txt / far.txt na disku", _w.Active.Title);
+        await view.Session.RefreshAsync();
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0, view.CurrentHunk);
+        long row = view.Session.Diff!.Layout.RowOfHunk(0);
+        Assert.Equal(300, row);
+        Assert.True(view.TopRow > 0 && row >= view.TopRow && row < view.TopRow + view.VisibleRows, $"top {view.TopRow}, rows {view.VisibleRows}");
+        Assert.Equal(view.FirstLine(DiffSide.A), view.FirstLine(DiffSide.B)); // both sides moved together
+        Assert.True(view.ToLeftButton.IsEnabled || !view.Session.Left.CanReceive);
+
+        Assert.True(view.NextDifference()); // F7 still walks on; with one block it stays on it
+        Assert.Equal(0, view.CurrentHunk);
+    }
+
+    [AvaloniaFact]
+    public async Task A_first_difference_on_the_first_screen_is_selected_without_scrolling()
+    {
+        var tab = NewWith(string.Join("\n", Enumerable.Range(0, 200).Select(i => "l" + i)));
+        var view = await OpenWithClipboard(tab, string.Join("\n", Enumerable.Range(0, 200).Select(i => i == 2 ? "X" : "l" + i)));
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(0, view.CurrentHunk);
+        Assert.Equal(0, view.TopRow);
     }
 
     [AvaloniaFact]
@@ -386,7 +423,7 @@ public class CompareTests : IDisposable
         var tab = NewWith("a\n  old one\nold two\nc\n");
         var view = await OpenWithClipboard(tab, "a\nnew\nc\n");
         var peer = Assert.IsType<DiffAutomationPeer>(ControlAutomationPeer.CreatePeerForElement(view));
-        Assert.Equal("1 rozdíl", peer.Value);
+        Assert.StartsWith("Rozdíl 1 z 1", peer.Value); // a new comparison starts on the first difference
         Assert.True(peer.IsReadOnly);
         Assert.Equal(AutomationControlType.Edit, peer.GetAutomationControlType());
         Assert.Equal("Porovnání", peer.GetName());
@@ -409,6 +446,8 @@ public class CompareTests : IDisposable
         var peer = (DiffAutomationPeer)ControlAutomationPeer.CreatePeerForElement(view);
         string Announced() => (string)typeof(DiffAutomationPeer).GetField("_last", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(peer)!;
 
+        view.PreviousDifference();
+        Assert.StartsWith("Rozdíl 2 z 2", Announced());
         view.NextDifference();
         Assert.StartsWith("Rozdíl 1 z 2", Announced());
         Assert.Equal(peer.Value, Announced());

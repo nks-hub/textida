@@ -41,8 +41,8 @@ internal sealed partial class DiffView : DockPanel
     private readonly List<(DiffAction Action, Button Button)> _actions = [];
     private EditorOptions _options;
     private long _top;
-    private int _current = -1, _restoreHunk = -1;
-    private bool _syncingBar, _shown;
+    private int _current = -1, _restoreHunk;
+    private bool _syncingBar, _shown, _revealPending;
 
     public DiffView(CompareSession session, EditorOptions options)
     {
@@ -232,7 +232,8 @@ internal sealed partial class DiffView : DockPanel
 
     /// <summary>
     /// Makes the difference with this number the current one once the first comparison ends (or the last one when there are fewer): a comparison that takes the place of another one
-    /// opened with the same key carries on where the user was, and a hunk that was taken away leaves the next one current.
+    /// opened with the same key carries on where the user was, and a hunk that was taken away leaves the next one current. A new view makes the first difference current and scrolls to it
+    /// when it lies below the first screen; -1 leaves nothing current.
     /// </summary>
     public void RestoreHunk(int hunk) => _restoreHunk = hunk;
 
@@ -242,7 +243,7 @@ internal sealed partial class DiffView : DockPanel
         {
             _current = diff.Hunks.Count == 0 ? -1 : Math.Min(_current, diff.Hunks.Count - 1);
             UpdateScrollRange();
-            if (_restoreHunk >= 0 && diff.Hunks.Count > 0)
+            if (_restoreHunk >= 0)
             {
                 int hunk = Math.Min(_restoreHunk, diff.Hunks.Count - 1);
                 _restoreHunk = -1;
@@ -266,7 +267,11 @@ internal sealed partial class DiffView : DockPanel
         _syncingBar = false;
     }
 
-    internal void SizeChanged() => UpdateScrollRange();
+    internal void SizeChanged()
+    {
+        UpdateScrollRange();
+        if (_revealPending && _surface.Bounds.Height > 0) RevealCurrent();
+    }
 
     private void UpdateState()
     {
@@ -330,10 +335,19 @@ internal sealed partial class DiffView : DockPanel
     {
         if (_session.Diff is not { } diff || hunk < 0 || hunk >= diff.Hunks.Count) return;
         _current = hunk;
-        long row = diff.Layout.RowOfHunk(hunk);
-        if (row < _top || row >= _top + VisibleRows) ScrollToRow(Math.Max(0, row - VisibleRows / 3));
+        // before the first layout the view does not know its height, so it scrolls once it has one
+        if (_surface.Bounds.Height > 0) RevealCurrent();
+        else _revealPending = true;
         UpdateState();
         _surface.InvalidateVisual();
+    }
+
+    private void RevealCurrent()
+    {
+        _revealPending = false;
+        if (_session.Diff is not { } diff || _current < 0 || _current >= diff.Hunks.Count) return;
+        long row = diff.Layout.RowOfHunk(_current);
+        if (row < _top || row >= _top + VisibleRows) ScrollToRow(Math.Max(0, row - VisibleRows / 3));
     }
 
     public bool NextDifference() => Move(+1);
