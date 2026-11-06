@@ -33,6 +33,7 @@ internal sealed partial class MainWindow
             if (CloseSidePanel()) { e.Handled = true; return; }
             if (_find.IsVisible) { HideFind(); e.Handled = true; return; }
         }
+        if (FocusManager?.GetFocusedElement() is MarkdownReader reader && reader.OwnsKey(e)) return; // copy, select all and Tab between links of the page, not of the editor beside it
         if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
         // AltGr arrives as Ctrl+Alt on Windows and types a character: that is text, not a command
         if (chord.Modifiers.HasFlag(WbKeyModifiers.Ctrl) && chord.Modifiers.HasFlag(WbKeyModifiers.Alt) && !string.IsNullOrEmpty(e.KeySymbol)) return;
@@ -87,6 +88,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleCommitPanel" => (IsOpen(SidePanel.Commit), false),
         "nks.view.toggleHistoryPanel" => (IsOpen(SidePanel.History), false),
+        "nks.view.toggleHeadingsPanel" => (IsOpen(SidePanel.Headings), false),
         "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
         "nks.edit.toggleClipboardMonitor" => (_app.Workbench.Settings.GetBool("editor.clipboardMonitor"), false),

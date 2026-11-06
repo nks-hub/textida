@@ -1878,7 +1878,6 @@
   "image.a11y": "Obrázek {name}: {format}, {width} × {height} px, {size}, přiblížení {zoom} %",
   "image.status": "Obrázek {format} · {width} × {height} px · {size} · přiblížení {zoom} %",
   "image.zoomed": "Přiblížení {zoom} %",
-  "preview.outline.title": "Osnova souboru {name}",
   "preview.outline.empty": "Soubor nemá žádné nadpisy.",
   "preview.outline.unsupported": "Osnova se dělá pro soubory Markdown.",
   "preview.image.loading": "[obrázek se načítá: {alt}]",

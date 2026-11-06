@@ -2229,7 +2229,6 @@ public static partial class K
     public const string ImageA11y = "image.a11y";
     public const string ImageStatus = "image.status";
     public const string ImageZoomed = "image.zoomed";
-    public const string PreviewOutlineTitle = "preview.outline.title";
     public const string PreviewOutlineEmpty = "preview.outline.empty";
     public const string PreviewOutlineUnsupported = "preview.outline.unsupported";
     public const string PreviewImageLoading = "preview.image.loading";

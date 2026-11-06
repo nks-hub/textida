@@ -212,7 +212,7 @@ public class NetworkConsentTests
         var png = Convert.FromBase64String(PreviewSafetyTests.OnePixelPng);
         rig.Net.Sinkhole.Respond = uri => uri.Host == "images.example.test" ? ("image/png", png) : null;
         rig.Window.OpenFile(rig.ProjectFile("readme.md", "![one](http://images.example.test/a.png)\n\n![two](http://other.example.test/b.png)\n"), null);
-        rig.Window.ShowLivePreview(outline: false);
+        rig.Window.ShowLivePreview();
         await rig.Settle(700);
         rig.Window.UpdateLayout();
         var buttons = rig.Window.PreviewBody!.GetLogicalDescendants().OfType<Button>().ToList();

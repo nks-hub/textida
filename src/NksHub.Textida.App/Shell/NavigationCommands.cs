@@ -36,6 +36,7 @@ internal static class NavigationCommands
         Do("nks.panel.resetLayout", w => w.ResetPanelLayout());
         Do("nks.view.toggleCommitPanel", w => w.ToggleOrFocusPanel(SidePanel.Commit));
         Do("nks.view.toggleHistoryPanel", w => w.ToggleOrFocusPanel(SidePanel.History));
+        Do("nks.view.toggleHeadingsPanel", w => w.ToggleOrFocusPanel(SidePanel.Headings));
         Do("nks.open.special", w => w.ShowSpecialOpen());
         Fire("nks.open.hex", w => w.OpenTargetAsHexAsync());
         Fire("nks.open.withEncoding", w => w.OpenTargetWithEncodingAsync());

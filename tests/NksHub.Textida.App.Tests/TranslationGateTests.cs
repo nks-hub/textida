@@ -45,6 +45,7 @@ public class TranslationGateTests
         ["dialog.about.version"] = "de",
         ["dialog.about.build"] = "de",
         ["dialog.ok"] = "cs sk de",
+        ["preview.alert.tip"] = "cs sk", // the title of a GitHub alert; "tip" is the same word in Czech and Slovak
         ["restore.details"] = "de",
         ["source.editorConfig"] = "cs sk de",
         ["source.plugin"] = "cs sk",

@@ -815,6 +815,7 @@
   "cmd.panel.hide": "Skryť panel",
   "cmd.panel.resetLayout": "Vrátiť predvolené rozloženie panelov",
   "cmd.view.toggleCommitPanel": "Panel commitu",
+  "cmd.view.toggleHeadingsPanel": "Register nadpisov",
   "cmd.view.toggleHistoryPanel": "Panel histórie",
   "reason.panelOpen.false": "Nie je otvorený žiadny panel",
   "reason.textView.false": "Dokument sa teraz nezobrazuje ako text",

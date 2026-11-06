@@ -30,11 +30,9 @@ internal sealed partial class MainWindow
     private readonly ScrollViewer _previewScroll = new() { Focusable = true, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MarkdownRenderQueue _previewRenders = new();
     private long _previewLayoutGeneration;
-    private string? _previewRenderedSource;
     private PreviewContent? _preview;
     private long? _previewOutdatedBy;
     private DocTab? _liveTab;
-    private bool _liveOutline;
     private long _liveRevision;
     private DispatcherTimer? _liveTimer;
     private PreviewImages? _previewImages;
@@ -130,25 +128,22 @@ internal sealed partial class MainWindow
         if (_preview is not { } content) return;
         var offset = _previewScroll.Offset;
         var mono = new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily"));
-        bool follow = _liveTab is not null && !_liveOutline;
+        bool follow = _liveTab is not null;
         var live = _liveTab;
         long revision = live?.Doc.Doc.Revision ?? -1;
         string? folder = _liveTab?.Doc.Doc.FilePath is { Length: > 0 } path && Path.IsPathRooted(path) ? Path.GetDirectoryName(path) : null;
-        void Apply(PreviewRenderer.MarkdownPlan? plan)
+        void Apply(MarkdownReaderDocument? document)
         {
             long generation = ++_previewLayoutGeneration;
-            var selection = plan is not null ? PreviewRenderer.KeepSelection(PreviewBody, _previewRenderedSource, plan.Source) : null;
-            _previewRenderedSource = plan?.Source;
-            _previewAnchors = content.Format == PreviewFormats.Markdown || follow ? [] : null;
+            _previewAnchors = document is null && follow ? [] : null;
             _previewSettling = follow;
             var ctx = new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, content.Images, _previewAnchors, JumpPreviewToLine);
-            _previewScroll.Content = _liveOutline && live is { } outlined && plan?.Document is { } document
-                ? PreviewRenderer.Outline(MarkdownSyntax.Headings(document), h => { outlined.GoToLine(h.Line + 1); FocusView(outlined); })
-                : plan is not null ? PreviewRenderer.RenderMarkdown(plan, ctx) : PreviewRenderer.Render(content.Format, content.Text, ctx);
+            if (document is null) _previewScroll.Content = PreviewRenderer.Render(content.Format, content.Text, ctx);
+            else if (_previewScroll.Content is MarkdownReader reader && reader.Context.Attached == content.Images && reader.Context.BaseDirectory == folder) reader.SetDocument(document);
+            else _previewScroll.Content = new MarkdownReader(document, ctx);
             Dispatcher.UIThread.Post(() =>
             {
                 if (generation != _previewLayoutGeneration) return;
-                if (PreviewBody is { } body) PreviewRenderer.RestoreSelection(body, selection);
                 if (follow) { _previewSettling = false; SyncPreviewToEditor(); }
                 else if (keepScroll) _previewScroll.Offset = offset;
             }, DispatcherPriority.Background);
@@ -159,7 +154,7 @@ internal sealed partial class MainWindow
         }
         if (content.Format == PreviewFormats.Markdown)
             PreviewRenderTask = _previewRenders.RunAsync(content.Text,
-                () => ReferenceEquals(_preview, content) && (live is null || live.Doc.Doc.Revision == revision), plan => Apply(plan));
+                () => ReferenceEquals(_preview, content) && (live is null || live.Doc.Doc.Revision == revision), document => Apply(document));
         else
         {
             _previewRenders.Cancel();
@@ -170,8 +165,7 @@ internal sealed partial class MainWindow
 
     private void JumpPreviewToLine(int line)
     {
-        if (_previewAnchors is not { Count: > 0 } anchors || _previewScroll.Content is not Control body || _preview is not { } content) return;
-        var map = PreviewScrollMap.FromAnchors(anchors, body, MarkdownSyntax.LineStarts(content.Text).Length, _previewScroll.Extent.Height);
+        if (_preview is not { } content || PreviewMap(MarkdownSyntax.LineStarts(content.Text).Length) is not { } map) return;
         _previewScroll.Offset = new Vector(0, Math.Clamp(map.OffsetFor(line), 0, Math.Max(0, _previewScroll.Extent.Height - _previewScroll.Viewport.Height)));
         if (_liveTab?.Surface is { } editor) MarkdownPreview.ScrollEditorTo(editor, line);
     }
@@ -215,19 +209,19 @@ internal sealed partial class MainWindow
 
     /// <summary>
     /// Shows the current Markdown or HTML file next to the editor and keeps it level with the text: every edit restarts a short timer and the panel is drawn again when it runs out, and the
-    /// editor and the panel scroll together. HTML is drawn as the subset of <see cref="PreviewRenderer"/> and every other tag stays text. With <paramref name="outline"/> the panel lists the headings instead of the page.
+    /// editor and the panel scroll together. HTML is drawn as the subset of <see cref="PreviewRenderer"/> and every other tag stays text.
     /// </summary>
-    internal CommandOutcome ShowLivePreview(bool outline)
+    internal CommandOutcome ShowLivePreview()
     {
         if (Active is not { Surface: not null } tab) return CommandOutcome.NotHandled;
         string language = tab.Doc.Language.Id;
-        if (language != "markdown" && (outline || language != "html"))
+        if (language != "markdown" && language != "html")
         {
-            SetStatusMessage(Loc.Get(outline ? K.PreviewOutlineUnsupported : K.PreviewLiveUnsupported));
+            SetStatusMessage(Loc.Get(K.PreviewLiveUnsupported));
             return CommandOutcome.Handled;
         }
         StopLive();
-        (_liveTab, _liveOutline) = (tab, outline);
+        _liveTab = tab;
         tab.Doc.Changed += OnLiveEdited;
         tab.ViewClosed += OnLiveTabClosed;
         tab.Surface!.TextArea.TextView.ScrollOffsetChanged += OnLiveEditorScrolled;
@@ -257,7 +251,7 @@ internal sealed partial class MainWindow
             if (tab.Surface is { } surface) surface.TextArea.TextView.ScrollOffsetChanged -= OnLiveEditorScrolled;
         }
         _liveTimer?.Stop();
-        (_liveTab, _liveTimer, _liveOutline, _previewAnchors, _previewSettling) = (null, null, false, null, false);
+        (_liveTab, _liveTimer, _previewAnchors, _previewSettling) = (null, null, null, false);
     }
 
     /// <summary>Draws the live preview from the text as it is now.</summary>
@@ -272,7 +266,7 @@ internal sealed partial class MainWindow
             return;
         }
         bool html = tab.Doc.Language.Id == "html";
-        string title = Loc.Get(_liveOutline ? K.PreviewOutlineTitle : html ? K.PreviewLiveHtmlTitle : K.PreviewLiveTitle, ("name", tab.Title));
+        string title = Loc.Get(html ? K.PreviewLiveHtmlTitle : K.PreviewLiveTitle, ("name", tab.Title));
         ShowPreviewCore(new PreviewContent("", Guid.Empty, ++_liveRevision, html ? PreviewFormats.Html : PreviewFormats.Markdown, title, surface.Document.Text));
     }
 
@@ -288,10 +282,15 @@ internal sealed partial class MainWindow
         return line.LineNumber - 1 + (height > 0 ? Math.Clamp((view.ScrollOffset.Y - top) / height, 0, 1) : 0);
     }
 
-    private PreviewScrollMap? ScrollMap(EditorSurface editor) =>
-        _previewAnchors is { Count: > 0 } anchors && _previewScroll.Content is Control body
-            ? PreviewScrollMap.FromAnchors(anchors, body, editor.Document.LineCount, _previewScroll.Extent.Height)
-            : null;
+    private PreviewScrollMap? ScrollMap(EditorSurface editor) => PreviewMap(editor.Document.LineCount);
+
+    /// <summary>The Markdown reader maps lines to its page itself; an HTML page by the anchors its blocks noted.</summary>
+    private PreviewScrollMap? PreviewMap(int lineCount) => _previewScroll.Content switch
+    {
+        MarkdownReader reader => reader.Map,
+        Control body when _previewAnchors is { Count: > 0 } anchors => PreviewScrollMap.FromAnchors(anchors, body, lineCount, _previewScroll.Extent.Height),
+        _ => null,
+    };
 
     /// <summary>Scrolls the preview to where the top of the editor is.</summary>
     internal void SyncPreviewToEditor()

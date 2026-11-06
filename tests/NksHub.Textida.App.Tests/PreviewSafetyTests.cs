@@ -135,8 +135,12 @@ public class PreviewSafetyTests : IDisposable
 
     private static IEnumerable<Control> Tree(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
 
-    private static string TextOf(Control root) => string.Join("\n", Tree(root).OfType<TextBlock>().Select(t =>
-        t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? ""));
+    private static string TextOf(Control root) => string.Join("\n", Tree(root).Select(c => c switch
+    {
+        MarkdownReader reader => reader.Document.PlainText,
+        TextBlock t => t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? "",
+        _ => null,
+    }).OfType<string>());
 
     private static IEnumerable<Run> RunsOf(Control root) => Tree(root).OfType<TextBlock>().Where(t => t.Inlines is not null).SelectMany(t => t.Inlines!.OfType<Run>());
 
@@ -194,7 +198,7 @@ public class PreviewSafetyTests : IDisposable
         using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
         string url = $"http://{server.Authority}/a.png";
         var tab = Open($"![chart]({url}) and ![again]({url})\n\n<img src=\"{url}\"> <script src=\"{url}\"></script>\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -243,7 +247,7 @@ public class PreviewSafetyTests : IDisposable
             : Http.Ok(Png);
         string Url(string name) => $"http://{server.Authority}/{name}";
         Open($"![r]({Url("redirect")}) ![s]({Url("svg")}) ![m]({Url("missing")}) ![ok]({Url("ok.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
         Assert.Equal(0, server.Connections);
@@ -273,7 +277,7 @@ public class PreviewSafetyTests : IDisposable
         }
         NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, new ProxySettings(ProxyType.Socks5, "127.0.0.1", closed), null, _app.Remote.Secrets);
         Open($"![first]({Url("first.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
         _dialogs.Answers.Enqueue(0);
@@ -285,7 +289,7 @@ public class PreviewSafetyTests : IDisposable
         using var proxy = new TestProxy(ProxyType.Socks5);
         NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, proxy.Settings, null, _app.Remote.Secrets);
         Open($"![second]({Url("second.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Until(() => Tree(Body()).OfType<Image>().Count() == 1, "the picture through the proxy");
         Assert.Equal(1, proxy.Tunnels);
@@ -310,7 +314,7 @@ public class PreviewSafetyTests : IDisposable
             $"<img src=\"{u}/a.png\" alt=\"far\" onerror=\"fetch('{u}/z')\">",
             "</body></html>");
         Open(page, "html");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -368,7 +372,7 @@ public class PreviewSafetyTests : IDisposable
         string path = Path.Combine(docs, "doc.md");
         File.WriteAllText(path, $"![a](pic.png) ![b](sub/two.png) ![c](../outside.png) ![d]({new Uri(outside).AbsoluteUri}) ![e](missing.png) ![f](bomb.png) ![g](notimage.png) ![h]({outside.Replace('\\', '/')})\n");
         _w.OpenFile(path, null);
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
 
         // Showing the panel only queues parsing and image reads.
         Assert.True(_w.PreviewBody is null || !Tree(_w.PreviewBody).OfType<Image>().Any());
@@ -402,7 +406,7 @@ public class PreviewSafetyTests : IDisposable
     {
         using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
         Open("# Plan\n\n```mermaid\ngraph TD\n  A[Start] --> B{Ready?}\n  B -->|yes| C((Go))\n  B -->|no| D(Wait)\n  D --> B\n  click A href \"http://" + server.Authority + "/x\"\n```\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -429,7 +433,7 @@ public class PreviewSafetyTests : IDisposable
     public async Task A_diagram_the_subset_does_not_know_is_shown_as_its_source_and_a_flowchart_in_html_is_drawn()
     {
         Open("<pre class=\"mermaid\">graph LR\nA[In] --&gt; B[Out]</pre>\n<pre><code class=\"language-mermaid\">pie title Pets\n\"Dogs\" : 3</code></pre>\n<pre>graph LR\nX --&gt; Y</pre>", "html");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -454,7 +458,7 @@ public class PreviewSafetyTests : IDisposable
     private async Task<(DocTab Tab, ILogicalScrollable Editor)> LongPreviewAsync()
     {
         var tab = Open(LongDocument(), "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         long drawn = _w.ShownPreview!.Revision;
         var scroller = _w.PreviewScroller;
@@ -526,18 +530,28 @@ public class PreviewSafetyTests : IDisposable
     public async Task Everything_in_the_preview_a_screen_reader_or_the_keyboard_needs_has_a_name_and_a_tab_stop()
     {
         Open($"# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[web](https://docs.example.org/a) ![dot](data:image/png;base64,{OnePixelPng}) ![far](https://remote.example/a.png)\n\n```mermaid\ngraph LR\nA-->B\n```\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         var body = Body();
 
         Assert.False(string.IsNullOrWhiteSpace(NameOf(_w.PreviewPanelControl)));
         Assert.False(string.IsNullOrWhiteSpace(NameOf(_w.PreviewScroller)));
         Assert.True(_w.PreviewScroller.Focusable);
+        // pictures, the button that asks before loading and the diagram are controls with names; the text, the table and the link are drawn by the reader
         var named = Tree(body).Where(c => c is Button or Image or Grid or ScrollViewer).ToList();
-        Assert.Equal(["Button", "Button", "Grid", "Image", "ScrollViewer"], named.Select(c => c.GetType().Name).Order().ToList());
+        Assert.Equal(["Button", "Image", "ScrollViewer"], named.Select(c => c.GetType().Name).Order().ToList());
         Assert.All(named, c => Assert.False(string.IsNullOrWhiteSpace(NameOf(c)), c.GetType().Name));
         Assert.All(Tree(body).OfType<Button>(), b => Assert.True(b.Focusable && b.IsTabStop && b.IsVisible));
         Assert.Equal(Loc.Get(K.A11yPreviewBody), NameOf(_w.PreviewScroller));
+        // the link is reached with Tab inside the reader, which then carries its name
+        var reader = Assert.IsType<MarkdownReader>(body);
+        Assert.True(reader.Focusable && reader.IsTabStop);
+        await Settle(); // the editor takes the focus back after the panel opened
+        reader.Focus();
+        Assert.True(reader.IsFocused);
+        TestApp.Press(_w, Key.Tab);
+        Assert.Equal(0, reader.FocusedLink);
+        Assert.Equal(Loc.Get(K.PreviewPanelLink, ("text", "web"), ("url", "https://docs.example.org/a")), NameOf(reader));
     }
 }
 

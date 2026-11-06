@@ -26,7 +26,7 @@ internal static partial class PreviewRenderer
         return panel;
     }
 
-    private static Control DrawFlowchart(Flowchart chart)
+    internal static Control DrawFlowchart(Flowchart chart)
     {
         var layout = FlowchartLayout.Compute(chart);
         var canvas = new Canvas { Width = layout.Width, Height = layout.Height };

@@ -1,9 +1,16 @@
 {
-  "preview.markdownLimit": "Dieses Markdown ist für die Vorschau zu komplex. Der vollständige Quelltext wird angezeigt. Grund: {reason}",
+  "preview.markdownLimit": "Das Markdown konnte nicht verarbeitet werden, der Quelltext wird angezeigt. Grund: {reason}",
   "markdown.parseFailed": "Das Markdown konnte nicht verarbeitet werden. Das Dokument wurde nicht geändert. Grund: {reason}",
   "markdown.nestingLimit": "Die Verschachtelung überschreitet die Grenze von {limit} Ebenen.",
   "markdown.tableExpansionLimit": "Die Tabellen würden mehr als {limit} zusätzliche leere Zellen benötigen.",
   "markdown.inputFailed": "Die Markdown-Struktur konnte nicht verarbeitet werden.",
-  "preview.markdownNodeLimit": "Das Dokument enthält mehr als {limit} Markdown-Elemente.",
-  "preview.markdownControlLimit": "Die Vorschau würde mehr als {limit} Anzeigeelemente benötigen."
+  "preview.reader.copy": "Kopieren",
+  "preview.reader.copyMarkdown": "Als Markdown kopieren",
+  "preview.reader.selectAll": "Alles auswählen",
+  "panel.headings.name": "Überschriften",
+  "headings.filter": "Überschriften filtern",
+  "headings.tree": "Überschriften des Dokuments",
+  "headings.level": "Überschriften bis Ebene {level} zeigen",
+  "headings.noMatch": "Keine Überschrift passt zum Filter.",
+  "headings.current": "aktuelle Überschrift"
 }

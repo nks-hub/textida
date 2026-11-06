@@ -815,6 +815,7 @@
   "cmd.panel.hide": "Panel ausblenden",
   "cmd.panel.resetLayout": "Panel-Layout zurücksetzen",
   "cmd.view.toggleCommitPanel": "Commit-Panel",
+  "cmd.view.toggleHeadingsPanel": "Überschriftenverzeichnis",
   "cmd.view.toggleHistoryPanel": "Verlaufspanel",
   "reason.panelOpen.false": "Kein Panel geöffnet",
   "reason.textView.false": "Das Dokument wird gerade nicht als Text angezeigt",

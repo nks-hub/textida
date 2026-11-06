@@ -136,8 +136,12 @@ public class ViewModeTests : IDisposable
 
     private static IEnumerable<Control> Tree(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
 
-    private static string TextOf(Control root) => string.Join("\n", Tree(root).OfType<TextBlock>().Select(t =>
-        t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? ""));
+    private static string TextOf(Control root) => string.Join("\n", Tree(root).Select(c => c switch
+    {
+        MarkdownReader reader => reader.Document.PlainText,
+        TextBlock t => t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? "",
+        _ => null,
+    }).OfType<string>());
 
     private async Task<(DocTab Tab, ImageView View)> OpenPicture(string name, byte[] bytes)
     {

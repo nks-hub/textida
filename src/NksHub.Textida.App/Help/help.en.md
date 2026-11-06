@@ -520,7 +520,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 1. View, Preview Markdown or HTML opens the preview panel under the editor with the current file. The panel follows what you type: it is drawn again a moment after the last key. The editor and the panel scroll together: when you scroll one, the other follows.
 2. Markdown is shown as a page: headings, lists, quotes, code, emphasis and tables with their cells (the colons in the row of dashes set the alignment of a column). A code block marked `mermaid` is drawn as a flowchart.
 3. An HTML file is shown as a page too, but only a small part of HTML is understood: headings, paragraphs, lists, tables, preformatted text, code, links, images and emphasis. Every other tag, every comment and everything inside `script` and `style` is shown as the text it is. Nothing in the file runs.
-4. View, Show Markdown Outline lists the headings of the file in the same panel, indented by level. A click, or Enter on a heading, puts the caret on its line in the editor.
+4. Show Markdown Outline opens the Headings panel with the tree of the headings of the file (see Markdown: reading, editing and source). A click, or Enter on a heading, puts the caret on its line in the editor.
 5. Tools, Markdown, Align Markdown Table rewrites the table under the caret so that every column is as wide as its widest cell. The marks `:--`, `:-:` and `--:` are kept and a short row is filled with empty cells. One undo step undoes it.
 6. Tools, Markdown, Update Markdown Table of Contents writes links to the headings between the lines `<!-- TOC -->` and `<!-- /TOC -->`. Only the text between the two lines changes. Without them the two lines are added at the caret. The anchors are lower case, spaces become hyphens, and a repeated title gets `-1`, `-2`.
 7. In a table, Tab selects the next cell and Shift+Tab the previous one; the columns are aligned on the way. Tab in the last cell adds a row. Outside a table both keys work as always. One undo step undoes each move.
@@ -533,7 +533,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 - Only headings written with `#` are listed. The width of a table cell is its display width: wide East Asian characters count as two columns. A pipe in a cell must be written `\|` or sit inside an inline code span.
 
 ## [view.markdownModes] Markdown: reading, editing and source
-commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
+commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource, nks.view.toggleHeadingsPanel
 A Markdown file (.md, .markdown) has three modes. Reading draws the page over the whole tab, editing shows the editor with the page beside it, source shows only the text. A bar above the file switches them.
 1. A Markdown file opens in reading. The setting Default Markdown mode (Settings, Files) chooses reading, editing or source for files opened from now on.
 2. Press a button of the bar, use View, View Mode, Markdown: Reading, Editing or Source, or press Ctrl+K and then Ctrl+V (View, View Mode, Cycle View Mode), which goes to the next mode: reading, editing, source and reading again. The status bar and a screen reader say which mode is on.
@@ -541,6 +541,8 @@ A Markdown file (.md, .markdown) has three modes. Reading draws the page over th
 4. Changing the mode keeps the place: the page and the editor scroll to the same line, and the caret and the selection come back when you return to the editor. The window remembers the mode of a file until it is closed.
 - A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
 - In reading the keys of the editor do nothing: the page is only for reading. Switch to editing or source to change the text. F6 moves the focus to the page; the arrow keys, Page Up, Page Down, Home and End scroll it.
+- Select the text of the page with the mouse as on a web page: drag across paragraphs, lists, code and table cells. Shift+click extends the selection, a double click selects a word and a triple click a paragraph; dragging past the edge scrolls the page. Ctrl+A selects everything, Ctrl+C copies the text (table cells separated by tabs), and Ctrl+Shift+C or Copy as Markdown in the context menu copies the matching part of the source. Tab moves between the links and Enter opens one. A long line of code does not wrap; Shift+wheel scrolls it.
+- View, Headings Panel (or Tools, Show Markdown Outline) opens a panel beside the document with the tree of the headings H1 to H6. It stays open in reading, editing and source, the heading of the place you are at is bold, a click or Enter shows the heading at the top of the editor or the page, and after typing the tree is updated shortly after the last key. The buttons 1 to 6 show the headings down to that level and fold the deeper ones, and the box at the top keeps only the headings that contain the text typed in it. The panel moves and hides like the other panels.
 - Ctrl+K then Ctrl+V on a file in hex goes to reading. The Markdown commands of the Tools menu need the editor, so use editing or source for them.
 - Text cannot be changed directly in the drawn page.
 

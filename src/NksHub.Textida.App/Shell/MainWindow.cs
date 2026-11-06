@@ -258,6 +258,7 @@ internal sealed partial class MainWindow : Window
         RefreshTitle();
         _menuModel = BuildMenuModel();
         var tab = Active;
+        if (_stripButtons.Count > 0) RefreshStrips(); // the headings panel offers itself for a Markdown file
         ScheduleGitGutter(tab);
         _app.Plugins.Mcp.ActiveTabChanged(this, tab);
         Dispatcher.UIThread.Post(() => { if (Active == tab && tab is not null && !InSidePanels && !IsPaletteOpen && !IsFocusInTextInput()) FocusView(tab); }, DispatcherPriority.Input);

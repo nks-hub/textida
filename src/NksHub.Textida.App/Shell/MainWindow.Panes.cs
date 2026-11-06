@@ -55,6 +55,7 @@ internal sealed partial class MainWindow
                 return true;
             case SidePanel.Commit: return _commitView is { } commit && commit.FocusMessage();
             case SidePanel.History: return _historyView is { } history && history.FocusList();
+            case SidePanel.Headings: return HeadingsPanelView.FocusTree();
             default: return false;
         }
     }
