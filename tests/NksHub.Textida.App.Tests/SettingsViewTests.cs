@@ -69,10 +69,10 @@ public class SettingsViewTests : IDisposable
         var tab = new MainWindowHolder(_app).Window.NewDocument();
         var view = Open("tabSize");
         var row = view.RowOf("editor.tabSize")!;
-        var box = row.GetVisualDescendants().OfType<TextBox>().Single();
-        box.Text = "2";
-        box.Focus();
-        TestApp.Press(view, Key.Enter);
+        var box = row.GetVisualDescendants().OfType<NumericUpDown>().Single();
+        Assert.Equal(1m, box.Minimum);
+        Assert.Equal(32m, box.Maximum);
+        box.Value = 2;
 
         Assert.Equal(2, _app.Workbench.Settings.GetInt("editor.tabSize"));
         Assert.Contains("\"editor.tabSize\": 2", File.ReadAllText(_app.Workbench.UserSettingsPath));
@@ -80,24 +80,24 @@ public class SettingsViewTests : IDisposable
         Assert.Contains(Texts(row), t => t == Loc.Get(K.SettingsValueSource, ("source", Loc.Get(K.SourceUser))));
         Assert.Equal(2, tab.Editor!.Options.IndentationSize);
 
-        var reset = row.GetVisualDescendants().OfType<Button>().Single(b => (string?)b.Content == Loc.Get(K.SettingsReset));
+        var reset = row.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == Loc.Get(K.SettingsReset));
         reset.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(4, _app.Workbench.Settings.GetInt("editor.tabSize"));
         Assert.Contains(Texts(view.RowOf("editor.tabSize")!), t => t.Contains(Loc.Get(K.SourceDefault)));
     }
 
     [AvaloniaFact]
-    public void A_value_outside_the_limits_is_refused_and_the_file_stays_as_it_was()
+    public void A_value_outside_the_limits_is_held_to_the_range_that_the_row_shows()
     {
         var view = Open("tabSize");
-        var box = view.RowOf("editor.tabSize")!.GetVisualDescendants().OfType<TextBox>().Single();
-        box.Text = "99";
-        box.Focus();
-        TestApp.Press(view, Key.Enter);
-        Assert.Equal(4, _app.Workbench.Settings.GetInt("editor.tabSize"));
-        Assert.False(File.Exists(_app.Workbench.UserSettingsPath));
-        var shown = view.RowOf("editor.tabSize")!.GetVisualDescendants().OfType<TextBlock>().Select(t => (t.IsVisible ? "+" : "-") + t.Text).ToList();
-        Assert.True(shown.Any(t => t.StartsWith("+Nepovedlo se uložit", StringComparison.Ordinal)), string.Join(" | ", shown));
+        var row = view.RowOf("editor.tabSize")!;
+        Assert.Contains(Texts(row), t => t.Contains(Loc.Get(K.SettingsRange, ("min", "1"), ("max", "32")), StringComparison.Ordinal));
+        Assert.Contains(Texts(row), t => t.Contains(Loc.Get(K.SettingsDefaultValue, ("value", "4")), StringComparison.Ordinal));
+        row.GetVisualDescendants().OfType<NumericUpDown>().Single().Value = 99;
+        Assert.Equal(32, _app.Workbench.Settings.GetInt("editor.tabSize"));
+        // a value the rules refuse is reported in the row and the file stays as it was
+        Assert.NotNull(_app.Workbench.Set("editor.tabSize", JsonValue.Create(99)));
+        Assert.Contains("\"editor.tabSize\": 32", File.ReadAllText(_app.Workbench.UserSettingsPath));
     }
 
     [AvaloniaFact]
@@ -105,8 +105,8 @@ public class SettingsViewTests : IDisposable
     {
         var view = Open("");
         view.SelectCategory(SettingCategories.EditorFormat);
-        var check = view.RowOf("editor.insertSpaces")!.GetVisualDescendants().OfType<CheckBox>().Single();
-        check.IsChecked = false;
+        var toggle = view.RowOf("editor.insertSpaces")!.GetVisualDescendants().OfType<ToggleSwitch>().Single();
+        toggle.IsChecked = false;
         Assert.False(_app.Workbench.Settings.GetBool("editor.insertSpaces"));
 
         view = _app.SettingsView!;

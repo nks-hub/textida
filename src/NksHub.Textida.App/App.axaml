@@ -559,8 +559,40 @@
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
             <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
-        <Style Selector="Border.settingrow">
+        <Style Selector="Border.settingcard">
             <Setter Property="Background" Value="{DynamicResource Bg1}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="Border.settingdivider">
+            <Setter Property="Background" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="Border.settingrow">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.settingchip">
+            <Setter Property="Background" Value="{DynamicResource BgHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Border.settingiconcell">
+            <Setter Property="Background" Value="{DynamicResource Bg0}" />
+        </Style>
+        <Style Selector="Border.settingpreview">
+            <Setter Property="Background" Value="{DynamicResource BgEditor}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        </Style>
+        <Style Selector="Border.settingpreviewcurrent">
+            <Setter Property="Background" Value="{DynamicResource CurrentLine}" />
+        </Style>
+        <Style Selector="TextBlock.settingpreviewnumber">
+            <Setter Property="Foreground" Value="{DynamicResource LineNumbers}" />
+        </Style>
+        <Style Selector="TextBlock.settingpreviewtext">
+            <Setter Property="Foreground" Value="{DynamicResource EditorFg}" />
+        </Style>
+        <Style Selector="Button.shortcutcapture.catching">
+            <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
         </Style>
         <!-- the setting a link or the palette led to: the accent frames it, so it does not rely on the fill alone -->
         <Style Selector="Border.settingrow.found">
@@ -577,7 +609,7 @@
             <Setter Property="FontSize" Value="15" />
             <Setter Property="Foreground" Value="{DynamicResource Fg}" />
         </Style>
-        <Style Selector="TextBlock.settingsection">
+        <Style Selector="TextBlock.settingsection, TextBlock.settingpreviewtitle">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}" />
         </Style>

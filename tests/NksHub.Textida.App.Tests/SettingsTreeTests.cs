@@ -273,7 +273,7 @@ public class SettingsTreeTests : IDisposable
         Assert.True(mark.IsVisible);
         Assert.Equal(Loc.Get(K.SettingsChanged), mark.Text);
         Assert.Equal(Loc.Get(K.SettingsRowChanged, ("title", "Velikost tabulátoru"), ("value", "2")), AutomationProperties.GetName(row));
-        var reset = row.GetVisualDescendants().OfType<Button>().Single(b => (string?)b.Content == Loc.Get(K.SettingsReset));
+        var reset = row.GetVisualDescendants().OfType<Button>().Single(b => b.Content as string == Loc.Get(K.SettingsReset));
         Assert.Equal(Loc.Get(K.SettingsResetRowA11y, ("title", "Velikost tabulátoru")), AutomationProperties.GetName(reset));
         Assert.True(view.ResetCategoryButton.IsVisible);
         await Task.CompletedTask;
