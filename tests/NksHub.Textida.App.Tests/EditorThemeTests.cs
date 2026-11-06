@@ -199,6 +199,14 @@ public class EditorThemeTests : IDisposable
         Assert.Equal("Můj motiv (2)", again.Name);
         foreach (var key in EditorColorTheme.Keys) Assert.Equal(saved[key], again[key]);
         Assert.Equal(["Můj motiv", "Můj motiv (2)"], _app.EditorThemes.Custom.Select(t => t.Name));
+
+        // a custom theme is deleted with its file; an id that is not one of the folder deletes nothing
+        string outside = _temp.File("outside.json", "{}");
+        Assert.False(_app.EditorThemes.Delete("user:../../outside"));
+        Assert.True(File.Exists(outside));
+        Assert.True(_app.EditorThemes.Delete("user:Můj motiv"));
+        Assert.False(File.Exists(Path.Combine(_app.EditorThemes.Folder, "Můj motiv.json")));
+        Assert.Equal(["Můj motiv (2)"], _app.EditorThemes.Custom.Select(t => t.Name));
     }
 
     private const string TmTheme = """

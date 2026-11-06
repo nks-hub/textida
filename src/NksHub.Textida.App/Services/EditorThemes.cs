@@ -142,8 +142,9 @@ internal sealed class EditorThemes
     /// <summary>Removes a custom theme; false when it is not one.</summary>
     public bool Delete(string id)
     {
-        if (!id.StartsWith(EditorColorTheme.UserPrefix, StringComparison.Ordinal)) return false;
-        string path = Path.Combine(Folder, id[EditorColorTheme.UserPrefix.Length..] + ".json");
+        // only a theme read from the folder: the id comes from the settings file and must not name a file elsewhere
+        if (!id.StartsWith(EditorColorTheme.UserPrefix, StringComparison.Ordinal) || _custom.All(t => t.Id != id)) return false;
+        string path = Path.Combine(Folder, Path.GetFileName(id[EditorColorTheme.UserPrefix.Length..]) + ".json");
         if (!File.Exists(path)) return false;
         File.Delete(path);
         LoadCustom();
