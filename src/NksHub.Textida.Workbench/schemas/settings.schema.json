@@ -375,7 +375,27 @@
             "merge",
             "rebase"
           ],
-          "description": "Git Pull combines the changes by. ask: Git: Pull asks each time. merge: the new commits are merged into your branch. rebase: your commits are replayed on top of the new ones; changes in the working tree are set aside for a moment.",
+          "description": "Git Pull combines the changes by. Used when the Git configuration (branch.<name>.rebase, pull.rebase, pull.ff=only of the repository or the user) says nothing; that comes first. ask: Git: Pull asks, and only when the branch has commits of its own, with a choice to remember the answer. merge: the new commits are merged into your branch. rebase: your commits are replayed on top of the new ones. Changes in the working tree are set aside for a moment. A branch without commits of its own is only moved forward.",
+          "x-scope": "application"
+        },
+        "git.autoFetchMinutes": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 1440,
+          "description": "Git: fetch in the background every (minutes). Minutes after which the editor runs git fetch by itself for the repository of the active file or the open folder, so the status bar shows the incoming (↓) and outgoing (↑) commits and offers an update. 0 turns it off. Nothing is fetched without a network connection, without a remote, or for a branch that tracks no remote branch. No file and no branch is changed.",
+          "x-scope": "application"
+        },
+        "git.commitSaveAll": {
+          "type": "boolean",
+          "default": false,
+          "description": "Save all before a commit. The choice of the commit panel, remembered: before a commit every unsaved document is saved, with its save actions.",
+          "x-scope": "application"
+        },
+        "git.commitFormat": {
+          "type": "boolean",
+          "default": false,
+          "description": "Format the open files before a commit. The choice of the commit panel, remembered: the open files of the commit are brought to what .editorconfig says before the commit.",
           "x-scope": "application"
         },
         "tools.makeProgram": {

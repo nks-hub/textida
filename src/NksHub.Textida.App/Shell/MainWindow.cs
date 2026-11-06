@@ -402,6 +402,8 @@ internal sealed partial class MainWindow : Window
         if (key is "workbench.theme" or "workbench.uiLanguage") return;
         if (key is "git.gutter" or "git.gutterBase") foreach (var tab in Tabs) ScheduleGitGutter(tab);
         if (key == "git.blame") ResetGitBlame();
+        if (key is "git.commitSaveAll" or "git.commitFormat" && _commitView is { } commit)
+            (key == "git.commitSaveAll" ? commit.SaveCheckBox : commit.FormatCheckBox).IsChecked = _app.Workbench.Settings.GetBool(key);
         if (key is "files.showHidden" or "files.gitStatus") ApplyFileLookSettings(key);
         if (key == "advanced.undoLimit") foreach (var od in _docs) od.Doc.UndoLimit = UndoLimit;
         if (key == "schema.mappings") foreach (var tab in Tabs.Where(PluginServices.IsSchemaFile).ToList()) _ = _app.Plugins.CheckSchemaAsync(this, tab);

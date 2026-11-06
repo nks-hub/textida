@@ -258,6 +258,8 @@
   "git.noRepository": "Pre aktívny súbor ani otvorený priečinok nie je žiadny repozitár Git.",
   "git.busy": "Iný príkaz Gitu ešte beží.",
   "git.branchHint": "Kliknutím prepnete vetvu.",
+  "git.incoming": "Na {upstream} sú nové commity pre vetvu {branch}: {count}.",
+  "git.update": "Aktualizovať",
   "loss.title": "Znaky, ktoré kódovanie nepodporuje",
   "loss.message.one": "{count} znak nemožno zapísať v kódovaní {encoding}: {groups}.",
   "loss.message.few": "{count} znaky nemožno zapísať v kódovaní {encoding}: {groups}.",

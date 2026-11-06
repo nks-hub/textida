@@ -259,6 +259,8 @@
   "git.noRepository": "Pro aktivní soubor ani otevřenou složku není žádný repozitář Git.",
   "git.busy": "Jiný příkaz Gitu ještě běží.",
   "git.branchHint": "Kliknutím přepnete větev.",
+  "git.incoming": "Na {upstream} jsou nové commity pro větev {branch}: {count}.",
+  "git.update": "Aktualizovat",
   "loss.title": "Znaky, které kódování nepodporuje",
   "loss.message.one": "{count} znak nejde zapsat v kódování {encoding}: {groups}.",
   "loss.message.few": "{count} znaky nejdou zapsat v kódování {encoding}: {groups}.",
