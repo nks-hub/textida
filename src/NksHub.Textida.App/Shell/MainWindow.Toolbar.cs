@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -24,13 +25,26 @@ internal sealed partial class MainWindow
     private readonly WrapPanel _toolbarRow = new() { Orientation = Orientation.Horizontal };
     private IReadOnlyList<string>? _toolbarLayout;
     private IReadOnlyList<string> _toolbarDrawn = [];
-    private string? _toolbarLanguage;
+    private string? _toolbarLook;
+    private ContextMenu? _toolbarMenu;
     private bool _toolbarByPointer;
     private string? _toolbarCurrent;
     private ToolbarEditorWindow? _toolbarEditor;
 
     /// <summary>True while the toolbar is switched on.</summary>
     internal bool ToolbarShown => _app.Workbench.Settings.GetBool("workbench.toolbar");
+
+    /// <summary>True while the toolbar shows large icons (the setting <c>workbench.toolbarLargeIcons</c>).</summary>
+    internal bool ToolbarLargeIcons => _app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons");
+
+    /// <summary>Side of a toolbar icon now.</summary>
+    internal double ToolbarIconSize => ToolbarLargeIcons ? LargeToolbarIcon : CommandIcons.Size;
+
+    /// <summary>Side of a large toolbar icon in device-independent pixels.</summary>
+    internal const double LargeToolbarIcon = 24;
+
+    /// <summary>The context menu of the toolbar while it is open or was opened last, for tests.</summary>
+    internal ContextMenu? ToolbarMenu => _toolbarMenu;
 
     /// <summary>The toolbar, for tests.</summary>
     internal Control ToolbarHost => _toolbar;
@@ -54,6 +68,7 @@ internal sealed partial class MainWindow
         HelpContext.Set(_toolbar, "view.toolbar");
         _toolbarRow.AddHandler(KeyDownEvent, OnToolbarKeyDown);
         _toolbarRow.AddHandler(GotFocusEvent, OnToolbarGotFocus);
+        _toolbar.AddHandler(ContextRequestedEvent, OnToolbarContextRequested);
         _app.Toolbar.Changed += OnToolbarChanged;
         return _toolbar;
     }
@@ -74,6 +89,7 @@ internal sealed partial class MainWindow
     {
         _app.Toolbar.Changed -= OnToolbarChanged;
         _toolbarEditor?.Close();
+        _toolbarMenu?.Close();
     }
 
     /// <summary>Shows or hides the toolbar and draws it again when its buttons, the commands or the language are not the ones drawn.</summary>
@@ -90,12 +106,13 @@ internal sealed partial class MainWindow
             if (_app.Toolbar.Problem is { } problem) SetStatusMessage(Loc.Get(K.ToolbarUnreadable, ("reason", problem)));
         }
         var shown = ToolbarLayout.Shown(_toolbarLayout, id => wb.Commands.TryGet(id, out _) && wb.Commands.HasHandler(id));
-        if (_toolbarLanguage != Loc.Language || !shown.SequenceEqual(_toolbarDrawn))
+        string look = $"{Loc.Language}|{ToolbarIconSize}";
+        if (_toolbarLook != look || !shown.SequenceEqual(_toolbarDrawn))
         {
             _toolbarRow.Children.Clear();
             foreach (var id in shown) _toolbarRow.Children.Add(id == ToolbarLayout.Separator ? ToolbarSeparator() : ToolbarButton(id));
             _toolbarDrawn = shown;
-            _toolbarLanguage = Loc.Language;
+            _toolbarLook = look;
         }
         RefreshToolbarState();
     }
@@ -131,7 +148,15 @@ internal sealed partial class MainWindow
     /// <summary>Left and Right move to the neighbouring enabled button (the other way round in a right-to-left layout), Home and End to the first and last; the ends do not wrap.</summary>
     private void OnToolbarKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.KeyModifiers != KeyModifiers.None || e.Source is not Button from) return;
+        if (e.Source is not Button from) return;
+        // the platform does not raise the context request for the keyboard everywhere, so the toolbar opens its menu itself
+        if ((e.Key == Key.Apps && e.KeyModifiers == KeyModifiers.None) || (e.Key == Key.F10 && e.KeyModifiers == KeyModifiers.Shift))
+        {
+            e.Handled = true;
+            OpenToolbarMenu(from);
+            return;
+        }
+        if (e.KeyModifiers != KeyModifiers.None) return;
         var stops = _toolbarRow.Children.OfType<Button>().Where(b => b.IsEnabled).ToList();
         int at = stops.IndexOf(from);
         bool rtl = _toolbarRow.FlowDirection == FlowDirection.RightToLeft;
@@ -166,7 +191,7 @@ internal sealed partial class MainWindow
         var button = new Button
         {
             Tag = id,
-            Content = icon is null ? new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center } : CommandIcons.Create(icon),
+            Content = icon is null ? new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center } : CommandIcons.Create(icon, ToolbarIconSize),
             IsEnabled = false,
         };
         button.Classes.Add("toolbutton");
@@ -192,6 +217,54 @@ internal sealed partial class MainWindow
     }
 
     private bool KeyboardOnToolbar() => FocusManager?.GetFocusedElement() is not Visual focused || focused == _toolbar || _toolbar.IsVisualAncestorOf(focused);
+
+    // ---- the context menu ----
+
+    private void OnToolbarContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        e.Handled = true;
+        var over = (e.Source as Visual)?.FindAncestorOfType<Button>(includeSelf: true);
+        OpenToolbarMenu(over is { Tag: string } && over.GetVisualParent() == _toolbarRow ? over : null);
+    }
+
+    /// <summary>
+    /// Opens the context menu of the toolbar: Customize, Hide, Remove This Button (when it was asked for over a button), Restore Default Buttons and the icon size.
+    /// The right button of the pointer and the Menu key or Shift+F10 on a button open it.
+    /// </summary>
+    internal ContextMenu OpenToolbarMenu(Button? over)
+    {
+        _toolbarMenu?.Close();
+        var menu = _toolbarMenu = new ContextMenu();
+        AutomationProperties.SetName(menu, Loc.Get(K.ToolbarMenuA11y));
+        MenuItem Add(string key, Action run)
+        {
+            var item = new MenuItem { Header = Loc.Get(key) };
+            item.Click += (_, _) => run();
+            menu.Items.Add(item);
+            return item;
+        }
+        Add(K.ToolbarMenuEdit, () => ShowToolbarEditor());
+        Add(K.ToolbarMenuHide, () => _app.Workbench.Set("workbench.toolbar", JsonValue.Create(false)));
+        menu.Items.Add(new Separator());
+        if (over?.Tag is string id) Add(K.ToolbarMenuRemove, () => SaveToolbar([.. (_toolbarLayout ?? _app.Toolbar.Load()).Where(b => b != id)]));
+        Add(K.ToolbarMenuReset, () => SaveToolbar(ToolbarLayout.Default));
+        menu.Items.Add(new Separator());
+        bool large = ToolbarLargeIcons;
+        foreach (var (key, value) in new[] { (K.ToolbarMenuSmall, false), (K.ToolbarMenuLarge, true) })
+        {
+            var item = Add(key, () => _app.Workbench.Set("workbench.toolbarLargeIcons", JsonValue.Create(value)));
+            item.ToggleType = MenuItemToggleType.Radio;
+            item.GroupName = "toolbarSize";
+            item.IsChecked = large == value;
+        }
+        menu.Open(over ?? (Control)_toolbar);
+        return menu;
+    }
+
+    private void SaveToolbar(IReadOnlyList<string> buttons)
+    {
+        if (!_app.Toolbar.Save(buttons, out var detail)) SetStatusMessage(Loc.Get(K.ToolbarEditWriteFailed, ("reason", detail)));
+    }
 
     /// <summary>Opens the editor of the toolbar buttons; a second call brings the open one forward.</summary>
     internal ToolbarEditorWindow ShowToolbarEditor()

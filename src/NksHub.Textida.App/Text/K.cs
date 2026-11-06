@@ -2424,6 +2424,14 @@ public static partial class K
     public const string ToolbarEditAdded = "toolbar.edit.added";
     public const string ToolbarEditRemoved = "toolbar.edit.removed";
     public const string ToolbarEditWriteFailed = "toolbar.edit.writeFailed";
+    public const string ToolbarMenuEdit = "toolbar.menu.edit";
+    public const string ToolbarMenuHide = "toolbar.menu.hide";
+    public const string ToolbarMenuRemove = "toolbar.menu.remove";
+    public const string ToolbarMenuReset = "toolbar.menu.reset";
+    public const string ToolbarMenuSmall = "toolbar.menu.small";
+    public const string ToolbarMenuLarge = "toolbar.menu.large";
+    public const string ToolbarMenuColors = "toolbar.menu.colors";
+    public const string ToolbarMenuA11y = "a11y.toolbar.menu";
     public const string MakeWatermark = "make.watermark";
     public const string A11yMake = "a11y.make";
     public const string MakeNotMakefile = "make.notMakefile";

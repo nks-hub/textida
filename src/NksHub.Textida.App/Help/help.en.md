@@ -747,6 +747,7 @@ The toolbar is a row of buttons under the menu bar for the commands you use most
 3. To change the buttons choose View, then Customize Toolbar. Choose a command on the left (type in the box to narrow the list) and press Add or Enter; it goes after the button chosen on the right.
 4. Choose a button on the right and press Remove (or Delete) to take it off, Move Up or Move Down (or Alt+Up and Alt+Down) to move it, or Add Separator for a thin line between two groups.
 5. Press OK to save the toolbar; it changes in every window at once. Cancel leaves it as it was; Restore Defaults puts back the first set.
+- Right-click the toolbar, or press the Menu key or Shift+F10 on a button, to open the toolbar menu: Customize Toolbar…, Hide Toolbar, Remove This Button (only over a button), Restore Default Buttons, and Small or Large Icons (16 or 24 px).
 - The first set is New, Open, Save, Save All, Undo, Redo, Find and Replace, and the Git commit, pull and push buttons when the Git commands are there. A button whose command does not exist, for example one of a plugin that was removed, is not drawn; it stays in the list and comes back with the command.
 - The toolbar holds at most 40 entries (buttons and separators); the editor says when the toolbar is full. A command can be on the toolbar once.
 - The buttons are kept in toolbar.json in the profile folder and in the configuration backup. A file that cannot be read is skipped: the first set is shown and the reason appears in the status bar and in the editor. Saving drops comments from the file.

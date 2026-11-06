@@ -245,6 +245,18 @@
           "description": "Toolbar. Shows a row of buttons under the menu bar. Choose the buttons with View, Customize Toolbar.",
           "x-scope": "application"
         },
+        "workbench.toolbarLargeIcons": {
+          "type": "boolean",
+          "default": false,
+          "description": "Large toolbar icons. The toolbar buttons show 24 px icons instead of 16 px.",
+          "x-scope": "application"
+        },
+        "workbench.toolbarColorIcons": {
+          "type": "boolean",
+          "default": true,
+          "description": "Colored toolbar icons. The toolbar icons are colored by the kind of command: files blue, folders yellow, undo and redo violet, search teal, run green, Git orange. Off, they are one color. In high contrast they are always one color, in the colors of the system.",
+          "x-scope": "application"
+        },
         "files.journalDirectory": {
           "type": "string",
           "default": "",

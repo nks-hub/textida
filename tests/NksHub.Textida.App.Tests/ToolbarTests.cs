@@ -322,6 +322,126 @@ public class ToolbarTests : IDisposable
         Assert.Contains(archive.Entries, e => e.FullName == ToolbarLayout.FileName);
     }
 
+    // ---- the context menu ----
+
+    private static IReadOnlyList<string> Headers(ContextMenu menu) => [.. menu.Items.OfType<MenuItem>().Select(i => (string)i.Header!)];
+
+    private static MenuItem ItemOf(ContextMenu menu, string key) => menu.Items.OfType<MenuItem>().Single(i => (string)i.Header! == Loc.Get(key));
+
+    private void RightClick(Control target)
+    {
+        var at = target.TranslatePoint(new Point(target.Bounds.Width / 2, target.Bounds.Height / 2), _w)!.Value;
+        _w.MouseMove(at);
+        _w.MouseDown(at, MouseButton.Right);
+        _w.MouseUp(at, MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    private static void Pick(MenuItem item)
+    {
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public void The_right_button_on_a_button_opens_the_menu_with_remove_and_beside_the_buttons_without_it()
+    {
+        RightClick(ButtonOf("nks.file.new"));
+        var menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Assert.Equal([Loc.Get(K.ToolbarMenuEdit), Loc.Get(K.ToolbarMenuHide), Loc.Get(K.ToolbarMenuRemove), Loc.Get(K.ToolbarMenuReset), Loc.Get(K.ToolbarMenuSmall), Loc.Get(K.ToolbarMenuLarge)], Headers(menu));
+        Assert.Equal(Loc.Get(K.ToolbarMenuA11y), AutomationProperties.GetName(menu));
+        Assert.True(ItemOf(menu, K.ToolbarMenuSmall).IsChecked);
+        Assert.False(ItemOf(menu, K.ToolbarMenuLarge).IsChecked);
+        menu.Close();
+
+        // the free end of the row is the toolbar itself
+        var host = _w.ToolbarHost;
+        var end = host.TranslatePoint(new Point(host.Bounds.Width - 4, host.Bounds.Height / 2), _w)!.Value;
+        _w.MouseMove(end);
+        _w.MouseDown(end, MouseButton.Right);
+        _w.MouseUp(end, MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+        menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Assert.DoesNotContain(Loc.Get(K.ToolbarMenuRemove), Headers(menu));
+        menu.Close();
+    }
+
+    [AvaloniaTheory]
+    [InlineData(Key.F10, RawInputModifiers.Shift)]
+    [InlineData(Key.Apps, RawInputModifiers.None)]
+    public void Shift_F10_and_the_menu_key_open_the_menu_of_the_button_the_keyboard_is_on(Key key, RawInputModifiers modifiers)
+    {
+        var open = ButtonOf("nks.file.open");
+        Assert.True(open.Focus(NavigationMethod.Tab));
+        TestApp.Press(_w, key, modifiers);
+        Dispatcher.UIThread.RunJobs();
+        var menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
+        Assert.True(menu.IsOpen);
+        Pick(ItemOf(menu, K.ToolbarMenuRemove));
+        Assert.DoesNotContain("nks.file.open", _w.ToolbarDrawn);
+        Assert.Contains("nks.file.new", _w.ToolbarDrawn);
+    }
+
+    [AvaloniaFact]
+    public void Remove_takes_the_button_off_every_toolbar_and_restore_brings_the_first_set_back()
+    {
+        var second = _app.CreateWindow(null, look: TestApp.WindowsLook);
+        Pick(ItemOf(_w.OpenToolbarMenu(ButtonOf("nks.file.save")), K.ToolbarMenuRemove));
+        Assert.DoesNotContain("nks.file.save", _app.Toolbar.Load());
+        Assert.DoesNotContain("nks.file.save", _w.ToolbarDrawn);
+        Assert.DoesNotContain("nks.file.save", second.ToolbarDrawn);
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuReset));
+        Assert.Equal(ToolbarLayout.Default, _app.Toolbar.Load());
+        Assert.Equal(ExpectedDefault(), _w.ToolbarDrawn);
+        Assert.Equal(ExpectedDefault(), second.ToolbarDrawn);
+    }
+
+    [AvaloniaFact]
+    public void Hide_switches_the_toolbar_off_and_customize_opens_the_editor()
+    {
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuEdit));
+        var editor = Assert.Single(_w.OwnedWindows.OfType<ToolbarEditorWindow>());
+        editor.Close();
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuHide));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbar"));
+        Assert.False(_w.ToolbarHost.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void Large_icons_draw_the_buttons_with_24_pixel_icons_and_small_icons_go_back_to_16()
+    {
+        static double Side(Button b) => Assert.IsType<IconView>(b.Content).Width;
+        Assert.Equal(CommandIcons.Size, Side(ButtonOf("nks.file.save")));
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuLarge));
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons"));
+        Assert.Equal(MainWindow.LargeToolbarIcon, Side(ButtonOf("nks.file.save")));
+        Assert.True(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuLarge).IsChecked);
+        _w.ToolbarMenu!.Close();
+
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuSmall));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons"));
+        Assert.Equal(CommandIcons.Size, Side(ButtonOf("nks.file.save")));
+    }
+
+    [AvaloniaFact]
+    public void The_menu_follows_the_language()
+    {
+        foreach (var lang in Loc.Languages)
+        {
+            _app.SetLanguage(lang);
+            Dispatcher.UIThread.RunJobs();
+            var menu = _w.OpenToolbarMenu(ButtonOf("nks.file.new"));
+            Assert.Equal(Loc.Get(K.ToolbarMenuHide), Headers(menu)[1]);
+            Assert.All(Headers(menu), h => Assert.DoesNotContain("toolbar.menu", h, StringComparison.Ordinal));
+            menu.Close();
+        }
+    }
+
     // ---- the editor ----
 
     private ToolbarEditorWindow Editor()
