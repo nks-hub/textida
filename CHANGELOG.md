@@ -15,9 +15,27 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 - Insert Image reads the size of SVG, ICO, AVIF and HEIF files.
 - The commit panel and the local history are tool windows that dock left, right or at the bottom like the document, file and plug-in panels. Each edge has a strip of buttons that shows and hides the panels docked there, Alt+0 and Alt+9 show the commit panel and the history, and the layout is kept in `window.json`.
 - The commit panel lists new files apart from the changes, has a box for every change of the chosen file, and can save the open files and format the files of the commit before it commits.
+- New Markdown reader. It lays out only the visible blocks, so a document of any length opens in Reading mode, and it uses the typography of GitHub (16 px base, line height 1.5, heading sizes and spacing from github-markdown-css 5.8.1) in the light and dark themes. Selection runs across paragraphs, lists, code and table cells; Ctrl+C copies plain text and Copy as Markdown copies the source.
+- Headings panel for Markdown (Alt+8): a dockable tree of H1–H6 that stays open in every mode, marks the current heading, filters and collapses by level.
+- Formatted view of JSON (Ctrl+K Ctrl+J) that reads the file in blocks in the background, so the first screen of a 1 GiB single-line file reads a few hundred KiB. It folds, jumps to a key, selects and copies, shows JSONC comments, wraps long values and changes only the bytes of the edited value.
+- Editor colour themes: Light, Dark, Monokai, Solarized Light and Dark, Dracula, One Dark, GitHub Light and Dark and Nord, colour and bold/italic per token, custom themes, import of `.tmTheme` and VS Code themes and export as VS Code JSON. The hex view, the CSV table and comparisons use the theme too.
+- Git pull fetches first and says "Up to date" when there is nothing to pull. The merge mode comes from `branch.<name>.rebase`, `pull.rebase` or `pull.ff`, otherwise Textida asks once and can remember the answer. The status bar shows incoming and outgoing commits, and a background fetch (every 10 minutes by default) offers an update for new commits.
+- File, Open Recent with the last 15 files, keys 1–9 and 0, a mark on missing files and Clear List.
+- The status bar shows the zoom in percent; clicking it offers zoom levels and 100 %.
+- Open in Textida as Project in the folder menu of Explorer (folder and folder background), as a Finder quick action and as a Linux desktop action. `--project <folder>` opens a folder as the project root.
+- File Language picker in a searchable palette with recent languages, the detected language and file extensions.
+- Toolbar context menu (Customize, Hide, Remove This Button, Reset, small or large icons, coloured icons) and coloured toolbar icons by kind of command.
+- About lists NKS Hub, the project links, the contact address and the licence.
 
 ### Changed
 
+- The settings window shows each setting on a card with its description, default value and reset, with a live preview on the Appearance and Editor pages. Every setting has its own control: switch, list, multi-select, number with range, font list with preview, colour, file or folder picker, tag list or shortcut capture. The icon set choice moved from the View menu to Appearance.
+- The toolbar is on by default.
+- A new comparison selects the first difference and scrolls both sides to it.
+- Menus draw one narrow column for check marks and icons, and none when no item has either.
+- `workbench.keymapProfile` is gone; the settings file moves its value to `editor.profile` (format version 2, a `.v1.bak` copy is kept).
+- MCP tool switches cover plug-in tools and are kept in `mcp-tools.json`.
+- Builds use .NET SDK 10.0.403 with runtime 10.0.14, which fixes CVE-2026-111497 in the Brotli decoder.
 - The commit panel and the local history open in a tool window and no longer in a tab.
 - With incremental sync, multi-caret edits of up to 2048 changed lines reach the language server as one range per run of changed lines.
 
