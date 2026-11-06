@@ -10,7 +10,7 @@ internal sealed class MarkdownRenderQueue : IDisposable
     private long _generation;
     private bool _disposed;
 
-    public async Task RunAsync(string source, Func<bool> current, Action<PreviewRenderer.MarkdownPlan> apply)
+    public async Task RunAsync(string source, Func<bool> current, Action<MarkdownReaderDocument> apply)
     {
         Cancel();
         if (_disposed) return;
@@ -19,19 +19,19 @@ internal sealed class MarkdownRenderQueue : IDisposable
         try
         {
             await _parser.WaitAsync(cancel.Token);
-            PreviewRenderer.MarkdownPlan plan;
+            MarkdownReaderDocument document;
             try
             {
-                plan = await Task.Run(() =>
+                document = await Task.Run(() =>
                 {
                     cancel.Token.ThrowIfCancellationRequested();
-                    return PreviewRenderer.PrepareMarkdown(source);
+                    return MarkdownReaderModel.Build(source);
                 }, cancel.Token);
             }
             finally { _parser.Release(); }
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (!_disposed && !cancel.IsCancellationRequested && generation == _generation && current()) apply(plan);
+                if (!_disposed && !cancel.IsCancellationRequested && generation == _generation && current()) apply(document);
             });
         }
         catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }

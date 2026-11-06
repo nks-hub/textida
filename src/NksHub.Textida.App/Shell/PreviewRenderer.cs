@@ -37,7 +37,7 @@ internal static partial class PreviewRenderer
         switch (format)
         {
             case PreviewFormats.Markdown:
-                return RenderMarkdown(PrepareMarkdown(text), ctx);
+                return new MarkdownReader(MarkdownReaderModel.Build(text), ctx);
             case PreviewFormats.Html:
                 HtmlBlocks(HtmlSubset.Parse(text.ReplaceLineEndings("\n"), PluginLimits.PreviewHtmlMaxNodes, PluginLimits.PreviewHtmlMaxDepth), body.Children, ctx, top: true);
                 break;
@@ -103,7 +103,7 @@ internal static partial class PreviewRenderer
         else into.Add(new Run(Loc.Get(K.PreviewPanelImage, ("alt", alt))) { FontWeight = weight, FontStyle = style });
     }
 
-    private static Control? ImageControl(string target, string alt, Ctx ctx)
+    internal static Control? ImageControl(string target, string alt, Ctx ctx)
     {
         if (PreviewPolicy.ImageBytes(target) is { } data) return Picture(data, alt);
         if (PreviewPolicy.AttachedName(target) is { } name) return ctx.Attached is not null && ctx.Attached.TryGetValue(name, out var attached) ? Picture(attached, alt) : null;

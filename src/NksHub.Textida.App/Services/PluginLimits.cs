@@ -649,9 +649,8 @@ internal static partial class PluginLimits
     /// <summary>Most nodes the HTML reader of the preview creates; the rest of the text stays text. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int PreviewHtmlMaxNodes = 20_000;
 
+    /// <summary>Deepest nesting the Markdown parser accepts (it recurses); the reader itself has no limit on the number of blocks, it lays out only the visible ones.</summary>
     public const int PreviewMarkdownMaxDepth = 64;
-    public const int PreviewMarkdownMaxNodes = 20_000;
-    public const int PreviewMarkdownMaxControls = 10_000;
 
     /// <summary>Deepest nesting of HTML tags the preview reads; a deeper tag stays text. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int PreviewHtmlMaxDepth = 64;

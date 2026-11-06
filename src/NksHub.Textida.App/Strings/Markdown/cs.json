@@ -1,9 +1,10 @@
 {
-  "preview.markdownLimit": "Markdown je pro náhled příliš složitý. Zobrazuji celý zdroj. Důvod: {reason}",
+  "preview.markdownLimit": "Markdown se nepodařilo zpracovat, zobrazuji jeho zdroj. Důvod: {reason}",
   "markdown.parseFailed": "Markdown se nepodařilo zpracovat. Dokument zůstal beze změny. Důvod: {reason}",
   "markdown.nestingLimit": "Zanoření přesahuje limit {limit} úrovní.",
   "markdown.tableExpansionLimit": "Tabulky by vyžadovaly doplnění více než {limit} prázdných buněk.",
   "markdown.inputFailed": "Strukturu Markdownu se nepodařilo zpracovat.",
-  "preview.markdownNodeLimit": "Dokument obsahuje více než {limit} prvků Markdownu.",
-  "preview.markdownControlLimit": "Náhled by vyžadoval více než {limit} zobrazovaných prvků."
+  "preview.reader.copy": "Kopírovat",
+  "preview.reader.copyMarkdown": "Kopírovat jako Markdown",
+  "preview.reader.selectAll": "Vybrat vše"
 }

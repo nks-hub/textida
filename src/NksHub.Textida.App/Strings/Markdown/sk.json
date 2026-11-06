@@ -1,9 +1,10 @@
 {
-  "preview.markdownLimit": "Markdown je pre náhľad príliš zložitý. Zobrazujem celý zdroj. Dôvod: {reason}",
+  "preview.markdownLimit": "Markdown sa nepodarilo spracovať, zobrazujem jeho zdroj. Dôvod: {reason}",
   "markdown.parseFailed": "Markdown sa nepodarilo spracovať. Dokument zostal bez zmeny. Dôvod: {reason}",
   "markdown.nestingLimit": "Vnorenie presahuje limit {limit} úrovní.",
   "markdown.tableExpansionLimit": "Tabuľky by vyžadovali doplnenie viac než {limit} prázdnych buniek.",
   "markdown.inputFailed": "Štruktúru Markdownu sa nepodarilo spracovať.",
-  "preview.markdownNodeLimit": "Dokument obsahuje viac než {limit} prvkov Markdownu.",
-  "preview.markdownControlLimit": "Náhľad by vyžadoval viac než {limit} zobrazovaných prvkov."
+  "preview.reader.copy": "Kopírovať",
+  "preview.reader.copyMarkdown": "Kopírovať ako Markdown",
+  "preview.reader.selectAll": "Vybrať všetko"
 }

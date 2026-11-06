@@ -85,6 +85,10 @@ internal sealed record ContrastColors(Color Window, Color WindowText, Color Gray
         ["GitModified"] = HotLight, ["GitNew"] = HotLight, ["GitDeleted"] = HotLight, ["GitConflict"] = HotLight, ["GitIgnored"] = GrayText,
         // the changes beside the text: one colour, the kind is told by the shape of the mark in the gutter (a bar, a bar with a gap, a triangle) and by the signs in the peek
         ["GitGutterAdded"] = HotLight, ["GitGutterModified"] = HotLight, ["GitGutterRemoved"] = HotLight, ["DiffAddedWord"] = Soft(0.4), ["DiffRemovedWord"] = Soft(0.4),
+        // the Markdown reader: text, rules and bars in the text colour, links and the alert bars in the link colour, fills that text stands on mixed lightly
+        ["MdPage"] = Window, ["MdFg"] = WindowText, ["MdMuted"] = WindowText, ["MdBorder"] = WindowText, ["MdHeadingRule"] = WindowText, ["MdCodeBg"] = Window, ["MdStripe"] = Soft(0.12),
+        ["MdInlineCode"] = Soft(0.2), ["MdLink"] = HotLight, ["MdSelection"] = Soft(0.45),
+        ["MdNote"] = HotLight, ["MdTip"] = HotLight, ["MdImportant"] = HotLight, ["MdWarning"] = HotLight, ["MdCaution"] = HotLight,
     };
 }
 

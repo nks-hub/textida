@@ -540,6 +540,7 @@ A Markdown file (.md, .markdown) has three modes. Reading draws the page over th
 4. Changing the mode keeps the place: the page and the editor scroll to the same line, and the caret and the selection come back when you return to the editor. The window remembers the mode of a file until it is closed.
 - A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
 - In reading the keys of the editor do nothing: the page is only for reading. Switch to editing or source to change the text. F6 moves the focus to the page; the arrow keys, Page Up, Page Down, Home and End scroll it.
+- Select the text of the page with the mouse as on a web page: drag across paragraphs, lists, code and table cells. Shift+click extends the selection, a double click selects a word and a triple click a paragraph; dragging past the edge scrolls the page. Ctrl+A selects everything, Ctrl+C copies the text (table cells separated by tabs), and Ctrl+Shift+C or Copy as Markdown in the context menu copies the matching part of the source. Tab moves between the links and Enter opens one. A long line of code does not wrap; Shift+wheel scrolls it.
 - Ctrl+K then Ctrl+V on a file in hex goes to reading. The Markdown commands of the Tools menu need the editor, so use editing or source for them.
 - Text cannot be changed directly in the drawn page.
 

@@ -135,8 +135,12 @@ public class PreviewSafetyTests : IDisposable
 
     private static IEnumerable<Control> Tree(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
 
-    private static string TextOf(Control root) => string.Join("\n", Tree(root).OfType<TextBlock>().Select(t =>
-        t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? ""));
+    private static string TextOf(Control root) => string.Join("\n", Tree(root).Select(c => c switch
+    {
+        MarkdownReader reader => reader.Document.PlainText,
+        TextBlock t => t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? "",
+        _ => null,
+    }).OfType<string>());
 
     private static IEnumerable<Run> RunsOf(Control root) => Tree(root).OfType<TextBlock>().Where(t => t.Inlines is not null).SelectMany(t => t.Inlines!.OfType<Run>());
 
@@ -533,11 +537,21 @@ public class PreviewSafetyTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(NameOf(_w.PreviewPanelControl)));
         Assert.False(string.IsNullOrWhiteSpace(NameOf(_w.PreviewScroller)));
         Assert.True(_w.PreviewScroller.Focusable);
+        // pictures, the button that asks before loading and the diagram are controls with names; the text, the table and the link are drawn by the reader
         var named = Tree(body).Where(c => c is Button or Image or Grid or ScrollViewer).ToList();
-        Assert.Equal(["Button", "Button", "Grid", "Image", "ScrollViewer"], named.Select(c => c.GetType().Name).Order().ToList());
+        Assert.Equal(["Button", "Image", "ScrollViewer"], named.Select(c => c.GetType().Name).Order().ToList());
         Assert.All(named, c => Assert.False(string.IsNullOrWhiteSpace(NameOf(c)), c.GetType().Name));
         Assert.All(Tree(body).OfType<Button>(), b => Assert.True(b.Focusable && b.IsTabStop && b.IsVisible));
         Assert.Equal(Loc.Get(K.A11yPreviewBody), NameOf(_w.PreviewScroller));
+        // the link is reached with Tab inside the reader, which then carries its name
+        var reader = Assert.IsType<MarkdownReader>(body);
+        Assert.True(reader.Focusable && reader.IsTabStop);
+        await Settle(); // the editor takes the focus back after the panel opened
+        reader.Focus();
+        Assert.True(reader.IsFocused);
+        TestApp.Press(_w, Key.Tab);
+        Assert.Equal(0, reader.FocusedLink);
+        Assert.Equal(Loc.Get(K.PreviewPanelLink, ("text", "web"), ("url", "https://docs.example.org/a")), NameOf(reader));
     }
 }
 

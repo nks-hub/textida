@@ -1,35 +1,22 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Documents;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using Avalonia.VisualTree;
 using NksHub.Textida.App.Shell;
-using NksHub.Textida.PluginHost.Documents;
 
 namespace NksHub.Textida.App.Tests;
 
 public class PreviewLinkTests
 {
     [AvaloniaFact]
-    public void A_link_in_a_sentence_has_the_size_and_font_of_the_words_around_it_and_sits_on_their_baseline()
+    public void A_link_in_a_sentence_has_the_size_and_font_of_the_words_around_it_and_sits_on_their_line()
     {
-        var control = PreviewRenderer.Render(PreviewFormats.Markdown, "Some words and a [link](https://example.invalid) in a paragraph.",
-            new PreviewRenderer.Ctx(new FontFamily("Consolas"), Open: _ => { }));
-        var window = new Window { Width = 800, Height = 300, Content = control };
-        window.Show();
-        window.UpdateLayout();
-
-        var button = control.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("previewlink"));
-        var sentence = button.GetVisualAncestors().OfType<TextBlock>().First();
-        Assert.Equal(sentence.FontSize, button.FontSize);
-        Assert.Equal(sentence.FontFamily, button.FontFamily);
-        var container = Assert.Single(sentence.Inlines!.OfType<InlineUIContainer>());
-        Assert.Equal(BaselineAlignment.Center, container.BaselineAlignment);
-        var inner = button.GetVisualDescendants().OfType<TextBlock>().First();
-        window.UpdateLayout();
-        double linkBaseline = inner.TranslatePoint(default, sentence)!.Value.Y + inner.TextLayout.TextLines[0].Baseline;
-        Assert.Equal(sentence.TextLayout.TextLines[0].Baseline, linkBaseline, 0.5); // the text of the link is on the baseline of the words around it
-        window.Close();
+        using var host = new ReaderHost("Some words and a [link](https://example.invalid) in a paragraph.", 800, 300);
+        var layout = host.Reader.LayoutOf(0)!;
+        var line = Assert.Single(layout.TextLines); // the link flows in the line of the sentence instead of standing in a box of its own
+        var runs = line.TextRuns.Where(r => r.Properties is not null && r.Length > 0).ToList();
+        var link = Assert.Single(runs, r => r.Text.ToString() == "link");
+        var words = runs.First(r => r.Text.ToString().StartsWith("Some", StringComparison.Ordinal));
+        Assert.Equal(words.Properties!.FontRenderingEmSize, link.Properties!.FontRenderingEmSize);
+        Assert.Equal(words.Properties.Typeface.FontFamily, link.Properties.Typeface.FontFamily);
+        Assert.NotEqual(((ISolidColorBrush)words.Properties.ForegroundBrush!).Color, ((ISolidColorBrush)link.Properties.ForegroundBrush!).Color);
     }
 }

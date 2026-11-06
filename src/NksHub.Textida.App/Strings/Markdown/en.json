@@ -1,9 +1,10 @@
 {
-  "preview.markdownLimit": "This Markdown is too complex to preview. Showing the full source. Reason: {reason}",
+  "preview.markdownLimit": "The Markdown could not be parsed, showing its source. Reason: {reason}",
   "markdown.parseFailed": "The Markdown could not be processed. The document was not changed. Reason: {reason}",
   "markdown.nestingLimit": "Nesting exceeds the limit of {limit} levels.",
   "markdown.tableExpansionLimit": "The tables would need more than {limit} additional empty cells.",
   "markdown.inputFailed": "The Markdown structure could not be parsed.",
-  "preview.markdownNodeLimit": "The document contains more than {limit} Markdown elements.",
-  "preview.markdownControlLimit": "The preview would need more than {limit} visual elements."
+  "preview.reader.copy": "Copy",
+  "preview.reader.copyMarkdown": "Copy as Markdown",
+  "preview.reader.selectAll": "Select all"
 }

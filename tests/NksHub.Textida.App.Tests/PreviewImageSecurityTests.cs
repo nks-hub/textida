@@ -105,6 +105,7 @@ public class PreviewImageSecurityTests
         Assert.StartsWith(ownedRoot, Path.GetFullPath(outside));
 
         Control? body = null;
+        Window? window = null;
         try
         {
             CreateDirectoryLink(link, outside);
@@ -112,6 +113,8 @@ public class PreviewImageSecurityTests
             var images = new PreviewImages(() => new HttpClientHandler(), _ => Task.FromResult(false), () => { });
             body = PreviewRenderer.Render(PreviewFormats.Markdown, "![inside](inside.png) ![outside](linked/picture.png)",
                 new PreviewRenderer.Ctx(new Avalonia.Media.FontFamily("Consolas"), Images: images, BaseDirectory: docs));
+            window = new Window { Width = 600, Height = 300, Content = body };
+            window.Show(); // the reader creates the pictures of the blocks it lays out
             var loading = new[] { "inside", "outside" }.Select(alt => Loc.Get(K.PreviewImageLoading, ("alt", alt))).ToHashSet();
             var clock = Stopwatch.StartNew();
             while (!Tree(body).OfType<Image>().Any() || Tree(body).OfType<TextBlock>().Any(text => loading.Contains(text.Text ?? "")))
@@ -126,6 +129,7 @@ public class PreviewImageSecurityTests
         }
         finally
         {
+            window?.Close();
             if (body is not null)
                 foreach (var bitmap in Tree(body).OfType<Image>().Select(image => image.Source).OfType<Bitmap>().Distinct()) bitmap.Dispose();
             if (Directory.Exists(link))

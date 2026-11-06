@@ -57,6 +57,22 @@
                     <SolidColorBrush x:Key="GitGutterRemoved">#B3261E</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffAddedWord">#8FD39C</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffRemovedWord">#F2A39D</SolidColorBrush>
+                    <!-- the Markdown reader: the colours of github-markdown-css 5.8.1 -->
+                    <SolidColorBrush x:Key="MdPage">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdFg">#1F2328</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdMuted">#59636E</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdBorder">#D1D9E0</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdHeadingRule">#B3D1D9E0</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdCodeBg">#F6F8FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdStripe">#F6F8FA</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdInlineCode">#1F818B98</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdLink">#0969DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdSelection">#4D0969DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdNote">#0969DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdTip">#1A7F37</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdImportant">#8250DF</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdWarning">#9A6700</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdCaution">#D1242F</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="Bg0">#202225</SolidColorBrush>
@@ -109,6 +125,22 @@
                     <SolidColorBrush x:Key="GitGutterRemoved">#FF8A80</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffAddedWord">#2C6638</SolidColorBrush>
                     <SolidColorBrush x:Key="DiffRemovedWord">#8E4040</SolidColorBrush>
+                    <!-- the Markdown reader: the colours of github-markdown-css 5.8.1 -->
+                    <SolidColorBrush x:Key="MdPage">#0D1117</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdFg">#F0F6FC</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdMuted">#9198A1</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdBorder">#3D444D</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdHeadingRule">#B33D444D</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdCodeBg">#151B23</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdStripe">#151B23</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdInlineCode">#33656C76</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdLink">#4493F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdSelection">#664493F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdNote">#4493F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdTip">#3FB950</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdImportant">#AB7DF8</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdWarning">#D29922</SolidColorBrush>
+                    <SolidColorBrush x:Key="MdCaution">#F85149</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -571,28 +603,8 @@
             <Setter Property="BorderThickness" Value="0" />
         </Style>
 
-        <!-- The Markdown preview, after GitHub: a column of at most 860 px, 16 px between blocks, a rule under H1 and H2, bars on quotes and alerts, shaded code, bordered tables with zebra rows.
+        <!-- The HTML preview (the Markdown reader draws itself, see MarkdownReader): shaded code, bars on quotes, bordered tables.
              Only brushes that every theme (and the high-contrast ones) already defines are used, so each text keeps the contrast the theme tests check. -->
-        <Style Selector="StackPanel.previewpage">
-            <Setter Property="MaxWidth" Value="860" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="32,24" />
-            <Setter Property="Spacing" Value="16" />
-        </Style>
-        <Style Selector="StackPanel.previewpage SelectableTextBlock">
-            <Setter Property="LineHeight" Value="22" />
-        </Style>
-        <Style Selector="StackPanel.previewblocks"><Setter Property="Spacing" Value="16" /></Style>
-        <Style Selector="StackPanel.previewtight"><Setter Property="Spacing" Value="4" /></Style>
-        <Style Selector="StackPanel.previewloose"><Setter Property="Spacing" Value="16" /></Style>
-        <Style Selector="StackPanel.previewlist"><Setter Property="Margin" Value="16,0,0,0" /></Style>
-        <Style Selector="StackPanel.previewfootnotes"><Setter Property="Spacing" Value="8" /></Style>
-        <Style Selector="TextBlock.previewmarker">
-            <Setter Property="MinWidth" Value="22" />
-            <Setter Property="LineHeight" Value="22" />
-            <Setter Property="TextAlignment" Value="Right" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-        </Style>
         <Style Selector="Border.previewcode">
             <Setter Property="Background" Value="{DynamicResource Bg1}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
@@ -604,32 +616,11 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="LineHeight" Value="20" />
         </Style>
-        <Style Selector="Run.previewinlinecode">
-            <Setter Property="Background" Value="{DynamicResource BgHover}" />
-        </Style>
         <Style Selector="Border.previewquote">
             <Setter Property="BorderBrush" Value="{DynamicResource FgMuted}" />
             <Setter Property="BorderThickness" Value="4,0,0,0" />
             <Setter Property="Padding" Value="16,0,0,0" />
         </Style>
-        <Style Selector="Border.previewalert"><Setter Property="Padding" Value="16,4,0,4" /></Style>
-        <Style Selector="Border.previewalertnote"><Setter Property="BorderBrush" Value="{DynamicResource Accent}" /></Style>
-        <Style Selector="Border.previewalerttip"><Setter Property="BorderBrush" Value="{DynamicResource Good}" /></Style>
-        <Style Selector="Border.previewalertimportant"><Setter Property="BorderBrush" Value="{DynamicResource GitConflict}" /></Style>
-        <Style Selector="Border.previewalertwarning"><Setter Property="BorderBrush" Value="{DynamicResource GitModified}" /></Style>
-        <Style Selector="Border.previewalertcaution"><Setter Property="BorderBrush" Value="{DynamicResource Danger}" /></Style>
-        <Style Selector="Path.previewalerticon">
-            <Setter Property="StrokeThickness" Value="1.5" />
-            <Setter Property="StrokeLineCap" Value="Round" />
-            <Setter Property="StrokeJoin" Value="Round" />
-        </Style>
-        <Style Selector="Border.previewalertnote Path.previewalerticon"><Setter Property="Stroke" Value="{DynamicResource Accent}" /></Style>
-        <Style Selector="Border.previewalerttip Path.previewalerticon"><Setter Property="Stroke" Value="{DynamicResource Good}" /></Style>
-        <Style Selector="Border.previewalertimportant Path.previewalerticon"><Setter Property="Stroke" Value="{DynamicResource GitConflict}" /></Style>
-        <Style Selector="Border.previewalertwarning Path.previewalerticon"><Setter Property="Stroke" Value="{DynamicResource GitModified}" /></Style>
-        <Style Selector="Border.previewalertcaution Path.previewalerticon"><Setter Property="Stroke" Value="{DynamicResource Danger}" /></Style>
-        <Style Selector="StackPanel.previewalerthead"><Setter Property="Spacing" Value="8" /></Style>
-        <Style Selector="TextBlock.previewalerttitle"><Setter Property="FontWeight" Value="SemiBold" /></Style>
         <Style Selector="Button.previewlink">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -642,14 +633,12 @@
             <Setter Property="CornerRadius" Value="1.5" />
             <Setter Property="Margin" Value="0,8" />
         </Style>
-        <Style Selector="Grid.previewtable"><Setter Property="Margin" Value="0,0,1,1" /></Style>
         <Style Selector="Border.previewcell">
             <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Margin" Value="0,0,-1,-1" />
             <Setter Property="Padding" Value="13,6" />
         </Style>
-        <Style Selector="Border.previewcellalt"><Setter Property="Background" Value="{DynamicResource Bg1}" /></Style>
         <Style Selector="Border.previewcellhead">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
         </Style>
@@ -691,14 +680,9 @@
         <Style Selector="SelectableTextBlock.previewhead4"><Setter Property="FontSize" Value="16" /><Setter Property="LineHeight" Value="24" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
         <Style Selector="SelectableTextBlock.previewhead5"><Setter Property="FontSize" Value="14" /><Setter Property="LineHeight" Value="22" /><Setter Property="FontWeight" Value="SemiBold" /></Style>
         <Style Selector="SelectableTextBlock.previewhead6"><Setter Property="FontSize" Value="13" /><Setter Property="LineHeight" Value="20" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Foreground" Value="{DynamicResource FgMuted}" /></Style>
-        <!-- 16 px from the block above comes from the page; a heading adds 8 px on top (24 px as on GitHub), and H1 and H2 sit in a box with a rule under it -->
-        <Style Selector="SelectableTextBlock.previewhead3, SelectableTextBlock.previewhead4, SelectableTextBlock.previewhead5, SelectableTextBlock.previewhead6, Border.previewheadbox">
+        <!-- the HTML preview: a heading adds 8 px on top of the spacing of its panel -->
+        <Style Selector="SelectableTextBlock.previewhead3, SelectableTextBlock.previewhead4, SelectableTextBlock.previewhead5, SelectableTextBlock.previewhead6">
             <Setter Property="Margin" Value="0,8,0,0" />
-        </Style>
-        <Style Selector="Border.previewheadbox">
-            <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="Padding" Value="0,0,0,8" />
         </Style>
 
         <Style Selector="Border.findbar">

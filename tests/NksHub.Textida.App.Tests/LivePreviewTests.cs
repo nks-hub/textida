@@ -43,8 +43,12 @@ public class LivePreviewTests : IDisposable
 
     private static IEnumerable<Control> Tree(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
 
-    private static string TextOf(Control root) => string.Join("\n", Tree(root).OfType<TextBlock>().Select(t =>
-        t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? ""));
+    private static string TextOf(Control root) => string.Join("\n", Tree(root).Select(c => c switch
+    {
+        MarkdownReader reader => reader.Document.PlainText,
+        TextBlock t => t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? "",
+        _ => null,
+    }).OfType<string>());
 
     private static async Task Until(Func<bool> condition, string what)
     {
@@ -85,16 +89,12 @@ public class LivePreviewTests : IDisposable
         Open("Intro\n\n| name | qty |\n|:--|--:|\n| apple | 3 |\n| fig |\n\nafter\n", "markdown");
         _w.ShowLivePreview(outline: false);
         await _w.PreviewRenderTask;
-        var grid = Tree(_w.PreviewBody!).OfType<Grid>().Single();
-        Assert.Equal(2, grid.ColumnDefinitions.Count);
-        Assert.Equal(3, grid.RowDefinitions.Count);
-        var cells = grid.Children.OfType<Border>().ToDictionary(b => (Grid.GetRow(b), Grid.GetColumn(b)), b => TextOf(b));
-        Assert.Equal("name", cells[(0, 0)]);
-        Assert.Equal("qty", cells[(0, 1)]);
-        Assert.Equal("apple", cells[(1, 0)]);
-        Assert.Equal("3", cells[(1, 1)]);
-        Assert.Equal("fig", cells[(2, 0)]);
-        Assert.Equal("", cells[(2, 1)]);
+        var reader = Assert.IsType<MarkdownReader>(_w.PreviewBody);
+        var rows = reader.Document.Blocks.Where(b => b.Kind == ReaderBlockKind.TableRow).ToList();
+        Assert.Equal(3, rows.Count);
+        Assert.All(rows, r => Assert.Equal(2, r.Cells.Length));
+        Assert.Equal(["name\tqty", "apple\t3", "fig\t"], rows.Select(r => r.Text));
+        Assert.True(rows[0].Header);
         Assert.Contains("after", TextOf(_w.PreviewBody!));
     }
 

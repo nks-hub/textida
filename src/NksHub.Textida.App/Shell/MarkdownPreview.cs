@@ -25,11 +25,10 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
     private readonly EditorSurface? _editor;
     private readonly MarkdownRenderQueue _renders = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(PluginLimits.PreviewLiveDebounceMs) };
-    private List<PreviewRenderer.Anchor> _anchors = [];
+    private MarkdownReader? _reader;
     private long _renderedRevision = -1;
     private long _pendingRevision = -1;
     private long _layoutGeneration;
-    private string? _renderedSource;
     private bool _disposed;
     private bool _settling;
     private long _quietPreviewUntil, _quietEditorUntil;
@@ -61,7 +60,6 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     private string Text => _editor?.Document.Text ?? _doc.TextBackend?.TextDocument.Text ?? "";
 
-    private int LineCount => _editor?.Document.LineCount ?? _doc.TextBackend?.TextDocument.LineCount ?? 1;
 
     private void OnDocumentChanged()
     {
@@ -83,28 +81,29 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             _renders.Cancel();
             _renderedRevision = revision;
             _pendingRevision = -1;
-            _anchors = [];
+            _reader = null;
             Content = new TextBlock { Text = Loc.Get(K.PreviewLiveTooLarge), TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 6) };
             UpdateName();
             return;
         }
         _pendingRevision = revision;
-        RenderTask = _renders.RunAsync(text, () => _doc.Doc.Revision == revision, plan =>
+        RenderTask = _renders.RunAsync(text, () => _doc.Doc.Revision == revision, document =>
         {
-            var selection = PreviewRenderer.KeepSelection(Content as Control, _renderedSource, plan.Source);
             long generation = ++_layoutGeneration;
-            _renderedSource = plan.Source;
             _renderedRevision = revision;
             _pendingRevision = -1;
-            var anchors = _anchors = [];
             _settling = true;
-            Content = PreviewRenderer.RenderMarkdown(plan, _window.PreviewContext(_doc, anchors) with { JumpToLine = line => ScrollToLine(line) });
+            if (_reader is null)
+            {
+                _reader = new MarkdownReader(document, _window.PreviewContext(_doc, null) with { JumpToLine = line => ScrollToLine(line) });
+                Content = _reader;
+            }
+            else _reader.SetDocument(document);
             UpdateName();
             Dispatcher.UIThread.Post(() =>
             {
                 if (_disposed || generation != _layoutGeneration) return;
                 _settling = false;
-                if (Content is Control body) PreviewRenderer.RestoreSelection(body, selection);
                 if (_editor is not null) SyncPreviewToEditor();
                 else Offset = offset;
                 ApplyPendingLine();
@@ -119,10 +118,10 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
 
     // ---- position ----
 
-    private PreviewScrollMap? Map() =>
-        _anchors is { Count: > 0 } anchors && Content is Control body
-            ? PreviewScrollMap.FromAnchors(anchors, body, LineCount, Extent.Height)
-            : null;
+    /// <summary>The reader whose page this view scrolls; null before the first rendering and for a document over the size limit.</summary>
+    internal MarkdownReader? Reader => _reader;
+
+    private PreviewScrollMap? Map() => _reader?.Map;
 
     /// <summary>The (fractional, zero-based) line of the source at the top of the page; 0 while nothing is laid out.</summary>
     public double TopLine => Map()?.LineAt(Offset.Y) ?? 0;

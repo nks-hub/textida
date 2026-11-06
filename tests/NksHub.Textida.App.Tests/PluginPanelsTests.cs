@@ -112,8 +112,12 @@ public class PluginPanelsTests : IDisposable
 
     private static IEnumerable<Control> Tree(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
 
-    private static string TextOf(Control root) => string.Join("\n", Tree(root).OfType<TextBlock>().Select(t =>
-        t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? ""));
+    private static string TextOf(Control root) => string.Join("\n", Tree(root).Select(c => c switch
+    {
+        MarkdownReader reader => reader.Document.PlainText,
+        TextBlock t => t.Inlines is { Count: > 0 } inlines ? string.Concat(inlines.OfType<Run>().Select(r => r.Text)) : t.Text ?? "",
+        _ => null,
+    }).OfType<string>());
 
     // ---- preview ----
 
@@ -134,7 +138,7 @@ public class PluginPanelsTests : IDisposable
         var text = TextOf(_w.PreviewBody!);
         Assert.Contains("Notes", text);
         Assert.Contains("Some bold and code text.", text);
-        Assert.Matches("•\\s+one", text);
+        Assert.Equal("•", Assert.IsType<MarkdownReader>(_w.PreviewBody).Document.Blocks.Single(b => b.Text == "one").Path[^1].Marker);
         Assert.Contains("raw  code", text);
 
         // the document moves on: the panel says the preview is outdated, and a late preview for the old revision is refused
@@ -294,11 +298,12 @@ public class PluginPanelsTests : IDisposable
 
         await Editor(DocumentMethods.PreviewShow, Show(tab, "See [the manual](https://docs.example.org/a) or [local](file:///C:/private/notes.txt)."));
         await _w.PreviewRenderTask;
-        var buttons = Tree(_w.PreviewBody!).OfType<Button>().ToList();
-        var link = Assert.Single(buttons);
+        var reader = Assert.IsType<MarkdownReader>(_w.PreviewBody);
+        Assert.Single(reader.Document.Links);
+        Assert.Contains("local (file:///C:/private/notes.txt)", reader.Document.PlainText);
 
         _dialogs.Answers.Enqueue(1);
-        link.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        reader.ActivateLink(0);
         await Until(() => _dialogs.Asked.Count == 1, "the question");
         Assert.Contains("https://docs.example.org/a", _dialogs.Asked[0].Message);
         Assert.Empty(opened);

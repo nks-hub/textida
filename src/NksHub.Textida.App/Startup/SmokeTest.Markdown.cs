@@ -1,10 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
-using Avalonia.Media;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.Core.Documents;
@@ -14,18 +10,6 @@ namespace NksHub.Textida.App.Startup;
 
 internal sealed partial class SmokeTest
 {
-    private static IEnumerable<Control> MarkdownControls(Control root) => new[] { root }.Concat(root.GetLogicalDescendants().OfType<Control>());
-
-    private static IEnumerable<Run> MarkdownRuns(IEnumerable<Inline> inlines) => inlines.SelectMany(inline => inline switch
-    {
-        Run run => new[] { run },
-        Span span => MarkdownRuns(span.Inlines),
-        _ => [],
-    });
-
-    private static string MarkdownText(TextBlock block) => block.Inlines is { Count: > 0 } inlines
-        ? string.Concat(MarkdownRuns(inlines).Select(run => run.Text)) : block.Text ?? "";
-
     private async Task CheckMarkdownAsync(string temp)
     {
         string source = "# C#\n\n[Contents](#details--end)\n\n"
@@ -50,38 +34,36 @@ internal sealed partial class SmokeTest
             await page.RenderTask;
             await NextFrameAsync();
             window.UpdateLayout();
-            var controls = MarkdownControls(page).ToList();
-            var heading = controls.OfType<TextBlock>().Single(block => block.Classes.Contains("previewhead1") && MarkdownText(block) == "C#");
-            Check(page.Bounds.Width > 100 && page.Bounds.Height > 100 && heading.Bounds.Width > 0 && heading.TextLayout.TextLines.Count > 0
-                && MarkdownRuns(heading.Inlines!).All(run => run.FontWeight == FontWeight.SemiBold), "markdown.heading.native_frame");
+            var reader = page.Reader ?? throw new InvalidOperationException("markdown smoke has no reader");
+            var blocks = reader.Document.Blocks;
+            int Find(Func<ReaderBlock, bool> match) { for (int i = 0; i < blocks.Count; i++) if (match(blocks[i])) return i; return -1; }
+            int heading = Find(b => b.Kind == ReaderBlockKind.Heading && b.Level == 1 && b.Text == "C#");
+            Check(page.Bounds.Width > 100 && page.Bounds.Height > 100 && heading >= 0 && reader.IsMeasured(heading) && reader.BlockBounds(heading).Width > 0
+                && blocks[heading].Spans.All(s => s.Style.HasFlag(ReaderStyle.Bold)), "markdown.heading.native_frame");
 
-            var inner = controls.OfType<TextBlock>().Single(block => MarkdownText(block) == "inner");
-            var item = inner.GetLogicalAncestors().OfType<StackPanel>().FirstOrDefault(panel => MarkdownControls(panel).OfType<TextBlock>().Any(block => MarkdownText(block) == "continuation")
-                && MarkdownControls(panel).OfType<Border>().Any(border => border.Classes.Contains("previewcode") && MarkdownControls(border).OfType<TextBlock>().Any(block => MarkdownText(block).Contains("nested code", StringComparison.Ordinal))));
-            var numbers = controls.OfType<TextBlock>().Select(MarkdownText).Where(text => text is "1." or "2.").ToArray();
-            Check(item is not null && !MarkdownControls(item).OfType<TextBlock>().Any(block => MarkdownText(block) == "last")
+            int inner = Find(b => b.Text == "inner"), continued = Find(b => b.Text == "continuation"), nested = Find(b => b.Kind == ReaderBlockKind.Code && b.Text.Contains("nested code", StringComparison.Ordinal));
+            int last = Find(b => b.Text == "last");
+            var item = inner >= 0 ? blocks[inner].Path[^1] : null;
+            var numbers = blocks.Where(b => b.Text is "first" or "second").Select(b => b.Path[^1].Marker).ToArray();
+            Check(item is not null && continued >= 0 && nested >= 0 && blocks[continued].Path.Contains(item) && blocks[nested].Path.Contains(item) && last >= 0 && !blocks[last].Path.Contains(item)
                 && numbers.SequenceEqual(new[] { "1.", "2." }), "markdown.nested_and_ordered_lists");
 
-            var both = controls.OfType<TextBlock>().SelectMany(block => MarkdownRuns(block.Inlines ?? [])).Single(run => run.Text == "both");
-            Check(both.FontWeight >= FontWeight.SemiBold && both.FontStyle == FontStyle.Italic, "markdown.strong_emphasis");
+            int bothBlock = Find(b => b.Text.StartsWith("both", StringComparison.Ordinal));
+            Check(bothBlock >= 0 && blocks[bothBlock].Spans.Any(s => s.Start == 0 && s.Length == 4 && s.Style.HasFlag(ReaderStyle.Bold) && s.Style.HasFlag(ReaderStyle.Italic)), "markdown.strong_emphasis");
 
-            var code = controls.OfType<Border>().Single(border => border.Classes.Contains("previewcode")
-                && MarkdownControls(border).OfType<TextBlock>().Any(block => MarkdownText(block).Contains("# literal", StringComparison.Ordinal)));
-            string literal = string.Join('\n', MarkdownControls(code).OfType<TextBlock>().Select(MarkdownText));
-            Check(literal.Contains("```", StringComparison.Ordinal) && literal.Contains("![literal](https://example.invalid/image.png)", StringComparison.Ordinal)
-                && !MarkdownControls(code).Any(control => control is Image or Button), "markdown.fence_is_literal");
+            int code = Find(b => b.Kind == ReaderBlockKind.Code && b.Text.Contains("# literal", StringComparison.Ordinal));
+            Check(code >= 0 && blocks[code].Text.Contains("```", StringComparison.Ordinal) && blocks[code].Text.Contains("![literal](https://example.invalid/image.png)", StringComparison.Ordinal)
+                && !blocks.Any(b => b.Kind == ReaderBlockKind.Images), "markdown.fence_is_literal");
 
-            var table = controls.OfType<Grid>().Single(grid => grid.Children.OfType<Border>().Any(border => border.Classes.Contains("previewcell")));
-            string Cell(int row, int column) => string.Concat(MarkdownControls(table.Children.OfType<Border>().Single(border => Grid.GetRow(border) == row && Grid.GetColumn(border) == column)).OfType<TextBlock>().Select(MarkdownText));
+            var rows = blocks.Where(b => b.Kind == ReaderBlockKind.TableRow).ToList();
             var headings = MarkdownTools.Headings(source.Split("\r\n"));
-            Check(table.RowDefinitions.Count == 2 && table.ColumnDefinitions.Count == 2 && Cell(0, 0) == "name" && Cell(0, 1) == "value"
-                && Cell(1, 0) == "a|b" && Cell(1, 1) == "code" && headings.Select(value => value.Title).SequenceEqual(new[] { "C#", "Details | end" })
-                && controls.OfType<TextBlock>().Any(block => block.Classes.Contains("previewhead1") && MarkdownText(block) == "Details | end"), "markdown.table_and_heading_boundaries");
+            Check(rows.Count == 2 && rows[0].Cells.Length == 2 && rows[0].Text == "name\tvalue" && rows[1].Text == "a|b\tcode" &&headings.Select(value => value.Title).SequenceEqual(new[] { "C#", "Details | end" })
+                && Find(b => b.Kind == ReaderBlockKind.Heading && b.Text == "Details | end") >= 0, "markdown.table_and_heading_boundaries");
 
             byte[] Bytes() => document.Doc.ReadBytes(new ByteRange(0, document.Doc.ByteLength));
             bool unchanged = Bytes().SequenceEqual(original) && document.Doc.UndoDepth == undo && !document.Doc.IsModified;
-            var contents = controls.OfType<Button>().Single(button => button.Classes.Contains("previewlink"));
-            contents.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            int contents = reader.Document.Links.Select((l, i) => (l, i)).Single(x => x.l.Line is not null).i;
+            reader.ActivateLink(contents);
             // the scroll lands within a few frames; a loaded machine (Rosetta, a watcher beside it) needs more than one
             bool jumped = false;
             for (int i = 0; i < 60 && !jumped; i++)

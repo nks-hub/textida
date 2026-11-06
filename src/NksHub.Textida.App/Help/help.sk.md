@@ -540,6 +540,7 @@ Súbor Markdown (.md, .markdown) má tri režimy. Čítanie vykreslí stránku c
 4. Zmena režimu drží miesto: stránka aj editor sa posunú na rovnaký riadok a po návrate do editora sa vráti kurzor a výber. Okno si režim súboru pamätá, kým sa nezatvorí.
 - Súbor dlhší než limit náhľadu alebo otvorený ako veľký súbor sa otvorí ako zdroj a stavový riadok to povie; lišta potom neponúka čítanie ani úpravy.
 - V čítaní klávesy editora nič nerobia: stránka je len na čítanie. Na zmenu textu prepnite na úpravy alebo zdroj. F6 presunie fokus na stránku; šípky, Page Up, Page Down, Home a End ju posúvajú.
+- Text stránky sa dá vyberať myšou ako na webe: ťahaním cez odseky, zoznamy, kód aj bunky tabuliek. Shift+klik výber rozšíri, dvojklik vyberie slovo a trojklik odsek; pri ťahaní za okraj sa stránka posúva. Ctrl+A vyberie všetko, Ctrl+C skopíruje text (bunky tabuľky oddelí tabulátor) a Ctrl+Shift+C alebo Kopírovať ako Markdown v miestnej ponuke skopíruje zodpovedajúcu časť zdroja. Tab prechádza medzi odkazmi a Enter odkaz otvorí. Dlhý riadok kódu sa nezalamuje, posúva sa Shift+kolieskom.
 - Ctrl+K a potom Ctrl+V v súbore v hexe prejde do čítania. Príkazy Markdownu v ponuke Nástroje potrebujú editor, použite pre ne úpravy alebo zdroj.
 - Text sa nedá meniť priamo vo vykreslenej stránke.
 
