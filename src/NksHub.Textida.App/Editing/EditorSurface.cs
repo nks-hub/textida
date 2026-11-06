@@ -122,7 +122,7 @@ internal sealed partial class EditorSurface : TextEditor
         foreach (var edge in TextArea.LeftMargins.OfType<Avalonia.Controls.Shapes.Line>())
         {
             edge.StrokeDashArray = null;
-            edge.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, this.GetResourceObservable("Border"));
+            edge.Stroke = new ImmutableSolidColorBrush(EditorLook.Edge(this));
         }
     }
     /// <summary>Keeps the syntax colors of this view current.</summary>
@@ -291,6 +291,7 @@ internal sealed partial class EditorSurface : TextEditor
         _caretBrush = look.Id == EditorColorTheme.AutoId ? Find("Fg") : Foreground; // the caret of the window theme, or the text colour of a chosen theme
         UpdateNativeCaret();
         _colorizer.Palette = _levels.Palette = _highlight.Palette = look.Palette;
+        TuneGutter();
         TextArea.TextView.Redraw();
     }
 

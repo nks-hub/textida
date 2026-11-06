@@ -170,4 +170,13 @@ internal static class EditorLook
     }
 
     public static SyntaxPalette PaletteOf(StyledElement control) => Of(control).Palette;
+
+    /// <summary>The edge between the gutter or the minimap and the text: the border of the window theme, or for a chosen theme its line numbers faded into its background.</summary>
+    public static Color Edge(StyledElement control)
+    {
+        var look = Of(control);
+        if (look.Id == EditorColorTheme.AutoId && control.TryFindResource("Border", control.ActualThemeVariant, out var value) && value is ISolidColorBrush border) return border.Color;
+        var numbers = look[EditorColorTheme.LineNumbers];
+        return EditorColorTheme.Over(Color.FromArgb(0x66, numbers.R, numbers.G, numbers.B), look[EditorColorTheme.Background]);
+    }
 }

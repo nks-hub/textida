@@ -1,3 +1,5 @@
+using Avalonia;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Styling;
@@ -314,6 +316,70 @@ public class EditorThemeTests : IDisposable
         await view.ImportThemeAsync();
         Assert.Equal(before, _app.EditorThemes.Custom.Count);
         Assert.Equal("user:Sample Day", _app.Workbench.Settings.GetString(EditorThemes.ThemeSetting));
+    }
+
+    /// <summary>The window drawn as it is on screen; when <c>TEXTIDA_THEME_RENDER_DIR</c> names a folder the picture is kept there as a PNG for a look by eye.</summary>
+    private static Avalonia.Media.Imaging.Bitmap Frame(Avalonia.Controls.Window window, string name)
+    {
+        window.UpdateLayout();
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            window.CaptureRenderedFrame(); // the frame is drawn on the render thread; every capture draws what changed since the last one
+            Thread.Sleep(5);
+        }
+        var frame = window.CaptureRenderedFrame()!;
+        if (Environment.GetEnvironmentVariable("TEXTIDA_THEME_RENDER_DIR") is { Length: > 0 } folder)
+        {
+            Directory.CreateDirectory(folder);
+            frame.Save(Path.Combine(folder, name + ".png"));
+        }
+        return frame;
+    }
+
+    /// <summary>The colour most pixels of a rectangle of the frame have.</summary>
+    private static Color MostOf(Avalonia.Media.Imaging.Bitmap bitmap, Avalonia.Rect area)
+    {
+        var frame = Assert.IsAssignableFrom<Avalonia.Media.Imaging.WriteableBitmap>(bitmap);
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        double scale = buffer.Size.Width / frame.Size.Width;
+        var counts = new Dictionary<Color, int>();
+        for (int y = (int)(area.Top * scale); y < Math.Min(buffer.Size.Height, (int)(area.Bottom * scale)); y += 2)
+            for (int x = (int)(area.Left * scale); x < Math.Min(buffer.Size.Width, (int)(area.Right * scale)); x += 2)
+            {
+                int at = y * buffer.RowBytes + x * 4;
+                var c = frame.Format == Avalonia.Platform.PixelFormat.Bgra8888 ? Color.FromRgb(data[at + 2], data[at + 1], data[at]) : Color.FromRgb(data[at], data[at + 1], data[at + 2]);
+                counts[c] = counts.GetValueOrDefault(c) + 1;
+            }
+        return counts.MaxBy(p => p.Value).Key;
+    }
+
+    [AvaloniaFact]
+    public void Every_theme_draws_the_editor_and_the_preview_of_the_settings_in_its_colours()
+    {
+        var w = _app.CreateWindow(null);
+        w.Width = 1000;
+        w.Height = 640;
+        var tab = w.OpenFile(_temp.File("a.cs", CSharp), null);
+        w.UpdateLayout();
+        Settle();
+        var view = OpenSettings();
+        foreach (var theme in EditorColorTheme.BuiltIn)
+        {
+            _app.Workbench.Set(EditorThemes.ThemeSetting, theme.Id);
+            Settle();
+            var editor = tab.Editor!;
+            var origin = editor.TranslatePoint(new Avalonia.Point(0, 0), w)!.Value;
+            Assert.Equal(theme[EditorColorTheme.Background], MostOf(Frame(w, "editor-" + theme.Id), new Avalonia.Rect(origin, editor.Bounds.Size)));
+            var preview = view.Preview!;
+            var at = preview.TranslatePoint(new Avalonia.Point(0, 0), view)!.Value;
+            Assert.Equal(theme[EditorColorTheme.Background], MostOf(Frame(view, "settings-" + theme.Id), new Avalonia.Rect(at, preview.Bounds.Size).Deflate(4)));
+        }
+        view.ShowKey(EditorThemes.ColorsSetting);
+        Settle();
+        Frame(view, "settings-colors");
     }
 
     [AvaloniaFact]

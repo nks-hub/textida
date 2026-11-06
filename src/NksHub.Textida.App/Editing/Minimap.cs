@@ -730,7 +730,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         using var _ = context.PushTransform(Matrix.CreateScale(1 / scale, 1 / scale));
         int width = PixelWidth, height = PixelHeight;
         if (_shown is not null) context.DrawImage(_shown, new Rect(_shown.Size), new Rect(_shown.Size));
-        context.DrawLine(new Pen(new ImmutableSolidColorBrush(Resource("Border", plain)), 1), new Point(0.5, 0), new Point(0.5, height));
+        context.DrawLine(new Pen(new ImmutableSolidColorBrush(EditorLook.Edge(this)), 1), new Point(0.5, 0), new Point(0.5, height));
         if (Wanted() is not { } wanted) return;
         var layout = wanted.Layout;
         var thumb = new Rect(0, layout.ThumbTop, width, layout.ThumbHeight);
