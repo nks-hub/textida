@@ -160,6 +160,23 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_search_from_the_find_bar_moves_the_caret_of_the_formatted_view()
+    {
+        Open(Sample);
+        var view = Show();
+        Scan(view);
+        Press(Key.F, TestApp.Mod);
+        Assert.True(_w.FindBar.IsVisible);
+        _w.FindBar.FindBox.Text = "60200";
+        Dispatcher.UIThread.RunJobs();
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); _w.FindIsRunning && sw.ElapsedMilliseconds < 10_000;) { await Task.Delay(5); Dispatcher.UIThread.RunJobs(); }
+        await _w.FindStepAsync(forward: true);
+        Assert.Same(view, _w.ActiveJson);
+        Assert.Equal(8, view.CaretLine); // "zip": 60200
+        Assert.Equal("    \"zip\": ".Length, view.CaretColumn);
+    }
+
+    [AvaloniaFact]
     public void Broken_json_shows_the_source_text_from_the_error_and_says_where()
     {
         Open("{\"a\":1,\"b\":tru}");
