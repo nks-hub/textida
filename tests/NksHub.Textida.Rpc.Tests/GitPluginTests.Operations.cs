@@ -343,14 +343,148 @@ public partial class GitPluginTests
 
         rig.Ui.Pick = _ => null;
         Assert.Equal("dismissed", StatusOf(await rig.RepoAsync("git.pull")));
-        Assert.Equal(["merge", "rebase"], rig.Ui.Picks.Last().Items.Select(i => i.Id));
-        lock (rig.Ui.Started) Assert.Empty(rig.Ui.Started); // nothing was started
+        Assert.Equal(["merge", "rebase", "merge:remember", "rebase:remember"], rig.Ui.Picks.Last().Items.Select(i => i.Id));
+        Assert.Equal(["mine", "first"], Nl(repo.Run("log", "--format=%s")).Split('\n', StringSplitOptions.RemoveEmptyEntries)); // fetched, but nothing combined
 
         rig.Ui.Pick = request => request.Items.Single(i => i.Id == "rebase").Id;
-        Assert.Equal("pulled", StatusOf(await rig.RepoAsync("git.pull")));
+        var pulled = await rig.RepoAsync("git.pull");
+        Assert.Equal("pulled", StatusOf(pulled));
+        Assert.Equal(("rebase", false), (pulled.GetProperty("mode").GetString(), pulled.GetProperty("remember").GetBoolean()));
         Assert.Equal("", repo.Run("log", "--merges", "--oneline").Trim());
         Assert.Equal(["mine", "theirs", "first"], Nl(repo.Run("log", "--format=%s")).Split('\n', StringSplitOptions.RemoveEmptyEntries));
         Assert.Equal("dirty\n", Nl(File.ReadAllText(repo.PathOf("keep.txt"))));
+    }
+
+    [Fact]
+    public async Task Pull_fetches_first_says_up_to_date_without_a_question_and_fast_forwards_a_branch_with_no_commit_of_its_own()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        using var remote = new Remote(repo);
+        CommitIn(repo.Dir, "mine.txt", "m\n", "mine"); // a commit of its own: combining would need a question
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), extra: OperationArguments);
+
+        Assert.Equal("upToDate", StatusOf(await rig.RepoAsync("git.pull")));
+        Assert.Empty(rig.Ui.Picks);
+        Assert.Contains(Notices(rig), n => n.StartsWith("Everything is up to date", StringComparison.Ordinal));
+        lock (rig.Ui.Started) Assert.Single(rig.Ui.Started); // the fetch
+
+        using var other = new Repo(("a.txt", "a\n"));
+        using var otherRemote = new Remote(other);
+        otherRemote.TheyCommit("theirs.txt", "t\n", "theirs"); // not fetched yet: only the fetch of the pull finds it
+        await using var rig2 = await Rig.CreateAsync(other.PathOf("a.txt"), extra: OperationArguments);
+        Assert.Equal(0, (await rig2.RepoAsync("git.changes")).GetProperty("behind").GetInt32());
+        var pulled = await rig2.RepoAsync("git.pull");
+        Assert.Equal(("pulled", "ffonly"), (StatusOf(pulled), pulled.GetProperty("mode").GetString()));
+        Assert.Empty(rig2.Ui.Picks);
+        Assert.True(File.Exists(other.PathOf("theirs.txt")));
+        Assert.Equal("", other.Run("log", "--merges", "--oneline").Trim());
+    }
+
+    [Fact]
+    public async Task Pull_combines_as_the_git_configuration_says_without_a_question_and_it_wins_over_the_setting_of_the_editor()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        using var remote = new Remote(repo);
+        string branch = repo.Run("branch", "--show-current").Trim();
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), extra: OperationArguments);
+
+        repo.Run("config", "pull.rebase", "true");
+        remote.TheyCommit("t1.txt", "t\n", "theirs 1");
+        CommitIn(repo.Dir, "m1.txt", "m\n", "mine 1");
+        var rebased = await rig.RepoAsync("git.pull", extra: ",\"mode\":\"merge\"");
+        Assert.Equal(("pulled", "rebase"), (StatusOf(rebased), rebased.GetProperty("mode").GetString()));
+        Assert.Equal("", repo.Run("log", "--merges", "--oneline").Trim());
+        Assert.Equal(["mine 1", "theirs 1", "first"], Nl(repo.Run("log", "--format=%s")).Split('\n', StringSplitOptions.RemoveEmptyEntries));
+
+        repo.Run("config", $"branch.{branch}.rebase", "false"); // the branch wins over pull.rebase
+        remote.TheyCommit("t2.txt", "t\n", "theirs 2");
+        CommitIn(repo.Dir, "m2.txt", "m\n", "mine 2");
+        var merged = await rig.RepoAsync("git.pull", extra: ",\"mode\":\"rebase\"");
+        Assert.Equal(("pulled", "merge"), (StatusOf(merged), merged.GetProperty("mode").GetString()));
+        Assert.NotEqual("", repo.Run("log", "--merges", "--oneline").Trim());
+
+        repo.Run("config", "--unset", $"branch.{branch}.rebase");
+        repo.Run("config", "--unset", "pull.rebase");
+        repo.Run("config", "pull.ff", "only");
+        string head = repo.Run("rev-parse", "HEAD").Trim();
+        remote.TheyCommit("t3.txt", "t\n", "theirs 3");
+        CommitIn(repo.Dir, "m3.txt", "m\n", "mine 3");
+        string mine = repo.Run("rev-parse", "HEAD").Trim();
+        Assert.NotEqual(head, mine);
+        Assert.Equal("notFastForward", StatusOf(await rig.RepoAsync("git.pull", extra: ",\"mode\":\"merge\"")));
+        Assert.Equal(mine, repo.Run("rev-parse", "HEAD").Trim()); // nothing combined
+        Assert.Contains(Notices(rig), n => n.Contains("pull.ff=only", StringComparison.Ordinal));
+        Assert.Empty(rig.Ui.Picks);
+    }
+
+    [Fact]
+    public async Task An_answer_to_remember_is_passed_on_to_the_editor_with_the_way_chosen()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        using var remote = new Remote(repo);
+        remote.TheyCommit("theirs.txt", "t\n", "theirs");
+        CommitIn(repo.Dir, "mine.txt", "m\n", "mine");
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), extra: OperationArguments);
+
+        rig.Ui.Pick = _ => "merge:remember";
+        var pulled = await rig.RepoAsync("git.pull");
+        Assert.Equal(("pulled", "merge", true), (StatusOf(pulled), pulled.GetProperty("mode").GetString(), pulled.GetProperty("remember").GetBoolean()));
+        Assert.NotEqual("", repo.Run("log", "--merges", "--oneline").Trim());
+        Assert.Contains("Settings", rig.Ui.Picks.Single().Items.Single(i => i.Id == "merge:remember").Detail);
+    }
+
+    [Fact]
+    public async Task The_status_bar_shows_the_commits_coming_in_and_going_out_and_after_a_pull_the_summary_lists_what_came_in()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), extra: OperationArguments);
+        repo.Write("a.txt", "changed\n");
+        await rig.RepoAsync("git.stagePaths", extra: PathsJson("a.txt"));
+        var lone = rig.LatestStatus()!;
+        Assert.DoesNotContain("↓", lone.Text);
+        Assert.DoesNotContain("↑", lone.Text);
+        Assert.Contains("tracks no remote branch", lone.Tooltip);
+        repo.Run("commit", "-q", "-m", "mine");
+
+        using var remote = new Remote(repo);
+        remote.TheyCommit("x.txt", "x\n", "theirs x");
+        remote.TheyCommit("y.txt", "y\n", "theirs y");
+        CommitIn(repo.Dir, "m.txt", "m\n", "mine again");
+        Assert.Equal("fetched", StatusOf(await rig.RepoAsync("git.fetch")));
+        string branch = repo.Run("branch", "--show-current").Trim();
+        Assert.StartsWith($"{branch} ↓2 ↑1", rig.LatestStatus()!.Text);
+        Assert.Contains("incoming commits 2, outgoing 1", rig.LatestStatus()!.Tooltip);
+
+        rig.Ui.Pick = _ => "rebase";
+        var pulled = await rig.RepoAsync("git.pull");
+        Assert.Equal((2, 2), (pulled.GetProperty("commits").GetInt32(), pulled.GetProperty("files").GetInt32()));
+        Assert.Contains(Notices(rig), n => n.Contains("Commits that came in: 2, files changed: 2 (x.txt, y.txt)", StringComparison.Ordinal));
+        var panel = rig.LatestPanel()!;
+        Assert.Equal(GitPlugin.LogPanel, panel.Id);
+        Assert.Equal(["theirs y", "theirs x"], panel.Items.Select(i => i.Label[(i.Label.IndexOf(' ') + 1)..]));
+        Assert.StartsWith($"{branch} ↑1", rig.LatestStatus()!.Text);
+    }
+
+    [Fact]
+    public async Task A_fetch_of_the_editor_in_the_background_tells_nothing_answers_how_far_the_branch_is_and_skips_a_branch_without_upstream()
+    {
+        using var repo = new Repo(("a.txt", "a\n"));
+        await using var rig = await Rig.CreateAsync(repo.PathOf("a.txt"), extra: OperationArguments);
+        Assert.Equal("noRemote", StatusOf(await rig.RepoAsync("git.fetch", extra: ",\"background\":true")));
+
+        using var remote = new Remote(repo);
+        remote.TheyCommit("theirs.txt", "t\n", "theirs");
+        var fetched = await rig.RepoAsync("git.fetch", extra: ",\"background\":true");
+        Assert.Equal(("fetched", 1, 0), (StatusOf(fetched), fetched.GetProperty("behind").GetInt32(), fetched.GetProperty("ahead").GetInt32()));
+        Assert.EndsWith("/" + repo.Run("branch", "--show-current").Trim(), fetched.GetProperty("upstream").GetString());
+        Assert.False(File.Exists(repo.PathOf("theirs.txt")));
+
+        repo.Run("checkout", "-q", "-b", "local-only");
+        int started;
+        lock (rig.Ui.Started) started = rig.Ui.Started.Count;
+        Assert.Equal("noUpstream", StatusOf(await rig.RepoAsync("git.fetch", extra: ",\"background\":true")));
+        lock (rig.Ui.Started) Assert.Equal(started, rig.Ui.Started.Count); // not fetched
+        Assert.Empty(Notices(rig));
     }
 
     [Fact]
