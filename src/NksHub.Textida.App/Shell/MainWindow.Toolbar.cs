@@ -37,6 +37,9 @@ internal sealed partial class MainWindow
     /// <summary>True while the toolbar shows large icons (the setting <c>workbench.toolbarLargeIcons</c>).</summary>
     internal bool ToolbarLargeIcons => _app.Workbench.Settings.GetBool("workbench.toolbarLargeIcons");
 
+    /// <summary>True while the toolbar icons are coloured by the kind of command (the setting <c>workbench.toolbarColorIcons</c>); high contrast draws them in one colour anyway.</summary>
+    internal bool ToolbarColorIcons => _app.Workbench.Settings.GetBool("workbench.toolbarColorIcons");
+
     /// <summary>Side of a toolbar icon now.</summary>
     internal double ToolbarIconSize => ToolbarLargeIcons ? LargeToolbarIcon : CommandIcons.Size;
 
@@ -106,7 +109,7 @@ internal sealed partial class MainWindow
             if (_app.Toolbar.Problem is { } problem) SetStatusMessage(Loc.Get(K.ToolbarUnreadable, ("reason", problem)));
         }
         var shown = ToolbarLayout.Shown(_toolbarLayout, id => wb.Commands.TryGet(id, out _) && wb.Commands.HasHandler(id));
-        string look = $"{Loc.Language}|{ToolbarIconSize}";
+        string look = $"{Loc.Language}|{ToolbarIconSize}|{ToolbarColorIcons}";
         if (_toolbarLook != look || !shown.SequenceEqual(_toolbarDrawn))
         {
             _toolbarRow.Children.Clear();
@@ -191,7 +194,7 @@ internal sealed partial class MainWindow
         var button = new Button
         {
             Tag = id,
-            Content = icon is null ? new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center } : CommandIcons.Create(icon, ToolbarIconSize),
+            Content = icon is null ? new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center } : new IconView(icon, ToolbarIconSize) { Colored = ToolbarColorIcons },
             IsEnabled = false,
         };
         button.Classes.Add("toolbutton");
@@ -228,7 +231,7 @@ internal sealed partial class MainWindow
     }
 
     /// <summary>
-    /// Opens the context menu of the toolbar: Customize, Hide, Remove This Button (when it was asked for over a button), Restore Default Buttons and the icon size.
+    /// Opens the context menu of the toolbar: Customize, Hide, Remove This Button (when it was asked for over a button), Restore Default Buttons, the icon size and Colored Icons.
     /// The right button of the pointer and the Menu key or Shift+F10 on a button open it.
     /// </summary>
     internal ContextMenu OpenToolbarMenu(Button? over)
@@ -257,6 +260,10 @@ internal sealed partial class MainWindow
             item.GroupName = "toolbarSize";
             item.IsChecked = large == value;
         }
+        bool colored = ToolbarColorIcons;
+        var colors = Add(K.ToolbarMenuColors, () => _app.Workbench.Set("workbench.toolbarColorIcons", JsonValue.Create(!colored)));
+        colors.ToggleType = MenuItemToggleType.CheckBox;
+        colors.IsChecked = colored;
         menu.Open(over ?? (Control)_toolbar);
         return menu;
     }

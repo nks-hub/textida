@@ -6,6 +6,9 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Platform;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -35,6 +38,8 @@ public class ToolbarTests : IDisposable
 
     public void Dispose()
     {
+        _app.Contrast.Restore();
+        _app.RequestedThemeVariant = ThemeVariant.Default;
         TestApp.Cleanup(_app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         _temp.Dispose();
@@ -349,7 +354,7 @@ public class ToolbarTests : IDisposable
         RightClick(ButtonOf("nks.file.new"));
         var menu = Assert.IsType<ContextMenu>(_w.ToolbarMenu);
         Assert.True(menu.IsOpen);
-        Assert.Equal([Loc.Get(K.ToolbarMenuEdit), Loc.Get(K.ToolbarMenuHide), Loc.Get(K.ToolbarMenuRemove), Loc.Get(K.ToolbarMenuReset), Loc.Get(K.ToolbarMenuSmall), Loc.Get(K.ToolbarMenuLarge)], Headers(menu));
+        Assert.Equal([Loc.Get(K.ToolbarMenuEdit), Loc.Get(K.ToolbarMenuHide), Loc.Get(K.ToolbarMenuRemove), Loc.Get(K.ToolbarMenuReset), Loc.Get(K.ToolbarMenuSmall), Loc.Get(K.ToolbarMenuLarge), Loc.Get(K.ToolbarMenuColors)], Headers(menu));
         Assert.Equal(Loc.Get(K.ToolbarMenuA11y), AutomationProperties.GetName(menu));
         Assert.True(ItemOf(menu, K.ToolbarMenuSmall).IsChecked);
         Assert.False(ItemOf(menu, K.ToolbarMenuLarge).IsChecked);
@@ -439,6 +444,160 @@ public class ToolbarTests : IDisposable
             Assert.Equal(Loc.Get(K.ToolbarMenuHide), Headers(menu)[1]);
             Assert.All(Headers(menu), h => Assert.DoesNotContain("toolbar.menu", h, StringComparison.Ordinal));
             menu.Close();
+        }
+    }
+
+    // ---- coloured icons ----
+
+    private IconView IconOf(string id) => Assert.IsType<IconView>(ButtonOf(id).Content);
+
+    private static Color Of(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
+
+    [AvaloniaFact]
+    public void The_toolbar_icons_are_coloured_by_the_kind_of_command_in_the_light_and_the_dark_theme()
+    {
+        Assert.True(_app.Workbench.Settings.GetBool("workbench.toolbarColorIcons"));
+        var expected = new Dictionary<string, IconKind>
+        {
+            ["nks.file.new"] = IconKind.File, ["nks.file.save"] = IconKind.File, ["nks.file.saveAll"] = IconKind.File, ["nks.file.open"] = IconKind.Folder,
+            ["nks.edit.undo"] = IconKind.History, ["nks.edit.redo"] = IconKind.History, ["nks.search.find"] = IconKind.Search, ["nks.search.replace"] = IconKind.Search,
+        };
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            _app.RequestedThemeVariant = variant;
+            Dispatcher.UIThread.RunJobs();
+            foreach (var (id, kind) in expected)
+            {
+                var icon = IconOf(id);
+                Assert.True(icon.Colored, id);
+                var pair = IconTints.Colors[kind];
+                Assert.Equal(variant == ThemeVariant.Dark ? pair.Dark : pair.Light, Of(icon.TintBrush));
+            }
+        }
+        // the first set has a colour for every button, and every Git icon is orange
+        foreach (var id in ToolbarLayout.Default.Where(id => id != Sep && Registered(id))) Assert.NotNull(IconTints.KindOf(IconSkin.NameOf(_app.Workbench.Commands.IconOf(id)!)));
+        foreach (var name in BuiltinIcons.All.Keys.Where(n => n.StartsWith("git-", StringComparison.Ordinal))) Assert.Equal(IconKind.Git, IconTints.KindOf(name));
+        Assert.Null(IconTints.KindOf("align-left")); // an icon of no kind keeps the text colour
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Black")]
+    [InlineData("White")]
+    public void In_high_contrast_the_toolbar_icons_stay_in_the_colours_of_the_theme(string theme)
+    {
+        var colors = theme == "Black" ? ContrastColors.Black : ContrastColors.White;
+        _app.Contrast.Apply(colors);
+        Dispatcher.UIThread.RunJobs();
+        var icon = IconOf("nks.file.new");
+        Assert.True(icon.Colored); // the setting is on...
+        Assert.Null(icon.TintBrush); // ...and high contrast wins
+        Assert.Equal(colors.WindowText, Of(icon.LineBrush));
+        _app.Contrast.Restore();
+        Dispatcher.UIThread.RunJobs();
+        Assert.NotNull(icon.TintBrush);
+    }
+
+    [AvaloniaFact]
+    public void The_setting_and_the_menu_switch_the_toolbar_to_monochrome_icons_and_back()
+    {
+        Pick(ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuColors));
+        Assert.False(_app.Workbench.Settings.GetBool("workbench.toolbarColorIcons"));
+        Assert.False(IconOf("nks.file.save").Colored);
+        Assert.Null(IconOf("nks.file.save").TintBrush);
+        var item = ItemOf(_w.OpenToolbarMenu(null), K.ToolbarMenuColors);
+        Assert.False(item.IsChecked);
+        Pick(item);
+        Assert.True(IconOf("nks.file.save").Colored);
+    }
+
+    [AvaloniaFact]
+    public void Every_icon_colour_has_3_to_1_against_every_surface_of_a_toolbar_button()
+    {
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Color Brush(string key)
+            {
+                Assert.True(_app.TryFindResource(key, variant, out var value), key);
+                return Of((IBrush)value!);
+            }
+            foreach (var (kind, pair) in IconTints.Colors)
+            {
+                var colour = variant == ThemeVariant.Dark ? pair.Dark : pair.Light;
+                // the toolbar, a hovered and a pressed button, and the chrome around them
+                foreach (var surface in new[] { "Bg1", "BgHover", "AccentSoft", "Bg0", "ChromeBg" })
+                    Assert.True(ContrastColors.Ratio(colour, Brush(surface)) >= 3, $"{variant} {kind} on {surface} is {ContrastColors.Ratio(colour, Brush(surface)):0.0} : 1");
+            }
+        }
+    }
+
+    /// <summary>The toolbar as it is drawn; with TEXTIDA_RENDER_DIR set the picture is saved there for a look by eye.</summary>
+    private (byte[] Data, int RowBytes, PixelFormat? Format) Frame(string name)
+    {
+        _w.Width = 900;
+        _w.Height = 300;
+        _w.UpdateLayout();
+        for (int i = 0; i < 10; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            _w.CaptureRenderedFrame();
+            Thread.Sleep(5);
+        }
+        var frame = _w.CaptureRenderedFrame()!;
+        if (Environment.GetEnvironmentVariable("TEXTIDA_RENDER_DIR") is { Length: > 0 } dir)
+        {
+            Directory.CreateDirectory(dir);
+            frame.Save(Path.Combine(dir, name + ".png"));
+        }
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        return (data, buffer.RowBytes, frame.Format);
+    }
+
+    private bool Drawn(string id, Color colour, (byte[] Data, int RowBytes, PixelFormat? Format) frame)
+    {
+        var button = ButtonOf(id);
+        var at = button.TranslatePoint(new Point(0, 0), _w)!.Value;
+        for (int y = (int)at.Y; y < (int)(at.Y + button.Bounds.Height); y++)
+            for (int x = (int)at.X; x < (int)(at.X + button.Bounds.Width); x++)
+            {
+                int i = y * frame.RowBytes + x * 4;
+                var c = frame.Format == PixelFormat.Bgra8888 ? Color.FromRgb(frame.Data[i + 2], frame.Data[i + 1], frame.Data[i]) : Color.FromRgb(frame.Data[i], frame.Data[i + 1], frame.Data[i + 2]);
+                if (Math.Abs(c.R - colour.R) + Math.Abs(c.G - colour.G) + Math.Abs(c.B - colour.B) < 30) return true;
+            }
+        return false;
+    }
+
+    [AvaloniaFact]
+    public void The_coloured_icons_are_drawn_in_their_colours_and_high_contrast_draws_them_in_the_text_colour()
+    {
+        _w.OpenFile(_temp.File("a.txt", "alpha"), null); // Save and Undo can run, so they are not dimmed
+        foreach (var variant in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            _app.RequestedThemeVariant = variant;
+            foreach (var large in new[] { false, true })
+            {
+                _app.Workbench.Set("workbench.toolbarLargeIcons", JsonValue.Create(large));
+                var frame = Frame($"toolbar-{variant}-{(large ? "large" : "small")}");
+                bool dark = variant == ThemeVariant.Dark;
+                Assert.True(Drawn("nks.file.save", dark ? IconTints.Colors[IconKind.File].Dark : IconTints.Colors[IconKind.File].Light, frame), $"{variant}: save is not blue");
+                Assert.True(Drawn("nks.search.find", dark ? IconTints.Colors[IconKind.Search].Dark : IconTints.Colors[IconKind.Search].Light, frame), $"{variant}: find is not teal");
+                Assert.True(Drawn("nks.file.open", dark ? IconTints.Colors[IconKind.Folder].Dark : IconTints.Colors[IconKind.Folder].Light, frame), $"{variant}: open is not yellow");
+            }
+        }
+        _app.Workbench.Set("workbench.toolbarLargeIcons", JsonValue.Create(false));
+        _app.Workbench.Set("workbench.toolbarColorIcons", JsonValue.Create(false));
+        _app.RequestedThemeVariant = ThemeVariant.Light;
+        var mono = Frame("toolbar-Light-monochrome");
+        Assert.False(Drawn("nks.file.new", IconTints.Colors[IconKind.File].Light, mono));
+        _app.Workbench.Set("workbench.toolbarColorIcons", JsonValue.Create(true));
+        foreach (var (name, colors) in new[] { ("Black", ContrastColors.Black), ("White", ContrastColors.White) })
+        {
+            _app.Contrast.Apply(colors);
+            var frame = Frame("toolbar-contrast-" + name);
+            Assert.True(Drawn("nks.file.new", colors.WindowText, frame), $"{name}: New is not in the text colour");
+            Assert.False(Drawn("nks.file.new", IconTints.Colors[IconKind.File].Light, frame) || Drawn("nks.file.new", IconTints.Colors[IconKind.File].Dark, frame), $"{name}: New is still blue");
+            _app.Contrast.Restore();
         }
     }
 

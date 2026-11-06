@@ -555,6 +555,11 @@
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
             <Setter Property="BorderBrush" Value="Transparent" />
         </Style>
+        <!-- a greyed button stays flat; its dimmed icon says it cannot run -->
+        <Style Selector="Button.toolbutton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
         <Style Selector="Button.toolbutton:pressed /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentSoft}" />
             <Setter Property="BorderBrush" Value="Transparent" />
