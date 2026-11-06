@@ -124,6 +124,54 @@ internal sealed class EditorColorTheme
         return colors;
     }
 
+    // ---- the views beside the editor ----
+
+    /// <summary>The hues the tints of a comparison start from; the theme's background takes them in, so they sit in every theme.</summary>
+    private static readonly Color RemovedHue = Color.Parse("#E5534B"), AddedHue = Color.Parse("#3FB950"), ChangedHue = Color.Parse("#D29922");
+
+    private Dictionary<string, Color>? _viewColors;
+
+    /// <summary>
+    /// The colours the hex view, the CSV table and the comparison draw in under this theme, by the keys of the window theme they replace. Text, muted text, line numbers, the accent
+    /// and the error colour read at <see cref="TextRatio"/> on the background and the current line; the text reads on the selection and on every tint (changes, differences, warnings).
+    /// </summary>
+    public IReadOnlyDictionary<string, Color> ViewColors => _viewColors ??= BuildViewColors();
+
+    private Dictionary<string, Color> BuildViewColors()
+    {
+        var back = Colors[Background];
+        back = Color.FromRgb(back.R, back.G, back.B);
+        var line = Over(Colors[CurrentLine], back);
+        var fore = Readable(Over(Colors[Foreground], back), IsDark, back, line);
+        var accent = Readable(Over(Colors["keyword"], back), IsDark, back, line);
+        Color Tint(Color hue, double amount)
+        {
+            var fill = Mix(back, hue, amount);
+            for (int step = 0; step <= 50 && ContrastColors.Ratio(fore, fill) < TextRatio; step++) fill = Mix(fill, back, 0.1);
+            return ContrastColors.Ratio(fore, fill) >= TextRatio ? fill : back;
+        }
+        double strength = IsDark ? 0.3 : 0.22;
+        var numbers = Readable(Over(Colors[LineNumbers], back), IsDark, back, line);
+        return new Dictionary<string, Color>(StringComparer.Ordinal)
+        {
+            ["BgEditor"] = back,
+            ["Fg"] = fore,
+            ["EditorFg"] = fore,
+            ["FgMuted"] = Readable(Mix(fore, back, 0.3), IsDark, back, line),
+            ["LineNumbers"] = numbers,
+            ["Accent"] = accent,
+            ["AccentSoft"] = Tint(accent, strength * 0.8),
+            ["SelectionBg"] = Tint(Over(Colors[Selection], back), 1),
+            ["CurrentLine"] = Tint(line, 1),
+            ["Border"] = Over(Color.FromArgb(0x66, numbers.R, numbers.G, numbers.B), back),
+            ["Danger"] = Readable(Over(Colors["log.error"], back), IsDark, back, line),
+            ["Highlight"] = Tint(Over(Colors["log.highlight"], back), 1),
+            ["WarnBg"] = Tint(ChangedHue, strength),
+            ["DiffRemoved"] = Tint(RemovedHue, strength),
+            ["DiffAdded"] = Tint(AddedHue, strength),
+        };
+    }
+
     // ---- built-in themes ----
 
     public const string AutoId = "auto", LightId = "light", DarkId = "dark";

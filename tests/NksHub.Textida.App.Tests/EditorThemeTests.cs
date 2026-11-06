@@ -1,9 +1,13 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
@@ -410,5 +414,119 @@ public class EditorThemeTests : IDisposable
         }
         finally { _app.Contrast.Restore(); }
         Assert.Equal(Red, _app.EditorThemes.Active(ThemeVariant.Dark)["keyword"]);
+    }
+
+    // ---- hex, CSV table and comparison ----
+
+    /// <summary>The number of pixels of a rectangle of the frame that have exactly <paramref name="color"/>.</summary>
+    private static int CountOf(Avalonia.Media.Imaging.Bitmap bitmap, Avalonia.Rect area, Color color)
+    {
+        var frame = Assert.IsAssignableFrom<Avalonia.Media.Imaging.WriteableBitmap>(bitmap);
+        using var buffer = frame.Lock();
+        var data = new byte[buffer.RowBytes * buffer.Size.Height];
+        System.Runtime.InteropServices.Marshal.Copy(buffer.Address, data, 0, data.Length);
+        double scale = buffer.Size.Width / frame.Size.Width;
+        int count = 0;
+        for (int y = Math.Max(0, (int)(area.Top * scale)); y < Math.Min(buffer.Size.Height, (int)(area.Bottom * scale)); y++)
+            for (int x = Math.Max(0, (int)(area.Left * scale)); x < Math.Min(buffer.Size.Width, (int)(area.Right * scale)); x++)
+            {
+                int at = y * buffer.RowBytes + x * 4;
+                var c = frame.Format == Avalonia.Platform.PixelFormat.Bgra8888 ? Color.FromRgb(data[at + 2], data[at + 1], data[at]) : Color.FromRgb(data[at], data[at + 1], data[at + 2]);
+                if (c == color) count++;
+            }
+        return count;
+    }
+
+    private static Avalonia.Rect AreaOf(Avalonia.Controls.Control control, Avalonia.Visual window) =>
+        new(control.TranslatePoint(new Avalonia.Point(0, 0), window)!.Value, control.Bounds.Size);
+
+    [AvaloniaFact]
+    public void Every_theme_gives_the_hex_table_and_comparison_colours_that_read()
+    {
+        foreach (var theme in EditorColorTheme.BuiltIn.Append(EditorColorTheme.FromVsCode("""{ "type": "dark", "colors": { "editor.background": "#202020", "editor.foreground": "#909090" } }""", "dim", "Dim")))
+        {
+            var view = theme.ViewColors;
+            double Ratio(string text, string fill) => ContrastColors.Ratio(view[text], view[fill]);
+            Assert.Equal(theme[EditorColorTheme.Background], view["BgEditor"]);
+            foreach (var fill in new[] { "BgEditor", "CurrentLine", "SelectionBg", "AccentSoft", "Highlight", "WarnBg", "DiffRemoved", "DiffAdded" })
+                Assert.True(Ratio("Fg", fill) >= 4.5, $"{theme.Id}: the text on {fill} is {Ratio("Fg", fill):0.00} : 1");
+            foreach (var text in new[] { "FgMuted", "LineNumbers", "Accent", "Danger" })
+                foreach (var fill in new[] { "BgEditor", "CurrentLine" })
+                    Assert.True(Ratio(text, fill) >= 4.5, $"{theme.Id}: {text} on {fill} is {Ratio(text, fill):0.00} : 1");
+            // a difference can be told from the background and from the other kinds of difference
+            foreach (var tint in new[] { "DiffRemoved", "DiffAdded", "WarnBg" })
+                Assert.True(Ratio(tint, "BgEditor") > 1.05, $"{theme.Id}: {tint} is {Ratio(tint, "BgEditor"):0.000} : 1 to the background");
+            Assert.NotEqual(view["DiffRemoved"], view["DiffAdded"]);
+            Assert.NotEqual(view["DiffAdded"], view["WarnBg"]);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task The_hex_view_the_table_and_the_comparison_draw_in_the_chosen_theme_and_high_contrast_keeps_the_system_colours()
+    {
+        var w = _app.CreateWindow(null);
+        w.Width = 1000;
+        w.Height = 640;
+        var bytes = new byte[4096];
+        new Random(3).NextBytes(bytes);
+        w.OpenFile(_temp.Bytes("data.bin", bytes), null);
+        Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.view.hex", new ShellContext(w, forMenu: true)).AsTask().GetAwaiter().GetResult());
+        w.UpdateLayout();
+        Settle();
+        var hex = w.ActiveHex!;
+        w.OpenFile(_temp.File("data.csv", "id,name,value\n1,alpha,10\n2,beta,20\n3,gamma,30\n"), null);
+        w.UpdateLayout();
+        Settle();
+        Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.view.table", new ShellContext(w, forMenu: true)).AsTask().GetAwaiter().GetResult());
+        var table = w.ActiveTable!;
+        while (!table.RowsComplete) table.Tick();
+        var source = w.NewDocument();
+        source.Editor!.Document.Text = "same\nleft only\nsame\nchanged here\nsame\n";
+        await w.Clipboard!.SetTextAsync("same\nsame\nchanged there\nsame\nright only\n");
+        var diff = (Editing.DiffView)(await w.CompareWithClipboardAsync())!.Custom!;
+        await diff.Session.RefreshAsync();
+        w.UpdateLayout();
+        Settle();
+
+        foreach (var id in new[] { "monokai", "solarized-light", "nord" })
+        {
+            _app.Workbench.Set(EditorThemes.ThemeSetting, id);
+            Settle();
+            var theme = _app.EditorThemes.Active(ThemeVariant.Light);
+            var colors = theme.ViewColors;
+            Assert.Equal(colors["DiffAdded"], BrushColor(EditorLook.Brush(diff, "DiffAdded", Brushes.Transparent)));
+
+            var frame = Frame(w, "compare-" + id);
+            var area = AreaOf(diff, w);
+            Assert.Equal(theme[EditorColorTheme.Background], MostOf(frame, area));
+            Assert.True(CountOf(frame, area, colors["DiffAdded"]) > 50, $"{id}: no added rows in the colour of the theme");
+            Assert.True(CountOf(frame, area, colors["DiffRemoved"]) > 50, $"{id}: no removed rows in the colour of the theme");
+
+            w.ActiveGroup.Select(w.Tabs.First(t => t.Hex == hex));
+            frame = Frame(w, "hex-" + id);
+            Assert.Equal(theme[EditorColorTheme.Background], MostOf(frame, AreaOf(hex, w)));
+            Assert.True(CountOf(frame, AreaOf(hex, w), colors["CurrentLine"]) > 50, $"{id}: no current row in the colour of the theme");
+
+            w.ActiveGroup.Select(w.Tabs.First(t => t.Table == table));
+            frame = Frame(w, "table-" + id);
+            Assert.Equal(theme[EditorColorTheme.Background], MostOf(frame, AreaOf(table, w)));
+            Assert.True(CountOf(frame, AreaOf(table, w), colors["AccentSoft"]) > 50, $"{id}: no header in the colour of the theme");
+            w.ActiveGroup.Select(w.Tabs.First(t => t.Custom == diff));
+        }
+
+        // automatic keeps the brushes of the window theme, high contrast the colours of the system
+        _app.Workbench.Set(EditorThemes.ThemeSetting, (System.Text.Json.Nodes.JsonNode?)null);
+        Settle();
+        Assert.True(diff.TryFindResource("DiffAdded", diff.ActualThemeVariant, out var resource));
+        Assert.Same(resource, EditorLook.Brush(diff, "DiffAdded", Brushes.Transparent));
+        _app.Workbench.Set(EditorThemes.ThemeSetting, "monokai");
+        _app.Contrast.Apply(ContrastColors.Black);
+        try
+        {
+            Settle();
+            Assert.Equal(ContrastColors.Black.Window, BrushColor(EditorLook.Brush(diff, "BgEditor", Brushes.Transparent)));
+            Assert.Equal(ContrastColors.Black.Window, MostOf(Frame(w, "compare-contrast"), AreaOf(diff, w)));
+        }
+        finally { _app.Contrast.Restore(); }
     }
 }

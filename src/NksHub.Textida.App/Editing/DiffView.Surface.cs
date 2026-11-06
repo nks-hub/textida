@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Compare;
 
 namespace NksHub.Textida.App.Editing;
@@ -16,7 +17,7 @@ internal sealed partial class DiffView
         firstRow && (leftCanReceive || rightCanReceive) ? GutterMark.Arrows : GutterMark.Bar;
 
     /// <summary>The rows of the two sides as pixels. Geometry is in character cells of the monospace font; text of a side is read in windows of lines from its index.</summary>
-    private sealed class DiffSurface(DiffView owner) : Control
+    private sealed class DiffSurface(DiffView owner) : EditorThemedSurface
     {
         private double _cw = 8, _rh = 18, _hScroll;
         private Typeface _face;
@@ -67,7 +68,6 @@ internal sealed partial class DiffView
             InvalidateVisual();
         }
 
-        private IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
 
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {

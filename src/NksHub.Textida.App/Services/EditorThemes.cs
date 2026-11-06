@@ -160,6 +160,24 @@ internal sealed class EditorThemes
     }
 }
 
+/// <summary>A surface beside the editor (hex, CSV table, comparison) that draws in the colours of the editor theme and draws again when they change; the window chrome around it keeps the window theme.</summary>
+internal abstract class EditorThemedSurface : Control
+{
+    protected IBrush Brush(string key, IBrush fallback) => EditorLook.Brush(this, key, fallback);
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (Application.Current is App app) app.EditorColorsChanged += InvalidateVisual;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (Application.Current is App app) app.EditorColorsChanged -= InvalidateVisual;
+    }
+}
+
 /// <summary>What one editor control draws with: the active colour theme of its window, looked up by the variant the control is shown in.</summary>
 internal static class EditorLook
 {
@@ -171,6 +189,24 @@ internal static class EditorLook
     }
 
     public static SyntaxPalette PaletteOf(StyledElement control) => Of(control).Palette;
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<EditorColorTheme, Dictionary<string, IBrush>> ViewBrushes = new();
+
+    /// <summary>
+    /// The brush a view beside the editor (hex, CSV table, comparison) draws <paramref name="key"/> with: under a chosen theme the colour derived from it, otherwise (automatic,
+    /// high contrast, a key the theme does not replace) the brush of the window theme.
+    /// </summary>
+    public static IBrush Brush(StyledElement control, string key, IBrush fallback)
+    {
+        var look = Of(control);
+        if (look.Id != EditorColorTheme.AutoId && look.ViewColors.TryGetValue(key, out var color))
+        {
+            var brushes = ViewBrushes.GetOrCreateValue(look);
+            if (!brushes.TryGetValue(key, out var brush)) brushes[key] = brush = new Avalonia.Media.Immutable.ImmutableSolidColorBrush(color);
+            return brush;
+        }
+        return control.TryFindResource(key, control.ActualThemeVariant, out var value) && value is IBrush resource ? resource : fallback;
+    }
 
     /// <summary>The edge between the gutter or the minimap and the text: the border of the window theme, or for a chosen theme its line numbers faded into its background.</summary>
     public static Color Edge(StyledElement control)
