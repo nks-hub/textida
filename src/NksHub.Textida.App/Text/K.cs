@@ -3021,4 +3021,14 @@ public static partial class K
     public const string DialogAboutLinkPublisher = "dialog.about.link.publisher";
     public const string DialogAboutLinkOrganization = "dialog.about.link.organization";
     public const string DialogAboutLinkContact = "dialog.about.link.contact";
+    public const string JsonPrettyStatus = "json.pretty.status";
+    public const string JsonPrettyScanning = "json.pretty.scanning";
+    public const string JsonPrettyInvalid = "json.pretty.invalid";
+    public const string JsonPrettyEncoding = "json.pretty.encoding";
+    public const string JsonPrettyNotHere = "json.pretty.notHere";
+    public const string JsonPrettyNotScanned = "json.pretty.notScanned";
+    public const string JsonGoToKeyTitle = "json.goToKey.title";
+    public const string JsonGoToKeyLabel = "json.goToKey.label";
+    public const string JsonGoToKeyNotFound = "json.goToKey.notFound";
+    public const string A11yJsonPretty = "a11y.jsonPretty";
 }

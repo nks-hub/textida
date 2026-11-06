@@ -1817,6 +1817,17 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - When the quote character is turned off in Table Delimiter and Header, a value with the delimiter or a line break is refused.
 - Rows cannot be added while a filter is on.
 
+## [json.pretty] Formatted JSON
+commands: nks.view.jsonPretty, nks.json.goToKey
+A JSON file, even hundreds of MiB to GiB in size and all on one line, can be shown formatted: every key, value and bracket on a line of its own, indented by depth. It is only a view of the same document; the file is not rewritten, and saving without changes leaves every byte as it was.
+1. Ctrl+K then Ctrl+J (View menu, View Mode, Toggle Formatted JSON View) switches between the formatted view and the text. The caret stays at the same place in the file.
+2. Clicking the triangle next to the line number, or Ctrl+Shift+[, collapses an object or array; Ctrl+Shift+] expands it again.
+3. View, View Mode, Go to JSON Key asks for a key name and moves the caret to its next occurrence; the status bar shows the path to the key at the caret, for example $.items[3].name.
+- The file is read in the background and the first screen appears at once. Until the end is reached, the status bar shows the percentage read, and only a block whose end has been read can be collapsed (“The end of this block has not been read yet”).
+- You can type only into keys and values, and only their bytes change. Typing into the indent, brackets or commas is refused (“You cannot type here”); change the structure in the text view.
+- From the point where the JSON stops being valid, the source text is shown with the note “Invalid JSON at byte…” in the corner. Comments (JSONC) count as errors.
+- A value longer than 4 KiB is shown shortened with an ellipsis. The formatted view reads only UTF-8 and single-byte encodings.
+
 ## [table.copyAs] Copying cells as Markdown, SQL, JSON or HTML
 commands: nks.table.copyAs
 Select cells in the table view and choose View, Table, Copy Table As, then a form. The clipboard gets the selected columns and rows in that form.

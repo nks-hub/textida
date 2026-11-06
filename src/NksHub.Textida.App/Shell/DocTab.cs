@@ -53,6 +53,7 @@ internal sealed class DocTab
     {
         ViewClosed?.Invoke();
         Table?.Dispose();
+        Json?.Dispose();
         SidePreview?.Dispose();
         if (Custom is ImageView or MarkdownPreview) ((IDisposable)Custom).Dispose();
         Minimap?.Dispose();
@@ -120,6 +121,7 @@ internal sealed class DocTab
         if (on == TableShown && region is null) return;
         if (on)
         {
+            if (JsonShown) ShowJson(false, options);
             if (region is not null || Table?.IsRegion == true)
             {
                 if (TableShown) Root.Children.Remove(Table!);
@@ -141,6 +143,38 @@ internal sealed class DocTab
         View.IsVisible = !on;
         if (Minimap is { } minimap) minimap.IsVisible = !on && options.Minimap;
         _automation?.IsVisible = !on;
+    }
+
+    /// <summary>The formatted JSON view of the document (P3.1.14); null until it was shown once. It lies over the text view while <see cref="JsonShown"/>.</summary>
+    public JsonPrettyView? Json { get; private set; }
+    public bool JsonShown => Json is { } j && Root.Children.Contains(j);
+
+    /// <summary>True while a view lies over the text view (the table or the formatted JSON), so the commands of the text view do not reach the hidden one.</summary>
+    public bool OverlayShown => TableShown || JsonShown;
+
+    /// <summary>Shows the formatted JSON view over the text view, or the text view again; the outline is kept while the tab lives, so a second switch is instant.</summary>
+    public void ShowJson(bool on, EditorOptions options)
+    {
+        if (on == JsonShown) return;
+        if (on)
+        {
+            if (TableShown) ShowTable(false, options);
+            Json ??= new JsonPrettyView(Doc, options);
+            Root.Children.Add(Json);
+        }
+        else Root.Children.Remove(Json!);
+        View.IsVisible = !on;
+        if (Minimap is { } minimap) minimap.IsVisible = !on && options.Minimap;
+        _automation?.IsVisible = !on;
+    }
+
+    /// <summary>Releases the formatted view, which reads the document it was made for (a reload swaps the document); the text view is shown again.</summary>
+    public void DropJson(EditorOptions options)
+    {
+        if (Json is null) return;
+        ShowJson(false, options);
+        Json.Dispose();
+        Json = null;
     }
 
     /// <summary>The rendered page beside the editor in the editing mode of a Markdown file (P9.3.4); null in every other mode.</summary>

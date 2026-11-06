@@ -1817,6 +1817,17 @@ commands: nks.table.insertRow, nks.table.deleteRow, nks.table.insertColumn, nks.
 - Keď je znak úvodzoviek vypnutý v Oddeľovač a záhlavie tabuľky, hodnota s oddeľovačom alebo zalomením riadku sa odmietne.
 - Kým je zapnutý filter, nemožno pridať riadok.
 
+## [json.pretty] Formátovaný JSON
+commands: nks.view.jsonPretty, nks.json.goToKey
+Súbor JSON, aj stovky MiB až GiB veľký a celý na jednom riadku, možno zobraziť formátovane: každý kľúč, hodnota a zátvorka na vlastnom riadku, odsadené podľa hĺbky. Je to len zobrazenie toho istého dokumentu, súbor sa neprepisuje a uloženie bez zmien nezmení jediný bajt.
+1. Ctrl+K a potom Ctrl+J (ponuka Zobraziť, Režim zobrazenia, Prepnúť formátovaný JSON a text) prepína medzi formátovaným pohľadom a textom. Kurzor zostane na tom istom mieste súboru.
+2. Kliknutie na trojuholník pri čísle riadku alebo Ctrl+Shift+[ zbalí objekt či pole, Ctrl+Shift+] ho znova rozbalí.
+3. Zobraziť, Režim zobrazenia, Prejsť na kľúč JSON sa spýta na názov kľúča a presunie kurzor na jeho ďalší výskyt; stavový riadok ukazuje cestu ku kľúču pri kurzore, napríklad $.items[3].name.
+- Súbor sa prechádza na pozadí, prvá obrazovka je hneď. Kým sa nedôjde na koniec, stavový riadok ukazuje, koľko percent je prejdených, a zbaliť možno len blok, ktorého koniec je už načítaný („Koniec tohto bloku ešte nebol načítaný“).
+- Písať možno len do kľúčov a hodnôt; zmenia sa len ich bajty. Na odsadenie, zátvorky a čiarky sa písať nedá („Sem nemožno písať“), štruktúru meňte v textovom pohľade.
+- Od miesta, kde JSON prestáva byť platný, sa ukazuje pôvodný text a v rohu hlásenie „Neplatný JSON od bajtu…“ s miestom chyby. Komentáre (JSONC) sa berú ako chyba.
+- Hodnota dlhšia ako 4 KiB sa ukáže skrátená s tromi bodkami. Formátovaný pohľad vie len UTF-8 a jednobajtové kódovania.
+
 ## [table.copyAs] Kopírovanie buniek ako Markdown, SQL, JSON alebo HTML
 commands: nks.table.copyAs
 Označte bunky v tabuľkovom zobrazení a zvoľte Zobraziť, Tabuľka, Kopírovať tabuľku ako a potom podobu. Do schránky sa uložia označené stĺpce a riadky v tej podobe.

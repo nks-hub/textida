@@ -424,6 +424,7 @@ internal sealed partial class MainWindow
         }
         else if (tab.Paged is { } paged) ShowPagedHit(tab, paged, hit);
         else tab.GoToLine(hit.Line);
+        if (tab.JsonShown) tab.Json!.RevealOffset(hit.Range.Start, hit.Range.End);
         if (_hitsRevision == tab.Doc.Doc.Revision || !FindBusy) ShowFindCount();
         else _find.ShowCount(Loc.Get(K.FindCount, ("current", index + 1), ("total", Math.Max(_hitsTotal, _hits.Count))));
     }

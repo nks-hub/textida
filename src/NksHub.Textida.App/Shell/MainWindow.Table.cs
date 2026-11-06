@@ -25,7 +25,10 @@ internal sealed partial class MainWindow
     private void ApplyTableTexts()
     {
         foreach (var tab in Tabs)
+        {
             if (tab.Table is { } table) AutomationProperties.SetName(table, Loc.Get(K.A11yTable));
+            if (tab.Json is { } json) AutomationProperties.SetName(json, Loc.Get(K.A11yJsonPretty));
+        }
     }
 
     /// <summary>The command <c>nks.view.table</c>: the active document is shown as a table, or as text again.</summary>

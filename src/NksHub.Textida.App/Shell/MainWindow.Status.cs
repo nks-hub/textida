@@ -162,6 +162,7 @@ internal sealed partial class MainWindow
             if (tab.Paged.Occurrences.Result.Describe() is { } others) position += " " + others;
         }
         if (tab.TableShown) position = tab.Table!.StatusText();
+        if (tab.JsonShown) position = tab.Json!.StatusText();
         string message = _message.Length > 0 ? _message : tab.Syntax is { LineTooLong: true } ? Loc.Get(K.StatusSyntaxLongLine) : tab.Syntax is { Pending: true } ? Loc.Get(K.StatusSyntaxPending) : od.IsLarge ? Loc.Get(K.StatusLargePaged, ("size", od.SizeBadge ?? ""), ("revision", od.Doc.Revision)) : Loc.Get(K.StatusReady);
         _statusLeft.Text = position + " · " + message;
         Core.TypingTrace.End("win.status.position", part);

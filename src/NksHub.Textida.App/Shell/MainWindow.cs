@@ -268,6 +268,7 @@ internal sealed partial class MainWindow : Window
     private static void FocusView(DocTab tab)
     {
         if (tab.TableShown) tab.Table!.Focus();
+        else if (tab.JsonShown) tab.Json!.Focus();
         else if (tab.Surface is { } surface) surface.TextArea.Focus();
         else tab.View.Focus();
     }
@@ -277,7 +278,7 @@ internal sealed partial class MainWindow : Window
     private bool IsFocusInTextInput() => FocusManager?.GetFocusedElement() is TextBox;
 
     /// <summary>True when the keyboard focus is inside the active tab's text surface.</summary>
-    public bool EditorHasFocus => Active is { } tab && FocusManager?.GetFocusedElement() is Visual v && (ReferenceEquals(v, tab.View) || tab.View.IsVisualAncestorOf(v) || (tab.Table is { } table && (ReferenceEquals(v, table) || table.IsVisualAncestorOf(v))));
+    public bool EditorHasFocus => Active is { } tab && FocusManager?.GetFocusedElement() is Visual v && (ReferenceEquals(v, tab.View) || tab.View.IsVisualAncestorOf(v) || (tab.Table is { } table && (ReferenceEquals(v, table) || table.IsVisualAncestorOf(v))) || (tab.Json is { } json && (ReferenceEquals(v, json) || json.IsVisualAncestorOf(v))));
 
     private void RefreshTitle() => Title = Active is null ? Loc.Get(K.AppName) : $"{Active.Title} - {Loc.Get(K.AppName)}";
 
@@ -314,12 +315,13 @@ internal sealed partial class MainWindow : Window
             tab.Paged?.ApplyOptions(options);
             tab.Hex?.ApplyOptions(options);
             tab.Table?.ApplyOptions(options);
+            tab.Json?.ApplyOptions(options);
             if (tab.Custom is DiffView compare)
             {
                 compare.ApplyOptions(options);
                 compare.SetIgnore(CompareIgnore);
             }
-            if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap && !tab.TableShown;
+            if (tab.Minimap is { } minimap) minimap.IsVisible = options.Minimap && !tab.OverlayShown;
         }
         if (Active is { } current) EditorConfigSettings.Apply(_app.Workbench.Settings, current.Doc.EditorConfig);
     }

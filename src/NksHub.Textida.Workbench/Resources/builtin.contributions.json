@@ -2901,6 +2901,20 @@
       "enablement": "hasDocument"
     },
     {
+      "id": "nks.view.jsonPretty",
+      "title": "cmd.view.jsonPretty",
+      "category": "cat.view",
+      "icon": "braces",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
+      "id": "nks.json.goToKey",
+      "title": "cmd.json.goToKey",
+      "category": "cat.view",
+      "icon": "key",
+      "enablement": "hasDocument && !hexMode"
+    },
+    {
       "id": "nks.table.editRegion",
       "title": "cmd.table.editRegion",
       "category": "cat.view",
@@ -6182,6 +6196,20 @@
     },
     {
       "menu": "view",
+      "command": "nks.view.jsonPretty",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 25
+    },
+    {
+      "menu": "view",
+      "command": "nks.json.goToKey",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 26
+    },
+    {
+      "menu": "view",
       "command": "nks.table.editRegion",
       "group": "4_special/02.01",
       "submenu": "table",
@@ -7324,6 +7352,10 @@
     {
       "key": "mod+k mod+t",
       "command": "nks.view.table"
+    },
+    {
+      "key": "mod+k mod+j",
+      "command": "nks.view.jsonPretty"
     },
     {
       "key": "f7",
