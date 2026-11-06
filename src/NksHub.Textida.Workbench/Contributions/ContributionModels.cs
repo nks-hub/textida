@@ -131,6 +131,19 @@ public sealed class SettingDefinition
 
     public double? Maximum { get; set; }
 
+    /// <summary>Step of the number box of a number setting; 1 when absent.</summary>
+    public double? Step { get; set; }
+
+    /// <summary>
+    /// What a string setting holds, so the settings window gives it the right control (<see cref="Settings.SettingFormats"/>): <c>text</c> for real free text (a pattern, a template, an address),
+    /// <c>font</c>, <c>font-list</c>, <c>color</c>, <c>file</c>, <c>folder</c>, <c>command</c>, <c>list</c>, <c>glob-list</c>, <c>encoding</c>, <c>shortcut</c>, <c>icon-set</c>, or <c>multi</c>
+    /// (several values of <see cref="Values"/>). A string setting with neither a format nor <see cref="Values"/> falls back to a plain text box.
+    /// </summary>
+    public string? Format { get; set; }
+
+    /// <summary>The separator of the items of a list format (<c>list</c>, <c>glob-list</c>, <c>font-list</c>, <c>multi</c>); <c>;</c> when absent.</summary>
+    public string? Separator { get; set; }
+
     /// <summary>Extra search words, English.</summary>
     public List<string> Tags { get; set; } = [];
 }

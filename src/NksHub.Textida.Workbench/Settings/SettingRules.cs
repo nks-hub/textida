@@ -92,6 +92,12 @@ public static class SettingRules
                 }
 
                 var s = v.GetValue<string>();
+                if (definition.Format == SettingFormats.Multi && definition.Values is { } choices)
+                {
+                    var wrong = SettingFormats.Split(definition, s).FirstOrDefault(item => !choices.Contains(item, StringComparer.Ordinal));
+                    return wrong is null ? null : $"'{wrong}' is not one of: {string.Join(", ", choices)}.";
+                }
+
                 return definition.Values is { } allowed && !allowed.Contains(s, StringComparer.Ordinal)
                     ? $"Expected one of: {string.Join(", ", allowed)}."
                     : null;

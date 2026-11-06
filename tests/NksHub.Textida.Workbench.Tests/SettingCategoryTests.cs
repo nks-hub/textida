@@ -19,6 +19,49 @@ public class SettingCategoryTests
     }
 
     [Fact]
+    public void Every_builtin_setting_gets_a_real_control_and_a_text_box_only_when_it_is_marked_as_text()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var fallback = host.Settings.Definitions.Where(d => SettingFormats.ControlOf(d) == SettingControl.FallbackText).Select(d => d.Key).ToList();
+        Assert.True(fallback.Count == 0, "these settings would get a plain text box; give them a format or an enum: " + string.Join(", ", fallback));
+        Assert.All(host.Settings.Definitions, d => Assert.Null(SettingFormats.Problem(d)));
+        var byControl = host.Settings.Definitions.ToLookup(SettingFormats.ControlOf, d => d.Key);
+        Assert.Equal(SettingControl.Font, SettingFormats.ControlOf(Def(host, "editor.fontFamily")));
+        Assert.Equal(SettingControl.FontList, SettingFormats.ControlOf(Def(host, "editor.fallbackFontFamily")));
+        Assert.Equal(SettingControl.Folder, SettingFormats.ControlOf(Def(host, "files.journalDirectory")));
+        Assert.Equal(SettingControl.File, SettingFormats.ControlOf(Def(host, "html.tidyPath")));
+        Assert.Equal(SettingControl.List, SettingFormats.ControlOf(Def(host, "files.secretFilePatterns")));
+        Assert.Equal(SettingControl.Encoding, SettingFormats.ControlOf(Def(host, "tools.outputEncoding")));
+        Assert.Equal(SettingControl.IconSet, SettingFormats.ControlOf(Def(host, "appearance.iconSkin")));
+        Assert.Equal(SettingControl.Select, SettingFormats.ControlOf(Def(host, "workbench.keymapProfile")));
+        // free text is left only where the content is text: patterns, templates, addresses
+        Assert.Equal(["editor.dateTimeFormat", "plugins.catalogUrl", "tools.diffArguments", "web.searchUrl"], byControl[SettingControl.Text].Order());
+        Assert.All(host.Settings.Definitions.Where(d => d.Type == "boolean"), d => Assert.Equal(SettingControl.Toggle, SettingFormats.ControlOf(d)));
+        Assert.All(host.Settings.Definitions.Where(d => d.Type is "integer" or "number"), d => Assert.Equal(SettingControl.Number, SettingFormats.ControlOf(d)));
+    }
+
+    private static SettingDefinition Def(WorkbenchHost host, string key) => host.Settings.TryGet(key, out var d) ? d : throw new KeyNotFoundException(key);
+
+    [Fact]
+    public void A_plugin_setting_with_an_unknown_or_misplaced_format_is_refused_and_a_multiselect_checks_each_value()
+    {
+        Assert.NotNull(SettingFormats.Problem(new SettingDefinition { Key = "a.b", Format = "fancy" }));
+        Assert.NotNull(SettingFormats.Problem(new SettingDefinition { Key = "a.b", Type = "integer", Format = "file" }));
+        Assert.NotNull(SettingFormats.Problem(new SettingDefinition { Key = "a.b", Format = "multi" }));
+        Assert.Null(SettingFormats.Problem(new SettingDefinition { Key = "a.b", Format = "color" }));
+        Assert.Equal(SettingControl.FallbackText, SettingFormats.ControlOf(new SettingDefinition { Key = "a.b" }));
+
+        var multi = new SettingDefinition { Key = "a.langs", Format = "multi", Values = ["cs", "en", "de"] };
+        Assert.Equal(SettingControl.MultiSelect, SettingFormats.ControlOf(multi));
+        Assert.Null(SettingRules.Validate(multi, System.Text.Json.Nodes.JsonValue.Create("cs;de")));
+        Assert.Null(SettingRules.Validate(multi, System.Text.Json.Nodes.JsonValue.Create("")));
+        Assert.NotNull(SettingRules.Validate(multi, System.Text.Json.Nodes.JsonValue.Create("cs;fr")));
+        Assert.Equal(["cs", "de"], SettingFormats.Split(multi, " cs ;; de "));
+        var fonts = new SettingDefinition { Key = "a.fonts", Format = "font-list", Separator = "," };
+        Assert.Equal("A, B", SettingFormats.Join(fonts, ["A", " B ", ""]));
+    }
+
+    [Fact]
     public void A_setting_without_a_category_or_in_a_category_the_tree_lacks_is_reported()
     {
         var good = new SettingDefinition { Key = "a.good", Category = SettingCategories.Files };
