@@ -246,7 +246,8 @@ internal sealed partial class MainWindow
     internal Task<CommandOutcome> CutAsync() => CopyOrCutAsync(cut: true);
 
     private Task<CommandOutcome> CopyOrCutAsync(bool cut) =>
-        ActiveTable is { } table ? Task.FromResult(TableCopy(table, cut)) : ActiveHex is not null ? Task.FromResult(HexCopy(cut)) : PagedCopy(cut) is { } paged ? Task.FromResult(paged) : CopyOrCutTextAsync(cut);
+        ActiveTable is { } table ? Task.FromResult(TableCopy(table, cut)) : ActiveHex is not null ? Task.FromResult(HexCopy(cut)) : ActiveJson is { } json ? JsonCopyAsync(json, cut, source: false)
+        : PagedCopy(cut) is { } paged ? Task.FromResult(paged) : CopyOrCutTextAsync(cut);
 
     private CommandOutcome? PagedCopy(bool cut)
     {
@@ -285,6 +286,11 @@ internal sealed partial class MainWindow
     {
         if (ActiveTable is { } table) return await TablePasteAsync(table);
         if (ActiveHex is not null) return HexPaste();
+        if (ActiveJson is { } json)
+        {
+            json.Paste(Clipboard is { } jsonClipboard ? await jsonClipboard.TryGetTextAsync() : null);
+            return CommandOutcome.Handled;
+        }
         if (ActivePaged is { } paged)
         {
             await paged.PasteAsync();

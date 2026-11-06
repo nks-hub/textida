@@ -1,6 +1,7 @@
 using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
@@ -38,11 +39,11 @@ public class JsonPrettyViewTests : IDisposable
 
     private CommandOutcome Run(string id) => _app.Workbench.Commands.ExecuteAsync(id, new ShellContext(_w, forMenu: true)).AsTask().GetAwaiter().GetResult();
 
-    private DocTab Open(string text, bool paged = false)
+    private DocTab Open(string text, bool paged = false, string name = "data.json")
     {
         var tab = paged
             ? _w.AddRecovered(OpenDocument.Open(_temp.Bytes("big.json", Encoding.UTF8.GetBytes(text)), 0), _w.ActiveGroup)
-            : _w.OpenFile(_temp.File("data.json", text), null);
+            : _w.OpenFile(_temp.File(name, text), null);
         _w.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
         return tab;
@@ -199,5 +200,131 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal("\"b\":tru}", view.RowText(2));
         view.MoveCaret(2, 0);
         Assert.Contains(Loc.Get(K.JsonPrettyInvalid, ("offset", "14")), _w.StatusLeftText);
+    }
+
+    private async Task<string> Clip() => (await _w.Clipboard!.TryGetTextAsync()) ?? "";
+
+    private static string Lines(params string[] lines) => string.Join(Environment.NewLine, lines);
+
+    [AvaloniaFact]
+    public async Task Shift_selection_copies_formatted_lines_or_the_original_json()
+    {
+        Open(Sample);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, 0);
+        Press(Key.Down, RawInputModifiers.Shift);
+        Press(Key.Down, RawInputModifiers.Shift);
+        Assert.True(view.HasSelection);
+        Run("nks.edit.copy");
+        Assert.Equal(Lines("  \"name\": \"Ann\",", "  \"tags\": [", ""), await Clip());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.copySource"));
+        Assert.Equal("\"name\":\"Ann\",\"tags\":[", await Clip());
+
+        Press(Key.A, TestApp.Mod);
+        Run("nks.edit.copy");
+        Assert.Equal(Lines([.. Enumerable.Range(0, 12).Select(r => view.RowText(r)!)]), await Clip());
+
+        view.CopyLimit = 10;
+        view.Select(1, 0, 3, 0);
+        await _w.Clipboard!.SetTextAsync("before");
+        Run("nks.edit.copy");
+        Assert.Equal("before", await Clip());
+        Assert.Equal(Loc.Get(K.JsonPrettyTooLarge, ("limit", "10 B")), _w.StatusMessageText);
+        Press(Key.A, TestApp.Mod);
+        Assert.Equal(Loc.Get(K.JsonPrettySelectAllTooLarge, ("limit", "10 B")), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public async Task Cut_and_paste_work_inside_one_value_and_are_refused_across_the_structure()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        int ann = "  \"name\": \"".Length;
+        view.Select(1, ann, 1, ann + 2); // "An"
+        Run("nks.edit.cut");
+        Assert.Equal("An", await Clip());
+        Assert.Equal(Sample.Replace("\"Ann\"", "\"n\""), Text(tab));
+        Assert.Equal(ann, view.CaretColumn);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.paste"));
+        Assert.Equal(Sample, Text(tab));
+        Assert.Equal(ann + 2, view.CaretColumn);
+
+        view.Select(1, ann, 1, ann + 3);
+        TestApp.Type(_w, "Eve");
+        Assert.Equal(Sample.Replace("\"Ann\"", "\"Eve\""), Text(tab));
+        view.Select(1, ann, 1, ann + 3);
+        TestApp.Type(_w, "Ann");
+        Assert.Equal(Sample, Text(tab));
+
+        view.Select(1, 0, 2, 4);
+        await _w.Clipboard!.SetTextAsync("before");
+        Run("nks.edit.cut");
+        Assert.Equal("before", await Clip());
+        Assert.Equal(Sample, Text(tab));
+        Assert.Equal(Loc.Get(K.JsonPrettyCutNotHere), _w.StatusMessageText);
+        Press(Key.Delete);
+        Assert.Equal(Sample, Text(tab));
+        Assert.Equal(Loc.Get(K.JsonPrettyNotHere), _w.StatusMessageText);
+
+        view.MoveCaret(1, ann + 1);
+        await _w.Clipboard!.SetTextAsync("x\ny");
+        Run("nks.edit.paste");
+        Assert.Equal(Sample, Text(tab));
+        Assert.Equal(Loc.Get(K.JsonPrettyPasteControl), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public async Task A_long_value_wraps_over_rows_and_can_be_edited_to_its_end()
+    {
+        string value = new('x', 6000);
+        string json = "{\"k\":\"" + value + "\",\"n\":1}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        Assert.EndsWith("…,", view.RowText(1));
+        Assert.Equal("  \"n\": 1", view.RowText(2));
+
+        view.MoveCaret(1, 0);
+        Press(Key.End); // the end of a cut value wraps it
+        Assert.Equal(1, view.ExpandedLine);
+        long parts = view.CaretPart + 1;
+        Assert.True(parts > 1);
+        Assert.StartsWith("  \"k\": \"x", view.RowText(1));
+        Assert.StartsWith("    x", view.RowText(2));
+        Assert.EndsWith("x\",", view.RowText(parts));
+        Assert.Equal("  \"n\": 1", view.RowText(parts + 1));
+
+        Press(Key.Left);
+        Press(Key.Left); // before the closing quote
+        TestApp.Type(_w, "Z");
+        Assert.Equal(json.Replace("x\",", "xZ\","), Text(tab));
+        Assert.Contains("xZ", string.Concat(Enumerable.Range(1, (int)parts + 1).Select(r => view.RowText(r))));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.expandValue"));
+        Assert.Equal(-1, view.ExpandedLine);
+        Assert.Equal("  \"n\": 1", view.RowText(2));
+
+        view.MoveCaret(1, 0);
+        Press(Key.Down, RawInputModifiers.Shift);
+        Run("nks.edit.copy");
+        Assert.Equal(Lines("  \"k\": \"" + value + "Z\",", ""), await Clip());
+
+        view.MoveCaret(2, 0);
+        Run("nks.json.expandValue");
+        Assert.Equal(Loc.Get(K.JsonPrettyNotLong), _w.StatusMessageText);
+    }
+
+    [AvaloniaFact]
+    public void A_jsonc_file_shows_its_comments_on_lines_of_their_own()
+    {
+        Open("{\n  // compiler options\n  \"compilerOptions\": {\"strict\": true,},\n}\n", name: "tsconfig.json");
+        var view = Show();
+        Scan(view);
+        Assert.Null(view.Outline!.Error);
+        Assert.Equal("  // compiler options", view.RowText(1));
+        Assert.Equal("    \"strict\": true,", view.RowText(3));
+        Assert.Equal("}", view.RowText(5));
     }
 }

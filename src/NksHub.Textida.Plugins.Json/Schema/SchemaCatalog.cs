@@ -80,7 +80,7 @@ public sealed partial class SchemaCatalog(IEnumerable<SchemaMapping> userMapping
         ".jsonc" => DataDialect.Jsonc,
         ".yaml" or ".yml" => DataDialect.Yaml,
         ".md" or ".mdc" => DataDialect.Markdown,
-        _ => DataDialect.Json,
+        _ => JsonDataReader.IsJsoncFile(path) ? DataDialect.Jsonc : DataDialect.Json,
     };
 
     /// <summary>A key that makes two spellings of one published address equal: the host without case, the path without a trailing slash, fragment and <c>.json</c>, and either scheme.</summary>

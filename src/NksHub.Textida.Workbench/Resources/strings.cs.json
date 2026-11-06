@@ -518,6 +518,8 @@
   "cmd.view.table": "Přepnout tabulku a text",
   "cmd.view.jsonPretty": "Přepnout formátovaný JSON a text",
   "cmd.json.goToKey": "Přejít na klíč JSON...",
+  "cmd.json.copySource": "Kopírovat jako původní JSON",
+  "cmd.json.expandValue": "Rozbalit nebo sbalit dlouhou hodnotu JSON",
   "cmd.view.cycleMode": "Přepnout režim zobrazení",
   "cmd.view.modeRead": "Markdown: čtení",
   "cmd.view.modeEdit": "Markdown: úpravy",

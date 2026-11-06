@@ -1,4 +1,5 @@
 using Avalonia.Automation;
+using Avalonia.Input.Platform;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Workbench.Commands;
@@ -50,6 +51,21 @@ internal sealed partial class MainWindow
         json.ViewChanged += () => { if (tab == Active) UpdateStatus(); };
         json.Refused += SetStatusMessage;
         AutomationProperties.SetName(json, Loc.Get(K.A11yJsonPretty));
+    }
+
+    /// <summary>
+    /// Copy and cut in the formatted view (and the command <c>nks.json.copySource</c> with <paramref name="source"/>): the formatted text of the
+    /// selection with whole values, or the document text it came from. A cut deletes only a selection inside one key or value.
+    /// </summary>
+    internal async Task<CommandOutcome> JsonCopyAsync(JsonPrettyView json, bool cut, bool source)
+    {
+        if (cut && !json.CanCut()) return CommandOutcome.Handled;
+        if (json.CopyText(source) is not { } text || Clipboard is not { } clipboard) return CommandOutcome.Handled;
+        text = AvaloniaEdit.Document.TextUtilities.NormalizeNewLines(text, Environment.NewLine);
+        RememberCopy(text);
+        await clipboard.SetTextAsync(text);
+        if (cut) json.DeleteSelection();
+        return CommandOutcome.Handled;
     }
 
     /// <summary>The command <c>nks.json.goToKey</c>: asks for a key name and moves to its next occurrence after the caret, in the formatted view.</summary>
