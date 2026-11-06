@@ -2255,9 +2255,9 @@ Ein Prototyp: Eine JavaScript-Datei mit einer Funktion transform(text) läuft im
 1. Das Skript sieht nur den Text, den es erhält, und die Funktion log(text), die ins Ausgabefenster schreibt. Es hat keinen Zugriff auf .NET, Dateien oder das Netz, und ein Lauf ist in Zeit (3 s), Speicher (32 MiB), Anzahl der Anweisungen und Rekursionstiefe begrenzt.
 - Als Prototyp gekennzeichnet: Es dient zum Messen und Ausprobieren, nicht als Schnittstelle für Plugins. Plugins in einem eigenen Prozess bleiben der Weg, den Editor zu erweitern.
 
-## [view.iconSkin] Bitmap-Symbolsatz
+## [view.iconSkin] Symbolsatz
 commands: nks.view.iconSkin, nks.view.iconSkinOff
-Ansicht, Bitmap-Symbolsatz ersetzt die Vektorsymbole der Befehle durch Bilder aus einem Ordner, den Sie wählen. Ein Symbol, für das der Satz kein Bild hat, bleibt Vektor. Optional; standardmäßig werden die Vektorsymbole gezeichnet.
+Einstellungen, Erscheinungsbild, Symbolsatz: Eigene aus Ordner… ersetzt die integrierten Vektorsymbole der Befehle durch Bilder aus einem Ordner, den Sie wählen; Integriert (Vektor) stellt sie wieder her. Unter der Auswahl stehen eine Symbolvorschau und eine Beschreibung, was der Ordner enthalten muss. Ein Symbol, für das der Satz kein Bild hat, bleibt Vektor. Optional; standardmäßig werden die Vektorsymbole gezeichnet.
 1. Ein nach dem Symbol benanntes Bild (save.png; auch .bmp, .gif, .jpg) ist das Bitmap dieses Symbols. Die Datei skin.json kann map (einen anderen Dateinamen für ein Symbol) und strips hinzufügen: einen waagerechten Streifen quadratischer Zellen, dessen Höhe die Größe einer Zelle ist, und die Namen der Symbole in der Reihenfolge der Zellen. Mit transparent: corner ist die Farbe des Pixels unten links die transparente, wie in den Streifen von PSPad.
 - Ein Streifen trägt keine Symbolnamen, die Reihenfolge bestimmt also der Satz; der Editor übernimmt von PSPad keine Zuordnung. Ein unbekannter Name wird übersprungen und bei den Warnungen mitgezählt. Der Satz gilt für Symbole, die nach der Wahl entstehen (die Symbolleiste wird sofort neu aufgebaut, Menüs beim nächsten Öffnen).
 

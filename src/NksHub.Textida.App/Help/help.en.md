@@ -2255,9 +2255,9 @@ A prototype: a JavaScript file with a function transform(text) runs in the edito
 1. The script sees only the text it is given and the function log(text), which writes to the output window. It has no access to .NET, files or the network, and a run is limited in time (3 s), memory (32 MiB), number of statements and depth of recursion.
 - Marked as a prototype: it is for measuring and trying, not an interface for plugins. Plugins in a process of their own remain the way to extend the editor.
 
-## [view.iconSkin] Bitmap icon skin
+## [view.iconSkin] Icon set
 commands: nks.view.iconSkin, nks.view.iconSkinOff
-View, Bitmap Icon Skin replaces the vector icons of the commands with pictures from a folder you choose. An icon the skin has no picture for stays vector. Optional; by default the vector icons are drawn.
+Settings, Appearance, Icon set: Custom from Folder… replaces the built-in vector icons of the commands with pictures from a folder you choose; Built-in (vector) brings them back. Under the choice are a preview of the icons and what the folder must hold. An icon the skin has no picture for stays vector. Optional; by default the vector icons are drawn.
 1. A picture named like the icon (save.png; also .bmp, .gif, .jpg) is the bitmap of that icon. The file skin.json may add map (another file name for an icon) and strips: a horizontal strip of square cells whose height is the size of a cell, and the names of the icons in the order of the cells. With transparent: corner the colour of the pixel at the bottom left is the transparent one, as in the strips of PSPad.
 - A strip carries no names of the icons, so their order is stated by the skin; the editor takes no mapping from PSPad. An unknown name is skipped and counted among the warnings. The skin applies to icons made after you choose it (the toolbar is rebuilt at once, menus when next opened).
 

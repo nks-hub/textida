@@ -5468,18 +5468,6 @@
       "order": 40
     },
     {
-      "menu": "view",
-      "command": "nks.view.iconSkin",
-      "group": "7_skin/01",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.iconSkinOff",
-      "group": "7_skin/01",
-      "order": 20
-    },
-    {
       "menu": "tools",
       "command": "nks.lsp.expandMacro",
       "group": "1_text/04",
