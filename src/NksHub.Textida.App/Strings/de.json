@@ -78,7 +78,7 @@
   "dialog.about.notices": "Komponenten von Drittanbietern und ihre Lizenzen",
   "dialog.about.noticesMissing": "Die Datei {file} fehlt neben dem Programm.",
   "dialog.about.link.project": "Projektseite",
-  "dialog.about.link.issues": "Fehlermeldungen",
+  "dialog.about.link.issues": "Fehlermeldungen (GitHub Issues)",
   "dialog.about.copy": "Informationen kopieren",
   "dialog.about.copied": "Die Informationen sind in der Zwischenablage.",
   "dialog.about.includePaths": "Ordnerpfade einschließen (sie können Ihren Benutzernamen enthalten)",
@@ -2929,5 +2929,18 @@
   "commit.checks": "Vor dem Commit:",
   "commit.check.save": "Alle Dateien speichern und Speicheraktionen ausführen",
   "commit.check.format": "Geöffnete Dateien des Commits formatieren (EditorConfig)",
-  "commit.checks.failed": "Die Prüfungen vor dem Commit sind fehlgeschlagen, es wurde nichts committet."
+  "commit.checks.failed": "Die Prüfungen vor dem Commit sind fehlgeschlagen, es wurde nichts committet.",
+  "recent.empty": "Keine zuletzt geöffneten Dateien",
+  "recent.missing": "{name} (fehlt)",
+  "recent.removeTitle": "Datei fehlt",
+  "recent.removeMessage": "Die Datei {path} existiert nicht mehr. Aus der Liste der zuletzt geöffneten Dateien entfernen?",
+  "recent.remove": "Aus der Liste entfernen",
+  "recent.cleared": "Die Liste der zuletzt geöffneten Dateien ist leer",
+  "status.zoom": "{percent} %",
+  "status.zoomTip": "Textzoom. Klicken Sie, um eine Größe zu wählen oder zur ursprünglichen (100 %) zurückzukehren.",
+  "a11y.status.zoom": "Textzoom {value}",
+  "zoom.resetItem": "Ursprüngliche Größe (100 %)",
+  "dialog.about.link.publisher": "Autor und Herausgeber",
+  "dialog.about.link.organization": "GitHub von NKS Hub",
+  "dialog.about.link.contact": "Kontakt"
 }

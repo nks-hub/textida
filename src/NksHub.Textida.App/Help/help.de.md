@@ -35,12 +35,12 @@ commands: nks.help.contents
 commands: nks.help.about
 Zeigt Version und Build des Programms, das System, auf dem es läuft, die Plugins, die Lizenz und die Links des Projekts.
 1. Wählen Sie Hilfe und dann Info.
-2. Oben im Fenster stehen die Version, der Build (Commit und Datum) und die beiden Links des Projekts. Die Registerkarte Technische Daten nennt die .NET-Laufzeit, NativeAOT oder JIT, System, Architektur, Sprache der Oberfläche, Profiltyp sowie die Ordner von Profil und Protokollen. Einen Wert können Sie markieren und kopieren. Die Schaltfläche Ordner öffnen neben einem Ordner zeigt ihn im Dateimanager.
+2. Oben im Fenster stehen die Version, der Build (Commit und Datum) und die Angaben zu NKS Hub, das das Programm herausgibt: Link auf die Website nks-hub.cz, die Organisation NKS Hub auf GitHub, die Projektseite, Fehlermeldungen über GitHub Issues, Kontakt dev@nks-hub.cz und die MIT-Lizenz mit Jahr und Inhaber. Die Registerkarte Technische Daten nennt die .NET-Laufzeit, NativeAOT oder JIT, System, Architektur, Sprache der Oberfläche, Profiltyp sowie die Ordner von Profil und Protokollen. Einen Wert können Sie markieren und kopieren. Die Schaltfläche Ordner öffnen neben einem Ordner zeigt ihn im Dateimanager.
 3. Um einen Fehler zu melden, drücken Sie Informationen kopieren. Der Block in der Zwischenablage enthält Version, Build, Laufzeit, System, Architektur, Sprache, Profiltyp und Plugins. Die Ordner kommen nur dazu, wenn Sie das Kästchen über der Schaltfläche anhaken, weil sie Ihren Benutzernamen enthalten.
 4. Schließen Sie das Fenster mit der Schaltfläche Schließen oder mit Esc.
 - Die Registerkarte Plugins listet die Plugins mit ihrer Version; jedes ist eingebaut oder installiert (ein installiertes kann deaktiviert oder nicht lesbar sein).
 - Die Registerkarte Lizenz nennt die MIT-Lizenz und ihr Copyright. Das Feld darunter zeigt die Datei THIRD-PARTY-NOTICES.md, die neben dem Programm liegt; fehlt sie, sagt das Feld es. Blättern Sie mit der Maus oder den Pfeiltasten und markieren Sie Text mit Umschalt und den Pfeiltasten.
-- Die Projektseite und die Fehlermeldungen (die Links unter dem Build) öffnen sich im Browser erst, wenn Sie den Link drücken und die Frage bestätigen. Das Fenster selbst baut keine Netzwerkverbindung auf.
+- Die Links unter dem Build (Website, GitHub, Projektseite, Fehlermeldungen und E-Mail) öffnen sich im Browser oder Mailprogramm erst, wenn Sie den Link drücken und die Frage bestätigen. Das Fenster selbst baut keine Netzwerkverbindung auf.
 - Die Bezeichnungen im Block für eine Fehlermeldung sind immer englisch, gleich in welcher Sprache das Programm läuft.
 - Dieselbe Versionsnummer steht oben in jedem Hilfethema.
 
@@ -52,7 +52,7 @@ commands: nks.file.new
 - Der Text wird sofort ins Wiederherstellungsjournal geschrieben und geht deshalb auch bei einem Absturz nicht verloren (Thema Wiederherstellung nach Absturz). Namen und Ort bekommt das Dokument beim ersten Speichern.
 
 ## [file.open] Eine Datei öffnen
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Drücken Sie Strg+O oder wählen Sie Datei und dann Öffnen.
 2. Wählen Sie im Systemfenster eine oder mehrere Dateien und bestätigen Sie.
 3. Jede Datei öffnet sich in einem eigenen Tab. Eine Datei, die schon offen ist, wird nur angezeigt.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - Die Codierung wird automatisch erkannt. Ist es nur eine Schätzung, zeigt die Statusleiste den Prozentwert der Sicherheit; ein Klick auf die Codierung ändert sie (Thema Codierung).
 - Eine Datei über der Grenze für große Dateien (standardmäßig 6 MiB) öffnet sich im Seitenmodus mit eingeschränkter Bearbeitung (Thema Große Dateien).
 - Eine Datei, die sich nicht lesen lässt, wird nicht geöffnet, und die Statusleiste nennt den Grund (Thema Fehlermeldungen).
+- Datei und Zuletzt geöffnet zeigt die zuletzt geöffneten Dateien, die neueste oben; es sind dieselben Dateien, die Strg+P anbietet. Die ersten zehn Zeilen öffnen Sie mit den Tasten 1 bis 9 und 0. Eine Zeile zeigt den Namen und den Ordner, der ganze Pfad erscheint, wenn die Maus darauf ruht. Eine Datei, die nicht mehr existiert, trägt (fehlt) und bietet beim Klick an, sie aus der Liste zu entfernen. Unter der Liste stehen Zuletzt geschlossenen Tab erneut öffnen und Liste der zuletzt geöffneten Dateien leeren, das die Liste leert. Wie viele Dateien die Liste behält (standardmäßig 15, höchstens 30), legt die Einstellung Anzahl gemerkter zuletzt geöffneter Dateien fest.
 
 ## [file.openFolder] Einen Ordner öffnen
 commands: nks.file.openFolder
@@ -711,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Strg+0 stellt die Standardgröße wieder her.
 - Die Größe hat keine feste Obergrenze: Sie wächst, solange mindestens eine Zeile in die Ansicht passt, das Minimum ist 6 Punkt. Sie wird in der Einstellung Schriftgröße gespeichert.
 - Im Text ändert auch Strg+Mausrad die Größe, in Hex Strg+Umschalt+Mausrad.
+- Die Statusleiste zeigt den Textzoom in Prozent der Standardschriftgröße (zum Beispiel 114 %). Ein Klick darauf bietet Stufen von 50 bis 200 % und Ursprüngliche Größe (100 %). Eine Stufe wird auf ganze Schriftpunkte gerundet, daher kann die Zahl etwas von der erwarteten abweichen. Die ursprüngliche Größe gibt es auch im Menü Ansicht > Vergrößerung.
 
 ## [view.display] Verborgene Zeichen, Zeilennummern und Minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

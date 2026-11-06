@@ -19,6 +19,9 @@ internal sealed record MenuCommand(string Label, Action Run, KeyGesture? Gesture
 
     /// <summary>The picture before the text of the item; null for none. An item with a check mark or a radio mark has none: the mark takes its place.</summary>
     public IconShape? Icon { get; init; }
+
+    /// <summary>The text shown when the pointer rests on the item (and read as its help text); null for none.</summary>
+    public string? Tip { get; init; }
 }
 
 internal sealed record MenuSeparator : MenuNode;
@@ -27,6 +30,9 @@ internal sealed record MenuGroup(string Label, IReadOnlyList<MenuNode> Items) : 
 {
     /// <summary>Index in <see cref="Label"/> of the letter that opens the menu with Alt; -1 for none.</summary>
     public int AccessAt { get; init; } = -1;
+
+    /// <summary>Items asked for each time the submenu opens and shown above <see cref="Items"/>, with a separator between (the recent files); null for none.</summary>
+    public Func<IReadOnlyList<MenuNode>>? Head { get; init; }
 }
 
 /// <summary>
@@ -131,11 +137,22 @@ internal static class MenuRenderer
                 var parent = new MenuItem { Header = MenuAccessKeys.Mark(g.Label, g.AccessAt) };
                 AutomationProperties.SetName(parent, g.Label);
                 foreach (var child in g.Items) parent.Items.Add(ToItem(child));
+                if (g.Head is { } head)
+                {
+                    int shown = 0;
+                    parent.SubmenuOpened += (_, e) =>
+                    {
+                        if (e.Source != parent) return;
+                        for (; shown > 0; shown--) parent.Items.RemoveAt(0);
+                        foreach (var item in WithSeparator(head())) parent.Items.Insert(shown++, ToItem(item));
+                    };
+                }
                 return parent;
             case MenuCommand c:
                 var item = new MenuItem { Header = MenuAccessKeys.Mark(c.Label, c.AccessAt), InputGesture = c.Gesture, IsEnabled = c.Enabled, Tag = c };
                 if (c.Icon is { } icon && c.Checked is null) item.Icon = CommandIcons.Create(icon);
                 AutomationProperties.SetName(item, c.Label);
+                if (c.Tip is { } tip) { ToolTip.SetTip(item, tip); AutomationProperties.SetHelpText(item, tip); }
                 if (c.Checked is { } on) { item.ToggleType = c.Radio ? MenuItemToggleType.Radio : MenuItemToggleType.CheckBox; item.IsChecked = on; item.GroupName = c.Radio ? (c.CommandId is { } id ? id[..id.LastIndexOf('.')] : "radio") : null; }
                 item.Click += (_, _) => c.Run();
                 return item;
@@ -158,10 +175,19 @@ internal static class MenuRenderer
             case MenuGroup g:
                 var parent = new NativeMenuItem(g.Label) { Menu = new NativeMenu() };
                 foreach (var child in g.Items) parent.Menu.Items.Add(ToNativeItem(child));
-                parent.Menu.Opening += (_, _) => RefreshNative(parent.Menu);
+                int shown = 0;
+                parent.Menu.Opening += (_, _) =>
+                {
+                    if (g.Head is { } head)
+                    {
+                        for (; shown > 0; shown--) parent.Menu.Items.RemoveAt(0);
+                        foreach (var item in WithSeparator(head())) parent.Menu.Items.Insert(shown++, ToNativeItem(item));
+                    }
+                    RefreshNative(parent.Menu);
+                };
                 return parent;
             case MenuCommand c:
-                var item = new NativeMenuItem(c.Label) { Gesture = c.Gesture, IsEnabled = c.Enabled };
+                var item = new NativeMenuItem(c.Label) { Gesture = c.Gesture, IsEnabled = c.Enabled, ToolTip = c.Tip };
                 if (c.Checked is { } on) { item.ToggleType = c.Radio ? MenuItemToggleType.Radio : MenuItemToggleType.CheckBox; item.IsChecked = on; }
                 item.Click += (_, _) => c.Run();
                 _native.AddOrUpdate(item, c);
@@ -171,6 +197,8 @@ internal static class MenuRenderer
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<NativeMenuItem, MenuCommand> _native = new();
+
+    private static IEnumerable<MenuNode> WithSeparator(IReadOnlyList<MenuNode> head) => head.Count == 0 ? [] : [.. head, new MenuSeparator()];
 
     private static void RefreshNative(NativeMenu menu)
     {

@@ -58,7 +58,7 @@ public class StatusAndEncodingTests : IDisposable
         var tab = OpenHtml();
         tab.Doc.FlushEol();
         Assert.Equal("Ř 21, Sl 16 · Připraveno", _w.StatusLeftText);
-        Assert.Equal("Mezery: 4 · UTF-8 · CRLF · HTML", _w.StatusRightText);
+        Assert.Equal("Mezery: 4 · UTF-8 · CRLF · HTML · 100 %", _w.StatusRightText);
         Assert.DoesNotContain("karty", _w.StatusLeftText + _w.StatusRightText);
     }
 
@@ -68,7 +68,7 @@ public class StatusAndEncodingTests : IDisposable
         OpenHtml();
         _app.SetLanguage("en");
         Assert.Equal("Ln 21, Col 16 · Ready", _w.StatusLeftText);
-        Assert.Equal("Spaces: 4 · UTF-8 · CRLF · HTML", _w.StatusRightText);
+        Assert.Equal("Spaces: 4 · UTF-8 · CRLF · HTML · 100%", _w.StatusRightText);
         _app.SetLanguage("cs");
     }
 
@@ -320,7 +320,7 @@ public class StatusAndEncodingTests : IDisposable
         var js = flyout.Items.OfType<MenuItem>().First(m => (string)m.Header! == "JavaScript");
         js.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         Assert.Equal("javascript", tab.Doc.Language.Id);
-        Assert.EndsWith("JavaScript", _w.StatusRightText);
+        Assert.EndsWith("JavaScript · 100 %", _w.StatusRightText);
     }
 
     [AvaloniaFact]
@@ -328,6 +328,6 @@ public class StatusAndEncodingTests : IDisposable
     {
                 var tab = _w.OpenFile(_temp.File("a.py", "x = 1\n"), null);
         Assert.Equal("python", tab.Doc.Language.Id);
-        Assert.EndsWith("Python", _w.StatusRightText);
+        Assert.EndsWith("Python · 100 %", _w.StatusRightText);
     }
 }

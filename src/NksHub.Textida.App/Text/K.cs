@@ -2884,4 +2884,17 @@ public static partial class K
     public const string CommitCheckSave = "commit.check.save";
     public const string CommitCheckFormat = "commit.check.format";
     public const string CommitChecksFailed = "commit.checks.failed";
+    public const string RecentEmpty = "recent.empty";
+    public const string RecentMissing = "recent.missing";
+    public const string RecentRemoveTitle = "recent.removeTitle";
+    public const string RecentRemoveMessage = "recent.removeMessage";
+    public const string RecentRemove = "recent.remove";
+    public const string RecentCleared = "recent.cleared";
+    public const string StatusZoom = "status.zoom";
+    public const string StatusZoomTip = "status.zoomTip";
+    public const string StatusZoomA11y = "a11y.status.zoom";
+    public const string ZoomResetItem = "zoom.resetItem";
+    public const string DialogAboutLinkPublisher = "dialog.about.link.publisher";
+    public const string DialogAboutLinkOrganization = "dialog.about.link.organization";
+    public const string DialogAboutLinkContact = "dialog.about.link.contact";
 }

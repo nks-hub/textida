@@ -16,6 +16,7 @@ internal sealed partial class MainWindow
     private readonly Button _encodingItem = StatusItem();
     private readonly Button _eolItem = StatusItem();
     private readonly Button _languageItem = StatusItem();
+    private readonly Button _zoomItem = StatusItem();
     private readonly Button _configItem = StatusItem();
     private readonly Button _updateItem = StatusItem();
     private readonly StackPanel _statusRight = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -29,11 +30,12 @@ internal sealed partial class MainWindow
 
     /// <summary>Status bar texts, for tests and accessibility checks.</summary>
     internal string StatusLeftText => _statusLeft.Text ?? "";
-    internal string StatusRightText => string.Join(" · ", new[] { _indentItem, _encodingItem, _eolItem, _languageItem, _configItem }.Where(b => b.IsVisible).Select(b => (string)b.Content!));
+    internal string StatusRightText => string.Join(" · ", new[] { _indentItem, _encodingItem, _eolItem, _languageItem, _zoomItem, _configItem }.Where(b => b.IsVisible).Select(b => (string)b.Content!));
     internal Button IndentItem => _indentItem;
     internal Button EncodingItem => _encodingItem;
     internal Button EolItem => _eolItem;
     internal Button LanguageItem => _languageItem;
+    internal Button ZoomItem => _zoomItem;
 
     private Control BuildStatusBar()
     {
@@ -55,6 +57,7 @@ internal sealed partial class MainWindow
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);
         _eolItem.Click += (_, _) => ShowEolMenu();
         _languageItem.Click += (_, _) => ShowLanguageMenu();
+        _zoomItem.Click += (_, _) => ShowZoomMenu();
         _configItem.Click += (_, _) => ShowConfigFiles();
         _tokensItem.Click += (_, _) => ShowTokenMenu();
         _tokensItem.IsVisible = false;
@@ -168,6 +171,7 @@ internal sealed partial class MainWindow
         _encodingItem.Content = codec.Name.Replace(" with BOM", " BOM", StringComparison.Ordinal) + (od.EncodingUncertain ? "?" : "");
         _eolItem.Content = EolLabel(od, opts);
         _languageItem.Content = od.Language.Id == LanguageModes.PlainId ? Loc.Get(K.LanguagePlain) : od.Language.Name;
+        _zoomItem.Content = Loc.Get(K.StatusZoom, ("percent", ZoomPercent));
         var configs = ConfigHitsOf(od).Where(h => h.Path is not null).ToList();
         _configItem.Content = ConfigLabel(configs);
         _configItem.IsVisible = configs.Count > 0;
@@ -180,13 +184,15 @@ internal sealed partial class MainWindow
         if (configs.Count > 0) ToolTip.SetTip(_configItem, Loc.Get(K.StatusConfigFilesTip) + "\n" + string.Join("\n", configs.Select(h => h.Path)));
         ToolTip.SetTip(_eolItem, Loc.Get(K.StatusEolTip));
         ToolTip.SetTip(_languageItem, Loc.Get(K.StatusLanguageTip));
+        ToolTip.SetTip(_zoomItem, Loc.Get(K.StatusZoomTip));
         AutomationProperties.SetName(_encodingItem, Loc.Get(K.StatusEncodingA11y, ("value", (string)_encodingItem.Content)));
         AutomationProperties.SetName(_eolItem, Loc.Get(K.StatusEolA11y, ("value", (string)_eolItem.Content)));
         AutomationProperties.SetName(_indentItem, Loc.Get(K.StatusIndentA11y, ("value", (string)_indentItem.Content)));
         AutomationProperties.SetName(_languageItem, Loc.Get(K.StatusLanguageA11y, ("value", (string)_languageItem.Content)));
+        AutomationProperties.SetName(_zoomItem, Loc.Get(K.StatusZoomA11y, ("value", (string)_zoomItem.Content)));
 
         Core.TypingTrace.End("win.status.tips", part);
-        var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem };
+        var items = new List<Button> { _indentItem, _encodingItem, _eolItem, _languageItem, _zoomItem };
         if (_configItem.IsVisible) items.Add(_configItem);
         if (_tokensItem.IsVisible) items.Add(_tokensItem);
         var shown = new List<Control>(items.Count * 2);
@@ -275,6 +281,29 @@ internal sealed partial class MainWindow
             flyout.Items.Add(mi);
         }
         flyout.ShowAt(_languageItem);
+        return flyout;
+    }
+
+    /// <summary>Reset Zoom and the zoom levels of <see cref="ZoomPresets"/>; a level reads as the zoom its whole font size gives, and levels that give the same size are one row.</summary>
+    internal MenuFlyout ShowZoomMenu()
+    {
+        var flyout = new MenuFlyout();
+        var reset = new MenuItem { Header = Loc.Get(K.ZoomResetItem), InputGesture = new Avalonia.Input.KeyGesture(Avalonia.Input.Key.D0, Shortcuts.Primary) };
+        reset.Click += (_, _) => ZoomTo(100);
+        flyout.Items.Add(reset);
+        flyout.Items.Add(new Separator());
+        int current = ZoomPercent;
+        var seen = new HashSet<int>();
+        foreach (int preset in ZoomPresets)
+        {
+            int size = FontSizeFor(preset), percent = (int)Math.Round(size / DefaultFontSize() * 100);
+            if (!seen.Add(size)) continue;
+            int target = preset;
+            var mi = new MenuItem { Header = Loc.Get(K.StatusZoom, ("percent", percent)), ToggleType = MenuItemToggleType.Radio, IsChecked = percent == current, GroupName = "zoom" };
+            mi.Click += (_, _) => ZoomTo(target);
+            flyout.Items.Add(mi);
+        }
+        flyout.ShowAt(_zoomItem);
         return flyout;
     }
 

@@ -78,7 +78,7 @@
   "dialog.about.notices": "Súčasti tretích strán a ich licencie",
   "dialog.about.noticesMissing": "Súbor {file} vedľa programu chýba.",
   "dialog.about.link.project": "Stránka projektu",
-  "dialog.about.link.issues": "Hlásenia chýb",
+  "dialog.about.link.issues": "Hlásenia chýb (GitHub Issues)",
   "dialog.about.copy": "Kopírovať informácie",
   "dialog.about.copied": "Informácie sú v schránke.",
   "dialog.about.includePaths": "Pridať cesty k priečinkom (môžu obsahovať vaše používateľské meno)",
@@ -2984,5 +2984,18 @@
   "commit.checks": "Pred commitom:",
   "commit.check.save": "Uložiť všetky súbory a vykonať akcie pri uložení",
   "commit.check.format": "Formátovať otvorené súbory z commitu (EditorConfig)",
-  "commit.checks.failed": "Kontroly pred commitom neprešli, nič sa necommitovalo."
+  "commit.checks.failed": "Kontroly pred commitom neprešli, nič sa necommitovalo.",
+  "recent.empty": "Žiadne posledné súbory",
+  "recent.missing": "{name} (chýba)",
+  "recent.removeTitle": "Súbor chýba",
+  "recent.removeMessage": "Súbor {path} už neexistuje. Odobrať ho zo zoznamu posledných súborov?",
+  "recent.remove": "Odobrať zo zoznamu",
+  "recent.cleared": "Zoznam posledných súborov je prázdny",
+  "status.zoom": "{percent} %",
+  "status.zoomTip": "Priblíženie textu. Kliknutím vyberiete veľkosť alebo vrátite pôvodnú (100 %).",
+  "a11y.status.zoom": "Priblíženie textu {value}",
+  "zoom.resetItem": "Pôvodná veľkosť (100 %)",
+  "dialog.about.link.publisher": "Autor a vydavateľ",
+  "dialog.about.link.organization": "GitHub NKS Hub",
+  "dialog.about.link.contact": "Kontakt"
 }

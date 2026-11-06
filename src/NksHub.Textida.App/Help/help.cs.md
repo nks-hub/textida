@@ -35,12 +35,12 @@ Otevře toto okno nápovědy.
 commands: nks.help.about
 Ukáže verzi a sestavení programu, systém, na kterém běží, pluginy, licenci a odkazy projektu.
 1. Zvolte Nápověda a O aplikaci.
-2. Nahoře v okně je verze, sestavení (revize a datum) a dva odkazy projektu. Karta Technické údaje uvádí běhové prostředí .NET, NativeAOT nebo JIT, systém, architekturu, jazyk rozhraní, typ profilu a složky profilu a protokolů. Hodnotu si můžete označit a zkopírovat. Tlačítko Otevřít složku vedle složky ji ukáže ve správci souborů.
+2. Nahoře v okně je verze, sestavení (revize a datum) a údaje o NKS Hub, který program vydává: odkaz na web nks-hub.cz, organizaci NKS Hub na GitHubu, stránku projektu, hlášení chyb přes GitHub Issues, kontakt dev@nks-hub.cz a licenci MIT s rokem a držitelem. Karta Technické údaje uvádí běhové prostředí .NET, NativeAOT nebo JIT, systém, architekturu, jazyk rozhraní, typ profilu a složky profilu a protokolů. Hodnotu si můžete označit a zkopírovat. Tlačítko Otevřít složku vedle složky ji ukáže ve správci souborů.
 3. Chcete-li nahlásit chybu, stiskněte Kopírovat informace. Blok ve schránce obsahuje verzi, sestavení, prostředí, systém, architekturu, jazyk, typ profilu a pluginy. Složky se přidají, jen když zaškrtnete políčko nad tlačítkem, protože obsahují vaše uživatelské jméno.
 4. Okno zavřete tlačítkem Zavřít nebo klávesou Esc.
 - Karta Pluginy vypisuje pluginy s verzí; každý je vestavěný nebo nainstalovaný (nainstalovaný může být vypnutý nebo nečitelný).
 - Karta Licence uvádí licenci MIT a její copyright. Pole pod ní ukazuje soubor THIRD-PARTY-NOTICES.md, který leží vedle programu; chybí-li, pole to řekne. Posouvejte ho myší nebo šipkami a text v něm označte klávesou Shift se šipkami.
-- Stránka projektu a hlášení chyb (odkazy pod sestavením) se otevřou v prohlížeči, až když odkaz stisknete a potvrdíte otázku. Samotné okno nenavazuje žádné spojení se sítí.
+- Odkazy pod sestavením (web, GitHub, stránka projektu, hlášení chyb a e-mail) se otevřou v prohlížeči nebo poštovním programu, až když odkaz stisknete a potvrdíte otázku. Samotné okno nenavazuje žádné spojení se sítí.
 - Popisky v bloku pro hlášení chyby jsou vždy anglicky, ať je program v jakémkoli jazyce.
 - Stejné číslo verze je uvedeno nahoře v každém tématu nápovědy.
 
@@ -52,7 +52,7 @@ commands: nks.file.new
 - Text se hned zapisuje do žurnálu obnovy, takže se neztratí ani při pádu (téma Obnova po pádu). Název a místo dostane dokument při prvním uložení.
 
 ## [file.open] Otevření souboru
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Stiskněte Ctrl+O, nebo zvolte Soubor a Otevřít.
 2. V systémovém okně vyberte jeden nebo více souborů a potvrďte.
 3. Každý soubor se otevře na vlastní kartě. Soubor, který už je otevřený, se jen zobrazí.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - Kódování se pozná samo. Je-li to jen odhad, ukáže to stavový řádek s procentem jistoty; kliknutím na kódování ho změníte (téma Kódování).
 - Soubor větší než hranice velkého souboru (výchozí 6 MiB) se otevře ve stránkovaném režimu s omezenou editací (téma Velké soubory).
 - Soubor, který nejde přečíst, se neotevře a ve stavovém řádku je důvod (téma Chybová hlášení).
+- Soubor a Otevřít poslední ukáže naposledy otevřené soubory, nejnovější nahoře; jsou to tytéž soubory, které nabízí Ctrl+P. Prvních deset řádků otevřete klávesami 1 až 9 a 0. Řádek ukazuje název a složku, celá cesta se ukáže po najetí myší. Soubor, který už neexistuje, má u sebe (chybí) a po kliknutí nabídne odebrání ze seznamu. Pod seznamem je Znovu otevřít naposledy zavřenou kartu a Vymazat seznam posledních souborů, který seznam vyprázdní. Kolik souborů si seznam pamatuje (výchozí 15, nejvýš 30), určuje nastavení Počet pamatovaných posledních souborů.
 
 ## [file.openFolder] Otevření složky
 commands: nks.file.openFolder
@@ -711,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 vrátí výchozí velikost.
 - Velikost nemá pevný strop: roste, dokud se do zobrazení vejde alespoň jeden řádek, nejméně je 6 bodů. Ukládá se do nastavení Velikost písma.
 - V textu mění velikost i Ctrl+kolečko myši, v hexu Ctrl+Shift+kolečko.
+- Stavový řádek ukazuje přiblížení textu v procentech výchozí velikosti písma (například 114 %). Kliknutím na údaj vyberete úroveň od 50 do 200 % nebo Původní velikost (100 %). Úroveň se zaokrouhlí na celé body písma, proto u ní může být trochu jiné číslo, než jaké jste čekali. Původní velikost najdete také v nabídce Zobrazit > Lupa.
 
 ## [view.display] Skryté znaky, čísla řádků a minimapa
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

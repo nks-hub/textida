@@ -55,6 +55,7 @@ internal static class AppCommands
         // file
         Do("nks.file.new", w => w.NewDocument());
         Do("nks.file.open", w => _ = w.OpenWithDialogAsync());
+        Do("nks.file.clearRecent", w => w.ClearRecentFiles());
         Fire("nks.file.save", (w, t) => w.SaveAsync(t));
         Fire("nks.file.saveAs", (w, t) => w.SaveAsAsync(t));
         Do("nks.file.saveAll", w => _ = w.SaveAllAsync());

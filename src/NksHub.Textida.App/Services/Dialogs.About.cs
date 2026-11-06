@@ -90,12 +90,13 @@ internal sealed partial class AvaloniaDialogs
             button.Click += async (_, _) => await OpenFolderAsync(folder);
             return button;
         }
-        Control LinkRow(string labelKey, string url)
+        Control LinkRow(string labelKey, string url, string? text = null)
         {
             string label = Loc.Get(labelKey);
-            var link = new Button { Content = url, HorizontalAlignment = HorizontalAlignment.Left };
+            text ??= url;
+            var link = new Button { Content = text, HorizontalAlignment = HorizontalAlignment.Left };
             link.Classes.Add("previewlink");
-            AutomationProperties.SetName(link, label + ": " + url);
+            AutomationProperties.SetName(link, label + ": " + text);
             link.Click += async (_, _) => await OpenLinkAsync(url);
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("130,*"), ColumnSpacing = 10, Margin = new Thickness(0, 2), Children = { new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, Opacity = 0.75 }, link } };
             Grid.SetColumn(link, 1);
@@ -132,10 +133,24 @@ internal sealed partial class AvaloniaDialogs
                 new SelectableTextBlock { Text = Loc.Get(K.AppName), FontSize = 22, FontWeight = FontWeight.SemiBold },
                 new SelectableTextBlock { Text = Loc.Get(K.DialogAboutVersion, ("version", info.Version)), TextWrapping = TextWrapping.Wrap },
                 new SelectableTextBlock { Text = Loc.Get(K.DialogAboutBuild, ("commit", OrUnknown(info.Commit)), ("date", OrUnknown(info.BuildDate))), TextWrapping = TextWrapping.Wrap, Opacity = 0.7, FontSize = 12 },
+                LinkRow(K.DialogAboutLinkPublisher, AboutInfo.PublisherUrl, $"{AboutInfo.PublisherName} ({AboutInfo.PublisherUrl})"),
+                LinkRow(K.DialogAboutLinkOrganization, AboutInfo.OrganizationUrl),
                 LinkRow(K.DialogAboutLinkProject, AboutInfo.ProjectUrl),
                 LinkRow(K.DialogAboutLinkIssues, AboutInfo.IssuesUrl),
+                LinkRow(K.DialogAboutLinkContact, "mailto:" + AboutInfo.ContactEmail, AboutInfo.ContactEmail),
             },
         };
+        if (info.Copyright.Length > 0)
+        {
+            // the licence in short under the links; the License tab has the whole notice
+            string label = Loc.Get(K.DialogAboutSectionLicense), text = Loc.Get(K.DialogAboutMit) + ", " + info.Copyright;
+            var name = new TextBlock { Text = label, TextWrapping = TextWrapping.Wrap, Opacity = 0.75 };
+            AutomationProperties.SetAccessibilityView(name, AccessibilityView.Raw);
+            var value = new SelectableTextBlock { Text = text, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetName(value, label + ": " + text);
+            Grid.SetColumn(value, 1);
+            titles.Children.Add(new Grid { ColumnDefinitions = new ColumnDefinitions("130,*"), ColumnSpacing = 10, Margin = new Thickness(0, 2), Children = { name, value } });
+        }
         Grid.SetColumn(titles, 1);
         var header = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 14, Margin = new Thickness(20, 18, 20, 4), Children = { mark, titles } };
 
@@ -214,8 +229,8 @@ internal sealed partial class AvaloniaDialogs
         dialog.SizeToContent = SizeToContent.Manual;
         dialog.CanResize = true;
         dialog.MinWidth = 480;
-        dialog.MinHeight = 440;
-        dialog.Height = Math.Clamp(owner.Bounds.Height - 40, 560, 720);
+        dialog.MinHeight = 520;
+        dialog.Height = Math.Clamp(owner.Bounds.Height - 40, 640, 800);
         copy.Click += async (_, _) =>
         {
             if (dialog.Clipboard is not { } clipboard) return;

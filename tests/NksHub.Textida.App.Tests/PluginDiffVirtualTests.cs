@@ -356,9 +356,7 @@ public class PluginDiffVirtualTests : IDisposable
         await view.Session.RefreshAsync();
         var button = Assert.Single(view.ActionButtons);
         Assert.Equal("Stage", button.Content);
-        Assert.False(button.IsEnabled); // no difference is chosen yet
-        Assert.False(view.RunAction(0));
-        view.SelectHunk(0);
+        Assert.Equal(0, view.CurrentHunk); // a new comparison starts on the first difference
         Assert.True(button.IsEnabled);
 
         // the command goes to the plugin for the document of the right side, at the byte where the difference starts there; the refresh command follows
@@ -417,8 +415,7 @@ public class PluginDiffVirtualTests : IDisposable
         Assert.Equal(Loc.Get(K.CompareActionTip, ("title", "Two"), ("key", "2")), Avalonia.Controls.ToolTip.GetTip(view.ActionButtons[1]));
         Assert.Equal("2", Avalonia.Automation.AutomationProperties.GetAcceleratorKey(view.ActionButtons[1]));
 
-        // no difference is chosen yet: the key does nothing
-        view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D2 });
+        // a key without a button does nothing
         view.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.D3 });
         Assert.Empty((await Pump(Host.CallAsync("p", "commands"))).EnumerateArray());
 

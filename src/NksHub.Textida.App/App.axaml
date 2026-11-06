@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:Avalonia.Controls.Converters"
              x:Class="NksHub.Textida.App.App"
              RequestedThemeVariant="Default">
 
@@ -125,6 +126,59 @@
             </FluentTheme.Palettes>
         </FluentTheme>
         <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
+
+        <!--
+            Rows of menus, context menus and flyouts: the Fluent template with one column for the check mark and the icon instead of two, 16 px and a 6 px gap.
+            The column is shared by the rows of one menu and takes no room when no row has a mark or an icon. A row with a mark hides its icon.
+            The menu bar keeps its own theme (FluentTopLevelMenuItem).
+        -->
+        <Styles>
+            <Styles.Resources>
+                <conv:PlatformKeyGestureConverter x:Key="TextidaKeyGestureConverter" />
+                <ControlTheme x:Key="{x:Type MenuItem}" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Template">
+                        <ControlTemplate>
+                            <Panel>
+                                <Border Name="PART_LayoutRoot" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIcon" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIGT" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemChevron" />
+                                        </Grid.ColumnDefinitions>
+                                        <ContentControl x:Name="PART_ToggleIconPresenter" IsVisible="False" Theme="{StaticResource FluentMenuItemIconTheme}" Margin="0,0,6,0" />
+                                        <ContentControl x:Name="PART_IconPresenter" IsVisible="False" Theme="{StaticResource FluentMenuItemIconTheme}" Content="{TemplateBinding Icon}" Margin="0,0,6,0" />
+                                        <ContentPresenter Name="PART_HeaderPresenter" Grid.Column="1" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                                          VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                                        <TextBlock x:Name="PART_InputGestureText" Grid.Column="2" Margin="{DynamicResource MenuInputGestureTextMargin}"
+                                                   Text="{TemplateBinding InputGesture, Converter={StaticResource TextidaKeyGestureConverter}}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource MenuFlyoutItemKeyboardAcceleratorTextForeground}" />
+                                        <Path Name="PART_ChevronPath" Grid.Column="3" Stretch="Uniform" Width="8" Height="16" Data="M 1,0 10,10 l -9,10 -1,-1 L 8,10 -0,1 Z"
+                                              Fill="{DynamicResource MenuFlyoutSubItemChevron}" Margin="{DynamicResource MenuFlyoutItemChevronMargin}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <Popup Name="PART_Popup" WindowManagerAddShadowHint="False" Placement="RightEdgeAlignedTop" HorizontalOffset="{DynamicResource MenuFlyoutSubItemPopupHorizontalOffset}"
+                                       IsLightDismissEnabled="False" IsOpen="{TemplateBinding IsSubMenuOpen, Mode=TwoWay}">
+                                    <Border Background="{DynamicResource MenuFlyoutPresenterBackground}" BorderBrush="{DynamicResource MenuFlyoutPresenterBorderBrush}"
+                                            BorderThickness="{DynamicResource MenuFlyoutPresenterBorderThemeThickness}" Padding="{DynamicResource MenuFlyoutPresenterThemePadding}"
+                                            MaxWidth="{DynamicResource FlyoutThemeMaxWidth}" MinHeight="{DynamicResource MenuFlyoutThemeMinHeight}" HorizontalAlignment="Stretch"
+                                            CornerRadius="{DynamicResource OverlayCornerRadius}">
+                                        <ScrollViewer Theme="{StaticResource FluentMenuScrollViewer}">
+                                            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" Margin="{DynamicResource MenuFlyoutScrollerMargin}" Grid.IsSharedSizeScope="True" />
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Panel>
+                        </ControlTemplate>
+                    </Setter>
+                    <Style Selector="^:checked:toggle /template/ ContentControl#PART_IconPresenter, ^:checked:radio /template/ ContentControl#PART_IconPresenter">
+                        <Setter Property="IsVisible" Value="False" />
+                    </Style>
+                </ControlTheme>
+            </Styles.Resources>
+        </Styles>
 
         <Style Selector="Window.shell">
             <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI, SF Pro Text, Helvetica Neue, Arial" />

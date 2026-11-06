@@ -279,6 +279,36 @@ public class AboutDialogTests : IDisposable
         });
     }
 
+    [AvaloniaFact]
+    public async Task The_header_names_NKS_Hub_with_its_web_GitHub_the_repository_contact_bug_reports_and_the_licence()
+    {
+        var opened = new List<Uri>();
+        _app.UriOpener = uri => { opened.Add(uri); return Task.FromResult(true); };
+        using var program = new TempDir();
+        program.File("LICENSE", File.ReadAllText(Path.Combine(Repo.Root, "LICENSE")));
+        await InAbout(w =>
+        {
+            var names = w.GetVisualDescendants().OfType<Button>().Select(b => AutomationProperties.GetName(b) ?? "").ToList();
+            Assert.Contains("Autor a vydavatel: NKS Hub (https://nks-hub.cz)", names);
+            Assert.Contains("GitHub NKS Hub: https://github.com/nks-hub", names);
+            Assert.Contains("Stránka projektu: https://github.com/nks-hub/textida", names);
+            Assert.Contains("Hlášení chyb (GitHub Issues): https://github.com/nks-hub/textida/issues", names);
+            Assert.Contains("Kontakt: dev@nks-hub.cz", names);
+            Assert.Equal("Licence MIT, Copyright (c) 2026 NKS Hub", Fact(w, "Licence"));
+
+            // each opens after the same question as every link: the web, the organization and the address for mail
+            foreach (var (shown, target) in new[] { ("NKS Hub (https://nks-hub.cz)", "https://nks-hub.cz/"), ("https://github.com/nks-hub", "https://github.com/nks-hub"), ("dev@nks-hub.cz", "mailto:dev@nks-hub.cz") })
+            {
+                int asked = _dialogs.Asked.Count;
+                _dialogs.Answers.Enqueue(0);
+                Click(ButtonShowing(w, shown));
+                ToolTestKit.WaitFor(() => opened.Count > 0 && opened[^1] == new Uri(target), "the link was not opened: " + target);
+                Assert.Equal(asked + 1, _dialogs.Asked.Count);
+                Assert.Equal(Loc.Get(K.PreviewLinkTitle), _dialogs.Asked[^1].Title);
+            }
+        }, program.Path);
+    }
+
     // ---- licence and notices ----
 
     [AvaloniaFact]
@@ -356,6 +386,9 @@ public class AboutDialogTests : IDisposable
                 var buttonNames = w.GetVisualDescendants().OfType<Button>().Select(b => AutomationProperties.GetName(b) ?? b.Content as string ?? "").ToList();
                 Assert.Contains(Loc.Get(K.DialogAboutLinkProject) + ": " + AboutInfo.ProjectUrl, buttonNames);
                 Assert.Contains(Loc.Get(K.DialogAboutLinkIssues) + ": " + AboutInfo.IssuesUrl, buttonNames);
+                Assert.Contains(Loc.Get(K.DialogAboutLinkPublisher) + ": NKS Hub (" + AboutInfo.PublisherUrl + ")", buttonNames);
+                Assert.Contains(Loc.Get(K.DialogAboutLinkOrganization) + ": " + AboutInfo.OrganizationUrl, buttonNames);
+                Assert.Contains(Loc.Get(K.DialogAboutLinkContact) + ": " + AboutInfo.ContactEmail, buttonNames);
                 Assert.Contains(Loc.Get(K.DialogAboutOpenProfile), buttonNames);
                 Assert.Contains(Loc.Get(K.DialogAboutOpenLog), buttonNames);
                 Assert.Contains(Loc.Get(K.DialogAboutCopy), buttonNames);

@@ -35,12 +35,12 @@ Opens this help window.
 commands: nks.help.about
 Shows the version and the build of the program, the system it runs on, the plugins, the licence and the links of the project.
 1. Choose Help and then About.
-2. The top of the window shows the version, the build (commit and date) and the two links of the project. The Technical data tab lists the .NET runtime, NativeAOT or JIT, system, architecture, interface language, profile type and the profile and log folders. Select a value to copy it. The Open folder button next to a folder shows it in the file manager.
+2. The top of the window shows the version, the build (commit and date) and the facts about NKS Hub, which publishes the program: a link to the website nks-hub.cz, the NKS Hub organization on GitHub, the project page, bug reports through GitHub Issues, the contact dev@nks-hub.cz and the MIT licence with its year and holder. The Technical data tab lists the .NET runtime, NativeAOT or JIT, system, architecture, interface language, profile type and the profile and log folders. Select a value to copy it. The Open folder button next to a folder shows it in the file manager.
 3. To report a problem, press Copy information. The block on the clipboard holds the version, build, runtime, system, architecture, language, profile type and plugins. The folders are added only when you tick the box above the button, because they contain your user name.
 4. Close the window with the Close button or the Esc key.
 - The Plugins tab lists the plugins with their version; each is built-in or installed (an installed one can be disabled or unreadable).
 - The License tab gives the MIT licence and its copyright. The field below it shows the file THIRD-PARTY-NOTICES.md, which lies next to the program; if it is missing, the field says so. Scroll it with the mouse or the arrow keys and select text in it with Shift and the arrows.
-- The project page and the bug reports (the links under the build) open in the browser only when you press the link and confirm the question. The window itself makes no network connection.
+- The links under the build (website, GitHub, project page, bug reports and email) open in the browser or the mail program only when you press the link and confirm the question. The window itself makes no network connection.
 - The labels in the block for a bug report are always in English, whatever the language of the program.
 - The same version number is shown at the top of every help topic.
 
@@ -52,7 +52,7 @@ commands: nks.file.new
 - The text is written to the recovery journal at once, so it is not lost even in a crash (topic Crash recovery). The document gets its name and place when you first save it.
 
 ## [file.open] Opening a file
-commands: nks.file.open
+commands: nks.file.open, nks.file.clearRecent
 1. Press Ctrl+O, or choose File and then Open.
 2. In the system window select one or more files and confirm.
 3. Each file opens in its own tab. A file that is already open is just shown.
@@ -60,6 +60,7 @@ commands: nks.file.open
 - The encoding is detected automatically. If it is only a guess, the status bar shows the percentage of certainty; click the encoding to change it (topic Encoding).
 - A file larger than the large file threshold (6 MiB by default) opens in paged mode with limited editing (topic Large files).
 - A file that cannot be read does not open and the status bar gives the reason (topic Error messages).
+- File and then Open Recent shows the recently opened files, the newest on top; they are the same files Ctrl+P offers. Open one of the first ten rows with the keys 1 to 9 and 0. A row shows the name and the folder, and the whole path appears when the mouse rests on it. A file that no longer exists is marked (missing) and a click offers to remove it from the list. Below the list are Reopen Last Closed Tab and Clear Recent Files List, which empties the list. How many files the list keeps (15 by default, at most 30) is set by the setting Recent files kept.
 
 ## [file.openFolder] Opening a folder
 commands: nks.file.openFolder
@@ -711,6 +712,7 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 2. Ctrl+0 restores the default size.
 - The size has no fixed upper limit: it grows as long as at least one line fits in the view, and the minimum is 6 points. It is stored in the setting Font size.
 - Ctrl+wheel changes the size in text, Ctrl+Shift+wheel in hex.
+- The status bar shows the text zoom in percent of the default font size (for example 114%). Click it to pick a level from 50 to 200% or Original Size (100%). A level is rounded to whole font points, so its number can differ a little from the one you expect. Original Size is also in View > Zoom.
 
 ## [view.display] Hidden characters, line numbers and minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap

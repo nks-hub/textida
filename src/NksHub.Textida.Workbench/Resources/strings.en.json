@@ -789,7 +789,7 @@
   "setting.advanced.wrapIndent.title": "Indent of wrapped lines (columns)",
   "setting.advanced.wrapIndent.description": "How many columns the continuation of a wrapped line is indented, on top of the indentation of the line itself. Applies with word wrap on.",
   "setting.advanced.recentFilesCount.title": "Recent files kept",
-  "setting.advanced.recentFilesCount.description": "How many recently opened files the list keeps. 0 keeps none. A lower number cuts the list the next time a file is opened.",
+  "setting.advanced.recentFilesCount.description": "How many recently opened files the list keeps (File > Open Recent and Ctrl+P), 0 to 30. 0 keeps none. A lower number cuts the list the next time a file is opened.",
   "setting.advanced.autosaveIntervalSeconds.title": "Autosave interval (seconds)",
   "setting.advanced.autosaveIntervalSeconds.description": "How often a document with changes is written to its own file when Autosave is on.",
   "setting.advanced.caretBlinkMilliseconds.title": "Text cursor blink time (milliseconds)",
@@ -820,5 +820,7 @@
   "reason.textView.false": "The document is not shown as text",
   "reason.hasPath.false": "The document has no file on disk",
   "reason.multipleCarets.false": "There is only one caret",
-  "reason.fileType": "The command is for another kind of file"
+  "reason.fileType": "The command is for another kind of file",
+  "cmd.file.clearRecent": "Clear Recent Files List",
+  "submenu.recent": "Open Recent"
 }

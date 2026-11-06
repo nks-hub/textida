@@ -15,6 +15,12 @@
       "icon": "folder-open"
     },
     {
+      "id": "nks.file.clearRecent",
+      "title": "cmd.file.clearRecent",
+      "category": "cat.file",
+      "icon": "trash"
+    },
+    {
       "id": "nks.file.save",
       "title": "cmd.file.save",
       "category": "cat.file",
@@ -301,7 +307,7 @@
       "id": "nks.view.commandPalette",
       "title": "cmd.view.commandPalette",
       "category": "cat.view",
-      "icon": "palette"
+      "icon": "command-palette"
     },
     {
       "id": "nks.view.toggleWordWrap",
@@ -3771,6 +3777,13 @@
     },
     {
       "menu": "file",
+      "command": "nks.file.clearRecent",
+      "group": "1_new/03.50",
+      "submenu": "recent",
+      "order": 90
+    },
+    {
+      "menu": "file",
       "command": "nks.file.save",
       "group": "2_save/01",
       "order": 10
@@ -4939,8 +4952,9 @@
     {
       "menu": "file",
       "command": "nks.open.lastClosed",
-      "group": "1_new/05",
-      "order": 10
+      "group": "1_new/03.50",
+      "submenu": "recent",
+      "order": 80
     },
     {
       "menu": "file",
@@ -8951,13 +8965,13 @@
     {
       "key": "advanced.recentFilesCount",
       "type": "integer",
-      "default": 50,
+      "default": 15,
       "title": "setting.advanced.recentFilesCount.title",
       "description": "setting.advanced.recentFilesCount.description",
       "category": "cat.advanced",
       "scope": "application",
       "minimum": 0,
-      "maximum": 200,
+      "maximum": 30,
       "tags": [
         "recent",
         "files",
