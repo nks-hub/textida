@@ -268,7 +268,7 @@ public class NetworkNoConsentTests
         foreach (var (name, content) in Corpus().Where(c => c.Name is "readme.md" or "page.html"))
         {
             rig.Window.OpenFile(rig.ProjectFile(name, content), null);
-            rig.Window.ShowLivePreview(outline: false);
+            rig.Window.ShowLivePreview();
             await rig.Settle(700);
             rig.Window.UpdateLayout();
             var body = rig.Window.PreviewBody!;

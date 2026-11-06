@@ -87,7 +87,7 @@ public class LivePreviewTests : IDisposable
     public async Task A_table_renders_as_a_grid_with_its_cells_and_the_text_after_it_stays_a_paragraph()
     {
         Open("Intro\n\n| name | qty |\n|:--|--:|\n| apple | 3 |\n| fig |\n\nafter\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         var reader = Assert.IsType<MarkdownReader>(_w.PreviewBody);
         var rows = reader.Document.Blocks.Where(b => b.Kind == ReaderBlockKind.TableRow).ToList();
@@ -99,14 +99,15 @@ public class LivePreviewTests : IDisposable
     }
 
     [AvaloniaFact]
-    public async Task The_outline_lists_the_headings_and_a_click_puts_the_caret_on_the_line()
+    public async Task The_outline_command_opens_the_headings_panel_and_a_heading_puts_the_caret_on_its_line()
     {
         var tab = Open("# Top\ntext\n## Part A\nmore\n```\n# in code\n```\n### Deep\n", "markdown");
-        _w.ShowLivePreview(outline: true);
-        await _w.PreviewRenderTask;
-        var buttons = Tree(_w.PreviewBody!).OfType<Button>().ToList();
-        Assert.Equal(["Top", "Part A", "Deep"], buttons.Select(b => TextOf(b)));
-        buttons[1].RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(Workbench.Commands.CommandOutcome.Handled, _w.ShowHeadingsPanel());
+        Assert.True(_w.IsPanelOpen(SidePanel.Headings));
+        var view = _w.HeadingsPanelView;
+        await Until(() => view.Headings.Count == 3, "the headings");
+        Assert.Equal(["Top", "Part A", "Deep"], view.Headings.Select(h => h.Title));
+        view.Activate(view.Headings[1]);
         Assert.Equal(3, tab.Editor!.Document.GetLineByOffset(tab.Editor.CaretOffset).LineNumber);
     }
 
@@ -114,7 +115,7 @@ public class LivePreviewTests : IDisposable
     public async Task A_script_in_an_html_file_stays_text_and_a_remote_image_waits_for_the_user()
     {
         Open("<html><script>alert(1)</script><img src=\"https://remote.example/a.png\"></html>", "html");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         _w.UpdateLayout();
         Assert.Contains("<script>alert(1)</script>", TextOf(_w.PreviewBody!));
@@ -123,7 +124,7 @@ public class LivePreviewTests : IDisposable
         Assert.Equal(Loc.Get(K.PreviewImageRemote, ("host", "remote.example"), ("alt", "")), Avalonia.Automation.AutomationProperties.GetName(ask));
 
         Open("![chart](https://remote.example/a.png) and ![local](file:///C:/private/a.png)\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         _w.UpdateLayout();
         var text = TextOf(_w.PreviewBody!);
@@ -136,7 +137,7 @@ public class LivePreviewTests : IDisposable
     public void A_file_of_another_kind_gets_a_message_and_no_panel()
     {
         Open("plain", "csharp");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         Assert.False(_w.PreviewPanelOpen);
     }
 

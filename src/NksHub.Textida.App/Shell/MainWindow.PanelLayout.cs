@@ -54,7 +54,7 @@ internal sealed partial class MainWindow
     /// <summary>True when the keyboard is in a side panel.</summary>
     private bool InSidePanels => _hosts.Values.Any(h => h.IsKeyboardFocusWithin);
 
-    private Control ControlOf(SidePanel panel) => panel switch { SidePanel.Documents => _docPanel, SidePanel.Files => _filePanel, SidePanel.Commit => _commitTool, SidePanel.History => _historyTool, _ => _pluginPanel };
+    private Control ControlOf(SidePanel panel) => panel switch { SidePanel.Documents => _docPanel, SidePanel.Files => _filePanel, SidePanel.Commit => _commitTool, SidePanel.History => _historyTool, SidePanel.Headings => _headingsTool, _ => _pluginPanel };
 
     private string PanelName(SidePanel panel) => panel switch
     {
@@ -62,6 +62,7 @@ internal sealed partial class MainWindow
         SidePanel.Files => Loc.Get(K.PanelFilesTitle),
         SidePanel.Commit => Loc.Get(K.PanelCommitName),
         SidePanel.History => Loc.Get(K.PanelHistoryName),
+        SidePanel.Headings => Loc.Get(K.PanelHeadingsName),
         _ => _pluginPanelTitle.Text is { Length: > 0 } title ? title : Loc.Get(K.PanelPluginName),
     };
 
@@ -167,6 +168,7 @@ internal sealed partial class MainWindow
         {
             _shown[dock] = which;
             _lastPanel = which;
+            if (which == SidePanel.Headings) Dispatcher.UIThread.Post(SyncHeadings, DispatcherPriority.Background);
             if (which == SidePanel.Files)
             {
                 RestoreFolder();
@@ -188,6 +190,7 @@ internal sealed partial class MainWindow
             case SidePanel.Documents: _docFilter.Focus(); break;
             case SidePanel.Commit: _commitView?.FocusMessage(); break;
             case SidePanel.History: _historyView?.FocusList(); break;
+            case SidePanel.Headings: HeadingsPanelView.FocusTree(); break;
             default: (_fileTree is null ? (Control)_filesOpenButton : _fileList).Focus(); break;
         }
     }
@@ -200,7 +203,7 @@ internal sealed partial class MainWindow
             TogglePanel(SidePanel.Plugin, false);
             return true;
         }
-        foreach (var tool in new[] { SidePanel.Commit, SidePanel.History })
+        foreach (var tool in new[] { SidePanel.Commit, SidePanel.History, SidePanel.Headings })
         {
             if (!IsOpen(tool) || !ControlOf(tool).IsKeyboardFocusWithin) continue;
             TogglePanel(tool, false);

@@ -54,22 +54,6 @@ internal static partial class PreviewRenderer
         if (top) ctx.Anchors?.Add(new Anchor(line, control));
     }
 
-    /// <summary>The headings as a list of buttons, indented by level, so the keyboard and a screen reader reach each one; a click hands the heading to <paramref name="jump"/>.</summary>
-    public static Control Outline(IReadOnlyList<MarkdownHeading> headings, Action<MarkdownHeading> jump)
-    {
-        var list = new StackPanel { Spacing = 2, Margin = new Thickness(12, 6) };
-        if (headings.Count == 0) list.Children.Add(new TextBlock { Text = Loc.Get(K.PreviewOutlineEmpty), TextWrapping = TextWrapping.Wrap });
-        int top = headings.Count == 0 ? 1 : headings.Min(h => h.Level);
-        foreach (var heading in headings)
-        {
-            var button = new Button { Content = new TextBlock { Text = heading.Title, TextWrapping = TextWrapping.Wrap }, Margin = new Thickness((heading.Level - top) * 16, 0, 0, 0) };
-            button.Classes.Add("previewoutline");
-            AutomationProperties.SetName(button, heading.Title);
-            button.Click += (_, _) => jump(heading);
-            list.Children.Add(button);
-        }
-        return list;
-    }
 
     /// <summary>One cell of a table: a border around its text, in the row and column, styled as a header cell when <paramref name="head"/>.</summary>
     private static Border Cell(SelectableTextBlock text, bool head, int row, int column)

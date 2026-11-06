@@ -1836,7 +1836,6 @@
   "image.a11y": "Bild {name}: {format}, {width} × {height} px, {size}, Vergrößerung {zoom} %",
   "image.status": "Bild {format} · {width} × {height} px · {size} · Vergrößerung {zoom} %",
   "image.zoomed": "Vergrößerung {zoom} %",
-  "preview.outline.title": "Gliederung von {name}",
   "preview.outline.empty": "Die Datei hat keine Überschriften.",
   "preview.outline.unsupported": "Die Gliederung gibt es für Markdown-Dateien.",
   "preview.image.loading": "[Bild wird geladen: {alt}]",

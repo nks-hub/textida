@@ -710,7 +710,7 @@
       "category": "cat.tools",
       "icon": "outline",
       "when": "language == 'markdown'",
-      "enablement": "hasDocument && !largeFileMode && textView"
+      "enablement": "hasDocument && !largeFileMode"
     },
     {
       "id": "nks.tools.markdownFormatTable",
@@ -1022,6 +1022,13 @@
       "title": "cmd.view.toggleHistoryPanel",
       "category": "cat.view",
       "icon": "history"
+    },
+    {
+      "id": "nks.view.toggleHeadingsPanel",
+      "title": "cmd.view.toggleHeadingsPanel",
+      "category": "cat.view",
+      "icon": "hash",
+      "when": "language == 'markdown'"
     },
     {
       "id": "nks.view.toggleOutput",
@@ -4680,6 +4687,12 @@
       "command": "nks.view.toggleHistoryPanel",
       "group": "5_panels/02",
       "order": 30
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleHeadingsPanel",
+      "group": "5_panels/02",
+      "order": 35
     },
     {
       "menu": "view",

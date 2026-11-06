@@ -809,6 +809,7 @@
   "cmd.panel.hide": "Hide Panel",
   "cmd.panel.resetLayout": "Reset Panel Layout",
   "cmd.view.toggleCommitPanel": "Commit Panel",
+  "cmd.view.toggleHeadingsPanel": "Headings Panel",
   "cmd.view.toggleHistoryPanel": "History Panel",
   "reason.panelOpen.false": "No panel is open",
   "reason.textView.false": "The document is not shown as text",

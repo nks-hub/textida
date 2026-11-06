@@ -642,12 +642,6 @@
         <Style Selector="Border.previewcellhead">
             <Setter Property="Background" Value="{DynamicResource BgHover}" />
         </Style>
-        <Style Selector="Button.previewoutline">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="4,2" />
-            <Setter Property="HorizontalAlignment" Value="Left" />
-        </Style>
         <Style Selector="Border.mermaidshape">
             <Setter Property="Background" Value="{DynamicResource BgEditor}" />
             <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />

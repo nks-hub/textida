@@ -64,6 +64,7 @@ public sealed class SavedPanels
     public string Plugin { get; set; } = "left";
     public string Commit { get; set; } = "bottom";
     public string History { get; set; } = "bottom";
+    public string Headings { get; set; } = "right";
     public double LeftWidth { get; set; } = 220;
     public double RightWidth { get; set; } = 220;
     public double BottomHeight { get; set; } = 200;

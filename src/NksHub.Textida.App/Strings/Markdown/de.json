@@ -6,5 +6,11 @@
   "markdown.inputFailed": "Die Markdown-Struktur konnte nicht verarbeitet werden.",
   "preview.reader.copy": "Kopieren",
   "preview.reader.copyMarkdown": "Als Markdown kopieren",
-  "preview.reader.selectAll": "Alles auswählen"
+  "preview.reader.selectAll": "Alles auswählen",
+  "panel.headings.name": "Überschriften",
+  "headings.filter": "Überschriften filtern",
+  "headings.tree": "Überschriften des Dokuments",
+  "headings.level": "Überschriften bis Ebene {level} zeigen",
+  "headings.noMatch": "Keine Überschrift passt zum Filter.",
+  "headings.current": "aktuelle Überschrift"
 }

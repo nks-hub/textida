@@ -6,5 +6,11 @@
   "markdown.inputFailed": "Štruktúru Markdownu sa nepodarilo spracovať.",
   "preview.reader.copy": "Kopírovať",
   "preview.reader.copyMarkdown": "Kopírovať ako Markdown",
-  "preview.reader.selectAll": "Vybrať všetko"
+  "preview.reader.selectAll": "Vybrať všetko",
+  "panel.headings.name": "Register",
+  "headings.filter": "Filtrovať nadpisy",
+  "headings.tree": "Nadpisy dokumentu",
+  "headings.level": "Zobraziť nadpisy do úrovne {level}",
+  "headings.noMatch": "Filtru nezodpovedá žiadny nadpis.",
+  "headings.current": "aktuálny nadpis"
 }

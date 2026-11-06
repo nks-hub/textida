@@ -88,6 +88,7 @@ internal sealed partial class MainWindow
         "nks.view.toggleFilePanel" => (FilePanelOpen, false),
         "nks.view.toggleCommitPanel" => (IsOpen(SidePanel.Commit), false),
         "nks.view.toggleHistoryPanel" => (IsOpen(SidePanel.History), false),
+        "nks.view.toggleHeadingsPanel" => (IsOpen(SidePanel.Headings), false),
         "nks.files.toggleHidden" => (ShowHiddenFiles, false),
         "nks.view.toggleOutput" => (OutputPanelOpen, false),
         "nks.edit.toggleClipboardMonitor" => (_app.Workbench.Settings.GetBool("editor.clipboardMonitor"), false),

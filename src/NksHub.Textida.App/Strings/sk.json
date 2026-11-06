@@ -1876,7 +1876,6 @@
   "image.a11y": "Obrázok {name}: {format}, {width} × {height} px, {size}, priblíženie {zoom} %",
   "image.status": "Obrázok {format} · {width} × {height} px · {size} · priblíženie {zoom} %",
   "image.zoomed": "Priblíženie {zoom} %",
-  "preview.outline.title": "Osnova súboru {name}",
   "preview.outline.empty": "Súbor nemá žiadne nadpisy.",
   "preview.outline.unsupported": "Osnova sa robí pre súbory Markdown.",
   "preview.image.loading": "[obrázok sa načítava: {alt}]",

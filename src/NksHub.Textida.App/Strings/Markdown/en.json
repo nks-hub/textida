@@ -6,5 +6,11 @@
   "markdown.inputFailed": "The Markdown structure could not be parsed.",
   "preview.reader.copy": "Copy",
   "preview.reader.copyMarkdown": "Copy as Markdown",
-  "preview.reader.selectAll": "Select all"
+  "preview.reader.selectAll": "Select all",
+  "panel.headings.name": "Headings",
+  "headings.filter": "Filter headings",
+  "headings.tree": "Headings of the document",
+  "headings.level": "Show headings down to level {level}",
+  "headings.noMatch": "No heading matches the filter.",
+  "headings.current": "current heading"
 }

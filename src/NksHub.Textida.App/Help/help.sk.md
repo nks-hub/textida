@@ -519,7 +519,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 1. Zobraziť, Náhľad Markdownu alebo HTML otvorí pod editorom panel náhľadu s aktuálnym súborom. Panel sleduje písanie: prekreslí sa chvíľu po poslednom klávese. Editor a panel sa posúvajú spoločne: keď posuniete jedno, druhé ide za ním.
 2. Markdown sa ukáže ako stránka: nadpisy, zoznamy, citácie, kód, zvýraznenie a tabuľky s bunkami (dvojbodky v riadku pomlčiek určujú zarovnanie stĺpca). Blok kódu označený `mermaid` sa nakreslí ako vývojový diagram.
 3. Súbor HTML sa ukáže tiež ako stránka, ale rozumie sa iba malej časti HTML: nadpisom, odsekom, zoznamom, tabuľkám, predformátovanému textu, kódu, odkazom, obrázkom a zvýrazneniu. Každá iná značka, každý komentár a všetko vnútri `script` a `style` sa ukáže ako text, ktorým je. Nič z toho súboru sa nespúšťa.
-4. Zobraziť, Zobraziť osnovu Markdownu vypíše v tom istom paneli nadpisy súboru, odsadené podľa úrovne. Klik, alebo Enter na nadpise, presunie kurzor v editore na jeho riadok.
+4. Zobraziť osnovu Markdownu otvorí panel Register so stromom nadpisov súboru (pozri Markdown: čítanie, úpravy a zdroj). Klik, alebo Enter na nadpise, presunie kurzor v editore na jeho riadok.
 5. Nástroje, Markdown, Zarovnať tabuľku v Markdowne prepíše tabuľku pod kurzorom tak, aby mal každý stĺpec šírku najširšej bunky. Značky `:--`, `:-:` a `--:` zostanú a kratší riadok sa doplní prázdnymi bunkami. Späť to vráti jedným krokom.
 6. Nástroje, Markdown, Aktualizovať obsah Markdownu zapíše odkazy na nadpisy medzi riadky `<!-- TOC -->` a `<!-- /TOC -->`. Mení sa iba text medzi nimi. Keď tam nie sú, pridajú sa na miesto kurzora. Kotvy sú malými písmenami, medzery sa menia na pomlčky a opakovaný nadpis dostane `-1`, `-2`.
 7. V tabuľke Tab vyberie ďalšiu bunku a Shift+Tab predchádzajúcu; stĺpce sa pri tom zarovnajú. Tab v poslednej bunke pridá riadok. Mimo tabuľky obe klávesy fungujú ako predtým. Každý presun vráti Späť jedným krokom.
@@ -532,7 +532,7 @@ commands: nks.tools.markdownPreview, nks.tools.markdownOutline, nks.tools.markdo
 - V osnove sú iba nadpisy písané cez `#`. Šírka bunky tabuľky je šírka na obrazovke: široké východoázijské znaky sa počítajú za dva stĺpce. Zvislá čiara v bunke sa píše `\|` alebo musí byť v úryvku kódu.
 
 ## [view.markdownModes] Markdown: čítanie, úpravy a zdroj
-commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource
+commands: nks.view.cycleMode, nks.view.modeRead, nks.view.modeEdit, nks.view.modeSource, nks.view.toggleHeadingsPanel
 Súbor Markdown (.md, .markdown) má tri režimy. Čítanie vykreslí stránku cez celú kartu, úpravy ukážu editor so stránkou vedľa neho a zdroj ukáže len text. Prepína ich lišta nad súborom.
 1. Súbor Markdown sa otvorí v čítaní. Nastavenie Predvolený režim Markdownu (Nastavenia, Súbory) vyberie čítanie, úpravy alebo zdroj pre súbory otvorené odvtedy.
 2. Stlačte tlačidlo v lište, použite Zobraziť, Režim zobrazenia, Markdown: čítanie, úpravy alebo zdroj, alebo stlačte Ctrl+K a potom Ctrl+V (Zobraziť, Režim zobrazenia, Prepnúť režim zobrazenia), čo prejde na ďalší režim: čítanie, úpravy, zdroj a zase čítanie. Stavový riadok aj čítačka obrazovky povedia, ktorý režim je zapnutý.
@@ -541,6 +541,7 @@ Súbor Markdown (.md, .markdown) má tri režimy. Čítanie vykreslí stránku c
 - Súbor dlhší než limit náhľadu alebo otvorený ako veľký súbor sa otvorí ako zdroj a stavový riadok to povie; lišta potom neponúka čítanie ani úpravy.
 - V čítaní klávesy editora nič nerobia: stránka je len na čítanie. Na zmenu textu prepnite na úpravy alebo zdroj. F6 presunie fokus na stránku; šípky, Page Up, Page Down, Home a End ju posúvajú.
 - Text stránky sa dá vyberať myšou ako na webe: ťahaním cez odseky, zoznamy, kód aj bunky tabuliek. Shift+klik výber rozšíri, dvojklik vyberie slovo a trojklik odsek; pri ťahaní za okraj sa stránka posúva. Ctrl+A vyberie všetko, Ctrl+C skopíruje text (bunky tabuľky oddelí tabulátor) a Ctrl+Shift+C alebo Kopírovať ako Markdown v miestnej ponuke skopíruje zodpovedajúcu časť zdroja. Tab prechádza medzi odkazmi a Enter odkaz otvorí. Dlhý riadok kódu sa nezalamuje, posúva sa Shift+kolieskom.
+- Zobraziť, Register nadpisov (alebo Nástroje, Zobraziť osnovu Markdownu) otvorí vedľa dokumentu panel so stromom nadpisov H1 až H6. Zostáva otvorený v čítaní, úpravách aj zdroji, nadpis miesta, kde stojíte, je tučne, kliknutie alebo Enter nadpis ukáže hore v editore či na stránke a po písaní sa strom chvíľu po poslednej klávese obnoví. Tlačidlá 1 až 6 ukážu nadpisy do zvolenej úrovne a hlbšie zbalia, pole hore nechá len nadpisy, ktoré obsahujú zadaný text. Panel sa dá presunúť a skryť ako ostatné panely.
 - Ctrl+K a potom Ctrl+V v súbore v hexe prejde do čítania. Príkazy Markdownu v ponuke Nástroje potrebujú editor, použite pre ne úpravy alebo zdroj.
 - Text sa nedá meniť priamo vo vykreslenej stránke.
 

@@ -115,7 +115,7 @@ public class MarkdownStateTests : IDisposable
         var tab = window.NewDocument();
         tab.Doc.ChooseLanguage(LanguageModes.ById("markdown"));
         tab.Editor!.Document.Text = string.Concat(Enumerable.Repeat("Old *content*\n\n", 800));
-        window.ShowLivePreview(outline: false);
+        window.ShowLivePreview();
         Task old = window.PreviewRenderTask;
         tab.Editor.Document.Text = "# Current\n";
         window.RefreshLive();

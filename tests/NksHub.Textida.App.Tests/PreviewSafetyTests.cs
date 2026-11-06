@@ -198,7 +198,7 @@ public class PreviewSafetyTests : IDisposable
         using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
         string url = $"http://{server.Authority}/a.png";
         var tab = Open($"![chart]({url}) and ![again]({url})\n\n<img src=\"{url}\"> <script src=\"{url}\"></script>\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -247,7 +247,7 @@ public class PreviewSafetyTests : IDisposable
             : Http.Ok(Png);
         string Url(string name) => $"http://{server.Authority}/{name}";
         Open($"![r]({Url("redirect")}) ![s]({Url("svg")}) ![m]({Url("missing")}) ![ok]({Url("ok.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
         Assert.Equal(0, server.Connections);
@@ -277,7 +277,7 @@ public class PreviewSafetyTests : IDisposable
         }
         NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, new ProxySettings(ProxyType.Socks5, "127.0.0.1", closed), null, _app.Remote.Secrets);
         Open($"![first]({Url("first.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
         _dialogs.Answers.Enqueue(0);
@@ -289,7 +289,7 @@ public class PreviewSafetyTests : IDisposable
         using var proxy = new TestProxy(ProxyType.Socks5);
         NetworkPolicy.Save(_app.Remote.NetworkPolicyPath, proxy.Settings, null, _app.Remote.Secrets);
         Open($"![second]({Url("second.png")})\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Until(() => Tree(Body()).OfType<Image>().Count() == 1, "the picture through the proxy");
         Assert.Equal(1, proxy.Tunnels);
@@ -314,7 +314,7 @@ public class PreviewSafetyTests : IDisposable
             $"<img src=\"{u}/a.png\" alt=\"far\" onerror=\"fetch('{u}/z')\">",
             "</body></html>");
         Open(page, "html");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -372,7 +372,7 @@ public class PreviewSafetyTests : IDisposable
         string path = Path.Combine(docs, "doc.md");
         File.WriteAllText(path, $"![a](pic.png) ![b](sub/two.png) ![c](../outside.png) ![d]({new Uri(outside).AbsoluteUri}) ![e](missing.png) ![f](bomb.png) ![g](notimage.png) ![h]({outside.Replace('\\', '/')})\n");
         _w.OpenFile(path, null);
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
 
         // Showing the panel only queues parsing and image reads.
         Assert.True(_w.PreviewBody is null || !Tree(_w.PreviewBody).OfType<Image>().Any());
@@ -406,7 +406,7 @@ public class PreviewSafetyTests : IDisposable
     {
         using var server = new CountingServer { Respond = _ => Http.Ok(Png) };
         Open("# Plan\n\n```mermaid\ngraph TD\n  A[Start] --> B{Ready?}\n  B -->|yes| C((Go))\n  B -->|no| D(Wait)\n  D --> B\n  click A href \"http://" + server.Authority + "/x\"\n```\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -433,7 +433,7 @@ public class PreviewSafetyTests : IDisposable
     public async Task A_diagram_the_subset_does_not_know_is_shown_as_its_source_and_a_flowchart_in_html_is_drawn()
     {
         Open("<pre class=\"mermaid\">graph LR\nA[In] --&gt; B[Out]</pre>\n<pre><code class=\"language-mermaid\">pie title Pets\n\"Dogs\" : 3</code></pre>\n<pre>graph LR\nX --&gt; Y</pre>", "html");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         await Settle();
 
@@ -458,7 +458,7 @@ public class PreviewSafetyTests : IDisposable
     private async Task<(DocTab Tab, ILogicalScrollable Editor)> LongPreviewAsync()
     {
         var tab = Open(LongDocument(), "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         long drawn = _w.ShownPreview!.Revision;
         var scroller = _w.PreviewScroller;
@@ -530,7 +530,7 @@ public class PreviewSafetyTests : IDisposable
     public async Task Everything_in_the_preview_a_screen_reader_or_the_keyboard_needs_has_a_name_and_a_tab_stop()
     {
         Open($"# Title\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[web](https://docs.example.org/a) ![dot](data:image/png;base64,{OnePixelPng}) ![far](https://remote.example/a.png)\n\n```mermaid\ngraph LR\nA-->B\n```\n", "markdown");
-        _w.ShowLivePreview(outline: false);
+        _w.ShowLivePreview();
         await _w.PreviewRenderTask;
         var body = Body();
 

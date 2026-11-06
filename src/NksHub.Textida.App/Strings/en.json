@@ -1836,7 +1836,6 @@
   "image.a11y": "Picture {name}: {format}, {width} × {height} px, {size}, zoom {zoom} %",
   "image.status": "Picture {format} · {width} × {height} px · {size} · zoom {zoom} %",
   "image.zoomed": "Zoom {zoom} %",
-  "preview.outline.title": "Outline of {name}",
   "preview.outline.empty": "The file has no headings.",
   "preview.outline.unsupported": "The outline is made for Markdown files.",
   "preview.image.loading": "[loading image: {alt}]",
