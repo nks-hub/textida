@@ -49,8 +49,8 @@ public static class ManifestLoader
         return segments.All(s => s.Length > 0 && char.IsAsciiLetterLower(s[0]) && s.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'));
     }
 
-    /// <summary>Deepest nesting of submenus: <c>outer/middle/inner</c>.</summary>
-    public const int MaxSubmenuDepth = 3;
+    /// <summary>Deepest nesting of submenus: <c>outer/inner</c> (menu, submenu, submenu).</summary>
+    public const int MaxSubmenuDepth = 2;
 
     /// <summary>A submenu is one id or a path of ids separated by <c>/</c>, each segment non-empty, the whole at most 64 characters.</summary>
     public static bool IsValidSubmenu(string? submenu)

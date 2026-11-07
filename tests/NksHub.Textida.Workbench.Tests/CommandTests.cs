@@ -220,13 +220,33 @@ public class ManifestTests
     }
 
     [Theory]
-    [InlineData("a/b/c", true)]
-    [InlineData("a/b/c/d", false)]
+    [InlineData("a/b", true)]
+    [InlineData("a/b/c", false)]
     [InlineData("a//b", false)]
     [InlineData("/a", false)]
     [InlineData("a/", false)]
     [InlineData(" ", false)]
-    public void A_submenu_path_has_up_to_three_non_empty_segments(string path, bool valid) => Assert.Equal(valid, ManifestLoader.IsValidSubmenu(path));
+    public void A_submenu_path_has_up_to_two_non_empty_segments(string path, bool valid) => Assert.Equal(valid, ManifestLoader.IsValidSubmenu(path));
+
+    [Fact]
+    public void Every_built_in_menu_fits_the_screen_even_with_every_entry_shown()
+    {
+        // Rozhodnuto 7. 11. 2026 (autonomně): a menu at most 15 entries and 19 rows with separators (30 px a row, 9 px a separator: 494 px fit under the menu bar of 1366 × 768 at 125 %),
+        // a submenu at most 12 entries. Counted from the manifest as if every condition held, so no kind of document can push a menu off the screen.
+        var host = WorkbenchHost.CreateBuiltin();
+        foreach (var menu in host.Commands.MenuContributions.Where(m => m.Menu != "editor.context").GroupBy(m => m.Menu))
+        {
+            var top = menu.Select(m => m.Submenu?.Split('/')[0] ?? "=" + m.Command).Distinct().Count();
+            int separators = menu.Select(m => m.Group.Split('/')[0]).Distinct().Count() - 1;
+            Assert.True(top <= 15 && top + separators <= 19, $"{menu.Key}: {top} entries and {separators} separators");
+            foreach (var path in menu.Where(m => m.Submenu is not null).SelectMany(m => new[] { m.Submenu!.Split('/')[0], m.Submenu }).Distinct())
+            {
+                int entries = menu.Where(m => m.Submenu is { } s && (s == path || s.StartsWith(path + "/", StringComparison.Ordinal)))
+                    .Select(m => m.Submenu == path ? "=" + m.Command : m.Submenu![(path.Length + 1)..].Split('/')[0]).Distinct().Count();
+                Assert.True(entries <= 12, $"{menu.Key} > {path}: {entries} entries");
+            }
+        }
+    }
 
     [Fact]
     public void Plugin_cannot_claim_core_ids_or_foreign_prefixes()

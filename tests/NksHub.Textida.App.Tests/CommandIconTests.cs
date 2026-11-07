@@ -239,12 +239,19 @@ public class CommandIconTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Most_commands_of_the_menus_have_an_icon_and_only_the_ones_that_say_text_have_none()
+    public void A_menu_row_shows_an_icon_only_for_a_frequent_command_one_with_a_one_key_shortcut_or_on_the_default_toolbar()
     {
+        // anti-slop R-04 (review of 7. 11. 2026): the rare rows show text only; the palette and the toolbar keep the icon of every command
+        var wb = _app.Workbench;
         var all = Commands(_w.MenuModel.SelectMany(g => g.Items)).ToList();
-        Assert.True(all.Count(c => c.Icon is not null) >= all.Count / 2, $"{all.Count(c => c.Icon is not null)} of {all.Count}");
-        foreach (var command in all.Where(c => c.Icon is null))
-            Assert.True(_app.Workbench.Commands.TryGet(command.CommandId!, out var descriptor) && descriptor.Icon == BuiltinIcons.TextOnly, command.CommandId);
+        foreach (var row in all)
+        {
+            bool frequent = wb.Keymap.Bindings.Any(b => b.CommandId == row.CommandId && b.Sequence.Chords.Count == 1) || Workbench.Toolbar.ToolbarLayout.Default.Contains(row.CommandId!);
+            Assert.True(frequent ? row.Icon == wb.Commands.IconOf(row.CommandId!) : row.Icon is null, row.CommandId);
+        }
+        Assert.InRange(all.Count(c => c.Icon is not null), 20, all.Count / 3);
+        Assert.NotNull(wb.Commands.IconOf("nks.tools.statistics")); // no icon in the menu, still one in the palette
+        Assert.Null(all.Single(c => c.CommandId == "nks.tools.statistics").Icon);
     }
 
     [AvaloniaFact]

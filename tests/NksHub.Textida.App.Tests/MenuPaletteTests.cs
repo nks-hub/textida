@@ -58,11 +58,12 @@ public class MenuPaletteTests : IDisposable
     {
         Assert.Equal(["Soubor", "Úpravy", "Hledat", "Zobrazit", "Formát", "Nástroje", "Nastavení", "Okno", "Nápověda"], _w.MenuHeaders);
         var shown = MenuBuilder.Order.Select(o => o.Id).ToList();
-        Assert.Equal(["file", "projects", "edit", "search", "view", "format", "tools", "html", "settings", "window", "help"], shown);
-        // projects has no commands in the manifest, so it is not drawn; html has them, but they are for HTML documents only, so a window without one draws no HTML menu
+        Assert.Equal(["file", "projects", "edit", "search", "view", "format", "tools", "hex", "html", "settings", "window", "help"], shown);
+        // projects has no commands in the manifest, so it is not drawn; hex and html have them, but only for their kind of document, so a window without one draws neither
         var withCommands = _app.Workbench.Commands.MenuContributions.Select(m => m.Menu).ToHashSet();
         Assert.DoesNotContain("projects", withCommands);
         Assert.Contains("tools", withCommands);
+        Assert.Contains("hex", withCommands);
         Assert.Contains("html", withCommands);
     }
 
@@ -134,8 +135,10 @@ public class MenuPaletteTests : IDisposable
         var lsp = Assert.Single(code.Items.OfType<MenuGroup>(), g => g.Label == "Jazykový server");
         Assert.Contains(lsp.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.lsp.goToDefinition");
         Assert.DoesNotContain(code.Items.OfType<MenuCommand>(), c => c.CommandId!.StartsWith("nks.lsp.", StringComparison.Ordinal));
+        // the carets are a block of the selection submenu, not a submenu of their own
         var select = Assert.Single(Menu("Úpravy").Items.OfType<MenuGroup>(), g => g.Label == "Výběr");
-        Assert.Contains(Commands(Assert.Single(select.Items.OfType<MenuGroup>(), g => g.Label == "Více kurzorů").Items), c => c.CommandId == "nks.edit.addNextOccurrence");
+        Assert.Contains(select.Items.OfType<MenuCommand>(), c => c.CommandId == "nks.edit.addNextOccurrence");
+        Assert.Empty(select.Items.OfType<MenuGroup>());
 
         var format = Assert.Single(Menu("Formát").Items.OfType<MenuGroup>(), g => g.Label == "Formátovat kód a data");
         Assert.Contains(Commands(format.Items), c => c.CommandId == "nks.edit.formatJson");
@@ -149,31 +152,58 @@ public class MenuPaletteTests : IDisposable
         Assert.Contains(Commands(mode.Items), c => c.CommandId == "nks.view.modeRead");
     }
 
+    /// <summary>
+    /// Rozhodnuto 7. 11. 2026 (autonomně): a menu has at most 15 entries and 19 rows with its separators. A row is 30 px and a separator 9 px, so 15 + 4 make 494 px and fit under the menu bar of a
+    /// 1366 × 768 screen at 125 % (about 514 px are free there). A submenu has at most 12 entries; submenus nest at most two deep (menu › submenu › submenu).
+    /// </summary>
+    internal const int MaxMenuEntries = 15, MaxMenuRows = 19, MaxSubmenuEntries = 12, MaxSubmenuLevels = 2;
+
     [AvaloniaFact]
-    public void No_submenu_is_longer_than_the_limit_of_the_review_and_none_is_nested_deeper_than_three_levels()
+    public void No_menu_or_submenu_is_longer_than_the_limit_and_submenus_nest_at_most_two_deep_for_any_kind_of_document()
     {
-        // P3.6.17: a menu has at most 20 entries, a submenu at most 16, and submenus are nested at most two deep (menu, submenu, submenu)
-        void Walk(string where, IReadOnlyList<MenuNode> nodes, int depth, bool top)
+        void Walk(string where, IReadOnlyList<MenuNode> nodes, int level)
         {
             int entries = nodes.Count(n => n is not MenuSeparator);
-            Assert.True(entries <= (top ? 20 : 16), $"{where} has {entries} entries");
-            Assert.True(depth <= 3, $"{where} is nested {depth} deep");
+            Assert.True(entries <= (level == 0 ? MaxMenuEntries : MaxSubmenuEntries), $"{where} has {entries} entries");
+            if (level == 0) Assert.True(nodes.Count <= MaxMenuRows, $"{where} has {nodes.Count} rows");
+            Assert.True(level <= MaxSubmenuLevels, $"{where} is a submenu {level} deep");
             Assert.False(nodes.FirstOrDefault() is MenuSeparator || nodes.LastOrDefault() is MenuSeparator, $"{where} starts or ends with a separator");
-            foreach (var group in nodes.OfType<MenuGroup>()) Walk(where + " > " + group.Label, group.Items, depth + 1, false);
+            Assert.DoesNotContain(nodes.Zip(nodes.Skip(1)), p => p.First is MenuSeparator && p.Second is MenuSeparator);
+            foreach (var group in nodes.OfType<MenuGroup>()) Walk(where + " > " + group.Label, group.Items, level + 1);
         }
-        foreach (var menu in _w.MenuModel) Walk(menu.Label, menu.Items, 1, true);
+        foreach (var (file, text) in new[] { ("a.txt", "a\n"), ("a.md", "# t\n"), ("a.json", "{}\n"), ("a.html", "<p>x</p>\n"), ("a.csv", "a,b\n1,2\n"), ("a.sql", "select 1;\n"), ("a.log", "ERROR x\n") })
+        {
+            _w.SelectTab(_w.OpenFile(_temp.File(file, text), null));
+            foreach (var menu in _w.MenuModel) Walk(file + ": " + menu.Label, menu.Items, 0);
+            // the context menu of the editor is short: the clipboard, the comment and the few actions of the kind of file
+            var context = MenuBuilder.Nodes(_app.Workbench, new ShellContext(_w, forMenu: true), _ => null, _ => { }, "editor.context");
+            Assert.True(context.Count(n => n is not MenuSeparator) <= MaxSubmenuEntries, $"{file}: the context menu has {context.Count} rows");
+        }
+        _w.SelectTab(_w.OpenHex(_temp.File("h.bin", "hello\n"), null));
+        Assert.Contains(_w.MenuModel, g => g.Label == "Hex");
+        foreach (var menu in _w.MenuModel) Walk("hex: " + menu.Label, menu.Items, 0);
     }
 
     [AvaloniaFact]
-    public void No_menu_shows_more_than_a_screenful_of_rows_at_the_top_level()
+    public void Every_command_with_a_handler_is_reachable_from_a_menu_the_palette_or_a_key()
     {
-        foreach (var g in _w.MenuModel)
+        var wb = _app.Workbench;
+        var inMenus = wb.Commands.CommandsInMenus();
+        var bound = wb.Keymap.Bindings.Select(b => b.CommandId).ToHashSet(StringComparer.Ordinal);
+        // the palette lists every command that is not hidden; a hidden one needs a menu entry or a key, or is a caret step the keys of the editor run and a macro records
+        var lost = wb.Commands.Commands.Where(c => wb.Commands.HasHandler(c.Id) && c.Hidden && !c.Macro && !inMenus.Contains(c.Id) && !bound.Contains(c.Id)).Select(c => c.Id).ToList();
+        Assert.True(lost.Count == 0, "No way to run: " + string.Join(", ", lost));
+        // commands the review took out of the menus are found in the palette by their title
+        _w.SelectTab(_w.OpenFile(_temp.File("a.txt", "alpha\n"), null));
+        _w.ShowPalette();
+        foreach (var id in new[] { "nks.settings.theme.dark", "nks.remote.proxy", "nks.macro.delete", "nks.edit.fragmentJson", "nks.lsp.syntaxTree" })
         {
-            int commands = g.Items.Count(n => n is not MenuSeparator);
-            Assert.True(commands <= 20, $"{g.Label} has {commands} items at the top level");
-            Assert.True(g.Items.Count <= 25, $"{g.Label} has {g.Items.Count} rows at the top level");
+            Assert.DoesNotContain(id, inMenus);
+            wb.Commands.TryGet(id, out var command);
+            _w.SetPaletteQuery(wb.Strings.Get(command.TitleKey));
+            Assert.True(_w.PaletteResults.Any(r => r.CommandId == id), id + " is not in the palette");
         }
-        Assert.Equal(3, Menu("Nástroje").Items.Count(n => n is MenuSeparator));
+        _w.ClosePalette();
     }
 
     [AvaloniaFact]
@@ -181,8 +211,8 @@ public class MenuPaletteTests : IDisposable
     {
         var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
         var edit = menu.Items.OfType<MenuItem>().Single(m => Plain(m.Header) == "Úpravy");
-        var casing = edit.Items.OfType<MenuItem>().Single(m => Plain(m.Header) == "Velikost písmen");
-        Assert.Equal("Velikost písmen", Avalonia.Automation.AutomationProperties.GetName(casing));
+        var casing = edit.Items.OfType<MenuItem>().Single(m => Plain(m.Header) == "Převody a recepty");
+        Assert.Equal("Převody a recepty", Avalonia.Automation.AutomationProperties.GetName(casing));
         var upper = casing.Items.OfType<MenuItem>().First(m => m.Tag is MenuCommand { CommandId: "nks.edit.upperCase" });
         Assert.False(upper.IsEnabled);
         var gesture = ((MenuCommand)upper.Tag!).Gesture;
@@ -245,18 +275,16 @@ public class MenuPaletteTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Settings_menu_switches_the_theme_with_a_checked_item_and_the_language_is_set_in_the_settings_not_in_the_menu()
+    public void Theme_profile_and_language_are_set_in_the_settings_and_their_commands_stay_for_the_palette_and_keys()
     {
-        Assert.True(Item("nks.settings.theme.system").Checked);
-        Item("nks.settings.theme.dark").Run();
-        Assert.Equal("dark", _app.Settings.Theme);
-        Assert.True(Item("nks.settings.theme.dark").Checked);
-        Assert.False(Item("nks.settings.theme.system").Checked);
-        Item("nks.settings.theme.system").Run();
-
-        // P3.6.15: the language has no item in the menu any more; its commands stay for the palette and for keys
-        Assert.DoesNotContain(Commands(_w.MenuModel.SelectMany(g => g.Items)), c => c.CommandId!.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal));
+        // the review of 7. 11. 2026 took the theme, the profile and the language out of the menu: the settings window has them, so the menu items were duplicates
+        var shown = Commands(_w.MenuModel.SelectMany(g => g.Items)).Select(c => c.CommandId!).ToList();
+        Assert.DoesNotContain(shown, id => id.StartsWith("nks.settings.theme.", StringComparison.Ordinal) || id.StartsWith("nks.settings.profile.", StringComparison.Ordinal)
+            || id.StartsWith(AppCommands.LanguageCommandPrefix, StringComparison.Ordinal));
         var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.settings.theme.dark", context).AsTask().GetAwaiter().GetResult());
+        Assert.Equal("dark", _app.Settings.Theme);
+        _app.Workbench.Commands.ExecuteAsync("nks.settings.theme.system", context).AsTask().GetAwaiter().GetResult();
         Assert.Equal(CommandOutcome.Handled, _app.Workbench.Commands.ExecuteAsync("nks.settings.language.en", context).AsTask().GetAwaiter().GetResult());
         Assert.Equal(["File", "Edit", "Search", "View", "Format", "Tools", "Settings", "Window", "Help"], _w.MenuHeaders);
         foreach (var lang in Loc.Languages.Reverse())
