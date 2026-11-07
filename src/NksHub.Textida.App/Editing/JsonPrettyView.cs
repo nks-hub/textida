@@ -21,7 +21,7 @@ namespace NksHub.Textida.App.Editing;
 /// The formatted (pretty) view of a JSON document (P3.1.14): every key, value and bracket on a line of its own, indented by depth, drawn from a
 /// <see cref="JsonOutline"/> that reads only the lines on screen and scans the rest in the background. Nothing is reformatted in the file: the view
 /// lies over the text view of the tab like the table view, and a key or value typed here replaces only its own bytes of the same document.
-/// One long value at a time can be wrapped over several rows (<see cref="ToggleExpand"/>), so it can be read and edited past the cut of a line.
+/// One line with a long key or value at a time can be wrapped over several rows (<see cref="ToggleExpand"/>), so it can be read and edited past the cut.
 /// </summary>
 internal sealed class JsonPrettyView : Grid, IDisposable
 {
@@ -34,8 +34,9 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     internal long CopyLimit { get; set; } = MaxCopyBytes;
 
     /// <summary>
-    /// A place in the formatted text that stays put when a value is wrapped or unwrapped: in the text before the value of the line (region 0, a column),
-    /// inside the value (region 1, a document offset) or in the comma after it (region 2, a column of the tail). Lines without a value use region 0 only.
+    /// A place in the formatted text that stays put when a line is wrapped or unwrapped: in the indent before the first piece of the line (region 0, a column),
+    /// inside or between its key and value, raw or comment text (region 1, a document offset) or after the last piece (region 2, a column of the tail).
+    /// Lines without such a piece use region 0 only.
     /// </summary>
     internal readonly record struct Pos(long Line, int Region, long At) : IComparable<Pos>
     {
@@ -113,8 +114,18 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     /// <summary>The line whose long value is wrapped over several rows; -1 when none is.</summary>
     public long ExpandedLine => _expanded;
 
-    /// <summary>Bytes of a long value per row while it is wrapped: as many as fit the width of the view.</summary>
-    internal int PartBytes => Math.Clamp((int)(_canvas.TextWidth / Math.Max(1, _canvas.CharWidth)) - 8, 64, JsonOutline.MaxShownBytes);
+    /// <summary>Bytes of a long key or value per row while it is wrapped: as many as fit the width of the view, taken when the size or the font changes.</summary>
+    internal int PartBytes { get; private set; } = 64;
+
+    /// <summary>Takes the bytes per row for the present width; the caret stays on its character when the wrapped line flows anew.</summary>
+    private void UpdatePartBytes()
+    {
+        int next = Math.Clamp((int)(_canvas.TextWidth / Math.Max(1, _canvas.CharWidth)) - 8, 64, JsonOutline.MaxShownBytes);
+        if (next == PartBytes) return;
+        Pos? caret = _expanded >= 0 ? CaretPos : null;
+        PartBytes = next;
+        if (caret is { } place) PlaceCaret(place);
+    }
 
     public void Dispose()
     {
@@ -127,6 +138,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         _options = options;
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
+        Dispatcher.UIThread.Post(UpdatePartBytes, DispatcherPriority.Background); // after the measure took the new character width
     }
 
     // ---- lines and rows ----
@@ -213,19 +225,49 @@ internal sealed class JsonPrettyView : Grid, IDisposable
 
     // ---- places ----
 
+    /// <summary>The pieces of a row that show document text (key, value, raw or comment text), in order.</summary>
+    private static List<JsonSpan> Pieces(JsonRenderedLine r) => [.. r.Spans.Where(s => s.Kind != JsonTokenKind.Punctuation)];
+
+    /// <summary>Where the bytes of a piece end in the document; a key or value cut by the screen goes on past its span.</summary>
+    private static long PieceEnd(JsonLine l, JsonSpan s) => s.Kind == JsonTokenKind.Key ? l.KeyEnd : l.Kind == JsonLineKind.Value ? l.ValueEnd : s.End;
+
+    /// <summary>The column after a piece and the ellipsis the screen draws when it cut the piece.</summary>
+    private static int After(JsonRenderedLine r, JsonSpan s)
+    {
+        int end = s.Column + s.Length;
+        return end < r.Text.Length && r.Text[end] == '…' && s.End < PieceEnd(r.Line, s) ? end + 1 : end;
+    }
+
+    /// <summary>The piece of an unwrapped row the screen cut right at <paramref name="column"/>, where its ellipsis starts; null when none is.</summary>
+    private static JsonSpan? CutAt(JsonRenderedLine r, int column)
+    {
+        foreach (var s in Pieces(r))
+            if (s.Column + s.Length == column && After(r, s) > column) return s;
+        return null;
+    }
+
     /// <summary>The place a column of a row shows.</summary>
     internal Pos PosOf(long line, long part, int column)
     {
         if (EditRendered(line, part) is not { } r) return new Pos(line, 0, 0);
         column = Math.Clamp(column, 0, r.Text.Length);
-        if (r.Line.Kind != JsonLineKind.Value) return new Pos(line, 0, column);
-        var span = r.Spans[^1];
-        int end = span.Column + span.Length;
-        if (column < span.Column) return part == 0 ? new Pos(line, 0, column) : new Pos(line, 1, span.Source);
-        if (column <= end) return new Pos(line, 1, _outline!.SourceOffsetAt(r, column));
-        if (!IsLastPart(r.Line, part)) return new Pos(line, 1, span.End);
-        int tail = end + (span.End < r.Line.ValueEnd ? 1 : 0); // after the ellipsis of a cut value
-        return column < tail ? new Pos(line, 1, r.Line.ValueEnd) : new Pos(line, 2, column - tail);
+        var pieces = Pieces(r);
+        if (pieces.Count == 0) return new Pos(line, 0, column);
+        if (column < pieces[0].Column) return part == 0 ? new Pos(line, 0, column) : new Pos(line, 1, pieces[0].Source);
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            var s = pieces[i];
+            if (column <= s.Column + s.Length) return new Pos(line, 1, _outline!.SourceOffsetAt(r, column));
+            if (i + 1 < pieces.Count && column < pieces[i + 1].Column)
+            {
+                // between the key and the value: the bytes of the colon and the spaces stand for the columns of ": "
+                long end = PieceEnd(r.Line, s);
+                return new Pos(line, 1, Math.Clamp(end + column - After(r, s), end, Math.Max(end, pieces[i + 1].Source - 1)));
+            }
+        }
+        var last = pieces[^1];
+        if (!IsLastPart(r.Line, part)) return new Pos(line, 1, last.End);
+        return new Pos(line, 2, column - After(r, last));
     }
 
     /// <summary>The column of row (<paramref name="line"/>, <paramref name="part"/>) where <paramref name="p"/> falls: 0 when it is before the row, the length when after.</summary>
@@ -233,19 +275,24 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     {
         if (p.Line < line) return 0;
         if (p.Line > line) return r.Text.Length;
-        if (r.Line.Kind != JsonLineKind.Value) return (int)Math.Clamp(p.At, 0, r.Text.Length);
-        var span = r.Spans[^1];
-        int end = span.Column + span.Length;
+        var pieces = Pieces(r);
+        if (pieces.Count == 0) return (int)Math.Clamp(p.At, 0, r.Text.Length);
         bool last = IsLastPart(r.Line, part);
-        int tail = end + (last && span.End < r.Line.ValueEnd ? 1 : 0);
-        return p.Region switch
+        int tail = After(r, pieces[^1]);
+        if (p.Region == 0) return part == 0 ? (int)Math.Min(p.At, pieces[0].Column) : 0;
+        if (p.Region == 2) return last ? (int)Math.Min(r.Text.Length, tail + p.At) : r.Text.Length;
+        if (p.At < pieces[0].Source) return 0;
+        for (int i = 0; i < pieces.Count; i++)
         {
-            0 => part == 0 ? (int)Math.Min(p.At, span.Column) : 0,
-            1 when p.At < span.Source => 0,
-            1 when p.At > span.End => last ? tail : r.Text.Length,
-            1 => Math.Max(span.Column, _outline!.ColumnOfOffset(r, p.At)),
-            _ => last ? (int)Math.Min(r.Text.Length, tail + p.At) : r.Text.Length,
-        };
+            var s = pieces[i];
+            if (p.At <= s.End) return Math.Max(s.Column, _outline!.ColumnOfOffset(r, p.At));
+            if (i + 1 < pieces.Count && p.At < pieces[i + 1].Source)
+            {
+                int after = After(r, s);
+                return after + (int)Math.Clamp(p.At - PieceEnd(r.Line, s), 0, Math.Max(0, pieces[i + 1].Column - after - 1));
+            }
+        }
+        return last ? tail : r.Text.Length;
     }
 
     private Pos CaretPos => PosOf(_caretLine, _caretPart, _caretColumn);
@@ -275,7 +322,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     {
         if (_outline is null || LineAt(p.Line) is not { } l) return Doc.ByteLength;
         if (p.Region == 1) return p.At;
-        if (p.Region == 2) return end ? l.End : l.ValueEnd;
+        if (p.Region == 2) return end ? l.End : l.Kind is JsonLineKind.Open or JsonLineKind.Empty ? l.ValueStart : l.ValueEnd;
         var r = _outline.Render(l, Indent);
         long at = _outline.SourceOffsetAt(r, (int)Math.Min(p.At, r.Text.Length));
         if (at >= 0) return at;
@@ -340,26 +387,40 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         return text.ToString();
     }
 
+    /// <summary>
+    /// The selected part of a line with whole keys and values: the text before the first piece, each piece read from the document, and the text between
+    /// and after the pieces as the screen shows it, so a piece of hundreds of MiB is read only as far as it is selected.
+    /// </summary>
     private void AppendLine(StringBuilder text, JsonLine l, Pos? from, Pos? to)
     {
         var r = _outline!.Render(l, Indent);
-        if (l.Kind != JsonLineKind.Value)
+        var pieces = Pieces(r);
+        void Literal(int start, int end, int a, int b)
         {
-            int a = from is { } f ? (int)Math.Min(f.At, r.Text.Length) : 0, b = to is { } t ? (int)Math.Min(t.At, r.Text.Length) : r.Text.Length;
-            if (b > a) text.Append(r.Text, a, b - a);
+            a = Math.Clamp(a, 0, end - start);
+            b = Math.Clamp(b, 0, end - start);
+            if (b > a) text.Append(r.Text, start + a, b - a);
+        }
+        if (pieces.Count == 0)
+        {
+            Literal(0, r.Text.Length, from is { } f ? (int)Math.Min(f.At, int.MaxValue) : 0, to is { } t ? (int)Math.Min(t.At, int.MaxValue) : int.MaxValue);
             return;
         }
-        var span = r.Spans[^1];
-        string head = r.Text[..span.Column], tail = l.Comma ? "," : "";
-        int ha = from is { } f0 ? (f0.Region == 0 ? (int)Math.Min(f0.At, head.Length) : head.Length) : 0;
-        int hb = to is { } t0 ? (t0.Region == 0 ? (int)Math.Min(t0.At, head.Length) : head.Length) : head.Length;
-        if (hb > ha) text.Append(head, ha, hb - ha);
-        long va = from is { } f1 ? (f1.Region == 0 ? l.ValueStart : f1.Region == 1 ? f1.At : l.ValueEnd) : l.ValueStart;
-        long vb = to is { } t1 ? (t1.Region == 0 ? l.ValueStart : t1.Region == 1 ? t1.At : l.ValueEnd) : l.ValueEnd;
-        if (vb > va) text.Append(_outline.ReadText(va, vb));
-        int ta = from is { Region: 2 } f2 ? (int)Math.Min(f2.At, tail.Length) : 0;
-        int tb = to is { } t2 ? (t2.Region == 2 ? (int)Math.Min(t2.At, tail.Length) : 0) : tail.Length;
-        if (tb > ta) text.Append(tail, ta, tb - ta);
+        int Head(Pos? p, int none) => p is not { } q ? none : q.Region == 0 ? (int)Math.Min(q.At, int.MaxValue) : int.MaxValue;
+        Literal(0, pieces[0].Column, Head(from, 0), Head(to, int.MaxValue));
+        for (int i = 0; i < pieces.Count; i++)
+        {
+            var s = pieces[i];
+            long end = PieceEnd(l, s);
+            long Bytes(Pos? p, long none) => p is not { } q ? none : q.Region == 0 ? s.Source : q.Region == 1 ? Math.Clamp(q.At, s.Source, end) : end;
+            long va = Bytes(from, s.Source), vb = Bytes(to, end);
+            if (vb > va) text.Append(_outline.ReadText(va, vb));
+            int after = After(r, s), next = i + 1 < pieces.Count ? pieces[i + 1].Column : r.Text.Length;
+            int Gap(Pos? p, int none) => p is not { } q ? none
+                : i + 1 == pieces.Count ? (q.Region == 2 ? (int)Math.Min(q.At, int.MaxValue) : 0)
+                : q.Region == 0 || (q.Region == 1 && q.At <= end) ? 0 : q.Region == 1 && q.At < pieces[i + 1].Source ? (int)(q.At - end) : int.MaxValue;
+            Literal(after, next, Gap(from, 0), Gap(to, int.MaxValue));
+        }
     }
 
     /// <summary>The document bytes of a selection that lies inside one key, value, raw or comment piece: the only selections an edit may replace.</summary>
@@ -367,17 +428,9 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     {
         a = b = -1;
         if (_outline is null || Selection is not { } sel || sel.Start.Line != sel.End.Line || LineAt(sel.Start.Line) is not { } l) return false;
-        if (sel.Start.Region == 1 && sel.End.Region == 1)
-        {
-            (a, b) = (sel.Start.At, sel.End.At);
-            return true;
-        }
-        if (sel.Start.Region != 0 || sel.End.Region != 0) return false;
-        var r = _outline.Render(l, Indent);
-        int from = (int)sel.Start.At, to = (int)sel.End.At;
-        if (r.SpanAt(from) is not { } s1 || r.SpanAt(to) is not { } s2 || s1 != s2) return false;
-        (a, b) = (_outline.SourceOffsetAt(r, from), _outline.SourceOffsetAt(r, to));
-        return a >= 0 && b >= a;
+        if (sel.Start.Region != 1 || sel.End.Region != 1) return false;
+        (a, b) = (sel.Start.At, sel.End.At);
+        return (l.HasKey && a >= l.KeyStart && b <= l.KeyEnd) || (l.Kind is not (JsonLineKind.Open or JsonLineKind.Close or JsonLineKind.Empty) && a >= l.ValueStart && b <= l.ValueEnd);
     }
 
     /// <summary>True when the selection can be cut; otherwise says why.</summary>
@@ -490,18 +543,17 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     }
 
     /// <summary>The column where the value piece of the caret row starts: on a continuation row of a wrapped value the caret does not go into the indent.</summary>
-    private int RowStart(long line, long part) => part > 0 && EditRendered(line, part) is { Spans.Count: > 0 } r ? r.Spans[^1].Column : 0;
+    private int RowStart(long line, long part) => part > 0 && EditRendered(line, part) is { Spans.Count: > 0 } r ? r.Spans[0].Column : 0;
 
     private void StepRight()
     {
         if (_caretColumn < RowLength(_caretLine, _caretPart))
         {
-            if (_caretLine != _expanded && LineAt(_caretLine) is { } l && JsonOutline.IsLong(l) && EditRendered(_caretLine, 0) is { } r
-                && _caretColumn == r.Spans[^1].Column + r.Spans[^1].Length)
+            if (_caretLine != _expanded && EditRendered(_caretLine, 0) is { } r && CutAt(r, _caretColumn) is { } cut)
             {
-                // at the cut of a long value: wrap it and go on inside
+                // at the cut of a long key or value: wrap the line and go on inside
                 _expanded = _caretLine;
-                CaretToOffset(_caretLine, r.Spans[^1].End);
+                CaretToOffset(_caretLine, cut.End);
             }
             MoveCaret(_caretLine, _caretColumn + 1, part: _caretPart);
             return;
@@ -534,7 +586,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         _anchor = null;
         if (LineAt(line) is { } l && EditRendered(line, 0) is { } r && r.Spans.Any(s => s.Kind != JsonTokenKind.Punctuation && s.Source <= start))
         {
-            if (JsonOutline.IsLong(l) && start >= l.ValueStart) CaretToOffset(line, Math.Min(start, l.ValueEnd));
+            if (JsonOutline.IsLong(l) && start >= JsonOutline.SourceOffsetOf(l)) CaretToOffset(line, Math.Min(start, l.Kind == JsonLineKind.Value ? l.ValueEnd : l.KeyEnd));
             else
             {
                 int column = _outline.ColumnOfOffset(r, start);
@@ -598,8 +650,8 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     }
 
     /// <summary>
-    /// Wraps the long value on the caret line over rows as wide as the view, so all of it can be read and edited, or unwraps it again; the caret
-    /// keeps its place. One value is wrapped at a time. A value of at most <see cref="JsonOutline.MaxShownBytes"/> has nothing to wrap.
+    /// Wraps the long key or value on the caret line over rows as wide as the view, so all of it can be read and edited, or unwraps it again; the caret
+    /// keeps its place. One line is wrapped at a time. A line whose key and value are at most <see cref="JsonOutline.MaxShownBytes"/> has nothing to wrap.
     /// </summary>
     public bool ToggleExpand()
     {
@@ -797,12 +849,11 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         }
         if (extend) _anchor ??= CaretPos;
         else _anchor = null;
-        if (line != _expanded && LineAt(line) is { } l && JsonOutline.IsLong(l) && EditRendered(line, 0) is { } r && column > r.Spans[^1].Column + r.Spans[^1].Length
-            && column <= r.Spans[^1].Column + r.Spans[^1].Length + 1)
+        if (line != _expanded && column > 0 && EditRendered(line, 0) is { } r && CutAt(r, column - 1) is { } cut)
         {
-            // a click on the ellipsis of a cut value wraps the value
+            // a click on the ellipsis of a cut key or value wraps the line
             _expanded = line;
-            CaretToOffset(line, r.Spans[^1].End);
+            CaretToOffset(line, cut.End);
         }
         else MoveCaret(line, column, part: part);
         if (!extend) _anchor = CaretPos;
@@ -867,6 +918,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
             base.OnSizeChanged(e);
+            owner.UpdatePartBytes();
             owner.UpdateScrollRange();
         }
 

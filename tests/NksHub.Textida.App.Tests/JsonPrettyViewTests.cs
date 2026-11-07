@@ -133,6 +133,23 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Commands_for_an_editable_text_are_disabled_in_the_formatted_view_while_cut_and_paste_stay()
+    {
+        Open(Sample);
+        var context = new ShellContext(_w, forMenu: true);
+        bool Enabled(string id) => _app.Workbench.Commands.TryGet(id, out var command) && command.IsEnabled(context);
+        string[] textOnly = ["nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.sortLines", "nks.edit.formatJson", "nks.search.replaceAll", "nks.format.eolLf"];
+        Assert.All(textOnly, id => Assert.True(Enabled(id), id));
+        Show();
+        Assert.Equal(("true", "true"), (context.Get(ContextKeys.ReadOnly), context.Get(ContextKeys.JsonPretty)));
+        Assert.All(textOnly, id => Assert.False(Enabled(id), id));
+        Assert.All(["nks.edit.cut", "nks.edit.paste", "nks.edit.undo", "nks.edit.copy"], id => Assert.True(Enabled(id), id));
+        Run("nks.view.jsonPretty");
+        Assert.Equal("false", context.Get(ContextKeys.JsonPretty));
+        Assert.All(textOnly, id => Assert.True(Enabled(id), id));
+    }
+
+    [AvaloniaFact]
     public async Task A_large_single_line_file_shows_its_first_screen_from_a_few_blocks_and_saves_unchanged()
     {
         var json = new StringBuilder("[");
@@ -317,6 +334,63 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void After_a_resize_the_caret_stays_on_its_character_in_a_wrapped_value()
+    {
+        string json = "{\"k\":\"" + new string('x', 9000) + "\",\"n\":1}";
+        Open(json);
+        _w.Width = 900;
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, 0);
+        Press(Key.End);
+        Assert.Equal(1, view.ExpandedLine);
+        view.MoveCaret(1, 10, part: 20);
+        long offset = view.SourceOffset;
+        int partBytes = view.PartBytes;
+        Assert.Equal(20, view.CaretPart);
+
+        _w.Width = 1800;
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(view.PartBytes > partBytes, $"{view.PartBytes} bytes per row after {partBytes}");
+        Assert.True(view.CaretPart < 20);
+        Assert.Equal(offset, view.SourceOffset);
+    }
+
+    [AvaloniaFact]
+    public async Task A_long_key_wraps_over_rows_and_can_be_edited_and_copied_whole()
+    {
+        string key = new('k', 6000);
+        string json = "{\"" + key + "\":1,\"n\":2}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        Assert.EndsWith("k…: 1,", view.RowText(1));
+
+        view.MoveCaret(1, 0);
+        Press(Key.End);
+        Assert.Equal(1, view.ExpandedLine);
+        long parts = view.CaretPart + 1;
+        Assert.True(parts > 1);
+        Assert.StartsWith("    k", view.RowText(2));
+        Assert.EndsWith("k\": 1,", view.RowText(parts));
+        Assert.Equal("  \"n\": 2", view.RowText(parts + 1));
+
+        for (int i = 0; i < 5; i++) Press(Key.Left); // over ",", "1", " ", ":" and the closing quote
+        TestApp.Type(_w, "Z");
+        Assert.Equal(json.Replace("k\":", "kZ\":"), Text(tab));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.expandValue"));
+        Assert.Equal(-1, view.ExpandedLine);
+        view.MoveCaret(1, 0);
+        Press(Key.Down, RawInputModifiers.Shift);
+        Run("nks.edit.copy");
+        Assert.Equal(Lines("  \"" + key + "Z\": 1,", ""), await Clip());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.copySource"));
+        Assert.Equal("\"" + key + "Z\":1,", await Clip());
+    }
+
+    [AvaloniaFact]
     public void A_jsonc_file_shows_its_comments_on_lines_of_their_own()
     {
         Open("{\n  // compiler options\n  \"compilerOptions\": {\"strict\": true,},\n}\n", name: "tsconfig.json");
@@ -326,5 +400,26 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal("  // compiler options", view.RowText(1));
         Assert.Equal("    \"strict\": true,", view.RowText(3));
         Assert.Equal("}", view.RowText(5));
+    }
+
+    [AvaloniaFact]
+    public async Task A_comment_between_a_key_and_its_value_gets_a_line_and_saving_keeps_the_bytes()
+    {
+        string text = "{\n  \"a\" /* why */ : 1,\n  \"b\": // note\n    \"x\"\n}\n";
+        var tab = Open(text, name: "tsconfig.json");
+        var view = Show();
+        Scan(view);
+        Assert.Null(view.Outline!.Error);
+        Assert.Equal(["{", "  \"a\":", "  /* why */", "  1,", "  \"b\":", "  // note", "  \"x\"", "}"], Enumerable.Range(0, 8).Select(r => view.RowText(r)));
+        view.MoveCaret(6, 4); // after x
+        Assert.Contains("$.b", _w.StatusLeftText);
+        TestApp.Type(_w, "y");
+        view.MoveCaret(4, 4); // after the b of the key
+        TestApp.Type(_w, "c");
+        string expected = text.Replace("\"x\"", "\"xy\"").Replace("\"b\"", "\"bc\"");
+        Assert.Equal(expected, Text(tab));
+        Assert.Equal("  \"bc\":", view.RowText(4));
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(tab.Doc.Path!));
     }
 }

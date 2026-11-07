@@ -373,6 +373,60 @@ public class JsonOutlineTests
         Assert.Equal(fresh.GetLines(0, int.MaxValue).Select(l => fresh.Render(l).Text), outline.GetLines(0, int.MaxValue).Select(l => outline.Render(l).Text));
     }
 
+    /// <summary>A source whose reads past <paramref name="gate"/> wait until <see cref="Open"/> is set, counting the bytes read.</summary>
+    private sealed class Gated(IByteSnapshot inner, long gate) : IByteSnapshot
+    {
+        public readonly ManualResetEventSlim Reached = new(), Open = new();
+        public long Reads;
+        public long ByteLength => inner.ByteLength;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            if (offset + destination.Length > gate && !Open.IsSet)
+            {
+                Reached.Set();
+                Open.Wait(TimeSpan.FromSeconds(30));
+            }
+            int n = inner.Read(offset, destination);
+            Interlocked.Add(ref Reads, n);
+            return n;
+        }
+    }
+
+    [Fact]
+    public void Typing_while_the_background_scan_runs_lets_the_scan_go_on_instead_of_reading_again()
+    {
+        var json = new StringBuilder("[");
+        for (int i = 0; i < 600; i++) json.Append("\"s").Append(i).Append("\",");
+        int stringStart = json.Length;
+        json.Append('"').Append('a', 16 << 20).Append("\",1]");
+        var bytes = Encoding.ASCII.GetBytes(json.ToString());
+        var source = new Gated(new ArraySnapshot(bytes), stringStart + (8 << 20));
+        using var outline = new JsonOutline(source, 0, TextCodec.Utf8);
+        Assert.Equal("  \"s3\",", outline.Render(outline.GetLines(0, 10)[4]).Text);
+        outline.Start();
+        Assert.True(source.Reached.Wait(TimeSpan.FromSeconds(30))); // the scan noted the first segment and stands inside the long string
+
+        long at = json.ToString().IndexOf("\"s3\"", StringComparison.Ordinal) + 2;
+        var next = new Inserted(source, at, "x"u8.ToArray());
+        Assert.True(outline.Update(next, at, 0, 1));
+        outline.Start(); // what an edit of the document does
+        long before = Interlocked.Read(ref source.Reads);
+        source.Open.Set();
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); !outline.State.Complete && sw.ElapsedMilliseconds < 30_000;) Thread.Sleep(5);
+        Assert.True(outline.State.Complete);
+        long read = Interlocked.Read(ref source.Reads) - before;
+        Assert.True(read < bytes.Length - stringStart - (8 << 20) + (1 << 20), $"the scan read {read} bytes after the edit");
+
+        using var fresh = new JsonOutline(next, 0, TextCodec.Utf8);
+        fresh.ScanToEnd();
+        Assert.Equal(fresh.State, outline.State);
+        Assert.Equal(fresh.SegmentCount, outline.SegmentCount);
+        Assert.Equal("  \"sx3\",", outline.Render(outline.GetLine(4)!.Value).Text);
+        Assert.Equal("  1", outline.Render(outline.GetLine(602)!.Value).Text);
+        Assert.Equal(fresh.GetLine(601)!.Value.ValueEnd, outline.GetLine(601)!.Value.ValueEnd);
+    }
+
     [Fact]
     public void A_long_value_wraps_into_parts_that_cover_it_whole()
     {
@@ -400,18 +454,63 @@ public class JsonOutlineTests
     }
 
     [Fact]
+    public void A_long_key_wraps_into_rows_before_its_long_value_and_takes_edits_past_the_cut()
+    {
+        string key = string.Concat(Enumerable.Range(0, 4000).Select(i => i % 5 == 1 ? "č" : "k")), value = new('v', 5000);
+        string json = "{\"" + key + "\":\"" + value + "\",\"n\":1}";
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc);
+        outline.ScanToEnd();
+        var line = outline.GetLine(1)!.Value;
+        Assert.True(JsonOutline.IsLong(line));
+        Assert.Contains("…: \"vvv", outline.Render(line).Text);
+        long parts = JsonOutline.PartCount(line, 100);
+        var rows = Enumerable.Range(0, (int)parts).Select(p => outline.RenderPart(line, p, 100)).ToList();
+        Assert.StartsWith("  \"k", rows[0].Text);
+        Assert.All(rows.Skip(1), r => Assert.StartsWith("    ", r.Text));
+        Assert.EndsWith("v\",", rows[^1].Text);
+        string Piece(JsonRenderedLine r, JsonTokenKind kind) => string.Concat(r.Spans.Where(s => (s.Kind == JsonTokenKind.Key) == (kind == JsonTokenKind.Key) && s.Kind != JsonTokenKind.Punctuation).Select(s => r.Text.Substring(s.Column, s.Length)));
+        Assert.Equal("\"" + key + "\"", string.Concat(rows.Select(r => Piece(r, JsonTokenKind.Key))));
+        Assert.Equal("\"" + value + "\"", string.Concat(rows.Select(r => Piece(r, JsonTokenKind.String))));
+        Assert.Contains(rows, r => r.Text.Contains("k\": \"v", StringComparison.Ordinal)); // the last row of the key starts the value
+        Assert.Equal("  \"" + key + "\": \"" + value + "\",", outline.RenderFull(line).Text);
+
+        long inside = outline.SourceOffsetAt(rows[20], rows[20].Spans[0].Column + 3);
+        Assert.Equal(20, outline.PartOf(line, inside, 100));
+        Assert.Equal(rows[20].Spans[0].Column + 3, outline.ColumnOfOffset(rows[20], inside));
+        var bytes = Encoding.UTF8.GetBytes(json);
+        doc.Insert(inside, "Z"u8.ToArray());
+        Assert.Equal(Encoding.UTF8.GetString([.. bytes[..(int)inside], (byte)'Z', .. bytes[(int)inside..]]), Text(doc));
+        Assert.Contains("Z", outline.RenderFull(outline.GetLine(1)!.Value).Text);
+        AssertSameAsFresh(doc, outline);
+    }
+
+    [Fact]
     public void Jsonc_comments_get_lines_of_their_own_and_trailing_commas_pass()
     {
-        string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* hidden */ : [1, 2,],\n  \"c\": {\"d\": true,},\r\n}\n";
+        string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* before the colon */ : [1, 2,],\n  \"c\": // after the colon\r\n {\"d\": true,},\r\n}\n";
         using var doc = Make(json);
         using var outline = new JsonOutline(doc, comments: true);
-        Assert.Equal(["// top", "{", "  \"a\": 1,", "  // after a", "  /* block", "  second line */", "  \"b\": [", "    1,", "    2,", "  ],", "  \"c\": {", "    \"d\": true,", "  },", "}"], Pretty(outline));
+        Assert.Equal(["// top", "{", "  \"a\": 1,", "  // after a", "  /* block", "  second line */", "  \"b\":", "  /* before the colon */", "  [", "    1,", "    2,", "  ],",
+            "  \"c\":", "  // after the colon", "  {", "    \"d\": true,", "  },", "}"], Pretty(outline));
         Assert.Null(outline.Error);
         var comment = outline.GetLine(3)!.Value;
         Assert.Equal(JsonLineKind.Comment, comment.Kind);
         Assert.Equal(JsonTokenKind.Comment, outline.Render(comment).Spans[0].Kind);
         Assert.Equal("$", outline.PathOf(comment));
-        Assert.Equal(13, outline.FindClose(1));
+        Assert.Equal(17, outline.FindClose(1));
+        Assert.Equal(JsonLineKind.Key, outline.GetLine(6)!.Value.Kind);
+        Assert.Equal(["$.b", "$.b", "$.b[0]"], new long[] { 6, 8, 9 }.Select(n => outline.PathOf(outline.GetLine(n)!.Value)));
+        Assert.Equal("$.c.d", outline.PathOf(outline.GetLine(15)!.Value));
+        Assert.Equal(11, outline.FindClose(8));
+        Assert.Equal(12, outline.FindKey("c", 0)); // the key line, not the container below the comment
+        Assert.Equal(12, outline.FindKey("c", 12));
+
+        // typing into a key whose container comes after a comment renames the container in the paths
+        doc.Insert(json.IndexOf("\"c\"", StringComparison.Ordinal) + 2, "x"u8.ToArray());
+        outline.ScanToEnd();
+        AssertSameAsFresh(doc, outline, comments: true);
+        Assert.Equal("$.cx.d", outline.PathOf(outline.GetLine(15)!.Value));
 
         using var strict = new JsonOutline(doc);
         strict.ScanToEnd();
@@ -421,6 +520,34 @@ public class JsonOutlineTests
         doc.Insert(json.IndexOf("block", StringComparison.Ordinal), "*/"u8.ToArray());
         outline.ScanToEnd();
         AssertSameAsFresh(doc, outline, comments: true);
+    }
+
+    [Fact]
+    public void Edits_around_comments_between_keys_and_values_match_a_fresh_outline()
+    {
+        var text = new StringBuilder("{");
+        for (int i = 0; i < 1500; i++) text.Append(i > 0 ? "," : "").Append("\"k").Append(i).Append(i % 2 == 0 ? "\" /* c */ : {\"v\":" : "\": // c\n \"s\"").Append(i % 2 == 0 ? "1}" : "");
+        text.Append('}');
+        using var doc = Make(text.ToString());
+        using var outline = new JsonOutline(doc, comments: true);
+        outline.ScanToEnd();
+        Assert.Null(outline.Error);
+        var rng = new Random(11);
+        string[] inserts = ["x", "/", "*", "\"", " ", ":", "{", "}", "\n"];
+        for (int step = 0; step < 40; step++)
+        {
+            outline.GetLines(Math.Max(0, outline.State.Lines - 600), 100); // a decoded segment lets edits inside strings take the fast path
+            long at = 1 + rng.NextInt64(doc.ByteLength - 2);
+            if (step % 4 == 3) doc.Delete(new ByteRange(at, Math.Min(doc.ByteLength, at + rng.Next(1, 3))));
+            else doc.Insert(at, Encoding.UTF8.GetBytes(inserts[rng.Next(inserts.Length)]));
+            outline.ScanToEnd();
+            AssertSameAsFresh(doc, outline, comments: true);
+            using var fresh = new JsonOutline(doc.GetSnapshot(), 0, TextCodec.Utf8, comments: true);
+            fresh.ScanToEnd();
+            var expected = fresh.GetLines(0, int.MaxValue);
+            var actual = outline.GetLines(0, int.MaxValue);
+            for (int i = 0; i < expected.Count; i += 53) Assert.Equal(fresh.PathOf(expected[i]), outline.PathOf(actual[i]));
+        }
     }
 
     [Theory]

@@ -89,7 +89,7 @@
       "category": "cat.edit",
       "icon": "cut",
       "when": "editorFocus",
-      "enablement": "!readOnly || largeFileMode",
+      "enablement": "!readOnly || largeFileMode || jsonPretty",
       "macro": true
     },
     {
@@ -106,7 +106,7 @@
       "category": "cat.edit",
       "icon": "paste",
       "when": "editorFocus",
-      "enablement": "!readOnly || largeFileMode",
+      "enablement": "!readOnly || largeFileMode || jsonPretty",
       "macro": true
     },
     {
