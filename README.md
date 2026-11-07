@@ -21,7 +21,10 @@ The editor is a new program inspired by PSPad; it does not use PSPad code, data 
 - 📄 **Paged documents** - reads visible ranges from disk and keeps edits separately, with undo and byte-preserving saves.
 - 🔍 **Search and navigation** - literal and regular-expression search, cancellation, line and byte-offset navigation.
 - 🔤 **Text and hex** - encoding detection, explicit encoding conversion, text editing and a hex view over the same document.
-- 📝 **Markdown** - reading, editing and source modes, native preview, table editing and a generated table of contents.
+- 📝 **Markdown** - reading, editing and source modes; the reader lays out only visible blocks, uses GitHub's typography, selects across blocks and has a dockable headings panel.
+- 🎨 **Colour themes** - ten editor themes, per-token colour, bold and italic, import from TextMate and VS Code themes.
+- 🗂️ **Large JSON** - a formatted view that reads the file in blocks in the background and edits values in place.
+- 🌿 **Git** - commit panel with per-change boxes, pull that fetches first, incoming and outgoing counts in the status bar.
 - 🧩 **Bundled tools** - separate plugin processes for formatting, text statistics, hashes and language tools, plus an MCP server.
 - 📦 **Desktop packages** - Windows installer and portable ZIP, macOS DMG and ZIP, and Linux packages. Published NativeAOT builds include their runtime.
 
@@ -29,7 +32,7 @@ The editor is a new program inspired by PSPad; it does not use PSPad code, data 
 
 - Windows 10 22H2 or newer (x64), or macOS 14 or newer (Apple silicon and Intel)
 - Linux preview: Debian 12 or newer, or Ubuntu 22.04 or newer, on x64 or ARM64
-- .NET SDK 10.0.402 (pinned in `global.json`) to build from source; downloaded NativeAOT packages do not require an installed .NET runtime
+- .NET SDK 10.0.403 (pinned in `global.json`) to build from source; downloaded NativeAOT packages do not require an installed .NET runtime
 - [ripgrep](https://github.com/BurntSushi/ripgrep) only for the search comparison benchmark
 
 ## Installation
