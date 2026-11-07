@@ -166,6 +166,11 @@ internal sealed class EditorColorTheme
         }
         double strength = IsDark ? 0.3 : 0.22;
         var numbers = Readable(Over(Colors[LineNumbers], back), IsDark, back, line);
+        var danger = Readable(Over(Colors["log.error"], back), IsDark, back, line);
+        // the hex minimap: the theme's minimap colour, moved towards the background until its accent marks and frame (and red marks) stand out at 3 : 1
+        var minimap = Over(Colors[Minimap], back);
+        for (int step = 0; step <= 50 && (ContrastColors.Ratio(accent, minimap) < 3 || ContrastColors.Ratio(danger, minimap) < 3); step++) minimap = Mix(minimap, back, 0.1);
+        if (ContrastColors.Ratio(accent, minimap) < 3 || ContrastColors.Ratio(danger, minimap) < 3) minimap = back;
         return new Dictionary<string, Color>(StringComparer.Ordinal)
         {
             ["BgEditor"] = back,
@@ -178,7 +183,8 @@ internal sealed class EditorColorTheme
             ["SelectionBg"] = Tint(Over(Colors[Selection], back), 1),
             ["CurrentLine"] = Tint(line, 1),
             ["Border"] = Over(Color.FromArgb(0x66, numbers.R, numbers.G, numbers.B), back),
-            ["Danger"] = Readable(Over(Colors["log.error"], back), IsDark, back, line),
+            ["Danger"] = danger,
+            ["MinimapBg"] = minimap,
             ["Highlight"] = Tint(Over(Colors["log.highlight"], back), 1),
             ["WarnBg"] = Tint(ChangedHue, strength),
             ["DiffRemoved"] = Tint(RemovedHue, strength),

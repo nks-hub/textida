@@ -2583,6 +2583,7 @@
   "settings.section.editor.onSave": "Beim Speichern",
   "settings.section.editor.languages": "Sprachen",
   "settings.section.files.open": "Dateien öffnen",
+  "settings.section.markdown": "Markdown",
   "settings.section.files.save": "Speichern und Wiederherstellung",
   "settings.section.files.remote": "Entfernte Dateien",
   "settings.section.files.secrets": "Geheime Dateien",

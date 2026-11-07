@@ -104,7 +104,100 @@ public class MarkdownGfmRenderTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(MarkdownReader.PagePaddingY + 8, host.Reader.BlockBounds(0).Top, 3);
     }
 
-    private static double LeftEdge(ReaderHost host) => (host.Reader.Bounds.Width - Math.Min(MarkdownReader.ColumnMax, host.Reader.Bounds.Width - 2 * MarkdownReader.PagePaddingX)) / 2;
+    private static double LeftEdge(ReaderHost host) => MarkdownReader.SideMargin(host.Reader.Bounds.Width);
+
+    // ---- the column follows the window ----
+
+    private const string WideTable = "Text before the table.\n\n| Name | Description | Owner | State | Notes |\n|---|---|---|---|---|\n"
+        + "| Alpha module | The longest description of a cell that would wrap word by word when squeezed | Team one | In progress | Waits for the review of the second part |\n"
+        + "| Beta | Short | Team two | Done | - |\n\n```\nshort code\n```\n";
+
+    [AvaloniaFact]
+    public void The_column_of_text_follows_the_width_of_the_window()
+    {
+        foreach (double width in new[] { 500.0, 1000, 1920 })
+        {
+            var host = Host("A paragraph of text.\n\n" + WideTable, width);
+            double margin = Math.Max(24, 0.04 * host.Reader.Bounds.Width);
+            var text = host.Reader.BlockBounds(0);
+            Assert.Equal(margin, text.Left, 3);
+            Assert.Equal(host.Reader.Bounds.Width - 2 * margin, text.Width, 3);
+        }
+        // a resize lays out only what is in view again and keeps the selection on the same text
+        var resized = Host(string.Concat(Enumerable.Range(0, 400).Select(i => $"Paragraph {i} with some words.\n\n")), 800, 600);
+        resized.Reader.Select(5, 14);
+        string selected = resized.Reader.SelectedText();
+        resized.Window.Width = 1600;
+        resized.Settle();
+        double page = resized.Reader.Bounds.Width;
+        Assert.True(page > 1500);
+        Assert.Equal(page - 2 * MarkdownReader.SideMargin(page), resized.Reader.BlockBounds(0).Width, 3);
+        Assert.True(resized.Reader.LaidCount < 60, $"{resized.Reader.LaidCount} blocks laid out after the resize");
+        Assert.Equal(selected, resized.Reader.SelectedText());
+    }
+
+    [AvaloniaFact]
+    public void The_max_width_setting_narrows_the_text_and_leaves_tables_and_code_the_whole_width()
+    {
+        var host = Host(WideTable, 1920);
+        host.Reader.MaxTextWidth = 980;
+        host.Settle();
+        double page = host.Reader.Bounds.Width, margin = MarkdownReader.SideMargin(page);
+        var text = host.Reader.BlockBounds(0);
+        Assert.Equal(980, text.Width, 3);
+        Assert.Equal((page - 980) / 2, text.Left, 3);
+        int row = host.Find(b => b.Kind == ReaderBlockKind.TableRow);
+        int code = host.Find(b => b.Kind == ReaderBlockKind.Code);
+        foreach (int wide in new[] { row, code })
+        {
+            Assert.Equal(margin, host.Reader.BlockBounds(wide).Left, 3);
+            Assert.Equal(page - 2 * margin, host.Reader.BlockBounds(wide).Width, 3);
+        }
+        Assert.True(host.Reader.ColumnWidths(0).Sum() > 980, "the table is wider than the column of text");
+        Assert.All(Enumerable.Range(0, 5), c => Assert.Single(host.Reader.LayoutOf(row + 1, c)!.TextLines)); // nothing wraps at 1920 px
+
+        host.Reader.MaxTextWidth = 0;
+        host.Settle();
+        Assert.Equal(page - 2 * margin, host.Reader.BlockBounds(0).Width, 3);
+    }
+
+    [AvaloniaFact]
+    public void A_wide_table_scrolls_sideways_instead_of_squeezing_its_columns()
+    {
+        var host = Host(WideTable, 600);
+        int row = host.Find(b => b.Kind == ReaderBlockKind.TableRow && b.Text.StartsWith("Alpha", StringComparison.Ordinal));
+        var widths = host.Reader.ColumnWidths(0);
+        double room = host.Reader.BlockBounds(row).Width;
+        Assert.True(widths.Sum() > room, $"{widths.Sum()} in {room}");
+        Assert.True(widths[1] >= MarkdownReader.TableColumnMinEm * 16 - 0.01, $"the long column is squeezed to {widths[1]}");
+        Assert.True(host.Reader.LayoutOf(row, 1)!.TextLines.Count < 8, "the long cell of 15 words does not wrap word by word");
+
+        // Shift+wheel over the table scrolls it, and the text under the pointer moves with it
+        int group = host.Doc.Blocks[row].Group;
+        var cell = host.Reader.BoxOrigin(row, 1)!.Value;
+        var before = host.Reader.PositionAt(cell + new Vector(4, 4));
+        host.Reader.ScrollCode(group, 100);
+        Assert.Equal(100, host.Reader.CodeScroll(group), 3);
+        Assert.NotEqual(before, host.Reader.PositionAt(cell + new Vector(4, 4)));
+        Assert.Equal(before, host.Reader.PositionAt(cell + new Vector(4 - 100, 4)));
+        host.Reader.ScrollCode(group, double.PositiveInfinity);
+        Assert.Equal(widths.Sum() - room, host.Reader.CodeScroll(group), 3);
+    }
+
+    [AvaloniaFact]
+    public void A_wide_table_renders_at_full_hd()
+    {
+        var host = Host("# Wide page\n\nA paragraph that runs across the whole window now that the column of text follows its width instead of standing in a fixed narrow column in the middle.\n\n"
+            + WideTable, 1920, 1080);
+        var frame = host.Window.CaptureRenderedFrame();
+        Assert.NotNull(frame);
+        string folder = Environment.GetEnvironmentVariable("TEXTIDA_MD_RENDER_OUT") is { Length: > 0 } wanted ? wanted : Path.Combine(Path.GetTempPath(), "textida-md-render");
+        Directory.CreateDirectory(folder);
+        string file = Path.Combine(folder, "wide-table-1920.png");
+        frame!.Save(file);
+        output.WriteLine(file);
+        Assert.True(new FileInfo(file).Length > 5_000);
+    }
 
     [AvaloniaFact]
     public void An_unknown_alert_kind_keeps_its_word_as_the_title()
@@ -409,6 +502,20 @@ public class MarkdownGfmRenderTests(ITestOutputHelper output) : IDisposable
             var point = wrapped.Reader.PointAt(text.DocStart + offset)!.Value;
             if (offset > 0 && point == wrapped.Reader.PointAt(text.DocStart + offset - 1)) continue; // inside a ligature ("fi" in the fonts of macOS): one place, found at its start
             Assert.Equal(text.DocStart + offset, wrapped.Reader.PositionAt(point));
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_paragraph_cut_at_a_tall_picture_before_the_wrapping_space_adds_no_empty_line()
+    {
+        // the words before the picture grow one letter at a time, so the picture, and the space after it or before it, lands at the end of a line in some of the cases
+        for (int n = 30; n < 62; n++)
+        {
+            var host = Host("x" + string.Concat(Enumerable.Range(0, n).Select(i => i % 3 == 0 ? " ab" : "c")) + " ![bar](" + Tall + ") tail words here and more words to wrap the end.", 320);
+            var lines = Enumerable.Range(0, 32).Select(i => host.Reader.LayoutOf(0, i)).OfType<Avalonia.Media.TextFormatting.TextLayout>().SelectMany(l => l.TextLines).ToList();
+            Assert.All(lines, l => Assert.True(l.Width > 0, $"n={n}: an empty line at {l.FirstTextSourceIndex}"));
+            Assert.Equal(1, lines.Count(l => l.Height > 40));
+            Assert.Equal(lines.Sum(l => l.Height), host.Reader.BlockBounds(0).Height, 1);
         }
     }
 

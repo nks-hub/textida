@@ -331,6 +331,8 @@ internal sealed partial class SettingsWindow : Window
         _rowViews.Clear();
         _preview = null;
         _themeColorsShow = null;
+        string page = searching ? "\0search" : _selected;
+        if (page != _builtPage) (_builtPage, _themeNotice) = (page, null);
         // the nodes whose rows are listed, in the order of the tree: the selected one and what is under it, or every node with a match
         bool IsShown(Node n) => (byNode.ContainsKey(n.Id) && (searching || IsUnder(nodes, n.Id, _selected)))
             || (n.Id == SettingCategories.System && (searching ? systemHit : IsUnder(nodes, n.Id, _selected)));
@@ -403,7 +405,8 @@ internal sealed partial class SettingsWindow : Window
         (K.SettingsSectionIndent, ["editor.tabSize", "editor.indentSize", "editor.insertSpaces", "editor.detectIndentation"]),
         (K.SettingsSectionOnSave, ["files.trimTrailingWhitespace", "files.insertFinalNewline"]),
         (K.SettingsSectionLanguages, ["sql.dialect", "html.tidyPath"]),
-        (K.SettingsSectionOpening, ["files.binaryAsHex", "files.imageOpen", "markdown.defaultMode", "files.largeFileThreshold", "files.decompileAssemblies", "files.relatedFileRules", "files.showHidden"]),
+        (K.SettingsSectionOpening, ["files.binaryAsHex", "files.imageOpen", "files.largeFileThreshold", "files.decompileAssemblies", "files.relatedFileRules", "files.showHidden"]),
+        (K.SettingsSectionMarkdown, ["markdown."]),
         (K.SettingsSectionSaving, ["files.autoSave", "files.journalDirectory", "files.journalFallbackDirectory"]),
         (K.SettingsSectionRemote, ["remote."]),
         (K.SettingsSectionSecrets, ["files.secretFilePatterns"]),

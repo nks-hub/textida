@@ -20,9 +20,15 @@ internal sealed partial class MarkdownReader : Control
 {
     public static readonly StyledProperty<double> BaseFontSizeProperty = AvaloniaProperty.Register<MarkdownReader, double>(nameof(BaseFontSize), 16);
 
-    /// <summary>The widest the column of text gets; GitHub's article is 980 px with 45 px of padding.</summary>
-    internal const double ColumnMax = 890;
-    internal const double PagePaddingX = 32, PagePaddingY = 24;
+    public static readonly StyledProperty<double> MaxTextWidthProperty = AvaloniaProperty.Register<MarkdownReader, double>(nameof(MaxTextWidth));
+
+    internal const double PagePaddingY = 24;
+
+    /// <summary>The narrowest a table column is squeezed to, in multiples of the text size; a table that does not fit with its columns this narrow scrolls sideways.</summary>
+    internal const double TableColumnMinEm = 10;
+
+    /// <summary>The empty room at each side of the page: 4 % of its width, at least 24 px.</summary>
+    internal static double SideMargin(double width) => Math.Max(24, 0.04 * width);
 
     internal static readonly FontFamily Sans = new("Segoe UI, SF Pro Text, Helvetica Neue, Noto Sans, Liberation Sans, Arial");
     internal static readonly FontFamily Monospace = new("Consolas, SF Mono, Menlo, Liberation Mono, Courier New");
@@ -40,7 +46,7 @@ internal sealed partial class MarkdownReader : Control
     private readonly Dictionary<int, Laid> _laid = [];
     private readonly Dictionary<int, double[]> _columns = [];
     private readonly Dictionary<int, double> _codeScroll = [];
-    private double _width = -1, _left, _column;
+    private double _width = -1, _left, _column, _wideLeft, _wideColumn;
     private Rect _viewport;
     private double _pendingShift;
     private PreviewScrollMap? _map;
@@ -145,8 +151,6 @@ internal sealed partial class MarkdownReader : Control
         ContextMenu = BuildMenu();
     }
 
-    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new MarkdownReaderAutomationPeer(this);
-
     /// <summary>What a screen reader reads as the value of the page: the selection, or else the text of the blocks in view.</summary>
     internal string VisibleText()
     {
@@ -155,6 +159,13 @@ internal sealed partial class MarkdownReader : Control
         var view = View;
         int first = BlockAtY(view.Top), last = BlockAtY(view.Bottom);
         return string.Join('\n', Enumerable.Range(first, last - first + 1).Select(i => _doc.Blocks[i].Text).Where(t => t.Length > 0));
+    }
+
+    /// <summary>The widest the column of text gets (<c>markdown.readerMaxWidth</c>), 0 to follow the width of the page; tables and code at the top level take the whole width either way.</summary>
+    public double MaxTextWidth
+    {
+        get => GetValue(MaxTextWidthProperty);
+        set => SetValue(MaxTextWidthProperty, value);
     }
 
     public double BaseFontSize
@@ -184,14 +195,20 @@ internal sealed partial class MarkdownReader : Control
         Reset(old);
         RetranslateMenu();
         InvalidateMeasure();
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == BaseFontSizeProperty) Relayout();
+        else if (change.Property == MaxTextWidthProperty)
+        {
+            _width = -1; // the next measure lays the page out for the new column
+            InvalidateMeasure();
+        }
         else if (change.Property == IsFocusedProperty) InvalidateVisual();
+        else if (change.Property == Avalonia.Automation.AutomationProperties.NameProperty) _automation?.LabelChanged();
     }
 
     private void Relayout()
@@ -252,7 +269,7 @@ internal sealed partial class MarkdownReader : Control
     /// <summary>The left edge of the content of the first <paramref name="depth"/> containers of a block.</summary>
     private double LeftAt(ReaderBlock block, int depth)
     {
-        double x = _left;
+        double x = Wide(block) ? _wideLeft : _left;
         for (int i = 0; i < depth && i < block.Path.Length; i++) x += IndentEm(block.Path[i]) * Em;
         return x;
     }
@@ -263,8 +280,14 @@ internal sealed partial class MarkdownReader : Control
     {
         double right = 0;
         foreach (var c in block.Path) if (c.Kind is ReaderContainerKind.Quote or ReaderContainerKind.Alert) right += Em;
-        return Math.Max(Em * 4, _left + _column - right - Left(block));
+        return Math.Max(Em * 4, (Wide(block) ? _wideLeft + _wideColumn : _left + _column) - right - Left(block));
     }
+
+    /// <summary>A table or a code block outside any list or quote: it may be wider than the column of text, up to the margins of the page.</summary>
+    private static bool Wide(ReaderBlock block) => block.Path.Length == 0 && block.Kind is ReaderBlockKind.TableRow or ReaderBlockKind.Code;
+
+    /// <summary>How far a block that scrolls sideways (a code block or a table wider than its room) is scrolled.</summary>
+    private double ScrollOf(ReaderBlock block) => block.Kind is ReaderBlockKind.Code or ReaderBlockKind.TableRow ? _codeScroll.GetValueOrDefault(block.Group) : 0;
 
     private double FontSize(ReaderBlock block) => block.Kind switch
     {
@@ -358,7 +381,10 @@ internal sealed partial class MarkdownReader : Control
     internal Point? BoxOrigin(int index, int box = 0) => _laid.TryGetValue(index, out var laid) && box < laid.Boxes.Count ? laid.Boxes[box].Origin + new Point(0, _tops[index]) : null;
 
     /// <summary>The middle of the character at a position, on the page; null while its block is not laid out.</summary>
-    internal Point? PointAt(int position)
+    internal Point? PointAt(int position) => CaretBounds(position) is { } r ? new Point(r.X + 1, r.Y + r.Height / 2) : null;
+
+    /// <summary>The caret before the character at a position, on the page, as a line-high rectangle; null while its block is not laid out.</summary>
+    internal Rect? CaretBounds(int position)
     {
         int index = _doc.BlockAt(position);
         var b = _doc.Blocks[index];
@@ -368,10 +394,9 @@ internal sealed partial class MarkdownReader : Control
             if (offset >= box.Start && offset <= box.Start + box.Length)
             {
                 var r = box.Caret(offset - box.Start);
-                double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
-                return new Point(box.Origin.X - scroll + r.X + 1, _tops[index] + box.Origin.Y + r.Y + r.Height / 2);
+                return new Rect(box.Origin.X - ScrollOf(b) + r.X, _tops[index] + box.Origin.Y + r.Y, Math.Max(1, r.Width), r.Height);
             }
-        return new Point(Left(b) + 1, _tops[index] + laid.Height / 2);
+        return new Rect(Left(b), _tops[index], 1, laid.Height);
     }
 
     // ---- scroll map ----
@@ -427,11 +452,14 @@ internal sealed partial class MarkdownReader : Control
         if (Math.Abs(width - _width) > 0.5)
         {
             _width = width;
-            _column = Math.Min(ColumnMax, Math.Max(200, width - 2 * PagePaddingX));
+            _wideColumn = Math.Max(200, width - 2 * SideMargin(width));
+            _wideLeft = Math.Max(0, (width - _wideColumn) / 2);
+            _column = MaxTextWidth > 0 ? Math.Min(MaxTextWidth, _wideColumn) : _wideColumn;
             _left = Math.Max(0, (width - _column) / 2);
             foreach (var laid in _laid.Values) Detach(laid);
             _laid.Clear();
             _columns.Clear();
+            _codeScroll.Clear();
             for (int i = 0; i < _heights.Length; i++)
             {
                 _measured[i] = false;
@@ -440,6 +468,7 @@ internal sealed partial class MarkdownReader : Control
             _topsDirty = true;
         }
         DropResizedPictures(width);
+        _automation?.Measure(default);
         EnsureTops();
         var view = View;
         var (from, to) = RealizeRange(view);
@@ -470,6 +499,7 @@ internal sealed partial class MarkdownReader : Control
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        _automation?.Arrange(default);
         foreach (var (index, laid) in _laid)
         {
             if (laid.Embed is { } embed)
@@ -578,7 +608,8 @@ internal sealed partial class MarkdownReader : Control
     internal const int TableMeasuredRows = 256;
 
     /// <summary>
-    /// The column widths of a table: each column as wide as its widest cell laid out on one line with the fonts and styles of the page, and the table no wider than the column of text.
+    /// The column widths of a table: each column as wide as its widest cell laid out on one line with the fonts and styles of the page. A table wider than its room shrinks its wide columns, none
+    /// below <see cref="TableColumnMinEm"/>; what is still too wide scrolls sideways.
     /// <paramref name="measure"/> false (the estimate of a row that is not laid out) takes the widths from the characters until the table has been measured.
     /// </summary>
     private double[] Columns(ReaderBlock row, bool measure = true)
@@ -591,8 +622,7 @@ internal sealed partial class MarkdownReader : Control
         double sum = widths.Sum();
         if (sum > available)
         {
-            // shrink the wide columns first, never below a minimum that keeps a word readable
-            double minimum = Math.Min(6 * Em, available / Math.Max(1, widths.Length));
+            double minimum = TableColumnMinEm * Em;
             double room = sum - available, shrinkable = widths.Sum(w => Math.Max(0, w - minimum));
             if (shrinkable > 0)
                 for (int c = 0; c < widths.Length; c++) widths[c] -= Math.Max(0, widths[c] - minimum) * Math.Min(1, room / shrinkable);
@@ -786,26 +816,24 @@ internal sealed partial class MarkdownReader : Control
     }
 
     /// <summary>
-    /// A paragraph with a picture taller than its line, cut into boxes stacked one under the other: runs of ordinary lines keep the line height of the page, and a line with a tall picture gets the
-    /// height it needs (as in a browser, only that line grows). The cuts follow the lines of the whole paragraph, so the text wraps where it did.
+    /// A paragraph with a picture taller than its line, cut into one box per line stacked one under the other: ordinary lines keep the line height of the page, and a line with a tall picture gets
+    /// the height it needs (as in a browser, only that line grows). Each box holds exactly one line of the whole paragraph and does not wrap again, so the text breaks where it did; wrapping a cut
+    /// again would push the space that ends it onto an empty line of its own when it overhangs the width.
     /// </summary>
     private List<Box> SplitTallLines(ReaderBlock b, Box whole, IReadOnlyList<(int Offset, Control Control)> pictures, double width, IBrush brush, FontWeight weight)
     {
         var parts = new List<Box>();
         var lines = whole.Layout.TextLines;
         double y = 0;
-        for (int first = 0; first < lines.Count;)
+        for (int i = 0; i < lines.Count; i++)
         {
-            bool tall = lines[first].Extent > lines[first].Height + 0.5;
-            int last = first;
-            while (!tall && last + 1 < lines.Count && lines[last + 1].Extent <= lines[last + 1].Height + 0.5) last++;
-            int from = lines[first].FirstTextSourceIndex, to = lines[last].FirstTextSourceIndex + lines[last].Length;
-            int start = whole.FromLayout(from), end = last == lines.Count - 1 ? whole.Length : whole.FromLayout(to);
+            bool tall = lines[i].Extent > lines[i].Height + 0.5;
+            int from = lines[i].FirstTextSourceIndex, to = from + lines[i].Length;
+            int start = whole.FromLayout(from), end = i == lines.Count - 1 ? whole.Length : whole.FromLayout(to);
             var own = pictures.Where(x => whole.PicturePosition(x.Control) is var at && at >= from && at < to).ToList();
-            var part = TextBox(b, start, end - start, width, TextWrapping.Wrap, brush, Sans, weight, new Point(whole.Origin.X, y), pictures: own, lineHeight: tall ? double.NaN : null);
+            var part = TextBox(b, start, end - start, width, TextWrapping.NoWrap, brush, Sans, weight, new Point(whole.Origin.X, y), pictures: own, lineHeight: tall ? double.NaN : null);
             parts.Add(part);
             y += part.Layout.Height;
-            first = last + 1;
         }
         return parts;
     }
@@ -905,6 +933,7 @@ internal sealed partial class MarkdownReader : Control
         var p = Palette;
         double top = _tops[index], height = laid.Height, left = Left(b), width = BlockWidth(b);
         DrawContainers(dc, index, b, laid);
+        using var tableClip = b.Kind == ReaderBlockKind.TableRow ? dc.PushClip(new Rect(left, top, width + 1, height + 1)) : default(DrawingContext.PushedState?);
         switch (b.Kind)
         {
             case ReaderBlockKind.Rule:
@@ -925,7 +954,7 @@ internal sealed partial class MarkdownReader : Control
             case ReaderBlockKind.TableRow:
             {
                 var widths = Columns(b);
-                double x = left;
+                double x = left - ScrollOf(b);
                 var pen = new Pen(p.Border, 1);
                 bool stripe = !b.Header && b.Row % 2 == 1;
                 for (int c = 0; c < widths.Length; c++)
@@ -934,6 +963,7 @@ internal sealed partial class MarkdownReader : Control
                     dc.DrawRectangle(stripe ? p.Stripe : null, pen, cell);
                     x += widths[c];
                 }
+                if (b.GroupLast) DrawCodeScrollBar(dc, index, b, top + height);
                 break;
             }
             case ReaderBlockKind.AlertTitle:
@@ -958,7 +988,7 @@ internal sealed partial class MarkdownReader : Control
     private void DrawBox(DrawingContext dc, int index, ReaderBlock b, Box box, double top, int selStart, int selEnd)
     {
         var p = Palette;
-        double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
+        double scroll = ScrollOf(b);
         var origin = new Point(box.Origin.X - scroll, top + box.Origin.Y);
         using var clip = box.Clip > 0 ? dc.PushClip(new Rect(box.Origin.X, top, box.Clip, _heights[index])) : default(DrawingContext.PushedState?);
         if (b.Kind != ReaderBlockKind.Code)
@@ -1048,12 +1078,19 @@ internal sealed partial class MarkdownReader : Control
 
     // ---- code that scrolls sideways ----
 
-    /// <summary>How far the widest line of a code block reaches past its box; 0 when it fits. Measured over the slices that are laid out.</summary>
+    /// <summary>
+    /// How far the widest line of a code block reaches past its box, measured over the slices that are laid out, or how far a table's columns reach past its room; 0 when it fits.
+    /// </summary>
     private (double Overflow, double Clip) CodeOverflow(int group)
     {
         double widest = 0, clip = 0;
         for (int i = _realized.First; i <= _realized.Last && i < _doc.Blocks.Count; i++)
-            if (_doc.Blocks[i].Group == group && _doc.Blocks[i].Kind == ReaderBlockKind.Code && _laid.TryGetValue(i, out var laid) && laid.Boxes.Count > 0)
+            if (_doc.Blocks[i] is { Kind: ReaderBlockKind.TableRow } row && row.Group == group && _laid.ContainsKey(i))
+            {
+                double room = BlockWidth(row);
+                return (Math.Max(0, Columns(row).Sum() - room), room);
+            }
+            else if (_doc.Blocks[i].Group == group && _doc.Blocks[i].Kind == ReaderBlockKind.Code && _laid.TryGetValue(i, out var laid) && laid.Boxes.Count > 0)
             {
                 widest = Math.Max(widest, laid.Boxes[0].Layout.WidthIncludingTrailingWhitespace);
                 clip = laid.Boxes[0].Clip;
@@ -1064,13 +1101,13 @@ internal sealed partial class MarkdownReader : Control
     private Rect? CodeThumb(int index)
     {
         var b = _doc.Blocks[index];
-        if (b.Kind != ReaderBlockKind.Code || !b.GroupLast || !_laid.ContainsKey(index)) return null;
+        if (b.Kind is not (ReaderBlockKind.Code or ReaderBlockKind.TableRow) || !b.GroupLast || !_laid.ContainsKey(index)) return null;
         var (overflow, clip) = CodeOverflow(b.Group);
         if (overflow <= 0 || clip <= 0) return null;
-        double trackLeft = Left(b) + Em, bottom = _tops[index] + _heights[index];
+        double trackLeft = Left(b) + (b.Kind == ReaderBlockKind.Code ? Em : 0), bottom = _tops[index] + _heights[index];
         double thumb = Math.Max(24, clip * clip / (clip + overflow));
         double x = trackLeft + (clip - thumb) * (_codeScroll.GetValueOrDefault(b.Group) / overflow);
-        return new Rect(x, bottom - 0.5 * Em, thumb, 4);
+        return new Rect(x, bottom - (b.Kind == ReaderBlockKind.Code ? 0.5 * Em : 5), thumb, 4); // in a table, inside the bottom padding of the last row
     }
 
     private void DrawCodeScrollBar(DrawingContext dc, int index, ReaderBlock b, double bottom)
@@ -1135,20 +1172,4 @@ internal sealed partial class MarkdownReader : Control
             _ => Get("MdNote", "Accent", Brushes.RoyalBlue),
         };
     }
-}
-
-/// <summary>The reader for a screen reader: a document named like its host, whose value is the selection or the text in view; a link reached with Tab gives the page its name.</summary>
-internal sealed class MarkdownReaderAutomationPeer(MarkdownReader owner) : Avalonia.Automation.Peers.ControlAutomationPeer(owner), Avalonia.Automation.Provider.IValueProvider
-{
-    protected override Avalonia.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() => Avalonia.Automation.Peers.AutomationControlType.Document;
-
-    protected override string GetClassNameCore() => nameof(MarkdownReader);
-
-    protected override string? GetNameCore() => base.GetNameCore() is { Length: > 0 } name ? name : Text.Loc.Get(Text.K.A11yPreviewBody);
-
-    public bool IsReadOnly => true;
-
-    public string? Value => owner.VisibleText();
-
-    public void SetValue(string? value) { }
 }

@@ -530,6 +530,8 @@
   "setting.files.imageOpen.description": "Jak se otevře soubor obrázku (PNG, JPEG, GIF, BMP, WebP, ICO): jako obrázek, jako text, nebo v hexu. Lišta nad souborem přepíná zobrazení kdykoli.",
   "setting.markdown.defaultMode.title": "Výchozí režim Markdownu",
   "setting.markdown.defaultMode.description": "Jak se otevře soubor Markdown: ke čtení jako vykreslená stránka, k úpravám s náhledem vedle editoru, nebo jako zdroj. Platí pro nově otevřené soubory.",
+  "setting.markdown.readerMaxWidth.title": "Největší šířka textu čtečky Markdownu (px)",
+  "setting.markdown.readerMaxWidth.description": "Nejširší sloupec textu ve čtení a v náhledu Markdownu. 0 znamená, že text sleduje šířku okna. Tabulky a bloky kódu smějí použít celou šířku okna vždy.",
   "cmd.table.editRegion": "Upravit výběr jako tabulku...",
   "cmd.table.dialect": "Oddělovač a záhlaví tabulky...",
   "cmd.table.insertRow": "Vložit řádek",

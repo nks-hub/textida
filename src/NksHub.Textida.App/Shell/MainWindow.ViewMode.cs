@@ -137,6 +137,17 @@ internal sealed partial class MainWindow
         return new(new FontFamily(_app.Workbench.Settings.GetString("editor.fontFamily")), uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, null, anchors);
     }
 
+    /// <summary>The widest column of text of the Markdown reader (<c>markdown.readerMaxWidth</c>), 0 to follow the window.</summary>
+    internal double ReaderMaxWidth => _app.Workbench.Settings.GetInt("markdown.readerMaxWidth");
+
+    /// <summary>Gives every Markdown reader of the window the column width of the settings.</summary>
+    private void ApplyReaderMaxWidth()
+    {
+        foreach (var tab in Tabs)
+            if ((tab.Custom as MarkdownPreview ?? tab.SidePreview)?.Reader is { } reader) reader.MaxTextWidth = ReaderMaxWidth;
+        if (_previewScroll.Content is MarkdownReader panel) panel.MaxTextWidth = ReaderMaxWidth;
+    }
+
     /// <summary>A host was allowed for pictures: the pages in the tabs are drawn again.</summary>
     private void RefreshTabPreviews()
     {

@@ -559,6 +559,24 @@ public class ViewModeTests : IDisposable
         Assert.Equal(Loc.Get(K.ViewModeBar, ("mode", Loc.Get(K.ViewModeRead))), AutomationProperties.GetName(tab.ModeBar));
         Assert.Contains("a.md", AutomationProperties.GetName(page));
         Assert.NotEqual("", _w.StatusLeftText);
+        // the text of the page goes to the platform screen reader through the same native bridge as the editor's
+        Assert.Single(page.Reader!.GetLogicalChildren().OfType<EditorAutomationHost>());
+    }
+
+    [AvaloniaFact]
+    public async Task The_max_width_setting_reaches_the_open_reader_and_a_new_one()
+    {
+        var tab = OpenMarkdown("w.md", "# Title\n\ntext\n", "read");
+        await ReadyMarkdown();
+        var reader = Assert.IsType<MarkdownPreview>(tab.Custom).Reader!;
+        Assert.Equal(0, reader.MaxTextWidth); // follows the window by default
+        _app.Workbench.Set("markdown.readerMaxWidth", 980);
+        Assert.Equal(980, reader.MaxTextWidth);
+        var other = OpenMarkdown("w2.md", "text\n");
+        await ReadyMarkdown();
+        Assert.Equal(980, Assert.IsType<MarkdownPreview>(other.Custom).Reader!.MaxTextWidth);
+        _app.Workbench.Set("markdown.readerMaxWidth", 0);
+        Assert.Equal(0, reader.MaxTextWidth);
     }
 
     [AvaloniaFact]

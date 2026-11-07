@@ -140,7 +140,7 @@ internal sealed partial class MainWindow
             var ctx = new PreviewRenderer.Ctx(mono, uri => _ = OpenPreviewLinkAsync(uri), PreviewPictures, folder, content.Images, _previewAnchors, JumpPreviewToLine);
             if (document is null) _previewScroll.Content = PreviewRenderer.Render(content.Format, content.Text, ctx);
             else if (_previewScroll.Content is MarkdownReader reader && reader.Context.Attached == content.Images && reader.Context.BaseDirectory == folder) reader.SetDocument(document);
-            else _previewScroll.Content = new MarkdownReader(document, ctx);
+            else _previewScroll.Content = new MarkdownReader(document, ctx) { MaxTextWidth = ReaderMaxWidth };
             Dispatcher.UIThread.Post(() =>
             {
                 if (generation != _previewLayoutGeneration) return;

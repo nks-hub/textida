@@ -38,7 +38,16 @@ internal sealed partial class MarkdownReader
     {
         _anchor = Math.Clamp(anchor, 0, _doc.Length);
         _caret = Math.Clamp(caret, 0, _doc.Length);
+        SelectionMoved();
+    }
+
+    /// <summary>Raised after the selection, the caret or the document changed; the text surface of the screen readers follows it.</summary>
+    internal event Action? ViewChanged;
+
+    private void SelectionMoved()
+    {
         InvalidateVisual();
+        ViewChanged?.Invoke();
     }
 
     internal void SelectAll() => Select(0, _doc.Length);
@@ -166,16 +175,16 @@ internal sealed partial class MarkdownReader
         double top = _tops[index];
         if (point.Y < top) return b.DocStart;
         var box = laid.Boxes[0];
+        double scroll = ScrollOf(b), x = point.X + scroll;
         (double Y, double X) best = (double.MaxValue, double.MaxValue);
         foreach (var candidate in laid.Boxes)
         {
             // the boxes of a row of cells stand side by side, those of a paragraph cut at a tall picture one under the other
             double y = point.Y - top, dy = y < candidate.Origin.Y ? candidate.Origin.Y - y : Math.Max(0, y - (candidate.Origin.Y + candidate.Layout.Height));
-            double dx = point.X < candidate.Origin.X ? candidate.Origin.X - point.X : Math.Max(0, point.X - (candidate.Origin.X + Math.Max(candidate.Layout.WidthIncludingTrailingWhitespace, candidate.Clip > 0 ? candidate.Clip : candidate.Layout.MaxWidth)));
+            double dx = x < candidate.Origin.X ? candidate.Origin.X - x : Math.Max(0, x - (candidate.Origin.X + Math.Max(candidate.Layout.WidthIncludingTrailingWhitespace, candidate.Clip > 0 ? candidate.Clip : candidate.Layout.MaxWidth)));
             if (dy < best.Y || dy == best.Y && dx < best.X) { best = (dy, dx); box = candidate; }
         }
-        double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
-        var local = new Point(point.X - box.Origin.X + scroll, point.Y - top - box.Origin.Y);
+        var local = new Point(x - box.Origin.X, point.Y - top - box.Origin.Y);
         if (local.Y > box.Layout.Height) local = new Point(local.X, box.Layout.Height - 1);
         return b.DocStart + box.Start + box.Hit(local);
     }
@@ -189,7 +198,7 @@ internal sealed partial class MarkdownReader
         var b = _doc.Blocks[index];
         foreach (var box in laid.Boxes)
         {
-            double scroll = box.Clip > 0 ? _codeScroll.GetValueOrDefault(b.Group) : 0;
+            double scroll = ScrollOf(b);
             var origin = new Point(box.Origin.X - scroll, _tops[index] + box.Origin.Y);
             foreach (var span in b.Spans)
             {
@@ -300,7 +309,7 @@ internal sealed partial class MarkdownReader
         (_dragging, _moved, _pressPoint, _lastPointer) = (true, false, p, p);
         e.Pointer.Capture(this);
         e.Handled = true;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -349,7 +358,7 @@ internal sealed partial class MarkdownReader
         if (unit.Start < _dragOrigin.Start) (_anchor, _caret) = (_dragOrigin.End, unit.Start);
         else (_anchor, _caret) = (_dragOrigin.Start, Math.Max(unit.End, _dragOrigin.End));
         if (_dragUnit == 1) _caret = position;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     /// <summary>One step of scrolling while the pointer is held past the top or bottom of the view; the further past, the faster.</summary>
@@ -386,7 +395,7 @@ internal sealed partial class MarkdownReader
             ActivateLink(_pressLink);
         }
         _pressLink = -1;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
@@ -401,7 +410,7 @@ internal sealed partial class MarkdownReader
         double sideways = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? e.Delta.Y : e.Delta.X;
         if (sideways == 0) return;
         int index = BlockAtY(e.GetPosition(this).Y);
-        if (index >= _doc.Blocks.Count || _doc.Blocks[index].Kind != ReaderBlockKind.Code) return;
+        if (index >= _doc.Blocks.Count || _doc.Blocks[index].Kind is not (ReaderBlockKind.Code or ReaderBlockKind.TableRow)) return;
         int group = _doc.Blocks[index].Group;
         if (CodeOverflow(group).Overflow <= 0) return;
         ScrollCode(group, -sideways * 3 * Em);
@@ -461,12 +470,12 @@ internal sealed partial class MarkdownReader
     /// <summary>How far Left and Right scroll a code block: three characters of the code font.</summary>
     private double CodeKeyStep => 3 * 0.85 * Em * 0.6;
 
-    /// <summary>The code block the caret stands in when its lines reach past its box, or -1.</summary>
+    /// <summary>The code block or table the caret stands in when it reaches past its box, or -1.</summary>
     internal int CodeGroupAtCaret()
     {
         if (_doc.Blocks.Count == 0) return -1;
         var b = _doc.Blocks[_doc.BlockAt(_caret)];
-        return b.Kind == ReaderBlockKind.Code && CodeOverflow(b.Group).Overflow > 0 ? b.Group : -1;
+        return b.Kind is ReaderBlockKind.Code or ReaderBlockKind.TableRow && CodeOverflow(b.Group).Overflow > 0 ? b.Group : -1;
     }
 
     /// <summary>The keys the page handles itself, which the window then does not pass to its commands: copy, select all, and Tab and Enter while there are links.</summary>

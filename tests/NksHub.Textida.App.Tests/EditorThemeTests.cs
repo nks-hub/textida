@@ -458,6 +458,9 @@ public class EditorThemeTests : IDisposable
                 Assert.True(Ratio(tint, "BgEditor") > 1.05, $"{theme.Id}: {tint} is {Ratio(tint, "BgEditor"):0.000} : 1 to the background");
             Assert.NotEqual(view["DiffRemoved"], view["DiffAdded"]);
             Assert.NotEqual(view["DiffAdded"], view["WarnBg"]);
+            // the hex minimap: its frame and marks in the accent and in red stand out from its background as graphics must (3 : 1)
+            foreach (var mark in new[] { "Accent", "Danger" })
+                Assert.True(Ratio(mark, "MinimapBg") >= 3, $"{theme.Id}: {mark} on the minimap is {Ratio(mark, "MinimapBg"):0.00} : 1");
         }
     }
 
@@ -474,6 +477,7 @@ public class EditorThemeTests : IDisposable
         w.UpdateLayout();
         Settle();
         var hex = w.ActiveHex!;
+        hex.SetMinimapVisible(true);
         w.OpenFile(_temp.File("data.csv", "id,name,value\n1,alpha,10\n2,beta,20\n3,gamma,30\n"), null);
         w.UpdateLayout();
         Settle();
@@ -506,6 +510,8 @@ public class EditorThemeTests : IDisposable
             frame = Frame(w, "hex-" + id);
             Assert.Equal(theme[EditorColorTheme.Background], MostOf(frame, AreaOf(hex, w)));
             Assert.True(CountOf(frame, AreaOf(hex, w), colors["CurrentLine"]) > 50, $"{id}: no current row in the colour of the theme");
+            var lane = AreaOf(hex.Minimap, w);
+            Assert.Equal(colors["MinimapBg"], MostOf(frame, new Avalonia.Rect(lane.Right - 8, lane.Top + 20, 6, lane.Height - 40))); // the lane beside the cells
 
             w.ActiveGroup.Select(w.Tabs.First(t => t.Table == table));
             frame = Frame(w, "table-" + id);
@@ -761,7 +767,6 @@ public class EditorThemeTests : IDisposable
 
         // the import through the settings says why the semantic colours are left out
         var view = OpenSettings();
-        Settle(); // the search box reports its clearing later and builds the page once more
         _dialogs.Picked.Add(child);
         await view.ImportThemeAsync();
         Assert.Equal("user:Child", _app.Workbench.Settings.GetString(EditorThemes.ThemeSetting));
@@ -771,6 +776,43 @@ public class EditorThemeTests : IDisposable
         // the saved custom theme stands alone: it needs neither the included file nor the folder
         File.Delete(Path.Combine(folder, "base.json"));
         Assert.Equal(Color.Parse("#FF6688"), EditorColorTheme.Load(Path.Combine(_app.EditorThemes.Folder, "Child.json"), "x")["keyword"]);
+        view.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task The_import_notice_stays_through_page_builds_until_dismissed_or_the_page_is_left()
+    {
+        string file = Path.Combine(_temp.Path, "Night.tmTheme");
+        File.WriteAllText(file, TmTheme);
+        var view = OpenSettings(); // the search box reports its clearing later: that build comes after the import
+        _dialogs.Picked.Add(file);
+        await view.ImportThemeAsync();
+        Avalonia.Controls.TextBlock? Notice() => view.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().SingleOrDefault(t => t.Classes.Contains("themenotice") && t.IsEffectivelyVisible);
+        string expected = Loc.Get(K.ColorThemeImported, ("name", SettingsWindow.ThemeLabel(_app.Workbench.Settings.GetString(EditorThemes.ThemeSetting))));
+        Settle();
+        view.Refresh();
+        view.Refresh();
+        Settle();
+        Assert.Equal(expected, Notice()?.Text);
+
+        // the close button beside it dismisses it for good
+        var close = view.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Single(b => Avalonia.Automation.AutomationProperties.GetName(b) == Loc.Get(K.DialogClose) && b.IsEffectivelyVisible);
+        close.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.Null(Notice());
+        view.Refresh();
+        Settle();
+        Assert.Null(Notice());
+
+        // another page drops it
+        _dialogs.Picked.Add(file);
+        await view.ImportThemeAsync();
+        Settle();
+        Assert.NotNull(Notice());
+        view.SelectCategory(SettingCategories.EditorDisplay);
+        Settle();
+        view.SelectCategory(SettingCategories.Appearance);
+        Settle();
+        Assert.Null(Notice());
         view.Close();
     }
 }

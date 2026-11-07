@@ -603,6 +603,7 @@ public static partial class K
     public const string SettingsSectionOnSave = "settings.section.editor.onSave";
     public const string SettingsSectionLanguages = "settings.section.editor.languages";
     public const string SettingsSectionOpening = "settings.section.files.open";
+    public const string SettingsSectionMarkdown = "settings.section.markdown";
     public const string SettingsSectionSaving = "settings.section.files.save";
     public const string SettingsSectionRemote = "settings.section.files.remote";
     public const string SettingsSectionSecrets = "settings.section.files.secrets";
