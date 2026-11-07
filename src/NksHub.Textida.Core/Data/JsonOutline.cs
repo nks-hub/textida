@@ -22,6 +22,8 @@ public enum JsonLineKind : byte
     Raw,
     /// <summary>A comment of a JSONC file between members, one source line of it (or one slice of a long one) per line.</summary>
     Comment,
+    /// <summary>A key of a JSONC file with a comment before its value: the key and the colon; the comment lines and the value follow.</summary>
+    Key,
 }
 
 /// <summary>Kind of a piece of a rendered line, for colors and for the edits it takes.</summary>
@@ -52,10 +54,11 @@ public sealed class JsonFrame
 /// <summary>
 /// One line of the formatted view. Offsets are bytes of the document; <see cref="End"/> is where the next line starts to scan.
 /// <see cref="Frame"/> is the container the line belongs to (for a closing line the container it closes); <see cref="Index"/> its position in an array.
+/// <see cref="KeyAbove"/>: the key stands on a <see cref="JsonLineKind.Key"/> line above (a comment came between), so the line keeps it for the path but does not show it.
 /// </summary>
 public readonly record struct JsonLine(
     long Number, int Depth, JsonLineKind Kind, long KeyStart, long KeyEnd, long ValueStart, long ValueEnd, JsonTokenKind ValueKind, bool Comma, long End,
-    JsonFrame? Frame, long Index)
+    JsonFrame? Frame, long Index, bool KeyAbove = false)
 {
     public bool HasKey => KeyStart >= 0;
 }
@@ -170,7 +173,7 @@ public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<
 /// every <see cref="SegmentLines"/>-th line (offset, open containers, what comes next); a line is found by decoding its segment from that point,
 /// so the memory follows the number of segments and a screen of lines reads a few blocks of the file whatever its size. The containers the
 /// noted states share are kept once. Several values in a row (JSON Lines) are accepted; from the first error on the lines show the source text.
-/// With comments on (JSONC) a comment between members gets lines of its own and a comma before a closing bracket is accepted.
+/// With comments on (JSONC) a comment between members, or between a key and its value, gets lines of its own and a comma before a closing bracket is accepted.
 /// An edit inside one value shifts the noted states after it; any other edit drops the states after it and the scan resumes from the last one before it.
 /// An edit inside a string that adds or removes no quote, backslash or control byte shifts the decoded lines too, so it reads a few bytes whatever the length of the string.
 /// </summary>
@@ -181,10 +184,14 @@ public sealed class JsonOutline : IDisposable
     public const int MaxShownBytes = 4096;
     private const int BlockSize = 1 << 16, KeyChars = 256, CachedSegments = 8;
 
-    private enum Expect : byte { TopLevel, Value, ValueOrClose, Key, KeyOrClose, CommaOrClose }
+    /// <summary><see cref="Expect.Colon"/> and <see cref="Expect.KeyValue"/>: a comment came after a key, before its colon or after it.</summary>
+    private enum Expect : byte { TopLevel, Value, ValueOrClose, Key, KeyOrClose, CommaOrClose, Colon, KeyValue }
 
-    /// <summary><see cref="Comment"/>: 0 outside a comment, 1 inside a line comment cut by the length limit, 2 inside a block comment.</summary>
-    private record struct ScanState(long Offset, Expect Expect, JsonFrame? Frame, long Count, bool Raw, long ErrorAt, string? Error, byte Comment = 0);
+    /// <summary>
+    /// <see cref="Comment"/>: 0 outside a comment, 1 inside a line comment cut by the length limit, 2 inside a block comment. <see cref="KeyStart"/> and
+    /// <see cref="KeyEnd"/>: the key whose value comes after a comment, -1 otherwise.
+    /// </summary>
+    private record struct ScanState(long Offset, Expect Expect, JsonFrame? Frame, long Count, bool Raw, long ErrorAt, string? Error, byte Comment = 0, long KeyStart = -1, long KeyEnd = -1);
 
     private readonly object _gate = new();
     private readonly Document? _doc;
@@ -477,7 +484,10 @@ public sealed class JsonOutline : IDisposable
     }
 
     /// <summary>Where a caret on <paramref name="line"/> best sits in the source text: the start of its key or value.</summary>
-    public static long SourceOffsetOf(JsonLine line) => line.HasKey ? line.KeyStart : line.ValueStart;
+    public static long SourceOffsetOf(JsonLine line) => ShowsKey(line) ? line.KeyStart : line.ValueStart;
+
+    /// <summary>True when the line shows its key; a key on a line of its own above is not shown again.</summary>
+    private static bool ShowsKey(JsonLine line) => line.HasKey && !line.KeyAbove;
 
     // ---- path and keys ----
 
@@ -487,7 +497,7 @@ public sealed class JsonOutline : IDisposable
         if (line.Kind == JsonLineKind.Raw) return null;
         var parts = new List<string>();
         JsonFrame? chain;
-        if (line.Kind is JsonLineKind.Close or JsonLineKind.Comment) chain = line.Frame;
+        if (line.Kind is JsonLineKind.Open or JsonLineKind.Close or JsonLineKind.Comment) chain = line.Frame; // the frame of an opening line is the container it opens
         else
         {
             if (line.HasKey) parts.Add(KeyPart(ReadKey(_source, line.KeyStart, line.KeyEnd)));
@@ -581,7 +591,7 @@ public sealed class JsonOutline : IDisposable
         {
             if ((number & 1023) == 0) ct.ThrowIfCancellationRequested();
             if (!Next(ref state, cursor, number, out var line)) return -1;
-            if (number < from || !line.HasKey) continue;
+            if (number < from || !line.HasKey || line.KeyAbove) continue;
             long length = line.KeyEnd - line.KeyStart;
             if (length == plain.Length + 2)
             {
@@ -603,10 +613,10 @@ public sealed class JsonOutline : IDisposable
 
     /// <summary>True when the line holds a key or a value longer than <see cref="MaxShownBytes"/>, which <see cref="Render"/> shows cut.</summary>
     public static bool IsLong(JsonLine line) =>
-        (line.HasKey && line.KeyEnd - line.KeyStart > MaxShownBytes) || (line.Kind == JsonLineKind.Value && line.ValueEnd - line.ValueStart > MaxShownBytes);
+        (ShowsKey(line) && line.KeyEnd - line.KeyStart > MaxShownBytes) || (line.Kind == JsonLineKind.Value && line.ValueEnd - line.ValueStart > MaxShownBytes);
 
     private static long Count(long start, long end, int partBytes) => Math.Max(1, (end - start + partBytes - 1) / partBytes);
-    private static long KeyParts(JsonLine line, int partBytes) => line.HasKey ? Count(line.KeyStart, line.KeyEnd, partBytes) : 1;
+    private static long KeyParts(JsonLine line, int partBytes) => ShowsKey(line) ? Count(line.KeyStart, line.KeyEnd, partBytes) : 1;
     private static long ValueParts(JsonLine line, int partBytes) => line.Kind == JsonLineKind.Value ? Count(line.ValueStart, line.ValueEnd, partBytes) : 1;
 
     /// <summary>How many rows a line takes when its key and value are wrapped by <paramref name="partBytes"/> bytes: the last row of the key holds the start of the value.</summary>
@@ -621,7 +631,7 @@ public sealed class JsonOutline : IDisposable
     {
         partBytes = Math.Max(16, partBytes);
         long keys = KeyParts(line, partBytes);
-        if (part < keys) return line.HasKey ? Cut(line.KeyStart, line.KeyEnd, part, partBytes) : line.ValueStart;
+        if (part < keys) return ShowsKey(line) ? Cut(line.KeyStart, line.KeyEnd, part, partBytes) : line.ValueStart;
         return Cut(line.ValueStart, line.ValueEnd, part - keys + 1, partBytes);
     }
 
@@ -654,7 +664,7 @@ public sealed class JsonOutline : IDisposable
     {
         partBytes = Math.Max(16, partBytes);
         if (PartCount(line, partBytes) <= 1) return 0;
-        if (line.HasKey && offset <= line.KeyEnd) return PartIn(line.KeyStart, line.KeyEnd, offset, partBytes);
+        if (ShowsKey(line) && offset <= line.KeyEnd) return PartIn(line.KeyStart, line.KeyEnd, offset, partBytes);
         long keys = KeyParts(line, partBytes);
         return offset < line.ValueStart || line.Kind != JsonLineKind.Value ? keys - 1 : keys - 1 + PartIn(line.ValueStart, line.ValueEnd, offset, partBytes);
     }
@@ -722,10 +732,10 @@ public sealed class JsonOutline : IDisposable
             Piece(line.ValueStart, end, line.Kind == JsonLineKind.Raw ? JsonTokenKind.Raw : JsonTokenKind.Comment);
             return new JsonRenderedLine(line, text.ToString(), spans);
         }
-        if (line.HasKey && keyFrom >= 0)
+        if (ShowsKey(line) && keyFrom >= 0)
         {
             Piece(keyFrom, keyTo, JsonTokenKind.Key);
-            if (valueFrom >= 0) text.Append(": ");
+            if (valueFrom >= 0 && line.Kind != JsonLineKind.Key) text.Append(": ");
         }
         if (valueFrom >= 0)
             switch (line.Kind)
@@ -734,6 +744,7 @@ public sealed class JsonOutline : IDisposable
                 case JsonLineKind.Open: Mark(line.Frame?.IsObject == true ? "{" : "[", line.ValueStart, line.ValueStart + 1); break;
                 case JsonLineKind.Close: Mark(line.Frame?.IsObject == true ? "}" : "]", line.ValueStart, line.ValueEnd); break;
                 case JsonLineKind.Empty: Mark(line.ValueKind == JsonTokenKind.Punctuation && IsObjectByte(line.ValueStart) ? "{}" : "[]", line.ValueStart, line.ValueEnd); break;
+                case JsonLineKind.Key: text.Append(':'); break;
             }
         if (line.Comma && last) text.Append(',');
         return new JsonRenderedLine(line, text.ToString(), spans);
@@ -861,7 +872,11 @@ public sealed class JsonOutline : IDisposable
     /// <summary>Moves the noted states after <paramref name="segment"/> by <paramref name="delta"/>. Call under the gate.</summary>
     private void ShiftPoints(int segment, long start, long delta, IByteSnapshot next)
     {
-        for (int i = segment + 1; i < _points.Count; i++) _points[i] = _points[i] with { Offset = _points[i].Offset + delta, ErrorAt = Shift(_points[i].ErrorAt, start, delta) };
+        for (int i = segment + 1; i < _points.Count; i++)
+        {
+            var point = _points[i];
+            _points[i] = point with { Offset = point.Offset + delta, ErrorAt = Shift(point.ErrorAt, start, delta), KeyStart = Shift(point.KeyStart, start, delta), KeyEnd = Shift(point.KeyEnd, start, delta) };
+        }
         if (_error is { } error && error.Offset >= start) _error = (error.Offset + delta, error.Message);
         if (_complete) _scanned = next.ByteLength;
         else _scanned += delta;
@@ -890,7 +905,7 @@ public sealed class JsonOutline : IDisposable
         bool inside = false;
         foreach (var l in lines)
             if ((l.Kind == JsonLineKind.Value && l.ValueKind == JsonTokenKind.String && l.ValueStart < start && end < l.ValueEnd)
-                || (l.HasKey && l.Kind != JsonLineKind.Open && l.KeyStart < start && end < l.KeyEnd)) { inside = true; break; }
+                || (l.HasKey && l.Kind is not (JsonLineKind.Open or JsonLineKind.Key) && l.KeyStart < start && end < l.KeyEnd)) { inside = true; break; }
         if (!inside) return false;
         Span<byte> before = stackalloc byte[1];
         if (old.Read(start - 1, before) != 1 || before[0] == '\\') return false;
@@ -952,7 +967,7 @@ public sealed class JsonOutline : IDisposable
         for (int i = 0; i < before.Length; i++)
         {
             var (a, b) = (before[i], after[i]);
-            if (a.Kind != b.Kind || a.Depth != b.Depth || a.ValueKind != b.ValueKind || a.Comma != b.Comma || a.Index != b.Index) return false;
+            if (a.Kind != b.Kind || a.Depth != b.Depth || a.ValueKind != b.ValueKind || a.Comma != b.Comma || a.Index != b.Index || a.KeyAbove != b.KeyAbove) return false;
             if (!Same(a.End, b.End) || !Same(a.KeyStart, b.KeyStart) || !Same(a.KeyEnd, b.KeyEnd) || !Same(a.ValueStart, b.ValueStart) || !Same(a.ValueEnd, b.ValueEnd)) return false;
             // a container whose key changed would leave the old key in the frames noted after it
             if (a.Kind == JsonLineKind.Open && a.HasKey && a.KeyEnd > start && a.KeyStart < start + Math.Max(1, deleted)) return false;
@@ -963,7 +978,10 @@ public sealed class JsonOutline : IDisposable
     private static bool SameState(ScanState a, ScanState b, long start, long deleted, long delta)
     {
         if (a.Expect != b.Expect || a.Count != b.Count || a.Raw != b.Raw || a.Error != b.Error || a.Comment != b.Comment) return false;
-        if ((a.Offset >= start + deleted ? a.Offset + delta : a.Offset) != b.Offset) return false;
+        long Map(long o) => o >= start + deleted ? o + delta : o;
+        if (Map(a.Offset) != b.Offset || Map(a.KeyStart) != b.KeyStart || Map(a.KeyEnd) != b.KeyEnd) return false;
+        // the key of a value still to come would go into the frame of a container with its old text
+        if (a.KeyStart >= 0 && a.KeyEnd > start && a.KeyStart < start + Math.Max(1, deleted)) return false;
         for (JsonFrame? x = a.Frame, y = b.Frame; x != y; x = x.Parent, y = y.Parent)
             if (x is null || y is null || x.IsObject != y.IsObject || x.Key != y.Key || x.Index != y.Index || x.Depth != y.Depth) return false;
         return true;
@@ -1024,42 +1042,6 @@ public sealed class JsonOutline : IDisposable
             Position = keep;
             return b;
         }
-
-        /// <summary>Skips white space and, in JSONC, comments too; an unclosed block comment stays for the caller to report.</summary>
-        public void SkipGap()
-        {
-            while (true)
-            {
-                SkipSpace();
-                long p = Position;
-                if (!comments || Peek() != '/') return;
-                int kind = PeekAt(p + 1);
-                if (kind == '/')
-                {
-                    Position = p + 2;
-                    while (Window is { IsEmpty: false } w)
-                    {
-                        int i = w.IndexOf((byte)'\n');
-                        if (i >= 0) { Position += i; break; }
-                        Position += w.Length;
-                    }
-                }
-                else if (kind == '*')
-                {
-                    Position = p + 2;
-                    bool closed = false;
-                    while (!closed && Window is { IsEmpty: false } w)
-                    {
-                        int i = w.IndexOf((byte)'*');
-                        if (i < 0) { Position += w.Length; continue; }
-                        Position += i + 1;
-                        if (Peek() == '/') { Position++; closed = true; }
-                    }
-                    if (!closed) { Position = p; return; }
-                }
-                else return;
-            }
-        }
     }
 
     /// <summary>Reads the next line from <paramref name="s"/>; false at the end of the text.</summary>
@@ -1079,7 +1061,7 @@ public sealed class JsonOutline : IDisposable
                 if (s.Frame is null && s.Expect is Expect.TopLevel) return false;
                 return Fail(ref s, c, p, p, s.Frame is null ? "a value is missing at the end" : "the text ends inside an object or array", number, out line);
             }
-            if (b == '/' && c.Comments && c.PeekAt(p + 1) is '/' or '*')
+            if (AtComment(c))
             {
                 s.Comment = (byte)(c.PeekAt(p + 1) == '/' ? 1 : 2);
                 s.Offset = p;
@@ -1108,11 +1090,32 @@ public sealed class JsonOutline : IDisposable
                     if (b != '"') return Fail(ref s, c, p, p, "a key in quotes is expected", number, out line);
                     if (!ScanString(c)) return Fail(ref s, c, p, c.AtEnd ? p : c.Position, "the string is not closed or holds a control character", number, out line);
                     long keyEnd = c.Position;
-                    c.SkipGap();
-                    if (c.Peek() != ':') return Fail(ref s, c, p, c.Position, "a colon is missing after the key", number, out line);
+                    c.SkipSpace();
+                    if (c.Peek() == ':')
+                    {
+                        c.Position++;
+                        c.SkipSpace();
+                        if (!AtComment(c)) return Value(ref s, c, p, p, keyEnd, number, out line);
+                        s.Expect = Expect.KeyValue;
+                    }
+                    else if (AtComment(c)) s.Expect = Expect.Colon;
+                    else return Fail(ref s, c, p, c.Position, "a colon is missing after the key", number, out line);
+                    // a comment before the value: the key gets a line of its own, the comment lines and the value follow
+                    (s.KeyStart, s.KeyEnd, s.Offset) = (p, keyEnd, c.Position);
+                    line = new JsonLine(number, s.Frame?.Depth ?? 0, JsonLineKind.Key, p, keyEnd, keyEnd, keyEnd, JsonTokenKind.Punctuation, false, c.Position, s.Frame, -1);
+                    return true;
+                }
+                case Expect.Colon:
+                    if (b != ':') return Fail(ref s, c, p, p, "a colon is missing after the key", number, out line);
                     c.Position++;
-                    c.SkipGap();
-                    return Value(ref s, c, p, p, keyEnd, number, out line);
+                    s.Offset = c.Position;
+                    s.Expect = Expect.KeyValue;
+                    continue;
+                case Expect.KeyValue:
+                {
+                    long keyStart = s.KeyStart, keyEnd = s.KeyEnd;
+                    s.KeyStart = s.KeyEnd = -1;
+                    return Value(ref s, c, p, keyStart, keyEnd, number, out line, keyAbove: true);
                 }
                 default:
                     return Value(ref s, c, p, -1, -1, number, out line);
@@ -1120,7 +1123,9 @@ public sealed class JsonOutline : IDisposable
         }
     }
 
-    private static bool Value(ref ScanState s, Cursor c, long lineStart, long keyStart, long keyEnd, long number, out JsonLine line)
+    private static bool AtComment(Cursor c) => c.Comments && c.Peek() == '/' && c.PeekAt(c.Position + 1) is '/' or '*';
+
+    private static bool Value(ref ScanState s, Cursor c, long lineStart, long keyStart, long keyEnd, long number, out JsonLine line, bool keyAbove = false)
     {
         line = default;
         long p = c.Position;
@@ -1168,7 +1173,7 @@ public sealed class JsonOutline : IDisposable
                     if (s.Frame is { IsObject: false }) s.Count++;
                     s.Expect = s.Frame is null ? Expect.TopLevel : Expect.CommaOrClose;
                     bool comma = TakeComma(ref s, c, out long end);
-                    line = new JsonLine(number, depth, JsonLineKind.Empty, keyStart, keyEnd, p, c.Position, JsonTokenKind.Punctuation, comma, end, s.Frame, index);
+                    line = new JsonLine(number, depth, JsonLineKind.Empty, keyStart, keyEnd, p, c.Position, JsonTokenKind.Punctuation, comma, end, s.Frame, index, keyAbove);
                     s.Offset = end;
                     return true;
                 }
@@ -1180,7 +1185,7 @@ public sealed class JsonOutline : IDisposable
                 s.Count = 0;
                 s.Expect = isObject ? Expect.KeyOrClose : Expect.ValueOrClose;
                 s.Offset = afterOpen;
-                line = new JsonLine(number, depth, JsonLineKind.Open, keyStart, keyEnd, p, afterOpen, JsonTokenKind.Punctuation, false, afterOpen, frame, index);
+                line = new JsonLine(number, depth, JsonLineKind.Open, keyStart, keyEnd, p, afterOpen, JsonTokenKind.Punctuation, false, afterOpen, frame, index, keyAbove);
                 return true;
             }
             default:
@@ -1190,7 +1195,7 @@ public sealed class JsonOutline : IDisposable
         if (s.Frame is { IsObject: false }) s.Count++;
         s.Expect = s.Frame is null ? Expect.TopLevel : Expect.CommaOrClose;
         bool hasComma = TakeComma(ref s, c, out long lineEnd);
-        line = new JsonLine(number, depth, JsonLineKind.Value, keyStart, keyEnd, p, valueEnd, kind, hasComma, lineEnd, s.Frame, index);
+        line = new JsonLine(number, depth, JsonLineKind.Value, keyStart, keyEnd, p, valueEnd, kind, hasComma, lineEnd, s.Frame, index, keyAbove);
         s.Offset = lineEnd;
         return true;
     }

@@ -434,16 +434,29 @@ public class JsonOutlineTests
     [Fact]
     public void Jsonc_comments_get_lines_of_their_own_and_trailing_commas_pass()
     {
-        string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* hidden */ : [1, 2,],\n  \"c\": {\"d\": true,},\r\n}\n";
+        string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* before the colon */ : [1, 2,],\n  \"c\": // after the colon\r\n {\"d\": true,},\r\n}\n";
         using var doc = Make(json);
         using var outline = new JsonOutline(doc, comments: true);
-        Assert.Equal(["// top", "{", "  \"a\": 1,", "  // after a", "  /* block", "  second line */", "  \"b\": [", "    1,", "    2,", "  ],", "  \"c\": {", "    \"d\": true,", "  },", "}"], Pretty(outline));
+        Assert.Equal(["// top", "{", "  \"a\": 1,", "  // after a", "  /* block", "  second line */", "  \"b\":", "  /* before the colon */", "  [", "    1,", "    2,", "  ],",
+            "  \"c\":", "  // after the colon", "  {", "    \"d\": true,", "  },", "}"], Pretty(outline));
         Assert.Null(outline.Error);
         var comment = outline.GetLine(3)!.Value;
         Assert.Equal(JsonLineKind.Comment, comment.Kind);
         Assert.Equal(JsonTokenKind.Comment, outline.Render(comment).Spans[0].Kind);
         Assert.Equal("$", outline.PathOf(comment));
-        Assert.Equal(13, outline.FindClose(1));
+        Assert.Equal(17, outline.FindClose(1));
+        Assert.Equal(JsonLineKind.Key, outline.GetLine(6)!.Value.Kind);
+        Assert.Equal(["$.b", "$.b", "$.b[0]"], new long[] { 6, 8, 9 }.Select(n => outline.PathOf(outline.GetLine(n)!.Value)));
+        Assert.Equal("$.c.d", outline.PathOf(outline.GetLine(15)!.Value));
+        Assert.Equal(11, outline.FindClose(8));
+        Assert.Equal(12, outline.FindKey("c", 0)); // the key line, not the container below the comment
+        Assert.Equal(12, outline.FindKey("c", 12));
+
+        // typing into a key whose container comes after a comment renames the container in the paths
+        doc.Insert(json.IndexOf("\"c\"", StringComparison.Ordinal) + 2, "x"u8.ToArray());
+        outline.ScanToEnd();
+        AssertSameAsFresh(doc, outline, comments: true);
+        Assert.Equal("$.cx.d", outline.PathOf(outline.GetLine(15)!.Value));
 
         using var strict = new JsonOutline(doc);
         strict.ScanToEnd();
@@ -453,6 +466,34 @@ public class JsonOutlineTests
         doc.Insert(json.IndexOf("block", StringComparison.Ordinal), "*/"u8.ToArray());
         outline.ScanToEnd();
         AssertSameAsFresh(doc, outline, comments: true);
+    }
+
+    [Fact]
+    public void Edits_around_comments_between_keys_and_values_match_a_fresh_outline()
+    {
+        var text = new StringBuilder("{");
+        for (int i = 0; i < 1500; i++) text.Append(i > 0 ? "," : "").Append("\"k").Append(i).Append(i % 2 == 0 ? "\" /* c */ : {\"v\":" : "\": // c\n \"s\"").Append(i % 2 == 0 ? "1}" : "");
+        text.Append('}');
+        using var doc = Make(text.ToString());
+        using var outline = new JsonOutline(doc, comments: true);
+        outline.ScanToEnd();
+        Assert.Null(outline.Error);
+        var rng = new Random(11);
+        string[] inserts = ["x", "/", "*", "\"", " ", ":", "{", "}", "\n"];
+        for (int step = 0; step < 40; step++)
+        {
+            outline.GetLines(Math.Max(0, outline.State.Lines - 600), 100); // a decoded segment lets edits inside strings take the fast path
+            long at = 1 + rng.NextInt64(doc.ByteLength - 2);
+            if (step % 4 == 3) doc.Delete(new ByteRange(at, Math.Min(doc.ByteLength, at + rng.Next(1, 3))));
+            else doc.Insert(at, Encoding.UTF8.GetBytes(inserts[rng.Next(inserts.Length)]));
+            outline.ScanToEnd();
+            AssertSameAsFresh(doc, outline, comments: true);
+            using var fresh = new JsonOutline(doc.GetSnapshot(), 0, TextCodec.Utf8, comments: true);
+            fresh.ScanToEnd();
+            var expected = fresh.GetLines(0, int.MaxValue);
+            var actual = outline.GetLines(0, int.MaxValue);
+            for (int i = 0; i < expected.Count; i += 53) Assert.Equal(fresh.PathOf(expected[i]), outline.PathOf(actual[i]));
+        }
     }
 
     [Theory]

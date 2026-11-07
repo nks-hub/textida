@@ -360,4 +360,25 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal("    \"strict\": true,", view.RowText(3));
         Assert.Equal("}", view.RowText(5));
     }
+
+    [AvaloniaFact]
+    public async Task A_comment_between_a_key_and_its_value_gets_a_line_and_saving_keeps_the_bytes()
+    {
+        string text = "{\n  \"a\" /* why */ : 1,\n  \"b\": // note\n    \"x\"\n}\n";
+        var tab = Open(text, name: "tsconfig.json");
+        var view = Show();
+        Scan(view);
+        Assert.Null(view.Outline!.Error);
+        Assert.Equal(["{", "  \"a\":", "  /* why */", "  1,", "  \"b\":", "  // note", "  \"x\"", "}"], Enumerable.Range(0, 8).Select(r => view.RowText(r)));
+        view.MoveCaret(6, 4); // after x
+        Assert.Contains("$.b", _w.StatusLeftText);
+        TestApp.Type(_w, "y");
+        view.MoveCaret(4, 4); // after the b of the key
+        TestApp.Type(_w, "c");
+        string expected = text.Replace("\"x\"", "\"xy\"").Replace("\"b\"", "\"bc\"");
+        Assert.Equal(expected, Text(tab));
+        Assert.Equal("  \"bc\":", view.RowText(4));
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(tab.Doc.Path!));
+    }
 }
