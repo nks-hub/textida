@@ -148,7 +148,7 @@ static string DesktopEntry(string exec, string icon) => $"""
     Name=Textida
     GenericName=Text Editor
     Comment=Text and hex editor for files of any size
-    Exec={exec} %F
+    Exec="{exec}" %F
     Icon={icon}
     Terminal=false
     Categories=Utility;TextEditor;Development;
@@ -221,7 +221,7 @@ partial class Program
         Name=Textida
         GenericName=Text Editor
         Comment=Text and hex editor for files of any size
-        Exec=$target/Textida %F
+        Exec="$target/Textida" %F
         Icon=textida
         Terminal=false
         Categories=Utility;TextEditor;Development;

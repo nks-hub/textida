@@ -36,11 +36,10 @@ public static class LinuxDesktop
     public const string ProjectName = "Open in Textida as project";
 
     /// <summary>The text of the entry for the program at <paramref name="exec"/>.</summary>
-    // shortcut: exec is written unquoted like in the main entry, fine for /opt/textida and ~/.local/opt/textida; quote it when a package installs elsewhere
     public static string ProjectEntry(string exec)
     {
         var names = string.Concat(ProjectNames.Select(n => $"Name[{n.Language}]={n.Name}\n"));
-        return $"[Desktop Entry]\nType=Application\nName={ProjectName}\n{names}Exec={exec} --project %f\nIcon=textida\nTerminal=false\nNoDisplay=true\nMimeType=inode/directory;\nStartupWMClass=Textida\n";
+        return $"[Desktop Entry]\nType=Application\nName={ProjectName}\n{names}Exec=\"{exec}\" --project %f\nIcon=textida\nTerminal=false\nNoDisplay=true\nMimeType=inode/directory;\nStartupWMClass=Textida\n";
     }
 
     /// <summary>Written over an entry of the system (from the .deb) that the user turned off: an entry of the user with <c>Hidden=true</c> counts as deleted.</summary>

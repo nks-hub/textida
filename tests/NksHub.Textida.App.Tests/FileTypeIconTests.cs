@@ -87,8 +87,15 @@ public class FileTypeIconTests
         Assert.Equal("Application", keys["Type"]);
         Assert.Equal("Open in Textida as project", keys["Name"]);
         Assert.Equal("Otevřít v Textidě jako projekt", keys["Name[cs]"]);
-        Assert.Equal("/opt/textida/Textida --project %f", keys["Exec"]);
+        Assert.Equal("\"/opt/textida/Textida\" --project %f", keys["Exec"]);
         Assert.Equal("inode/directory;", keys["MimeType"]);
         Assert.Equal("true", keys["NoDisplay"]);
+    }
+
+    [Fact]
+    public void A_program_path_with_a_space_stays_one_argument_in_the_linux_folder_entry()
+    {
+        var exec = LinuxDesktop.ProjectEntry("/home/jan novak/.local/opt/textida/Textida").Split('\n').Single(l => l.StartsWith("Exec=", StringComparison.Ordinal));
+        Assert.Equal("Exec=\"/home/jan novak/.local/opt/textida/Textida\" --project %f", exec);
     }
 }
