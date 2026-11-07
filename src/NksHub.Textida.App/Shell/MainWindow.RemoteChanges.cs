@@ -138,7 +138,7 @@ internal sealed partial class MainWindow
     {
         using var cancel = new CancellationTokenSource();
         _remoteTransfer = cancel;
-        var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
+        var mode = RemoteVersionCheck;
         int uploaded = 0, conflicts = 0, failed = 0;
         try
         {

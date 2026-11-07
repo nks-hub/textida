@@ -9,6 +9,8 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.AvaloniaEditAdapter;
+using NksHub.Textida.Core.Search;
+using NksHub.Textida.Remote;
 using NksHub.Textida.Workbench;
 using NksHub.Textida.Workbench.Settings;
 
@@ -33,6 +35,37 @@ public class AdvancedOptionsTests : IDisposable
         ["advanced.undoLimit"] = nameof(Undo_limit_reaches_open_and_new_documents),
         ["advanced.highlightMaxLines"] = nameof(Highlight_limits_lower_the_window_around_the_screen_but_never_the_screen),
         ["advanced.highlightMaxColumns"] = nameof(Highlight_limits_lower_the_window_around_the_screen_but_never_the_screen),
+        // expert settings of the other pages, moved here; the value names a test in another class as "Class.Method"
+        ["editor.clipboardHistorySize"] = nameof(Clipboard_history_size_cuts_the_list),
+        ["editor.dateTimeFormat"] = "LineCommandTests.Date_and_time_go_into_every_caret_in_the_format_of_the_setting",
+        ["editor.occurrences.wholeWord"] = "OccurrenceHighlightTests.Whole_words_and_case_change_what_is_found_as_soon_as_the_setting_changes",
+        ["editor.occurrences.matchCase"] = "OccurrenceHighlightTests.Whole_words_and_case_change_what_is_found_as_soon_as_the_setting_changes",
+        ["editor.occurrences.atCaret"] = "OccurrenceHighlightTests.The_word_under_the_caret_is_highlighted_only_when_the_setting_is_on_and_only_as_a_whole_word",
+        ["editor.occurrences.minLength"] = "OccurrenceHighlightTests.A_selection_that_is_too_short_spans_lines_or_is_only_white_space_highlights_nothing",
+        ["editor.pairStyle"] = nameof(Pspad_pair_style_reaches_the_typing),
+        ["files.journalDirectory"] = "JournalAppTests.An_unwritable_primary_location_is_reported_and_the_journal_uses_the_fallback",
+        ["files.journalFallbackDirectory"] = "JournalAppTests.An_unwritable_primary_location_is_reported_and_the_journal_uses_the_fallback",
+        ["files.largeFileThreshold"] = "FileFlowTests.File_above_the_switch_size_opens_paged_and_editable_with_a_note_and_a_badge",
+        ["files.relatedFileRules"] = "NavigationTests.Related_file_switches_header_and_source_for_the_builtin_rules_and_a_custom_one",
+        ["git.commitFormat"] = "CommitPanelRealTests.The_checks_before_a_commit_are_kept_for_the_next_commit_panel",
+        ["git.commitSaveAll"] = "CommitPanelRealTests.The_checks_before_a_commit_are_kept_for_the_next_commit_panel",
+        ["git.gutterBase"] = nameof(Git_gutter_base_picks_what_the_marks_are_compared_with),
+        ["hex.structureTemplates"] = "HexTemplateAppTests.The_template_picked_for_a_file_type_is_written_to_the_setting_and_used_for_the_next_file_of_that_type",
+        ["hex.wildcardMaxBytes"] = "HexSearchAppTests.The_wildcard_follows_the_setting_n_and_uses_the_default_while_it_is_not_chosen",
+        ["history.maxRevisionsPerFile"] = nameof(History_limits_reach_the_store_and_0_means_no_limit),
+        ["history.maxAgeDays"] = nameof(History_limits_reach_the_store_and_0_means_no_limit),
+        ["history.maxMiBPerFile"] = nameof(History_limits_reach_the_store_and_0_means_no_limit),
+        ["history.maxTotalMiB"] = nameof(History_limits_reach_the_store_and_0_means_no_limit),
+        ["plugins.catalogUrl"] = "PluginCatalogAppTests.A_catalog_from_a_git_repository_lists_the_plugins_and_installs_one_after_the_publisher_is_trusted",
+        ["plugins.sandbox"] = "PluginSandboxAppTests.A_plugin_starts_programs_as_before_and_under_the_switch_it_cannot_unless_it_is_one_that_must",
+        ["remote.versionCheck"] = nameof(Remote_version_check_picks_how_a_change_on_the_server_is_found),
+        ["schema.mappings"] = "PluginUiTests.A_file_the_user_mapped_to_a_schema_is_checked_at_once_and_the_rules_reach_the_plugin_through_their_file",
+        ["scripting.enabled"] = "ScriptingAppTests.With_the_setting_on_the_result_is_a_change_in_the_review_that_the_user_applies_or_not",
+        ["search.regexTimeoutMs"] = nameof(Regex_timeout_reaches_the_patterns_the_search_builds),
+        ["tools.diffArguments"] = "FileFlowTests.Compare_hands_two_files_to_the_tool_and_deletes_the_temporary_one_afterwards",
+        ["tools.outputEncoding"] = "ToolLauncherTests.The_settings_give_a_tool_the_time_limit_and_the_output_encoding_its_definition_leaves_out",
+        ["tools.timeoutSeconds"] = "ToolLauncherTests.The_settings_give_a_tool_the_time_limit_and_the_output_encoding_its_definition_leaves_out",
+        ["web.pathMap"] = "WebLinksAppTests.A_file_opens_at_the_address_of_its_rule_and_a_file_without_a_rule_says_so",
     };
 
     private readonly TempDir _temp = new();
@@ -60,7 +93,12 @@ public class AdvancedOptionsTests : IDisposable
         var stale = listed.Except(advanced).ToList();
         Assert.True(missing.Count == 0 && stale.Count == 0,
             $"Advanced options without a test entry: [{string.Join(", ", missing)}]; test entries without an option: [{string.Join(", ", stale)}].");
-        Assert.All(Covered.Values, name => Assert.NotNull(typeof(AdvancedOptionsTests).GetMethod(name)));
+        var classes = typeof(AdvancedOptionsTests).Assembly.GetTypes();
+        Assert.All(Covered.Values, name =>
+        {
+            var (type, method) = name.Split('.') is [var c, var m] ? (classes.Single(t => t.Name == c), m) : (typeof(AdvancedOptionsTests), name);
+            Assert.True(type.GetMethod(method)?.GetCustomAttributes(typeof(FactAttribute), true).Length > 0, $"{name} is not a test.");
+        });
     }
 
     private EditorSurface Surface() => _w.OpenFile(_temp.File("a.txt", "one two"), null).Editor!;
@@ -181,6 +219,79 @@ public class AdvancedOptionsTests : IDisposable
         Assert.False(surface.CaretBlinking);
         surface.ClearCarets();
         Assert.True(surface.DrawsOwnCarets); // one caret again, still drawn here because 0 is not the usual time
+    }
+
+    [AvaloniaFact]
+    public void Clipboard_history_size_cuts_the_list()
+    {
+        Assert.Null(_app.Workbench.Set("editor.clipboardHistorySize", JsonValue.Create(2)));
+        foreach (var text in new[] { "one", "two", "three" }) _app.ClipboardHistory.Add(text);
+        Assert.Equal(["three", "two"], _app.ClipboardHistory.Items);
+    }
+
+    [AvaloniaFact]
+    public void Pspad_pair_style_reaches_the_typing()
+    {
+        var plain = _w.OpenFile(_temp.File("p1.txt", ")"), null);
+        plain.Editor!.CaretOffset = 0;
+        TestApp.Type(_w, "(");
+        Assert.Equal("())", plain.Editor.Document.Text); // the default closes before a closing bracket
+
+        Assert.Null(_app.Workbench.Set("editor.pairStyle", "pspad"));
+        var pspad = _w.OpenFile(_temp.File("p2.txt", ")"), null);
+        pspad.Editor!.CaretOffset = 0;
+        TestApp.Type(_w, "(");
+        Assert.Equal("()", pspad.Editor.Document.Text); // the rule of the original: nothing blank follows, no pair
+    }
+
+    [AvaloniaFact]
+    public void History_limits_reach_the_store_and_0_means_no_limit()
+    {
+        Assert.Null(_app.Workbench.Set("history.maxRevisionsPerFile", JsonValue.Create(7)));
+        Assert.Null(_app.Workbench.Set("history.maxAgeDays", JsonValue.Create(3)));
+        Assert.Null(_app.Workbench.Set("history.maxMiBPerFile", JsonValue.Create(2)));
+        Assert.Null(_app.Workbench.Set("history.maxTotalMiB", JsonValue.Create(5)));
+        var policy = _app.History.Policy;
+        Assert.Equal(7, policy.MaxRevisionsPerFile);
+        Assert.Equal(TimeSpan.FromDays(3), policy.MaxAge);
+        Assert.Equal(2L << 20, policy.MaxBytesPerFile);
+        Assert.Equal(5L << 20, policy.MaxTotalBytes);
+
+        Assert.Null(_app.Workbench.Set("history.maxRevisionsPerFile", JsonValue.Create(0)));
+        Assert.Null(_app.Workbench.Set("history.maxAgeDays", JsonValue.Create(0)));
+        Assert.Null(_app.History.Policy.MaxRevisionsPerFile);
+        Assert.Null(_app.History.Policy.MaxAge);
+    }
+
+    [AvaloniaFact]
+    public void Regex_timeout_reaches_the_patterns_the_search_builds()
+    {
+        try
+        {
+            Assert.Null(_app.Workbench.Set("search.regexTimeoutMs", JsonValue.Create(75)));
+            var backtracking = CompiledPattern.Create(new SearchPattern(@"(a)\1", IsRegex: true)); // a back reference needs the backtracking engine
+            Assert.Equal(TimeSpan.FromMilliseconds(75), backtracking.Regex.MatchTimeout);
+        }
+        finally
+        {
+            _app.Workbench.Set("search.regexTimeoutMs", JsonValue.Create(RegexTools.DefaultMatchTimeoutMs));
+        }
+    }
+
+    [AvaloniaFact]
+    public void Git_gutter_base_picks_what_the_marks_are_compared_with()
+    {
+        Assert.Equal(GitBase.Index, _w.GutterBase);
+        Assert.Null(_app.Workbench.Set("git.gutterBase", "head"));
+        Assert.Equal(GitBase.Head, _w.GutterBase);
+    }
+
+    [AvaloniaFact]
+    public void Remote_version_check_picks_how_a_change_on_the_server_is_found()
+    {
+        Assert.Equal(VersionCheck.Stat, _w.RemoteVersionCheck);
+        Assert.Null(_app.Workbench.Set("remote.versionCheck", "content"));
+        Assert.Equal(VersionCheck.Content, _w.RemoteVersionCheck);
     }
 
     private static string Lines(int count) => string.Join('\n', Enumerable.Range(0, count).Select(i => "line " + i));
