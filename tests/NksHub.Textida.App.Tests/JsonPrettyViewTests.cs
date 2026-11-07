@@ -133,6 +133,23 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Commands_for_an_editable_text_are_disabled_in_the_formatted_view_while_cut_and_paste_stay()
+    {
+        Open(Sample);
+        var context = new ShellContext(_w, forMenu: true);
+        bool Enabled(string id) => _app.Workbench.Commands.TryGet(id, out var command) && command.IsEnabled(context);
+        string[] textOnly = ["nks.edit.deleteLine", "nks.edit.duplicateLine", "nks.edit.sortLines", "nks.edit.formatJson", "nks.search.replaceAll", "nks.format.eolLf"];
+        Assert.All(textOnly, id => Assert.True(Enabled(id), id));
+        Show();
+        Assert.Equal(("true", "true"), (context.Get(ContextKeys.ReadOnly), context.Get(ContextKeys.JsonPretty)));
+        Assert.All(textOnly, id => Assert.False(Enabled(id), id));
+        Assert.All(["nks.edit.cut", "nks.edit.paste", "nks.edit.undo", "nks.edit.copy"], id => Assert.True(Enabled(id), id));
+        Run("nks.view.jsonPretty");
+        Assert.Equal("false", context.Get(ContextKeys.JsonPretty));
+        Assert.All(textOnly, id => Assert.True(Enabled(id), id));
+    }
+
+    [AvaloniaFact]
     public async Task A_large_single_line_file_shows_its_first_screen_from_a_few_blocks_and_saves_unchanged()
     {
         var json = new StringBuilder("[");

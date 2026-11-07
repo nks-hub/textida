@@ -20,8 +20,9 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.HasDocument => Bool(tab is not null),
             ContextKeys.Language => tab?.Doc.Language.Id ?? "",
             ContextKeys.HasSelection => Bool(tab?.Surface?.HasSelection == true || tab?.Paged?.HasSelection == true || (tab?.JsonShown == true && tab.Json!.HasSelection)),
-            // the paged view takes only the edits it implements; the formatted JSON view takes typing, cut and paste inside keys and values
-            ContextKeys.ReadOnly => tab is { JsonShown: true } ? Bool(tab.Doc.ReadOnly) : Bool(tab?.Surface is null || tab.OverlayShown),
+            // the paged view and the formatted JSON view take only the edits they implement: cut and paste ask for largeFileMode or jsonPretty
+            ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.OverlayShown),
+            ContextKeys.JsonPretty => Bool(tab?.JsonShown == true),
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),
