@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using NksHub.Textida.Accessibility;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 
@@ -319,5 +320,95 @@ public class MarkdownReaderTests : IDisposable
         var items = host.Reader.ContextMenu!.Items.OfType<MenuItem>().Select(i => i.Header as string).ToList();
         Assert.Equal([Loc.Get(K.ReaderCopy), Loc.Get(K.ReaderCopyMarkdown), Loc.Get(K.ReaderSelectAll)], items);
         Assert.Equal("Copy as Markdown", items[1]);
+    }
+
+    [AvaloniaFact]
+    public void A_screen_reader_reads_the_page_by_line_and_word_and_follows_the_selection()
+    {
+        var host = Host("# Title\n\nFirst paragraph with words.\n\n- item one\n- item two\n");
+        var peer = Assert.IsType<MarkdownReaderAutomationPeer>(Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(host.Reader));
+        Assert.Equal(Avalonia.Automation.Peers.AutomationControlType.Document, peer.GetAutomationControlType());
+        var text = peer.Text;
+        const string Plain = "Title\nFirst paragraph with words.\nitem one\nitem two";
+        Assert.Equal(Plain, text.GetText(0, text.Length));
+        Assert.True(text.IsReadOnly);
+
+        // by line: a block is a line
+        var line = new TextRange(text, 0, 0);
+        line.ExpandToEnclosingUnit(TextUnit.Line);
+        Assert.Equal("Title\n", line.GetText());
+        Assert.Equal(1, line.Move(TextUnit.Line, 1));
+        Assert.Equal("First paragraph with words.\n", line.GetText());
+        Assert.Equal(4, text.LineCount);
+        Assert.Equal(text.Length, text.LineStart(text.LineCount));
+
+        // by word, from the caret where the user clicked
+        int paragraph = host.Doc.Blocks[1].DocStart;
+        host.Reader.Select(paragraph + 8, paragraph + 8);
+        var word = TextRange.Caret(text);
+        word.ExpandToEnclosingUnit(TextUnit.Word);
+        Assert.Equal("paragraph ", word.GetText());
+        Assert.Equal(1, word.Move(TextUnit.Word, 1));
+        Assert.Equal("with ", word.GetText());
+
+        // the selection: the reader tells when it moves, and the screen reader can set it
+        int raised = 0;
+        text.SelectionChanged += () => raised++;
+        host.Reader.Select(paragraph, paragraph + 5);
+        Assert.Equal(1, raised);
+        Assert.Equal(new TextSpan(paragraph, 5), text.Selection);
+        Assert.Equal(paragraph + 5, text.CaretOffset);
+        Assert.Equal("First", TextRange.SelectionOf(text).GetText());
+        new TextRange(text, host.Doc.Blocks[2].DocStart, host.Doc.Blocks[2].DocStart + 4).Select();
+        Assert.Equal("item", host.Reader.SelectedText());
+        Assert.Equal(2, raised);
+
+        // what is drawn: the character under a screen point is found again, and the page in view is the visible range
+        Assert.Equal(new TextSpan(0, text.Length), text.VisibleRange);
+        var bounds = Assert.Single(new TextRange(text, paragraph, paragraph + 5).GetBounds());
+        Assert.True(bounds.Width > 10 && bounds.Height > 10, $"{bounds}");
+        Assert.Equal(paragraph + 2, text.OffsetFromPoint(bounds.X + bounds.Width * 0.45, bounds.Y + bounds.Height / 2));
+        Assert.Single(text.GetRangeBounds(paragraph + 3, 0)); // the caret
+
+        // a new rendering is a text change
+        var changes = new List<TextChange>();
+        text.TextChanged += changes.Add;
+        long revision = text.Revision;
+        host.Reader.SetDocument(MarkdownReaderModel.Build("# Title\n\nNew text.\n"));
+        var change = Assert.Single(changes);
+        Assert.Equal((0, Plain.Length, "Title\nNew text.".Length), (change.Start, change.Removed, change.Inserted));
+        Assert.Equal(revision + 1, text.Revision);
+        Assert.Equal("New text.", text.GetText(text.LineStart(1), 9));
+    }
+
+    [AvaloniaFact]
+    public void The_screen_reader_text_follows_the_mouse_and_focus_and_scrolls_a_range_into_view()
+    {
+        var host = Host(string.Concat(Enumerable.Range(0, 300).Select(i => $"Paragraph number {i}.\n\n")), 800, 400);
+        var text = Assert.IsType<MarkdownReaderAutomationPeer>(Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(host.Reader)).Text;
+        int selections = 0, focus = 0;
+        text.SelectionChanged += () => selections++;
+        text.FocusChanged += () => focus++;
+        host.Reader.Focus();
+        host.Settle();
+        Assert.True(text.HasFocus);
+        Assert.Equal(1, focus);
+
+        var word = host.Reader.RangeBounds(3, 0, 9)[0];
+        Point At(Point page) => host.Reader.TranslatePoint(page, host.Window)!.Value;
+        host.Window.MouseDown(At(new Point(word.Left + 2, word.Center.Y)), MouseButton.Left);
+        host.Window.MouseMove(At(new Point(word.Right - 1, word.Center.Y)));
+        host.Window.MouseUp(At(new Point(word.Right - 1, word.Center.Y)), MouseButton.Left);
+        Assert.True(selections >= 1);
+        Assert.Equal(host.Reader.SelectedText(), TextRange.SelectionOf(text).GetText());
+        Assert.Contains("aragrap", TextRange.SelectionOf(text).GetText(), StringComparison.Ordinal);
+
+        int far = host.Doc.Blocks[250].DocStart;
+        Assert.True(text.VisibleRange.End < far);
+        Assert.Empty(text.GetRangeBounds(far, 5)); // not drawn
+        new TextRange(text, far, far + 5).ScrollIntoView(alignToTop: true);
+        host.Settle();
+        Assert.True(text.VisibleRange.Start <= far && text.VisibleRange.End > far, $"{text.VisibleRange} should hold {far}");
+        Assert.NotEmpty(text.GetRangeBounds(far, 5));
     }
 }

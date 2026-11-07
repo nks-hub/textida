@@ -151,8 +151,6 @@ internal sealed partial class MarkdownReader : Control
         ContextMenu = BuildMenu();
     }
 
-    protected override Avalonia.Automation.Peers.AutomationPeer OnCreateAutomationPeer() => new MarkdownReaderAutomationPeer(this);
-
     /// <summary>What a screen reader reads as the value of the page: the selection, or else the text of the blocks in view.</summary>
     internal string VisibleText()
     {
@@ -197,7 +195,7 @@ internal sealed partial class MarkdownReader : Control
         Reset(old);
         RetranslateMenu();
         InvalidateMeasure();
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -210,6 +208,7 @@ internal sealed partial class MarkdownReader : Control
             InvalidateMeasure();
         }
         else if (change.Property == IsFocusedProperty) InvalidateVisual();
+        else if (change.Property == Avalonia.Automation.AutomationProperties.NameProperty) _automation?.LabelChanged();
     }
 
     private void Relayout()
@@ -382,7 +381,10 @@ internal sealed partial class MarkdownReader : Control
     internal Point? BoxOrigin(int index, int box = 0) => _laid.TryGetValue(index, out var laid) && box < laid.Boxes.Count ? laid.Boxes[box].Origin + new Point(0, _tops[index]) : null;
 
     /// <summary>The middle of the character at a position, on the page; null while its block is not laid out.</summary>
-    internal Point? PointAt(int position)
+    internal Point? PointAt(int position) => CaretBounds(position) is { } r ? new Point(r.X + 1, r.Y + r.Height / 2) : null;
+
+    /// <summary>The caret before the character at a position, on the page, as a line-high rectangle; null while its block is not laid out.</summary>
+    internal Rect? CaretBounds(int position)
     {
         int index = _doc.BlockAt(position);
         var b = _doc.Blocks[index];
@@ -392,10 +394,9 @@ internal sealed partial class MarkdownReader : Control
             if (offset >= box.Start && offset <= box.Start + box.Length)
             {
                 var r = box.Caret(offset - box.Start);
-                double scroll = ScrollOf(b);
-                return new Point(box.Origin.X - scroll + r.X + 1, _tops[index] + box.Origin.Y + r.Y + r.Height / 2);
+                return new Rect(box.Origin.X - ScrollOf(b) + r.X, _tops[index] + box.Origin.Y + r.Y, Math.Max(1, r.Width), r.Height);
             }
-        return new Point(Left(b) + 1, _tops[index] + laid.Height / 2);
+        return new Rect(Left(b), _tops[index], 1, laid.Height);
     }
 
     // ---- scroll map ----
@@ -467,6 +468,7 @@ internal sealed partial class MarkdownReader : Control
             _topsDirty = true;
         }
         DropResizedPictures(width);
+        _automation?.Measure(default);
         EnsureTops();
         var view = View;
         var (from, to) = RealizeRange(view);
@@ -497,6 +499,7 @@ internal sealed partial class MarkdownReader : Control
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        _automation?.Arrange(default);
         foreach (var (index, laid) in _laid)
         {
             if (laid.Embed is { } embed)
@@ -1169,20 +1172,4 @@ internal sealed partial class MarkdownReader : Control
             _ => Get("MdNote", "Accent", Brushes.RoyalBlue),
         };
     }
-}
-
-/// <summary>The reader for a screen reader: a document named like its host, whose value is the selection or the text in view; a link reached with Tab gives the page its name.</summary>
-internal sealed class MarkdownReaderAutomationPeer(MarkdownReader owner) : Avalonia.Automation.Peers.ControlAutomationPeer(owner), Avalonia.Automation.Provider.IValueProvider
-{
-    protected override Avalonia.Automation.Peers.AutomationControlType GetAutomationControlTypeCore() => Avalonia.Automation.Peers.AutomationControlType.Document;
-
-    protected override string GetClassNameCore() => nameof(MarkdownReader);
-
-    protected override string? GetNameCore() => base.GetNameCore() is { Length: > 0 } name ? name : Text.Loc.Get(Text.K.A11yPreviewBody);
-
-    public bool IsReadOnly => true;
-
-    public string? Value => owner.VisibleText();
-
-    public void SetValue(string? value) { }
 }

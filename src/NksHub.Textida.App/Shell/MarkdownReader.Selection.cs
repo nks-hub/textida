@@ -38,7 +38,16 @@ internal sealed partial class MarkdownReader
     {
         _anchor = Math.Clamp(anchor, 0, _doc.Length);
         _caret = Math.Clamp(caret, 0, _doc.Length);
+        SelectionMoved();
+    }
+
+    /// <summary>Raised after the selection, the caret or the document changed; the text surface of the screen readers follows it.</summary>
+    internal event Action? ViewChanged;
+
+    private void SelectionMoved()
+    {
         InvalidateVisual();
+        ViewChanged?.Invoke();
     }
 
     internal void SelectAll() => Select(0, _doc.Length);
@@ -300,7 +309,7 @@ internal sealed partial class MarkdownReader
         (_dragging, _moved, _pressPoint, _lastPointer) = (true, false, p, p);
         e.Pointer.Capture(this);
         e.Handled = true;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -349,7 +358,7 @@ internal sealed partial class MarkdownReader
         if (unit.Start < _dragOrigin.Start) (_anchor, _caret) = (_dragOrigin.End, unit.Start);
         else (_anchor, _caret) = (_dragOrigin.Start, Math.Max(unit.End, _dragOrigin.End));
         if (_dragUnit == 1) _caret = position;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     /// <summary>One step of scrolling while the pointer is held past the top or bottom of the view; the further past, the faster.</summary>
@@ -386,7 +395,7 @@ internal sealed partial class MarkdownReader
             ActivateLink(_pressLink);
         }
         _pressLink = -1;
-        InvalidateVisual();
+        SelectionMoved();
     }
 
     protected override void OnPointerExited(PointerEventArgs e)

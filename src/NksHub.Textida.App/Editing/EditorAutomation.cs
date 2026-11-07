@@ -212,7 +212,7 @@ internal sealed class EditorTextArea : TextArea
 /// </summary>
 internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
 {
-    private readonly OpenDocument _doc;
+    private readonly OpenDocument? _doc;
     private readonly Func<ITextAutomationSurface> _create;
     private readonly Action _focus;
     private readonly Func<string> _label;
@@ -220,9 +220,10 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
     private nint _view;
     private ITextAutomationSurface? _surface;
 
+    /// <param name="doc">The document of the view, whose replacement builds a new surface; null for a view without one (the Markdown reader).</param>
     /// <param name="create">Builds the surface of the view the host belongs to; called again after the document was replaced.</param>
     /// <param name="focus">Gives the keyboard focus to that view.</param>
-    public EditorAutomationHost(OpenDocument doc, Func<ITextAutomationSurface> create, Action focus, Func<string> label)
+    public EditorAutomationHost(OpenDocument? doc, Func<ITextAutomationSurface> create, Action focus, Func<string> label)
     {
         _doc = doc;
         _create = create;
@@ -231,7 +232,7 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
         Width = 0;
         Height = 0;
         IsHitTestVisible = false;
-        doc.Replaced += OnDocumentReplaced;
+        if (doc is not null) doc.Replaced += OnDocumentReplaced;
     }
 
     private string Label => _label();
@@ -293,7 +294,7 @@ internal sealed class EditorAutomationHost : NativeControlHost, IDisposable
 
     public void Dispose()
     {
-        _doc.Replaced -= OnDocumentReplaced;
+        if (_doc is not null) _doc.Replaced -= OnDocumentReplaced;
         if (OperatingSystem.IsWindows()) _window?.Dispose();
         _window = null;
         if (OperatingSystem.IsMacOS() && _view != 0)

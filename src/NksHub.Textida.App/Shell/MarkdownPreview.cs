@@ -81,6 +81,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             _renders.Cancel();
             _renderedRevision = revision;
             _pendingRevision = -1;
+            _reader?.Dispose();
             _reader = null;
             Content = new TextBlock { Text = Loc.Get(K.PreviewLiveTooLarge), TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(12, 6) };
             UpdateName();
@@ -96,6 +97,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             if (_reader is null)
             {
                 _reader = new MarkdownReader(document, _window.PreviewContext(_doc, null) with { JumpToLine = line => ScrollToLine(line) }) { MaxTextWidth = _window.ReaderMaxWidth };
+                _reader.CreateAutomationHost();
                 Content = _reader;
             }
             else _reader.SetDocument(document);
@@ -226,5 +228,6 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
         LayoutUpdated -= OnLayoutForPending;
         _doc.Changed -= OnDocumentChanged;
         if (_editor is not null) _editor.TextArea.TextView.ScrollOffsetChanged -= OnEditorScrolled;
+        _reader?.Dispose();
     }
 }

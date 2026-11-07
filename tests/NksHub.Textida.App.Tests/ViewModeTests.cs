@@ -559,6 +559,8 @@ public class ViewModeTests : IDisposable
         Assert.Equal(Loc.Get(K.ViewModeBar, ("mode", Loc.Get(K.ViewModeRead))), AutomationProperties.GetName(tab.ModeBar));
         Assert.Contains("a.md", AutomationProperties.GetName(page));
         Assert.NotEqual("", _w.StatusLeftText);
+        // the text of the page goes to the platform screen reader through the same native bridge as the editor's
+        Assert.Single(page.Reader!.GetLogicalChildren().OfType<EditorAutomationHost>());
     }
 
     [AvaloniaFact]
