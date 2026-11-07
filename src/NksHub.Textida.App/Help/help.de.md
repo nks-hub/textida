@@ -98,7 +98,7 @@ commands: nks.file.close
 
 ## [file.reload] Vom Datenträger neu laden
 commands: nks.file.reload
-1. Wählen Sie Datei und dann Vom Datenträger neu laden oder suchen Sie den Befehl in der Palette.
+1. Wählen Sie Datei, Dateiversionen und dann Vom Datenträger neu laden oder suchen Sie den Befehl in der Palette.
 2. Hat der Tab ungespeicherte Änderungen, fragt das Programm; die Schaltfläche Änderungen verwerfen und neu laden verwirft sie.
 3. Die Statusleiste zeigt Vom Datenträger neu geladen.
 - Der Befehl funktioniert nur bei einem Tab, der eine Datei auf dem Datenträger hat.
@@ -107,7 +107,7 @@ commands: nks.file.reload
 ## [file.compare] Mit Datenträger vergleichen
 commands: nks.file.compareWithDisk
 Der Tab und die Datei auf dem Datenträger werden nebeneinander in einem eigenen Tab gezeigt. Links steht der Tab mit den nicht gespeicherten Änderungen, rechts die Datei auf dem Datenträger.
-1. Wählen Sie Datei und dann Mit Datenträger vergleichen. Der Tab mit dem Vergleich öffnet sich (Thema Texte vergleichen).
+1. Wählen Sie Datei, Dateiversionen und dann Mit Datenträger vergleichen. Der Tab mit dem Vergleich öffnet sich (Thema Texte vergleichen).
 2. Ist in den Einstellungen ein Externes Vergleichsprogramm eingetragen, startet stattdessen Ihr Programm: links die Datei auf dem Datenträger, rechts der Inhalt des Tabs. In der Argumentvorlage ist {left} die Datei auf dem Datenträger und {right} der Inhalt des Tabs. Die dem Programm übergebene Kopie des Tabs wird gelöscht, wenn es endet.
 - Ein Tab ohne Datei auf dem Datenträger meldet: Der Tab hat keine Datei auf dem Datenträger, mit der verglichen werden kann.
 - Startet das Programm nicht, meldet die Statusleiste Das Vergleichsprogramm ist nicht gestartet mit dem Grund.
@@ -178,14 +178,14 @@ commands: nks.remote.unsent
 ## [remote.cache] Cache mit dem Server abgleichen
 commands: nks.remote.pairCache
 Die Kopien von Remote-Dateien bleiben auf diesem Computer mit der Serverversion, aus der sie entstanden sind, auch nach dem Schließen des Programms.
-1. Wählen Sie Datei und dann Remotedateien und dann Cache mit dem Server abgleichen, und wählen Sie eine Verbindung.
+1. Wählen Sie in der Befehlspalette Cache mit dem Server abgleichen, und wählen Sie eine Verbindung.
 2. Das Programm verbindet sich und vergleicht jede Kopie dieser Verbindung anhand der gespeicherten Version mit dem Server. Die Liste sagt zu jeder Datei: gleich wie auf dem Server, hier geändert und nicht gesendet, auf dem Server geändert, an beiden Stellen geändert, oder nicht mehr auf dem Server.
 3. Wählen Sie eine Datei, dann öffnet sich ihre Kopie. Die Leiste prüft sie noch einmal und bietet Hochladen, Unterschiede zeigen oder Vom Server neu laden an.
 - Nichts wird heruntergeladen oder überschrieben. Die Liste bietet nur Verbindungen an, die Kopien haben.
 
 ## [source.open] Aus einer Plugin-Quelle öffnen
 commands: nks.source.open
-1. Wählen Sie Datei und dann Aus Quelle öffnen. Die Liste zeigt die Quellen, die Plugins anbieten, und was jede kann: ob sie schreibt, ob eine geänderte Datei geschützt ist und ob sie Ordner auflistet.
+1. Wählen Sie in der Befehlspalette Aus Plugin-Quelle öffnen. Die Liste zeigt die Quellen, die Plugins anbieten, und was jede kann: ob sie schreibt, ob eine geänderte Datei geschützt ist und ob sie Ordner auflistet.
 2. Wählen Sie eine Quelle und geben Sie die Adresse ein, die mit dem Schema der Quelle beginnt.
 3. Der Text öffnet sich in einem Tab. Die Leiste darüber zeigt die Quelle, die Adresse mit durch *** ersetzten Geheimnissen und die Revision, in der der Text gelesen wurde.
 - Speichern schreibt den Text nur zurück, wenn die Datei an der Quelle noch in dieser Revision ist. Wurde sie geändert, wird nichts geschrieben und Ihr Text bleibt im Tab. Unterschiede zeigen vergleicht, Überschreiben ersetzt genau die gefundene Version, Abbrechen lässt alles, wie es ist.
@@ -208,15 +208,15 @@ Ein Plugin kann einen eigenen Tab mit Daten öffnen, die es selbst hält: ein Ge
 
 ## [remote.backup] Verbindungen sichern
 commands: nks.remote.exportConnections, nks.remote.importConnections
-1. Wählen Sie Datei und dann Remotedateien und dann Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
-2. Wählen Sie Datei und dann Remotedateien und dann Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
+1. Wählen Sie in der Befehlspalette Verbindungen exportieren und benennen Sie die Datei. Sie listet die Verbindungen: Name, Protokoll, Server, Port, Benutzer und die vertrauenswürdige Serveridentität.
+2. Wählen Sie in der Befehlspalette Verbindungen importieren, um eine solche Datei auf einem anderen Computer oder nach einer Neuinstallation zu lesen.
 - Die Datei enthält keine Passwörter, Passphrasen oder Token und kann daher weitergegeben werden. Wählen Sie nach dem Import eine Verbindung und dann Passwort setzen.
 - Eine importierte Verbindung ersetzt eine Verbindung mit derselben internen Kennung.
 - Die ganze Konfiguration samt Verbindungen übertragen Sie mit Einstellungen und dann Konfiguration sichern (Thema Konfiguration sichern).
 
 ## [remote.proxy] Netzwerk-Proxy
 commands: nks.remote.proxy
-1. Wählen Sie Datei und dann Remotedateien und dann Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
+1. Wählen Sie in der Befehlspalette Netzwerk-Proxy und wählen Sie HTTP, SOCKS4, SOCKS5 oder keinen Proxy.
 2. Geben Sie Server und Port ein, bei Bedarf auch Benutzername und Passwort des Proxys. Das Passwort kommt in den Anmeldeinformationsspeicher.
 - Der Proxy wird für FTPS, SFTP, die Update-Prüfung und die Anfragen verwendet, die Plugins über den Editor senden (Berechtigung network). Eine Verbindung mit eigenem Proxy behält ihn.
 - Ein Plugin, das selbst eine Verbindung öffnet, umgeht den Proxy. Abfragen bei Paketregistern und Schema-Downloads verwenden den Proxy, auch einen mit Benutzernamen: Sie laufen über den Editor, der sich mit dem gespeicherten Passwort anmeldet, sodass das Plugin es nie sieht.
@@ -232,7 +232,7 @@ Eine Datei wird schreibgeschützt geöffnet, wenn ein anderes Programm sie geöf
 ## [file.history] Lokaler Verlauf
 commands: nks.file.history
 Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein anderes Programm eine Revision der Datei. Es braucht weder ein Projekt noch Git.
-1. Wählen Sie Datei und dann Verlauf und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
+1. Wählen Sie Datei und dann Dateiversionen und dann Lokaler Verlauf. Die Liste zeigt die Revisionen der Datei im Tab, die neueste zuerst, mit Anlass, Größe und Bezeichnung.
 2. Wählen Sie eine Revision. Vergleichen zeigt sie links und den Tab rechts in einem Vergleichs-Tab (Thema Mit Datenträger vergleichen); ist ein Externes Vergleichsprogramm eingetragen, startet stattdessen dieses. Datei wiederherstellen setzt die ganze Revision in den Tab. Auswahl wiederherstellen ersetzt nur die ausgewählten Zeilen durch die passenden Zeilen der Revision. Bezeichnung gibt der Revision einen Namen.
 - Das Wiederherstellen ist eine Änderung im Tab; Rückgängig nimmt sie zurück, und nichts wird geschrieben, bis Sie speichern. Der Text, der im Tab stand, bleibt als Revision erhalten.
 - Die Revisionen liegen im Profilordner, ein Update des Programms löscht sie also nicht.
@@ -246,7 +246,7 @@ Das Programm behält bei jedem Speichern und bei jeder Änderung durch ein ander
 
 ## [file.historyPanel] Panel Lokaler Verlauf
 commands: nks.file.historyPanel, nks.files.history
-1. Wählen Sie Datei, dann Verlauf, dann Panel Lokaler Verlauf, oder Lokaler Verlauf im Menü einer Datei im Dateien-Panel, oder Dateiverlauf im Menü eines Tabs. Das Panel öffnet sich als Werkzeugfenster unten (wie jedes Panel lässt es sich an einen Rand andocken); es zeigt immer eine Datei, und das Öffnen für eine andere Datei ersetzt es.
+1. Wählen Sie Datei, dann Dateiversionen, dann Panel Lokaler Verlauf, oder Lokaler Verlauf im Menü einer Datei im Dateien-Panel, oder Dateiverlauf im Menü eines Tabs. Das Panel öffnet sich als Werkzeugfenster unten (wie jedes Panel lässt es sich an einen Rand andocken); es zeigt immer eine Datei, und das Öffnen für eine andere Datei ersetzt es.
 2. Die Liste links zeigt alle Revisionen der Datei, die neueste zuerst: wann sie entstand, warum, wie groß sie ist und rechts, wie viele Zeilen sie zur vorherigen Revision hinzugefügt und aus ihr entfernt hat. Die Zahlen werden im Hintergrund gezählt, Revision für Revision, und erscheinen, sobald sie fertig sind; die älteste Revision hat nichts, womit sie verglichen werden könnte.
 3. Wählen Sie eine Revision, dann sehen Sie rechts ihren Vergleich. Das Feld über der Liste wählt, womit verglichen wird: mit dem aktuellen Text der Datei oder mit der Revision davor. Zwei Revisionen wählen Sie mit Strg oder Umschalt, sie werden miteinander verglichen, die ältere links. Der Vergleich ist derselbe wie bei Mit Datenträger vergleichen, daher funktionieren seine Pfeile, Vorherige und Nächste.
 4. Datei wiederherstellen setzt die ganze Revision in den Tab der Datei. Für nur einen Teil verwenden Sie den Pfeil eines Blocks im Vergleich mit dem aktuellen Text. Beides ist ein Rückgängig-Schritt im Tab, und der Text, der dort stand, wird vorher als Revision aufbewahrt.
@@ -258,21 +258,21 @@ commands: nks.file.historyPanel, nks.files.history
 
 ## [file.historyMark] Revision markieren
 commands: nks.file.historyMark
-1. Wählen Sie Datei und dann Verlauf und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
+1. Wählen Sie Datei und dann Dateiversionen und dann Revision markieren und geben Sie eine Bezeichnung ein, zum Beispiel Vor dem Refactoring.
 2. Der aktuelle Text des Tabs wird als Revision mit dieser Bezeichnung gespeichert. Enthält die neueste Revision schon denselben Text, erhält diese die Bezeichnung.
 - Die Revision finden Sie später im Lokalen Verlauf über die Bezeichnung.
 - Bei einer großen Datei ist die Revision die gespeicherte Datei auf dem Datenträger; speichern Sie die Datei also zuerst.
 
 ## [file.historySearch] Im Verlauf suchen
 commands: nks.file.historySearch
-1. Wählen Sie Datei und dann Verlauf und dann Im Verlauf suchen und geben Sie den Text ein.
+1. Wählen Sie Datei und dann Dateiversionen und dann Im Verlauf suchen und geben Sie den Text ein.
 2. Die Liste zeigt die Revisionen der Datei, die den Text enthalten, mit der Zahl der Treffer und der ersten Zeile. Wählen Sie eine aus, dann öffnen sich die Aktionen, zum Beispiel Vergleichen.
 - Revisionen von Dateien mit geheimen Werten werden nicht durchsucht.
 
 ## [file.openPath] Pfad am Cursor öffnen
 commands: nks.file.openPathAtCaret
 1. Setzen Sie den Cursor auf einen Dateipfad im Text, zum Beispiel src/a.cs:12.
-2. Wählen Sie Datei und dann Pfad am Cursor öffnen oder suchen Sie den Befehl in der Palette. Ein Kürzel hat er nicht.
+2. Wählen Sie in der Befehlspalette Pfad am Cursor öffnen. Ein Kürzel hat er nicht.
 3. Die Datei öffnet sich; eine Zeile (und Spalte) nach dem Doppelpunkt wird verwendet.
 - Ein relativer Pfad wird im Ordner der aktuellen Datei und im geöffneten Ordner gesucht. Ein Pfad, der mit ~/ beginnt, zeigt in Ihren Benutzerordner.
 - Zeigt der Pfad auf einen Ordner, wird er im Panel Dateien angezeigt.
@@ -429,7 +429,7 @@ commands: nks.edit.sortLines
 
 ## [search.selectLines] Zeilen nach Bereich auswählen
 commands: nks.search.selectLinesByRange
-1. Wählen Sie Bearbeiten, Auswahl, Zeilen nach Bereich auswählen.
+1. Wählen Sie in der Befehlspalette Zeilen nach Bereich auswählen.
 2. Geben Sie Zeilennummern und Bereiche ein, zum Beispiel 10-20, 40-50, getrennt durch Kommas, Semikolons oder Leerzeichen. Die Zeile unter dem Feld sagt, wie viele Auswahlen entstehen.
 3. Drücken Sie OK. Jeder Bereich wird zu einer eigenen Auswahl mit eigenem Cursor, und Kopieren kopiert dann die Zeilen aller Bereiche.
 - Bereiche, die sich überlappen oder aneinanderstoßen, werden verbunden. Zeilennummern beginnen bei 1; Zeilen hinter dem Dokumentende werden ignoriert.
@@ -440,7 +440,7 @@ commands: nks.search.selectLinesByRange
 commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 Diese Befehle stehen im Menü Format. Sie wirken auf die markierten Zeilen, oder auf alle Zeilen, wenn nur ein Cursor da ist (Absatz neu umbrechen: auf den Absatz mit dem Cursor). Jeder ist ein Rückgängig-Schritt.
 1. Markieren Sie die Zeilen, die sich ändern sollen. Ist nur ein Cursor da, wirken die Befehle auf alle Zeilen; Absatz neu umbrechen wirkt auf den Absatz mit dem Cursor.
-2. Wählen Sie Format und dann Absatz neu umbrechen, Absatz neu umbrechen (endet an kurzer Zeile), Zeilen linksbündig, Zeilen rechtsbündig, Zeilen zentrieren oder Zeilen im Blocksatz.
+2. Wählen Sie Format und dann Absatz neu umbrechen, Zeilen linksbündig, Zeilen rechtsbündig, Zeilen zentrieren oder Zeilen im Blocksatz. Absatz neu umbrechen (endet an kurzer Zeile) steht in der Befehlspalette.
 3. Die Zeilen ändern sich in einem Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Absatz neu umbrechen bricht den Text an der Spalte der Einstellung Spalte des rechten Rands um, verbindet die Zeilen eines Absatzes und entfernt überzählige Leerzeichen. Absätze trennt eine Leerzeile, und jede Zeile eines Absatzes bekommt die Einrückung der ersten. Ist kein rechter Rand eingestellt, sagt es die Statusleiste.
 - Absatz neu umbrechen (endet an kurzer Zeile) macht dasselbe, aber ein Absatz endet auch nach einer Zeile, die kürzer als die Hälfte des rechten Rands ist, sodass sie nicht mit der nächsten Zeile verbunden wird. Das passt zu Text ohne Leerzeilen zwischen den Absätzen.
@@ -454,7 +454,7 @@ Diese Befehle stehen im Menü Format. Sie wirken auf die markierten Zeilen, oder
 ## [edit.insertSmall] Datum, GUID und Wiederholen
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 1. Setzen Sie den Cursor an die Stelle, an der der Text stehen soll; mehrere Cursor sind erlaubt.
-2. Wählen Sie Bearbeiten, Inhalte einfügen und dann Datum und Uhrzeit einfügen oder GUID einfügen. Letzten Befehl wiederholen steht im Menü Bearbeiten.
+2. Wählen Sie Bearbeiten, Inhalte einfügen und dann Datum und Uhrzeit einfügen oder GUID einfügen. Letzten Befehl wiederholen steht in der Befehlspalette.
 3. Der Text kommt in jeden Cursor als ein Rückgängig-Schritt; Strg+Z nimmt ihn zurück.
 - Datum und Uhrzeit einfügen schreibt Datum und Uhrzeit in jeden Cursor, im Format der Einstellung Datums- und Zeitformat (ein benutzerdefiniertes .NET-Format wie yyyy-MM-dd HH:mm; Monats- und Tagesnamen folgen der Sprache der Oberfläche). Eine Auswahl wird ersetzt. Im Profil PSPad ist es Alt+D.
 - GUID einfügen schreibt in jeden Cursor eine neue GUID, jeder seine eigene: klein geschrieben, mit Bindestrichen, ohne geschweifte Klammern.
@@ -467,7 +467,7 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 1. Extras, Makros, Makro aufzeichnen, startet die Aufzeichnung. Arbeiten Sie mit Befehlen und Tippen. Extras, Makros, Makroaufzeichnung beenden, beendet sie.
 2. Extras, Makros, Letztes Makro abspielen, spielt es erneut über den aktuellen Auswahlen und Einfügemarken ab.
 3. Extras, Makros, Letztes Makro speichern unter, legt es unter einem Namen im Ordner macros des Profils ab. Extras, Makros, Gespeichertes Makro ausführen, listet die gespeicherten auf und spielt das gewählte ab.
-4. Extras, Makros, Gespeichertes Makro umbenennen, listet die gespeicherten auf und benennt das gewählte um; ein Name, den ein anderes Makro schon hat, wird abgelehnt. Extras, Makros, Gespeichertes Makro löschen, fragt nach und löscht das gewählte endgültig.
+4. Gespeichertes Makro umbenennen (Befehlspalette) listet die gespeicherten auf und benennt das gewählte um; ein Name, den ein anderes Makro schon hat, wird abgelehnt. Gespeichertes Makro löschen (Befehlspalette) fragt nach und löscht das gewählte endgültig.
 - Ein Makro merkt sich Befehle, keine Tasten: Zeile duplizieren, Groß-/Kleinschreibung, Nächstes Vorkommen hinzufügen und Ähnliches, Ausschneiden, Kopieren, Einfügen sowie getippten Text. Mit mehreren Einfügemarken tut es dasselbe wie die Schritte von Hand.
 - Beim Aufzeichnen werden auch die Pfeiltasten, Pos1, Ende, Strg+Pos1, Strg+Ende, Strg mit den Pfeiltasten (mit oder ohne Umschalt), Bild auf, Bild ab (mit oder ohne Umschalt), Rücktaste und Entf als Befehle aufgezeichnet. Sie bewegen und löschen an jeder Einfügemarke, außer Bild auf und Bild ab: diese bewegen eine Einfügemarke, wie die Tasten ohne Makro. Eine Seite ist so viele Zeilen, wie der Editor beim Abspielen zeigt; ein Makro mit Bild ab bewegt sich in einem kleineren Fenster also weniger.
 - Weitersuchen und Rückwärts suchen (F3, Umschalt+F3, Eingabe in der Suchleiste) speichern mit dem Schritt den Suchtext der Suchleiste, sodass das Makro beim späteren Abspielen denselben Text findet. Öffnen Sie die Suchleiste und tippen Sie den Suchtext vor dem Start der Aufzeichnung; ohne Suchtext wird der Schritt nicht aufgezeichnet.
@@ -543,7 +543,7 @@ Eine Markdown-Datei (.md, .markdown) hat drei Modi. Lesen zeichnet die Seite üb
 - Eine Datei, die länger als die Grenze der Vorschau ist oder als große Datei geöffnet wurde, wird als Quelltext geöffnet, und die Statusleiste sagt es; die Leiste bietet dann weder Lesen noch Bearbeiten an.
 - Beim Lesen tun die Tasten des Editors nichts: Die Seite ist nur zum Lesen da. Zum Ändern des Textes wechseln Sie zu Bearbeiten oder Quelltext. F6 setzt den Fokus auf die Seite; die Pfeiltasten, Bild auf, Bild ab, Pos1 und Ende scrollen sie.
 - Der Text der Seite lässt sich wie im Browser mit der Maus auswählen: durch Ziehen über Absätze, Listen, Code und Tabellenzellen. Umschalt+Klick erweitert die Auswahl, ein Doppelklick wählt ein Wort und ein Dreifachklick einen Absatz; beim Ziehen über den Rand rollt die Seite mit. Strg+A wählt alles, Strg+C kopiert den Text (Tabellenzellen durch Tabulatoren getrennt), und Strg+Umschalt+C oder Als Markdown kopieren im Kontextmenü kopiert den passenden Teil der Quelle. Tab wechselt zwischen den Links, Enter öffnet einen Link. Eine lange Codezeile wird nicht umbrochen, sie rollt mit Umschalt+Mausrad.
-- Ansicht, Überschriftenverzeichnis (oder Werkzeuge, Markdown-Gliederung anzeigen, Taste Alt+8) öffnet neben dem Dokument ein Panel mit dem Baum der Überschriften H1 bis H6. Es bleibt beim Lesen, Bearbeiten und im Quelltext offen, die Überschrift der aktuellen Stelle ist fett, ein Klick oder Enter zeigt die Überschrift oben im Editor oder auf der Seite, und nach dem Tippen wird der Baum kurz nach der letzten Taste aktualisiert. Die Schaltflächen 1 bis 6 zeigen die Überschriften bis zur gewählten Ebene und klappen tiefere zu, das Feld oben lässt nur Überschriften stehen, die den eingegebenen Text enthalten. Das Panel lässt sich wie die anderen verschieben und ausblenden.
+- Ansicht, Bereiche, Überschriftenverzeichnis (oder Markdown-Gliederung anzeigen in der Befehlspalette, Taste Alt+8) öffnet neben dem Dokument ein Panel mit dem Baum der Überschriften H1 bis H6. Es bleibt beim Lesen, Bearbeiten und im Quelltext offen, die Überschrift der aktuellen Stelle ist fett, ein Klick oder Enter zeigt die Überschrift oben im Editor oder auf der Seite, und nach dem Tippen wird der Baum kurz nach der letzten Taste aktualisiert. Die Schaltflächen 1 bis 6 zeigen die Überschriften bis zur gewählten Ebene und klappen tiefere zu, das Feld oben lässt nur Überschriften stehen, die den eingegebenen Text enthalten. Das Panel lässt sich wie die anderen verschieben und ausblenden.
 - Strg+K und dann Strg+V in einer Datei in Hex wechselt zum Lesen. Die Markdown-Befehle im Menü Extras brauchen den Editor, nutzen Sie dafür Bearbeiten oder Quelltext.
 - Text lässt sich nicht direkt in der gezeichneten Seite ändern.
 
@@ -703,7 +703,7 @@ commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.
 
 ## [view.wordwrap] Zeilenumbruch
 commands: nks.view.toggleWordWrap
-1. Drücken Sie Alt+Z oder wählen Sie Ansicht und dann Zeilenumbruch umschalten.
+1. Drücken Sie Alt+Z oder wählen Sie Ansicht und dann Zeilenumbruch.
 2. Lange Zeilen werden am Fensterrand umbrochen. Mit erneutem Drücken kehren Sie zurück.
 - Die Wahl wird in der Einstellung Zeilenumbruch gespeichert.
 - Im Seitenmodus gibt es den Befehl nicht.
@@ -719,8 +719,8 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 
 ## [view.display] Verborgene Zeichen, Zeilennummern und Minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
-1. Wählen Sie Ansicht und Verborgene Zeichen anzeigen (Strg+K, Strg+W): Leerzeichen, Tabulatoren und die Zeilenenden CR, LF und CRLF werden gezeichnet. Das Dokument wird nicht verändert.
-2. Zeilennummern anzeigen (Strg+K, Strg+N), Aktuelle Zeile hervorheben, Rechten Rand anzeigen (senkrechte Linie bei Spalte 80, einstellbar mit der Einstellung Spalte des rechten Rands) und Anklickbare Links schalten den Rest ein und aus.
+1. Wählen Sie Ansicht, Editoranzeige und Verborgene Zeichen anzeigen (Strg+K, Strg+W): Leerzeichen, Tabulatoren und die Zeilenenden CR, LF und CRLF werden gezeichnet. Das Dokument wird nicht verändert.
+2. Zeilennummern anzeigen (Strg+K, Strg+N), Aktuelle Zeile hervorheben, Rechten Rand anzeigen (senkrechte Linie bei Spalte 80, einstellbar mit der Einstellung Spalte des rechten Rands) schalten den Rest ein und aus; Anklickbare Links steht in der Befehlspalette.
 3. Minimap anzeigen (Strg+K, Strg+M) zeigt am rechten Rand ein verkleinertes Bild des Textes in den Farben der Hervorhebung, ein Log in den Farben seiner Stufen. Klicken oder Ziehen scrollt. Bei einer langen Datei läuft das Bild mit der Scrollposition mit, und das Rechteck wandert wie eine Bildlaufleiste über die ganze Höhe der Minimap von der ersten bis zur letzten Zeile. Ein Klick bringt die angeklickte Zeile in die Mitte des Bildschirms, das Bild bleibt, wo es ist. Eine große Datei im seitenweisen Modus erscheint als Stichproben aus der ganzen Datei, nach Byteposition gesetzt, sodass sich der Zeiger nicht bewegt, während der Zeilenindex aufgebaut wird.
 - Bei einer großen Datei (seitenweiser Modus) ist das Bild eine Stichprobe: kurze Zeilenfolgen vom Anfang gleich großer Teile der ganzen Datei, die Datei wird also nie ganz gelesen. Statt eines Rechtecks zeigt eine dünne Linie die Position. Solange die Zeilen indiziert werden, deckt das Bild die bisher gezählten Zeilen ab, wie die Bildlaufleiste. Die Zahl der Zeilen einer Folge ist ein Platzhalter, kein entschiedener Wert.
 - Treffer der Suchleiste sind im schmalen Streifen am rechten Rand der Minimap markiert. Die Zeilen, die der Filter einer Live-Ansicht eines Logs behält, sind dort ebenfalls markiert: Fehlerzeilen rot, Warnungen gelb, die übrigen blau.
@@ -731,7 +731,7 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Verborgene Werte in .env-Dateien
 commands: nks.view.toggleSecrets
-1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`, im Texteditor, im seitenweisen Modus und in der Hex-Ansicht. Ansicht, Editoranzeige, Verborgene Werte anzeigen zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
+1. Dateien mit dem Namen `.env`, `.env.*` oder `*.env` zeigen jeden Wert einer Variablen als `••••`, im Texteditor, im seitenweisen Modus und in der Hex-Ansicht. Verborgene Werte anzeigen in der Befehlspalette zeigt sie im aktuellen Tab, und ein erneuter Aufruf verbirgt sie wieder.
 - Im Texteditor wird nur dieser eine Wert gezeigt, wenn der Mauszeiger auf ihm ruht.
 - Der Text der Datei bleibt unverändert: Speichern schreibt dieselben Bytes.
 - Verborgene Werte sind auch in der Minimap, in den Vorschauen von Gehe zu Beliebigem und Bearbeitungsorten, in den Suchergebnissen und in den Exporten mit Formatierung (HTML, RTF) verborgen. Kopieren legt `••••` statt eines verborgenen Werts in die Zwischenablage, und Ausschneiden löscht keinen.
@@ -773,7 +773,7 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Strg+Umschalt+E öffnet oder schließt das Panel Dateien. Ohne geöffneten Ordner bietet es Ordner öffnen an.
 2. Die Pfeile gehen durch den Baum, Pfeil nach rechts und links klappen einen Ordner auf und zu, die Eingabetaste oder ein Doppelklick öffnet eine Datei.
 3. Die rechte Maustaste bietet Dateivorgänge an (Thema Dateivorgänge). F2 benennt um, Entf verschiebt in den Papierkorb, F5 aktualisiert.
-4. Ansicht, Panel-Layout, Versteckte Elemente im Dateipanel anzeigen blendet die Einträge aus oder ein, deren Name mit einem Punkt beginnt oder die das Attribut „versteckt“ haben.
+4. Ansicht, Bereiche, Versteckte Elemente im Dateipanel anzeigen blendet die Einträge aus oder ein, deren Name mit einem Punkt beginnt oder die das Attribut „versteckt“ haben.
 - Der Baum folgt Änderungen auf dem Datenträger selbstständig.
 - Jeder Eintrag hat ein Symbol und eine Farbe nach seinem Typ: Ordner, Text, Quellcode, Auszeichnung, Daten, Stylesheet, Bild, Archiv oder Binärdatei. Versteckte Einträge erscheinen abgeblendet.
 - Bei einem Ordner in einem Git-Repository hat der Name die Farbe des Zustands, den Git der Datei gibt, und dahinter steht ein Buchstabe: M geändert, N neu, D gelöscht, I ignoriert, ! Konflikt. Ein Ordner zeigt den schwersten Zustand darunter. Die Einstellung Git-Status im Dateipanel schaltet das aus; außerhalb eines Repositorys wird Git nicht gestartet.
@@ -784,8 +784,8 @@ commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.pan
 Die Panels Offene Dokumente, Dateien, Commit, lokaler Verlauf und die Plugin-Panels können links, rechts oder unten im Fenster stehen. Eine Seite zeigt immer ein Panel.
 1. Die Größe ändern Sie, indem Sie den schmalen Griff zwischen Panel und Text ziehen, oder Sie setzen die Tastatur mit Tab auf den Griff und drücken die Pfeiltasten; Umschalt macht fünf Schritte, Pos1 und Ende die kleinste und die größte Größe. Strg+K, Strg+= und Strg+K, Strg+- vergrößern und verkleinern das Panel.
 2. Ein Panel verschieben Sie, indem Sie seinen Titel an den linken, rechten oder unteren Rand des Fensters ziehen; eine Markierung zeigt, wo es landet. Mit der Tastatur dienen Strg+K, Strg+Pfeil nach links, Strg+K, Strg+Pfeil nach rechts und Strg+K, Strg+Pfeil nach unten oder Ansicht, Panel-Layout. Dasselbe bietet die rechte Maustaste auf dem Titel.
-3. Ein Panel blenden Sie mit seinem Umschalter, mit Esc oder mit Ansicht, Panel-Layout, Panel ausblenden aus.
-4. Ansicht, Panel-Layout, Panel-Layout zurücksetzen stellt alle Panels links in der Standardgröße wieder her.
+3. Ein Panel blenden Sie mit seinem Umschalter, mit Esc oder mit Panel ausblenden in der Befehlspalette aus.
+4. Ansicht, Bereiche, Panel-Layout zurücksetzen stellt alle Panels links in der Standardgröße wieder her.
 - Das Layout wird mit dem Fenster gespeichert und kommt nach einem Neustart zurück; welche Panels offen sind, wird nicht gespeichert.
 - Ein Panel ist mindestens 140 Pixel breit (unten 80 hoch) und höchstens halb so breit wie das Fenster; an einer Grenze sagt das Programm es an.
 - Ein Screenreader erfährt nach jeder Änderung die Seite und die Größe.
@@ -843,7 +843,7 @@ Ein Projekt ist ein benannter Satz von Ordnern mit den Dateien, die darin geöff
 commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
 1. Wählen Sie im Panel Dateien eine Datei oder einen Ordner oder lassen Sie eine Datei in einem Tab geöffnet.
 2. Wählen Sie Datei, Projekte und Sitzungen, Zu Favoriten hinzufügen.
-3. Um zurückzukehren, wählen Sie im selben Menü Favoriten und den Eintrag; Aus Favoriten entfernen entfernt einen.
+3. Um zurückzukehren, wählen Sie im selben Menü Favoriten und den Eintrag; Aus Favoriten entfernen in der Befehlspalette entfernt einen.
 - Zu Favoriten hinzufügen speichert die gewählte Zeile des Dateipanels, sonst die aktive Datei, sonst den Ordner des Panels. Der Befehl steht auch im Kontextmenü des Panels.
 - Favoriten listet sie auf (auch aus dem leeren Panel). Enter öffnet einen Ordner im Panel und eine Datei in einem Tab. Ein fehlender Pfad erscheint abgeblendet mit Nicht gefunden.
 - Aus Favoriten entfernen listet sie auf und entfernt den gewählten Eintrag.
@@ -854,7 +854,7 @@ commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
 commands: nks.session.save, nks.session.open, nks.session.delete
 1. Öffnen Sie die Tabs, die zusammenbleiben sollen.
 2. Wählen Sie Datei, Projekte und Sitzungen, Sitzung speichern und tippen Sie einen Namen.
-3. Später wählen Sie Datei, Projekte und Sitzungen, Sitzung öffnen und die Sitzung; Sitzung löschen entfernt eine.
+3. Später wählen Sie Datei, Projekte und Sitzungen, Sitzung öffnen und die Sitzung; Sitzung löschen in der Befehlspalette entfernt eine.
 - Sitzung speichern legt die offenen Tabs unter einem Namen ab: Gruppen, Reihenfolge, aktiven Tab und die Auswahl jedes Tabs. Ein Tab mit ungesicherten Änderungen oder ohne Datei behält seinen Text. Eine Sitzung gleichen Namens wird ersetzt.
 - Sitzung öffnen öffnet die Tabs neben den bereits offenen. Dateien werden von der Platte gelesen, dann ersetzt der ungesicherte Text der Sitzung ihren Text, sodass er sich rückgängig machen oder verwerfen lässt. Eine fehlende Datei wird in der Statusleiste genannt; ihr Text, falls die Sitzung ihn hatte, öffnet sich in einem unbenannten Dokument.
 - Eine Sitzung ist eine ganze Aufgabe: Außer den Tabs speichert sie alle Auswahlen jedes Tabs (mehrere Cursor), die Suchleiste mit Suchtext, Ersetzung, Ordner und Schaltern, den Filter der Dokumentliste, das letzte Bearbeitungsrezept (so führt Rezept wiederholen es erneut aus) und eine Ersetzung, die in der Vorschau wartete. Beim Öffnen wird diese Ersetzung auf die Dateien, wie sie jetzt sind, neu geplant; die Vorschau beruht also auf ihrer aktuellen Revision, und eine inzwischen geänderte Datei wird vom alten Plan nicht überschrieben.
@@ -888,7 +888,7 @@ commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
 ## [format.normalize] Unicode-Normalisierung
 commands: nks.format.normalizeNfc, nks.format.normalizeNfd
 Ein Zeichen mit Akzent kann als ein Zeichen (NFC) oder als Buchstabe mit einem getrennten Akzent (NFD) geschrieben sein. Sie sehen gleich aus, aber Suche und Vergleich unterscheiden sie.
-1. Wählen Sie Format und dann Unicode nach NFC normalisieren (oder NFD).
+1. Wählen Sie in der Befehlspalette Unicode nach NFC normalisieren (oder NFD).
 2. Eine Vorschau mit der Zahl der Stellen erscheint. Anwenden führt sie aus.
 - Ließe sich nach dem Normalisieren ein Zeichen nicht in der Codierung der Datei schreiben, lehnt das Programm die Änderung ab und sagt es.
 - Gab es nichts zu ändern, meldet die Statusleiste Nichts zu ändern.
@@ -901,7 +901,7 @@ Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst,
 3. Bestätigen Sie das Schreiben der Änderung oder brechen Sie das Fenster ab; vor der Bestätigung wird nichts geschrieben.
 - Das Fenster nennt die Zahl der geänderten Bereiche und Bytes, die Größe vorher und nachher, Codierung und Zeilenenden vorher und nachher und eine Zeile je Bereich: wo er liegt, alte und neue Länge und die ersten Bytes (höchstens 500 Zeilen, der Rest wird mitgezählt).
 - Kann die Zielcodierung einige Zeichen nicht aufnehmen, listet dasselbe Fenster jedes mit Zeile, Spalte und Byte auf und bietet drei Antworten: abbrechen (nichts wird geschrieben), die Codierung ändern oder jedes Zeichen durch ein Fragezeichen ersetzen.
-- Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden im Menü Format wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
+- Der Befehl Codierung und Zeilenenden aus EditorConfig anwenden in der Befehlspalette wandelt die Datei in den Zeichensatz und das Zeilenende um, die ihre .editorconfig festlegt; jeder Schritt öffnet den Inspektor. Eine Eigenschaft, die die Datei nicht setzt, bleibt unberührt.
 - Die Bereiche gelten für die Revision, die Sie gesehen haben; ändert sich das Dokument inzwischen, wird die Aktion abgelehnt.
 - Datei und dann Änderungen vor dem Speichern zeigt dieselbe Liste für das nächste Speichern.
 - Kein Byte ändert sich, nur die Codierungsangabe. Die Bestätigung ändert nur die Codierungsangabe, die Bytes der Datei bleiben.
@@ -910,7 +910,7 @@ Jede Aktion, die Bytes umschreibt, die Sie nicht bearbeitet haben, zeigt zuerst,
 
 ## [format.batchEncoding] Codierung vieler Dateien umwandeln
 commands: nks.file.convertEncodingBatch
-1. Format und dann Codierung von Dateien in einem Ordner umwandeln. Wählen Sie den Ordner, Dateinamenmuster (zum Beispiel *.txt;*.php, leer bedeutet alle Dateien) und die Zielcodierung.
+1. Wählen Sie in der Befehlspalette Codierung von Dateien in einem Ordner umwandeln. Wählen Sie den Ordner, Dateinamenmuster (zum Beispiel *.txt;*.php, leer bedeutet alle Dateien) und die Zielcodierung.
 2. Das Programm liest die Dateien und zeigt, bevor es etwas schreibt, wie viele ohne Verlust umgewandelt werden und welche Dateien Zeichen verlieren würden, mit diesen Zeichen und ihrer Anzahl. Dateien, die binär sind, diese Bytes schon haben oder eine Codierung haben, die das Programm nur raten kann, werden übersprungen und mit dem Grund aufgelistet.
 3. Wählen Sie N Dateien umwandeln (Dateien, die Zeichen verlieren würden, bleiben unverändert) oder Alles umwandeln und verlorene Zeichen durch ein Fragezeichen ersetzen.
 4. Eine Zusammenfassung listet auf, was umgewandelt wurde, was blieb und was sich nach der Vorschau geändert hat.
@@ -948,7 +948,7 @@ commands: nks.window.splitView, nks.window.moveToOtherGroup
 
 ## [settings.theme] Design
 commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.theme.dark
-1. Wählen Sie Einstellungen, Farbschema und eines der Designs: Design: wie System, Design: Hell, Design: Dunkel.
+1. Wählen Sie Einstellungen, Einstellungen und unter Erscheinungsbild das Design, oder in der Befehlspalette Design: wie System, Design: Hell oder Design: Dunkel.
 2. Die Änderung wirkt sofort und wird gemerkt.
 - Wie System bedeutet, dass das Programm der Systemeinstellung folgt.
 
@@ -960,7 +960,7 @@ commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.langu
 
 ## [settings.profile] Verhaltensprofil
 commands: nks.settings.profile.default, nks.settings.profile.pspad
-1. Wählen Sie Einstellungen, Verhaltensprofil und dann Verhaltensprofil: Standard oder Verhaltensprofil: PSPad.
+1. Wählen Sie Einstellungen, Einstellungen, Editor, Eingabe und Verhaltensprofil, oder in der Befehlspalette Verhaltensprofil: Standard oder Verhaltensprofil: PSPad.
 - Das Profil PSPad ändert: Pos1 und Ende springen zwischen dem ersten Zeichen und dem Zeilenrand, die Rücktaste im Einzug löscht bis zum Tabstopp, Alt+Ziehen macht eine Blockauswahl, Zeichenpaare werden wie in PSPad ergänzt, und einige Kürzel (Zeile löschen Strg+Y, Rückgängig Alt+Rücktaste, Zeilenumbruch Strg+W, F8 Marke, Strg+Umschalt+C Blockauswahl, Einzug Strg+Umschalt+I und U).
 - Eigene Kürzel in den Einstellungen haben Vorrang vor dem Profil.
 
@@ -985,7 +985,7 @@ Das Ausgabefenster ist ein Streifen unter dem Editor, in den Aufgaben und Suchen
 ## [view.pluginPanels] Plugin-Bereiche
 commands: nks.view.pluginPanels
 Ein Plugin-Bereich ist eine Liste oder ein Baum, den ein Plugin an den Editor schickt. Der Editor zeigt ihn in der linken Spalte.
-1. Wählen Sie Ansicht und dann Plugin-Bereiche oder suchen Sie den Befehl in der Palette. Die Liste zeigt die Bereiche, die Plugins gerade haben, jeweils mit dem Namen des Plugins.
+1. Wählen Sie Ansicht, Bereiche und dann Plugin-Bereiche oder suchen Sie den Befehl in der Palette. Die Liste zeigt die Bereiche, die Plugins gerade haben, jeweils mit dem Namen des Plugins.
 2. Wählen Sie einen Bereich und drücken Sie Enter. Er öffnet sich mit dem ersten Eintrag ausgewählt.
 3. Die Pfeiltasten nach oben und unten gehen durch die Einträge, nach rechts und links klappen sie einen Zweig auf und zu. Enter oder ein Doppelklick öffnet einen Eintrag.
 4. Esc im Bereich schließt ihn und bringt Sie zurück in den Text. Während Sie im Text schreiben, bleibt der Bereich offen.
@@ -1041,9 +1041,9 @@ commands: nks.hex.inspector
 
 ## [hex.layout] Hex: Aussehen des Rasters
 commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
-Die Befehle stehen in Hex, im Menü Ansicht, in der Statusleiste und in der Palette zur Verfügung.
+Die Befehle stehen in Hex, im Menü Hex, in der Statusleiste und in der Palette zur Verfügung.
 1. Öffnen Sie eine Datei in Hex (Thema Hex: Öffnen und Bewegen).
-2. Wählen Sie Ansicht, Hex und dann Hex-Layout: Bytes pro Zeile, Gruppierung oder Kodierung der Zeichenspalte, oder klicken Sie auf den Eintrag in der Statusleiste.
+2. Wählen Sie Hex und dann Hex-Layout: Bytes pro Zeile, Gruppierung, oder in der Befehlspalette Kodierung der Zeichenspalte, oder klicken Sie auf den Eintrag in der Statusleiste.
 3. Wählen Sie den Wert; das Raster wird neu gezeichnet, und die nächste Hex-Ansicht merkt sich die Auswahl.
 - Codierung der Zeichenspalte: die Codierung, in der Bytes als Zeichen angezeigt werden.
 - Layout: Bytes pro Zeile (8, 16, 24, 32, 48, 64), Gruppierung der Bytes und Offsetformat. Jede Größe hat auch einen eigenen Befehl.
@@ -1064,7 +1064,7 @@ commands: nks.hex.inspectChanges
 
 ## [hex.copyAs] Hex: Kopieren, Einfügen und Exportieren als
 commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
-1. Bearbeiten und dann Hex und dann Hex: Auswahl kopieren als legt die ausgewählten Bytes als Text in die Zwischenablage: Hex-Zeichenfolge, Array für C, C#, Java, Python, Rust, Go, JavaScript oder Pascal, Base64, Intel HEX, Motorola S-Record oder Hexdump.
+1. Hex und dann Auswahl kopieren als legt die ausgewählten Bytes als Text in die Zwischenablage: Hex-Zeichenfolge, Array für C, C#, Java, Python, Rust, Go, JavaScript oder Pascal, Base64, Intel HEX, Motorola S-Record oder Hexdump.
 2. Hex: Einfügen als liest die Zwischenablage als Hex-Text, Base64 oder Array aus Quellcode und fügt die Bytes wie Strg+V ein.
 3. Hex: Auswahl exportieren schreibt die Auswahl in eine Datei, binär oder in einer der Textformen. Es läuft im Hintergrund, und Esc bricht es ab.
 - Intel HEX, S-Record und Hexdump tragen den Offset jedes Bytes in der Datei als Adresse; Intel HEX und S-Record kennen nur 32-Bit-Adressen, eine Auswahl über 4 GiB wird deshalb abgelehnt.
@@ -1238,7 +1238,7 @@ commands: nks.plugins.manage
 commands: nks.tools.lint
 1. Extras, Code und Sprache, Datei mit Linter prüfen startet den Linter, der zur geöffneten Datei passt: PHPStan oder Psalm für PHP, golangci-lint für Go, Clippy für Rust (braucht eine Cargo.toml im Ordner der Datei oder darüber), clang-tidy für C und C++, RuboCop für Ruby, ESLint für JavaScript und TypeScript, Ruff für Python, ShellCheck für Shell-Skripte, SQLFluff für SQL und dart analyze für Dart. Verarbeiten zwei Linter die Datei, gilt der erste, dessen Konfigurationsdatei (phpstan.neon, psalm.xml) gefunden wird, sonst der erste installierte.
 2. Der Linter prüft die Datei auf dem Datenträger, also zuerst speichern: Ein Dokument mit ungespeicherten Änderungen wird nicht geprüft. Die Funde werden im Text unterstrichen (die Meldung erscheint, wenn der Zeiger darauf ruht) und auf dem Tab Aufgaben aufgelistet, einer pro Zeile; Klick oder Eingabe öffnet die Stelle. Der nächste Lauf desselben Linters ersetzt sie, ein behobenes Problem verschwindet danach. Bearbeiten Sie die Datei während der Prüfung, wandern die Funde mit dem Text mit, und Funde, deren Text Sie geändert haben, verschwinden.
-3. Um nach jedem Speichern zu prüfen, schalten Sie unter Datei, Aktionen beim Speichern „Mit PHPStan prüfen“ (oder den anderen Linter) ein oder schreiben {"kind": "lint", "id": "phpstan"} in saveActions.json. Ein Linter läuft nie bei einer Änderung. Die Kennungen sind phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff und dart-analyze. Eine Prüfung, die ein Speichern startet, wartet eine halbe Sekunde auf ein weiteres Speichern derselben Datei; das neuere Speichern ersetzt sie.
+3. Um nach jedem Speichern zu prüfen, schalten Sie unter Aktionen beim Speichern (Befehlspalette) „Mit PHPStan prüfen“ (oder den anderen Linter) ein oder schreiben {"kind": "lint", "id": "phpstan"} in saveActions.json. Ein Linter läuft nie bei einer Änderung. Die Kennungen sind phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff und dart-analyze. Eine Prüfung, die ein Speichern startet, wartet eine halbe Sekunde auf ein weiteres Speichern derselben Datei; das neuere Speichern ersetzt sie.
 - Das Programm wird im angegebenen Pfad gesucht, dann in vendor/bin, node_modules/.bin und .venv (vom Ordner der Datei aufwärts) und im PATH; es wird nichts heruntergeladen. Den Pfad geben Sie in der saveActions.json des Profils an: "toolPaths": {"phpstan": "C:\\werkzeuge\\phpstan.phar"} (eine Datei oder der Ordner, der das Programm enthält). Das gilt auch für Formatierer, und eine Projektdatei kann es nicht setzen. Ein Pfad, den es nicht gibt, wird gemeldet und nicht durch eine Suche ersetzt. Beim ersten Lauf müssen Sie den Befehl bestätigen.
 - Ohne lintTimeoutSeconds in saveActions.json hat ein Linter ein Limit von 60 Sekunden. Ein Linter, der das Limit überschreitet, wird gestoppt und gemeldet; der Editor bleibt dabei bedienbar, und die Funde des früheren Laufs bleiben.
 - PHPStan meldet eine Zeile und keine Spalte, daher wird der Text der ganzen Zeile unterstrichen. Ein Programm, das eine Batchdatei ist (phpstan.bat, eslint.cmd), wird wie bei jedem Werkzeug über cmd.exe gestartet.
@@ -1247,7 +1247,7 @@ commands: nks.tools.lint
 
 ## [file.saveActions] Aktionen beim Speichern: formatieren, Werkzeug ausführen, hochladen
 commands: nks.file.saveActions
-1. Datei, Aktionen beim Speichern listet auf, was rund um das Speichern läuft: Formatieren, ein Werkzeug, Hochladen auf den Server. Eine Zeile schaltet die Aktion ein oder aus; die Zeile darunter schaltet „nur beim manuellen Speichern“ um. Ein Formatierer wird nur angeboten, wenn seine Konfigurationsdatei im Ordner der Datei oder darüber liegt, und er bleibt aus, bis Sie ihn einschalten: gofmt (go.mod), rustfmt (rustfmt.toml), clang-format (.clang-format), RuboCop (.rubocop.yml), Prettier (.prettierrc), Biome (biome.json), Ruff (ruff.toml, pyproject.toml), shfmt (.editorconfig), SQLFluff (.sqlfluff), StyLua (stylua.toml), dart format (analysis_options.yaml).
+1. Aktionen beim Speichern in der Befehlspalette listet auf, was rund um das Speichern läuft: Formatieren, ein Werkzeug, Hochladen auf den Server. Eine Zeile schaltet die Aktion ein oder aus; die Zeile darunter schaltet „nur beim manuellen Speichern“ um. Ein Formatierer wird nur angeboten, wenn seine Konfigurationsdatei im Ordner der Datei oder darüber liegt, und er bleibt aus, bis Sie ihn einschalten: gofmt (go.mod), rustfmt (rustfmt.toml), clang-format (.clang-format), RuboCop (.rubocop.yml), Prettier (.prettierrc), Biome (biome.json), Ruff (ruff.toml, pyproject.toml), shfmt (.editorconfig), SQLFluff (.sqlfluff), StyLua (stylua.toml), dart format (analysis_options.yaml).
 2. Die Reihenfolge ist fest: zuerst die Formatierer, dann das Speichern, dann Werkzeuge und Hochladen. Ein Formatierer arbeitet an einer Kopie des Textes und wird nach Ablauf des Zeitlimits gestoppt. Läuft er ab, scheitert er (zum Beispiel an einem Syntaxfehler) oder ist er nicht installiert, wird die Datei unverändert gespeichert, und Statuszeile und Registerkarte Aufgaben nennen den Grund. Text, den Sie währenddessen getippt haben, wird nie überschrieben. Formatiert wird nur ein Dokument mit ungespeicherten Änderungen.
 3. Das Hochladen sendet genau die Bytes, die dieses Speichern geschrieben hat, nie ältere oder neuere. Hat sich die Datei auf dem Datenträger nach dem Speichern geändert, wird nichts gesendet. Eine von einem Server geöffnete Datei geht an denselben Server zurück, eine Datei vom Datenträger an den Standardserver ihres Projekts (Schritt 6).
 4. Ein automatisches Speichern führt die Aktionen aus, die nicht mit „nur beim manuellen Speichern“ markiert sind. Ein Speichern durch ein Plugin führt keine Aktion aus, so löst eine Aktion, die speichert, keine Schleife aus. Speichern unter ist ein manuelles Speichern: Es führt die Aktionen des Ordners aus, in den Sie speichern.
@@ -1287,7 +1287,7 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 
 ## [export.highlight] Export und Kopie mit Hervorhebung
 commands: nks.file.exportHtml, nks.file.exportRtf, nks.file.exportTex, nks.edit.copyFormatted, nks.edit.copyHtmlSource
-1. Datei, Exportieren, Als HTML exportieren, Als RTF exportieren und Als LaTeX exportieren schreiben die Auswahl, oder das ganze Dokument, wenn nichts markiert ist, in eine Datei Ihrer Wahl. Die Farben sind die des Editors im aktuellen hellen oder dunklen Design: dieselben Tokens der Grammatik des Dokuments, in einem Log die Farben der Stufen. Die Seiten- und Textfarbe des Editors ist enthalten.
+1. Datei, Drucken und Exportieren, Als HTML exportieren, Als RTF exportieren und Als LaTeX exportieren schreiben die Auswahl, oder das ganze Dokument, wenn nichts markiert ist, in eine Datei Ihrer Wahl. Die Farben sind die des Editors im aktuellen hellen oder dunklen Design: dieselben Tokens der Grammatik des Dokuments, in einem Log die Farben der Stufen. Die Seiten- und Textfarbe des Editors ist enthalten.
 2. Bearbeiten, Zwischenablage, Mit Formatierung kopieren legt Text, HTML und RTF zusammen in die Zwischenablage. Das Einfügen in eine Textverarbeitung oder ein Mail behält die Farben, das Einfügen in einen Editor ergibt einfachen Text. Als HTML-Quelltext kopieren legt das HTML selbst als Text in die Zwischenablage.
 - Das ganze Dokument wird gefärbt und die Auswahl daraus geschnitten, eine Auswahl, die in einem Kommentar beginnt, ist also wie im Editor gefärbt. Bei mehreren Cursorn oder einer Blockauswahl wird nur der markierte Text genommen und ab seinem eigenen Anfang gefärbt. Bei einer großen Datei (seitenweiser Modus) wird die Auswahl wie im ganzen Dokument gefärbt: Der Text davor in ihrer ersten Zeile wird gelesen, und die Farben am Anfang dieser Zeile werden durch Lesen der Datei bis dorthin ermittelt, was bei einer Auswahl tief in einer sehr großen Datei eine Weile dauert (das Fenster bleibt bedienbar, die Statuszeile zeigt, wie weit das Lesen ist, und Esc bricht es ab: Der Export findet dann nicht statt und nichts wird geschrieben). Die Zeilennummerierung muss die Auswahl erreicht haben, sonst bittet eine Meldung um einen neuen Versuch. Ein Stück einer Zeile von mehr als 32 MiB vor der Auswahl wird nicht gelesen, und die Auswahl wird ab ihrem eigenen Anfang gefärbt. Lassen sich die Farben am Anfang der Zeile nicht ermitteln (davor liegt eine Zeile, die zum Färben zu lang ist, Thema Große Dateien (Seitenmodus)), beginnt die Grammatik in dieser Zeile frisch.
 - Ein Text über 8388608 Zeichen wird mit einer Meldung abgelehnt; markieren Sie einen Teil. Die Grenze ist ein Platzhalter, kein entschiedener Wert. Die Arbeit läuft im Hintergrund, das Fenster bleibt bedienbar.
@@ -1498,7 +1498,7 @@ Ein Plugin, das sich nicht installieren lässt oder nicht läuft, wird in einem 
 ## [errors.agents] Fehlermeldungen: MCP, /ide und Agenten
 Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in der Statusleiste, in Dialogen und im Agent-Bereich. Jede Zeile zitiert die Meldung und sagt, was zu tun ist. Ohne Ihre Bestätigung wird nichts auf Ihre Tabs angewendet, ein fehlgeschlagener Schritt lässt sie also unverändert.
 - Der MCP-Server konnte nicht gestartet werden: Grund. Beheben Sie den Grund und wählen Sie MCP-Server erneut. Bis dahin wird nichts geteilt.
-- Schalten Sie zuerst den MCP-Server ein (Extras, Agenten und KI, MCP, MCP-Server). Schalten Sie den Server ein und teilen Sie den Tab dann erneut (Thema Der Editor als MCP-Server).
+- Schalten Sie zuerst den MCP-Server ein (Extras, Agenten und KI, MCP-Server). Schalten Sie den Server ein und teilen Sie den Tab dann erneut (Thema Der Editor als MCP-Server).
 - Dieser Tab kann nicht geteilt werden. Nur Text-Tabs lassen sich teilen. Ein Vergleich oder eine Liste von Suchergebnissen nicht.
 - Die Auswahl ist größer als N Bytes. Wählen Sie weniger aus oder teilen Sie den ganzen Tab. Wählen Sie weniger aus oder teilen Sie den ganzen Tab.
 - Die /ide-Brücke konnte nicht starten: Grund. Beheben Sie den Grund und wählen Sie /ide-Brücke erneut.
@@ -1526,7 +1526,7 @@ Die Meldungen des MCP-Servers, der /ide-Brücke und der Agenten erscheinen in de
 - Name bietet weder Tools noch Ressourcen an. Der Server hat geantwortet, bietet aber nichts zum Aufrufen an. Prüfen Sie seine Einrichtung in der Datei seines Agenten.
 - Werkzeug meldet einen Fehler; der Text steht in einem neuen Tab. Der Aufruf hat den Server erreicht, und der Server meldet den Fehler. Lesen Sie den Text im neuen Tab und rufen Sie das Werkzeug mit anderen Argumenten erneut auf.
 - Der Wert von Name konnte nicht gespeichert werden (Grund); er gilt nur für diese Verbindung. Die nächste Verbindung fragt den Wert erneut ab. Beheben Sie die Ursache, die der Grund nennt.
-- Die /ide-Brücke dieses Fensters ist aus. Einschalten unter Werkzeuge, /ide-Brücke. Wiederholen Sie dann den Befehl (Thema Die /ide-Brücke für Claude Code).
+- Die /ide-Brücke dieses Fensters ist aus. Einschalten unter Extras, Agenten und KI, /ide-Brücke. Wiederholen Sie dann den Befehl (Thema Die /ide-Brücke für Claude Code).
 - Agent Version N (die Tabelle nennt M). Das ist ein Hinweis im Agentenpanel, kein Fehler: Der Agent startet trotzdem, aber diese Version ist nicht geprüft (Thema Agent über ACP).
 - Agent: Die Version konnte nicht gelesen werden (Grund). Nicht verifiziert. Auch das ist ein Hinweis im Agentenpanel: Der Agent startet trotzdem, aber seine Version ist nicht geprüft.
 
@@ -1587,8 +1587,8 @@ Ein Clip ist ein Stück Text mit Stellen für Variablen und Eingabemarken. Clips
 - Die Zeilen eines Snippets nach der ersten übernehmen die Einrückung der Zeile, in der es beginnt; Tabs in der eigenen Einrückung werden zur Einrückung des Dokuments (Tabs oder Leerzeichen). Ein Clip ohne nummerierte Platzhalter wird unverändert eingefügt.
 - In einem Snippet ist $| keine Eingabemarke, und ein Dollarzeichen vor einer Ziffer ist ein Platzhalter: Schreiben Sie $$ oder \$ für ein Dollarzeichen. Neben ${name} gelten die Variablen TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID und CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND (auch als $NAME). Text, der nicht zur Syntax passt, bleibt unverändert.
 - Ein Vorgabetext kann weitere Platzhalter enthalten: ${1:for (${2:i} = 0)}. Tab besucht die Platzhalter wie gewohnt nach ihrer Nummer; die Stelle, die weitere enthält, wird dort bearbeitet, wo sie steht, und die übrigen Stellen ihrer Nummer zeigen den Text unverändert. Eine Transformation lässt eine Stelle geänderten Text zeigen: ${1/Regex/Format/Optionen} für einen Platzhalter (die Stelle folgt dem, was Sie in Platzhalter 1 tippen) und ${NAME/Regex/Format/Optionen} für eine Variable. Das Format kennt $1, ${1:/upcase}, ${1:/downcase}, ${1:/capitalize}, ${1:/camelcase}, ${1:/pascalcase}, ${1:+Text falls}, ${1:?Text falls:Text sonst} und ${1:-Text sonst}; die Optionen sind g (jeder Treffer, sonst nur der erste), i, m und s. Schreiben Sie \/ für einen Schrägstrich im regulären Ausdruck oder im Format; der Ausdruck hat .NET-Syntax. Tiefer als das Limit verschachtelte Platzhalter bleiben Text; ein Snippet, das über das Längenlimit wächst oder dessen Transformation zu lange läuft, wird mit einer Meldung abgelehnt.
-- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. die Variablen des Projekts, 3. Ihre eigenen Variablen (Bearbeiten, Inhalte einfügen, Benutzervariablen bearbeiten öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 4. die eingebauten. Derselbe Name gibt in einem Clip, einem Rezept und einem externen Werkzeug denselben Wert.
-- Projektvariablen: Bearbeiten, Inhalte einfügen, Projektvariablen bearbeiten öffnet die Datei .textida/variables.json des Projekts der geöffneten Datei, in derselben Form wie variables.json des Profils. Das Projekt ist der nächste Ordner über der Datei, der eine solche Datei hat; gibt es keinen, wird die Datei im nächsten Ordner mit .textida oder .git angelegt. Ihre Namen gelten nur für die Dateien dieses Projekts und haben Vorrang vor Ihren eigenen Variablen gleichen Namens. Eine beschädigte Datei stoppt Clips, Rezepte und Werkzeuge in diesem Projekt und wird in der Meldung genannt. Ein externes Werkzeug, dessen Befehl eine Projektvariable nutzt, fragt nach einer Änderung ihres Werts erneut nach der Bestätigung, wie bei einer geänderten Definition.
+- Woher eine Variable ihren Wert hat, stärkste zuerst: 1. der im Formular des Clips eingegebene Wert, 2. die Variablen des Projekts, 3. Ihre eigenen Variablen (Benutzervariablen bearbeiten in der Befehlspalette öffnet die Datei variables.json des Profils: ein JSON-Objekt aus Name und Text), 4. die eingebauten. Derselbe Name gibt in einem Clip, einem Rezept und einem externen Werkzeug denselben Wert.
+- Projektvariablen: Projektvariablen bearbeiten in der Befehlspalette öffnet die Datei .textida/variables.json des Projekts der geöffneten Datei, in derselben Form wie variables.json des Profils. Das Projekt ist der nächste Ordner über der Datei, der eine solche Datei hat; gibt es keinen, wird die Datei im nächsten Ordner mit .textida oder .git angelegt. Ihre Namen gelten nur für die Dateien dieses Projekts und haben Vorrang vor Ihren eigenen Variablen gleichen Namens. Eine beschädigte Datei stoppt Clips, Rezepte und Werkzeuge in diesem Projekt und wird in der Meldung genannt. Ein externes Werkzeug, dessen Befehl eine Projektvariable nutzt, fragt nach einer Änderung ihres Werts erneut nach der Bestätigung, wie bei einer geänderten Definition.
 - Eingebaute Variablen: file.path, file.dir, file.name, file.base, file.ext (ein ungespeichertes Dokument hat kein file.*), date (jjjj-MM-tt), time (HH:mm:ss), datetime (die Einstellung Datums- und Zeitformat), guid (für jede Eingabemarke neu), selection (der an dieser Eingabemarke markierte Text), user.name. Ein Name ohne Wert stoppt das Einfügen und die Statusleiste nennt ihn.
 - Formularfelder: name, label, type, default, choices, required. Typen: text, integer (ganze Zahl), number (Dezimalpunkt), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (jjjj-MM-tt), file (eine vorhandene Datei), choice (einer der Werte aus choices). Ein Vorgabewert darf Variablen nutzen, etwa ${date}.
 - In nkspad-plugin.json steht ein Clip als {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} unter contributes.clips; ein Clip mit "command" bekommt zusätzlich einen Befehl dieses Namens.
@@ -1642,7 +1642,7 @@ Ein Rezept wählt Teile der geöffneten Datei, ändert sie und zeigt das Ergebni
 ## [edit.recipeFiles] Rezepte über Dateien
 commands: nks.edit.runRecipeFiles
 Ein gespeichertes Rezept läuft erneut über eine andere Dateiauswahl. Sie sehen jede Änderung vorher; nichts wird geschrieben, bevor Sie sie anwenden.
-1. Wählen Sie Bearbeiten, Umwandlungen und Rezepte, Rezept auf Dateien anwenden und ein Rezept: aus einem Daten-Plugin oder eine Datei im Ordner recipes des Profils.
+1. Wählen Sie in der Befehlspalette Rezept auf Dateien anwenden und ein Rezept: aus einem Daten-Plugin oder eine Datei im Ordner recipes des Profils.
 2. Wählen Sie die Dateien: einen Ordner mit Dateimaske (zum Beispiel *.cs;*.txt; die Ignore-Dateien der Suche gelten), die offenen Tabs oder die Dateien der Suchergebnisse.
 3. Der Tab Suchergebnisse listet die Änderungen Datei für Datei mit denselben Häkchen wie Replace in Files. Anwenden schreibt die angehakten. Eine Datei, die nach der Vorschau von jemand anderem geändert wurde, bleibt unberührt: sie wird als Konflikt gemeldet und die übrigen Dateien werden geschrieben. Offene Dokumente erhalten einen Rückgängig-Schritt.
 - Eine Rezeptdatei ist JSON mit id, title und steps, dieselben Felder wie ein Rezept in nkspad-plugin.json, dazu optional version und eine Liste converters (die Konverter, die ihre convert-Schritte nennen). Eine Datei ohne version ist Version 1, das Format der ersten Rezepte, und lädt wie bisher. Eine Datei neuerer Version wird mit einer Meldung abgelehnt.
@@ -1662,8 +1662,8 @@ Legt die Auswahl, die Datei, die geöffneten Tabs oder den geöffneten Ordner al
 ## [edit.fragment] Zeichenkette als JSON, SQL oder HTML bearbeiten
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
 Eine Zeichenkette in einer PHP- oder JavaScript-Datei öffnet sich in einem eigenen Tab in der gewählten Sprache und geht mit dem Escaping ihrer Art zurück in die Zeichenkette.
-1. Setzen Sie den Cursor in die Zeichenkette und wählen Sie Bearbeiten, Zeichenfolge bearbeiten als, Zeichenkette als JSON bearbeiten, Zeichenkette als SQL bearbeiten oder Zeichenkette als HTML bearbeiten. Der neue Tab zeigt den Text, für den die Zeichenkette steht, ohne Anführungszeichen und Escapes.
-2. Bearbeiten Sie den Text. Wählen Sie Bearbeiten, Zeichenfolge bearbeiten als, Fragment in die Zeichenkette zurückschreiben: Der Text wird für die Zeichenkette escaped und ersetzt ihren Inhalt. Der Tab bleibt offen, Sie können erneut schreiben.
+1. Setzen Sie den Cursor in die Zeichenkette und wählen Sie in der Befehlspalette Zeichenkette als JSON bearbeiten, Zeichenkette als SQL bearbeiten oder Zeichenkette als HTML bearbeiten. Der neue Tab zeigt den Text, für den die Zeichenkette steht, ohne Anführungszeichen und Escapes.
+2. Bearbeiten Sie den Text. Wählen Sie in der Befehlspalette Fragment in die Zeichenkette zurückschreiben: Der Text wird für die Zeichenkette escaped und ersetzt ihren Inhalt. Der Tab bleibt offen, Sie können erneut schreiben.
 - Arten: PHP-Zeichenketten in einfachen und doppelten Anführungszeichen, Heredoc und Nowdoc; JavaScript-Zeichenketten in einfachen und doppelten Anführungszeichen und Templates in Backticks. In einer Zeichenkette in doppelten Anführungszeichen und in einem Heredoc bekommt jedes Dollarzeichen einen Backslash, damit nie versehentlich eine Variable entsteht.
 - Mit Meldung abgelehnt: eine Zeichenkette mit Variablen oder Ausdrücken (`$name`, `{$x}`), ein JavaScript-Template mit `${...}`, ein Escape, der kein Text ist (Byte über 127, Oktal) und beim Schreiben eine Zeile, die ein Heredoc oder Nowdoc beenden würde.
 - Der Tab folgt der Zeichenkette bei Änderungen der Datei an anderer Stelle. Wurde die Datei nach dem Öffnen des Tabs innerhalb der Zeichenkette geändert, wird nichts ohne Rückfrage überschrieben: Der Dialog bietet Überschreiben oder Abbrechen.
@@ -1891,37 +1891,37 @@ Zwei Tabs scrollen zusammen, sodass gleicher Text zweier Dateien nebeneinander b
 ## [tools.mcp] Der Editor als MCP-Server
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools, nks.tools.mcpClients
 Ein KI-Assistent, den Sie auf diesem Computer starten (zum Beispiel ein Coding-Agent), kann Textida über das Model Context Protocol nutzen. Er sieht nur die Tabs, die Sie ihm freigeben, und schreibt nie selbst: Jeden Vorschlag sehen Sie als Änderungsvorschau und Sie entscheiden.
-1. Wählen Sie Extras, Agenten und KI, MCP, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
+1. Wählen Sie Extras, Agenten und KI, MCP-Server. Der Dialog listet auf, was der Assistent bekommt. Mit Einschalten startet der Server; erneutes Wählen des Befehls schaltet ihn aus und entzieht alle Tabs.
 2. Richten Sie den Assistenten so ein, dass er das Programm textida-mcp.exe aus dem Ordner mcp neben dem Editor startet (die Statusleiste zeigt den vollständigen Pfad). Es spricht über eine lokale Pipe mit dem Editor, ein Netzwerkport wird nicht geöffnet.
-3. Öffnen Sie einen Tab und wählen Sie Extras, Agenten und KI, MCP, Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
-4. Wollen Sie dem Assistenten nur einen Teil eines Tabs geben, markieren Sie den Text und wählen Sie Extras, Agenten und KI, MCP, Auswahl mit MCP teilen. Der markierte Text öffnet sich als schreibgeschützter Auszug in einem eigenen Tab: eine Kopie, die dem Original nicht folgt, und der Assistent kann dazu keine Änderungen vorschlagen. Das Schließen dieses Tabs entzieht ihn.
-5. Mit Extras, Agenten und KI, MCP, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
+3. Öffnen Sie einen Tab und wählen Sie in der Befehlspalette Tab mit MCP teilen. Derselbe Befehl entzieht den Tab wieder. Ein Tab, der nicht geteilt ist, wird nicht einmal aufgelistet.
+4. Wollen Sie dem Assistenten nur einen Teil eines Tabs geben, markieren Sie den Text und wählen Sie in der Befehlspalette Auswahl mit MCP teilen. Der markierte Text öffnet sich als schreibgeschützter Auszug in einem eigenen Tab: eine Kopie, die dem Original nicht folgt, und der Assistent kann dazu keine Änderungen vorschlagen. Das Schließen dieses Tabs entzieht ihn.
+5. Mit Extras, Agenten und KI, MCP-Werkzeuge schalten Sie einzelne Werkzeuge ein oder aus. Die Wahl eines Werkzeugs in der Liste ändert seinen Zustand, Escape schließt die Liste.
 - Der Assistent liest den Text so, wie er im Editor steht, auch ungespeichert, sucht darin, fragt ab, wo Ihr Cursor und Ihre Auswahl stehen, liest die Fehler und Warnungen von Plugins und Linter, fragt die Gliederung, die Kodierung und die Zeilenenden ab, findet Zeilen einer Stufe in einem Log beliebiger Größe und liest oder durchsucht Bytes (höchstens 64 KiB pro Lesen).
 - Eine Änderung ist ein Vorschlag für eine Revision des Textes. Hat sich der Text inzwischen geändert, wird der Vorschlag abgelehnt und der Assistent muss neu lesen. Den Vorschlag sehen Sie wie andere Änderungen des ganzen Dokuments und wählen, ob er angewendet wird; der Assistent kann nachfragen, wie er ausging.
 - Werte in .env-Dateien sieht der Assistent als *. Beim Teilen eines solchen Tabs werden Sie gefragt, ob er die echten Werte sehen darf; die Antwort gilt nur für diesen Tab.
 - Das Entziehen eines Tabs oder das Ausschalten des Servers stoppt die laufenden Anfragen, und ein Vorschlag, der noch auf Ihre Entscheidung wartet, wird zurückgezogen und gilt als abgelehnt. Auch das erneute Laden einer Datei entzieht sie.
 - Nur eine begrenzte Zahl von Vorschlägen kann gleichzeitig auf Ihre Entscheidung warten; ein weiterer wird abgelehnt, bis Sie entschieden haben. Ein Ergebnis über dem Größenlimit wird abgelehnt, und der Assistent erfährt, dass er weniger anfordern soll.
 - Das Programm für den Assistenten spricht die aktuelle MCP-Version (2026-07-28) und für Assistenten, die noch mit initialize beginnen, die Version 2025-11-25.
-- MCP-Clients (Werkzeuge, MCP, MCP-Clients...) legt fest, welches Programm den MCP-Server nutzen darf. Ein Client wird an dem Namen erkannt, den er beim Verbinden angibt. Ein neuer Client darf nichts, bis Sie es in der Frage erlauben, die beim ersten Verbinden erscheint; bis dahin sieht er kein Werkzeug, und jeder seiner Aufrufe wird abgelehnt. In der Liste der Clients können Sie einem Client die Berechtigung entziehen (er wird getrennt) oder zurückgeben oder die Entscheidung vergessen, damit der Editor beim nächsten Mal erneut fragt. Den Namen wählt der Client selbst, er beweist also nicht, wer es ist: Die Berechtigung hindert nur ein unbekanntes Programm daran, von selbst an die freigegebenen Tabs zu kommen.
+- MCP-Clients (Befehlspalette, MCP-Clients...) legt fest, welches Programm den MCP-Server nutzen darf. Ein Client wird an dem Namen erkannt, den er beim Verbinden angibt. Ein neuer Client darf nichts, bis Sie es in der Frage erlauben, die beim ersten Verbinden erscheint; bis dahin sieht er kein Werkzeug, und jeder seiner Aufrufe wird abgelehnt. In der Liste der Clients können Sie einem Client die Berechtigung entziehen (er wird getrennt) oder zurückgeben oder die Entscheidung vergessen, damit der Editor beim nächsten Mal erneut fragt. Den Namen wählt der Client selbst, er beweist also nicht, wer es ist: Die Berechtigung hindert nur ein unbekanntes Programm daran, von selbst an die freigegebenen Tabs zu kommen.
 
 ## [tools.ide] Die /ide-Brücke für Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code, das in einem Terminal auf diesem Computer läuft, verbindet sich mit dem Befehl /ide mit einem Fenster von Textida. Der Agent weiß dann, wo Ihre Auswahl liegt und welche Datei offen ist, und Änderungen, die er an einem freigegebenen Tab vornehmen will, erscheinen in der Änderungsprüfung. Er sieht nur Tabs, die Sie freigeben, und Textida übernimmt nur, was Sie bestätigen.
-1. Schalten Sie zuerst den MCP-Server ein (Extras, Agenten und KI, MCP, MCP-Server) und geben Sie einen Tab frei (Extras, Agenten und KI, MCP, Tab mit MCP teilen). Die Brücke nutzt dieselben freigegebenen Tabs.
-2. Wählen Sie Werkzeuge, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token und den Ordnern des Fensters nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
+1. Schalten Sie zuerst den MCP-Server ein (Extras, Agenten und KI, MCP-Server) und geben Sie einen Tab frei (Tab mit MCP teilen in der Befehlspalette). Die Brücke nutzt dieselben freigegebenen Tabs.
+2. Wählen Sie Extras, Agenten und KI, /ide-Brücke. Der Dialog nennt, was der Agent bekommt. Erst nach Ihrer Bestätigung öffnet Textida einen Port, nur auf diesem Computer (127.0.0.1), und schreibt eine Sperrdatei mit einem Token und den Ordnern des Fensters nach ~/.claude/ide (oder in den Ordner ide von CLAUDE_CONFIG_DIR). Wählen Sie den Befehl erneut, wird der Port geschlossen und die Datei gelöscht.
 3. Führen Sie im Terminal, in einem Ordner dieses Fensters, in Claude Code den Befehl /ide aus. Ein Programm ohne das Token aus der Sperrdatei wird abgewiesen.
-4. Die Statusleiste zeigt den verbundenen Agenten. Ein Klick darauf oder der Befehl Werkzeuge, /ide-Brücke: Agenten trennen trennt ihn. Der Port bleibt offen, der Agent kann sich also mit /ide erneut verbinden; um das zu verhindern, schalten Sie die Brücke aus.
+4. Die Statusleiste zeigt den verbundenen Agenten. Ein Klick darauf oder der Befehl /ide-Brücke: Agenten trennen in der Befehlspalette trennt ihn. Der Port bleibt offen, der Agent kann sich also mit /ide erneut verbinden; um das zu verhindern, schalten Sie die Brücke aus.
 - Jedes Fenster hat eine eigene Brücke mit eigenem Port und Token, ebenso jede Instanz von Textida. Ein Agent, der mit einem Fenster verbunden ist, sieht nur die in diesem Fenster freigegebenen Tabs. Eine Sperrdatei, die eine abgestürzte Instanz hinterlassen hat, wird beim Start der nächsten Brücke gelöscht.
 - Der Agent erfährt Auswahl und Pfad eines freigegebenen Tabs bei jeder Änderung der Auswahl und beim Wechsel zu dem Tab. Ein Tab, der nicht freigegeben ist oder noch keine Datei hat, wird nicht gemeldet. Werte aus .env bleiben wie bei jedem anderen Lesen verborgen. Das Zurücknehmen des Tabs stoppt das sofort.
 - Eine Änderung, die Claude Code für einen freigegebenen Tab vorschlägt, öffnet sich in der Änderungsprüfung (Tab Suchergebnisse). Wenden Sie alles an, lautet die Antwort FILE_SAVED, lehnen Sie ab, DIFF_REJECTED; wenden Sie nur einige Abschnitte an, antwortet die Brücke mit einem Fehler, damit der Agent die Datei neu liest. Textida übernimmt im Tab, was Sie bestätigen, und speichert die Datei nicht. Eine Datei, die im Fenster nicht offen oder nicht freigegeben ist, und eine .env-Datei werden abgelehnt.
 - getDiagnostics liefert die Fehler und Warnungen der freigegebenen Tabs. getOpenEditors listet die freigegebenen Tabs mit Name, Sprache und dem Hinweis auf ungespeicherte Änderungen; checkDocumentDirty antwortet dasselbe für eine Datei; getWorkspaceFolders liefert die Ordner des Fensters, die aus der Sperrdatei.
 - openFile öffnet eine Datei für Sie in einem Tab und kann darin Text auswählen. Es geht nur für eine Datei in einem Ordner des Fensters oder in einem freigegebenen Tab, nie für einen Netzwerkpfad oder einen relativen Pfad. Eine Datei, die es öffnet, wird dem Agenten nicht freigegeben: Der Agent erhält die Antwort „Opened file“ und nichts über den Inhalt. Dem Agenten wird nur ein freigegebener Tab beschrieben (Sprache, Zeilenzahl), und ein genannter Text wird in einer .env-Datei nicht gesucht.
-- Mit Extras, Agenten und KI, MCP, /ide-Brücke: Auswahl als Kontext an den Agenten senden geben Sie dem Agenten die Datei des aktiven freigegebenen Tabs und die Zeilen der Auswahl (eine @-Erwähnung). Ohne Auswahl geht nur die Datei. Der Agent bekommt den Pfad und die Zeilennummern, nicht den Text.
+- Mit dem Befehl der Befehlspalette /ide-Brücke: Auswahl als Kontext an den Agenten senden geben Sie dem Agenten die Datei des aktiven freigegebenen Tabs und die Zeilen der Auswahl (eine @-Erwähnung). Ohne Auswahl geht nur die Datei. Der Agent bekommt den Pfad und die Zeilennummern, nicht den Text.
 - Nicht verifiziert: Claude Code veröffentlicht keine Spezifikation dieses Protokolls. Die Brücke folgt der offiziellen Seite zum eingebauten IDE-Server und einer Beschreibung der Community (coder/claudecode.nvim); bisher ist keine Claude-Code-Version als funktionierend bestätigt. Nicht umgesetzt: Speichern über die Brücke (die Brücke schreibt nie eine Datei) und Notebook-Zellen ausführen.
 
 ## [tools.agent] Agent über ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Extras, Agenten und KI, Agent, Agent starten... startet einen Coding-Agenten, der das Agent Client Protocol (ACP) spricht: Gemini CLI, Codex, Claude, Junie, GitHub Copilot oder OpenCode. Der Dialog zeigt den genauen Befehl und den Ordner, in dem er läuft; ohne Bestätigung startet nichts. Der Agent muss installiert und im PATH zu finden sein. Eine Stapeldatei (.cmd, .bat), die übliche Form eines über npm installierten Agenten unter Windows, wird über cmd.exe gestartet, und jedes Argument wird dafür in Anführungszeichen gesetzt. Die Liste sagt bei jedem Agenten, ob sein Programm im PATH gefunden wird; bei einem fehlenden nennt eine Meldung, woher er sich installieren lässt, und nichts startet. Der Dialog zeigt den vollständigen Pfad des Programms, das läuft. Nach der Bestätigung startet Textida das Programm mit --version und vermerkt die Version im Bereich neben der Version der Tabelle; ein Programm, das keine ausgibt, wird nur vermerkt.
+1. Extras, Agenten und KI, Agent starten... startet einen Coding-Agenten, der das Agent Client Protocol (ACP) spricht: Gemini CLI, Codex, Claude, Junie, GitHub Copilot oder OpenCode. Der Dialog zeigt den genauen Befehl und den Ordner, in dem er läuft; ohne Bestätigung startet nichts. Der Agent muss installiert und im PATH zu finden sein. Eine Stapeldatei (.cmd, .bat), die übliche Form eines über npm installierten Agenten unter Windows, wird über cmd.exe gestartet, und jedes Argument wird dafür in Anführungszeichen gesetzt. Die Liste sagt bei jedem Agenten, ob sein Programm im PATH gefunden wird; bei einem fehlenden nennt eine Meldung, woher er sich installieren lässt, und nichts startet. Der Dialog zeigt den vollständigen Pfad des Programms, das läuft. Nach der Bestätigung startet Textida das Programm mit --version und vermerkt die Version im Bereich neben der Version der Tabelle; ein Programm, das keine ausgibt, wird nur vermerkt.
 2. Der Agent-Bereich unter dem Editor zeigt die Unterhaltung. Nachricht tippen und Eingabe drücken. Zug des Agenten abbrechen (oder die Schaltfläche Zug abbrechen) schickt dem Agenten den Abbruch und beantwortet seine offenen Berechtigungsfragen mit „abgebrochen“; Agent beenden beendet den Prozess.
 3. Der Agent liest nur die Tabs, die Sie teilen: Tab mit Agent teilen. Er bekommt den Text, wie er im Editor steht, samt ungespeicherten Änderungen; Werte von .env-Dateien bleiben verborgen. Beim Beenden des Agenten werden alle geteilten Tabs zurückgenommen.
 4. Schreibt der Agent in eine geteilte Datei, erscheint die Änderung abschnittsweise in der Änderungsprüfung (Tab Suchergebnisse) und wird erst geschrieben, wenn Sie sie anwenden. Lehnen Sie sie ab, bekommt der Agent einen Fehler. Eine Datei, die nicht geteilt oder nicht geöffnet ist, wird nicht über den Editor geschrieben.
@@ -1935,7 +1935,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.hooks] Editor für Agent-Hooks
 commands: nks.agent.hooks
 Bearbeitet die Hooks von Claude Code (settings.json, settings.local.json, hooks.json eines Plugins) und von Codex (hooks.json) in einem Formular. Er führt nie einen Hook aus: Ein Hook ist ein Befehl, und hier wird kein Befehl gestartet.
-1. Öffnen Sie die Einstellungsdatei in einem Tab und wählen Sie Extras, Agenten und KI, Agent, Agent-Hooks bearbeiten... Der Baum zeigt die Ereignisse, die Filtergruppen und die Handler der Datei. Wählen Sie einen Handler, um ihn zu ändern, oder eine Gruppe, um einen Handler hinzuzufügen.
+1. Öffnen Sie die Einstellungsdatei in einem Tab und wählen Sie in der Befehlspalette Agent-Hooks bearbeiten... Der Baum zeigt die Ereignisse, die Filtergruppen und die Handler der Datei. Wählen Sie einen Handler, um ihn zu ändern, oder eine Gruppe, um einen Handler hinzuzufügen.
 2. Füllen Sie das Formular aus: Ereignis, Filter, Typ des Handlers und sein Befehl (oder URL, Prompt, MCP-Server und Werkzeug), auf Wunsch auch Zeitlimit, Statusmeldung, Bedingung (if) und was geschieht, wenn der Hook fehlschlägt. In Liste übernehmen ändert die Liste nur in diesem Fenster.
 3. Probelauf zeigt, was der Hook über die Standardeingabe erhielte (ein Muster aus der öffentlichen Dokumentation des Programms), ob der Filter für den eingegebenen Wert greift und was jeder Exit-Code bei diesem Ereignis bewirkt. Bei Claude Code ist Exit-Code 1 ein nicht blockierender Fehler und 2 blockiert, wo das Ereignis blockiert werden kann. Bei Codex wird nur angezeigt, was seine Dokumentation sagt.
 4. Änderungen vorschlagen sendet den neuen Text an die Änderungsprüfung (der Tab Suchergebnisse). Sie sehen die Änderungen als Abschnitte und übernehmen sie in einem Rückgängig-Schritt; danach speichern Sie die Datei wie gewohnt. Der Editor lehnt den Vorschlag ab, solange die Liste Fehler hat, und wenn sich der Tab nach dem Öffnen des Fensters geändert hat.
@@ -1979,10 +1979,10 @@ Eine Liste der MCP-Server, mit denen Ihre Coding-Agenten eingerichtet sind. Text
 ## [tools.shell] Explorer-Menü und Dateizuordnungen
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers und in die Liste Öffnen mit eintragen. Dafür sind keine Administratorrechte nötig, und es werden nur Schlüssel von Textida unter HKEY_CURRENT_USER\Software\Classes geschrieben. Schlüssel anderer Programme, auch von PSPad, werden weder gelesen noch geändert. Beide Befehle funktionieren in der installierten Textida.exe.
-1. Wählen Sie Einstellungen, Systemintegration, Textida zum Explorer-Menü hinzufügen. Dateien erhalten den Eintrag Mit Textida öffnen; er startet Textida mit der Datei oder gibt die Datei an die bereits laufende Textida weiter. Unter Windows 11 steht der Eintrag unter Weitere Optionen anzeigen.
-2. Wählen Sie Einstellungen, Systemintegration, Dateizuordnungen und dann Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
+1. Schalten Sie ihn auf der Seite System im Einstellungsfenster ein, oder wählen Sie in der Befehlspalette Textida zum Explorer-Menü hinzufügen. Dateien erhalten den Eintrag Mit Textida öffnen; er startet Textida mit der Datei oder gibt die Datei an die bereits laufende Textida weiter. Unter Windows 11 steht der Eintrag unter Weitere Optionen anzeigen.
+2. Wählen Sie auf der Seite System im Einstellungsfenster, oder mit Dateizuordnungen in der Befehlspalette, Endungen. Die Wahl einer Endung in der Liste fügt Textida in deren Liste Öffnen mit hinzu oder entfernt es; Escape schließt die Liste. Solange Sie keine Endung wählen, wird nichts zugeordnet.
 3. Damit Textida das Standardprogramm einer Endung wird, nutzen Sie im Explorer Öffnen mit, Andere App auswählen. Diese Wahl verwaltet Windows selbst.
-4. Wählen Sie Einstellungen, Systemintegration, Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
+4. Wählen Sie in der Befehlspalette Textida aus dem Explorer entfernen: Der Menüeintrag und alle Zuordnungen, die Textida angelegt hat, werden gelöscht. Das Deinstallationsprogramm tut dasselbe.
 5. Dieselben Schalter finden Sie in den Einstellungen unter Systemintegration (suchen Sie „Integration“ oder „Verknüpfung“): der Eintrag im Explorer-Menü, die Dateitypen, eine Verknüpfung im Startmenü und auf dem Desktop sowie eine Schaltfläche, die in Windows die Seite der Standard-Apps öffnet. Ein Schalter schreibt die Registrierung sofort und zeigt, was dort steht.
 - Der Eintrag In Textida als Projekt öffnen im Kontextmenü eines Ordners und im Hintergrund eines geöffneten Ordners öffnet ein Fenster, in dem der Ordner die Wurzel des Projekts ist: Dateibereich, Git und die Suche im Ordner arbeiten mit ihm. Er hat einen eigenen Schalter in den Einstellungen und im Setup (`--folder-menu`, `--no-folder-menu`). In der Befehlszeile tut `textida --project Ordner` oder `textida Ordner` dasselbe; ein Fenster, das den Ordner schon hat, kommt nur nach vorn.
 - Unter Linux ist dieser Eintrag die Datei textida-project.desktop: Im Dateimanager finden Sie ihn bei einem Ordner unter Öffnen mit. Ein- und ausschalten lässt er sich im Installationsprogramm (`install.sh --no-folder-action`) und mit dem Schalter auf der Seite System der Einstellungen, der in Ihren Anwendungsordner schreibt (`~/.local/share/applications`). Einen Eintrag aus dem .deb-Paket blendet das Ausschalten nur für Sie aus, weil den Systemordner nur ein Administrator ändern darf.
@@ -1993,11 +1993,11 @@ Nur Windows. Textida kann sich in das Kontextmenü des Explorers Ihres Benutzers
 ## [tools.macIntegration] macOS: Terminal-Befehl, Finder-Aktion und Dateitypen
 commands: nks.tools.macIntegration, nks.tools.macRemove
 Nur für macOS, in der installierten Textida (Textida.app). Textida fügt Ihrem Mac nichts hinzu, bis Sie einen Eintrag einschalten, und schreibt nur in Ihre eigenen Ordner; keine Änderung verlangt ein Administratorkennwort.
-1. Wählen Sie Einstellungen, Systemintegration, macOS-Integration. Ein Fenster listet die drei Einträge auf; ein Schalter wirkt sofort und zeigt, was der Mac sagt. Dieselben Schalter stehen auf der Seite System im Einstellungsfenster.
+1. Wählen Sie in der Befehlspalette macOS-Integration. Ein Fenster listet die drei Einträge auf; ein Schalter wirkt sofort und zeigt, was der Mac sagt. Dieselben Schalter stehen auf der Seite System im Einstellungsfenster.
 2. Der Befehl textida ist ein Link namens textida auf das Programm, in /usr/local/bin, wenn Sie dort schreiben dürfen, sonst in ~/bin. Im Terminal öffnet `textida datei.txt` die Datei in der laufenden Textida, `textida --wait datei.txt` wartet, bis ihr Tab geschlossen ist, `textida --diff a b` vergleicht zwei Dateien. Findet das Terminal den Befehl nicht, zeigt das Fenster die Zeile, die in ~/.zprofile gehört.
 3. Die Schnellaktion In Textida öffnen ist eine Datei in ~/Library/Services. Klicken Sie im Finder mit der rechten Maustaste auf eine Datei oder einen Ordner, dann auf Schnellaktionen und In Textida öffnen. Fehlt sie dort, schalten Sie sie in den Systemeinstellungen unter Datenschutz & Sicherheit, Erweiterungen, Finder ein.
 4. Dateitypen: Textida wird die Anwendung, die die angehakten Endungen öffnet. Davor merkt sich der Mac die Anwendung, die jede Endung hatte; schalten Sie eine Endung aus, bekommt sie diese zurück. Dateien werden in der bereits laufenden Textida geöffnet.
-5. Wählen Sie Einstellungen, Systemintegration, Textida aus macOS entfernen (oder Alles entfernen im Fenster), um den Link, die Schnellaktion und jede Zuordnung zu löschen, die Textida hinzugefügt hat.
+5. Wählen Sie in der Befehlspalette Textida aus macOS entfernen (oder Alles entfernen im Fenster), um den Link, die Schnellaktion und jede Zuordnung zu löschen, die Textida hinzugefügt hat.
 - Ein Link oder eine Aktion wird nur entfernt, wenn sie wirklich von Textida stammt: Ein Befehl textida, der zu einem anderen Programm führt, und eine Aktion, die Textida nicht geschrieben hat, bleiben unberührt.
 - Ein Typ, den keine andere Anwendung öffnet, bleibt nach dem Ausschalten bei Textida, weil der Mac niemanden hat, dem er ihn zurückgeben könnte.
 - Die Schnellaktion In Textida als Projekt öffnen gibt es nur für Ordner; sie öffnet den Ordner als Wurzel des Projekts in einem Fenster von Textida, wie `textida --project Ordner`. Sie hat einen eigenen Schalter.
@@ -2010,7 +2010,7 @@ Textida für macOS gibt es als Disk-Image (.dmg) und als ZIP mit derselben Anwen
 2. Öffnen Sie Textida aus Programme. macOS meldet, dass es die Anwendung nicht auf Schadsoftware prüfen kann (macOS 14: Sie kann nicht geöffnet werden, weil der Entwickler nicht überprüft werden kann). Legen Sie sie nicht in den Papierkorb.
 3. Halten Sie unter macOS 14 die Control-Taste gedrückt, klicken Sie in Programme auf Textida, wählen Sie Öffnen und bestätigen Sie mit Öffnen. Schließen Sie unter macOS 15 die Meldung mit Fertig, öffnen Sie Systemeinstellungen, Datenschutz & Sicherheit, scrollen Sie zu Sicherheit, wählen Sie bei Textida Trotzdem öffnen und bestätigen Sie mit Ihrem Kennwort oder Touch ID.
 4. Ab dann startet Textida wie jede andere Anwendung. Entpacken Sie stattdessen das ZIP, verschieben Sie Textida.app zuerst in Programme. Eine aus dem Internet geladene Datei trägt eine Quarantäne-Markierung; im Terminal entfernt sie `xattr -dr com.apple.quarantine /Applications/Textida.app`.
-5. Um Textida zu entfernen, wählen Sie zuerst Einstellungen, Systemintegration, Textida aus macOS entfernen, falls Sie den Terminal-Befehl, die Schnellaktion oder Dateitypen hinzugefügt haben, und ziehen Sie dann Textida.app in den Papierkorb. Ihre Einstellungen liegen in ~/Library/Application Support/Textida und bleiben, bis Sie diesen Ordner löschen.
+5. Um Textida zu entfernen, wählen Sie zuerst in der Befehlspalette Textida aus macOS entfernen, falls Sie den Terminal-Befehl, die Schnellaktion oder Dateitypen hinzugefügt haben, und ziehen Sie dann Textida.app in den Papierkorb. Ihre Einstellungen liegen in ~/Library/Application Support/Textida und bleiben, bis Sie diesen Ordner löschen.
 - Das Disk-Image enthält Textida.app und einen Link auf Programme; das ZIP enthält nur Textida.app. Beide erzeugt tools/BuildMacPackage.cs, das auf einem Mac läuft.
 - Das Paket für Apple-Chips und das für Intel sind getrennte Downloads; ein universelles Paket gibt es nicht. Ein Intel-Mac braucht das x64-Paket.
 - Die Signatur mit Developer ID und die Notarisierung sind noch nicht erledigt. Danach entfällt der zusätzliche Schritt beim ersten Start.
@@ -2050,7 +2050,7 @@ commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previo
 
 ## [edit.jsonTypes] JSON in Typen im Code
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
-Die Befehle im Menü Bearbeiten, Umwandeln, machen aus JSON eine Go-Struct, eine C#-Klasse oder ein TypeScript-Interface in einem neuen Tab.
+Die Befehle in der Befehlspalette machen aus JSON eine Go-Struct, eine C#-Klasse oder ein TypeScript-Interface in einem neuen Tab.
 1. Markieren Sie das JSON oder lassen Sie nichts markiert für das ganze Dokument.
 2. Wählen Sie Bearbeiten, Umwandeln und JSON in Go-Struct, C#-Klasse oder TypeScript-Interface.
 - Die Objekte eines Arrays werden zu einem Typ zusammengefasst; ein Feld, das einigen fehlt oder null ist, ist optional (in Go ein Zeiger und omitempty, in C# nullable, in TypeScript ein Fragezeichen).
@@ -2059,15 +2059,15 @@ Die Befehle im Menü Bearbeiten, Umwandeln, machen aus JSON eine Go-Struct, eine
 
 ## [edit.loremInspect] Lorem ipsum und der Zeicheninspektor
 commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
-Die Befehle im Menü Bearbeiten fügen Platzhaltertext ein und sagen, was das Zeichen am Cursor ist.
+Die Befehle unter Bearbeiten, Inhalte einfügen und in der Befehlspalette fügen Platzhaltertext ein und sagen, was das Zeichen am Cursor ist.
 1. Wählen Sie Bearbeiten, Einfügen und Lorem ipsum: Absätze, Sätze oder Wörter und geben Sie die Anzahl ein.
-2. Für das Zeichen am Cursor wählen Sie Bearbeiten und Zeicheninspektor.
+2. Für das Zeichen am Cursor wählen Sie in der Befehlspalette Zeicheninspektor.
 - Der Text ist immer derselbe und beginnt mit dem klassischen „Lorem ipsum dolor sit amet“; ein Absatz hat vier bis sechs Sätze, die Anzahl ist 1 bis 10.000. Er wird an jedem Cursor eingefügt, eine Auswahl wird ersetzt, es ist ein Rückgängig-Schritt.
 - Der Inspektor zeigt Codepunkt, Name, Kategorie und die Bytes des Zeichens in UTF-8, in UTF-16 und in der Kodierung der Datei. Am Textende wird das Zeichen vor dem Cursor untersucht. Die Namen stammen aus Unicode 15.
 
 ## [edit.keywordCase] Groß-/Kleinschreibung von Schlüsselwörtern
 commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
-Die Befehle im Menü Bearbeiten, Umwandeln, ändern die Schreibung nur bei den Schlüsselwörtern der Sprache.
+Die Befehle in der Befehlspalette ändern die Schreibung nur bei den Schlüsselwörtern der Sprache.
 1. Markieren Sie einen Teil des Textes oder lassen Sie nichts markiert für das ganze Dokument.
 2. Wählen Sie Bearbeiten, Umwandeln und Schlüsselwörter groß, klein oder wie definiert.
 - Es ändern sich nur die Wörter aus den Schlüsselwortlisten der Grammatik, nicht Zeichenketten, Kommentare oder Bezeichner. Es funktioniert nur bei Sprachen ohne Unterscheidung von Groß- und Kleinschreibung (zum Beispiel SQL, Visual Basic, Batchdateien); bei den anderen ändert der Editor nichts und sagt warum.
@@ -2159,7 +2159,7 @@ Der Befehl im Menü Datei, Remote sendet die Änderungen mehrerer gespeicherter 
 
 ## [tools.textMate] TextMate-Grammatiken importieren
 commands: nks.tools.importTextMate
-Der Befehl im Menü Extras wandelt eine TextMate-Grammatik in eine Grammatik des Editors um, damit eine Sprache ohne eingebaute Grammatik Farben bekommt. Die Farben kommen vom eigenen Engine des Editors; nichts von TextMate oder Oniguruma läuft.
+Der Befehl in der Befehlspalette wandelt eine TextMate-Grammatik in eine Grammatik des Editors um, damit eine Sprache ohne eingebaute Grammatik Farben bekommt. Die Farben kommen vom eigenen Engine des Editors; nichts von TextMate oder Oniguruma läuft.
 1. Wählen Sie Extras und TextMate-Grammatik importieren. Wählen Sie eine .tmLanguage-, .tmLanguage.json- oder .plist-Datei, ein gezipptes .tmbundle oder einen .tmbundle-Ordner.
 2. Importierte Grammatiken werden als eigenes Plugin gespeichert (ein Ordner textmate-… im Plugin-Ordner) und erscheinen als Sprachen; Sie wählen sie wie jede andere Sprache, oder sie werden nach der Dateiendung gewählt.
 - Umgewandelt werden: Scope-Namen in Farbarten nach ihrem Präfix (keyword, string, comment, constant.numeric und mehr), Match-Regeln, Begin/End-Bereiche über mehrere Zeilen, Includes (#name, $self und andere Grammatiken desselben Bundles) und Oniguruma-Ausdrücke, für .NET umgeschrieben (\h, POSIX-Klassen, \R, Unicode-Eigenschaften, possessive Quantifizierer als gierige gelesen).
@@ -2168,7 +2168,7 @@ Der Befehl im Menü Extras wandelt eine TextMate-Grammatik in eine Grammatik des
 ## [view.terminal] Terminal
 commands: nks.view.toggleTerminal
 Das Terminal-Fenster unter dem Editor startet eine Shell. Es nutzt ein Pseudoterminal (ConPTY unter Windows, ein pty unter macOS und Linux), daher funktionieren Vollbildprogramme, Farben und Zeilenbearbeitung.
-1. Wählen Sie Ansicht und Terminal ein- oder ausblenden (Strg+`). Die Shell startet im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
+1. Wählen Sie Ansicht und Terminal (Strg+`). Die Shell startet im Ordner des Dateibereichs, sonst im Ordner der geöffneten Datei.
 2. Die Shell wählen Sie in der Einstellung terminal.shell: ein Programmname oder Pfad, optional mit Argumenten ("C:\Program Files\Git\bin\bash.exe" --login). Leer bedeutet PowerShell unter Windows und $SHELL sonst.
 - Das Schließen des Fensters, des Editors und des Terminals beendet die Shell und alles, was sie gestartet hat. Endet die Shell von selbst, bleibt ihre letzte Ausgabe mit der Schaltfläche Neu starten stehen. Eine Größenänderung des Bereichs ändert die Größe des Terminals.
 - Tasten gehen an die Shell, außer Strg+` und F6, die dem Fenster gehören. Strg+Umschalt+C (⌘C unter macOS) kopiert den markierten Text, Strg+Umschalt+V, Umschalt+Einfg und ⌘V fügen ein, Umschalt+Bild auf/ab und das Mausrad blättern durch den Ausgabeverlauf (5000 Zeilen). Eingefügter Text kommt als eingefügt beim Programm an, wenn es das verlangt.
@@ -2183,14 +2183,14 @@ Der Befehl im Menü Extras öffnet ein kleines Fenster, das die Farbe des Pixels
 ## [edit.clipboardMonitor] Zwischenablage-Überwachung
 commands: nks.edit.toggleClipboardMonitor
 Die Liste der Zwischenablage enthält normalerweise nur, was Sie im Editor kopieren. Der Befehl Kopien aus anderen Programmen sammeln fügt auch Texte hinzu, die Sie anderswo kopieren.
-1. Wählen Sie Bearbeiten, Zwischenablage, Kopien aus anderen Programmen sammeln (oder schalten Sie die Einstellung editor.clipboardMonitor ein). Derselbe Befehl schaltet es aus.
+1. Schalten Sie die Einstellung Kopien aus anderen Programmen sammeln unter Editor, Eingabe ein, oder wählen Sie denselben Befehl in der Befehlspalette. Derselbe Befehl schaltet es aus.
 2. Die Texte erscheinen in der Liste der Zwischenablage (Bearbeiten, Zwischenablage, Zwischenablageverlauf).
 - Die Überwachung ist standardmäßig aus und wird nur vom Benutzer eingeschaltet. Beim Einschalten wird der Text, der schon in der Zwischenablage lag, nicht gesammelt; nur Kopien seither. Beim Ausschalten wird alles vergessen, was Sie bei ausgeschalteter Überwachung kopiert haben, wird also nie nachträglich gesammelt.
 - Die Liste liegt nur im Speicher; nichts wird auf die Platte geschrieben oder gesendet. Ein kopiertes Passwort bleibt in der Liste, bis neuere Einträge es verdrängen (die Einstellung editor.clipboardHistorySize bestimmt die Anzahl), schalten Sie die Überwachung daher nur ein, solange Sie sie brauchen.
 
 ## [tools.formatReview] Formatieren mit Vorschau (PHP CS Fixer und andere)
 commands: nks.format.withReview
-Der Befehl im Menü Extras lässt den Formatierer des Projekts auf einer Kopie der Datei laufen und schreibt das Ergebnis nicht, sondern zeigt es in der Änderungsübersicht. Sie haken an, was gelten soll.
+Der Befehl unter Format, Code und Daten formatieren lässt den Formatierer des Projekts auf einer Kopie der Datei laufen und schreibt das Ergebnis nicht, sondern zeigt es in der Änderungsübersicht. Sie haken an, was gelten soll.
 1. Ein Formatierer wird nur angeboten, wo das Projekt seine Konfiguration hat: bei einer PHP-Datei .php-cs-fixer.dist.php (oder .php-cs-fixer.php, .php_cs, .php_cs.dist) im Ordner der Datei oder darüber. Dasselbe gilt für gofmt, Prettier, rustfmt und die anderen Formatierer des Katalogs.
 2. Wählen Sie Extras und Mit dem Datei-Formatierer formatieren (Vorschau). Die Änderungen erscheinen im Ergebnis-Tab; sie werden als ein Rückgängig-Schritt angewendet, und nur wenn sich das Dokument inzwischen nicht geändert hat.
 - PHP CS Fixer wird im Projekt (vendor/bin) gesucht, dann im PATH; ist er dort nicht, führt php eine php-cs-fixer.phar aus dem Projekt (Ordner der Datei und darüber: tools, bin, vendor/bin) oder aus dem PATH aus. Nichts wird heruntergeladen. Der Pfad lässt sich auch in saveActions.json (toolPaths) setzen.
@@ -2206,7 +2206,7 @@ Der Befehl im Menü Extras listet die Funktionen, die das Symbol unter dem Curso
 commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
 Ein installiertes Plugin mit der Berechtigung hex.read kann der Hex-Ansicht einen Decoder für den Dateninspektor, einen Hash, eine Textausgabe der Bytes und eine Quelle für Strukturvorlagen hinzufügen.
 1. Decoder erscheinen als weitere Zeilen des Dateninspektors unter den eingebauten Typen; eine Zeile zeigt drei Punkte, bis das Plugin antwortet.
-2. Bearbeiten, Hex, Hash mit Plugin bildet den Hash der Auswahl (ohne Auswahl der ganzen Datei) und zeigt ihn im selben Fenster wie die eingebauten Hashes.
+2. Hash mit Plugin in der Befehlspalette bildet den Hash der Auswahl (ohne Auswahl der ganzen Datei) und zeigt ihn im selben Fenster wie die eingebauten Hashes.
 3. Mit Plugin als Text ausgeben öffnet die Auswahl als Text in einem neuen Dokument, das keine Datei ist. Vorlagen von Plugin fügt seine .ksy-Vorlagen der Liste des Strukturbereichs hinzu.
 - Das Plugin erhält nur eine Kopie der Bytes und gibt nur Text zurück: es schreibt nichts in eine Datei oder das Dokument. Ein verborgener Wert einer Geheimnisdatei wird ihm als Sterne gesendet. Ein Plugin, das Bytes ändern will, tut das über die Dokument-API, wo seine Änderung als Vorschlag zur Freigabe in der Änderungsübersicht erscheint.
 - Ein Plugin erhält höchstens 16 MiB, hat 15 s für die Antwort und der Text der Antwort ist begrenzt. Angeboten werden nur Plugins, denen Sie die Berechtigung hex.read bei der Installation gegeben haben.

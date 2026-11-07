@@ -234,12 +234,11 @@ public class PackagesAppTests : IDisposable
         var other = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.DoesNotContain("nks.packages.lookup", other);
         Assert.DoesNotContain("nks.packages.script", other);
-        Assert.Contains("nks.packages.revoke", other);
+        Assert.DoesNotContain("nks.packages.revoke", other); // a rare reset: palette only since the review of 7. 11. 2026
         _w.OpenFile(_temp.File("package.json", "{ }\n"), null);
         var ids = _w.MenuModel.Single(g => g.Label == "Nástroje").Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.packages.lookup", ids);
         Assert.Contains("nks.packages.refresh", ids);
-        Assert.Contains("nks.packages.revoke", ids);
         Assert.Contains("nks.packages.script", ids);
         Assert.Contains("nks.schemas.allow", ids);
     }

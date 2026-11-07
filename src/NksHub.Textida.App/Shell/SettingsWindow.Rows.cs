@@ -113,7 +113,7 @@ internal sealed partial class SettingsWindow
     }
 
     /// <summary>The parts of a setting row that follow its value without building the page again.</summary>
-    private sealed record RowView(Border Row, string Title, TextBlock Mark, TextBlock Source, Button Reset, TextBlock Error);
+    private sealed record RowView(Border Row, string Title, TextBlock Mark, TextBlock Default, TextBlock Source, Button Reset, TextBlock Error);
 
     private readonly Dictionary<string, RowView> _rowViews = new(StringComparer.Ordinal);
 
@@ -226,11 +226,12 @@ internal sealed partial class SettingsWindow
         var header = new WrapPanel { Orientation = Orientation.Horizontal, Children = { title, mark } };
         var description = Marked(hit.Description ?? "", words, new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.8, IsVisible = !string.IsNullOrEmpty(hit.Description) });
 
-        var meta = new List<string> { Loc.Get(K.SettingsDefaultValue, ("value", ValueWords(definition, definition.Default))) };
-        if (RangeText(definition) is { } range) meta.Add(range);
-        var defaults = new TextBlock { Text = string.Join(" · ", meta), Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap };
-        var source = new TextBlock { Text = SourceText(resolved), Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap };
-        var key = Marked(hit.Id, words, new TextBlock { Opacity = 0.5, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+        // one quiet line: the default only once the value differs (it says what Reset gives back), the range, the source only when something other than the user or the default sets the value
+        var defaults = Meta(Loc.Get(K.SettingsDefaultValue, ("value", ValueWords(definition, definition.Default))), changed);
+        var range = Meta(RangeText(definition) ?? "", RangeText(definition) is not null);
+        var source = Meta(SourceText(resolved), ShowsSource(resolved));
+        var key = Marked(hit.Id, words, new TextBlock { Opacity = 0.5, FontSize = 11, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
+        var meta = new WrapPanel { Children = { defaults, range, source, key } };
         var error = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };
 
         var editor = MakeEditor(definition, resolved, error, hit.Title, out bool wide);
@@ -244,26 +245,28 @@ internal sealed partial class SettingsWindow
         {
             texts.Children.Add(editor);
             editor.Margin = new Thickness(0, 6, 0, 0);
-            texts.Children.Add(defaults);
-            texts.Children.Add(new WrapPanel { Children = { source, Spacer(), key } });
+            texts.Children.Add(meta);
             texts.Children.Add(error);
             content = TwoColumns(texts, reset);
         }
         else
         {
-            texts.Children.Add(defaults);
-            texts.Children.Add(new WrapPanel { Children = { source, Spacer(), key } });
+            texts.Children.Add(meta);
             texts.Children.Add(error);
             var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Top, Children = { editor, reset } };
             content = TwoColumns(texts, controls);
         }
         var row = RowFrame(content, hit.Id);
-        _rowViews[hit.Id] = new RowView(row, hit.Title, mark, source, reset, error);
+        _rowViews[hit.Id] = new RowView(row, hit.Title, mark, defaults, source, reset, error);
         AutomationProperties.SetName(row, RowName(hit.Title, resolved, changed));
         return row;
     }
 
-    private static TextBlock Spacer() => new() { Text = "  ", FontSize = 11 };
+    private static TextBlock Meta(string text, bool shown) =>
+        new() { Text = text, IsVisible = shown, Opacity = 0.65, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+
+    /// <summary>The default and the user's own value need no line: the "changed" mark and the default already say it.</summary>
+    private static bool ShowsSource(ResolvedSetting resolved) => resolved.Source is not (SettingSource.Default or SettingSource.User or SettingSource.UserLanguage);
 
     private static string RowName(string title, ResolvedSetting resolved, bool changed) =>
         changed ? Loc.Get(K.SettingsRowChanged, ("title", title), ("value", resolved.ValueText)) : $"{title}: {resolved.ValueText}";
@@ -308,7 +311,9 @@ internal sealed partial class SettingsWindow
         bool changed = resolved.Source is SettingSource.User or SettingSource.UserLanguage;
         view.Mark.IsVisible = changed;
         view.Reset.IsVisible = changed;
+        view.Default.IsVisible = changed;
         view.Source.Text = SourceText(resolved);
+        view.Source.IsVisible = ShowsSource(resolved);
         AutomationProperties.SetName(view.Row, RowName(view.Title, resolved, changed));
         _pendingReset.Remove(key);
         if (changed) _pendingReset.Add(key);

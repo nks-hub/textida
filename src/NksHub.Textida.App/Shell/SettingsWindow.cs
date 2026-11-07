@@ -398,13 +398,14 @@ internal sealed partial class SettingsWindow : Window
         (K.SettingsSectionTheme, ["workbench.theme", "workbench.uiLanguage"]),
         (K.SettingsSectionColorTheme, ["editor.colorTheme", "editor.themeColors"]),
         (K.SettingsSectionFont, ["editor.fontFamily", "editor.fontSize", "editor.fallbackFontFamily"]),
-        (K.SettingsSectionIcons, ["appearance.iconSkin", "workbench.toolbar"]),
+        (K.SettingsSectionIcons, ["appearance.iconSkin", "workbench.toolbar*"]),
         (K.SettingsSectionOccurrences, ["editor.occurrences."]),
         (K.SettingsSectionSmartKeys, ["editor.smartKeys.", "editor.emmet"]),
         (K.SettingsSectionClipboard, ["editor.clipboardHistorySize", "editor.clipboardMonitor"]),
         (K.SettingsSectionIndent, ["editor.tabSize", "editor.indentSize", "editor.insertSpaces", "editor.detectIndentation"]),
         (K.SettingsSectionOnSave, ["files.trimTrailingWhitespace", "files.insertFinalNewline"]),
         (K.SettingsSectionLanguages, ["sql.dialect", "html.tidyPath"]),
+        (K.SettingsSectionEncoding, ["files.encoding", "files.eol"]),
         (K.SettingsSectionOpening, ["files.binaryAsHex", "files.imageOpen", "files.largeFileThreshold", "files.decompileAssemblies", "files.relatedFileRules", "files.showHidden"]),
         (K.SettingsSectionMarkdown, ["markdown."]),
         (K.SettingsSectionSaving, ["files.autoSave", "files.journalDirectory", "files.journalFallbackDirectory"]),
@@ -413,7 +414,7 @@ internal sealed partial class SettingsWindow : Window
         (K.SettingsSectionGitGutter, ["git.gutter", "git.gutterBase", "git.blame", "files.gitStatus"]),
         (K.SettingsSectionGitSync, ["git.pullMode", "git.autoFetchMinutes"]),
         (K.SettingsSectionGitCommit, ["git.commit*"]),
-        (K.SettingsSectionHistoryLimits, ["history.max*"]),
+        (K.SettingsSectionHistory, ["history.", "review."]),
         (K.SettingsSectionCompare, ["tools.diffTool", "tools.diffArguments", "compare."]),
         (K.SettingsSectionTools, ["tools."]),
         (K.SettingsSectionSpell, ["spell."]),
@@ -428,11 +429,15 @@ internal sealed partial class SettingsWindow : Window
         return Array.FindIndex(SectionTable, s => s.Keys.Any(entry => Fits(hit.Id, entry)));
     }
 
-    /// <summary>The settings of a category in sections; one section without a heading when the category has none of the table.</summary>
+    /// <summary>
+    /// The settings of a category in sections; one section without a heading when the category has none of the table. A section of a single setting would be a card that only repeats
+    /// the title of its row, so that setting joins the general section.
+    /// </summary>
     private static List<(string? Heading, List<SearchHit> Hits)> Sectioned(List<SearchHit> hits)
     {
         if (hits.Count == 0) return [];
-        var groups = hits.GroupBy(SectionOf).OrderBy(g => g.Key).ToList();
+        var sizes = hits.GroupBy(SectionOf).ToDictionary(g => g.Key, g => g.Count());
+        var groups = hits.GroupBy(h => SectionOf(h) is var s && sizes[s] > 1 ? s : -1).OrderBy(g => g.Key).ToList();
         if (groups.Count == 1 && groups[0].Key < 0) return [(null, hits)];
         return [.. groups.Select(g => ((string?)Loc.Get(g.Key < 0 ? K.SettingsSectionGeneral : SectionTable[g.Key].TextKey), g.ToList()))];
     }

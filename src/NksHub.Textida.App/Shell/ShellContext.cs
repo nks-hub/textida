@@ -2,6 +2,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Keys;
+using NksHub.Textida.Workbench.Toolbar;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -55,11 +56,13 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
 /// <summary>Builds the menu bar from the command registry: a menu appears only when it has at least one command that has a handler.</summary>
 internal static class MenuBuilder
 {
-    /// <summary>The menus of D5 in order. Menus without any command stay out (today: projects, tools and HTML).</summary>
+    /// <summary>
+    /// The menus of D5 in order. Menus without any command stay out (today: projects); Hex and HTML hold only commands of their kind of document, so they show only while one is active.
+    /// </summary>
     public static readonly (string Id, string TitleKey)[] Order =
     [
         ("file", "menu.file"), ("projects", "menu.projects"), ("edit", "menu.edit"), ("search", "menu.search"), ("view", "menu.view"),
-        ("format", "menu.format"), ("tools", "menu.tools"), ("html", "menu.html"), ("settings", "menu.settings"), ("window", "menu.window"), ("help", "menu.help"),
+        ("format", "menu.format"), ("tools", "menu.tools"), ("hex", "menu.hex"), ("html", "menu.html"), ("settings", "menu.settings"), ("window", "menu.window"), ("help", "menu.help"),
     ];
 
     public static List<MenuGroup> Build(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run)
@@ -67,25 +70,26 @@ internal static class MenuBuilder
         var groups = new List<MenuGroup>();
         foreach (var (id, titleKey) in Order)
         {
-            var nodes = Nodes(wb, context, checkState, run, id);
-            if (nodes.Count > 0) groups.Add(new MenuGroup(wb.Strings.Get(titleKey), nodes));
+            string title = wb.Strings.Get(titleKey);
+            var nodes = Nodes(wb, context, checkState, run, id, title);
+            if (nodes.Count > 0) groups.Add(new MenuGroup(title, nodes));
         }
         var keys = MenuAccessKeys.Assign([.. groups.Select(g => g.Label)]);
         return [.. groups.Select((g, i) => g with { AccessAt = keys[i] })];
     }
 
     /// <summary>The items of one menu of the manifest (the context menu of the editor is <c>editor.context</c>), with separators between its groups.</summary>
-    public static List<MenuNode> Nodes(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, string menuId)
+    public static List<MenuNode> Nodes(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, string menuId, string? title = null)
     {
         var items = wb.Commands.GetMenu(menuId, context).Where(i => wb.Commands.HasHandler(i.CommandId)).ToList();
-        return Level(wb, context, checkState, run, items, 0);
+        return Level(wb, context, checkState, run, items, 0, title);
     }
 
     /// <summary>
     /// One level of a menu: the entries that sit directly at this depth, and a submenu for every id that goes deeper. A submenu takes the place (group) of its first entry; its other entries
     /// are pulled in from wherever they follow. A group may be written <c>outer/inner</c>: at the top the outer part separates the items of the menu, in a submenu the whole group does.
     /// </summary>
-    private static List<MenuNode> Level(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, List<MenuItemModel> items, int depth)
+    private static List<MenuNode> Level(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, List<MenuItemModel> items, int depth, string? title)
     {
         var entries = new List<(string Group, string? Segment, List<MenuItemModel> Items)>();
         foreach (var item in items)
@@ -101,9 +105,12 @@ internal static class MenuBuilder
         {
             if (group is not null && entryGroup != group) nodes.Add(new MenuSeparator());
             group = entryGroup;
-            nodes.Add(segment is null
-                ? Command(wb, context, checkState, run, members[0])
-                : new MenuGroup(wb.Strings.Get("submenu." + SubmenuPath(members[0].Submenu!, depth)), Level(wb, context, checkState, run, members, depth + 1)));
+            if (segment is null) nodes.Add(Command(wb, context, checkState, run, members[0], title));
+            else
+            {
+                string label = wb.Strings.Get("submenu." + SubmenuPath(members[0].Submenu!, depth));
+                nodes.Add(new MenuGroup(label, Level(wb, context, checkState, run, members, depth + 1, label)));
+            }
         }
         var keys = MenuAccessKeys.Assign([.. nodes.Select(n => n switch { MenuCommand c => c.Label, MenuGroup g => g.Label, _ => "" })]);
         return [.. nodes.Select((n, i) => n switch { MenuCommand c => c with { AccessAt = keys[i] }, MenuGroup g => g with { AccessAt = keys[i] }, _ => n })];
@@ -123,14 +130,26 @@ internal static class MenuBuilder
     /// <summary>The key of the title of the submenu at <paramref name="depth"/> of the path: <c>outer/inner</c> at depth 1 is <c>outer.inner</c>.</summary>
     private static string SubmenuPath(string submenu, int depth) => string.Join('.', submenu.Split('/').Take(depth + 1));
 
-    private static MenuCommand Command(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, MenuItemModel item)
+    /// <summary>The title without the prefix the menu above already shows: "Git: commit" in the Git submenu reads "Commit". The palette keeps the whole title.</summary>
+    internal static string WithoutPrefix(string label, string? menu) =>
+        menu is { Length: > 0 } && label.Length > menu.Length + 2 && label.StartsWith(menu + ": ", StringComparison.Ordinal)
+            ? char.ToUpperInvariant(label[menu.Length + 2]) + label[(menu.Length + 3)..]
+            : label;
+
+    /// <summary>
+    /// Anti-slop R-04: a row shows the icon of its command only when the command has a one-key shortcut or sits on the default toolbar. Those are the frequent actions, and the
+    /// icon is the one the toolbar shows for them; on the other rows a picture would be decoration (many share one generic glyph), so they show text only.
+    /// </summary>
+    private static bool ShowsIcon(string commandId, bool hasShortcut) => hasShortcut || ToolbarLayout.Default.Contains(commandId);
+
+    private static MenuCommand Command(AppWorkbench wb, IWhenContext context, Func<string, (bool On, bool Radio)?> checkState, Action<string> run, MenuItemModel item, string? menu)
     {
         wb.Commands.TryGet(item.CommandId, out var command);
         var shortcut = wb.Keymap.Bindings.FirstOrDefault(b => b.CommandId == item.CommandId && b.Sequence.Chords.Count == 1);
         var state = checkState(item.CommandId);
         string commandId = item.CommandId;
         return new MenuCommand(
-            wb.Strings.Get(item.TitleKey),
+            WithoutPrefix(wb.Strings.Get(item.TitleKey), menu),
             () => run(commandId),
             shortcut is null ? null : KeyMapping.ToGesture(shortcut.Sequence.Chords[0]),
             state?.On, state?.Radio ?? false, commandId,
@@ -138,7 +157,7 @@ internal static class MenuBuilder
             state is null ? null : () => checkState(commandId)?.On,
             item.Enabled)
         {
-            Icon = wb.Commands.IconOf(commandId),
+            Icon = ShowsIcon(commandId, shortcut is not null) ? wb.Commands.IconOf(commandId) : null,
         };
     }
 }

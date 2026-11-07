@@ -722,7 +722,7 @@ public class ClipTests : IDisposable
         {
             Assert.True(wb.Commands.TryGet(id, out var command), id);
             Assert.True(wb.Commands.HasHandler(id), id);
-            Assert.Contains(id, inMenus);
+            Assert.True(inMenus.Contains(id) || !command.Hidden, id + " is in no menu and hidden from the palette");
             Assert.NotEqual(command.TitleKey, wb.Strings.Get(command.TitleKey));
         }
     }

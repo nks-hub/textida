@@ -3801,140 +3801,308 @@
     {
       "menu": "file",
       "command": "nks.file.new",
-      "group": "1_new/01",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.open",
-      "group": "1_new/03",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.clearRecent",
-      "group": "1_new/03.50",
-      "submenu": "recent",
-      "order": 90
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.save",
-      "group": "2_save/01",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.saveAs",
-      "group": "2_save/02",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.saveAll",
-      "group": "2_save/03",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.saveActions",
-      "group": "2_save/04",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.close",
-      "group": "4_close/01",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.app.openSettings",
       "group": "1_open/01",
       "order": 10
     },
     {
       "menu": "file",
-      "command": "nks.project.save",
-      "group": "1_new/07.01",
-      "submenu": "workspace",
+      "command": "nks.file.newFromTemplate",
+      "group": "1_open/02",
       "order": 20
     },
     {
       "menu": "file",
-      "command": "nks.project.open",
-      "group": "1_new/07.01",
-      "submenu": "workspace",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.project.addFolder",
-      "group": "1_new/07.01",
-      "submenu": "workspace",
+      "command": "nks.file.open",
+      "group": "1_open/03",
       "order": 30
     },
     {
       "menu": "file",
-      "command": "nks.project.delete",
-      "group": "1_new/07.01",
-      "submenu": "workspace",
-      "order": 50
-    },
-    {
-      "menu": "file",
-      "command": "nks.project.settings",
-      "group": "1_new/07.01",
-      "submenu": "workspace",
+      "command": "nks.open.lastClosed",
+      "group": "1_open/04.01",
+      "submenu": "recent",
       "order": 40
     },
     {
       "menu": "file",
-      "command": "nks.favorite.add",
-      "group": "1_new/07.02",
+      "command": "nks.file.clearRecent",
+      "group": "1_open/04.01",
+      "submenu": "recent",
+      "order": 50
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openFolder",
+      "group": "1_open/05",
+      "order": 60
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openUrl",
+      "group": "1_open/06.01",
+      "submenu": "special",
+      "order": 70
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.openAsHex",
+      "group": "1_open/06.01",
+      "submenu": "special",
+      "order": 80
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.withEncoding",
+      "group": "1_open/06.01",
+      "submenu": "special",
+      "order": 90
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.readOnly",
+      "group": "1_open/06.01",
+      "submenu": "special",
+      "order": 100
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.defaultApp",
+      "group": "1_open/06.02",
+      "submenu": "special",
+      "order": 110
+    },
+    {
+      "menu": "file",
+      "command": "nks.open.containingFolder",
+      "group": "1_open/06.02",
+      "submenu": "special",
+      "order": 120
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.open",
+      "group": "1_open/07.01",
       "submenu": "workspace",
-      "order": 10
+      "order": 130
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.save",
+      "group": "1_open/07.01",
+      "submenu": "workspace",
+      "order": 140
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.addFolder",
+      "group": "1_open/07.01",
+      "submenu": "workspace",
+      "order": 150
+    },
+    {
+      "menu": "file",
+      "command": "nks.project.settings",
+      "group": "1_open/07.01",
+      "submenu": "workspace",
+      "order": 160
     },
     {
       "menu": "file",
       "command": "nks.favorite.open",
-      "group": "1_new/07.02",
+      "group": "1_open/07.02",
       "submenu": "workspace",
-      "order": 20
+      "order": 170
     },
     {
       "menu": "file",
-      "command": "nks.favorite.remove",
-      "group": "1_new/07.02",
+      "command": "nks.favorite.add",
+      "group": "1_open/07.02",
       "submenu": "workspace",
-      "order": 30
-    },
-    {
-      "menu": "file",
-      "command": "nks.session.save",
-      "group": "1_new/07.03",
-      "submenu": "workspace",
-      "order": 10
+      "order": 180
     },
     {
       "menu": "file",
       "command": "nks.session.open",
-      "group": "1_new/07.03",
+      "group": "1_open/07.03",
       "submenu": "workspace",
-      "order": 20
+      "order": 190
     },
     {
       "menu": "file",
-      "command": "nks.session.delete",
-      "group": "1_new/07.03",
+      "command": "nks.session.save",
+      "group": "1_open/07.03",
       "submenu": "workspace",
-      "order": 30
+      "order": 200
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.save",
+      "group": "2_save/01",
+      "order": 210
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.saveAs",
+      "group": "2_save/02",
+      "order": 220
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.saveAll",
+      "group": "2_save/03",
+      "order": 230
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.close",
+      "group": "2_save/04",
+      "order": 240
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.reload",
+      "group": "3_disk/01.01",
+      "submenu": "versions",
+      "order": 250
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.compareWithDisk",
+      "group": "3_disk/01.01",
+      "submenu": "versions",
+      "order": 260
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.history",
+      "group": "3_disk/01.02",
+      "submenu": "versions",
+      "order": 270
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historyPanel",
+      "group": "3_disk/01.02",
+      "submenu": "versions",
+      "order": 280
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historyMark",
+      "group": "3_disk/01.02",
+      "submenu": "versions",
+      "order": 290
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.historySearch",
+      "group": "3_disk/01.02",
+      "submenu": "versions",
+      "order": 300
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.open",
+      "group": "3_disk/01.03",
+      "submenu": "versions",
+      "order": 310
+    },
+    {
+      "menu": "file",
+      "command": "nks.review.folder",
+      "group": "3_disk/01.03",
+      "submenu": "versions",
+      "order": 320
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.print",
+      "group": "4_out/01.01",
+      "submenu": "export",
+      "order": 330
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportHtml",
+      "group": "4_out/01.02",
+      "submenu": "export",
+      "order": 340
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportRtf",
+      "group": "4_out/01.02",
+      "submenu": "export",
+      "order": 350
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportPdf",
+      "group": "4_out/01.02",
+      "submenu": "export",
+      "order": 360
+    },
+    {
+      "menu": "file",
+      "command": "nks.file.exportTex",
+      "group": "4_out/01.02",
+      "submenu": "export",
+      "order": 370
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.open",
+      "group": "4_out/02.01",
+      "submenu": "remote",
+      "order": 380
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.connections",
+      "group": "4_out/02.01",
+      "submenu": "remote",
+      "order": 390
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.upload",
+      "group": "4_out/02.02",
+      "submenu": "remote",
+      "order": 400
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.check",
+      "group": "4_out/02.02",
+      "submenu": "remote",
+      "order": 410
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.sendChanges",
+      "group": "4_out/02.02",
+      "submenu": "remote",
+      "order": 420
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.unsent",
+      "group": "4_out/02.02",
+      "submenu": "remote",
+      "order": 430
+    },
+    {
+      "menu": "file",
+      "command": "nks.remote.cancel",
+      "group": "4_out/02.02",
+      "submenu": "remote",
+      "order": 440
     },
     {
       "menu": "file",
       "command": "nks.app.quit",
-      "group": "6_exit/01",
-      "order": 10
+      "group": "5_exit/01",
+      "order": 450
     },
     {
       "menu": "edit",
@@ -3946,127 +4114,343 @@
       "menu": "edit",
       "command": "nks.edit.redo",
       "group": "1_undo/02",
-      "order": 10
+      "order": 20
     },
     {
       "menu": "edit",
       "command": "nks.edit.cut",
       "group": "2_clip/01",
-      "order": 10
+      "order": 30
     },
     {
       "menu": "edit",
       "command": "nks.edit.copy",
       "group": "2_clip/02",
-      "order": 10
+      "order": 40
     },
     {
       "menu": "edit",
       "command": "nks.edit.paste",
       "group": "2_clip/03",
-      "order": 10
+      "order": 50
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clipboardHistory",
+      "group": "2_clip/04.01",
+      "submenu": "clipboard",
+      "order": 60
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.pasteKeepCaret",
+      "group": "2_clip/04.01",
+      "submenu": "clipboard",
+      "order": 70
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.pasteAsHtml",
+      "group": "2_clip/04.01",
+      "submenu": "clipboard",
+      "order": 80
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyFormatted",
+      "group": "2_clip/04.02",
+      "submenu": "clipboard",
+      "order": 90
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyHtmlSource",
+      "group": "2_clip/04.02",
+      "submenu": "clipboard",
+      "order": 100
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.copyAiContext",
+      "group": "2_clip/04.02",
+      "submenu": "clipboard",
+      "order": 110
     },
     {
       "menu": "edit",
       "command": "nks.edit.selectAll",
       "group": "3_select/01",
-      "order": 10
+      "order": 120
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectLine",
+      "group": "3_select/02.01",
+      "submenu": "select",
+      "order": 130
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.expandSelection",
+      "group": "3_select/02.01",
+      "submenu": "select",
+      "order": 140
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.toggleBlockSelect",
+      "group": "3_select/02.01",
+      "submenu": "select",
+      "order": 150
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectToMark",
+      "group": "3_select/02.01",
+      "submenu": "select",
+      "order": 160
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addNextOccurrence",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 170
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.skipOccurrence",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 180
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.selectAllOccurrences",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 190
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addCaretAbove",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 200
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.addCaretBelow",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 210
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clearCarets",
+      "group": "3_select/02.02",
+      "submenu": "select",
+      "order": 220
     },
     {
       "menu": "edit",
       "command": "nks.edit.deleteLine",
       "group": "4_text/01.01",
       "submenu": "lines",
-      "order": 10
+      "order": 230
     },
     {
       "menu": "edit",
       "command": "nks.edit.duplicateLine",
       "group": "4_text/01.01",
       "submenu": "lines",
-      "order": 20
+      "order": 240
     },
     {
       "menu": "edit",
       "command": "nks.edit.moveLineUp",
       "group": "4_text/01.01",
       "submenu": "lines",
-      "order": 30
+      "order": 250
     },
     {
       "menu": "edit",
       "command": "nks.edit.moveLineDown",
       "group": "4_text/01.01",
       "submenu": "lines",
-      "order": 40
+      "order": 260
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.joinLines",
+      "group": "4_text/01.01",
+      "submenu": "lines",
+      "order": 270
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.sortLines",
+      "group": "4_text/01.02",
+      "submenu": "lines",
+      "order": 280
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertIntoLines",
+      "group": "4_text/01.02",
+      "submenu": "lines",
+      "order": 290
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.toggleComment",
+      "group": "4_text/02",
+      "order": 300
     },
     {
       "menu": "edit",
       "command": "nks.edit.indent",
-      "group": "4_text/04",
-      "order": 10
+      "group": "4_text/03",
+      "order": 310
     },
     {
       "menu": "edit",
       "command": "nks.edit.outdent",
-      "group": "4_text/05",
-      "order": 10
+      "group": "4_text/04",
+      "order": 320
     },
     {
       "menu": "edit",
       "command": "nks.edit.upperCase",
-      "group": "4_text/02",
-      "submenu": "case",
-      "order": 10
+      "group": "5_more/01.01",
+      "submenu": "convert",
+      "order": 330
     },
     {
       "menu": "edit",
       "command": "nks.edit.lowerCase",
-      "group": "4_text/02",
-      "submenu": "case",
-      "order": 20
+      "group": "5_more/01.01",
+      "submenu": "convert",
+      "order": 340
     },
     {
       "menu": "edit",
-      "command": "nks.hex.copyAs",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 10
+      "command": "nks.edit.convert",
+      "group": "5_more/01.02",
+      "submenu": "convert",
+      "order": 350
     },
     {
       "menu": "edit",
-      "command": "nks.hex.pasteAs",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 20
+      "command": "nks.edit.runRecipe",
+      "group": "5_more/01.02",
+      "submenu": "convert",
+      "order": 360
     },
     {
       "menu": "edit",
-      "command": "nks.hex.exportSelection",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 30
+      "command": "nks.edit.convert.base64Encode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 370
     },
     {
       "menu": "edit",
-      "command": "nks.hex.fill",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 40
+      "command": "nks.edit.convert.base64Decode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 380
     },
     {
       "menu": "edit",
-      "command": "nks.hex.operate",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 50
+      "command": "nks.edit.convert.urlEncode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 390
     },
     {
       "menu": "edit",
-      "command": "nks.hex.checksum",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 60
+      "command": "nks.edit.convert.urlDecode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 400
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlEncode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 410
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.htmlDecode",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 420
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.removeAccents",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 430
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.convert.tabsToSpaces",
+      "group": "5_more/01.03",
+      "submenu": "convert",
+      "order": 440
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.complete",
+      "group": "5_more/02.01",
+      "submenu": "insert",
+      "order": 450
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertClip",
+      "group": "5_more/02.01",
+      "submenu": "insert",
+      "order": 460
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.clipFromSelection",
+      "group": "5_more/02.01",
+      "submenu": "insert",
+      "order": 470
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertDateTime",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 480
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertGuid",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 490
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertFromFile",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 500
+    },
+    {
+      "menu": "edit",
+      "command": "nks.edit.insertLoremParagraphs",
+      "group": "5_more/02.02",
+      "submenu": "insert",
+      "order": 510
     },
     {
       "menu": "search",
@@ -4078,55 +4462,107 @@
       "menu": "search",
       "command": "nks.search.findNext",
       "group": "1_find/02",
-      "order": 10
+      "order": 20
     },
     {
       "menu": "search",
       "command": "nks.search.findPrevious",
       "group": "1_find/03",
-      "order": 10
+      "order": 30
     },
     {
       "menu": "search",
       "command": "nks.search.findWord",
       "group": "1_find/04",
-      "order": 10
+      "order": 40
     },
     {
       "menu": "search",
       "command": "nks.search.replace",
       "group": "2_replace/01",
-      "order": 10
+      "order": 50
     },
     {
       "menu": "search",
       "command": "nks.search.findInFiles",
       "group": "2_replace/02",
-      "order": 10
+      "order": 60
     },
     {
       "menu": "search",
       "command": "nks.search.replaceInFiles",
       "group": "2_replace/03",
-      "order": 10
+      "order": 70
     },
     {
       "menu": "search",
       "command": "nks.search.regexTester",
       "group": "2_replace/04",
-      "order": 10
+      "order": 80
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.gotoAnything",
+      "group": "3_goto/01",
+      "order": 90
     },
     {
       "menu": "search",
       "command": "nks.search.gotoLine",
       "group": "3_goto/02",
-      "order": 10
+      "order": 100
     },
     {
       "menu": "search",
       "command": "nks.search.gotoBracket",
       "group": "3_goto/03",
-      "order": 10
+      "order": 110
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.relatedFile",
+      "group": "3_goto/04",
+      "order": 120
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.jumpBack",
+      "group": "4_places/01",
+      "order": 130
+    },
+    {
+      "menu": "search",
+      "command": "nks.search.jumpForward",
+      "group": "4_places/02",
+      "order": 140
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.toggle",
+      "group": "4_places/03.01",
+      "submenu": "bookmarks",
+      "order": 150
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.next",
+      "group": "4_places/03.01",
+      "submenu": "bookmarks",
+      "order": 160
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.previous",
+      "group": "4_places/03.01",
+      "submenu": "bookmarks",
+      "order": 170
+    },
+    {
+      "menu": "search",
+      "command": "nks.bookmarks.clear",
+      "group": "4_places/03.01",
+      "submenu": "bookmarks",
+      "order": 180
     },
     {
       "menu": "view",
@@ -4138,275 +4574,526 @@
       "menu": "view",
       "command": "nks.view.toggleWordWrap",
       "group": "2_display/01",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.zoomIn",
-      "group": "2_display/03",
-      "submenu": "zoom",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.zoomOut",
-      "group": "2_display/03",
-      "submenu": "zoom",
       "order": 20
     },
     {
       "menu": "view",
-      "command": "nks.view.zoomReset",
-      "group": "2_display/03",
-      "submenu": "zoom",
+      "command": "nks.view.toggleLineNumbers",
+      "group": "2_display/02.01",
+      "submenu": "editor",
       "order": 30
     },
     {
       "menu": "view",
       "command": "nks.view.toggleHiddenCharacters",
-      "group": "2_display/02",
+      "group": "2_display/02.01",
       "submenu": "editor",
       "order": 40
     },
     {
       "menu": "view",
-      "command": "nks.view.toggleLineNumbers",
-      "group": "2_display/02",
-      "submenu": "editor",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleCurrentLine",
-      "group": "2_display/02",
-      "submenu": "editor",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleRightMargin",
-      "group": "2_display/02",
-      "submenu": "editor",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleLinks",
-      "group": "2_display/02",
+      "command": "nks.view.toggleMinimap",
+      "group": "2_display/02.01",
       "submenu": "editor",
       "order": 50
     },
     {
       "menu": "view",
-      "command": "nks.view.toggleMinimap",
-      "group": "2_display/02",
+      "command": "nks.view.toggleCurrentLine",
+      "group": "2_display/02.01",
       "submenu": "editor",
       "order": 60
     },
     {
       "menu": "view",
-      "command": "nks.view.toggleSecrets",
-      "group": "2_display/02",
+      "command": "nks.view.toggleRightMargin",
+      "group": "2_display/02.01",
       "submenu": "editor",
       "order": 70
     },
     {
-      "menu": "file",
-      "command": "nks.file.reload",
-      "group": "3_disk/01",
+      "menu": "view",
+      "command": "nks.view.zoomIn",
+      "group": "2_display/03.01",
+      "submenu": "zoom",
+      "order": 80
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.zoomOut",
+      "group": "2_display/03.01",
+      "submenu": "zoom",
+      "order": 90
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.zoomReset",
+      "group": "2_display/03.01",
+      "submenu": "zoom",
+      "order": 100
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.hex",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 110
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.table",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 120
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.jsonPretty",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 130
+    },
+    {
+      "menu": "view",
+      "command": "nks.json.goToKey",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 140
+    },
+    {
+      "menu": "view",
+      "command": "nks.json.expandValue",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 150
+    },
+    {
+      "menu": "view",
+      "command": "nks.json.copySource",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 160
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.cycleMode",
+      "group": "3_mode/01.01",
+      "submenu": "mode",
+      "order": 170
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.modeRead",
+      "group": "3_mode/01.02",
+      "submenu": "mode",
+      "order": 180
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.modeEdit",
+      "group": "3_mode/01.02",
+      "submenu": "mode",
+      "order": 190
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.modeSource",
+      "group": "3_mode/01.02",
+      "submenu": "mode",
+      "order": 200
+    },
+    {
+      "menu": "view",
+      "command": "nks.tools.markdownPreview",
+      "group": "3_mode/02",
+      "order": 210
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.editRegion",
+      "group": "3_mode/03.01",
+      "submenu": "table",
+      "order": 220
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.dialect",
+      "group": "3_mode/03.01",
+      "submenu": "table",
+      "order": 230
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertRow",
+      "group": "3_mode/03.02",
+      "submenu": "table",
+      "order": 240
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteRow",
+      "group": "3_mode/03.02",
+      "submenu": "table",
+      "order": 250
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.insertColumn",
+      "group": "3_mode/03.02",
+      "submenu": "table",
+      "order": 260
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.deleteColumn",
+      "group": "3_mode/03.02",
+      "submenu": "table",
+      "order": 270
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.filter",
+      "group": "3_mode/03.03",
+      "submenu": "table",
+      "order": 280
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.clearFilter",
+      "group": "3_mode/03.03",
+      "submenu": "table",
+      "order": 290
+    },
+    {
+      "menu": "view",
+      "command": "nks.table.copyAs",
+      "group": "3_mode/03.03",
+      "submenu": "table",
+      "order": 300
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleToolbar",
+      "group": "4_panels/01",
+      "order": 310
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.editToolbar",
+      "group": "4_panels/02",
+      "order": 320
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleFilePanel",
+      "group": "4_panels/03",
+      "order": 330
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleDocumentList",
+      "group": "4_panels/04",
+      "order": 340
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleOutput",
+      "group": "4_panels/05",
+      "order": 350
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleTerminal",
+      "group": "4_panels/06",
+      "order": 360
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleCommitPanel",
+      "group": "4_panels/07.01",
+      "submenu": "panels",
+      "order": 370
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleHistoryPanel",
+      "group": "4_panels/07.01",
+      "submenu": "panels",
+      "order": 380
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.toggleHeadingsPanel",
+      "group": "4_panels/07.01",
+      "submenu": "panels",
+      "order": 390
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.pluginPanels",
+      "group": "4_panels/07.01",
+      "submenu": "panels",
+      "order": 400
+    },
+    {
+      "menu": "view",
+      "command": "nks.files.toggleHidden",
+      "group": "4_panels/07.02",
+      "submenu": "panels",
+      "order": 410
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockLeft",
+      "group": "4_panels/07.03",
+      "submenu": "panels",
+      "order": 420
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockRight",
+      "group": "4_panels/07.03",
+      "submenu": "panels",
+      "order": 430
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.dockBottom",
+      "group": "4_panels/07.03",
+      "submenu": "panels",
+      "order": 440
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.grow",
+      "group": "4_panels/07.04",
+      "submenu": "panels",
+      "order": 450
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.shrink",
+      "group": "4_panels/07.04",
+      "submenu": "panels",
+      "order": 460
+    },
+    {
+      "menu": "view",
+      "command": "nks.panel.resetLayout",
+      "group": "4_panels/07.04",
+      "submenu": "panels",
+      "order": 470
+    },
+    {
+      "menu": "view",
+      "command": "nks.view.fullScreen",
+      "group": "5_screen/01",
+      "order": 480
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.reread",
+      "group": "1_encoding/01",
       "order": 10
     },
     {
-      "menu": "file",
-      "command": "nks.file.compareWithDisk",
-      "group": "3_disk/02",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.history",
-      "group": "3_disk/03.01",
-      "submenu": "history",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.historyMark",
-      "group": "3_disk/03.01",
-      "submenu": "history",
+      "menu": "format",
+      "command": "nks.format.convert",
+      "group": "1_encoding/02",
       "order": 20
     },
     {
-      "menu": "file",
-      "command": "nks.file.historySearch",
-      "group": "3_disk/03.01",
-      "submenu": "history",
+      "menu": "format",
+      "command": "nks.format.eolCrLf",
+      "group": "2_eol/01",
       "order": 30
     },
     {
-      "menu": "file",
-      "command": "nks.file.historyPanel",
-      "group": "3_disk/03.01",
-      "submenu": "history",
-      "order": 15
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.open",
-      "group": "5_remote/01.01",
-      "submenu": "remote",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.source.open",
-      "group": "5_remote/01.01",
-      "submenu": "remote",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.connections",
-      "group": "5_remote/01.01",
-      "submenu": "remote",
-      "order": 30
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.upload",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.cancel",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
-      "order": 30
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.check",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.unsent",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
+      "menu": "format",
+      "command": "nks.format.eolLf",
+      "group": "2_eol/02",
       "order": 40
     },
     {
-      "menu": "file",
-      "command": "nks.remote.pairCache",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
+      "menu": "format",
+      "command": "nks.format.eolCr",
+      "group": "2_eol/03",
       "order": 50
     },
     {
-      "menu": "file",
-      "command": "nks.remote.proxy",
-      "group": "5_remote/01.03",
-      "submenu": "remote",
-      "order": 10
+      "menu": "format",
+      "command": "nks.format.language",
+      "group": "3_language/01",
+      "order": 60
     },
     {
-      "menu": "file",
-      "command": "nks.remote.exportConnections",
-      "group": "5_remote/01.03",
-      "submenu": "remote",
-      "order": 20
+      "menu": "format",
+      "command": "nks.edit.reformatParagraph",
+      "group": "4_block/01",
+      "order": 70
     },
     {
-      "menu": "file",
-      "command": "nks.remote.importConnections",
-      "group": "5_remote/01.03",
-      "submenu": "remote",
-      "order": 30
+      "menu": "format",
+      "command": "nks.edit.justifyLeft",
+      "group": "4_block/02",
+      "order": 80
     },
     {
-      "menu": "settings",
-      "command": "nks.settings.backup",
-      "group": "4_backup/01",
-      "order": 10
+      "menu": "format",
+      "command": "nks.edit.justifyRight",
+      "group": "4_block/03",
+      "order": 90
     },
     {
-      "menu": "settings",
-      "command": "nks.settings.restore",
-      "group": "4_backup/02",
-      "order": 10
+      "menu": "format",
+      "command": "nks.edit.justifyCenter",
+      "group": "4_block/04",
+      "order": 100
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.selectLine",
-      "group": "3_select/02",
-      "submenu": "select",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.toggleBlockSelect",
-      "group": "3_select/02",
-      "submenu": "select",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.joinLines",
-      "group": "4_text/01.01",
-      "submenu": "lines",
-      "order": 50
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.toggleComment",
-      "group": "4_text/03",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.expandSelection",
-      "group": "3_select/02",
-      "submenu": "select",
-      "order": 20
+      "menu": "format",
+      "command": "nks.edit.justifyBlock",
+      "group": "4_block/05",
+      "order": 110
     },
     {
       "menu": "format",
       "command": "nks.edit.formatJson",
-      "group": "6_code/01.01",
+      "group": "5_code/01.01",
       "submenu": "format",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.previewFormatJson",
-      "group": "6_code/01.01",
-      "submenu": "format",
-      "order": 20
+      "order": 120
     },
     {
       "menu": "format",
       "command": "nks.edit.minifyJson",
-      "group": "6_code/01.01",
+      "group": "5_code/01.01",
       "submenu": "format",
-      "order": 30
+      "order": 130
     },
     {
       "menu": "format",
       "command": "nks.edit.sortJsonKeys",
-      "group": "6_code/01.01",
+      "group": "5_code/01.01",
       "submenu": "format",
-      "order": 40
+      "order": 140
     },
     {
       "menu": "format",
       "command": "nks.edit.fixJsonCommas",
-      "group": "6_code/01.01",
+      "group": "5_code/01.01",
       "submenu": "format",
+      "order": 150
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.formatSql",
+      "group": "5_code/01.02",
+      "submenu": "format",
+      "order": 160
+    },
+    {
+      "menu": "format",
+      "command": "nks.edit.htmlTidy",
+      "group": "5_code/01.02",
+      "submenu": "format",
+      "order": 170
+    },
+    {
+      "menu": "format",
+      "command": "nks.format.withReview",
+      "group": "5_code/01.03",
+      "submenu": "format",
+      "order": 180
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.copyAs",
+      "group": "1_edit/01",
+      "order": 10
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.pasteAs",
+      "group": "1_edit/02",
+      "order": 20
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.fill",
+      "group": "1_edit/03",
+      "order": 30
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.operate",
+      "group": "1_edit/04",
+      "order": 40
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.exportSelection",
+      "group": "1_edit/05",
       "order": 50
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.selectTo",
+      "group": "1_edit/06",
+      "order": 60
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.toggleInsert",
+      "group": "2_view/01",
+      "order": 70
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.inspector",
+      "group": "2_view/02",
+      "order": 80
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.layout",
+      "group": "2_view/03",
+      "order": 90
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.bookmarks.panel",
+      "group": "2_view/04",
+      "order": 100
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.checksum",
+      "group": "3_analyse/01",
+      "order": 110
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.statistics",
+      "group": "3_analyse/02",
+      "order": 120
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.template",
+      "group": "3_analyse/03",
+      "order": 130
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.inspectChanges",
+      "group": "4_compare/01",
+      "order": 140
+    },
+    {
+      "menu": "hex",
+      "command": "nks.hex.compare.file",
+      "group": "4_compare/02",
+      "order": 150
     },
     {
       "menu": "tools",
@@ -4424,1721 +5111,771 @@
     },
     {
       "menu": "tools",
-      "command": "nks.tools.hashCopy",
-      "group": "1_text/01.01",
-      "submenu": "text",
-      "order": 30
-    },
-    {
-      "menu": "tools",
       "command": "nks.tools.hashCompare",
       "group": "1_text/01.01",
       "submenu": "text",
-      "order": 40
+      "order": 30
     },
     {
       "menu": "tools",
       "command": "nks.tools.calculateBlock",
       "group": "1_text/01.02",
       "submenu": "text",
-      "order": 10
+      "order": 40
     },
     {
       "menu": "tools",
       "command": "nks.tools.evaluateExpression",
       "group": "1_text/01.02",
       "submenu": "text",
-      "order": 20
+      "order": 50
     },
     {
       "menu": "tools",
       "command": "nks.tools.insertExpression",
       "group": "1_text/01.02",
       "submenu": "text",
-      "order": 30
+      "order": 60
     },
     {
       "menu": "tools",
       "command": "nks.tools.convertBase",
       "group": "1_text/01.02",
       "submenu": "text",
-      "order": 40
-    },
-    {
-      "menu": "view",
-      "command": "nks.tools.markdownPreview",
-      "group": "3_mode/02",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.tools.markdownOutline",
-      "group": "3_mode/03",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.markdownFormatTable",
-      "group": "1_text/05",
-      "submenu": "markdown",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.markdownUpdateToc",
-      "group": "1_text/05",
-      "submenu": "markdown",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.markdownRepairTable",
-      "group": "1_text/05",
-      "submenu": "markdown",
-      "order": 20
+      "order": 70
     },
     {
       "menu": "tools",
       "command": "nks.tools.pickColor",
-      "group": "1_text/03",
-      "submenu": "colors",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.colorToHex",
-      "group": "1_text/03",
-      "submenu": "colors",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.colorToRgb",
-      "group": "1_text/03",
-      "submenu": "colors",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.colorToHsl",
-      "group": "1_text/03",
-      "submenu": "colors",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.colorToOklch",
-      "group": "1_text/03",
-      "submenu": "colors",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.goToSymbol",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.showOutline",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.copyKeyPath",
       "group": "1_text/02.01",
-      "submenu": "data",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.goToKey",
-      "group": "1_text/02.01",
-      "submenu": "data",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.showKeys",
-      "group": "1_text/02.01",
-      "submenu": "data",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.compareKeys",
-      "group": "1_text/02.01",
-      "submenu": "data",
-      "order": 40
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.reread",
-      "group": "1_encoding/01",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.convert",
-      "group": "1_encoding/02",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.eolCrLf",
-      "group": "2_eol/01",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.eolLf",
-      "group": "2_eol/02",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.eolCr",
-      "group": "2_eol/03",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.normalizeNfc",
-      "group": "3_unicode/01",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.normalizeNfd",
-      "group": "3_unicode/02",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.language",
-      "group": "4_language/01",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleToolbar",
-      "group": "5_panels/00",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.editToolbar",
-      "group": "5_panels/00",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleDocumentList",
-      "group": "5_panels/01",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.search.gotoAnything",
-      "group": "3_goto/01",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.search.recentEdits",
-      "group": "4_places/01",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.search.jumpBack",
-      "group": "4_places/02",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.search.jumpForward",
-      "group": "4_places/03",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.search.relatedFile",
-      "group": "3_goto/04",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.bookmarks.toggle",
-      "group": "5_bookmarks/01",
-      "submenu": "bookmarks",
-      "order": 10
-    },
-    {
-      "menu": "search",
-      "command": "nks.bookmarks.next",
-      "group": "5_bookmarks/01",
-      "submenu": "bookmarks",
-      "order": 20
-    },
-    {
-      "menu": "search",
-      "command": "nks.bookmarks.previous",
-      "group": "5_bookmarks/01",
-      "submenu": "bookmarks",
-      "order": 30
-    },
-    {
-      "menu": "search",
-      "command": "nks.bookmarks.clear",
-      "group": "5_bookmarks/01",
-      "submenu": "bookmarks",
-      "order": 40
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openFolder",
-      "group": "1_new/04",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openPathAtCaret",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 60
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleFilePanel",
-      "group": "5_panels/02",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleCommitPanel",
-      "group": "5_panels/02",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleHistoryPanel",
-      "group": "5_panels/02",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleHeadingsPanel",
-      "group": "5_panels/02",
-      "order": 35
-    },
-    {
-      "menu": "view",
-      "command": "nks.files.toggleHidden",
-      "group": "5_panels/05.01",
-      "submenu": "panels",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.dockLeft",
-      "group": "5_panels/05.02",
-      "submenu": "panels",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.dockRight",
-      "group": "5_panels/05.02",
-      "submenu": "panels",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.dockBottom",
-      "group": "5_panels/05.02",
-      "submenu": "panels",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.grow",
-      "group": "5_panels/05.03",
-      "submenu": "panels",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.shrink",
-      "group": "5_panels/05.03",
-      "submenu": "panels",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.hide",
-      "group": "5_panels/05.03",
-      "submenu": "panels",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.panel.resetLayout",
-      "group": "5_panels/05.04",
-      "submenu": "panels",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleOutput",
-      "group": "5_panels/03",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.fullScreen",
-      "group": "5_panels/06",
-      "order": 10
-    },
-    {
-      "menu": "window",
-      "command": "nks.window.new",
-      "group": "1_window/01",
-      "order": 10
-    },
-    {
-      "menu": "window",
-      "command": "nks.window.splitView",
-      "group": "2_split/01",
-      "order": 10
-    },
-    {
-      "menu": "window",
-      "command": "nks.window.moveToOtherGroup",
-      "group": "2_split/02",
-      "order": 10
-    },
-    {
-      "menu": "window",
-      "command": "nks.view.nextTab",
-      "group": "3_tabs/01",
-      "order": 10
-    },
-    {
-      "menu": "window",
-      "command": "nks.view.previousTab",
-      "group": "3_tabs/02",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.settings.theme.system",
-      "group": "2_look/01",
-      "submenu": "theme",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.settings.theme.light",
-      "group": "2_look/01",
-      "submenu": "theme",
-      "order": 20
-    },
-    {
-      "menu": "settings",
-      "command": "nks.settings.theme.dark",
-      "group": "2_look/01",
-      "submenu": "theme",
-      "order": 30
-    },
-    {
-      "menu": "help",
-      "command": "nks.help.contents",
-      "group": "0_contents",
-      "order": 10
-    },
-    {
-      "menu": "help",
-      "command": "nks.help.updateCheck",
-      "group": "1_about",
-      "order": 5
-    },
-    {
-      "menu": "help",
-      "command": "nks.help.updateReturn",
-      "group": "1_about",
-      "order": 6
-    },
-    {
-      "menu": "help",
-      "command": "nks.help.about",
-      "group": "1_about",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.addNextOccurrence",
-      "group": "3_select/02",
-      "submenu": "select/carets",
-      "order": 60
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.skipOccurrence",
-      "group": "3_select/02",
-      "submenu": "select/carets",
-      "order": 70
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.selectAllOccurrences",
-      "group": "3_select/02",
-      "submenu": "select/carets",
+      "submenu": "colors",
       "order": 80
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.addCaretAbove",
-      "group": "3_select/02",
-      "submenu": "select/carets",
-      "order": 90
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.addCaretBelow",
-      "group": "3_select/02",
-      "submenu": "select/carets",
-      "order": 100
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.clearCarets",
-      "group": "3_select/02",
-      "submenu": "select/carets",
-      "order": 110
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.selectToMark",
-      "group": "3_select/02",
-      "submenu": "select",
-      "order": 40
-    },
-    {
-      "menu": "settings",
-      "command": "nks.settings.profile.default",
-      "group": "2_look/02",
-      "submenu": "profile",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.settings.profile.pspad",
-      "group": "2_look/02",
-      "submenu": "profile",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openAsHex",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.hex",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.withEncoding",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 30
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.readOnly",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 40
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.newCopy",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 50
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.containingFolder",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 70
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.defaultApp",
-      "group": "1_new/06",
-      "submenu": "special",
-      "order": 80
-    },
-    {
-      "menu": "file",
-      "command": "nks.open.lastClosed",
-      "group": "1_new/03.50",
-      "submenu": "recent",
-      "order": 80
-    },
-    {
-      "menu": "file",
-      "command": "nks.hex.inspectChanges",
-      "group": "2_save/05",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.hex",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.cycleMode",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.modeRead",
-      "group": "3_mode/01.02",
-      "submenu": "mode",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.modeEdit",
-      "group": "3_mode/01.02",
-      "submenu": "mode",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.modeSource",
-      "group": "3_mode/01.02",
-      "submenu": "mode",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.toggleInsert",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.toggleColumn",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.inspector",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.charset",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 40
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.layout",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 50
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.offsetFormat",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 60
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.clipboardHistory",
-      "group": "2_clip/04.01",
-      "submenu": "clipboard",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.pasteKeepCaret",
-      "group": "2_clip/04.01",
-      "submenu": "clipboard",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertIntoLines",
-      "group": "4_text/01.02",
-      "submenu": "lines",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.sortLines",
-      "group": "4_text/01.02",
-      "submenu": "lines",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertDateTime",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertGuid",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.repeatLast",
-      "group": "1_undo/03",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertClip",
-      "group": "5_more/02.01",
-      "submenu": "insert",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.clipFromSelection",
-      "group": "5_more/02.01",
-      "submenu": "insert",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.clips.editVariables",
-      "group": "5_more/02.03",
-      "submenu": "insert",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.clips.editProjectVariables",
-      "group": "5_more/02.03",
-      "submenu": "insert",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.jsonToGo",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 110
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.jsonToCSharp",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 120
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.jsonToTypeScript",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 130
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertLoremParagraphs",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertLoremSentences",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 40
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertLoremWords",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 50
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.inspectCharacter",
-      "group": "5_more/02.03",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.keywordsUpper",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 140
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.keywordsLower",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 150
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.keywordsAsDefined",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 160
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.httpSend",
-      "group": "2_run/06.01",
-      "submenu": "web",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.httpEnvironment",
-      "group": "2_run/06.01",
-      "submenu": "web",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.httpCopyCurl",
-      "group": "2_run/06.01",
-      "submenu": "web",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.curlToHttp",
-      "group": "2_run/06.01",
-      "submenu": "web",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.sendToInterpreter",
-      "group": "2_run/01.03",
-      "submenu": "run",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.stopInterpreters",
-      "group": "2_run/01.03",
-      "submenu": "run",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.compareFolders",
-      "group": "2_run/03.03",
-      "submenu": "compare",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.template.exportJson",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 130
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.agentFiles",
-      "group": "3_ai/02",
-      "submenu": "ai",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.agentPlans",
-      "group": "3_ai/02",
-      "submenu": "ai",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openUrl",
-      "group": "1_new/04",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.searchWeb",
-      "group": "2_run/06.02",
-      "submenu": "web",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.openMappedUrl",
-      "group": "2_run/06.02",
-      "submenu": "web",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.structuralSearch",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.remote.sendChanges",
-      "group": "5_remote/01.02",
-      "submenu": "remote",
-      "order": 45
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.importTextMate",
-      "group": "2_run/08",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.toggleTerminal",
-      "group": "5_panels/03",
-      "order": 12
     },
     {
       "menu": "tools",
       "command": "nks.tools.pickScreenColor",
-      "group": "1_text/03",
+      "group": "1_text/02.01",
       "submenu": "colors",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.toggleClipboardMonitor",
-      "group": "2_clip/04.01",
-      "submenu": "clipboard",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.format.withReview",
-      "group": "2_run/03",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.showCallers",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.pluginHash",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 70
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.pluginExport",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 80
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.pluginTemplates",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 90
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.print",
-      "group": "2_save/06",
-      "order": 60
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportPdf",
-      "group": "5_remote/02",
-      "submenu": "export",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.plugins.catalog",
-      "group": "4_other/02",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.plugins.catalogRefresh",
-      "group": "4_other/02",
-      "order": 30
-    },
-    {
-      "menu": "settings",
-      "command": "nks.file.importPspad",
-      "group": "4_backup/03",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.askSelection",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 35
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openProtected",
-      "group": "1_new/06",
-      "submenu": "special",
       "order": 90
     },
     {
       "menu": "tools",
-      "command": "nks.spell.toggle",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.spell.chooseDictionary",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.spell.download",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.spell.suggest",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.spell.next",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.spell.diacritics",
-      "group": "3_ai/05",
-      "submenu": "spelling",
-      "order": 60
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.openConverted",
-      "group": "1_new/06",
-      "submenu": "special",
+      "command": "nks.tools.colorToHex",
+      "group": "1_text/02.02",
+      "submenu": "colors",
       "order": 100
     },
     {
       "menu": "tools",
-      "command": "nks.tools.runWsh",
-      "group": "2_run/08",
-      "order": 30
+      "command": "nks.tools.colorToRgb",
+      "group": "1_text/02.02",
+      "submenu": "colors",
+      "order": 110
     },
     {
       "menu": "tools",
-      "command": "nks.tools.runScript",
-      "group": "2_run/09",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.expandMacro",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 104
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.syntaxTree",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 105
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.runRecipe",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.decToHex",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.hexToDec",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.urlEncode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.urlDecode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 40
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.quotedPrintableEncode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 50
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.quotedPrintableDecode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 60
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.base64Encode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 70
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.base64Decode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 80
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.convert.removeAccents",
-      "group": "5_more/01.02",
-      "submenu": "convert",
+      "command": "nks.tools.colorToHsl",
+      "group": "1_text/02.02",
+      "submenu": "colors",
       "order": 120
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.convert.tabsToSpaces",
-      "group": "5_more/01.02",
-      "submenu": "convert",
+      "menu": "tools",
+      "command": "nks.tools.copyKeyPath",
+      "group": "1_text/03.01",
+      "submenu": "data",
       "order": 130
     },
     {
-      "menu": "file",
-      "command": "nks.file.newFromTemplate",
-      "group": "1_new/02",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.search.selectLinesByRange",
-      "group": "3_select/02",
-      "submenu": "select",
-      "order": 50
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.reformatParagraph",
-      "group": "5_block/01",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.justifyLeft",
-      "group": "5_block/03",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.justifyRight",
-      "group": "5_block/04",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.justifyCenter",
-      "group": "5_block/05",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.justifyBlock",
-      "group": "5_block/06",
-      "order": 10
+      "menu": "tools",
+      "command": "nks.tools.goToKey",
+      "group": "1_text/03.01",
+      "submenu": "data",
+      "order": 140
     },
     {
       "menu": "tools",
-      "command": "nks.tools.run",
-      "group": "2_run/01.01",
-      "submenu": "run",
-      "order": 10
+      "command": "nks.tools.showKeys",
+      "group": "1_text/03.01",
+      "submenu": "data",
+      "order": 150
     },
     {
       "menu": "tools",
-      "command": "nks.tools.stop",
-      "group": "2_run/01.01",
-      "submenu": "run",
-      "order": 40
+      "command": "nks.tools.compareKeys",
+      "group": "1_text/03.01",
+      "submenu": "data",
+      "order": 160
     },
     {
       "menu": "tools",
-      "command": "nks.tools.logPattern",
-      "group": "2_run/01.02",
-      "submenu": "run",
-      "order": 10
+      "command": "nks.packages.lookup",
+      "group": "1_text/03.02",
+      "submenu": "data",
+      "order": 170
     },
     {
       "menu": "tools",
-      "command": "nks.tools.makeTargets",
-      "group": "2_run/01.01",
-      "submenu": "run",
-      "order": 20
+      "command": "nks.packages.refresh",
+      "group": "1_text/03.02",
+      "submenu": "data",
+      "order": 180
     },
     {
       "menu": "tools",
-      "command": "nks.tools.makeRepeat",
-      "group": "2_run/01.01",
-      "submenu": "run",
-      "order": 30
+      "command": "nks.packages.script",
+      "group": "1_text/03.02",
+      "submenu": "data",
+      "order": 190
     },
     {
       "menu": "tools",
-      "command": "nks.tools.edit",
-      "group": "2_run/01.02",
-      "submenu": "run",
-      "order": 20
+      "command": "nks.schemas.allow",
+      "group": "1_text/03.02",
+      "submenu": "data",
+      "order": 200
     },
     {
       "menu": "tools",
-      "command": "nks.log.nextError",
-      "group": "2_run/02.01",
-      "submenu": "log",
-      "order": 10
+      "command": "nks.tools.goToSymbol",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 210
     },
     {
       "menu": "tools",
-      "command": "nks.log.previousError",
-      "group": "2_run/02.01",
-      "submenu": "log",
-      "order": 20
+      "command": "nks.tools.showOutline",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 220
     },
     {
       "menu": "tools",
-      "command": "nks.log.levels",
-      "group": "2_run/02.02",
-      "submenu": "log",
-      "order": 10
+      "command": "nks.tools.lint",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 230
     },
     {
       "menu": "tools",
-      "command": "nks.log.follow",
-      "group": "2_run/02.02",
-      "submenu": "log",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.saveView",
-      "group": "2_run/02.03",
-      "submenu": "log",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.views",
-      "group": "2_run/02.03",
-      "submenu": "log",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.nextMatch",
-      "group": "2_run/02.03",
-      "submenu": "log",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.previousMatch",
-      "group": "2_run/02.03",
-      "submenu": "log",
-      "order": 40
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.fragmentJson",
-      "group": "5_more/03",
-      "submenu": "fragment",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.fragmentSql",
-      "group": "5_more/03",
-      "submenu": "fragment",
-      "order": 20
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.fragmentHtml",
-      "group": "5_more/03",
-      "submenu": "fragment",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.fragmentWriteBack",
-      "group": "5_more/03",
-      "submenu": "fragment",
-      "order": 40
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.copyAiContext",
-      "group": "2_clip/04.02",
-      "submenu": "clipboard",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.copyFormatted",
-      "group": "2_clip/04.02",
-      "submenu": "clipboard",
-      "order": 10
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.copyHtmlSource",
-      "group": "2_clip/04.02",
-      "submenu": "clipboard",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportHtml",
-      "group": "5_remote/02",
-      "submenu": "export",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportRtf",
-      "group": "5_remote/02",
-      "submenu": "export",
-      "order": 20
-    },
-    {
-      "menu": "file",
-      "command": "nks.file.exportTex",
-      "group": "5_remote/02",
-      "submenu": "export",
-      "order": 40
+      "command": "nks.tools.sqlDialect",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 240
     },
     {
       "menu": "tools",
       "command": "nks.tools.emmetPreview",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code",
-      "order": 40
+      "order": 250
     },
     {
       "menu": "tools",
       "command": "nks.tools.emmetWrap",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code",
-      "order": 50
+      "order": 260
     },
     {
       "menu": "tools",
-      "command": "nks.git.status",
-      "group": "2_run/04",
-      "submenu": "git",
-      "order": 10
+      "command": "nks.tools.structuralSearch",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 270
     },
     {
       "menu": "tools",
-      "command": "nks.git.diffIndex",
-      "group": "2_run/04",
-      "submenu": "git",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.diffHead",
-      "group": "2_run/04",
-      "submenu": "git",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.stageHunk",
-      "group": "2_run/04",
-      "submenu": "git",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.unstageHunk",
-      "group": "2_run/04",
-      "submenu": "git",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.conflictOurs",
-      "group": "2_run/04",
-      "submenu": "git/conflicts",
-      "order": 60
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.conflictTheirs",
-      "group": "2_run/04",
-      "submenu": "git/conflicts",
-      "order": 70
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.conflictBoth",
-      "group": "2_run/04",
-      "submenu": "git/conflicts",
-      "order": 80
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.markResolved",
-      "group": "2_run/04",
-      "submenu": "git/conflicts",
-      "order": 90
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.conflictDelete",
-      "group": "2_run/04",
-      "submenu": "git/conflicts",
-      "order": 100
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.nextChange",
-      "group": "2_run/05",
-      "submenu": "git/changes",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.previousChange",
-      "group": "2_run/05",
-      "submenu": "git/changes",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.showChange",
-      "group": "2_run/05",
-      "submenu": "git/changes",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.revertHunk",
-      "group": "2_run/05",
-      "submenu": "git/changes",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.commit",
-      "group": "2_run/01",
-      "submenu": "git",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.fetch",
-      "group": "2_run/01",
-      "submenu": "git",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.pull",
-      "group": "2_run/01",
-      "submenu": "git",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.push",
-      "group": "2_run/01",
-      "submenu": "git",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.switchBranch",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.createBranch",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.deleteBranch",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.stashSave",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.stashApply",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.stashDrop",
-      "group": "2_run/02",
-      "submenu": "git/branches",
-      "order": 60
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.logFile",
-      "group": "2_run/03",
-      "submenu": "git",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.git.logRepo",
-      "group": "2_run/03",
-      "submenu": "git",
-      "order": 20
+      "command": "nks.tools.showCallers",
+      "group": "1_text/04.01",
+      "submenu": "code",
+      "order": 280
     },
     {
       "menu": "tools",
       "command": "nks.lsp.start",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 70
+      "order": 290
     },
     {
       "menu": "tools",
       "command": "nks.lsp.goToDefinition",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 80
+      "order": 300
     },
     {
       "menu": "tools",
       "command": "nks.lsp.findReferences",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 90
+      "order": 310
     },
     {
       "menu": "tools",
       "command": "nks.lsp.rename",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 100
+      "order": 320
     },
     {
       "menu": "tools",
       "command": "nks.lsp.format",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 101
+      "order": 330
     },
     {
       "menu": "tools",
       "command": "nks.lsp.codeActions",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 102
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.signatureHelp",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 103
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.documentSymbols",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 104
+      "order": 340
     },
     {
       "menu": "tools",
       "command": "nks.lsp.workspaceSymbols",
-      "group": "1_text/04",
+      "group": "1_text/04.01",
       "submenu": "code/lsp",
-      "order": 105
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.inlayHints",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 106
-    },
-    {
-      "menu": "tools",
-      "command": "nks.lsp.semanticTokens",
-      "group": "1_text/04",
-      "submenu": "code/lsp",
-      "order": 107
+      "order": 350
     },
     {
       "menu": "tools",
       "command": "nks.lsp.restart",
-      "group": "1_text/04",
+      "group": "1_text/04.01.02",
       "submenu": "code/lsp",
-      "order": 110
+      "order": 360
     },
     {
       "menu": "tools",
       "command": "nks.lsp.stop",
-      "group": "1_text/04",
+      "group": "1_text/04.01.02",
       "submenu": "code/lsp",
-      "order": 120
+      "order": 370
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.complete",
-      "group": "5_more/02.01",
-      "submenu": "insert",
-      "order": 10
+      "menu": "tools",
+      "command": "nks.tools.markdownFormatTable",
+      "group": "1_text/05.01",
+      "submenu": "markdown",
+      "order": 380
     },
     {
-      "menu": "format",
-      "command": "nks.edit.formatSql",
-      "group": "6_code/01.02",
-      "submenu": "format",
-      "order": 10
+      "menu": "tools",
+      "command": "nks.tools.markdownRepairTable",
+      "group": "1_text/05.01",
+      "submenu": "markdown",
+      "order": 390
     },
     {
-      "menu": "format",
-      "command": "nks.edit.previewFormatSql",
-      "group": "6_code/01.02",
-      "submenu": "format",
-      "order": 20
+      "menu": "tools",
+      "command": "nks.tools.markdownUpdateToc",
+      "group": "1_text/05.01",
+      "submenu": "markdown",
+      "order": 400
     },
     {
-      "menu": "format",
-      "command": "nks.edit.htmlTidy",
-      "group": "6_code/01.03",
-      "submenu": "format",
-      "order": 10
+      "menu": "tools",
+      "command": "nks.git.commit",
+      "group": "2_run/01.01",
+      "submenu": "git",
+      "order": 410
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.htmlEncode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 90
+      "menu": "tools",
+      "command": "nks.git.fetch",
+      "group": "2_run/01.01",
+      "submenu": "git",
+      "order": 420
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.htmlDecode",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 100
+      "menu": "tools",
+      "command": "nks.git.pull",
+      "group": "2_run/01.01",
+      "submenu": "git",
+      "order": 430
     },
     {
-      "menu": "edit",
-      "command": "nks.edit.htmlEncodeAll",
-      "group": "5_more/01.02",
-      "submenu": "convert",
-      "order": 110
+      "menu": "tools",
+      "command": "nks.git.push",
+      "group": "2_run/01.01",
+      "submenu": "git",
+      "order": 440
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.switchBranch",
+      "group": "2_run/01.02",
+      "submenu": "git",
+      "order": 450
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.createBranch",
+      "group": "2_run/01.02",
+      "submenu": "git",
+      "order": 460
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashSave",
+      "group": "2_run/01.02",
+      "submenu": "git",
+      "order": 470
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.stashApply",
+      "group": "2_run/01.02",
+      "submenu": "git",
+      "order": 480
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.status",
+      "group": "2_run/01.03",
+      "submenu": "git",
+      "order": 490
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logFile",
+      "group": "2_run/01.03",
+      "submenu": "git",
+      "order": 500
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.logRepo",
+      "group": "2_run/01.03",
+      "submenu": "git",
+      "order": 510
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictOurs",
+      "group": "2_run/01.03",
+      "submenu": "git/conflicts",
+      "order": 520
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictTheirs",
+      "group": "2_run/01.03",
+      "submenu": "git/conflicts",
+      "order": 530
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictBoth",
+      "group": "2_run/01.03",
+      "submenu": "git/conflicts",
+      "order": 540
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.markResolved",
+      "group": "2_run/01.03",
+      "submenu": "git/conflicts",
+      "order": 550
+    },
+    {
+      "menu": "tools",
+      "command": "nks.git.conflictDelete",
+      "group": "2_run/01.03",
+      "submenu": "git/conflicts",
+      "order": 560
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.run",
+      "group": "2_run/02.01",
+      "submenu": "run",
+      "order": 570
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.makeTargets",
+      "group": "2_run/02.01",
+      "submenu": "run",
+      "order": 580
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.makeRepeat",
+      "group": "2_run/02.01",
+      "submenu": "run",
+      "order": 590
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.stop",
+      "group": "2_run/02.01",
+      "submenu": "run",
+      "order": 600
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.runWsh",
+      "group": "2_run/02.01",
+      "submenu": "run",
+      "order": 610
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.sendToInterpreter",
+      "group": "2_run/02.02",
+      "submenu": "run",
+      "order": 620
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.stopInterpreters",
+      "group": "2_run/02.02",
+      "submenu": "run",
+      "order": 630
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.edit",
+      "group": "2_run/02.03",
+      "submenu": "run",
+      "order": 640
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.nextError",
+      "group": "2_run/03.01",
+      "submenu": "log",
+      "order": 650
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.previousError",
+      "group": "2_run/03.01",
+      "submenu": "log",
+      "order": 660
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.levels",
+      "group": "2_run/03.02",
+      "submenu": "log",
+      "order": 670
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.follow",
+      "group": "2_run/03.02",
+      "submenu": "log",
+      "order": 680
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.views",
+      "group": "2_run/03.03",
+      "submenu": "log",
+      "order": 690
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.saveView",
+      "group": "2_run/03.03",
+      "submenu": "log",
+      "order": 700
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.fold",
+      "group": "2_run/03.04",
+      "submenu": "log",
+      "order": 710
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.unfold",
+      "group": "2_run/03.04",
+      "submenu": "log",
+      "order": 720
+    },
+    {
+      "menu": "tools",
+      "command": "nks.log.openFrame",
+      "group": "2_run/03.04",
+      "submenu": "log",
+      "order": 730
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.clipboard",
+      "group": "2_run/04.01",
+      "submenu": "compare",
+      "order": 740
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.file",
+      "group": "2_run/04.01",
+      "submenu": "compare",
+      "order": 750
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.texts",
+      "group": "2_run/04.01",
+      "submenu": "compare",
+      "order": 760
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.compareFolders",
+      "group": "2_run/04.01",
+      "submenu": "compare",
+      "order": 770
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.next",
+      "group": "2_run/04.02",
+      "submenu": "compare",
+      "order": 780
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.previous",
+      "group": "2_run/04.02",
+      "submenu": "compare",
+      "order": 790
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.copyToRight",
+      "group": "2_run/04.02",
+      "submenu": "compare",
+      "order": 800
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.copyToLeft",
+      "group": "2_run/04.02",
+      "submenu": "compare",
+      "order": 810
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.ignoreWhitespace",
+      "group": "2_run/04.03",
+      "submenu": "compare",
+      "order": 820
+    },
+    {
+      "menu": "tools",
+      "command": "nks.compare.ignoreCase",
+      "group": "2_run/04.03",
+      "submenu": "compare",
+      "order": 830
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpSend",
+      "group": "2_run/05.01",
+      "submenu": "web",
+      "order": 840
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpEnvironment",
+      "group": "2_run/05.01",
+      "submenu": "web",
+      "order": 850
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.httpCopyCurl",
+      "group": "2_run/05.01",
+      "submenu": "web",
+      "order": 860
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.curlToHttp",
+      "group": "2_run/05.01",
+      "submenu": "web",
+      "order": 870
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.searchWeb",
+      "group": "2_run/05.02",
+      "submenu": "web",
+      "order": 880
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.openMappedUrl",
+      "group": "2_run/05.02",
+      "submenu": "web",
+      "order": 890
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.start",
+      "group": "3_ai/01.01",
+      "submenu": "ai",
+      "order": 900
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.panel",
+      "group": "3_ai/01.01",
+      "submenu": "ai",
+      "order": 910
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.askSelection",
+      "group": "3_ai/01.01",
+      "submenu": "ai",
+      "order": 920
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.shareTab",
+      "group": "3_ai/01.01",
+      "submenu": "ai",
+      "order": 930
+    },
+    {
+      "menu": "tools",
+      "command": "nks.agent.stop",
+      "group": "3_ai/01.01",
+      "submenu": "ai",
+      "order": 940
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.agentFiles",
+      "group": "3_ai/01.02",
+      "submenu": "ai",
+      "order": 950
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.agentPlans",
+      "group": "3_ai/01.02",
+      "submenu": "ai",
+      "order": 960
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpServer",
+      "group": "3_ai/01.03",
+      "submenu": "ai",
+      "order": 970
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.mcpTools",
+      "group": "3_ai/01.03",
+      "submenu": "ai",
+      "order": 980
+    },
+    {
+      "menu": "tools",
+      "command": "nks.tools.ideBridge",
+      "group": "3_ai/01.03",
+      "submenu": "ai",
+      "order": 990
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.toggle",
+      "group": "3_ai/02.01",
+      "submenu": "spelling",
+      "order": 1000
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.suggest",
+      "group": "3_ai/02.01",
+      "submenu": "spelling",
+      "order": 1010
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.next",
+      "group": "3_ai/02.01",
+      "submenu": "spelling",
+      "order": 1020
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.diacritics",
+      "group": "3_ai/02.01",
+      "submenu": "spelling",
+      "order": 1030
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.chooseDictionary",
+      "group": "3_ai/02.02",
+      "submenu": "spelling",
+      "order": 1040
+    },
+    {
+      "menu": "tools",
+      "command": "nks.spell.download",
+      "group": "3_ai/02.02",
+      "submenu": "spelling",
+      "order": 1050
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.record",
+      "group": "4_other/01.01",
+      "submenu": "macro",
+      "order": 1060
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.stop",
+      "group": "4_other/01.01",
+      "submenu": "macro",
+      "order": 1070
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.playLast",
+      "group": "4_other/01.01",
+      "submenu": "macro",
+      "order": 1080
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.save",
+      "group": "4_other/01.02",
+      "submenu": "macro",
+      "order": 1090
+    },
+    {
+      "menu": "tools",
+      "command": "nks.macro.run",
+      "group": "4_other/01.02",
+      "submenu": "macro",
+      "order": 1100
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.manage",
+      "group": "4_other/02",
+      "order": 1110
+    },
+    {
+      "menu": "tools",
+      "command": "nks.plugins.catalog",
+      "group": "4_other/03",
+      "order": 1120
     },
     {
       "menu": "html",
@@ -6150,251 +5887,139 @@
       "menu": "html",
       "command": "nks.edit.htmlMatchTag",
       "group": "1_tags/02",
-      "order": 10
+      "order": 20
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlSelectElement",
       "group": "1_tags/03",
-      "order": 10
+      "order": 30
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlRemoveTag",
       "group": "1_tags/04",
-      "order": 10
+      "order": 40
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlWrapTag",
       "group": "1_tags/05",
-      "order": 10
+      "order": 50
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlStripTags",
       "group": "1_tags/06",
-      "order": 10
+      "order": 60
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlInsertImage",
       "group": "2_insert/01",
-      "order": 10
+      "order": 70
     },
     {
       "menu": "html",
       "command": "nks.edit.htmlInsertLink",
       "group": "2_insert/02",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.sqlDialect",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 30
-    },
-    {
-      "menu": "help",
-      "command": "nks.help.languageHelp",
-      "group": "0_contents",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.table",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.jsonPretty",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 25
-    },
-    {
-      "menu": "view",
-      "command": "nks.json.goToKey",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 26
-    },
-    {
-      "menu": "view",
-      "command": "nks.json.expandValue",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 27
-    },
-    {
-      "menu": "view",
-      "command": "nks.json.copySource",
-      "group": "3_mode/01.01",
-      "submenu": "mode",
-      "order": 28
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.editRegion",
-      "group": "4_special/02.01",
-      "submenu": "table",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.dialect",
-      "group": "4_special/02.01",
-      "submenu": "table",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.insertRow",
-      "group": "4_special/02.02",
-      "submenu": "table",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.deleteRow",
-      "group": "4_special/02.02",
-      "submenu": "table",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.insertColumn",
-      "group": "4_special/02.02",
-      "submenu": "table",
-      "order": 30
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.deleteColumn",
-      "group": "4_special/02.02",
-      "submenu": "table",
-      "order": 40
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.filter",
-      "group": "4_special/02.03",
-      "submenu": "table",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.clearFilter",
-      "group": "4_special/02.03",
-      "submenu": "table",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.table.copyAs",
-      "group": "4_special/02.03",
-      "submenu": "table",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.clipboard",
-      "group": "2_run/03.01",
-      "submenu": "compare",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.file",
-      "group": "2_run/03.01",
-      "submenu": "compare",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.texts",
-      "group": "2_run/03.01",
-      "submenu": "compare",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.next",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.previous",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.copyToRight",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.copyToLeft",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.action1",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.action2",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 60
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.action3",
-      "group": "2_run/03.02",
-      "submenu": "compare",
-      "order": 70
-    },
-    {
-      "menu": "tools",
-      "command": "nks.compare.action4",
-      "group": "2_run/03.02",
-      "submenu": "compare",
       "order": 80
     },
     {
-      "menu": "tools",
-      "command": "nks.compare.ignoreWhitespace",
-      "group": "2_run/03.03",
-      "submenu": "compare",
+      "menu": "settings",
+      "command": "nks.app.openSettings",
+      "group": "1_open/01",
       "order": 10
     },
     {
-      "menu": "tools",
-      "command": "nks.compare.ignoreCase",
-      "group": "2_run/03.03",
-      "submenu": "compare",
+      "menu": "settings",
+      "command": "nks.file.configFiles",
+      "group": "1_open/02",
       "order": 20
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.backup",
+      "group": "2_backup/01",
+      "order": 30
+    },
+    {
+      "menu": "settings",
+      "command": "nks.settings.restore",
+      "group": "2_backup/02",
+      "order": 40
+    },
+    {
+      "menu": "settings",
+      "command": "nks.file.importPspad",
+      "group": "2_backup/03",
+      "order": 50
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.new",
+      "group": "1_window/01",
+      "order": 10
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.splitView",
+      "group": "2_split/01",
+      "order": 20
+    },
+    {
+      "menu": "window",
+      "command": "nks.window.moveToOtherGroup",
+      "group": "2_split/02",
+      "order": 30
     },
     {
       "menu": "window",
       "command": "nks.view.syncScroll",
       "group": "2_split/03",
+      "order": 40
+    },
+    {
+      "menu": "window",
+      "command": "nks.view.nextTab",
+      "group": "3_tabs/01",
+      "order": 50
+    },
+    {
+      "menu": "window",
+      "command": "nks.view.previousTab",
+      "group": "3_tabs/02",
+      "order": 60
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.contents",
+      "group": "1_contents/01",
       "order": 10
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.languageHelp",
+      "group": "1_contents/02",
+      "order": 20
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.updateCheck",
+      "group": "2_about/01",
+      "order": 30
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.updateReturn",
+      "group": "2_about/02",
+      "order": 40
+    },
+    {
+      "menu": "help",
+      "command": "nks.help.about",
+      "group": "2_about/03",
+      "order": 50
     },
     {
       "menu": "editor.context",
@@ -6422,546 +6047,85 @@
     },
     {
       "menu": "editor.context",
-      "command": "nks.compare.clipboard",
-      "group": "4_compare",
-      "order": 10
-    },
-    {
-      "menu": "editor.context",
-      "command": "nks.file.compareWithDisk",
-      "group": "4_compare",
-      "order": 20
-    },
-    {
-      "menu": "editor.context",
-      "command": "nks.compare.file",
-      "group": "4_compare",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.selectTo",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 70
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.bookmarks.panel",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 80
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.bookmarks.edit",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 90
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.bookmarks.export",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 100
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.bookmarks.import",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 110
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.compare.saved",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 130
-    },
-    {
-      "menu": "edit",
-      "command": "nks.hex.compare.file",
-      "group": "5_more/04",
-      "submenu": "hex",
-      "order": 120
-    },
-    {
-      "menu": "format",
-      "command": "nks.format.applyEditorConfig",
-      "group": "1_encoding/03",
-      "order": 10
-    },
-    {
-      "menu": "format",
-      "command": "nks.file.convertEncodingBatch",
-      "group": "1_encoding/04",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.statistics",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 100
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.minimap.focus",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 80
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.minimap.mode",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 90
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.minimap",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 70
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpServer",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 90
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpShareTab",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 100
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpShareSelection",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 110
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpTools",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 120
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpClients",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 125
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.ideBridge",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 130
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.ideDisconnect",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 140
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.ideMention",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 150
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.mcpServers",
-      "group": "3_ai/01",
-      "submenu": "ai/mcp",
-      "order": 160
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.start",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.panel",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.shareTab",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.cancel",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.stop",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.hooks",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 60
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.transcript",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 70
-    },
-    {
-      "menu": "tools",
-      "command": "nks.agent.tokens",
-      "group": "3_ai/01",
-      "submenu": "ai/agent",
-      "order": 80
-    },
-    {
-      "menu": "file",
-      "command": "nks.review.open",
-      "group": "3_disk/03.02",
-      "submenu": "history",
-      "order": 10
-    },
-    {
-      "menu": "file",
-      "command": "nks.review.folder",
-      "group": "3_disk/03.02",
-      "submenu": "history",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.record",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.stop",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.playLast",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.save",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.run",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.rename",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 60
-    },
-    {
-      "menu": "tools",
-      "command": "nks.macro.delete",
-      "group": "4_other/01",
-      "submenu": "macro",
-      "order": 70
-    },
-    {
-      "menu": "settings",
-      "command": "nks.file.configFiles",
-      "group": "3_files/01",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.packages.lookup",
-      "group": "1_text/02.02",
-      "submenu": "data",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.packages.refresh",
-      "group": "1_text/02.02",
-      "submenu": "data",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.packages.revoke",
-      "group": "1_text/02.02",
-      "submenu": "data",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.schemas.allow",
-      "group": "1_text/02.02",
-      "submenu": "data",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.packages.script",
-      "group": "1_text/02.02",
-      "submenu": "data",
-      "order": 40
-    },
-    {
-      "menu": "tools",
-      "command": "nks.tools.lint",
-      "group": "1_text/04",
-      "submenu": "code",
-      "order": 60
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.runRecipeFiles",
-      "group": "5_more/01.01",
-      "submenu": "convert",
-      "order": 30
-    },
-    {
-      "menu": "tools",
-      "command": "nks.plugins.manage",
-      "group": "4_other/02",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.tools.shellMenuAdd",
-      "group": "3_files/02",
-      "submenu": "shell",
-      "order": 10
-    },
-    {
-      "menu": "settings",
-      "command": "nks.tools.shellAssociate",
-      "group": "3_files/02",
-      "submenu": "shell",
-      "order": 20
-    },
-    {
-      "menu": "settings",
-      "command": "nks.tools.shellRemove",
-      "group": "3_files/02",
-      "submenu": "shell",
-      "order": 30
-    },
-    {
-      "menu": "settings",
-      "command": "nks.tools.macIntegration",
-      "group": "3_files/02",
-      "submenu": "shell",
-      "order": 40
-    },
-    {
-      "menu": "settings",
-      "command": "nks.tools.macRemove",
-      "group": "3_files/02",
-      "submenu": "shell",
-      "order": 50
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.fold",
-      "group": "2_run/02.04",
-      "submenu": "log",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.unfold",
-      "group": "2_run/02.04",
-      "submenu": "log",
-      "order": 20
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.openFrame",
-      "group": "2_run/02.05",
-      "submenu": "log",
-      "order": 10
-    },
-    {
-      "menu": "tools",
-      "command": "nks.log.showRaw",
-      "group": "2_run/02.05",
-      "submenu": "log",
-      "order": 20
-    },
-    {
-      "menu": "view",
-      "command": "nks.view.pluginPanels",
-      "group": "5_panels/04",
-      "order": 10
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.template",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 110
-    },
-    {
-      "menu": "view",
-      "command": "nks.hex.template.open",
-      "group": "4_special/01",
-      "submenu": "hex",
-      "order": 120
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.pasteAsHtml",
-      "group": "2_clip/04.01",
-      "submenu": "clipboard",
-      "order": 30
-    },
-    {
-      "menu": "edit",
-      "command": "nks.edit.insertFromFile",
-      "group": "5_more/02.02",
-      "submenu": "insert",
-      "order": 30
-    },
-    {
-      "menu": "format",
-      "command": "nks.edit.reformatShortLines",
-      "group": "5_block/02",
-      "order": 10
-    },
-    {
-      "menu": "editor.context",
       "command": "nks.edit.toggleComment",
       "group": "2_edit",
-      "order": 10
+      "order": 50
     },
     {
       "menu": "editor.context",
       "command": "nks.edit.formatJson",
       "group": "3_type",
-      "order": 10,
+      "order": 60,
       "when": "language == 'json'"
     },
     {
       "menu": "editor.context",
       "command": "nks.edit.formatSql",
       "group": "3_type",
-      "order": 20,
+      "order": 70,
       "when": "language == 'sql'"
     },
     {
       "menu": "editor.context",
       "command": "nks.edit.htmlTidy",
       "group": "3_type",
-      "order": 30,
+      "order": 80,
       "when": "language == 'html'"
     },
     {
       "menu": "editor.context",
       "command": "nks.tools.markdownPreview",
       "group": "3_type",
-      "order": 40,
+      "order": 90,
       "when": "language == 'markdown' || language == 'html'"
     },
     {
       "menu": "editor.context",
       "command": "nks.tools.markdownFormatTable",
       "group": "3_type",
-      "order": 50,
+      "order": 100,
       "when": "language == 'markdown'"
     },
     {
       "menu": "editor.context",
       "command": "nks.tools.copyKeyPath",
       "group": "3_type",
-      "order": 60,
+      "order": 110,
       "when": "language == 'yaml' || language == 'json'"
     },
     {
       "menu": "editor.context",
       "command": "nks.tools.goToSymbol",
       "group": "3_type",
-      "order": 70,
+      "order": 120,
       "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'"
     },
     {
       "menu": "editor.context",
       "command": "nks.lsp.goToDefinition",
       "group": "3_type",
-      "order": 80,
-      "when": "languageGroup != ''"
-    },
-    {
-      "menu": "editor.context",
-      "command": "nks.lsp.findReferences",
-      "group": "3_type",
-      "order": 90,
+      "order": 130,
       "when": "languageGroup != ''"
     },
     {
       "menu": "editor.context",
       "command": "nks.git.diffHead",
       "group": "3_type",
-      "order": 100,
-      "when": "inGitRepo"
-    },
-    {
-      "menu": "editor.context",
-      "command": "nks.git.stageHunk",
-      "group": "3_type",
-      "order": 110,
+      "order": 140,
       "when": "inGitRepo"
     },
     {
       "menu": "editor.context",
       "command": "nks.log.nextError",
       "group": "3_type",
-      "order": 120,
+      "order": 150,
       "when": "logMode"
+    },
+    {
+      "menu": "editor.context",
+      "command": "nks.compare.clipboard",
+      "group": "4_compare",
+      "order": 160
     }
   ],
   "keybindings": [
@@ -7727,7 +6891,7 @@
       "default": "utf-8",
       "title": "setting.files.encoding.title",
       "description": "setting.files.encoding.description",
-      "category": "cat.editor.encoding",
+      "category": "cat.editor.format",
       "scope": "document",
       "enum": [
         "utf-8",
@@ -7750,7 +6914,7 @@
       "default": "auto",
       "title": "setting.files.eol.title",
       "description": "setting.files.eol.description",
-      "category": "cat.editor.encoding",
+      "category": "cat.editor.format",
       "scope": "document",
       "enum": [
         "auto",
@@ -7858,7 +7022,7 @@
       "default": "stat",
       "title": "setting.remote.versionCheck.title",
       "description": "setting.remote.versionCheck.description",
-      "category": "cat.files",
+      "category": "cat.advanced",
       "scope": "application",
       "enum": [
         "stat",
@@ -8041,7 +7205,7 @@
       "default": "",
       "title": "setting.files.journalDirectory.title",
       "description": "setting.files.journalDirectory.description",
-      "category": "cat.files",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "folder",
       "tags": [
@@ -8057,7 +7221,7 @@
       "default": true,
       "title": "setting.history.enabled.title",
       "description": "setting.history.enabled.description",
-      "category": "cat.history",
+      "category": "cat.files",
       "scope": "application",
       "tags": [
         "history",
@@ -8071,7 +7235,7 @@
       "default": false,
       "title": "setting.history.storeSecretFiles.title",
       "description": "setting.history.storeSecretFiles.description",
-      "category": "cat.history",
+      "category": "cat.files",
       "scope": "application",
       "tags": [
         "history",
@@ -8101,7 +7265,7 @@
       "default": 100,
       "title": "setting.history.maxRevisionsPerFile.title",
       "description": "setting.history.maxRevisionsPerFile.description",
-      "category": "cat.history",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 10,
       "minimum": 0,
@@ -8117,7 +7281,7 @@
       "default": 90,
       "title": "setting.history.maxAgeDays.title",
       "description": "setting.history.maxAgeDays.description",
-      "category": "cat.history",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 10,
       "minimum": 0,
@@ -8133,7 +7297,7 @@
       "default": 50,
       "title": "setting.history.maxMiBPerFile.title",
       "description": "setting.history.maxMiBPerFile.description",
-      "category": "cat.history",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 10,
       "minimum": 0,
@@ -8149,7 +7313,7 @@
       "default": 2048,
       "title": "setting.history.maxTotalMiB.title",
       "description": "setting.history.maxTotalMiB.description",
-      "category": "cat.history",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 256,
       "minimum": 0,
@@ -8165,7 +7329,7 @@
       "default": "",
       "title": "setting.files.journalFallbackDirectory.title",
       "description": "setting.files.journalFallbackDirectory.description",
-      "category": "cat.files",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "folder",
       "tags": [
@@ -8181,7 +7345,7 @@
       "default": "",
       "title": "setting.files.relatedFileRules.title",
       "description": "setting.files.relatedFileRules.description",
-      "category": "cat.files",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "list",
       "tags": [
@@ -8198,7 +7362,7 @@
       "default": 6,
       "title": "setting.files.largeFileThreshold.title",
       "description": "setting.files.largeFileThreshold.description",
-      "category": "cat.files",
+      "category": "cat.advanced",
       "scope": "application",
       "minimum": 1,
       "maximum": 2048,
@@ -8216,7 +7380,7 @@
       "default": 2000,
       "title": "setting.search.regexTimeoutMs.title",
       "description": "setting.search.regexTimeoutMs.description",
-      "category": "cat.search",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 100,
       "minimum": 50,
@@ -8251,7 +7415,7 @@
       "default": "\"{left}\" \"{right}\"",
       "title": "setting.tools.diffArguments.title",
       "description": "setting.tools.diffArguments.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "text",
       "tags": [
@@ -8309,7 +7473,7 @@
       "default": "index",
       "title": "setting.git.gutterBase.title",
       "description": "setting.git.gutterBase.description",
-      "category": "cat.git",
+      "category": "cat.advanced",
       "scope": "application",
       "enum": [
         "index",
@@ -8383,7 +7547,7 @@
       "default": false,
       "title": "setting.git.commitSaveAll.title",
       "description": "setting.git.commitSaveAll.description",
-      "category": "cat.git",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "git",
@@ -8397,7 +7561,7 @@
       "default": false,
       "title": "setting.git.commitFormat.title",
       "description": "setting.git.commitFormat.description",
-      "category": "cat.git",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "git",
@@ -8428,7 +7592,7 @@
       "default": 0,
       "title": "setting.tools.timeoutSeconds.title",
       "description": "setting.tools.timeoutSeconds.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 10,
       "minimum": 0,
@@ -8446,7 +7610,7 @@
       "default": "",
       "title": "setting.tools.outputEncoding.title",
       "description": "setting.tools.outputEncoding.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "encoding",
       "tags": [
@@ -8531,7 +7695,7 @@
       "default": "default",
       "title": "setting.editor.pairStyle.title",
       "description": "setting.editor.pairStyle.description",
-      "category": "cat.editor.typing",
+      "category": "cat.advanced",
       "scope": "language",
       "enum": [
         "default",
@@ -8749,7 +7913,7 @@
       "default": 20,
       "title": "setting.editor.clipboardHistorySize.title",
       "description": "setting.editor.clipboardHistorySize.description",
-      "category": "cat.editor.typing",
+      "category": "cat.advanced",
       "scope": "application",
       "minimum": 1,
       "maximum": 100,
@@ -8766,7 +7930,7 @@
       "default": "yyyy-MM-dd HH:mm",
       "title": "setting.editor.dateTimeFormat.title",
       "description": "setting.editor.dateTimeFormat.description",
-      "category": "cat.editor.typing",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "text",
       "tags": [
@@ -8803,7 +7967,7 @@
       "default": "",
       "title": "setting.schema.mappings.title",
       "description": "setting.schema.mappings.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "list",
       "tags": [
@@ -8837,7 +8001,7 @@
       "default": 0,
       "title": "setting.hex.wildcardMaxBytes.title",
       "description": "setting.hex.wildcardMaxBytes.description",
-      "category": "cat.hex",
+      "category": "cat.advanced",
       "scope": "application",
       "step": 1024,
       "minimum": 0,
@@ -8856,7 +8020,7 @@
       "default": "",
       "title": "setting.hex.structureTemplates.title",
       "description": "setting.hex.structureTemplates.description",
-      "category": "cat.hex",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "list",
       "separator": ",",
@@ -8889,7 +8053,7 @@
       "default": "",
       "title": "setting.web.pathMap.title",
       "description": "setting.web.pathMap.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "list",
       "tags": [
@@ -8919,7 +8083,7 @@
       "default": "",
       "title": "setting.plugins.catalogUrl.title",
       "description": "setting.plugins.catalogUrl.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "format": "text",
       "tags": [
@@ -8978,7 +8142,7 @@
       "default": false,
       "title": "setting.scripting.enabled.title",
       "description": "setting.scripting.enabled.description",
-      "category": "cat.toolsLanguages",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "scripting",
@@ -9007,7 +8171,7 @@
       "default": false,
       "title": "setting.plugins.sandbox.title",
       "description": "setting.plugins.sandbox.description",
-      "category": "cat.plugins",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "plugins",
@@ -9052,7 +8216,7 @@
       "default": false,
       "title": "setting.review.autoKeep.title",
       "description": "setting.review.autoKeep.description",
-      "category": "cat.history",
+      "category": "cat.files",
       "scope": "application",
       "tags": [
         "review",
@@ -9307,7 +8471,7 @@
       "default": false,
       "title": "setting.editor.occurrences.wholeWord.title",
       "description": "setting.editor.occurrences.wholeWord.description",
-      "category": "cat.editor.display",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -9323,7 +8487,7 @@
       "default": true,
       "title": "setting.editor.occurrences.matchCase.title",
       "description": "setting.editor.occurrences.matchCase.description",
-      "category": "cat.editor.display",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -9339,7 +8503,7 @@
       "default": false,
       "title": "setting.editor.occurrences.atCaret.title",
       "description": "setting.editor.occurrences.atCaret.description",
-      "category": "cat.editor.display",
+      "category": "cat.advanced",
       "scope": "application",
       "tags": [
         "occurrence",
@@ -9355,7 +8519,7 @@
       "default": 2,
       "title": "setting.editor.occurrences.minLength.title",
       "description": "setting.editor.occurrences.minLength.description",
-      "category": "cat.editor.display",
+      "category": "cat.advanced",
       "scope": "application",
       "minimum": 1,
       "maximum": 100,

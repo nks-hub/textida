@@ -657,7 +657,8 @@ public class LineCommandTests : IDisposable
         var format = Commands(_w.MenuModel.Single(g => g.Label == "Formát").Items).Select(c => c.CommandId).ToList();
         Assert.Contains("nks.edit.pasteAsHtml", edit);
         Assert.Contains("nks.edit.insertFromFile", edit);
-        Assert.Contains("nks.edit.reformatShortLines", format);
+        Assert.Contains("nks.edit.reformatParagraph", format);
+        Assert.DoesNotContain("nks.edit.reformatShortLines", format); // review of 7. 11. 2026: the variant is in the palette
     }
 
     // ---- the closed list ----
@@ -678,7 +679,7 @@ public class LineCommandTests : IDisposable
         {
             Assert.True(wb.Commands.TryGet(id, out var command), id);
             Assert.True(wb.Commands.HasHandler(id), id);
-            Assert.Contains(id, inMenus);
+            Assert.True(inMenus.Contains(id) || !command.Hidden, id + " is in no menu and hidden from the palette");
             Assert.NotEqual(command.TitleKey, wb.Strings.Get(command.TitleKey));
         }
         string[] repeatable = [.. wb.Commands.Commands.Where(c => c.Repeatable).Select(c => c.Id).Order()];

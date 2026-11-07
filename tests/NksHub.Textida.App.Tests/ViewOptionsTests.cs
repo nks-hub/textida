@@ -740,7 +740,7 @@ public class ViewOptionsTests : IDisposable
         string[] ids =
         [
             "nks.view.toggleHiddenCharacters", "nks.view.toggleLineNumbers", "nks.view.toggleCurrentLine",
-            "nks.view.toggleRightMargin", "nks.view.toggleLinks", "nks.view.toggleMinimap", "nks.view.toggleWordWrap",
+            "nks.view.toggleRightMargin", "nks.view.toggleMinimap", "nks.view.toggleWordWrap",
         ];
         MenuCommand Item(string id) => FlattenCommands(_w.MenuModel).Single(c => c.CommandId == id);
         bool Checked(string id) => Item(id).CheckedNow?.Invoke() ?? Item(id).Checked ?? false;

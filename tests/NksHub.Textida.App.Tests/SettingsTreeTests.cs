@@ -43,18 +43,17 @@ public class SettingsTreeTests : IDisposable
     // ---- the tree ----
 
     [AvaloniaFact]
-    public void Without_a_search_the_tree_lists_the_categories_that_hold_something_and_the_editor_has_its_four_pages_under_it()
+    public void Without_a_search_the_tree_lists_the_categories_that_hold_something_and_the_editor_has_its_three_pages_under_it()
     {
         var view = Open();
         var ids = view.TreeIds;
         Assert.Equal(SettingCategories.Appearance, ids[0]);
-        Assert.Equal([SettingCategories.Editor, SettingCategories.EditorDisplay, SettingCategories.EditorTyping, SettingCategories.EditorFormat, SettingCategories.EditorEncoding], ids.Skip(1).Take(5));
-        // Plugins holds the built-in process sandbox setting (plugins.sandbox) even with no plugin installed
-        foreach (var id in new[] { SettingCategories.Files, SettingCategories.Search, SettingCategories.Hex, SettingCategories.Git, SettingCategories.History, SettingCategories.Tools, SettingCategories.Plugins, SettingCategories.Keys, SettingCategories.System, SettingCategories.Advanced })
-            Assert.Contains(id, ids);
+        // review of 7. 11. 2026: the thin categories are merged, so the tree has eight top nodes and three pages under Editor
+        Assert.Equal([SettingCategories.Appearance, SettingCategories.Editor, SettingCategories.EditorDisplay, SettingCategories.EditorTyping, SettingCategories.EditorFormat, SettingCategories.Files, SettingCategories.Git,
+            SettingCategories.Tools, SettingCategories.Keys, SettingCategories.System, SettingCategories.Advanced], ids);
         // nothing is listed for a category that holds nothing yet
-        Assert.DoesNotContain(SettingCategories.Log, ids);
-        Assert.DoesNotContain(SettingCategories.Ai, ids);
+        foreach (var empty in new[] { SettingCategories.Log, SettingCategories.Ai, SettingCategories.Search, SettingCategories.Hex, SettingCategories.History, SettingCategories.Plugins, SettingCategories.EditorEncoding })
+            Assert.DoesNotContain(empty, ids);
         Assert.All(ids, id => Assert.False(string.IsNullOrWhiteSpace(view.TreeItemName(id)), id));
         Assert.Equal(Loc.Get(K.SettingsTitle), view.Title);
         Assert.Equal(SettingCategories.Appearance, view.SelectedCategory);
@@ -93,23 +92,22 @@ public class SettingsTreeTests : IDisposable
         Assert.Contains("editor.tabSize", view.ShownIds);
         Assert.Contains("editor.lineNumbers", view.ShownIds);
         var headings = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settinggroup")).Select(t => t.Text).ToList();
-        Assert.Equal(["Editor › Zobrazení", "Editor › Psaní", "Editor › Formátování", "Editor › Kódování a konce řádků"], headings);
+        Assert.Equal(["Editor › Zobrazení", "Editor › Psaní", "Editor › Formátování a kódování"], headings);
     }
 
     [AvaloniaFact]
     public void A_long_category_is_divided_into_sections()
     {
         var view = Open();
-        view.SelectCategory(SettingCategories.EditorDisplay);
-        var sections = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settingsection")).Select(t => t.Text).ToList();
-        Assert.Equal([Loc.Get(K.SettingsSectionGeneral), Loc.Get(K.SettingsSectionOccurrences)], sections);
-        var ids = view.ShownIds.ToList();
-        Assert.True(ids.IndexOf("editor.lineNumbers") < ids.IndexOf("editor.occurrences.enabled"));
+        List<string?> Sections() => [.. view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settingsection")).Select(t => t.Text)];
+        view.SelectCategory(SettingCategories.EditorFormat);
+        Assert.Equal([Loc.Get(K.SettingsSectionIndent), Loc.Get(K.SettingsSectionOnSave), Loc.Get(K.SettingsSectionLanguages), Loc.Get(K.SettingsSectionEncoding)], Sections());
         view.SelectCategory(SettingCategories.EditorTyping);
-        Assert.Contains(Loc.Get(K.SettingsSectionSmartKeys), view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settingsection")).Select(t => t.Text));
-        // a category with nothing to divide has no headings
-        view.SelectCategory(SettingCategories.Search);
-        Assert.Empty(view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settingsection")));
+        Assert.Contains(Loc.Get(K.SettingsSectionSmartKeys), Sections());
+        // a section of one setting is no card of its own: the last setting of Occurrences on this page joins the others, so the page has no headings
+        view.SelectCategory(SettingCategories.EditorDisplay);
+        Assert.Contains("editor.occurrences.enabled", view.ShownIds);
+        Assert.Empty(Sections());
     }
 
     [AvaloniaFact]
@@ -190,8 +188,8 @@ public class SettingsTreeTests : IDisposable
         // the count is shown after the name and the screen reader gets it in words
         int inFormat = CountOf(view, SettingCategories.EditorFormat);
         Assert.True(inFormat >= 4);
-        Assert.Equal($"Formátování ({inFormat})", view.TreeItemText(SettingCategories.EditorFormat));
-        Assert.Equal(Loc.Plural(K.SettingsTreeCount, inFormat, ("category", "Formátování")), view.TreeItemName(SettingCategories.EditorFormat));
+        Assert.Equal($"Formátování a kódování ({inFormat})", view.TreeItemText(SettingCategories.EditorFormat));
+        Assert.Equal(Loc.Plural(K.SettingsTreeCount, inFormat, ("category", "Formátování a kódování")), view.TreeItemName(SettingCategories.EditorFormat));
 
         // the matched part is bold in the title, the key and the description
         var row = view.RowOf("editor.tabSize")!;
@@ -202,7 +200,7 @@ public class SettingsTreeTests : IDisposable
 
         // the groups of the page are the categories with a match, and choosing a node leaves the search alone
         var headings = view.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Classes.Contains("settinggroup")).Select(t => t.Text!).ToList();
-        Assert.Contains("Editor › Formátování", headings);
+        Assert.Contains("Editor › Formátování a kódování", headings);
         Assert.Contains("Klávesové zkratky", headings);
         Assert.Equal("tab", view.Query);
     }
@@ -288,14 +286,14 @@ public class SettingsTreeTests : IDisposable
         Assert.Null(_app.Workbench.Set("editor.lineNumbers", JsonValue.Create(false))); // another page of the editor
         view.SelectCategory(SettingCategories.EditorFormat);
         Assert.True(view.ResetCategoryButton.IsVisible);
-        Assert.Equal(Loc.Get(K.SettingsResetCategoryA11y, ("category", "Formátování")), AutomationProperties.GetName(view.ResetCategoryButton));
+        Assert.Equal(Loc.Get(K.SettingsResetCategoryA11y, ("category", "Formátování a kódování")), AutomationProperties.GetName(view.ResetCategoryButton));
 
         // cancelled: nothing changes
         _dialogs.Answers.Enqueue(1);
         Assert.Equal(0, await view.ResetCategoryAsync());
         Assert.Equal(2, _app.Workbench.Settings.GetInt("editor.tabSize"));
         var asked = Assert.Single(_dialogs.Asked);
-        Assert.Equal(Loc.Plural(K.SettingsResetCategoryAsk, 2, ("category", "Formátování")), asked.Message);
+        Assert.Equal(Loc.Plural(K.SettingsResetCategoryAsk, 2, ("category", "Formátování a kódování")), asked.Message);
         Assert.Equal(Loc.Get(K.SettingsResetCategory), asked.Title);
 
         _dialogs.Answers.Enqueue(0);
@@ -333,18 +331,18 @@ public class SettingsTreeTests : IDisposable
     public void Opening_at_a_key_shows_its_page_with_the_row_framed()
     {
         var view = Open(key: "files.encoding");
-        Assert.Equal(SettingCategories.EditorEncoding, view.SelectedCategory);
+        Assert.Equal(SettingCategories.EditorFormat, view.SelectedCategory);
         Assert.Equal("", view.Query);
         Assert.Contains("found", view.RowOf("files.encoding")!.Classes);
         Assert.Contains(AutomationProperties.GetName(view.RowOf("files.encoding")!), view.CountText);
 
-        // the window is open already: the same call moves it
+        // the window is open already: the same call moves it; the limits of the history are expert settings on the Advanced page
         _app.OpenSettings(key: "history.maxAgeDays");
         Dispatcher.UIThread.RunJobs();
         Assert.Same(view, _app.SettingsView);
-        Assert.Equal(SettingCategories.History, view.SelectedCategory);
+        Assert.Equal(SettingCategories.Advanced, view.SelectedCategory);
         Assert.Contains("found", view.RowOf("history.maxAgeDays")!.Classes);
-        Assert.DoesNotContain("found", view.RowOf("history.enabled")!.Classes);
+        Assert.DoesNotContain("found", view.RowOf("history.maxTotalMiB")!.Classes);
 
         // a shortcut leads to the page of the shortcuts, a search that would hide the setting is cleared
         view.SetQuery("tab");
@@ -387,7 +385,7 @@ public class SettingsTreeTests : IDisposable
         Assert.Equal("Pluginy › Acme Kit", view.PageTitleText);
         Assert.Equal(["acme.kit.level"], view.ShownIds);
         view.SelectCategory(SettingCategories.Plugins);
-        Assert.Equal(["plugins.sandbox", "acme.kit.level"], view.ShownIds);
+        Assert.Equal(["acme.kit.level"], view.ShownIds); // the built-in sandbox switch is an expert setting on the Advanced page
         view.SetQuery("level");
         Assert.Contains(node, view.TreeIds);
         Assert.Equal(1, CountOf(view, node));

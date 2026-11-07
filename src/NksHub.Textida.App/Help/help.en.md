@@ -98,7 +98,7 @@ commands: nks.file.close
 
 ## [file.reload] Reload from disk
 commands: nks.file.reload
-1. Choose File and then Reload from Disk, or find the command in the palette.
+1. Choose File, File Versions and then Reload from Disk, or find the command in the palette.
 2. If the tab has unsaved changes, the program asks; the button Discard Changes and Reload throws them away.
 3. The status bar shows Reloaded from disk.
 - The command works only for a tab that has a file on disk.
@@ -107,7 +107,7 @@ commands: nks.file.reload
 ## [file.compare] Compare with disk
 commands: nks.file.compareWithDisk
 The tab and the file on disk are shown side by side in a tab of their own. The tab is on the left with the changes you have not saved, the file on disk on the right.
-1. Choose File and then Compare with Disk. The tab with the comparison opens (topic Comparing texts).
+1. Choose File, File Versions and then Compare with Disk. The tab with the comparison opens (topic Comparing texts).
 2. If External diff tool is set in the settings, your own program is started instead: the file on disk on the left, the content of the tab on the right. In the argument template {left} is the file on disk and {right} is the content of the tab. The copy of the tab handed to the program is deleted when it ends.
 - A tab without a file on disk says: The tab has no file on disk to compare with.
 - If the program does not start, the status bar says The diff tool did not start and gives the reason.
@@ -178,14 +178,14 @@ Changes to a remote file are saved on this computer first. The list shows the re
 ## [remote.cache] Compare the cache with the server
 commands: nks.remote.pairCache
 The copies of remote files stay on this computer with the server version they were made from, also after the program was closed.
-1. Choose File and then Remote Files and then Compare Cache with Server, and choose a connection.
+1. In the command palette choose Compare Cache with Server, and choose a connection.
 2. The program connects and compares every copy of that connection with the server by the stored version. The list says for each file: same as on the server, changed here and not sent, changed on the server, changed in both places, or no longer on the server.
 3. Choose a file to open its copy. The bar checks it once more and offers Upload, Show Differences or Reload from Server.
 - Nothing is downloaded or overwritten. The list offers only connections that have copies.
 
 ## [source.open] Open from a plugin source
 commands: nks.source.open
-1. Choose File and then Remote Files and then Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
+1. In the command palette choose Open from Source. The list shows the sources that plugins offer and what each can do: whether it writes, whether a changed file is protected, whether it lists folders.
 2. Choose a source and type the address, starting with the scheme of the source.
 3. The text opens in a tab. The bar above it shows the source, the address with its secrets replaced by ***, and the revision the text was read at.
 - Save writes the text back only if the file at the source is still at that revision. If it changed, nothing is written and your text stays in the tab. Choose Show Differences to compare, Overwrite to replace exactly the version that was found, or Cancel.
@@ -208,15 +208,15 @@ A plugin can open a tab of its own with data it keeps: a transcript, a generated
 
 ## [remote.backup] Back up connections
 commands: nks.remote.exportConnections, nks.remote.importConnections
-1. Choose File and then Remote Files and then Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
-2. Choose File and then Remote Files and then Import Connections to read such a file on another computer or after a reinstall.
+1. In the command palette choose Export Connections and name the file. It lists the connections: name, protocol, server, port, user and the trusted server identity.
+2. In the command palette choose Import Connections to read such a file on another computer or after a reinstall.
 - The file holds no passwords, passphrases or tokens, so it can be shared. After an import, choose a connection and Set Password.
 - A connection that you import replaces a connection with the same internal identifier.
 - To move the whole configuration, connections included, choose Settings and then Back Up Configuration (topic Back up the configuration).
 
 ## [remote.proxy] Network proxy
 commands: nks.remote.proxy
-1. Choose File and then Remote Files and then Network Proxy, and choose HTTP, SOCKS4, SOCKS5 or no proxy.
+1. In the command palette choose Network Proxy, and choose HTTP, SOCKS4, SOCKS5 or no proxy.
 2. Enter the server and the port, and a user name and password if the proxy needs them. The password goes to the credential store.
 - The proxy is used for FTPS, SFTP, the update check and the requests plugins send through the editor (permission network). A connection that has a proxy of its own keeps it.
 - A plugin that opens a connection by itself goes around the proxy. Package registry lookups and schema downloads use the proxy, also one with a user name: they go through the editor, which logs in with the saved password, so the plugin never sees it.
@@ -232,7 +232,7 @@ A file opens read only when another program has it open and does not let others 
 ## [file.history] Local history
 commands: nks.file.history
 The program keeps a revision of a file at every save and at every change another program makes to it. It needs no project and no Git.
-1. Choose File and then History and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
+1. Choose File and then File Versions and then Local History. The list shows the revisions of the file in the tab, the newest first, with the reason, the size and the label.
 2. Choose a revision. Compare shows it on the left and the tab on the right in a comparison tab (topic Compare with disk); if External diff tool is set, that program is started instead. Restore File puts the whole revision into the tab. Restore Selection replaces only the selected lines with the matching lines of the revision. Label adds a name to the revision.
 - A restore is an edit in the tab; undo takes it back and nothing is written until you save. The text that was in the tab is kept as a revision.
 - Revisions are stored in the profile folder, so an update of the program does not remove them.
@@ -246,7 +246,7 @@ The program keeps a revision of a file at every save and at every change another
 
 ## [file.historyPanel] Local history panel
 commands: nks.file.historyPanel, nks.files.history
-1. Choose File, then History, then Local History Panel, or Local History in the menu of a file in the Files panel, or File history in the menu of a tab. The panel opens as a tool window at the bottom (it can be docked to a side like any panel); it shows one file at a time, and opening it for another file replaces it.
+1. Choose File, then File Versions, then Local History Panel, or Local History in the menu of a file in the Files panel, or File history in the menu of a tab. The panel opens as a tool window at the bottom (it can be docked to a side like any panel); it shows one file at a time, and opening it for another file replaces it.
 2. The list on the left shows every revision of the file, the newest first: when it was taken, why, how big it is and, at the right, how many lines it added to the revision before it and removed from it. The counts are made in the background, one revision after another, and appear as they are ready; the oldest revision has nothing to compare with.
 3. Choose a revision to see its comparison on the right. The box above the list chooses what it is compared with: the current text of the file, or the revision before it. Choose two revisions with Ctrl or Shift to compare them with each other, the older on the left. The comparison is the one of Compare with disk, so its arrows, Previous and Next work.
 4. Restore File puts the whole revision into the tab of the file. To restore only a part, use the arrow of a block in the comparison with the current text. Both are one Undo step in the tab, and the text that was there is kept as a revision first.
@@ -258,21 +258,21 @@ commands: nks.file.historyPanel, nks.files.history
 
 ## [file.historyMark] Mark a revision
 commands: nks.file.historyMark
-1. Choose File and then History and then Mark Revision and type a label, for example Before refactoring.
+1. Choose File and then File Versions and then Mark Revision and type a label, for example Before refactoring.
 2. The current text of the tab is stored as a revision with that label. If the newest revision already holds the same text, the label goes to that revision.
 - Find the revision later in Local History by its label.
 - In a large file the revision is the saved file on disk, so save the file first.
 
 ## [file.historySearch] Search in history
 commands: nks.file.historySearch
-1. Choose File and then History and then Search in History and type the text.
+1. Choose File and then File Versions and then Search in History and type the text.
 2. The list shows the revisions of the file that contain the text, with the number of matches and the first line. Choose one to open the actions for it, for example Compare.
 - Revisions of secrets files are not searched.
 
 ## [file.openPath] Open path at caret
 commands: nks.file.openPathAtCaret
 1. Put the caret on a file path in the text, for example src/a.cs:12.
-2. Choose File and then Open Path at Caret, or find the command in the palette. It has no shortcut.
+2. Choose Open Path at Caret in the command palette. It has no shortcut.
 3. The file opens; a line (and column) after a colon is used.
 - A relative path is looked up in the folder of the current file and in the open folder. A path starting with ~/ points into your home folder.
 - If the path points to a folder, it is shown in the Files panel.
@@ -429,7 +429,7 @@ commands: nks.edit.sortLines
 
 ## [search.selectLines] Select lines by range
 commands: nks.search.selectLinesByRange
-1. Choose Edit, Selection, Select Lines by Range.
+1. In the command palette choose Select Lines by Range.
 2. Type line numbers and ranges, for example 10-20, 40-50, separated by commas, semicolons or spaces. The line under the box tells how many selections it makes.
 3. Press OK. Each range becomes its own selection with its own caret, and Copy then copies the lines of all ranges.
 - Ranges that overlap or touch are joined. Line numbers start at 1; lines after the end of the document are ignored.
@@ -440,7 +440,7 @@ commands: nks.search.selectLinesByRange
 commands: nks.edit.reformatParagraph, nks.edit.reformatShortLines, nks.edit.justifyLeft, nks.edit.justifyRight, nks.edit.justifyCenter, nks.edit.justifyBlock
 These commands are in the Format menu. They act on the selected lines, or on all lines when there is only a caret (Reformat Paragraph: on the paragraph with the caret). Each is one Undo step.
 1. Select the lines to change. With only a caret the commands act on all lines; Reformat Paragraph acts on the paragraph with the caret.
-2. Choose Format and then Reformat Paragraph, Reformat Paragraph (Ends at a Short Line), Align Lines Left, Align Lines Right, Center Lines or Justify Lines.
+2. Choose Format and then Reformat Paragraph, Align Lines Left, Align Lines Right, Center Lines or Justify Lines. Reformat Paragraph (Ends at a Short Line) is in the command palette.
 3. The lines change as one Undo step; Ctrl+Z takes it back.
 - Reformat Paragraph wraps the text at the column of the setting Right margin column, joins the lines of a paragraph and removes extra blanks. Paragraphs are separated by blank lines, and every line of a paragraph gets the indentation of its first line. When no right margin is set, the status bar says so.
 - Reformat Paragraph (Ends at a Short Line) does the same, but a paragraph also ends after a line shorter than half the right margin, so it is not joined to the next line. It suits text with no blank lines between paragraphs.
@@ -454,7 +454,7 @@ These commands are in the Format menu. They act on the selected lines, or on all
 ## [edit.insertSmall] Date, GUID and repeat
 commands: nks.edit.insertDateTime, nks.edit.insertGuid, nks.edit.repeatLast
 1. Put the caret where the text should go; several carets are allowed.
-2. Choose Edit, Insert and then Insert Date and Time or Insert GUID. Repeat Last Command is in the Edit menu.
+2. Choose Edit, Insert and then Insert Date and Time or Insert GUID. Repeat Last Command is in the command palette.
 3. The text goes in at every caret as one Undo step; Ctrl+Z takes it back.
 - Insert Date and Time writes the current date and time at every caret, in the format of the setting Date and time format (a .NET custom format such as yyyy-MM-dd HH:mm; month and day names follow the interface language). A selection is replaced. In the PSPad profile it is Alt+D.
 - Insert GUID writes a new GUID at every caret, each caret its own: lower case, with hyphens, without braces.
@@ -467,7 +467,7 @@ commands: nks.macro.record, nks.macro.stop, nks.macro.playLast, nks.macro.save, 
 1. Tools, Macros, Record Macro, starts recording. Do the work with commands and typing. Tools, Macros, Stop Recording Macro, ends it.
 2. Tools, Macros, Play Last Macro, plays it again over the current selections and carets.
 3. Tools, Macros, Save Last Macro As, stores it under a name in the folder macros of the profile. Tools, Macros, Run Saved Macro, lists the saved ones and plays the chosen one.
-4. Tools, Macros, Rename Saved Macro, lists the saved ones and renames the chosen one; a name that another macro already has is refused. Tools, Macros, Delete Saved Macro, asks and then deletes the chosen one for good.
+4. Rename Saved Macro (command palette) lists the saved ones and renames the chosen one; a name that another macro already has is refused. Delete Saved Macro (command palette) asks and then deletes the chosen one for good.
 - A macro keeps commands, not keys: Duplicate Line, letter case, Add Next Occurrence and the like, Cut, Copy, Paste, and typed text. With several carets it does the same as doing the steps by hand.
 - While recording, the arrow keys, Home, End, Ctrl+Home, Ctrl+End, Ctrl with the arrows (with or without Shift), Page Up, Page Down (with or without Shift), Backspace and Delete are recorded as commands too. They move and delete at every caret, except Page Up and Page Down: they move one caret, like the keys without a macro. A page is as many lines as the editor shows when the macro plays, so a macro with Page Down moves less in a smaller window.
 - Find Next and Find Previous (F3, Shift+F3, Enter in the find bar) keep the search of the find bar with the step, so the macro finds the same text when it plays later. Open the find bar and type the search before you start recording; without a search the step is not recorded.
@@ -543,7 +543,7 @@ A Markdown file (.md, .markdown) has three modes. Reading draws the page over th
 - A file longer than the limit of the preview, or opened as a large file, opens as source and the status bar says so; the bar then offers neither reading nor editing.
 - In reading the keys of the editor do nothing: the page is only for reading. Switch to editing or source to change the text. F6 moves the focus to the page; the arrow keys, Page Up, Page Down, Home and End scroll it.
 - Select the text of the page with the mouse as on a web page: drag across paragraphs, lists, code and table cells. Shift+click extends the selection, a double click selects a word and a triple click a paragraph; dragging past the edge scrolls the page. Ctrl+A selects everything, Ctrl+C copies the text (table cells separated by tabs), and Ctrl+Shift+C or Copy as Markdown in the context menu copies the matching part of the source. Tab moves between the links and Enter opens one. A long line of code does not wrap; Shift+wheel scrolls it.
-- View, Headings Panel (or Tools, Show Markdown Outline, key Alt+8) opens a panel beside the document with the tree of the headings H1 to H6. It stays open in reading, editing and source, the heading of the place you are at is bold, a click or Enter shows the heading at the top of the editor or the page, and after typing the tree is updated shortly after the last key. The buttons 1 to 6 show the headings down to that level and fold the deeper ones, and the box at the top keeps only the headings that contain the text typed in it. The panel moves and hides like the other panels.
+- View, Panels, Headings Panel (or Show Markdown Outline in the command palette, key Alt+8) opens a panel beside the document with the tree of the headings H1 to H6. It stays open in reading, editing and source, the heading of the place you are at is bold, a click or Enter shows the heading at the top of the editor or the page, and after typing the tree is updated shortly after the last key. The buttons 1 to 6 show the headings down to that level and fold the deeper ones, and the box at the top keeps only the headings that contain the text typed in it. The panel moves and hides like the other panels.
 - Ctrl+K then Ctrl+V on a file in hex goes to reading. The Markdown commands of the Tools menu need the editor, so use editing or source for them.
 - Text cannot be changed directly in the drawn page.
 
@@ -703,7 +703,7 @@ commands: nks.bookmarks.toggle, nks.bookmarks.next, nks.bookmarks.previous, nks.
 
 ## [view.wordwrap] Word wrap
 commands: nks.view.toggleWordWrap
-1. Press Alt+Z, or choose View and then Toggle Word Wrap.
+1. Press Alt+Z, or choose View and then Word Wrap.
 2. Long lines wrap at the window edge. Press again to return.
 - The choice is stored in the setting Word wrap.
 - The command is not available in paged mode.
@@ -719,8 +719,8 @@ commands: nks.view.zoomIn, nks.view.zoomOut, nks.view.zoomReset
 
 ## [view.display] Hidden characters, line numbers and minimap
 commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.toggleCurrentLine, nks.view.toggleRightMargin, nks.view.toggleLinks, nks.view.toggleMinimap
-1. Choose View and then Show Hidden Characters (Ctrl+K, Ctrl+W): spaces, tabs and the line endings CR, LF and CRLF are drawn. The document is not changed.
-2. Show Line Numbers (Ctrl+K, Ctrl+N), Highlight Current Line, Show Right Margin (a vertical line at column 80, set with the setting Right margin column) and Clickable Links switch the rest on and off.
+1. Choose View, Editor Display and then Show Hidden Characters (Ctrl+K, Ctrl+W): spaces, tabs and the line endings CR, LF and CRLF are drawn. The document is not changed.
+2. Show Line Numbers (Ctrl+K, Ctrl+N), Highlight Current Line, Show Right Margin (a vertical line at column 80, set with the setting Right margin column) switch the rest on and off; Clickable Links is in the command palette.
 3. Show Minimap (Ctrl+K, Ctrl+M) shows a reduced picture of the text at the right edge in the colors of the highlighting, a log in the colors of its levels. Click or drag it to scroll. In a long file the picture slides with the scroll position and the rectangle travels the whole height of the map from the first line to the last, like a scroll bar. A click puts the clicked line in the middle of the screen and the picture stays where it is. A large file in paged mode is shown as samples spread over all of it and placed by byte position, so the pointer does not move while the line index is built.
 - In a large file (paged mode) the picture is sampled: short runs of lines from the starts of equal parts of the whole file, so the file is never read whole. A thin line shows the position instead of a rectangle. While the lines are being indexed, the picture covers the lines counted so far, as the scroll bar does.
 - Matches of the find bar are marked in the narrow strip at the right edge of the minimap. The lines that the filter of a live log view keeps are marked there too: error lines red, warnings yellow, the others blue.
@@ -731,7 +731,7 @@ commands: nks.view.toggleHiddenCharacters, nks.view.toggleLineNumbers, nks.view.
 
 ## [view.secrets] Hidden values in .env files
 commands: nks.view.toggleSecrets
-1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. View, Editor Display, Show Hidden Values shows them in the current tab, and using it again hides them.
+1. Files named `.env`, `.env.*` or `*.env` show every value of a variable as `••••`, in the text editor, in paged mode and in the hex view. Show Hidden Values in the command palette shows them in the current tab, and using it again hides them.
 - In the text editor, resting the pointer on a value shows just that one.
 - The text of the file is not changed: saving writes the same bytes.
 - Hidden values are also hidden in the minimap, in the previews of Go to Anything and Edit Locations, in search results and in the exports with formatting (HTML, RTF). Copy puts `••••` on the clipboard in place of a hidden value, and Cut does not delete one.
@@ -773,7 +773,7 @@ commands: nks.view.toggleFilePanel, nks.files.toggleHidden
 1. Ctrl+Shift+E opens or closes the Files panel. Without an open folder it offers Open Folder.
 2. The arrows walk through the tree, Right and Left arrow expand and collapse a folder, Enter or a double click opens a file.
 3. The right button offers file operations (topic File operations). F2 renames, Delete moves to the recycle bin or trash, F5 refreshes.
-4. View, Panel Layout, Show Hidden Items in the Files Panel hides or shows the entries whose name starts with a dot or that have the hidden attribute.
+4. View, Panels, Show Hidden Items in the Files Panel hides or shows the entries whose name starts with a dot or that have the hidden attribute.
 - The tree follows changes on disk by itself.
 - Every entry has an icon and a colour by its type: folder, text, source code, markup, data, style sheet, image, archive or binary file. Hidden entries are shown dimmed.
 - In a folder that lies in a Git repository the name takes the colour of the state Git gives the file, and a letter follows it: M changed, N new, D deleted, I ignored, ! conflict. A folder shows the heaviest state below it. The setting Git status in the Files panel turns this off; outside a repository Git is not started.
@@ -784,8 +784,8 @@ commands: nks.panel.dockLeft, nks.panel.dockRight, nks.panel.dockBottom, nks.pan
 The Open Documents, Files, commit, local history and plugin panels can stand on the left, on the right or at the bottom of the window. A side shows one panel at a time.
 1. To change the size, drag the thin handle between the panel and the text, or put the keyboard on the handle (Tab) and press the arrow keys; Shift takes five steps, Home and End the smallest and the largest size. Ctrl+K, Ctrl+= and Ctrl+K, Ctrl+- make the panel larger and smaller.
 2. To move a panel, drag its title to the left, the right or the lower part of the window; a mark shows where it lands. From the keyboard use Ctrl+K, Ctrl+Left, Ctrl+K, Ctrl+Right and Ctrl+K, Ctrl+Down, or View, Panel Layout. The right button on the title offers the same.
-3. To hide the panel use its toggle, Esc, or View, Panel Layout, Hide Panel.
-4. View, Panel Layout, Reset Panel Layout puts every panel back on the left at the default size.
+3. To hide the panel use its toggle, Esc, or Hide Panel in the command palette.
+4. View, Panels, Reset Panel Layout puts every panel back on the left at the default size.
 - The layout is kept with the window and comes back after a restart; which panels are open is not kept.
 - A panel is at least 140 pixels wide (80 high at the bottom) and at most half of the window; at a limit the program says so.
 - A screen reader is told the side and the size after every change.
@@ -843,7 +843,7 @@ A project is a named set of folders with the files that were open in them. It is
 commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
 1. Select a file or a folder in the Files panel, or keep a file open in a tab.
 2. Choose File, Projects and Sessions, Add to Favorites.
-3. To come back to it, choose Favorites in the same menu and pick the entry; Remove from Favorites removes one.
+3. To come back to it, choose Favorites in the same menu and pick the entry; Remove from Favorites in the command palette removes one.
 - Add to Favorites stores the selected row of the file panel, else the active file, else the folder of the panel. It is also in the context menu of the panel.
 - Favorites lists them (also from the empty panel). Enter opens a folder in the panel and a file in a tab. A path that is gone is shown dimmed with Not found.
 - Remove from Favorites lists them and removes the one you choose.
@@ -854,7 +854,7 @@ commands: nks.favorite.add, nks.favorite.open, nks.favorite.remove
 commands: nks.session.save, nks.session.open, nks.session.delete
 1. Open the tabs you want to keep together.
 2. Choose File, Projects and Sessions, Save Session and type a name.
-3. Later choose File, Projects and Sessions, Open Session and pick it; Delete Session removes one.
+3. Later choose File, Projects and Sessions, Open Session and pick it; Delete Session in the command palette removes one.
 - Save Session stores the open tabs under a name: groups, order, the active tab and the selection of each tab. A tab with unsaved changes, or without a file, keeps its text. A session of the same name is replaced.
 - Open Session opens the tabs next to the ones already open. Files are read from disk, then the unsaved text of the session replaces their text, so you can still undo or discard it. A file that is gone is named in the status bar; its text, if the session had it, opens in an unnamed document.
 - A session is a whole task: besides the tabs it keeps all selections of each tab (several carets), the find strip with its query, replacement, folder and switches, the filter of the document list, the last edit recipe (so Repeat Recipe does it again) and a replacement that was waiting in the preview. Opening it plans that replacement again on the files as they are now, so the preview is based on their present revision and a file that changed since is not overwritten by the old plan.
@@ -888,7 +888,7 @@ commands: nks.format.eolCrLf, nks.format.eolLf, nks.format.eolCr
 ## [format.normalize] Unicode normalization
 commands: nks.format.normalizeNfc, nks.format.normalizeNfd
 A character with an accent can be written as one character (NFC) or as a letter plus a separate accent (NFD). They look the same, but search and comparison tell them apart.
-1. Choose Format and then Normalize Unicode to NFC (or NFD).
+1. In the command palette choose Normalize Unicode to NFC (or NFD).
 2. A preview with the number of places appears. Apply carries it out.
 - If after normalizing some character could not be written in the file encoding, the program refuses the change and says so.
 - If there was nothing to change, the status bar says Nothing to change.
@@ -901,7 +901,7 @@ Every action that rewrites bytes you did not edit shows what it changes first, a
 3. Confirm to write the change, or cancel; nothing is written before you confirm.
 - The window gives the number of changed ranges and bytes, the size before and after, the encoding and the line endings before and after, and one line per range: where it is, the old and the new length and the first bytes (up to 500 lines; the rest is counted).
 - When the target encoding cannot hold some characters, the same window lists each one with its line, column and byte, and offers three answers: cancel (nothing is written), change the encoding, or replace each with a question mark.
-- Apply EditorConfig Encoding and Line Endings in the Format menu converts the file to the charset and line ending its .editorconfig sets; each step opens the inspector. A property the file does not set is left alone.
+- Apply EditorConfig Encoding and Line Endings in the command palette converts the file to the charset and line ending its .editorconfig sets; each step opens the inspector. A property the file does not set is left alone.
 - The ranges are those of the revision you looked at; if the document changed meanwhile, the action is refused.
 - File and then Changes Before Saving shows the same list for the next save.
 - No byte changes; only the encoding label does. Confirming changes the label only; the bytes of the file stay.
@@ -910,7 +910,7 @@ Every action that rewrites bytes you did not edit shows what it changes first, a
 
 ## [format.batchEncoding] Convert the encoding of many files
 commands: nks.file.convertEncodingBatch
-1. Format and then Convert Encoding of Files in a Folder. Choose the folder, file name masks (for example *.txt;*.php, empty means every file) and the target encoding.
+1. In the command palette choose Convert Encoding of Files in a Folder. Choose the folder, file name masks (for example *.txt;*.php, empty means every file) and the target encoding.
 2. The program reads the files and shows, before it writes anything, how many convert without loss and which files would lose characters, with the characters and their count. Files that are binary, already have these bytes, or have an encoding the program can only guess are skipped and listed with the reason.
 3. Choose Convert N files (files that would lose characters stay as they are) or Convert All and Replace Lost Characters with a Question Mark.
 4. A summary lists what was converted, what stayed and what changed after the preview.
@@ -948,7 +948,7 @@ commands: nks.window.splitView, nks.window.moveToOtherGroup
 
 ## [settings.theme] Theme
 commands: nks.settings.theme.system, nks.settings.theme.light, nks.settings.theme.dark
-1. Choose Settings, Theme and one of the themes: Theme: Follow System, Theme: Light, Theme: Dark.
+1. Choose Settings, Settings and Theme under Appearance, or in the command palette Theme: Follow System, Theme: Light or Theme: Dark.
 2. The change takes effect at once and is remembered.
 - Follow System means the program follows the system setting.
 
@@ -960,7 +960,7 @@ commands: nks.settings.language.cs, nks.settings.language.en, nks.settings.langu
 
 ## [settings.profile] Behaviour profile
 commands: nks.settings.profile.default, nks.settings.profile.pspad
-1. Choose Settings, Behaviour Profile and then Behaviour Profile: Default or Behaviour Profile: PSPad.
+1. Choose Settings, Settings, Editor, Typing and Behaviour Profile, or in the command palette Behaviour Profile: Default or Behaviour Profile: PSPad.
 - The PSPad profile changes: Home and End jump between the first character and the edge of the line, Backspace in indentation deletes back to the tab stop, Alt+drag makes a block selection, paired characters are completed the PSPad way, and a few shortcuts (Delete Line Ctrl+Y, Undo Alt+Backspace, Word wrap Ctrl+W, F8 mark, Ctrl+Shift+C block selection, indentation Ctrl+Shift+I and U).
 - Your own shortcuts in the settings take precedence over the profile.
 
@@ -985,7 +985,7 @@ The output window is a strip below the editor that tasks and searches write to. 
 ## [view.pluginPanels] Plugin panels
 commands: nks.view.pluginPanels
 A plugin panel is a list or a tree that a plugin sends to the editor. The editor shows it in the left column.
-1. Choose View and then Plugin Panels, or find the command in the palette. The list shows the panels the plugins have now, each with the name of its plugin.
+1. Choose View, Panels and then Plugin Panels, or find the command in the palette. The list shows the panels the plugins have now, each with the name of its plugin.
 2. Select a panel and press Enter. It opens with its first item selected.
 3. Up and Down arrow walk through the items, Right and Left arrow expand and collapse a branch. Enter or a double click opens an item.
 4. Esc in the panel closes it and takes you back to the text. While you type in the text, the panel stays open.
@@ -1041,9 +1041,9 @@ commands: nks.hex.inspector
 
 ## [hex.layout] Hex: grid layout
 commands: nks.hex.charset, nks.hex.layout, nks.hex.bytesPerRow8, nks.hex.bytesPerRow16, nks.hex.bytesPerRow24, nks.hex.bytesPerRow32, nks.hex.bytesPerRow48, nks.hex.bytesPerRow64, nks.hex.offsetFormat
-The commands are available in hex, in the View menu, in the status bar and in the palette.
+The commands are available in hex, in the Hex menu, in the status bar and in the palette.
 1. Open a file in hex (topic Hex: opening and moving).
-2. Choose View, Hex and then Hex Layout: Bytes per Row, Grouping or Character Column Encoding, or click the item in the status bar.
+2. Choose Hex and then Hex Layout: Bytes per Row, Grouping, or Character Column Encoding in the command palette, or click the item in the status bar.
 3. Pick the value; the grid is drawn again, and the next hex view remembers the choice.
 - Character column encoding: the encoding in which bytes are shown as characters.
 - Layout: bytes per row (8, 16, 24, 32, 48, 64), grouping of bytes and the offset format. Each size also has its own command.
@@ -1064,7 +1064,7 @@ commands: nks.hex.inspectChanges
 
 ## [hex.copyAs] Hex: copy, paste and export as
 commands: nks.hex.copyAs, nks.hex.pasteAs, nks.hex.exportSelection
-1. Edit and then Hex and then Hex: Copy Selection As puts the selected bytes on the clipboard as text: hex string, an array for C, C#, Java, Python, Rust, Go, JavaScript or Pascal, Base64, Intel HEX, Motorola S-record or a hexdump.
+1. Hex and then Copy Selection As puts the selected bytes on the clipboard as text: hex string, an array for C, C#, Java, Python, Rust, Go, JavaScript or Pascal, Base64, Intel HEX, Motorola S-record or a hexdump.
 2. Hex: Paste As reads the clipboard as hex text, Base64 or an array from source code and pastes the bytes like Ctrl+V does.
 3. Hex: Export Selection writes the selection to a file, as a binary file or in one of the text forms. It runs in the background and Esc cancels it.
 - Intel HEX, S-record and hexdump carry the offset of each byte in the file as its address; Intel HEX and S-record hold 32-bit addresses, so a selection beyond 4 GiB is refused.
@@ -1238,7 +1238,7 @@ commands: nks.plugins.manage
 commands: nks.tools.lint
 1. Tools, Code and Language, Check File with Linter runs the linter that suits the open file: PHPStan or Psalm for PHP, golangci-lint for Go, Clippy for Rust (it needs a Cargo.toml in the folder of the file or above it), clang-tidy for C and C++, RuboCop for Ruby, ESLint for JavaScript and TypeScript, Ruff for Python, ShellCheck for shell scripts, SQLFluff for SQL, dart analyze for Dart. If two linters handle the file, the first one whose configuration file (phpstan.neon, psalm.xml) is found is used, else the first one that is installed.
 2. The linter checks the file on disk, so save first: a document with unsaved changes is not checked. The findings are underlined in the text (the message shows when the pointer rests on it) and listed in the Tasks tab, one per line; a click or Enter opens the place. The next run of the same linter replaces them, so a problem you fixed is gone after it. If you edit the file while a check runs, the findings move with the text and those whose text you changed are dropped.
-3. To check after every save, switch on "Check with PHPStan" (or the other linter) in File, Save Actions, or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff and dart-analyze. A check that a save starts waits half a second for a further save of the same file; the newer save replaces it.
+3. To check after every save, switch on "Check with PHPStan" (or the other linter) in Save Actions (command palette), or write {"kind": "lint", "id": "phpstan"} in saveActions.json. A linter never runs on a change. The ids are phpstan, psalm, golangci-lint, clippy, clang-tidy, rubocop-lint, eslint, ruff, shellcheck, sqlfluff and dart-analyze. A check that a save starts waits half a second for a further save of the same file; the newer save replaces it.
 - The program is looked for in the path you gave, then in vendor/bin, node_modules/.bin and .venv (from the folder of the file upwards) and in PATH; nothing is downloaded. You give a path in the saveActions.json of the profile: "toolPaths": {"phpstan": "C:\\tools\\phpstan.phar"} (a file, or the folder that holds the program). It works for formatters too, and a project file cannot set it. A path that does not exist is reported and not replaced by a search. The first run asks you to confirm the command.
 - Without lintTimeoutSeconds in saveActions.json a linter has a limit of 60 seconds. A linter that runs over the limit is stopped and reported; the editor stays usable meanwhile and the findings of the earlier run stay.
 - PHPStan reports a line and no column, so the text of that line is underlined. A program that is a batch file (phpstan.bat, eslint.cmd) is started through cmd.exe, as for every tool.
@@ -1247,7 +1247,7 @@ commands: nks.tools.lint
 
 ## [file.saveActions] Save actions: format, run a tool, upload
 commands: nks.file.saveActions
-1. File, Save Actions lists what runs around a save: format, run a tool, upload to the server. A row switches the action on or off; the row under it switches "only on manual save". A formatter is offered only when its configuration file is in the folder of the file or above it, and it is off until you switch it on: gofmt (go.mod), rustfmt (rustfmt.toml), clang-format (.clang-format), RuboCop (.rubocop.yml), Prettier (.prettierrc), Biome (biome.json), Ruff (ruff.toml, pyproject.toml), shfmt (.editorconfig), SQLFluff (.sqlfluff), StyLua (stylua.toml), dart format (analysis_options.yaml).
+1. Save Actions in the command palette lists what runs around a save: format, run a tool, upload to the server. A row switches the action on or off; the row under it switches "only on manual save". A formatter is offered only when its configuration file is in the folder of the file or above it, and it is off until you switch it on: gofmt (go.mod), rustfmt (rustfmt.toml), clang-format (.clang-format), RuboCop (.rubocop.yml), Prettier (.prettierrc), Biome (biome.json), Ruff (ruff.toml, pyproject.toml), shfmt (.editorconfig), SQLFluff (.sqlfluff), StyLua (stylua.toml), dart format (analysis_options.yaml).
 2. The order is fixed: formatters first, then the save, then tools and the upload. A formatter works on a copy of the text and is stopped when the time limit runs out. If it times out, fails (a syntax error, for example) or is not installed, the file is saved as it is and the status bar and the Tasks tab say why. Text you typed while it ran is never overwritten. Only a document with unsaved changes is formatted.
 3. The upload sends exactly the bytes this save wrote, never older or newer ones. If the file on disk changed after the save, nothing is sent. A file opened from a server goes back to that server; a file from the disk goes to the default server of its project (step 6).
 4. An autosave runs the actions that are not marked "only on manual save". A save made by a plugin runs no action, so an action that saves cannot start a loop. Save As is a manual save: it runs the actions of the folder you save into.
@@ -1287,7 +1287,7 @@ commands: nks.log.follow, nks.log.saveView, nks.log.views, nks.log.nextMatch, nk
 
 ## [export.highlight] Export and copy with highlighting
 commands: nks.file.exportHtml, nks.file.exportRtf, nks.file.exportTex, nks.edit.copyFormatted, nks.edit.copyHtmlSource
-1. File, Export, Export as HTML, Export as RTF and Export as LaTeX write the selection, or the whole document when nothing is selected, to a file you choose. The colors are those of the editor in the current light or dark theme: the same tokens of the grammar of the document, and in a log the colors of the levels. The page and text colors of the editor are included.
+1. File, Print and Export, Export as HTML, Export as RTF and Export as LaTeX write the selection, or the whole document when nothing is selected, to a file you choose. The colors are those of the editor in the current light or dark theme: the same tokens of the grammar of the document, and in a log the colors of the levels. The page and text colors of the editor are included.
 2. Edit, Clipboard, Copy with Formatting puts the text, HTML and RTF on the clipboard together, so pasting into a word processor or a mail keeps the colors, while pasting into an editor gives plain text. Copy as HTML Source puts the HTML itself on the clipboard as text.
 - The whole document is colored, then the selection is cut out of it, so a selection that starts inside a comment is colored as in the editor. With several carets or a block selection only the selected text is taken, and it is colored from its own start. In a large file (paged mode) the selection is colored as in the whole document: the text before it on its first line is read, and the colors at the start of that line are worked out by reading the file up to it, which for a selection deep in a very large file takes a while (the window stays usable, the status bar shows how far the reading is, and Esc cancels it: the export then does not happen and nothing is written). The line numbering must have reached the selection, otherwise a message asks you to try again. A part of a line longer than 32 MiB in front of the selection is not read, and the selection is colored from its own start. If the colors at the start of the line cannot be worked out (a line too long to be colored lies in front of it, topic Large files (paged mode)), the grammar is taken to start fresh at that line.
 - A text over 8388608 characters is refused with a message; select a part of it. The work runs in the background, so the window stays usable.
@@ -1498,7 +1498,7 @@ A plugin that cannot be installed or does not run is reported in a dialog, in a 
 ## [errors.agents] Error messages: MCP, /ide and agents
 The messages of the MCP server, the /ide bridge and the agents appear in the status bar, in dialogs and in the agent panel. Each line quotes the message and says what to do. Nothing is applied to your tabs without your confirmation, so a failed step leaves them as they were.
 - The MCP server could not start: reason. Fix the reason and choose MCP Server again. Nothing is shared meanwhile.
-- Switch on the MCP server first (Tools, Agents and AI, MCP, MCP Server). Switch the server on, then share the tab again (topic The editor as an MCP server).
+- Switch on the MCP server first (Tools, Agents and AI, MCP Server). Switch the server on, then share the tab again (topic The editor as an MCP server).
 - This tab cannot be shared. Only text tabs can be shared. A comparison or a list of search results cannot.
 - The selection is larger than N bytes. Select less, or share the whole tab. Select less, or share the whole tab.
 - The /ide bridge could not start: reason. Fix the reason and choose IDE Bridge /ide again.
@@ -1526,7 +1526,7 @@ The messages of the MCP server, the /ide bridge and the agents appear in the sta
 - name offers no tools and no resources. The server answered but offers nothing to call. Check its setup in the file of its agent.
 - tool reports an error; its text is in a new tab. The call reached the server, and the server reports the error. Read the text in the new tab and call the tool again with other arguments.
 - The value of name could not be saved (reason); it is used for this connection only. The next connection asks for the value again. Fix the cause named in the reason.
-- The /ide bridge of this window is off. Switch it on with Tools, Agents and AI, MCP, IDE Bridge /ide. Then repeat the command (topic The /ide bridge for Claude Code).
+- The /ide bridge of this window is off. Switch it on with Tools, Agents and AI, IDE Bridge /ide. Then repeat the command (topic The /ide bridge for Claude Code).
 - agent version N (the table lists M). This is a note in the agent panel, not an error: the agent still starts, but this version has not been verified (topic Agent over ACP).
 - agent: the version could not be read (reason). Not verified. This is a note in the agent panel too: the agent still starts, but its version is not verified.
 
@@ -1587,8 +1587,8 @@ A clip is a piece of text with places for variables and carets. Clips come from 
 - The lines of a snippet after the first take the indentation of the line it starts on; tabs in its own indentation become the indentation of the document (tabs or spaces). A clip without numbered stops is inserted as it is.
 - In a snippet $| is not a caret, and a dollar sign before a digit is a stop: write $$ or \$ for a dollar sign. Besides ${name} the variables TM_SELECTED_TEXT, TM_FILENAME, TM_FILENAME_BASE, TM_DIRECTORY, TM_FILEPATH, UUID and CURRENT_YEAR, CURRENT_YEAR_SHORT, CURRENT_MONTH, CURRENT_DATE, CURRENT_HOUR, CURRENT_MINUTE, CURRENT_SECOND work (also as $NAME). Text that does not fit the syntax stays as it is.
 - A default may hold more stops: ${1:for (${2:i} = 0)}. Tab visits the stops by number as usual; the place that holds other stops is the one you edit, and the other places of its stop show the text as it was. A transform makes a place show changed text: ${1/regex/format/options} for a stop (the place follows what you type into stop 1) and ${NAME/regex/format/options} for a variable. The format has $1, ${1:/upcase}, ${1:/downcase}, ${1:/capitalize}, ${1:/camelcase}, ${1:/pascalcase}, ${1:+text if}, ${1:?text if:text else} and ${1:-text else}; the options are g (every match, otherwise the first), i, m and s. Write \/ for a slash in the regular expression or the format; the expression has .NET syntax. Stops nested deeper than the limit stay as text; a snippet that grows past the length limit or whose transform runs too long is refused with a message.
-- Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. the variables of the project, 3. your own variables (Edit, Insert, Edit User Variables opens the file variables.json of the profile: one JSON object of name and text), 4. the built-in ones. The same name gives the same value in a clip, a recipe and an external tool.
-- Project variables: Edit, Insert, Edit Project Variables opens the file .textida/variables.json of the project of the open file, in the same shape as variables.json of the profile. The project is the nearest folder above the file that has such a file; when there is none, the file is created in the nearest folder with .textida or .git. Its names are for the files of that project only and win over your own variables of the same name. A damaged file stops clips, recipes and tools in that project and names the file. An external tool whose command uses a project variable asks for confirmation again when the value changes, as it does when the definition changes.
+- Where a variable gets its value, strongest first: 1. the value typed in the form of the clip, 2. the variables of the project, 3. your own variables (Edit User Variables in the command palette opens the file variables.json of the profile: one JSON object of name and text), 4. the built-in ones. The same name gives the same value in a clip, a recipe and an external tool.
+- Project variables: Edit Project Variables in the command palette opens the file .textida/variables.json of the project of the open file, in the same shape as variables.json of the profile. The project is the nearest folder above the file that has such a file; when there is none, the file is created in the nearest folder with .textida or .git. Its names are for the files of that project only and win over your own variables of the same name. A damaged file stops clips, recipes and tools in that project and names the file. An external tool whose command uses a project variable asks for confirmation again when the value changes, as it does when the definition changes.
 - Built-in variables: file.path, file.dir, file.name, file.base, file.ext (an unsaved document has no file.*), date (yyyy-MM-dd), time (HH:mm:ss), datetime (the setting Date and time format), guid (a new one for each caret), selection (the text selected at that caret), user.name. A name with no value stops the insertion and the status bar names it.
 - Form fields: name, label, type, default, choices, required. Types: text, integer, number (decimal point), color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), date (yyyy-MM-dd), file (an existing file), choice (one of choices). A default may use variables, for example ${date}.
 - In nkspad-plugin.json a clip is {"id": "box", "title": "Box", "text": "<div>$|</div>", "fields": [...]} under contributes.clips; a clip with "command" also gets a command of that name.
@@ -1642,7 +1642,7 @@ A recipe chooses parts of the open file, changes them and shows the result befor
 ## [edit.recipeFiles] Recipes over files
 commands: nks.edit.runRecipeFiles
 A saved recipe runs again over another set of files. You see every change first; nothing is written before you apply it.
-1. Choose Edit, Conversions and Recipes, Run Recipe on Files and pick a recipe: one from a data plugin, or a file in the folder recipes of the profile.
+1. In the command palette choose Run Recipe on Files and pick a recipe: one from a data plugin, or a file in the folder recipes of the profile.
 2. Pick the files: a folder with a file mask (for example *.cs;*.txt; the ignore files of the search apply), the open tabs, or the files of the search results.
 3. The Search Results tab lists the changes file by file, with the same ticks as Replace in Files. Apply writes the ticked ones. A file that was changed by someone else after the preview is not touched: it is named as a conflict and the other files are written. Open documents get one Undo step.
 - A recipe file is JSON with id, title and steps, the same fields as a recipe in nkspad-plugin.json, plus an optional version and an optional converters list (the converters its convert steps name). A file without a version is version 1, the format of the first recipes, and loads as before. A file of a newer version is refused with a message.
@@ -1662,8 +1662,8 @@ Puts the selection, the file, the open tabs or the opened folder on the clipboar
 ## [edit.fragment] Edit a string as JSON, SQL or HTML
 commands: nks.edit.fragmentJson, nks.edit.fragmentSql, nks.edit.fragmentHtml, nks.edit.fragmentWriteBack
 A string in a PHP or JavaScript file opens in a tab of its own, in the language you pick, and goes back into the string with the escaping of its kind.
-1. Put the caret in the string and choose Edit, Edit String As, Edit String as JSON, Edit String as SQL or Edit String as HTML. The new tab shows the text the string stands for, without the quotes and escapes.
-2. Edit the text. Choose Edit, Edit String As, Write String Fragment Back: the text is escaped for the string and replaces its content. The tab stays open, so you can write again.
+1. Put the caret in the string and choose in the command palette Edit String as JSON, Edit String as SQL or Edit String as HTML. The new tab shows the text the string stands for, without the quotes and escapes.
+2. Edit the text. Choose Write String Fragment Back in the command palette: the text is escaped for the string and replaces its content. The tab stays open, so you can write again.
 - Kinds: PHP single-quoted and double-quoted strings, heredoc and nowdoc; JavaScript strings in single quotes, double quotes and templates in backticks. In a double-quoted string and in a heredoc every dollar sign gets a backslash, so no variable can appear by accident.
 - Refused with a message: a string with variables or expressions (`$name`, `{$x}`), a JavaScript template with `${...}`, an escape that is not text (a byte above 127, octal) and, when writing, a line that would end a heredoc or nowdoc.
 - The tab follows the string through edits of the file elsewhere. If the file changed inside the string after the tab was opened, nothing is overwritten without asking: the dialog offers Overwrite or Cancel.
@@ -1891,37 +1891,37 @@ Two tabs scroll together, so equal text of two files stays side by side.
 ## [tools.mcp] The editor as an MCP server
 commands: nks.tools.mcpServer, nks.tools.mcpShareTab, nks.tools.mcpShareSelection, nks.tools.mcpTools, nks.tools.mcpClients
 An AI assistant that you start on this computer (for example a coding agent) can use Textida through the Model Context Protocol. It sees only the tabs you share, and it never writes: you see each proposal as a change preview and you decide.
-1. Choose Tools, Agents and AI, MCP, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
+1. Choose Tools, Agents and AI, MCP Server. The dialog lists what the assistant gets. Switch on to start the server; choosing the command again switches it off and takes every tab back.
 2. Configure the assistant to start the program textida-mcp.exe from the mcp folder next to the editor (the status bar shows the full path). It talks to the editor over a local pipe; there is no network port.
-3. Open a tab and choose Tools, Agents and AI, MCP, Share This Tab with MCP. The same command takes the tab back. A tab that is not shared is not even listed.
-4. To give the assistant only a part of a tab, select the text and choose Tools, Agents and AI, MCP, Share Selection with MCP. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
-5. Choose Tools, Agents and AI, MCP, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
+3. Open a tab and choose Share This Tab with MCP in the command palette. The same command takes the tab back. A tab that is not shared is not even listed.
+4. To give the assistant only a part of a tab, select the text and choose Share Selection with MCP in the command palette. The selected text opens as a read-only excerpt in a tab of its own: a copy that does not follow the original, and the assistant cannot propose changes to it. Closing that tab takes it back.
+5. Choose Tools, Agents and AI, MCP Tools to switch single tools on or off. Choosing a tool in the list changes its state; Escape closes the list.
 - The assistant reads the text as it is in the editor, also what is not saved, searches in it, asks where your cursor and selection are, reads the errors and warnings of plugins and the linter, asks for the outline, the encoding and the line endings, finds lines of a log level in a log of any size and reads or searches bytes (at most 64 KiB per read).
 - A change is a proposal for one revision of the text. If the text changed in the meantime, the proposal is refused and the assistant has to read again. You see the proposal like other whole-document changes and choose to apply it or not; the assistant can ask how it ended.
 - Values in .env files are shown to the assistant as *. When you share such a tab you are asked whether it may see the real values; the answer holds for that tab only.
 - Withdrawing a tab or switching the server off stops the requests that are running, and a proposal that still waits for your decision is withdrawn and counts as rejected. A reload of a file also withdraws it.
 - Only a limited number of proposals can wait for your decision at once; a further one is refused until you have decided. A result larger than the size limit is refused, and the assistant is told to ask for less.
 - The program for the assistant speaks the current MCP version (2026-07-28) and, for assistants that still start with initialize, version 2025-11-25.
-- MCP Clients (Tools, MCP, MCP Clients...) decides which program may use the MCP server. A client is known by the name it gives when it connects. A new client may do nothing until you allow it in the question shown the first time it connects; until then it sees no tool and every call of it is refused. In the list of clients you can take the permission of one client away (it is disconnected) or give it back, or forget the decision so that the editor asks again next time. The client chooses its own name, so the name does not prove who it is: the permission only keeps an unknown program from reaching the shared tabs by itself.
+- MCP Clients (command palette, MCP Clients...) decides which program may use the MCP server. A client is known by the name it gives when it connects. A new client may do nothing until you allow it in the question shown the first time it connects; until then it sees no tool and every call of it is refused. In the list of clients you can take the permission of one client away (it is disconnected) or give it back, or forget the decision so that the editor asks again next time. The client chooses its own name, so the name does not prove who it is: the permission only keeps an unknown program from reaching the shared tabs by itself.
 
 ## [tools.ide] The /ide bridge for Claude Code
 commands: nks.tools.ideBridge, nks.tools.ideDisconnect, nks.tools.ideMention
 Claude Code that runs in a terminal on this computer can connect to a window of Textida with its /ide command. The agent then learns where your selection is and which file is open, and the changes it wants to make to a shared tab appear in the change review. It sees only the tabs you share, and Textida applies only what you accept.
-1. First switch on the MCP server (Tools, Agents and AI, MCP, MCP Server) and share a tab (Tools, Agents and AI, MCP, Share This Tab with MCP). The bridge uses the same shared tabs.
-2. Choose Tools, Agents and AI, MCP, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token and the folders of the window to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
+1. First switch on the MCP server (Tools, Agents and AI, MCP Server) and share a tab (Share This Tab with MCP in the command palette). The bridge uses the same shared tabs.
+2. Choose Tools, Agents and AI, IDE Bridge /ide. The dialog says what the agent gets. Only after you confirm does Textida open a port, on this computer only (127.0.0.1), and write a lock file with a token and the folders of the window to ~/.claude/ide (or to the ide folder of CLAUDE_CONFIG_DIR). Choosing the command again closes the port and deletes the file.
 3. In the terminal, in a folder of this window, run /ide in Claude Code. A program without the token from the lock file is refused.
-4. The status bar shows the connected agent. Click it, or choose Tools, Agents and AI, MCP, IDE Bridge /ide: Disconnect Agent, to cut the agent off. The port stays open, so the agent can connect again with /ide; to stop that, switch the bridge off.
+4. The status bar shows the connected agent. Click it, or choose IDE Bridge /ide: Disconnect Agent in the command palette, to cut the agent off. The port stays open, so the agent can connect again with /ide; to stop that, switch the bridge off.
 - Every window has its own bridge with its own port and token, and so has every instance of Textida. An agent connected to a window sees only the tabs shared in that window. A lock file that a crashed instance left behind is deleted when the next bridge starts.
 - The agent is told about the selection and path of a shared tab each time the selection changes or you move to the tab. A tab that is not shared, or has no file yet, is not announced. Values in .env files are hidden as in every other read. Taking the tab back stops this at once.
 - A change that Claude Code proposes for a shared tab opens in the change review (the Search Results tab). Applying all of it answers FILE_SAVED and rejecting it answers DIFF_REJECTED; applying only some hunks answers with an error, so the agent reads the file again. Textida applies what you accept to the tab and does not save the file. A file that is not open in the window, not shared, or an .env file is refused.
 - getDiagnostics gives the errors and warnings of the shared tabs. getOpenEditors lists the shared tabs with their name, language and whether they have unsaved changes; checkDocumentDirty answers the same for one file; getWorkspaceFolders gives the folders of the window, the ones in the lock file.
 - openFile opens a file for you in a tab and can select text in it. It works only for a file in one of the folders of the window or in a shared tab, never for a network path or a relative one. A file it opens is not shared with the agent: the agent is told "Opened file" and nothing about its content. Only a shared tab is described to the agent (language, number of lines), and a text it names is not looked for in an .env file.
-- Choose Tools, Agents and AI, MCP, IDE Bridge /ide: Send Selection to Agent as Context to hand the agent the file of the active shared tab and the lines of the selection (an @-mention). Without a selection only the file goes. The agent gets the path and the line numbers, not the text.
+- Choose in the command palette IDE Bridge /ide: Send Selection to Agent as Context to hand the agent the file of the active shared tab and the lines of the selection (an @-mention). Without a selection only the file goes. The agent gets the path and the line numbers, not the text.
 - Not verified: Claude Code does not publish a specification of this protocol. The bridge follows the official page on the built-in IDE server and a community description (coder/claudecode.nvim), and no Claude Code version has been confirmed to work with it yet. Not implemented: saving through the bridge (the bridge never writes a file) and running notebook cells.
 
 ## [tools.agent] Agent over ACP
 commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel, nks.agent.stop
-1. Tools, Agents and AI, Agent, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it. The list tells for each agent whether its program is found in PATH; for a missing one a message says where to install it from and nothing starts. The dialog shows the full path of the program that will run. After you confirm, Textida runs the program with --version and notes the version in the panel next to the version of the table; a program that prints none is only noted.
+1. Tools, Agents and AI, Start Agent... starts a coding agent that speaks the Agent Client Protocol (ACP): Gemini CLI, Codex, Claude, Junie, GitHub Copilot or OpenCode. The dialog shows the exact command and the folder it runs in; nothing starts before you confirm. The agent must be installed and found in PATH. A batch file (.cmd, .bat), the usual form of an npm-installed agent on Windows, is started through cmd.exe with every argument quoted for it. The list tells for each agent whether its program is found in PATH; for a missing one a message says where to install it from and nothing starts. The dialog shows the full path of the program that will run. After you confirm, Textida runs the program with --version and notes the version in the panel next to the version of the table; a program that prints none is only noted.
 2. The Agent Panel under the editor shows the conversation. Type a message and press Enter. Cancel Agent Turn (or the Cancel turn button) sends the cancel to the agent and answers its open permission questions with "cancelled"; Stop Agent ends the process.
 3. The agent reads only the tabs you share: Share This Tab with Agent. It then gets the text as it is in the editor, unsaved changes included; values of .env files stay hidden. Stopping the agent takes every shared tab back.
 4. When the agent writes a shared file, the change is shown as hunks in the change review (the Search Results tab) and is written only when you apply it. If you reject it, the agent gets an error. A file that is not shared, or not open, is not written through the editor.
@@ -1935,7 +1935,7 @@ commands: nks.agent.start, nks.agent.panel, nks.agent.shareTab, nks.agent.cancel
 ## [tools.hooks] Agent hooks editor
 commands: nks.agent.hooks
 Edits the hooks of Claude Code (settings.json, settings.local.json, the hooks.json of a plugin) and of Codex (hooks.json) in a form. It never runs a hook: a hook is a command, and nothing here starts one.
-1. Open the settings file in a tab and choose Tools, Agents and AI, Agent, Edit Agent Hooks... The tree lists the events, the matcher groups and the handlers of the file. Choose a handler to change it, or a group to add a handler to it.
+1. Open the settings file in a tab and choose Edit Agent Hooks... in the command palette. The tree lists the events, the matcher groups and the handlers of the file. Choose a handler to change it, or a group to add a handler to it.
 2. Fill in the form: the event, the matcher, the type of the handler and its command (or URL, prompt, MCP server and tool), and if you want the timeout, the status message, the condition (if) and what happens when the hook fails. Apply to list changes the list in this window only.
 3. Dry run shows what the hook would receive on standard input (a sample made from the public documentation of the product), whether the matcher fires for the value you type, and what each exit code does on that event. For Claude Code an exit code 1 is a non-blocking error and 2 blocks where the event can be blocked. For Codex only what its documentation says is shown.
 4. Propose changes sends the new text to the change review (the Search Results tab). You see the changes as hunks and apply them as one undo step; then save the file as usual. The editor refuses the proposal while the list has errors, and when the tab changed after this window was opened.
@@ -1979,10 +1979,10 @@ One list of the MCP servers your coding agents are set up with. Textida reads Cl
 ## [tools.shell] Explorer menu and file associations
 commands: nks.tools.shellMenuAdd, nks.tools.shellAssociate, nks.tools.shellRemove
 Windows only. Textida can add itself to the Explorer context menu of your user and to the Open with list. Nothing needs administrator rights, and only keys of Textida under HKEY_CURRENT_USER\Software\Classes are written. Keys of other programs, PSPad included, are not read or changed. Both commands work in the installed Textida.exe.
-1. Choose Settings, System Integration, Add Textida to the Explorer Menu. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
-2. Choose Settings, System Integration, File Associations to pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
+1. Switch it on on the page System of the settings window, or choose Add Textida to the Explorer Menu in the command palette. Files get the entry Open with Textida; it starts Textida with the file, or hands the file to the Textida that is already running. On Windows 11 the entry is under Show more options.
+2. On the page System of the settings window, or with File Associations in the command palette, pick extensions. Choosing an extension in the list adds or removes Textida in its Open with list; Escape closes the list. No extension is associated until you choose it.
 3. To make Textida the default program of an extension, use Open with, Choose another app in Explorer. Windows keeps that choice to itself.
-4. Choose Settings, System Integration, Remove Textida from Explorer to delete the menu entry and every association that Textida added. The uninstaller does the same.
+4. Choose Remove Textida from Explorer in the command palette to delete the menu entry and every association that Textida added. The uninstaller does the same.
 5. The same switches are in Settings, under System integration (search for "integration" or "shortcut"): the menu entry, the file types, a shortcut in the Start menu and on the desktop, and a button that opens the default apps page of Windows. A switch writes the registry at once and shows what the registry says.
 - The entry Open in Textida as project in the context menu of a folder, and on the background of an open folder, opens a window with the folder as the root of the project: the file panel, Git and search in the folder work on it. It has a switch of its own in the settings and in the setup (`--folder-menu`, `--no-folder-menu`). From the command line, `textida --project folder` or `textida folder` does the same; a window that has the folder already only comes to the front.
 - On Linux this entry is the file textida-project.desktop: in a file manager you find it on a folder under Open With. The installer turns it on and off (`install.sh --no-folder-action`), and so does the switch on the System page of the settings, which writes to your applications folder (`~/.local/share/applications`). Turning off the entry of the .deb only hides it for you, because only an administrator may change the system folder.
@@ -1993,11 +1993,11 @@ Windows only. Textida can add itself to the Explorer context menu of your user a
 ## [tools.macIntegration] macOS: terminal command, Finder action and file types
 commands: nks.tools.macIntegration, nks.tools.macRemove
 macOS only, in the installed Textida (Textida.app). Textida adds nothing to your Mac until you switch an item on, and it writes only in your own folders; no change asks for an administrator password.
-1. Choose Settings, System Integration, macOS Integration. A window lists the three items; a switch takes effect at once and shows what the Mac says. The same switches are on the page System of the settings window.
+1. Choose macOS Integration in the command palette. A window lists the three items; a switch takes effect at once and shows what the Mac says. The same switches are on the page System of the settings window.
 2. The textida command is a link named textida to the program, in /usr/local/bin when you may write there, otherwise in ~/bin. In the terminal, `textida file.txt` opens the file in the running Textida, `textida --wait file.txt` waits until its tab is closed, `textida --diff a b` compares two files. If the terminal does not find the command, the window shows the line that belongs in ~/.zprofile.
 3. The quick action Open in Textida is a file in ~/Library/Services. In Finder, right-click a file or folder, then Quick Actions, then Open in Textida. If it is not listed, switch it on in System Settings, Privacy & Security, Extensions, Finder.
 4. File types: Textida becomes the application that opens the extensions you tick. Before it does, the Mac remembers the application each extension had; switching an extension off gives it back. Files are opened in the Textida that is already running.
-5. Choose Settings, System Integration, Remove Textida from macOS (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
+5. Choose Remove Textida from macOS in the command palette (or Remove all in the window) to delete the link, the quick action and every association that Textida added.
 - A link or an action is removed only when it is Textida's own: a textida command that leads to another program, and an action that Textida did not write, are left alone.
 - A type that no other application opens stays with Textida after it is switched off, because the Mac has nobody to give it back to.
 - The quick action Open in Textida as project is offered on folders only and opens the folder as the root of the project in a Textida window, like `textida --project folder`. It has a switch of its own.
@@ -2010,7 +2010,7 @@ Textida for macOS comes as a disk image (a .dmg) and as a ZIP with the same appl
 2. Open Textida from Applications. macOS says it cannot check the application for malicious software (macOS 14: it cannot be opened because the developer cannot be verified). Do not move it to the Bin.
 3. On macOS 14, hold Control, click Textida in Applications, choose Open and confirm with Open. On macOS 15, close the message with Done, open System Settings, Privacy & Security, scroll to Security, choose Open Anyway next to Textida and confirm with your password or Touch ID.
 4. From then on Textida starts like any other application. If you unpack the ZIP instead, move Textida.app to Applications first. A file that came from the internet carries a quarantine mark; in the terminal `xattr -dr com.apple.quarantine /Applications/Textida.app` removes it.
-5. To remove Textida, first choose Settings, System Integration, Remove Textida from macOS if you added the terminal command, the quick action or file types, then drag Textida.app to the Bin. Your settings are in ~/Library/Application Support/Textida and stay until you delete that folder.
+5. To remove Textida, first choose Remove Textida from macOS in the command palette if you added the terminal command, the quick action or file types, then drag Textida.app to the Bin. Your settings are in ~/Library/Application Support/Textida and stay until you delete that folder.
 - The disk image holds Textida.app and a link to Applications; the ZIP holds only Textida.app. Both are made by tools/BuildMacPackage.cs, which runs on a Mac.
 - The package for Apple silicon and the one for Intel are separate downloads; there is no universal package. An Intel Mac needs the x64 one.
 - Developer ID signing and notarization are not done yet. When they are, the extra step of the first start is not needed any more.
@@ -2050,7 +2050,7 @@ When another program (a script, an assistant, a build tool) changes the file of 
 
 ## [edit.jsonTypes] JSON to types in code
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
-The commands in the Edit menu, Convert, make a Go struct, a C# class or a TypeScript interface from JSON in a new tab.
+The commands in the command palette make a Go struct, a C# class or a TypeScript interface from JSON in a new tab.
 1. Select the JSON, or leave nothing selected for the whole document.
 2. Choose Edit, Convert and JSON to Go Struct, C# Class or TypeScript Interface.
 - The objects of an array are merged into one type; a field some of them lack or hold null in is optional (a pointer and omitempty in Go, nullable in C#, a question mark in TypeScript).
@@ -2059,15 +2059,15 @@ The commands in the Edit menu, Convert, make a Go struct, a C# class or a TypeSc
 
 ## [edit.loremInspect] Lorem ipsum and the character inspector
 commands: nks.edit.insertLoremParagraphs, nks.edit.insertLoremSentences, nks.edit.insertLoremWords, nks.edit.inspectCharacter
-The commands in the Edit menu insert placeholder text and say what the character at the caret is.
+The commands in Edit, Insert and in the command palette insert placeholder text and say what the character at the caret is.
 1. Choose Edit, Insert and Lorem Ipsum: Paragraphs, Sentences or Words and enter the count.
-2. For the character at the caret choose Edit and Character Inspector.
+2. For the character at the caret choose Character Inspector in the command palette.
 - The text is always the same and begins with the classic “Lorem ipsum dolor sit amet”; a paragraph has four to six sentences, the count is 1 to 10,000. It goes in at every caret, a selection is replaced, it is one Undo step.
 - The inspector shows the code point, the name, the category and the bytes of the character in UTF-8, in UTF-16 and in the encoding of the file. At the end of the text the character before the caret is examined. The names are from Unicode 15.
 
 ## [edit.keywordCase] Case of keywords
 commands: nks.edit.keywordsUpper, nks.edit.keywordsLower, nks.edit.keywordsAsDefined
-The commands in the Edit menu, Convert, change the case of the keywords of the language only.
+The commands in the command palette change the case of the keywords of the language only.
 1. Select part of the text, or leave nothing selected for the whole document.
 2. Choose Edit, Convert and Keywords to Upper Case, Lower Case or as Defined.
 - Only the words of the keyword lists of the grammar change, not strings, comments or identifiers. It works only for languages that are not case sensitive (SQL, Visual Basic and batch files, for example); for the others the editor changes nothing and says why.
@@ -2159,7 +2159,7 @@ The command in the File menu, Remote sends the changes of several saved files fr
 
 ## [tools.textMate] Importing TextMate grammars
 commands: nks.tools.importTextMate
-The command in the Tools menu converts a TextMate grammar to a grammar of the editor, so a language without a built-in grammar gets colours. The editor's own engine colours the text; nothing of TextMate or Oniguruma runs.
+The command in the command palette converts a TextMate grammar to a grammar of the editor, so a language without a built-in grammar gets colours. The editor's own engine colours the text; nothing of TextMate or Oniguruma runs.
 1. Choose Tools and Import TextMate Grammar. Pick a .tmLanguage, .tmLanguage.json or .plist file, a zipped .tmbundle, or a .tmbundle folder.
 2. Imported grammars are kept as a plugin of their own (a textmate-… folder in the plugins folder) and appear as languages; you choose them like any other language, or they are picked by the file extension.
 - Converted: scope names to colour kinds by their prefix (keyword, string, comment, constant.numeric and more), match rules, begin and end regions over several lines, includes (#name, $self and other grammars of the same bundle) and Oniguruma regular expressions rewritten for .NET (\h, POSIX classes, \R, Unicode properties, possessive quantifiers read as greedy).
@@ -2168,7 +2168,7 @@ The command in the Tools menu converts a TextMate grammar to a grammar of the ed
 ## [view.terminal] Terminal
 commands: nks.view.toggleTerminal
 The Terminal panel below the editor runs a shell. It uses a pseudo terminal (ConPTY on Windows, a pty on macOS and Linux), so full-screen programs, colours and line editing work.
-1. Choose View and Toggle Terminal (Ctrl+`). The shell starts in the folder of the file panel, else in the folder of the open file.
+1. Choose View and Terminal (Ctrl+`). The shell starts in the folder of the file panel, else in the folder of the open file.
 2. The shell is chosen in the setting terminal.shell: a program name or path, optionally with arguments ("C:\Program Files\Git\bin\bash.exe" --login). Empty means PowerShell on Windows and $SHELL elsewhere.
 - Closing the panel, closing the window and ending the editor end the shell and everything it started. When the shell ends by itself, its last output stays on screen with a Restart button. Resizing the panel resizes the terminal.
 - Keys go to the shell, except Ctrl+` and F6, which belong to the window. Ctrl+Shift+C (⌘C on macOS) copies the selected text, Ctrl+Shift+V, Shift+Insert and ⌘V paste, Shift+PageUp and PageDown and the mouse wheel scroll through the output history (5000 lines). Pasted text reaches the program as pasted when the program asks for it.
@@ -2183,14 +2183,14 @@ The command in the Tools menu opens a small window that shows the colour of the 
 ## [edit.clipboardMonitor] Clipboard monitor
 commands: nks.edit.toggleClipboardMonitor
 The clipboard list normally holds only what you copy in the editor. The command Collect Copies from Other Programs adds the texts you copy elsewhere too.
-1. Choose Edit, Clipboard, Collect Copies from Other Programs (or turn on the setting editor.clipboardMonitor). The same command turns it off.
+1. Turn on the setting Collect Copies from Other Programs in Editor, Typing, or choose the same command in the command palette. The same command turns it off.
 2. The texts appear in the clipboard list (Edit, Clipboard, Clipboard History).
 - The monitor is off by default and only the user turns it on. When it is switched on, the text that was already on the clipboard is not collected; only copies made since are. When it is switched off everything is forgotten, so what you copied while it was off is never collected later.
 - The list is in memory only and nothing is written to disk or sent anywhere. A copied password stays in the list until newer items push it out (the setting editor.clipboardHistorySize sets how many items there are), so switch the monitor on only while you need it.
 
 ## [tools.formatReview] Formatting with a review (PHP CS Fixer and others)
 commands: nks.format.withReview
-The command in the Tools menu runs the formatter of the project on a copy of the file and does not write the result but shows it in the change review. You tick what to apply.
+The command in Format, Format Code and Data runs the formatter of the project on a copy of the file and does not write the result but shows it in the change review. You tick what to apply.
 1. A formatter is offered only where the project has its configuration: for a PHP file .php-cs-fixer.dist.php (or .php-cs-fixer.php, .php_cs, .php_cs.dist) in the folder of the file or above it. The same holds for gofmt, Prettier, rustfmt and the other formatters of the catalog.
 2. Choose Tools and Format with the File Formatter (Review). The changes appear in the results tab; they are applied as one undo step, and only if the document has not changed meanwhile.
 - PHP CS Fixer is looked for in the project (vendor/bin), then on the PATH; when it is not there, php runs a php-cs-fixer.phar from the project (the folder of the file and those above: tools, bin, vendor/bin) or from the PATH. Nothing is downloaded. The path can also be set in saveActions.json (toolPaths).
@@ -2206,7 +2206,7 @@ The command in the Tools menu lists the functions that call the symbol under the
 commands: nks.hex.pluginHash, nks.hex.pluginExport, nks.hex.pluginTemplates
 An installed plugin with the permission hex.read can add a decoder to the data inspector, a hash, a way to write bytes out as text and a source of structure templates to the hex view.
 1. Decoders appear as further rows of the data inspector under the built-in types; a row shows an ellipsis until the plugin answers.
-2. Edit, Hex, Hash with Plugin hashes the selection (the whole file without one) and shows it in the same window as the built-in hashes.
+2. Hash with Plugin in the command palette hashes the selection (the whole file without one) and shows it in the same window as the built-in hashes.
 3. Write out with Plugin opens the selection as text in a new document that is not a file. Templates from Plugin adds its .ksy templates to the list of the Structure panel.
 - The plugin gets only a copy of the bytes and returns only text: it writes nothing to a file or to the document. A hidden value of a secrets file is sent to it as stars. A plugin that wants to change bytes does so through the document API, where its edit comes as a proposal to approve in the change review.
 - A plugin is sent at most 16 MiB, has 15 s to answer and the text of its answer is limited. Only the plugins you gave the permission hex.read at install are offered.

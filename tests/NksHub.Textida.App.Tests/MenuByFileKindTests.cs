@@ -43,7 +43,7 @@ public class MenuByFileKindTests : IDisposable
     {
         ["json"] = "nks.edit.formatJson", ["sql"] = "nks.edit.formatSql", ["tidy"] = "nks.edit.htmlTidy", ["closeTag"] = "nks.edit.htmlCloseTag", ["toc"] = "nks.tools.markdownUpdateToc",
         ["cycle"] = "nks.view.cycleMode", ["keyPath"] = "nks.tools.copyKeyPath", ["outline"] = "nks.tools.showOutline", ["hex"] = "nks.hex.inspector", ["row"] = "nks.table.insertRow",
-        ["next"] = "nks.compare.next", ["git"] = "nks.git.diffHead", ["lsp"] = "nks.lsp.goToDefinition", ["lint"] = "nks.tools.lint", ["unfold"] = "nks.log.unfold",
+        ["next"] = "nks.compare.next", ["git"] = "nks.git.status", ["lsp"] = "nks.lsp.goToDefinition", ["lint"] = "nks.tools.lint", ["unfold"] = "nks.log.unfold",
         ["upload"] = "nks.remote.upload", ["reload"] = "nks.file.reload", ["comment"] = "nks.edit.toggleComment", ["read"] = "nks.view.modeRead", ["pkg"] = "nks.packages.lookup",
     };
 
@@ -276,7 +276,7 @@ public class MenuByFileKindTests : IDisposable
 
         _w.SelectTab(await OpenAsync("text"));
         var text = Offered();
-        Assert.Equal(["nks.edit.cut", "nks.edit.copy", "nks.edit.paste", "nks.edit.selectAll", "nks.edit.toggleComment", "nks.compare.clipboard", "nks.file.compareWithDisk", "nks.compare.file"], text);
+        Assert.Equal(["nks.edit.cut", "nks.edit.copy", "nks.edit.paste", "nks.edit.selectAll", "nks.edit.toggleComment", "nks.compare.clipboard"], text);
 
         _w.SelectTab(await OpenAsync("json"));
         var json = Offered();
@@ -298,7 +298,7 @@ public class MenuByFileKindTests : IDisposable
         _w.SelectTab(await OpenAsync("git"));
         var git = Offered();
         Assert.Contains("nks.git.diffHead", git);
-        Assert.Contains("nks.git.stageHunk", git);
+        Assert.DoesNotContain("nks.git.stageHunk", git); // the review of 7. 11. 2026 keeps one Git action in the short context menu
     }
 
     [AvaloniaFact]

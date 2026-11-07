@@ -784,7 +784,7 @@ public class ToolLauncherTests : IDisposable
         var ids = tools.Items.AllCommands().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.tools.run", ids);
         Assert.Contains("nks.tools.stop", ids);
-        Assert.Contains("nks.tools.logPattern", ids);
+        Assert.DoesNotContain("nks.tools.logPattern", ids); // palette only since the review of 7. 11. 2026
         Assert.Contains("nks.tools.edit", ids);
         Assert.Contains("nks.tools.makeTargets", ids);
         Assert.Contains("nks.tools.makeRepeat", ids);
