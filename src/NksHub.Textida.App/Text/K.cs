@@ -522,6 +522,7 @@ public static partial class K
     public const string SettingsColorA11y = "a11y.settings.color";
     public const string SettingsShortcutChange = "settings.shortcut.change";
     public const string SettingsShortcutPress = "settings.shortcut.press";
+    public const string SettingsShortcutPending = "settings.shortcut.pending";
     public const string SettingsShortcutNone = "settings.shortcut.none";
     public const string SettingsShortcutReset = "settings.shortcut.reset";
     public const string SettingsShortcutChangeA11y = "a11y.settings.shortcut.change";

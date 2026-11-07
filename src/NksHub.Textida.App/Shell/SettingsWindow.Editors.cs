@@ -408,20 +408,37 @@ internal sealed partial class SettingsWindow
     // ---- shortcuts ----
 
     /// <summary>
-    /// A button that catches the next key press as a shortcut: a click (or Enter) starts it, a key with its modifiers ends it, Escape or leaving the button cancels it.
-    /// Modifier keys alone wait for the key that follows.
+    /// A button that catches a shortcut of one or more strokes, such as Ctrl+K Ctrl+U: a click (or Enter) starts it, and the strokes are taken when no further one comes within
+    /// <see cref="PluginLimits.ShortcutChordWaitMilliseconds"/> or the keymap's limit of strokes is reached. Modifier keys alone wait for the key that follows; Backspace clears the strokes caught so far;
+    /// Escape or leaving the button cancels it.
     /// </summary>
     private Button ShortcutCapture(string label, string name, Action<KeySequence> done)
     {
         var button = new Button { Content = label, Padding = new Thickness(10, 3), VerticalAlignment = VerticalAlignment.Center };
         button.Classes.Add("shortcutcapture");
         AutomationProperties.SetName(button, name);
+        var platform = _app.Workbench.Platform;
+        var strokes = new List<KeyChord>();
         bool catching = false;
+        int generation = 0; // a wait that started before the last stroke, Stop or Backspace finds a newer generation and does nothing
+        void Wait()
+        {
+            int mine = ++generation;
+            _ = Task.Delay(PluginLimits.ShortcutChordWaitMilliseconds).ContinueWith(_ => Dispatcher.UIThread.Post(() => { if (mine == generation && catching) Finish(); }), TaskScheduler.Default);
+        }
         void Stop()
         {
+            generation++;
+            strokes.Clear();
             catching = false;
             button.Content = label;
             button.Classes.Remove("catching");
+        }
+        void Finish()
+        {
+            string text = string.Join(' ', strokes);
+            Stop();
+            if (KeySequence.TryParse(text, platform, out var sequence, out string? _)) done(sequence);
         }
         button.Click += (_, _) =>
         {
@@ -435,29 +452,57 @@ internal sealed partial class SettingsWindow
         {
             if (!catching) return;
             e.Handled = true;
-            if (e.Key == Key.Escape && e.KeyModifiers == Avalonia.Input.KeyModifiers.None) { Stop(); return; }
+            bool plain = e.KeyModifiers == Avalonia.Input.KeyModifiers.None;
+            if (plain && e.Key == Key.Escape) { Stop(); return; }
+            if (plain && e.Key == Key.Back)
+            {
+                generation++;
+                strokes.Clear();
+                button.Content = Loc.Get(K.SettingsShortcutPress);
+                return;
+            }
             if (!KeyMapping.TryChord(e.Key, e.KeyModifiers, out var chord)) return;
-            Stop();
-            if (KeySequence.TryParse(chord.ToString(), _app.Workbench.Platform, out var sequence, out string? _)) done(sequence);
+            strokes.Add(chord);
+            if (strokes.Count == KeySequence.MaxChords) { Finish(); return; }
+            button.Content = Loc.Get(K.SettingsShortcutPending, ("keys", string.Join(' ', strokes.Select(c => c.Display(platform)))));
+            Wait();
         }, RoutingStrategies.Tunnel);
         button.LostFocus += (_, _) => { if (catching) Stop(); };
         return button;
     }
 
+    /// <summary>
+    /// The commands whose shortcut equals <paramref name="sequence"/>, is its first strokes or starts with it (a press of the shorter one runs it, so the longer one never comes), as one warning;
+    /// null when there is none.
+    /// </summary>
+    private string? ShortcutClash(KeySequence sequence)
+    {
+        var wb = _app.Workbench;
+        var others = wb.Keymap.Bindings.Where(b => b.Sequence.Equals(sequence) || b.Sequence.IsStrictPrefixOf(sequence) || sequence.IsStrictPrefixOf(b.Sequence))
+            .Select(b => wb.Commands.TryGet(b.CommandId, out var c) ? wb.Strings.Get(c.TitleKey) : b.CommandId).Distinct().ToList();
+        return others.Count == 0 ? null : Loc.Get(K.SettingsRowConflict, ("other", string.Join(", ", others)));
+    }
+
     private StackPanel ShortcutEditor(string id, TextBlock error, string title)
     {
+        var platform = _app.Workbench.Platform;
         string current = CurrentText(id);
+        bool parsed = KeySequence.TryParse(current, platform, out var sequence, out _);
         var shown = new TextBlock
         {
-            Text = KeySequence.TryParse(current, _app.Workbench.Platform, out var sequence, out _) ? sequence.Display(_app.Workbench.Platform) : current.Length > 0 ? current : Loc.Get(K.SettingsShortcutNone),
+            Text = parsed ? sequence!.Display(platform) : current.Length > 0 ? current : Loc.Get(K.SettingsShortcutNone),
             FontFamily = new FontFamily("Cascadia Mono, Consolas, Menlo, monospace"), VerticalAlignment = VerticalAlignment.Center,
         };
+        var clash = new TextBlock { Foreground = ThemeColors.Danger, TextWrapping = TextWrapping.Wrap };
+        void ShowClash(KeySequence? s) => clash.IsVisible = (clash.Text = s is null ? null : ShortcutClash(s)) is not null;
+        ShowClash(parsed ? sequence : null);
         var capture = ShortcutCapture(Loc.Get(K.SettingsShortcutChange), Loc.Get(K.SettingsShortcutChangeA11y, ("title", title)), caught =>
         {
-            shown.Text = caught.Display(_app.Workbench.Platform);
+            shown.Text = caught.Display(platform);
+            ShowClash(caught);
             CommitText(id, caught.ToString(), error);
         });
-        return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { shown, capture } };
+        return new StackPanel { Spacing = 4, Children = { new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { shown, capture } }, clash } };
     }
 
     // ---- the icon set ----

@@ -232,7 +232,9 @@ public class SettingsControlsTests : IDisposable
         capture.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.LeftCtrl, KeyModifiers = KeyModifiers.Control });
         Assert.Equal(Loc.Get(K.SettingsShortcutPress), capture.Content);
         capture.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.K, KeyModifiers = KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Shift });
-        Dispatcher.UIThread.RunJobs();
+        // the capture waits for a second stroke before it takes a single one
+        Assert.Equal(Loc.Get(K.SettingsShortcutPending, ("keys", "Ctrl+Alt+Shift+K")), capture.Content);
+        PumpUntil(() => wb.Keymap.Bindings.Any(b => b.CommandId == "nks.view.zoomIn" && b.Sequence.ToString() == "ctrl+alt+shift+k"));
 
         Assert.Equal(["ctrl+alt+shift+k"], wb.Keymap.Bindings.Where(b => b.CommandId == "nks.view.zoomIn").Select(b => b.Sequence.ToString()));
         var file = JsonNode.Parse(File.ReadAllText(Path.Combine(_app.ProfileDirectory, AppWorkbench.UserKeymapFile)))!["bindings"]!.AsArray()
@@ -251,6 +253,56 @@ public class SettingsControlsTests : IDisposable
         Click(ButtonWith(row, Loc.Get(K.SettingsShortcutReset)));
         Assert.Equal(before, wb.Keymap.ShortcutsFor("nks.view.zoomIn"));
         Assert.DoesNotContain("zoomIn", File.ReadAllText(Path.Combine(_app.ProfileDirectory, AppWorkbench.UserKeymapFile)));
+    }
+
+    private static void Press(Button capture, Key key, KeyModifiers modifiers = KeyModifiers.None) =>
+        capture.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers });
+
+    private static void PumpUntil(Func<bool> done)
+    {
+        for (int i = 0; i < 1000 && !done(); i++)
+        {
+            Thread.Sleep(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.True(done());
+    }
+
+    [AvaloniaFact]
+    public void A_two_step_shortcut_is_caught_shown_as_the_keymap_formats_it_and_its_prefix_conflict_is_shown()
+    {
+        var view = Open();
+        var wb = _app.Workbench;
+        var capture = Row("nks.view.zoomIn").GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("shortcutcapture"));
+        Click(capture);
+        Press(capture, Key.K, KeyModifiers.Control);
+        Assert.Equal(Loc.Get(K.SettingsShortcutPending, ("keys", "Ctrl+K")), capture.Content);
+        // Backspace clears what was pressed and keeps catching
+        Press(capture, Key.Back);
+        Assert.Equal(Loc.Get(K.SettingsShortcutPress), capture.Content);
+        Press(capture, Key.S, KeyModifiers.Control);
+        Press(capture, Key.U, KeyModifiers.Control);
+        Assert.Equal(Loc.Get(K.SettingsShortcutPending, ("keys", "Ctrl+S Ctrl+U")), capture.Content);
+        Assert.DoesNotContain(wb.Keymap.Bindings, b => b.CommandId == "nks.view.zoomIn" && b.Sequence.Chords.Count == 2);
+        PumpUntil(() => wb.Keymap.Bindings.Any(b => b.CommandId == "nks.view.zoomIn" && b.Sequence.ToString() == "ctrl+s ctrl+u"));
+
+        Assert.Equal(["Ctrl+S Ctrl+U"], wb.Keymap.ShortcutsFor("nks.view.zoomIn"));
+        var row = view.RowOf("nks.view.zoomIn")!;
+        var texts = row.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
+        Assert.Contains(texts, t => t is not null && t.Contains("Ctrl+S Ctrl+U", StringComparison.Ordinal));
+        // Ctrl+S alone saves, so the chord after it never comes
+        Assert.Contains(wb.Keymap.Conflicts, c => c.Kind == NksHub.Textida.Workbench.Keys.KeyConflictKind.Prefix && c.Winner.CommandId == "nks.file.save" && c.Loser.CommandId == "nks.view.zoomIn");
+        Assert.Contains(Loc.Get(K.SettingsRowConflict, ("other", "nks.file.save")), texts);
+
+        // Escape in the middle of a chord leaves the shortcut as it is
+        capture = row.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("shortcutcapture"));
+        Click(capture);
+        Press(capture, Key.K, KeyModifiers.Control);
+        Press(capture, Key.Escape);
+        Assert.Equal(Loc.Get(K.SettingsShortcutChange), capture.Content);
+        Thread.Sleep(PluginLimits.ShortcutChordWaitMilliseconds + 100);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(["Ctrl+S Ctrl+U"], wb.Keymap.ShortcutsFor("nks.view.zoomIn"));
     }
 
     private static void Png(string path)
@@ -344,7 +396,18 @@ public class SettingsControlsTests : IDisposable
 
         var capture = view.RowOf("acme.kit.key")!.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("shortcutcapture"));
         Click(capture);
-        capture.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.F7, KeyModifiers = KeyModifiers.Shift });
-        Assert.Equal("shift+f7", Stored("acme.kit.key"));
+        Press(capture, Key.F7, KeyModifiers.Shift);
+        PumpUntil(() => Stored("acme.kit.key") == "shift+f7");
+
+        // a chord whose first stroke is the shortcut of a command is written and warned about
+        capture = view.RowOf("acme.kit.key")!.GetVisualDescendants().OfType<Button>().Single(b => b.Classes.Contains("shortcutcapture"));
+        Click(capture);
+        Press(capture, Key.S, KeyModifiers.Control);
+        Press(capture, Key.F7, KeyModifiers.Control);
+        PumpUntil(() => Stored("acme.kit.key") == "ctrl+s ctrl+f7");
+        Assert.True(_app.Workbench.Commands.TryGet("nks.file.save", out var save));
+        var visible = view.RowOf("acme.kit.key")!.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsVisible).Select(t => t.Text).ToList();
+        Assert.Contains("Ctrl+S Ctrl+F7", visible);
+        Assert.Contains(Loc.Get(K.SettingsRowConflict, ("other", _app.Workbench.Strings.Get(save.TitleKey))), visible);
     }
 }

@@ -296,6 +296,7 @@ commands: nks.app.openSettings
 - Jazyk rozhraní je ve Vzhledu: volba platí hned a změní nabídky, hlášení i nápovědu.
 - Nesmyslná hodnota se odmítne a řádek napíše, co s ní je. Nejde-li soubor nastavení zapsat, nad seznamem je důvod.
 - Konflikty zkratek jsou vidět u příslušných řádků.
+- Zkratku změníte tlačítkem Změnit… a stiskem nové zkratky. Dvoukroková zkratka jako Ctrl+K Ctrl+U se zapíše, když po druhém stisku chvíli počkáte; po jednom stisku a chvíli čekání se zapíše jednoduchá zkratka. Esc zachycení zruší, Backspace smaže, co jste zatím stiskli. Zkratka, která je stejná jako jiná, nebo jejíž první krok je zkratkou jiného příkazu, se zapíše a řádek ukáže konflikt.
 - Skupina Pokročilé obsahuje volby, které potřebuje málo lidí: rolování za konec textu, vyjmutí celého řádku bez výběru, skrytí ukazatele myši při psaní, odkazy přes Ctrl+klik, odsazení zalomených řádků, kolik posledních souborů a kroků zpět se drží, interval automatického ukládání, dobu blikání textového kurzoru (0: neblikne), plynulé rolování kolečkem myši a kolik řádků a sloupců kolem obrazovky se najednou obarví. Textový kurzor s obvyklou dobou blikání je kurzor editoru; jiná doba ho vykreslí v programu a blokový výběr používá zase kurzor editoru.
 - F1 v tomto okně otevře toto téma.
 
