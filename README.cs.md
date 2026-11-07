@@ -21,7 +21,10 @@ Editor je nový program inspirovaný PSPadem. Nepoužívá kód, data ani zdroje
 - 📄 **Dokumenty po stránkách** - z disku čte jen viditelné úseky a úpravy drží zvlášť, s funkcí zpět a ukládáním, které nezmění nedotčené bajty.
 - 🔍 **Hledání a navigace** - hledání prostého textu i regulárních výrazů, které jde přerušit, a skok na řádek nebo na pozici v bajtech.
 - 🔤 **Text a hex** - rozpoznání kódování, převod do zvoleného kódování, úpravy textu a hexadecimální pohled na tentýž dokument.
-- 📝 **Markdown** - režim čtení, úprav a zdroje, vlastní náhled, úpravy tabulek a vygenerovaný obsah.
+- 📝 **Markdown** - režim čtení, úprav a zdroje; čtečka rozkládá jen viditelné bloky, má sazbu podle GitHubu, výběr přes více bloků a dokovatelný panel nadpisů.
+- 🎨 **Barevné motivy** - deset motivů editoru, barva, tučné písmo a kurzíva pro každý druh tokenu, import motivů TextMate a VS Code.
+- 🗂️ **Velký JSON** - formátovaný pohled, který čte soubor po blocích na pozadí a upravuje hodnoty přímo.
+- 🌿 **Git** - panel commitu se zaškrtávátky u úseků, pull, který nejdřív stáhne změny, a počty příchozích a odchozích commitů ve stavovém řádku.
 - 🧩 **Přibalené nástroje** - samostatné procesy pluginů pro formátování, statistiku textu, hashe a jazykové nástroje a k tomu server MCP.
 - 📦 **Balíčky pro desktop** - instalátor a přenosný ZIP pro Windows, DMG a ZIP pro macOS a balíčky pro Linux. Vydaná sestavení NativeAOT mají runtime v sobě.
 
@@ -29,7 +32,7 @@ Editor je nový program inspirovaný PSPadem. Nepoužívá kód, data ani zdroje
 
 - Windows 10 22H2 nebo novější (x64), nebo macOS 14 nebo novější (Apple silicon i Intel)
 - Linux (zkušebně): Debian 12 nebo novější, nebo Ubuntu 22.04 nebo novější, na x64 nebo ARM64
-- .NET SDK 10.0.402 (pevně v `global.json`) pro sestavení ze zdrojů; stažené balíčky NativeAOT nainstalovaný runtime .NET nepotřebují
+- .NET SDK 10.0.403 (pevně v `global.json`) pro sestavení ze zdrojů; stažené balíčky NativeAOT nainstalovaný runtime .NET nepotřebují
 - [ripgrep](https://github.com/BurntSushi/ripgrep) jen pro srovnávací měření hledání
 
 ## Instalace

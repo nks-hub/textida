@@ -21,7 +21,10 @@ Der Editor ist ein neues Programm nach dem Vorbild von PSPad. Er verwendet keine
 - 📄 **Seitenweise Dokumente** - liest nur die sichtbaren Bereiche von der Festplatte und hält Änderungen getrennt, mit Rückgängig und Speichern, das unveränderte Bytes erhält.
 - 🔍 **Suche und Navigation** - Suche nach Text und regulären Ausdrücken, die sich abbrechen lässt, und Sprung zu einer Zeile oder einem Byte-Offset.
 - 🔤 **Text und Hex** - Erkennung der Kodierung, Umwandlung in eine gewählte Kodierung, Textbearbeitung und eine Hex-Ansicht desselben Dokuments.
-- 📝 **Markdown** - Lese-, Bearbeitungs- und Quelltextmodus, eigene Vorschau, Tabellenbearbeitung und ein erzeugtes Inhaltsverzeichnis.
+- 📝 **Markdown** - Lese-, Bearbeitungs- und Quelltextmodus; die Leseansicht legt nur sichtbare Blöcke an, setzt nach GitHub-Typografie, wählt über mehrere Blöcke aus und hat ein andockbares Überschriftenpanel.
+- 🎨 **Farbschemata** - zehn Editor-Schemata, Farbe, Fett und Kursiv je Tokenart, Import von TextMate- und VS-Code-Schemata.
+- 🗂️ **Großes JSON** - eine formatierte Ansicht, die die Datei blockweise im Hintergrund liest und Werte direkt bearbeitet.
+- 🌿 **Git** - Commit-Panel mit Kästchen je Änderung, Pull, der zuerst abruft, und Zahl ein- und ausgehender Commits in der Statusleiste.
 - 🧩 **Mitgelieferte Werkzeuge** - eigene Plugin-Prozesse für Formatierung, Textstatistik, Hashes und Sprachwerkzeuge, dazu ein MCP-Server.
 - 📦 **Desktop-Pakete** - Installer und portables ZIP für Windows, DMG und ZIP für macOS sowie Pakete für Linux. Veröffentlichte NativeAOT-Builds bringen ihre Laufzeit mit.
 
@@ -29,7 +32,7 @@ Der Editor ist ein neues Programm nach dem Vorbild von PSPad. Er verwendet keine
 
 - Windows 10 22H2 oder neuer (x64) oder macOS 14 oder neuer (Apple Silicon und Intel)
 - Linux als Vorschau: Debian 12 oder neuer oder Ubuntu 22.04 oder neuer, auf x64 oder ARM64
-- .NET SDK 10.0.402 (festgelegt in `global.json`) zum Bauen aus dem Quellcode; heruntergeladene NativeAOT-Pakete brauchen keine installierte .NET-Laufzeit
+- .NET SDK 10.0.403 (festgelegt in `global.json`) zum Bauen aus dem Quellcode; heruntergeladene NativeAOT-Pakete brauchen keine installierte .NET-Laufzeit
 - [ripgrep](https://github.com/BurntSushi/ripgrep) nur für den Benchmark, der die Suche vergleicht
 
 ## Installation

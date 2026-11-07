@@ -21,7 +21,10 @@ Editor je nový program inšpirovaný PSPadom. Nepoužíva kód, dáta ani zdroj
 - 📄 **Dokumenty po stránkach** - z disku číta len viditeľné úseky a úpravy drží zvlášť, s funkciou späť a ukladaním, ktoré nezmení nedotknuté bajty.
 - 🔍 **Hľadanie a navigácia** - hľadanie obyčajného textu aj regulárnych výrazov, ktoré sa dá prerušiť, a skok na riadok alebo na pozíciu v bajtoch.
 - 🔤 **Text a hex** - rozpoznanie kódovania, prevod do zvoleného kódovania, úpravy textu a hexadecimálny pohľad na ten istý dokument.
-- 📝 **Markdown** - režim čítania, úprav a zdroja, vlastný náhľad, úpravy tabuliek a vygenerovaný obsah.
+- 📝 **Markdown** - režim čítania, úprav a zdroja; čítačka rozkladá len viditeľné bloky, má sadzbu podľa GitHubu, výber cez viac blokov a dokovateľný panel nadpisov.
+- 🎨 **Farebné motívy** - desať motívov editora, farba, tučné písmo a kurzíva pre každý druh tokenu, import motívov TextMate a VS Code.
+- 🗂️ **Veľký JSON** - formátovaný pohľad, ktorý číta súbor po blokoch na pozadí a upravuje hodnoty priamo.
+- 🌿 **Git** - panel commitu so zaškrtávacími políčkami pri úsekoch, pull, ktorý najprv stiahne zmeny, a počty prichádzajúcich a odchádzajúcich commitov v stavovom riadku.
 - 🧩 **Pribalené nástroje** - samostatné procesy pluginov na formátovanie, štatistiku textu, hashe a jazykové nástroje a k tomu server MCP.
 - 📦 **Balíky pre desktop** - inštalátor a prenosný ZIP pre Windows, DMG a ZIP pre macOS a balíky pre Linux. Vydané zostavenia NativeAOT majú runtime v sebe.
 
@@ -29,7 +32,7 @@ Editor je nový program inšpirovaný PSPadom. Nepoužíva kód, dáta ani zdroj
 
 - Windows 10 22H2 alebo novší (x64), alebo macOS 14 alebo novší (Apple silicon aj Intel)
 - Linux (skúšobne): Debian 12 alebo novší, alebo Ubuntu 22.04 alebo novší, na x64 alebo ARM64
-- .NET SDK 10.0.402 (pevne v `global.json`) na zostavenie zo zdrojov; stiahnuté balíky NativeAOT nainštalovaný runtime .NET nepotrebujú
+- .NET SDK 10.0.403 (pevne v `global.json`) na zostavenie zo zdrojov; stiahnuté balíky NativeAOT nainštalovaný runtime .NET nepotrebujú
 - [ripgrep](https://github.com/BurntSushi/ripgrep) len na porovnávacie meranie hľadania
 
 ## Inštalácia
