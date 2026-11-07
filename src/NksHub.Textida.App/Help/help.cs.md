@@ -1827,7 +1827,7 @@ Soubor JSON, i stovky MiB až GiB velký a celý na jednom řádku, lze zobrazit
 - Psát lze jen do klíčů a hodnot; změní se jen jejich bajty. Na odsazení, závorky a čárky se psát nedá („Sem nelze psát“), strukturu měňte v textovém pohledu.
 - Od místa, kde JSON přestává být platný, se ukazuje původní text a v rohu hlášení „Neplatný JSON od bajtu…“ s místem chyby.
 - Soubory .jsonc a známé soubory s komentáři (tsconfig.json, nastavení VS Code ve složce .vscode, appsettings.json a další) se čtou jako JSONC: každý komentář má vlastní řádek a čárka před uzavírací závorkou nevadí. V obyčejném souboru JSON je komentář chyba.
-- Hodnota delší než 4 KiB se ukáže zkrácená se třemi tečkami. Klepnutí na tři tečky, klávesa End nebo Ctrl+K a pak Ctrl+Y (Rozbalit nebo sbalit dlouhou hodnotu JSON) ji zalomí do řádků podle šířky okna, takže jde přečíst i upravit celá. Zalomená je vždy jen jedna hodnota.
+- Klíč nebo hodnota delší než 4 KiB se ukáže zkrácená se třemi tečkami. Klepnutí na tři tečky, klávesa End nebo Ctrl+K a pak Ctrl+Y (Rozbalit nebo sbalit dlouhou hodnotu JSON) zalomí řádek podle šířky okna, takže jde přečíst i upravit celý; dlouhý klíč je první a v jeho posledním řádku začíná hodnota. Zalomený je vždy jen jeden řádek.
 - Text se označuje myší nebo klávesou Shift se šipkami. Ctrl+C zkopíruje označené řádky tak, jak je pohled ukazuje, dlouhé hodnoty celé. Kopírovat jako původní JSON zkopíruje odpovídající kus souboru beze změny. Ctrl+A vybere celý soubor do 16 MiB; víc se z pohledu najednou nekopíruje. Vyjmout a vložit jde jen uvnitř jednoho klíče nebo hodnoty a vložený text nesmí obsahovat zalomení řádku.
 - Formátovaný pohled umí jen UTF-8 a jednobajtová kódování.
 

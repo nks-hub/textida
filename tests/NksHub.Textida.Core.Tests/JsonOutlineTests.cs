@@ -400,6 +400,38 @@ public class JsonOutlineTests
     }
 
     [Fact]
+    public void A_long_key_wraps_into_rows_before_its_long_value_and_takes_edits_past_the_cut()
+    {
+        string key = string.Concat(Enumerable.Range(0, 4000).Select(i => i % 5 == 1 ? "č" : "k")), value = new('v', 5000);
+        string json = "{\"" + key + "\":\"" + value + "\",\"n\":1}";
+        using var doc = Make(json);
+        using var outline = new JsonOutline(doc);
+        outline.ScanToEnd();
+        var line = outline.GetLine(1)!.Value;
+        Assert.True(JsonOutline.IsLong(line));
+        Assert.Contains("…: \"vvv", outline.Render(line).Text);
+        long parts = JsonOutline.PartCount(line, 100);
+        var rows = Enumerable.Range(0, (int)parts).Select(p => outline.RenderPart(line, p, 100)).ToList();
+        Assert.StartsWith("  \"k", rows[0].Text);
+        Assert.All(rows.Skip(1), r => Assert.StartsWith("    ", r.Text));
+        Assert.EndsWith("v\",", rows[^1].Text);
+        string Piece(JsonRenderedLine r, JsonTokenKind kind) => string.Concat(r.Spans.Where(s => (s.Kind == JsonTokenKind.Key) == (kind == JsonTokenKind.Key) && s.Kind != JsonTokenKind.Punctuation).Select(s => r.Text.Substring(s.Column, s.Length)));
+        Assert.Equal("\"" + key + "\"", string.Concat(rows.Select(r => Piece(r, JsonTokenKind.Key))));
+        Assert.Equal("\"" + value + "\"", string.Concat(rows.Select(r => Piece(r, JsonTokenKind.String))));
+        Assert.Contains(rows, r => r.Text.Contains("k\": \"v", StringComparison.Ordinal)); // the last row of the key starts the value
+        Assert.Equal("  \"" + key + "\": \"" + value + "\",", outline.RenderFull(line).Text);
+
+        long inside = outline.SourceOffsetAt(rows[20], rows[20].Spans[0].Column + 3);
+        Assert.Equal(20, outline.PartOf(line, inside, 100));
+        Assert.Equal(rows[20].Spans[0].Column + 3, outline.ColumnOfOffset(rows[20], inside));
+        var bytes = Encoding.UTF8.GetBytes(json);
+        doc.Insert(inside, "Z"u8.ToArray());
+        Assert.Equal(Encoding.UTF8.GetString([.. bytes[..(int)inside], (byte)'Z', .. bytes[(int)inside..]]), Text(doc));
+        Assert.Contains("Z", outline.RenderFull(outline.GetLine(1)!.Value).Text);
+        AssertSameAsFresh(doc, outline);
+    }
+
+    [Fact]
     public void Jsonc_comments_get_lines_of_their_own_and_trailing_commas_pass()
     {
         string json = "// top\n{\n  \"a\": 1, // after a\n  /* block\n     second line */\n  \"b\" /* hidden */ : [1, 2,],\n  \"c\": {\"d\": true,},\r\n}\n";

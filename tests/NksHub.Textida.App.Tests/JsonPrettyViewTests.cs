@@ -317,6 +317,39 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_long_key_wraps_over_rows_and_can_be_edited_and_copied_whole()
+    {
+        string key = new('k', 6000);
+        string json = "{\"" + key + "\":1,\"n\":2}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        Assert.EndsWith("k…: 1,", view.RowText(1));
+
+        view.MoveCaret(1, 0);
+        Press(Key.End);
+        Assert.Equal(1, view.ExpandedLine);
+        long parts = view.CaretPart + 1;
+        Assert.True(parts > 1);
+        Assert.StartsWith("    k", view.RowText(2));
+        Assert.EndsWith("k\": 1,", view.RowText(parts));
+        Assert.Equal("  \"n\": 2", view.RowText(parts + 1));
+
+        for (int i = 0; i < 5; i++) Press(Key.Left); // over ",", "1", " ", ":" and the closing quote
+        TestApp.Type(_w, "Z");
+        Assert.Equal(json.Replace("k\":", "kZ\":"), Text(tab));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.expandValue"));
+        Assert.Equal(-1, view.ExpandedLine);
+        view.MoveCaret(1, 0);
+        Press(Key.Down, RawInputModifiers.Shift);
+        Run("nks.edit.copy");
+        Assert.Equal(Lines("  \"" + key + "Z\": 1,", ""), await Clip());
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.copySource"));
+        Assert.Equal("\"" + key + "Z\":1,", await Clip());
+    }
+
+    [AvaloniaFact]
     public void A_jsonc_file_shows_its_comments_on_lines_of_their_own()
     {
         Open("{\n  // compiler options\n  \"compilerOptions\": {\"strict\": true,},\n}\n", name: "tsconfig.json");

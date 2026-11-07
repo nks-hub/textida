@@ -177,7 +177,7 @@ public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<
 public sealed class JsonOutline : IDisposable
 {
     public const int SegmentLines = 512;
-    /// <summary>A raw or comment line holds up to this many bytes; a value longer than that is shown cut with an ellipsis unless it is wrapped by <see cref="RenderPart"/>.</summary>
+    /// <summary>A raw or comment line holds up to this many bytes; a key or value longer than that is shown cut with an ellipsis unless it is wrapped by <see cref="RenderPart"/>.</summary>
     public const int MaxShownBytes = 4096;
     private const int BlockSize = 1 << 16, KeyChars = 256, CachedSegments = 8;
 
@@ -595,29 +595,42 @@ public sealed class JsonOutline : IDisposable
 
     // ---- rendering ----
 
-    /// <summary>The text of a line with <paramref name="indent"/> per level; values and raw text longer than <see cref="MaxShownBytes"/> end with an ellipsis.</summary>
-    public JsonRenderedLine Render(JsonLine line, string indent = "  ") => Build(line, indent, MaxShownBytes, line.ValueStart, line.ValueEnd, head: true, tail: true);
+    /// <summary>The text of a line with <paramref name="indent"/> per level; keys, values and raw text longer than <see cref="MaxShownBytes"/> end with an ellipsis.</summary>
+    public JsonRenderedLine Render(JsonLine line, string indent = "  ") => Build(line, indent, MaxShownBytes, line.KeyStart, line.KeyEnd, line.ValueStart, line.ValueEnd, first: true, last: true);
 
-    /// <summary>The text of a line with the whole value, for copying; the caller keeps the value within a size it can hold.</summary>
-    public JsonRenderedLine RenderFull(JsonLine line, string indent = "  ") => Build(line, indent, int.MaxValue, line.ValueStart, line.ValueEnd, head: true, tail: true);
+    /// <summary>The text of a line with the whole key and value, for copying; the caller keeps them within a size it can hold.</summary>
+    public JsonRenderedLine RenderFull(JsonLine line, string indent = "  ") => Build(line, indent, int.MaxValue, line.KeyStart, line.KeyEnd, line.ValueStart, line.ValueEnd, first: true, last: true);
 
-    /// <summary>True when the line holds a value longer than <see cref="MaxShownBytes"/>, which <see cref="Render"/> shows cut.</summary>
-    public static bool IsLong(JsonLine line) => line.Kind == JsonLineKind.Value && line.ValueEnd - line.ValueStart > MaxShownBytes;
+    /// <summary>True when the line holds a key or a value longer than <see cref="MaxShownBytes"/>, which <see cref="Render"/> shows cut.</summary>
+    public static bool IsLong(JsonLine line) =>
+        (line.HasKey && line.KeyEnd - line.KeyStart > MaxShownBytes) || (line.Kind == JsonLineKind.Value && line.ValueEnd - line.ValueStart > MaxShownBytes);
 
-    /// <summary>How many rows a value takes when it is wrapped by <paramref name="partBytes"/> bytes; 1 for every line that holds no value.</summary>
+    private static long Count(long start, long end, int partBytes) => Math.Max(1, (end - start + partBytes - 1) / partBytes);
+    private static long KeyParts(JsonLine line, int partBytes) => line.HasKey ? Count(line.KeyStart, line.KeyEnd, partBytes) : 1;
+    private static long ValueParts(JsonLine line, int partBytes) => line.Kind == JsonLineKind.Value ? Count(line.ValueStart, line.ValueEnd, partBytes) : 1;
+
+    /// <summary>How many rows a line takes when its key and value are wrapped by <paramref name="partBytes"/> bytes: the last row of the key holds the start of the value.</summary>
     public static long PartCount(JsonLine line, int partBytes)
     {
         partBytes = Math.Max(16, partBytes);
-        return line.Kind == JsonLineKind.Value ? Math.Max(1, (line.ValueEnd - line.ValueStart + partBytes - 1) / partBytes) : 1;
+        return KeyParts(line, partBytes) + ValueParts(line, partBytes) - 1;
     }
 
-    /// <summary>Where part <paramref name="part"/> of a wrapped value starts: every <paramref name="partBytes"/> bytes, moved back to the start of a character.</summary>
+    /// <summary>Where row <paramref name="part"/> of a wrapped line starts: every <paramref name="partBytes"/> bytes of the key, then of the value, moved back to the start of a character.</summary>
     public long PartStart(JsonLine line, long part, int partBytes)
     {
         partBytes = Math.Max(16, partBytes);
-        if (part <= 0) return line.ValueStart;
-        if (part >= PartCount(line, partBytes)) return line.ValueEnd;
-        long at = line.ValueStart + part * partBytes;
+        long keys = KeyParts(line, partBytes);
+        if (part < keys) return line.HasKey ? Cut(line.KeyStart, line.KeyEnd, part, partBytes) : line.ValueStart;
+        return Cut(line.ValueStart, line.ValueEnd, part - keys + 1, partBytes);
+    }
+
+    /// <summary>Where part <paramref name="part"/> of the bytes from <paramref name="start"/> to <paramref name="end"/> starts.</summary>
+    private long Cut(long start, long end, long part, int partBytes)
+    {
+        if (part <= 0) return start;
+        if (part >= Count(start, end, partBytes)) return end;
+        long at = start + part * partBytes;
         if (_codec.Kind != CodecKind.Utf8) return at;
         Span<byte> bytes = stackalloc byte[4];
         int n = _source.Read(at - 3, bytes);
@@ -627,28 +640,41 @@ public sealed class JsonOutline : IDisposable
         return at - 3 + k;
     }
 
-    /// <summary>The part of a wrapped value that shows <paramref name="offset"/>; the end of the value is in the last part.</summary>
-    public long PartOf(JsonLine line, long offset, int partBytes)
+    private long PartIn(long start, long end, long offset, int partBytes)
     {
-        long count = PartCount(line, partBytes);
-        if (count <= 1) return 0;
-        long part = Math.Clamp((offset - line.ValueStart) / Math.Max(16, partBytes), 0, count - 1);
-        if (part > 0 && PartStart(line, part, partBytes) > offset) part--;
-        else if (part + 1 < count && PartStart(line, part + 1, partBytes) <= offset) part++;
+        long count = Count(start, end, partBytes);
+        long part = Math.Clamp((offset - start) / partBytes, 0, count - 1);
+        if (part > 0 && Cut(start, end, part, partBytes) > offset) part--;
+        else if (part + 1 < count && Cut(start, end, part + 1, partBytes) <= offset) part++;
         return part;
     }
 
+    /// <summary>The row of a wrapped line that shows <paramref name="offset"/>; the end of the key and the bytes up to the value are in the last row of the key, the end of the value in the last row.</summary>
+    public long PartOf(JsonLine line, long offset, int partBytes)
+    {
+        partBytes = Math.Max(16, partBytes);
+        if (PartCount(line, partBytes) <= 1) return 0;
+        if (line.HasKey && offset <= line.KeyEnd) return PartIn(line.KeyStart, line.KeyEnd, offset, partBytes);
+        long keys = KeyParts(line, partBytes);
+        return offset < line.ValueStart || line.Kind != JsonLineKind.Value ? keys - 1 : keys - 1 + PartIn(line.ValueStart, line.ValueEnd, offset, partBytes);
+    }
+
     /// <summary>
-    /// One row of a value wrapped by <paramref name="partBytes"/> bytes: the first holds the key and the start of the value, the next ones the rest of
-    /// the value indented one level deeper, and the last one the comma. A line without a long value comes back whole.
+    /// One row of a line wrapped by <paramref name="partBytes"/> bytes: the rows of a long key first (the first with the indent of the line, the next ones
+    /// one level deeper), the last of them with the start of the value, then the rest of the value, and the last row with the comma. A line without a long
+    /// key or value comes back whole.
     /// </summary>
     public JsonRenderedLine RenderPart(JsonLine line, long part, int partBytes, string indent = "  ")
     {
-        long count = PartCount(line, partBytes);
-        if (count <= 1) return Build(line, indent, int.MaxValue, line.ValueStart, line.ValueEnd, head: true, tail: true);
+        partBytes = Math.Max(16, partBytes);
+        long keys = KeyParts(line, partBytes), count = PartCount(line, partBytes);
+        if (count <= 1) return Build(line, indent, int.MaxValue, line.KeyStart, line.KeyEnd, line.ValueStart, line.ValueEnd, first: true, last: true);
         part = Math.Clamp(part, 0, count - 1);
-        long to = part + 1 >= count ? line.ValueEnd : PartStart(line, part + 1, partBytes);
-        return Build(line, indent, int.MaxValue, PartStart(line, part, partBytes), to, head: part == 0, tail: part + 1 >= count);
+        bool last = part + 1 >= count;
+        if (part < keys - 1) return Build(line, indent, int.MaxValue, PartStart(line, part, partBytes), PartStart(line, part + 1, partBytes), -1, -1, part == 0, last: false);
+        long keyFrom = part == keys - 1 ? PartStart(line, part, partBytes) : -1;
+        long valueFrom = part == keys - 1 ? line.ValueStart : PartStart(line, part, partBytes);
+        return Build(line, indent, int.MaxValue, keyFrom, line.KeyEnd, valueFrom, last ? line.ValueEnd : PartStart(line, part + 1, partBytes), part == 0, last);
     }
 
     /// <summary>The decoded text of the document bytes from <paramref name="start"/> to <paramref name="end"/>; the caller keeps the range within a size it can hold.</summary>
@@ -661,11 +687,12 @@ public sealed class JsonOutline : IDisposable
         return _codec.GetString(bytes.AsSpan(0, n));
     }
 
-    private JsonRenderedLine Build(JsonLine line, string indent, int max, long valueFrom, long valueTo, bool head, bool tail)
+    /// <summary>A row of a line: the key from <paramref name="keyFrom"/> and the value from <paramref name="valueFrom"/> (-1: not in the row), indented one level deeper unless <paramref name="first"/>.</summary>
+    private JsonRenderedLine Build(JsonLine line, string indent, int max, long keyFrom, long keyTo, long valueFrom, long valueTo, bool first, bool last)
     {
         var text = new StringBuilder();
         var spans = new List<JsonSpan>(4);
-        for (int i = head ? 0 : -1; i < line.Depth; i++) text.Append(indent);
+        for (int i = first ? 0 : -1; i < line.Depth; i++) text.Append(indent);
         void Piece(long start, long end, JsonTokenKind kind)
         {
             long length = Math.Min(end - start, max);
@@ -688,26 +715,27 @@ public sealed class JsonOutline : IDisposable
             long end = line.ValueEnd;
             if (line.Kind == JsonLineKind.Raw)
             {
-                var last = new byte[Math.Min(2, end - line.ValueStart)];
-                _source.Read(end - last.Length, last);
-                if (last is [.., 10]) end -= last is [13, 10] ? 2 : 1;
+                var tail = new byte[Math.Min(2, end - line.ValueStart)];
+                _source.Read(end - tail.Length, tail);
+                if (tail is [.., 10]) end -= tail is [13, 10] ? 2 : 1;
             }
             Piece(line.ValueStart, end, line.Kind == JsonLineKind.Raw ? JsonTokenKind.Raw : JsonTokenKind.Comment);
             return new JsonRenderedLine(line, text.ToString(), spans);
         }
-        if (line.HasKey && head)
+        if (line.HasKey && keyFrom >= 0)
         {
-            Piece(line.KeyStart, line.KeyEnd, JsonTokenKind.Key);
-            text.Append(": ");
+            Piece(keyFrom, keyTo, JsonTokenKind.Key);
+            if (valueFrom >= 0) text.Append(": ");
         }
-        switch (line.Kind)
-        {
-            case JsonLineKind.Value: Piece(valueFrom, valueTo, line.ValueKind); break;
-            case JsonLineKind.Open: Mark(line.Frame?.IsObject == true ? "{" : "[", line.ValueStart, line.ValueStart + 1); break;
-            case JsonLineKind.Close: Mark(line.Frame?.IsObject == true ? "}" : "]", line.ValueStart, line.ValueEnd); break;
-            case JsonLineKind.Empty: Mark(line.ValueKind == JsonTokenKind.Punctuation && IsObjectByte(line.ValueStart) ? "{}" : "[]", line.ValueStart, line.ValueEnd); break;
-        }
-        if (line.Comma && tail) text.Append(',');
+        if (valueFrom >= 0)
+            switch (line.Kind)
+            {
+                case JsonLineKind.Value: Piece(valueFrom, valueTo, line.ValueKind); break;
+                case JsonLineKind.Open: Mark(line.Frame?.IsObject == true ? "{" : "[", line.ValueStart, line.ValueStart + 1); break;
+                case JsonLineKind.Close: Mark(line.Frame?.IsObject == true ? "}" : "]", line.ValueStart, line.ValueEnd); break;
+                case JsonLineKind.Empty: Mark(line.ValueKind == JsonTokenKind.Punctuation && IsObjectByte(line.ValueStart) ? "{}" : "[]", line.ValueStart, line.ValueEnd); break;
+            }
+        if (line.Comma && last) text.Append(',');
         return new JsonRenderedLine(line, text.ToString(), spans);
     }
 

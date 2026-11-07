@@ -3143,6 +3143,6 @@
   "json.pretty.selectAllScanning": "Soubor se ještě prochází. Vybrat vše půjde, až se projde celý.",
   "json.pretty.cutNotHere": "Vyjmout lze jen část jednoho klíče nebo hodnoty. Výběr přes odsazení, závorky nebo čárky jen zkopírujte (Ctrl+C).",
   "json.pretty.pasteControl": "Do klíče ani hodnoty nelze vložit zalomení řádku ani jiný řídicí znak. Takový text vložte v textovém pohledu.",
-  "json.pretty.notLong": "Hodnota na řádku kurzoru není delší než 4 KiB, je vidět celá.",
+  "json.pretty.notLong": "Klíč ani hodnota na řádku kurzoru nejsou delší než 4 KiB, řádek je vidět celý.",
   "a11y.jsonPretty": "Formátovaný JSON"
 }

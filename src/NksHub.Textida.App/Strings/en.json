@@ -3087,6 +3087,6 @@
   "json.pretty.selectAllScanning": "The file is still being read. Select All works once it has been read to the end.",
   "json.pretty.cutNotHere": "Only part of one key or value can be cut. Copy a selection across indents, brackets or commas instead (Ctrl+C).",
   "json.pretty.pasteControl": "A line break or another control character cannot be pasted into a key or value. Paste such text in the text view.",
-  "json.pretty.notLong": "The value on the caret line is not longer than 4 KiB; all of it is shown.",
+  "json.pretty.notLong": "Neither the key nor the value on the caret line is longer than 4 KiB; the whole line is shown.",
   "a11y.jsonPretty": "Formatted JSON"
 }

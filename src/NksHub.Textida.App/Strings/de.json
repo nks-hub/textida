@@ -3087,6 +3087,6 @@
   "json.pretty.selectAllScanning": "Die Datei wird noch gelesen. Alles auswählen geht, sobald sie bis zum Ende gelesen ist.",
   "json.pretty.cutNotHere": "Ausschneiden geht nur innerhalb eines Schlüssels oder Werts. Eine Auswahl über Einrückung, Klammern oder Kommas nur kopieren (Strg+C).",
   "json.pretty.pasteControl": "In einen Schlüssel oder Wert lassen sich weder ein Zeilenumbruch noch ein anderes Steuerzeichen einfügen. Fügen Sie solchen Text in der Textansicht ein.",
-  "json.pretty.notLong": "Der Wert in der Zeile des Cursors ist nicht länger als 4 KiB und ganz zu sehen.",
+  "json.pretty.notLong": "Weder Schlüssel noch Wert in der Zeile des Cursors sind länger als 4 KiB; die Zeile ist ganz zu sehen.",
   "a11y.jsonPretty": "Formatiertes JSON"
 }
