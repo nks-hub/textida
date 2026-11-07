@@ -174,7 +174,8 @@ public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<
 /// so the memory follows the number of segments and a screen of lines reads a few blocks of the file whatever its size. The containers the
 /// noted states share are kept once. Several values in a row (JSON Lines) are accepted; from the first error on the lines show the source text.
 /// With comments on (JSONC) a comment between members, or between a key and its value, gets lines of its own and a comma before a closing bracket is accepted.
-/// An edit inside one value shifts the noted states after it; any other edit drops the states after it and the scan resumes from the last one before it.
+/// An edit inside one value shifts the noted states after it, and a scan that runs takes the shift in and goes on from where it is; any other edit drops
+/// the states after it and the scan resumes from the last one before it.
 /// An edit inside a string that adds or removes no quote, backslash or control byte shifts the decoded lines too, so it reads a few bytes whatever the length of the string.
 /// </summary>
 public sealed class JsonOutline : IDisposable
@@ -204,6 +205,9 @@ public sealed class JsonOutline : IDisposable
     private bool _complete;
     private (long Offset, string Message)? _error;
     private int _generation;
+    private int _scanRun; // a new value stops the running scan: the states it would note may be wrong
+    private bool _scanning;
+    private readonly List<(long Start, long Deleted, long Delta)> _shifts = []; // edits that only moved the text, for the running scan to take in
     private CancellationTokenSource? _cts;
     private readonly List<(int Generation, int Segment, JsonLine[] Lines)> _cache = [];
     private long _bytesRead;
@@ -273,48 +277,56 @@ public sealed class JsonOutline : IDisposable
         lock (_gate)
         {
             _generation++;
+            _scanRun++;
             _cts?.Cancel();
         }
     }
 
     // ---- scan ----
 
-    /// <summary>Starts (or resumes) the scan on a background thread.</summary>
+    /// <summary>Starts (or resumes) the scan on a background thread; a scan that runs already goes on.</summary>
     public void Start()
     {
         _started = true;
-        int generation;
+        int run;
         CancellationToken ct;
         lock (_gate)
         {
-            if (_complete) return;
-            _cts?.Cancel();
+            if (_complete || _scanning) return;
+            _scanning = true;
             _cts = new CancellationTokenSource();
             ct = _cts.Token;
-            generation = _generation;
+            run = _scanRun;
         }
         Task.Run(() =>
         {
-            try { Scan(generation, ct); }
+            try { Scan(run, ct); }
             catch (OperationCanceledException) { }
-            catch (Exception) when (Volatile.Read(ref _generation) != generation) { } // the snapshot of an old revision may be gone
+            catch (Exception) when (Volatile.Read(ref _scanRun) != run) { } // the snapshot of an old revision may be gone
+            finally
+            {
+                lock (_gate)
+                    if (run == _scanRun) _scanning = false;
+            }
         }, CancellationToken.None);
     }
 
     /// <summary>Runs the scan on the calling thread up to the end.</summary>
-    public void ScanToEnd() => Scan(Volatile.Read(ref _generation), CancellationToken.None);
+    public void ScanToEnd() => Scan(Volatile.Read(ref _scanRun), CancellationToken.None);
 
-    private void Scan(int generation, CancellationToken ct)
+    private void Scan(int run, CancellationToken ct)
     {
         ScanState state;
         long number;
         IByteSnapshot source;
+        int seen;
         lock (_gate)
         {
-            if (generation != _generation || _complete) return;
+            if (run != _scanRun || _complete) return;
             state = _points[^1];
             number = (_points.Count - 1) * (long)SegmentLines;
             source = _source;
+            seen = _shifts.Count;
         }
         var cursor = new Cursor(source, _codec, null, _comments);
         int minDepth = int.MaxValue;
@@ -333,7 +345,32 @@ public sealed class JsonOutline : IDisposable
                 bool raise;
                 lock (_gate)
                 {
-                    if (generation != _generation) return;
+                    if (run != _scanRun) return;
+                    if (seen < _shifts.Count)
+                    {
+                        // edits that only moved the text: the state read from the old bytes holds for the new ones once its offsets move too
+                        bool inside = false;
+                        for (; seen < _shifts.Count; seen++)
+                        {
+                            var (start, deleted, delta) = _shifts[seen];
+                            inside |= state.Offset > start && state.Offset < start + deleted;
+                            state = state with
+                            {
+                                Offset = state.Offset >= start + deleted ? state.Offset + delta : state.Offset,
+                                ErrorAt = Shift(state.ErrorAt, start, delta), KeyStart = Shift(state.KeyStart, start, delta), KeyEnd = Shift(state.KeyEnd, start, delta),
+                            };
+                        }
+                        source = _source;
+                        cursor = new Cursor(source, _codec, null, _comments);
+                        if (inside)
+                        {
+                            // the scan stood inside the edited bytes: it goes on from the last noted state
+                            state = _points[^1];
+                            number = (_points.Count - 1) * (long)SegmentLines;
+                            minDepth = int.MaxValue;
+                            continue;
+                        }
+                    }
                     if (more && number % SegmentLines == 0)
                     {
                         _minDepth[^1] = minDepth;
@@ -349,6 +386,7 @@ public sealed class JsonOutline : IDisposable
                         _minDepth[^1] = minDepth;
                         _complete = true;
                         _scanned = source.ByteLength;
+                        _shifts.Clear();
                     }
                     raise = !more || clock.ElapsedMilliseconds >= 50;
                 }
@@ -826,14 +864,17 @@ public sealed class JsonOutline : IDisposable
         lock (_gate)
         {
             _generation++;
-            _cts?.Cancel();
             _cache.Clear();
             _source = next;
             if (shifted)
             {
-                ShiftPoints(segment, start, delta, next);
+                ShiftPoints(segment, start, deleted, delta, next);
                 return true;
             }
+            _scanRun++;
+            _scanning = false;
+            _shifts.Clear();
+            _cts?.Cancel();
             _points.RemoveRange(segment + 1, _points.Count - segment - 1);
             _minDepth.RemoveRange(segment + 1, _minDepth.Count - segment - 1);
             _minDepth[segment] = int.MaxValue;
@@ -869,9 +910,10 @@ public sealed class JsonOutline : IDisposable
         return lo;
     }
 
-    /// <summary>Moves the noted states after <paramref name="segment"/> by <paramref name="delta"/>. Call under the gate.</summary>
-    private void ShiftPoints(int segment, long start, long delta, IByteSnapshot next)
+    /// <summary>Moves the noted states after <paramref name="segment"/> by <paramref name="delta"/> and tells a running scan. Call under the gate.</summary>
+    private void ShiftPoints(int segment, long start, long deleted, long delta, IByteSnapshot next)
     {
+        if (_scanning) _shifts.Add((start, deleted, delta));
         for (int i = segment + 1; i < _points.Count; i++)
         {
             var point = _points[i];
@@ -915,12 +957,11 @@ public sealed class JsonOutline : IDisposable
         {
             if (!ReferenceEquals(old, _source)) return false;
             int generation = ++_generation;
-            _cts?.Cancel();
             var kept = _cache.Where(c => c.Generation == generation - 1).Select(c => (generation, c.Segment, c.Segment < segment ? c.Lines : ShiftLines(c.Lines, start, delta))).ToList();
             _cache.Clear();
             _cache.AddRange(kept);
             _source = next;
-            ShiftPoints(segment, start, delta, next);
+            ShiftPoints(segment, start, deleted, delta, next);
         }
         return true;
     }

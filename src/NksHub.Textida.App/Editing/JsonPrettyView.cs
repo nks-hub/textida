@@ -114,8 +114,18 @@ internal sealed class JsonPrettyView : Grid, IDisposable
     /// <summary>The line whose long value is wrapped over several rows; -1 when none is.</summary>
     public long ExpandedLine => _expanded;
 
-    /// <summary>Bytes of a long value per row while it is wrapped: as many as fit the width of the view.</summary>
-    internal int PartBytes => Math.Clamp((int)(_canvas.TextWidth / Math.Max(1, _canvas.CharWidth)) - 8, 64, JsonOutline.MaxShownBytes);
+    /// <summary>Bytes of a long key or value per row while it is wrapped: as many as fit the width of the view, taken when the size or the font changes.</summary>
+    internal int PartBytes { get; private set; } = 64;
+
+    /// <summary>Takes the bytes per row for the present width; the caret stays on its character when the wrapped line flows anew.</summary>
+    private void UpdatePartBytes()
+    {
+        int next = Math.Clamp((int)(_canvas.TextWidth / Math.Max(1, _canvas.CharWidth)) - 8, 64, JsonOutline.MaxShownBytes);
+        if (next == PartBytes) return;
+        Pos? caret = _expanded >= 0 ? CaretPos : null;
+        PartBytes = next;
+        if (caret is { } place) PlaceCaret(place);
+    }
 
     public void Dispose()
     {
@@ -128,6 +138,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         _options = options;
         _canvas.InvalidateMeasure();
         _canvas.InvalidateVisual();
+        Dispatcher.UIThread.Post(UpdatePartBytes, DispatcherPriority.Background); // after the measure took the new character width
     }
 
     // ---- lines and rows ----
@@ -907,6 +918,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
         protected override void OnSizeChanged(SizeChangedEventArgs e)
         {
             base.OnSizeChanged(e);
+            owner.UpdatePartBytes();
             owner.UpdateScrollRange();
         }
 

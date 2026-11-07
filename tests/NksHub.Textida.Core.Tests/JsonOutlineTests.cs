@@ -373,6 +373,60 @@ public class JsonOutlineTests
         Assert.Equal(fresh.GetLines(0, int.MaxValue).Select(l => fresh.Render(l).Text), outline.GetLines(0, int.MaxValue).Select(l => outline.Render(l).Text));
     }
 
+    /// <summary>A source whose reads past <paramref name="gate"/> wait until <see cref="Open"/> is set, counting the bytes read.</summary>
+    private sealed class Gated(IByteSnapshot inner, long gate) : IByteSnapshot
+    {
+        public readonly ManualResetEventSlim Reached = new(), Open = new();
+        public long Reads;
+        public long ByteLength => inner.ByteLength;
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            if (offset + destination.Length > gate && !Open.IsSet)
+            {
+                Reached.Set();
+                Open.Wait(TimeSpan.FromSeconds(30));
+            }
+            int n = inner.Read(offset, destination);
+            Interlocked.Add(ref Reads, n);
+            return n;
+        }
+    }
+
+    [Fact]
+    public void Typing_while_the_background_scan_runs_lets_the_scan_go_on_instead_of_reading_again()
+    {
+        var json = new StringBuilder("[");
+        for (int i = 0; i < 600; i++) json.Append("\"s").Append(i).Append("\",");
+        int stringStart = json.Length;
+        json.Append('"').Append('a', 16 << 20).Append("\",1]");
+        var bytes = Encoding.ASCII.GetBytes(json.ToString());
+        var source = new Gated(new ArraySnapshot(bytes), stringStart + (8 << 20));
+        using var outline = new JsonOutline(source, 0, TextCodec.Utf8);
+        Assert.Equal("  \"s3\",", outline.Render(outline.GetLines(0, 10)[4]).Text);
+        outline.Start();
+        Assert.True(source.Reached.Wait(TimeSpan.FromSeconds(30))); // the scan noted the first segment and stands inside the long string
+
+        long at = json.ToString().IndexOf("\"s3\"", StringComparison.Ordinal) + 2;
+        var next = new Inserted(source, at, "x"u8.ToArray());
+        Assert.True(outline.Update(next, at, 0, 1));
+        outline.Start(); // what an edit of the document does
+        long before = Interlocked.Read(ref source.Reads);
+        source.Open.Set();
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); !outline.State.Complete && sw.ElapsedMilliseconds < 30_000;) Thread.Sleep(5);
+        Assert.True(outline.State.Complete);
+        long read = Interlocked.Read(ref source.Reads) - before;
+        Assert.True(read < bytes.Length - stringStart - (8 << 20) + (1 << 20), $"the scan read {read} bytes after the edit");
+
+        using var fresh = new JsonOutline(next, 0, TextCodec.Utf8);
+        fresh.ScanToEnd();
+        Assert.Equal(fresh.State, outline.State);
+        Assert.Equal(fresh.SegmentCount, outline.SegmentCount);
+        Assert.Equal("  \"sx3\",", outline.Render(outline.GetLine(4)!.Value).Text);
+        Assert.Equal("  1", outline.Render(outline.GetLine(602)!.Value).Text);
+        Assert.Equal(fresh.GetLine(601)!.Value.ValueEnd, outline.GetLine(601)!.Value.ValueEnd);
+    }
+
     [Fact]
     public void A_long_value_wraps_into_parts_that_cover_it_whole()
     {

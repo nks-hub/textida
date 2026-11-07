@@ -334,6 +334,30 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void After_a_resize_the_caret_stays_on_its_character_in_a_wrapped_value()
+    {
+        string json = "{\"k\":\"" + new string('x', 9000) + "\",\"n\":1}";
+        Open(json);
+        _w.Width = 900;
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, 0);
+        Press(Key.End);
+        Assert.Equal(1, view.ExpandedLine);
+        view.MoveCaret(1, 10, part: 20);
+        long offset = view.SourceOffset;
+        int partBytes = view.PartBytes;
+        Assert.Equal(20, view.CaretPart);
+
+        _w.Width = 1800;
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(view.PartBytes > partBytes, $"{view.PartBytes} bytes per row after {partBytes}");
+        Assert.True(view.CaretPart < 20);
+        Assert.Equal(offset, view.SourceOffset);
+    }
+
+    [AvaloniaFact]
     public async Task A_long_key_wraps_over_rows_and_can_be_edited_and_copied_whole()
     {
         string key = new('k', 6000);
