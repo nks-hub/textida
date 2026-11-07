@@ -602,6 +602,7 @@ public static partial class K
     public const string SettingsSectionIndent = "settings.section.editor.indent";
     public const string SettingsSectionOnSave = "settings.section.editor.onSave";
     public const string SettingsSectionLanguages = "settings.section.editor.languages";
+    public const string SettingsSectionEncoding = "settings.section.editor.encoding";
     public const string SettingsSectionOpening = "settings.section.files.open";
     public const string SettingsSectionMarkdown = "settings.section.markdown";
     public const string SettingsSectionSaving = "settings.section.files.save";
@@ -610,7 +611,7 @@ public static partial class K
     public const string SettingsSectionGitGutter = "settings.section.git.gutter";
     public const string SettingsSectionGitSync = "settings.section.git.sync";
     public const string SettingsSectionGitCommit = "settings.section.git.commit";
-    public const string SettingsSectionHistoryLimits = "settings.section.history.limits";
+    public const string SettingsSectionHistory = "settings.section.history";
     public const string SettingsSectionCompare = "settings.section.tools.compare";
     public const string SettingsSectionSpell = "settings.section.tools.spell";
     public const string SettingsSectionWeb = "settings.section.tools.web";

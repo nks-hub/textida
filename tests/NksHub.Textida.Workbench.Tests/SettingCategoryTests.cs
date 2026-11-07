@@ -99,14 +99,14 @@ public class SettingCategoryTests
         Assert.Contains("workbench.uiLanguage", byCategory[SettingCategories.Appearance]);
         Assert.Contains("workbench.theme", byCategory[SettingCategories.Appearance]);
         Assert.Contains("editor.tabSize", byCategory[SettingCategories.EditorFormat]);
-        Assert.Contains("files.encoding", byCategory[SettingCategories.EditorEncoding]);
-        Assert.Contains("history.enabled", byCategory[SettingCategories.History]);
+        Assert.Contains("files.encoding", byCategory[SettingCategories.EditorFormat]);
+        Assert.Contains("history.enabled", byCategory[SettingCategories.Files]);
         Assert.Contains("git.gutter", byCategory[SettingCategories.Git]);
-        Assert.Contains("hex.structureTemplates", byCategory[SettingCategories.Hex]);
+        Assert.Contains("hex.structureTemplates", byCategory[SettingCategories.Advanced]);
         Assert.All(SettingCategories.Legacy, legacy => Assert.False(byCategory.ContainsKey(legacy), legacy + " is for settings declared the old way"));
-        // each part of the editor is a page worth a node
-        Assert.All(new[] { SettingCategories.EditorDisplay, SettingCategories.EditorTyping, SettingCategories.EditorFormat, SettingCategories.EditorEncoding, SettingCategories.Files, SettingCategories.Tools, SettingCategories.Advanced },
-            id => Assert.True(byCategory[id].Count >= 2, id));
+        // review of 7. 11. 2026: no page of one or two settings; the thin categories (encoding, search, hex, history, plugins) were merged. System also holds the integration section.
+        Assert.All(byCategory.Where(c => c.Key != SettingCategories.System), c => Assert.True(c.Value.Count >= 3, c.Key));
+        Assert.Equal(9, byCategory.Count);
     }
 
     [Fact]
