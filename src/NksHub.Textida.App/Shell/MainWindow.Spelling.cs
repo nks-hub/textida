@@ -77,7 +77,7 @@ internal sealed partial class MainWindow
         {
             if (_spellJobs.GetValueOrDefault(od) != cts) return;
             _spellJobs.Remove(od);
-            foreach (var tab in od.Views) await RefreshSpellingAsync(tab);
+            foreach (var tab in od.Views.ToList()) await RefreshSpellingAsync(tab); // a view can close or open while the check waits for the worker
         }), cts.Token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
     }
 

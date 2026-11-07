@@ -289,6 +289,27 @@ public class SpellingAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task A_tab_closed_while_the_check_of_its_last_edit_runs_breaks_nothing()
+    {
+        string text = string.Concat(Enumerable.Repeat("hello helo world wrld ", 2000)) + "\n"; // long enough for the check to be still running on the worker
+        await SpellOnAsync("first.txt", "helo\n");
+        for (int i = 0; i < 5; i++)
+        {
+            var tab = _w.OpenFile(_temp.File($"a{i}.txt", text), null);
+            await Until(() => tab.Surface!.SpellMarks.Count == 4000, "the underlines");
+            tab.Editor!.Document.Insert(0, " ");
+            Thread.Sleep(_w.SpellDelay * 3);
+            Dispatcher.UIThread.RunJobs(); // the check of the edit starts and waits for the worker
+            _w.CloseTab(tab); // and the view it walks goes meanwhile
+            for (int j = 0; j < 20; j++)
+            {
+                await Task.Delay(15);
+                Dispatcher.UIThread.RunJobs();
+            }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task The_next_mistake_selects_the_next_underlined_word_and_wraps_round()
     {
         var tab = await SpellOnAsync("a.txt", "helo hello wrld\n");
