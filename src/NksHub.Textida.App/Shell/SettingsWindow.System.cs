@@ -14,23 +14,46 @@ namespace NksHub.Textida.App.Shell;
 
 /// <summary>
 /// The System integration section of the settings. On Windows: the Explorer menu entry, the file associations and the two shortcuts. On macOS: the terminal command, the Finder quick action and the file types
-/// (<see cref="MacIntegrationSection"/>). It is found by the search like a setting. Nothing is stored in the settings file: every switch shows what the registry and the disk say, and a change is written at once.
+/// (<see cref="MacIntegrationSection"/>). On Linux: the folder action of file managers. It is found by the search like a setting. Nothing is stored in the settings file: every switch shows what the registry and the disk say, and a change is written at once.
 /// </summary>
 internal sealed partial class SettingsWindow
 {
     /// <summary>Tag of the section among the rows, for tests.</summary>
     internal const string SystemSectionId = "system.integration";
 
+    private static bool HasSystemSection => LinuxHost.Applies || OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+
     private static bool MatchesSystemSection(string query)
     {
-        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS()) return false;
+        if (!HasSystemSection) return false;
         var words = TextMatching.Fold(query).Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return true;
-        var text = TextMatching.Fold(string.Join(' ', Loc.Get(K.SettingsSystemTitle), Loc.Get(OperatingSystem.IsMacOS() ? K.MacKeywords : K.SettingsSystemKeywords), string.Join(' ', IntegrationExtensions.All)));
+        var text = TextMatching.Fold(LinuxHost.Applies ? Loc.Get(K.SettingsSystemTitle) + " " + Loc.Get(K.SettingsLinuxKeywords)
+            : string.Join(' ', Loc.Get(K.SettingsSystemTitle), Loc.Get(OperatingSystem.IsMacOS() ? K.MacKeywords : K.SettingsSystemKeywords), string.Join(' ', IntegrationExtensions.All)));
         return words.All(w => text.Contains(w, StringComparison.Ordinal));
     }
 
-    private Border SystemSection() => OperatingSystem.IsMacOS() ? MacSystemSection() : OperatingSystem.IsWindows() ? WindowsSystemSection() : throw new PlatformNotSupportedException();
+    private Border SystemSection() => LinuxHost.Applies ? LinuxSystemSection() : OperatingSystem.IsMacOS() ? MacSystemSection() : OperatingSystem.IsWindows() ? WindowsSystemSection() : throw new PlatformNotSupportedException();
+
+    /// <summary>The section on Linux: the folder action "Open in Textida as project" (<see cref="LinuxDesktop"/>), the same entry install.sh writes.</summary>
+    private static Border LinuxSystemSection()
+    {
+        var stack = new StackPanel { Spacing = 6 };
+        stack.Children.Add(new TextBlock { Text = Loc.Get(K.SettingsSystemTitle), FontWeight = FontWeight.SemiBold });
+        var exe = LinuxHost.ProgramPath;
+        stack.Children.Add(new TextBlock { Text = Loc.Get(exe is null ? K.SettingsLinuxUnavailable : K.SettingsLinuxDescription), TextWrapping = TextWrapping.Wrap, Opacity = 0.8 });
+        if (exe is not null)
+        {
+            var locations = LinuxHost.Locations;
+            var problem = new TextBlock { Foreground = ThemeColors.Danger, IsVisible = false, TextWrapping = TextWrapping.Wrap };
+            stack.Children.Add(Switch(Loc.Get(K.SettingsSystemFolderMenu, ("label", Loc.Get(K.ShellFolderMenuLabel))), LinuxDesktop.HasProjectEntry(locations), problem, K.SettingsLinuxFailed,
+                on => LinuxDesktop.SetProjectEntry(locations, on, exe)));
+            stack.Children.Add(problem);
+        }
+        var row = new Border { Child = stack, Padding = new Thickness(12, 8), Tag = SystemSectionId, CornerRadius = new CornerRadius(6) };
+        row.Classes.Add("settingrow");
+        return row;
+    }
 
     /// <summary>The section on a Mac: the same control as the window of Settings, System Integration, macOS Integration.</summary>
     private static Border MacSystemSection()
@@ -92,7 +115,15 @@ internal sealed partial class SettingsWindow
 
     /// <summary>A switch that applies <paramref name="apply"/> when it is flipped and flips back, with the reason shown, when Windows refuses.</summary>
     [SupportedOSPlatform("windows")]
-    private static CheckBox Toggle(string label, bool state, SystemIntegration integration, TextBlock problem, Action<bool> apply)
+    private static CheckBox Toggle(string label, bool state, SystemIntegration integration, TextBlock problem, Action<bool> apply) =>
+        Switch(label, state, problem, K.ShellFailed, on =>
+        {
+            apply(on);
+            integration.Notify();
+        });
+
+    /// <summary>A switch that applies <paramref name="apply"/> when it is flipped and flips back, with the reason in <paramref name="failedKey"/> shown, when the system refuses.</summary>
+    private static CheckBox Switch(string label, bool state, TextBlock problem, string failedKey, Action<bool> apply)
     {
         var box = new CheckBox { Content = label, IsChecked = state };
         var reverting = false;
@@ -103,12 +134,11 @@ internal sealed partial class SettingsWindow
             try
             {
                 apply(on);
-                integration.Notify();
                 problem.IsVisible = false;
             }
             catch (Exception e) when (e is UnauthorizedAccessException or SecurityException or IOException)
             {
-                problem.Text = Loc.Get(K.ShellFailed, ("reason", e.Message));
+                problem.Text = Loc.Get(failedKey, ("reason", e.Message));
                 problem.IsVisible = true;
                 reverting = true;
                 box.IsChecked = !on;
