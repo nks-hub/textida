@@ -413,6 +413,20 @@ public class MarkdownGfmRenderTests(ITestOutputHelper output) : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_paragraph_cut_at_a_tall_picture_before_the_wrapping_space_adds_no_empty_line()
+    {
+        // the words before the picture grow one letter at a time, so the picture, and the space after it or before it, lands at the end of a line in some of the cases
+        for (int n = 30; n < 62; n++)
+        {
+            var host = Host("x" + string.Concat(Enumerable.Range(0, n).Select(i => i % 3 == 0 ? " ab" : "c")) + " ![bar](" + Tall + ") tail words here and more words to wrap the end.", 320);
+            var lines = Enumerable.Range(0, 32).Select(i => host.Reader.LayoutOf(0, i)).OfType<Avalonia.Media.TextFormatting.TextLayout>().SelectMany(l => l.TextLines).ToList();
+            Assert.All(lines, l => Assert.True(l.Width > 0, $"n={n}: an empty line at {l.FirstTextSourceIndex}"));
+            Assert.Equal(1, lines.Count(l => l.Height > 40));
+            Assert.Equal(lines.Sum(l => l.Height), host.Reader.BlockBounds(0).Height, 1);
+        }
+    }
+
+    [AvaloniaFact]
     public void The_follow_ups_render_to_a_picture()
     {
         var host = Host("Text with `inline code` and a picture ![dot](" + Wide + ") in the line, then more `code`.\n\n"

@@ -786,26 +786,24 @@ internal sealed partial class MarkdownReader : Control
     }
 
     /// <summary>
-    /// A paragraph with a picture taller than its line, cut into boxes stacked one under the other: runs of ordinary lines keep the line height of the page, and a line with a tall picture gets the
-    /// height it needs (as in a browser, only that line grows). The cuts follow the lines of the whole paragraph, so the text wraps where it did.
+    /// A paragraph with a picture taller than its line, cut into one box per line stacked one under the other: ordinary lines keep the line height of the page, and a line with a tall picture gets
+    /// the height it needs (as in a browser, only that line grows). Each box holds exactly one line of the whole paragraph and does not wrap again, so the text breaks where it did; wrapping a cut
+    /// again would push the space that ends it onto an empty line of its own when it overhangs the width.
     /// </summary>
     private List<Box> SplitTallLines(ReaderBlock b, Box whole, IReadOnlyList<(int Offset, Control Control)> pictures, double width, IBrush brush, FontWeight weight)
     {
         var parts = new List<Box>();
         var lines = whole.Layout.TextLines;
         double y = 0;
-        for (int first = 0; first < lines.Count;)
+        for (int i = 0; i < lines.Count; i++)
         {
-            bool tall = lines[first].Extent > lines[first].Height + 0.5;
-            int last = first;
-            while (!tall && last + 1 < lines.Count && lines[last + 1].Extent <= lines[last + 1].Height + 0.5) last++;
-            int from = lines[first].FirstTextSourceIndex, to = lines[last].FirstTextSourceIndex + lines[last].Length;
-            int start = whole.FromLayout(from), end = last == lines.Count - 1 ? whole.Length : whole.FromLayout(to);
+            bool tall = lines[i].Extent > lines[i].Height + 0.5;
+            int from = lines[i].FirstTextSourceIndex, to = from + lines[i].Length;
+            int start = whole.FromLayout(from), end = i == lines.Count - 1 ? whole.Length : whole.FromLayout(to);
             var own = pictures.Where(x => whole.PicturePosition(x.Control) is var at && at >= from && at < to).ToList();
-            var part = TextBox(b, start, end - start, width, TextWrapping.Wrap, brush, Sans, weight, new Point(whole.Origin.X, y), pictures: own, lineHeight: tall ? double.NaN : null);
+            var part = TextBox(b, start, end - start, width, TextWrapping.NoWrap, brush, Sans, weight, new Point(whole.Origin.X, y), pictures: own, lineHeight: tall ? double.NaN : null);
             parts.Add(part);
             y += part.Layout.Height;
-            first = last + 1;
         }
         return parts;
     }
