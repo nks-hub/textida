@@ -22,6 +22,7 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 
 ### Fixed
 
+- Spell checking no longer fails when a tab closes while its last edit is being checked, and adding a word to the user's words is safe while a check runs.
 - A Markdown paragraph split at a tall picture no longer gets an empty line where the line wraps.
 - The notice after importing a theme stays until the settings page is left or the notice is closed.
 - Linux desktop entries quote the program path, so a home folder with a space works.
