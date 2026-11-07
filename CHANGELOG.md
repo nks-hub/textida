@@ -2,6 +2,31 @@
 
 Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular release. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
 
+## [0.1.7] - 2026-11-07
+
+### Added
+
+- The Markdown reader column follows the window width; `markdown.readerMaxWidth` sets a fixed width. Tables and code blocks use the full width and a wide table scrolls sideways instead of wrapping its cells word by word.
+- Screen readers get the whole text of the Markdown reader, with words, selection and caret, through the same layer as the editor (UI Automation on Windows, NSAccessibility on macOS).
+- Shortcut capture in the settings records two-step shortcuts such as Ctrl+K Ctrl+U and reports conflicts with a shortcut's first step.
+- On Linux the System page of the settings turns the "Open in Textida as project" folder action on and off.
+- The formatted JSON view wraps and edits keys longer than 4 KiB and shows JSONC comments placed between a key and its value.
+- The hex minimap uses the colours of the editor theme.
+
+### Changed
+
+- The menus are shorter: 347 items instead of 468, at most 15 items per menu and two submenu levels. Rare and expert commands are only in the command palette, which still lists every command. Hex commands have their own menu that appears in hex mode.
+- The settings window has 8 top-level pages instead of 11, expert settings are on the Advanced page and descriptions are one sentence.
+- Text-only commands are disabled in the formatted JSON view; Cut and Paste still work inside a value.
+- An edit during the background scan of a large JSON file no longer restarts the scan.
+
+### Fixed
+
+- A Markdown paragraph split at a tall picture no longer gets an empty line where the line wraps.
+- The notice after importing a theme stays until the settings page is left or the notice is closed.
+- Linux desktop entries quote the program path, so a home folder with a space works.
+- The path of a JSON line that opens an object or array no longer repeats its key.
+
 ## [0.1.6] - 2026-11-07
 
 ### Fixed
