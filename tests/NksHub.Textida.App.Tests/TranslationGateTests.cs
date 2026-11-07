@@ -22,6 +22,7 @@ public class TranslationGateTests
         ["terminal.panel"] = "de", // Terminal
         ["agentFiles.kindSkill"] = "cs sk de", // the name of the file kind of agents
         ["encoding.group.Unicode"] = "cs sk de", // the name of a standard
+        ["settings.section.markdown"] = "cs sk de", // the name of a format
         ["settings.value.files.encoding.utf-8"] = "cs sk de", // the name of a standard or a product
         ["settings.value.files.encoding.utf-16le"] = "cs sk de", // the name of a standard or a product
         ["settings.value.files.encoding.utf-16be"] = "cs sk de", // the name of a standard or a product

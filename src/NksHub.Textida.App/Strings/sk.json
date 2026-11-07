@@ -2629,6 +2629,7 @@
   "settings.section.editor.onSave": "Pri ukladaní",
   "settings.section.editor.languages": "Jazyky",
   "settings.section.files.open": "Otváranie súborov",
+  "settings.section.markdown": "Markdown",
   "settings.section.files.save": "Ukladanie a obnova",
   "settings.section.files.remote": "Vzdialené súbory",
   "settings.section.files.secrets": "Tajné súbory",

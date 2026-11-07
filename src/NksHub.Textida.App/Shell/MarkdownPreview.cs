@@ -95,7 +95,7 @@ internal sealed class MarkdownPreview : ScrollViewer, IDisposable
             _settling = true;
             if (_reader is null)
             {
-                _reader = new MarkdownReader(document, _window.PreviewContext(_doc, null) with { JumpToLine = line => ScrollToLine(line) });
+                _reader = new MarkdownReader(document, _window.PreviewContext(_doc, null) with { JumpToLine = line => ScrollToLine(line) }) { MaxTextWidth = _window.ReaderMaxWidth };
                 Content = _reader;
             }
             else _reader.SetDocument(document);

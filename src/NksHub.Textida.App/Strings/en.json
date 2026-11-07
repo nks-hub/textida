@@ -2578,6 +2578,7 @@
   "settings.section.editor.onSave": "On Save",
   "settings.section.editor.languages": "Languages",
   "settings.section.files.open": "Opening Files",
+  "settings.section.markdown": "Markdown",
   "settings.section.files.save": "Saving and Recovery",
   "settings.section.files.remote": "Remote Files",
   "settings.section.files.secrets": "Secret Files",

@@ -8725,6 +8725,25 @@
       ]
     },
     {
+      "key": "markdown.readerMaxWidth",
+      "type": "integer",
+      "default": 0,
+      "title": "setting.markdown.readerMaxWidth.title",
+      "description": "setting.markdown.readerMaxWidth.description",
+      "category": "cat.files",
+      "scope": "application",
+      "step": 20,
+      "minimum": 0,
+      "maximum": 4000,
+      "tags": [
+        "markdown",
+        "preview",
+        "read",
+        "width",
+        "column"
+      ]
+    },
+    {
       "key": "editor.clipboardHistorySize",
       "type": "integer",
       "default": 20,

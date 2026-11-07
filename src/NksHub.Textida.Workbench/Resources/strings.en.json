@@ -530,6 +530,8 @@
   "setting.files.imageOpen.description": "How a picture file (PNG, JPEG, GIF, BMP, WebP, ICO) opens: as a picture, as text, or in hex. The bar above the file changes the view at any time.",
   "setting.markdown.defaultMode.title": "Default Markdown mode",
   "setting.markdown.defaultMode.description": "How a Markdown file opens: for reading as a rendered page, for editing with the page beside the editor, or as source. Applies to files opened from now on.",
+  "setting.markdown.readerMaxWidth.title": "Maximum text width of the Markdown reader (px)",
+  "setting.markdown.readerMaxWidth.description": "The widest column of text when reading or previewing Markdown. 0 lets the text follow the width of the window. Tables and code blocks may always use the full width of the window.",
   "cmd.table.editRegion": "Edit Selection as Table...",
   "cmd.table.dialect": "Table Delimiter and Header...",
   "cmd.table.insertRow": "Insert Row",

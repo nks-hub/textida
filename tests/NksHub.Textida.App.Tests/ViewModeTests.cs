@@ -562,6 +562,22 @@ public class ViewModeTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task The_max_width_setting_reaches_the_open_reader_and_a_new_one()
+    {
+        var tab = OpenMarkdown("w.md", "# Title\n\ntext\n", "read");
+        await ReadyMarkdown();
+        var reader = Assert.IsType<MarkdownPreview>(tab.Custom).Reader!;
+        Assert.Equal(0, reader.MaxTextWidth); // follows the window by default
+        _app.Workbench.Set("markdown.readerMaxWidth", 980);
+        Assert.Equal(980, reader.MaxTextWidth);
+        var other = OpenMarkdown("w2.md", "text\n");
+        await ReadyMarkdown();
+        Assert.Equal(980, Assert.IsType<MarkdownPreview>(other.Custom).Reader!.MaxTextWidth);
+        _app.Workbench.Set("markdown.readerMaxWidth", 0);
+        Assert.Equal(0, reader.MaxTextWidth);
+    }
+
+    [AvaloniaFact]
     public async Task Editing_shows_the_editor_with_the_page_beside_it_and_source_the_text_only_by_the_bar_the_commands_and_the_key()
     {
         var tab = OpenMarkdown("b.md", "# Title\n\ntext\n", "read");

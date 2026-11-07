@@ -530,6 +530,8 @@
   "setting.files.imageOpen.description": "Wie eine Bilddatei (PNG, JPEG, GIF, BMP, WebP, ICO) geöffnet wird: als Bild, als Text oder in Hex. Die Leiste über der Datei wechselt die Ansicht jederzeit.",
   "setting.markdown.defaultMode.title": "Standardmodus für Markdown",
   "setting.markdown.defaultMode.description": "Wie eine Markdown-Datei geöffnet wird: zum Lesen als gerenderte Seite, zum Bearbeiten mit der Seite neben dem Editor oder als Quelltext. Gilt für Dateien, die ab jetzt geöffnet werden.",
+  "setting.markdown.readerMaxWidth.title": "Maximale Textbreite des Markdown-Lesers (px)",
+  "setting.markdown.readerMaxWidth.description": "Die breiteste Textspalte beim Lesen und in der Vorschau von Markdown. 0 lässt den Text der Fensterbreite folgen. Tabellen und Codeblöcke dürfen immer die ganze Fensterbreite nutzen.",
   "cmd.table.editRegion": "Auswahl als Tabelle bearbeiten...",
   "cmd.table.dialect": "Tabellentrennzeichen und Kopfzeile...",
   "cmd.table.insertRow": "Zeile einfügen",
