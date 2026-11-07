@@ -519,16 +519,15 @@ public class AccessibilityGateTests : IDisposable
         var commands = wb.Commands.Commands.ToDictionary(c => c.Id, StringComparer.Ordinal);
         Assert.All(named, id => Assert.Contains(id, commands.Keys));
 
-        // all of them, in all four languages, in the palette (not hidden) and in a menu; the sizes of a row are the items of the layout menu
+        // all of them, in all four languages, in the palette (not hidden); the frequent ones also in the Hex menu (review of 7. 11. 2026: the rare ones live in the palette)
         var inMenu = CommandIds(_w.MenuModel).ToHashSet(StringComparer.Ordinal);
         var hexCommands = commands.Values.Where(c => c.Id.StartsWith("nks.hex.", StringComparison.Ordinal)).Concat(named.Select(id => commands[id])).DistinctBy(c => c.Id).ToList();
         Assert.True(hexCommands.Count >= 30, $"only {hexCommands.Count} hex commands");
+        Assert.All(new[] { "nks.hex.selectTo", "nks.hex.toggleInsert", "nks.hex.inspector", "nks.hex.template", "nks.hex.bookmarks.panel", "nks.hex.compare.file", "nks.hex.copyAs", "nks.hex.checksum" }, id => Assert.True(inMenu.Contains(id), id + " is in no menu"));
         foreach (var command in hexCommands)
         {
             Assert.False(command.Hidden, command.Id + " is hidden from the palette");
             Assert.True(wb.Commands.HasHandler(command.Id), command.Id + " does nothing");
-            if (command.Id.StartsWith("nks.hex.", StringComparison.Ordinal) && !command.Id.StartsWith("nks.hex.bytesPerRow", StringComparison.Ordinal))
-                Assert.True(inMenu.Contains(command.Id), command.Id + " is in no menu");
             foreach (var lang in A11yAudit.Languages) Assert.True(StringTable.LoadBuiltin(lang).HasOwn(command.TitleKey), $"{lang}: {command.Id} has no title");
         }
 

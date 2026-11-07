@@ -198,7 +198,7 @@ public class ConversionTests : IDisposable
             Assert.Equal(conversion.TitleKey, command.TitleKey);
             Assert.True(command.Repeatable && command.Macro, conversion.CommandId);
             Assert.True(wb.Commands.HasHandler(conversion.CommandId), conversion.CommandId);
-            Assert.Contains(conversion.CommandId, inMenus);
+            Assert.True(inMenus.Contains(conversion.CommandId) || !command.Hidden, conversion.CommandId);
             foreach (var language in Loc.Languages)
                 Assert.True(StringTable.LoadBuiltin(language).HasOwn(conversion.TitleKey), $"{language}: {conversion.TitleKey}");
         }
@@ -257,15 +257,16 @@ public class ConversionTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void Every_special_conversion_is_in_the_command_palette_under_its_title_and_in_the_edit_menu_submenu()
+    public void Every_special_conversion_is_in_the_command_palette_under_its_title_and_the_common_ones_in_the_edit_menu_submenu()
     {
         _app.SpecialConversions = SpecialConversions.All;
         var tab = Open("a b");
         tab.Editor!.Select(0, 3);
         var inMenu = _w.MenuModel.Single(g => g.Label == "Úpravy").Items.OfType<MenuGroup>().SelectMany(g => g.Items.OfType<MenuCommand>()).Select(c => c.CommandId).ToList();
+        // review of 7. 11. 2026: Base64, URL, accents and tabs stay in the menu; the number bases and quoted-printable are in the palette
+        foreach (var id in new[] { "nks.edit.convert.base64Encode", "nks.edit.convert.urlDecode", "nks.edit.convert.removeAccents", "nks.edit.convert.tabsToSpaces" }) Assert.Contains(id, inMenu);
         foreach (var conversion in SpecialConversions.All)
         {
-            Assert.Contains(conversion.CommandId, inMenu);
             _w.ShowPalette();
             _w.SetPaletteQuery(_app.Workbench.Strings.Get(conversion.TitleKey));
             Assert.Contains(_w.PaletteResults, r => r.CommandId == conversion.CommandId && r.Enabled);

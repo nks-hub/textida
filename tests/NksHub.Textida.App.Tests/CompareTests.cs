@@ -344,7 +344,7 @@ public class CompareTests : IDisposable
         var nodes = MenuBuilder.Nodes(_app.Workbench, new ShellContext(_w, forMenu: true), _ => null, _ => { }, "editor.context");
         var ids = nodes.OfType<MenuCommand>().Select(c => c.CommandId).ToList();
         Assert.Contains("nks.compare.clipboard", ids);
-        Assert.Contains("nks.file.compareWithDisk", ids);
+        Assert.DoesNotContain("nks.file.compareWithDisk", ids); // the short context menu keeps one compare (review of 7. 11. 2026)
         Assert.Contains("nks.edit.paste", ids);
         Assert.Equal("Porovnat se schránkou", nodes.OfType<MenuCommand>().Single(c => c.CommandId == "nks.compare.clipboard").Label);
 
