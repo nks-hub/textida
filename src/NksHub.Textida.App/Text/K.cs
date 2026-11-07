@@ -522,6 +522,7 @@ public static partial class K
     public const string SettingsColorA11y = "a11y.settings.color";
     public const string SettingsShortcutChange = "settings.shortcut.change";
     public const string SettingsShortcutPress = "settings.shortcut.press";
+    public const string SettingsShortcutPending = "settings.shortcut.pending";
     public const string SettingsShortcutNone = "settings.shortcut.none";
     public const string SettingsShortcutReset = "settings.shortcut.reset";
     public const string SettingsShortcutChangeA11y = "a11y.settings.shortcut.change";
@@ -2726,6 +2727,10 @@ public static partial class K
     public const string SettingsSystemDefaultNote = "settings.system.defaultNote";
     public const string SettingsSystemDefaultButton = "settings.system.defaultButton";
     public const string SettingsSystemAssocItem = "settings.system.assocItem";
+    public const string SettingsLinuxDescription = "settings.linux.description";
+    public const string SettingsLinuxKeywords = "settings.linux.keywords";
+    public const string SettingsLinuxUnavailable = "settings.linux.unavailable";
+    public const string SettingsLinuxFailed = "settings.linux.failed";
     public const string MacTitle = "mac.title";
     public const string MacDescription = "mac.description";
     public const string MacNotInBundle = "mac.notInBundle";

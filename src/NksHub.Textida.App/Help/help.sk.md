@@ -296,6 +296,7 @@ commands: nks.app.openSettings
 - Jazyk rozhrania je vo Vzhľade: voľba platí hneď a zmení ponuky, hlásenia aj tohto pomocníka.
 - Nezmyselná hodnota sa odmietne a riadok napíše, čo s ňou je. Ak sa súbor nastavení nedá zapísať, nad zoznamom je dôvod.
 - Konflikty skratiek sú vidieť pri príslušných riadkoch.
+- Skratku zmeníte tlačidlom Zmeniť… a stlačením novej skratky. Dvojkroková skratka ako Ctrl+K Ctrl+U sa zapíše, keď po druhom stlačení chvíľu počkáte; po jednom stlačení a chvíli čakania sa zapíše jednoduchá skratka. Esc zachytenie zruší, Backspace vymaže, čo ste zatiaľ stlačili. Skratka, ktorá je rovnaká ako iná, alebo ktorej prvý krok je skratkou iného príkazu, sa zapíše a riadok ukáže konflikt.
 - Skupina Pokročilé obsahuje voľby, ktoré potrebuje málo ľudí: rolovanie za koniec textu, vystrihnutie celého riadka bez výberu, skrytie ukazovateľa myši pri písaní, odkazy cez Ctrl+klik, odsadenie zalomených riadkov, koľko posledných súborov a krokov späť sa drží, interval automatického ukladania, dobu blikania textového kurzora (0: neblikne), plynulé rolovanie kolieskom myši a koľko riadkov a stĺpcov okolo obrazovky sa naraz zafarbí. Textový kurzor s obvyklou dobou blikania je kurzor editora; iná doba ho vykreslí v programe a blokový výber používa zase kurzor editora.
 - F1 v tomto okne otvorí túto tému.
 
@@ -1984,6 +1985,7 @@ Len Windows. Textida sa vie pridať do kontextovej ponuky Prieskumníka vášho 
 4. Zvoľte Nastavenia, Integrácia do systému, Odobrať Textidu z Prieskumníka: zmaže položku ponuky a všetky asociácie, ktoré Textida pridala. To isté urobí odinštalátor.
 5. Rovnaké prepínače sú v Nastaveniach v oddiele Integrácia so systémom (hľadajte „integrácia“ alebo „zástupca“): položka v ponuke Prieskumníka, typy súborov, zástupca v ponuke Štart a na ploche a tlačidlo, ktoré vo Windows otvorí stránku s predvolenými aplikáciami. Prepínač zapíše register hneď a ukazuje, čo v registri je.
 - Položka Otvoriť v Textide ako projekt v kontextovej ponuke priečinka aj na pozadí otvoreného priečinka otvorí okno, v ktorom je priečinok koreňom projektu: panel súborov, Git a hľadanie v priečinku pracujú s ním. Má vlastný prepínač v Nastaveniach aj v inštalátore (`--folder-menu`, `--no-folder-menu`). Z príkazového riadka to isté urobí `textida --project priečinok` alebo `textida priečinok`; okno, ktoré priečinok už má, sa len prepne do popredia.
+- V Linuxe je táto položka súbor textida-project.desktop: v správcovi súborov ju nájdete pri priečinku pod Otvoriť pomocou. Zapne a vypne ju inštalátor (`install.sh --no-folder-action`) aj prepínač na stránke Systém v Nastaveniach, ktorý píše do vášho priečinka aplikácií (`~/.local/share/applications`). Položku z balíka .deb vypnutie len skryje pre vás, pretože systémový priečinok smie meniť len správca.
 - Inštalátor TextidaSetup.exe ponúka tie isté voľby pri inštalácii a pri odinštalovaní ich vráti.
 - Text položky ponuky je v jazyku Textidy v okamihu pridania. Po zmene jazyka ju pridajte znova.
 - Presun Textida.exe do iného priečinka necháva v položkách starú cestu. Pridajte položku znova, alebo ju najprv odoberte.

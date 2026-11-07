@@ -518,6 +518,9 @@ internal static partial class PluginLimits
     /// <summary>Milliseconds the pointer rests on text before the hover description is asked for. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int HoverDelayMilliseconds = 400;
 
+    /// <summary>Milliseconds the shortcut capture of the settings waits after a stroke for the next stroke of a chord (Ctrl+K Ctrl+U) before it takes what was pressed. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
+    public const int ShortcutChordWaitMilliseconds = 1500;
+
     /// <summary>Longest hover description taken from a plugin, in UTF-16 units; a longer one is cut. Decided: a round default for ordinary use, changed only when a measurement asks for it.</summary>
     public const int HoverMaxChars = 2000;
 

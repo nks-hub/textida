@@ -243,7 +243,7 @@ internal sealed partial class SettingsWindow : Window
             if (!byNode.TryGetValue(node, out var list)) byNode[node] = list = [];
             list.Add(hit);
         }
-        bool systemHit = (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && MatchesSystemSection(query);
+        bool systemHit = MatchesSystemSection(query);
 
         // the tree: while searching the categories with a match (and the ones above them), otherwise the ones that hold something
         var visible = new HashSet<string>(StringComparer.Ordinal);
@@ -358,7 +358,7 @@ internal sealed partial class SettingsWindow : Window
                 }
                 _page.Children.Add(card);
             }
-            if (node.Id == SettingCategories.System && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()) && systemHit)
+            if (node.Id == SettingCategories.System && systemHit)
             {
                 var system = SystemSection();
                 var (card, body) = Card(null);
