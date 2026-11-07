@@ -118,7 +118,7 @@ internal sealed partial class MainWindow
 
         await using var client = await ConnectAsync(connection);
         if (client is null) return Loc.Get(K.SaveActionsUploadNotDone);
-        var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
+        var mode = RemoteVersionCheck;
         var options = new TransferOptions { Log = e => RemoteLog(connection, DescribeStep(e)) };
         _acceptedServerVersion.TryGetValue(od, out var accepted);
         try

@@ -18,7 +18,7 @@ internal sealed record DownloadableDictionary(string Code, string Name, string F
 internal sealed class SpellChecker
 {
     private readonly WordList _list;
-    private readonly HashSet<string> _personal;
+    private HashSet<string> _personal; // replaced, never changed: a check on a worker reads it while the user adds a word
 
     private SpellChecker(WordList list, HashSet<string> personal, string path)
     {
@@ -50,7 +50,7 @@ internal sealed class SpellChecker
 
     public IReadOnlyList<string> Suggest(string word) => [.. _list.Suggest(word)];
 
-    public void AddPersonal(string word) => _personal.Add(word.ToLowerInvariant());
+    public void AddPersonal(string word) => _personal = new HashSet<string>(_personal, StringComparer.Ordinal) { word.ToLowerInvariant() };
 }
 
 /// <summary>Where the spelling dictionaries and the personal words live in the profile, and the dictionaries that can be downloaded.</summary>

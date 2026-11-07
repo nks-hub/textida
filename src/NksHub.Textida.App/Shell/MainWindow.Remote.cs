@@ -581,6 +581,9 @@ internal sealed partial class MainWindow
         return CommandOutcome.Handled;
     }
 
+    /// <summary>How a change on the server is told apart from the version the editor saw last (<c>remote.versionCheck</c>).</summary>
+    internal VersionCheck RemoteVersionCheck => _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
+
     /// <param name="saveFirst">False for the upload that follows a save of the save actions: the file on disk is then exactly the saved revision, and a later change of the document must not be saved and sent with it.</param>
     /// <param name="interactive">False after an autosave: a version conflict is not asked about in a dialog, the bar of the tab says that the server changed.</param>
     /// <returns>True when the server holds the saved file now (uploaded, or it was already the same).</returns>
@@ -595,7 +598,7 @@ internal sealed partial class MainWindow
         using var cancel = new CancellationTokenSource();
         _remoteTransfer = cancel;
 
-        var mode = _app.Workbench.Settings.GetString("remote.versionCheck") == "content" ? VersionCheck.Content : VersionCheck.Stat;
+        var mode = RemoteVersionCheck;
         _acceptedServerVersion.TryGetValue(od, out var accepted);
         var options = TransferOptionsFor(connection, od.Title, cancel);
         try

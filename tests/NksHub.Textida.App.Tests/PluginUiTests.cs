@@ -840,6 +840,7 @@ public class PluginUiTests : IDisposable
         tab.Editor.Select(original.IndexOf("10/4", StringComparison.Ordinal), 4);
         await RunAsync("nks.tools.insertExpression");
         Assert.Equal("žluťoučký: 10/4 = 2.5\r\n1000*1.5+2\r\nbez výrazu\r\n", Utf8(tab));
+        await Until(() => HasNotice("10/4 = 2,5"), "the notice of the result"); // the notice is posted to the UI thread and can come after the command ends
         Assert.True(HasNotice("10/4 = 2,5"), string.Join(" | ", _w.Notices.Select(n => n.Message))); // the notice follows the language of the interface, the document does not
 
         // no selection: the line of the caret is the expression, and a thousands separator or a decimal comma never reaches the file

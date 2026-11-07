@@ -158,13 +158,13 @@
         "files.showHidden": {
           "type": "boolean",
           "default": true,
-          "description": "Hidden items in the Files panel. Entries whose name starts with a dot, or that have the hidden attribute, are shown dimmed in the Files panel. Turn it off to leave them out of the tree.",
+          "description": "Hidden items in the Files panel. Off: the file panel leaves out entries that start with a dot or have the hidden attribute instead of dimming them.",
           "x-scope": "application"
         },
         "files.gitStatus": {
           "type": "boolean",
           "default": true,
-          "description": "Git status in the Files panel. For a folder in a Git repository, colours the names of the files by their state (modified, new, deleted, ignored, in conflict) and adds a letter after the name; a folder shows the heaviest state below it. The Git plugin supplies the state, and it is asked only for a folder that lies in a repository.",
+          "description": "Git status in the Files panel. File names in a Git repository get a colour and a letter by their state (modified, new, conflict).",
           "x-scope": "application"
         },
         "files.autoSave": {
@@ -180,7 +180,7 @@
         "updates.checkOnStart": {
           "type": "boolean",
           "default": true,
-          "description": "Check for updates automatically. Asks the update address for the newest version a few seconds after Textida starts and then once a day, and shows a badge in the status bar when there is one. On by default; only the signed feed is requested and nothing about you or your computer is sent.",
+          "description": "Check for updates automatically. After start and then once a day it asks for a newer version and shows it in the status bar; nothing about you is sent.",
           "x-scope": "application"
         },
         "remote.versionCheck": {
@@ -190,7 +190,7 @@
             "stat",
             "content"
           ],
-          "description": "Check of the server version. stat: size and modification time (the content is fetched only when they differ). content: always fetch the server content and compare it; slower, and it also notices a change within the same second and size.",
+          "description": "Check of the server version. By size and modification time (fast), or by content (slower, catches every change).",
           "x-scope": "application"
         },
         "workbench.uiLanguage": {
@@ -232,19 +232,19 @@
         "editor.colorTheme": {
           "type": "string",
           "default": "auto",
-          "description": "Editor colour theme. Colours of the editor area and of syntax highlighting: Light, Dark, Monokai, Solarized, Dracula, One Dark, GitHub, Nord or a custom theme. Automatic takes Light or Dark to match the window theme. In high contrast the system colours apply.",
+          "description": "Editor colour theme. Colours of the editor surface and the syntax highlighting; high contrast uses the system colours.",
           "x-scope": "application"
         },
         "editor.themeColors": {
           "type": "string",
           "default": "",
-          "description": "Custom colours. Colours of single tokens and editor areas that replace those of the chosen theme. They apply in the editor, in the preview and in the highlighted export.",
+          "description": "Custom colours. The chosen colours replace those of the theme in the editor, the preview and the export.",
           "x-scope": "application"
         },
         "workbench.toolbar": {
           "type": "boolean",
           "default": true,
-          "description": "Toolbar. Shows a row of buttons under the menu bar. Choose the buttons with View, Customize Toolbar.",
+          "description": "Toolbar. Shows a row of buttons under the menu; pick them with View, Customize Toolbar.",
           "x-scope": "application"
         },
         "workbench.toolbarLargeIcons": {
@@ -256,7 +256,7 @@
         "workbench.toolbarColorIcons": {
           "type": "boolean",
           "default": true,
-          "description": "Colored toolbar icons. The toolbar icons are colored by the kind of command: files blue, folders yellow, undo and redo violet, search teal, run green, Git orange. Off, they are one color. In high contrast they are always one color, in the colors of the system.",
+          "description": "Colored toolbar icons. Toolbar icons get a colour by the kind of command; in high contrast they stay single-coloured.",
           "x-scope": "application"
         },
         "files.journalDirectory": {
@@ -274,7 +274,7 @@
         "history.storeSecretFiles": {
           "type": "boolean",
           "default": false,
-          "description": "Keep history of secrets files. Files such as .env hold secret values. Off: no revisions of them are stored, because the values would lie on disk as plain text.",
+          "description": "Keep history of secrets files. On: also keeps revisions of files such as .env, whose values then lie on disk as plain text.",
           "x-scope": "application"
         },
         "files.secretFilePatterns": {
@@ -320,7 +320,7 @@
         "files.relatedFileRules": {
           "type": "string",
           "default": "",
-          "description": "Related file rules. Pairs of file name endings that belong together, written as ending|ending and separated by semicolons, for example .vert|.frag;.scss|.css. They are tried before the built-in rules.",
+          "description": "Related file rules. Pairs of endings that belong together, for example .vert|.frag;.scss|.css; they come before the built-in ones.",
           "x-scope": "application"
         },
         "files.largeFileThreshold": {
@@ -336,7 +336,7 @@
           "default": 2000,
           "minimum": 50,
           "maximum": 60000,
-          "description": "Regular expression time limit (ms). A pattern with backreferences, lookaround or atomic groups runs in the backtracking engine and is stopped after this time on one text. Other patterns run in the linear-time engine and are not limited.",
+          "description": "Regular expression time limit (ms). After this time an expression with backreferences or lookaround stops; other expressions have no limit.",
           "x-scope": "application"
         },
         "tools.diffTool": {
@@ -366,7 +366,7 @@
         "git.gutter": {
           "type": "boolean",
           "default": true,
-          "description": "Show Git changes in the gutter. Marks the lines of a file in a Git repository that differ from the index (filled bar) or are staged already (outlined bar). A click on a mark stages the change or takes it back from the index. A file above the size limit gets no marks.",
+          "description": "Show Git changes in the gutter. The left margin marks lines changed against the index; a click on a mark stages or unstages the change.",
           "x-scope": "application"
         },
         "git.gutterBase": {
@@ -376,13 +376,13 @@
             "index",
             "head"
           ],
-          "description": "Compare the Git changes in the gutter with. index: the marks show what differs from the Git index (changes that are in the index already have an outline). head: the marks show what differs from the last commit, in the index or not. The peek at a change shows the lines of that version.",
+          "description": "Compare the Git changes in the gutter with. The marks in the margin show the difference to the index, or to the last commit.",
           "x-scope": "application"
         },
         "git.blame": {
           "type": "boolean",
           "default": true,
-          "description": "Show who changed the line at the caret. Shows the author, the date and the subject of the commit that last changed the line at the caret in the status bar; the tooltip has the rest. Git is asked once the caret has rested on the line for a moment. A file outside a Git repository, or one Git does not track, shows nothing.",
+          "description": "Show who changed the line at the caret. The status bar shows the author and date of the commit that last changed the line at the caret.",
           "x-scope": "application"
         },
         "git.pullMode": {
@@ -393,7 +393,7 @@
             "merge",
             "rebase"
           ],
-          "description": "Git Pull combines the changes by. Used when the Git configuration (branch.<name>.rebase, pull.rebase, pull.ff=only of the repository or the user) says nothing; that comes first. ask: Git: Pull asks, and only when the branch has commits of its own, with a choice to remember the answer. merge: the new commits are merged into your branch. rebase: your commits are replayed on top of the new ones. Changes in the working tree are set aside for a moment. A branch without commits of its own is only moved forward.",
+          "description": "Git Pull combines the changes by. How an update joins your commits with the new ones when the git configuration says nothing: ask, merge or rebase.",
           "x-scope": "application"
         },
         "git.autoFetchMinutes": {
@@ -401,7 +401,7 @@
           "default": 10,
           "minimum": 0,
           "maximum": 1440,
-          "description": "Git: fetch in the background every (minutes). Minutes after which the editor runs git fetch by itself for the repository of the active file or the open folder, so the status bar shows the incoming (↓) and outgoing (↑) commits and offers an update. 0 turns it off. Nothing is fetched without a network connection, without a remote, or for a branch that tracks no remote branch. No file and no branch is changed.",
+          "description": "Git: fetch in the background every (minutes). After how many minutes git fetch runs in the background so the status bar shows incoming commits; 0 turns it off.",
           "x-scope": "application"
         },
         "git.commitSaveAll": {
@@ -427,7 +427,7 @@
           "default": 0,
           "minimum": 0,
           "maximum": 86400,
-          "description": "Default time limit of tools (seconds). Seconds after which a tool whose definition has no timeoutSeconds is ended. 0 means no limit is chosen yet: such a tool runs until it ends or you stop it.",
+          "description": "Default time limit of tools (seconds). After how many seconds a tool without a limit of its own is stopped; 0 lets it run.",
           "x-scope": "application"
         },
         "tools.outputEncoding": {
@@ -523,7 +523,7 @@
         "editor.emmet": {
           "type": "boolean",
           "default": true,
-          "description": "Emmet on Tab. Tab expands the Emmet abbreviation in front of the caret in HTML and CSS, and the next Tab jumps to the next empty place. Off: Tab only indents; the Emmet commands of the Tools menu still work.",
+          "description": "Emmet on Tab. Tab expands an Emmet abbreviation in HTML and CSS; off, it only indents.",
           "x-scope": "language"
         },
         "files.binaryAsHex": {
@@ -545,7 +545,7 @@
             "text",
             "hex"
           ],
-          "description": "Picture files. How a picture file (PNG, JPEG, GIF, BMP, WebP, ICO) opens: as a picture, as text, or in hex. The bar above the file changes the view at any time.",
+          "description": "Picture files. Whether a picture opens as a picture, as text or in hex.",
           "x-scope": "application"
         },
         "markdown.defaultMode": {
@@ -556,7 +556,7 @@
             "edit",
             "source"
           ],
-          "description": "Default Markdown mode. How a Markdown file opens: for reading as a rendered page, for editing with the page beside the editor, or as source. Applies to files opened from now on.",
+          "description": "Default Markdown mode. Whether a newly opened Markdown file opens for reading, for editing with a preview or as source.",
           "x-scope": "application"
         },
         "markdown.readerMaxWidth": {
@@ -564,7 +564,7 @@
           "default": 0,
           "minimum": 0,
           "maximum": 4000,
-          "description": "Maximum text width of the Markdown reader (px). The widest column of text when reading or previewing Markdown. 0 lets the text follow the width of the window. Tables and code blocks may always use the full width of the window.",
+          "description": "Maximum text width of the Markdown reader (px). The widest column of text in reading and preview; 0 follows the width of the window.",
           "x-scope": "application"
         },
         "editor.clipboardHistorySize": {
@@ -572,7 +572,7 @@
           "default": 20,
           "minimum": 1,
           "maximum": 100,
-          "description": "Clipboard history size. How many copied texts the clipboard history keeps. It is kept in memory only and forgotten when the program closes.",
+          "description": "Clipboard history size. How many copied texts the clipboard history keeps until the program closes.",
           "x-scope": "application"
         },
         "editor.dateTimeFormat": {
@@ -597,7 +597,7 @@
         "schema.mappings": {
           "type": "string",
           "default": "",
-          "description": "Schema mappings. Rules that choose the schema of a file, written MASK=SCHEMA and separated by semicolons or line breaks, for example *.cfg=package.json; config/**=https://example.test/a.json as yaml. MASK is a file name, the end of a path or a folder with /**. SCHEMA is the id of a known schema, an address (downloaded only after you allow its host) or a file path. The ending as json, jsonc, toml, yaml or markdown sets how the file is read. The first rule that fits wins over the schemas Textida knows; only a $schema written in the file wins over a rule.",
+          "description": "Schema mappings. MASK=SCHEMA rules that give a file its schema (the help topic on schemas describes the syntax).",
           "x-scope": "application"
         },
         "html.tidyPath": {
@@ -611,25 +611,25 @@
           "default": 0,
           "minimum": 0,
           "maximum": 1048576,
-          "description": "Longest wildcard * in hex search (bytes). N, the most bytes the wildcard * and every open repeat of a regular expression over bytes (.*, +, {n,}) may stand for in the hex search. 0 means N is not chosen yet: the built-in default of 256 bytes is used. A range of your own can always be written as *{m,n}.",
+          "description": "Longest wildcard * in hex search (bytes). The most bytes a * may stand for in a hex search; 0 means 256.",
           "x-scope": "application"
         },
         "hex.structureTemplates": {
           "type": "string",
           "default": "",
-          "description": "Structure template per file type. Which structure template the hex view uses for a file extension, written extension=template and separated by commas, for example bin=elf_file, dat=png_chunks. The list in the structure panel writes it when you pick a template. The shipped templates are bmp_header, png_chunks, zip_archive, pe_file, elf_file and stl_binary. An extension that is not listed gets the template that fits the first bytes of the file or its extension.",
+          "description": "Structure template per file type. The structure template for an extension, for example bin=elf_file; the Structure panel writes it.",
           "x-scope": "application"
         },
         "web.searchUrl": {
           "type": "string",
           "default": "",
-          "description": "Web search address. The address the command Search Selection on the Web sends the selected text to; {query} is replaced by the text. Empty turns the command off. It must be an http or https address.",
+          "description": "Web search address. The address Search Selection on the Web sends the text to in place of {query}; empty turns the command off.",
           "x-scope": "application"
         },
         "web.pathMap": {
           "type": "string",
           "default": "",
-          "description": "Path to address rules. Rules like folder=>address separated by semicolons, from which the command Open File at Its Address builds the address of a file. The longest matching folder wins.",
+          "description": "Path to address rules. folder=>address rules from which Open File at Its Address builds the address.",
           "x-scope": "application"
         },
         "files.decompileAssemblies": {
@@ -647,7 +647,7 @@
         "spell.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Spell checking. Underlines mistakes in comments and strings, Markdown and plain text against the dictionary of the setting spell.dictionary. Off until you switch it on.",
+          "description": "Spell checking. Underlines mistakes in comments, strings, Markdown and plain text.",
           "x-scope": "application"
         },
         "spell.dictionary": {
@@ -665,7 +665,7 @@
         "scripting.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Scripts in the editor (prototype). Allows the command Run Script on Selection, which runs JavaScript (Jint) in the editor with limited time and memory and no access to the system. A prototype, off by default.",
+          "description": "Scripts in the editor (prototype). Allows the command Run Script on Selection (JavaScript without access to the system).",
           "x-scope": "application"
         },
         "appearance.iconSkin": {
@@ -677,25 +677,25 @@
         "plugins.sandbox": {
           "type": "boolean",
           "default": false,
-          "description": "Restrict plugin processes. Starts plugin processes under an operating system limit: on Windows without the clipboard and display changes and, for most plugins, without starting other programs; on macOS through sandbox-exec. Git, language servers and formatters may still start programs. It does not limit the files a plugin reads. Takes effect when a plugin starts next.",
+          "description": "Restrict plugin processes. Plugin processes run with system restrictions; takes effect at the next start of the plugin.",
           "x-scope": "application"
         },
         "terminal.shell": {
           "type": "string",
           "default": "",
-          "description": "Terminal shell. The program the Terminal panel starts, optionally with arguments (\"C:\\Program Files\\Git\\bin\\bash.exe\" --login). Empty means PowerShell on Windows and the environment variable SHELL elsewhere.",
+          "description": "Terminal shell. The program of the Terminal panel; empty means PowerShell on Windows and $SHELL elsewhere.",
           "x-scope": "application"
         },
         "editor.clipboardMonitor": {
           "type": "boolean",
           "default": false,
-          "description": "Collect copies from other programs. Adds the texts you copy in other programs to the clipboard list too. Off by default; once on, only copies made since are collected. The list is in memory only.",
+          "description": "Collect copies from other programs. Adds texts copied in other programs to the clipboard history too.",
           "x-scope": "application"
         },
         "review.autoKeep": {
           "type": "boolean",
           "default": false,
-          "description": "Keep changes from outside without review. On: when another program changes the file of a tab without unsaved edits, the tab takes the new content at once and no review is offered. Off: the changes wait for your review.",
+          "description": "Keep changes from outside without review. A tab without unsaved edits takes an outside change at once, without review.",
           "x-scope": "application"
         },
         "advanced.scrollPastEnd": {
@@ -735,7 +735,7 @@
           "default": 15,
           "minimum": 0,
           "maximum": 30,
-          "description": "Recent files kept. How many recently opened files the list keeps (File > Open Recent and Ctrl+P), 0 to 30. 0 keeps none. A lower number cuts the list the next time a file is opened.",
+          "description": "Recent files kept. How many recent files Open Recent and Ctrl+P remember; 0 none.",
           "x-scope": "application"
         },
         "advanced.autosaveIntervalSeconds": {
@@ -765,7 +765,7 @@
           "default": 0,
           "minimum": 0,
           "maximum": 1000000,
-          "description": "Undo steps kept per document. The most undo steps a document keeps. 0 keeps all of them. When the limit is reached the oldest steps are dropped; a document that was saved before them then counts as changed until it is saved again.",
+          "description": "Undo steps kept per document. The most undo steps a document keeps; 0 keeps all.",
           "x-scope": "application"
         },
         "advanced.highlightMaxLines": {
@@ -773,7 +773,7 @@
           "default": 1024,
           "minimum": 100,
           "maximum": 1024,
-          "description": "Lines colored around the screen. The most lines the syntax colors are worked out for in one go, counting those above and below the screen. A lower number spares a slow machine: the lines on screen are always colored, but the margin colored above and below them gets smaller, so lines you scroll to may show plain for a moment.",
+          "description": "Lines colored around the screen. How many lines around the screen are coloured at once; a lower number helps a slow computer.",
           "x-scope": "application"
         },
         "advanced.highlightMaxColumns": {
@@ -793,7 +793,7 @@
         "editor.occurrences.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Highlight other occurrences of the selection. Select text on one line and every other place with the same text is given a background, marked beside the scrollbar and in the minimap, and counted in the status bar. In a large file only the part on screen is looked at.",
+          "description": "Highlight other occurrences of the selection. Text selected on one line is highlighted at its other places too, and the status bar counts them.",
           "x-scope": "application"
         },
         "editor.occurrences.wholeWord": {
