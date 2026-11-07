@@ -761,7 +761,6 @@ public class EditorThemeTests : IDisposable
 
         // the import through the settings says why the semantic colours are left out
         var view = OpenSettings();
-        Settle(); // the search box reports its clearing later and builds the page once more
         _dialogs.Picked.Add(child);
         await view.ImportThemeAsync();
         Assert.Equal("user:Child", _app.Workbench.Settings.GetString(EditorThemes.ThemeSetting));
@@ -771,6 +770,43 @@ public class EditorThemeTests : IDisposable
         // the saved custom theme stands alone: it needs neither the included file nor the folder
         File.Delete(Path.Combine(folder, "base.json"));
         Assert.Equal(Color.Parse("#FF6688"), EditorColorTheme.Load(Path.Combine(_app.EditorThemes.Folder, "Child.json"), "x")["keyword"]);
+        view.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task The_import_notice_stays_through_page_builds_until_dismissed_or_the_page_is_left()
+    {
+        string file = Path.Combine(_temp.Path, "Night.tmTheme");
+        File.WriteAllText(file, TmTheme);
+        var view = OpenSettings(); // the search box reports its clearing later: that build comes after the import
+        _dialogs.Picked.Add(file);
+        await view.ImportThemeAsync();
+        Avalonia.Controls.TextBlock? Notice() => view.GetVisualDescendants().OfType<Avalonia.Controls.TextBlock>().SingleOrDefault(t => t.Classes.Contains("themenotice") && t.IsEffectivelyVisible);
+        string expected = Loc.Get(K.ColorThemeImported, ("name", SettingsWindow.ThemeLabel(_app.Workbench.Settings.GetString(EditorThemes.ThemeSetting))));
+        Settle();
+        view.Refresh();
+        view.Refresh();
+        Settle();
+        Assert.Equal(expected, Notice()?.Text);
+
+        // the close button beside it dismisses it for good
+        var close = view.GetVisualDescendants().OfType<Avalonia.Controls.Button>().Single(b => Avalonia.Automation.AutomationProperties.GetName(b) == Loc.Get(K.DialogClose) && b.IsEffectivelyVisible);
+        close.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
+        Assert.Null(Notice());
+        view.Refresh();
+        Settle();
+        Assert.Null(Notice());
+
+        // another page drops it
+        _dialogs.Picked.Add(file);
+        await view.ImportThemeAsync();
+        Settle();
+        Assert.NotNull(Notice());
+        view.SelectCategory(SettingCategories.EditorDisplay);
+        Settle();
+        view.SelectCategory(SettingCategories.Appearance);
+        Settle();
+        Assert.Null(Notice());
         view.Close();
     }
 }

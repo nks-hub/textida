@@ -331,6 +331,8 @@ internal sealed partial class SettingsWindow : Window
         _rowViews.Clear();
         _preview = null;
         _themeColorsShow = null;
+        string page = searching ? "\0search" : _selected;
+        if (page != _builtPage) (_builtPage, _themeNotice) = (page, null);
         // the nodes whose rows are listed, in the order of the tree: the selected one and what is under it, or every node with a match
         bool IsShown(Node n) => (byNode.ContainsKey(n.Id) && (searching || IsUnder(nodes, n.Id, _selected)))
             || (n.Id == SettingCategories.System && (searching ? systemHit : IsUnder(nodes, n.Id, _selected)));

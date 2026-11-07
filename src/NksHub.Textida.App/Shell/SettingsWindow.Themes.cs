@@ -21,8 +21,11 @@ namespace NksHub.Textida.App.Shell;
 /// </summary>
 internal sealed partial class SettingsWindow
 {
-    /// <summary>What the last import, export or save did; shown once under the list after the page was built again.</summary>
+    /// <summary>What the last import, export or save did; shown under the list in every build of the page until the user dismisses it or goes to another page.</summary>
     private string? _themeNotice;
+
+    /// <summary>The page the last build showed (the category, or the search results); a build of another page drops <see cref="_themeNotice"/>.</summary>
+    private string? _builtPage;
 
     private static readonly Dictionary<string, string> ThemeColorLabels = new(StringComparer.Ordinal)
     {
@@ -120,12 +123,18 @@ internal sealed partial class SettingsWindow
         saveAs.Click += async (_, _) => await SaveThemeAsync(error);
         delete.Click += async (_, _) => await DeleteThemeAsync(current, error);
 
-        var notice = new TextBlock { Text = _themeNotice, IsVisible = _themeNotice is not null, TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+        var notice = new TextBlock { Text = _themeNotice, TextWrapping = TextWrapping.Wrap, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         notice.Classes.Add("themenotice");
         AutomationProperties.SetLiveSetting(notice, AutomationLiveSetting.Polite);
-        _themeNotice = null;
+        var dismiss = new Button { Content = "×", Padding = new Thickness(6, 0), VerticalAlignment = VerticalAlignment.Center };
+        AutomationProperties.SetName(dismiss, Loc.Get(K.DialogClose));
+        var noticeRow = new DockPanel { IsVisible = _themeNotice is not null, Children = { Docked(dismiss, Dock.Right), notice } };        dismiss.Click += (_, _) =>
+        {
+            _themeNotice = null;
+            noticeRow.IsVisible = false;
+        };
         var help = new TextBlock { Text = Loc.Get(K.ColorThemeHelp, ("folder", themes.Folder)), TextWrapping = TextWrapping.Wrap, Opacity = 0.75, FontSize = 12 };
-        var panel = new StackPanel { Spacing = 6, Children = { combo, new WrapPanel { Orientation = Orientation.Horizontal, Children = { import, export, saveAs, delete }, ItemSpacing = 8, LineSpacing = 6 }, notice, help } };
+        var panel = new StackPanel { Spacing = 6, Children = { combo, new WrapPanel { Orientation = Orientation.Horizontal, Children = { import, export, saveAs, delete }, ItemSpacing = 8, LineSpacing = 6 }, noticeRow, help } };
         foreach (var problem in themes.Problems)
             panel.Children.Add(new TextBlock { Text = Loc.Get(K.ColorThemeCustomProblem, ("reason", problem)), Foreground = ThemeColors.Danger, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
         return panel;
