@@ -19,7 +19,7 @@ internal enum HexMarkKind : byte { Match, Bookmark, Change }
 /// last search, the bookmarks and the changes since the last save, and a rectangle for the part on screen. A click or a drag scrolls the grid. The map is built in the
 /// background (see <see cref="ByteMapBuilder"/>): after the first pass it is a sample of the file, and it is redrawn as the passes refine it.
 /// </summary>
-internal sealed class HexMinimap : Control
+internal sealed class HexMinimap : NksHub.Textida.App.Services.EditorThemedSurface
 {
     public const double MapWidth = 64;
     private const double Lane = 10;
@@ -226,8 +226,6 @@ internal sealed class HexMinimap : Control
 
     // ---- drawing ----
 
-    private IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;
-
     private static Color Blend(Color from, Color to, double t) =>
         Color.FromRgb((byte)(from.R + (to.R - from.R) * t), (byte)(from.G + (to.G - from.G) * t), (byte)(from.B + (to.B - from.B) * t));
 
@@ -236,7 +234,7 @@ internal sealed class HexMinimap : Control
     public override void Render(DrawingContext context)
     {
         double width = Bounds.Width, height = Bounds.Height;
-        var back = ColorOf("Bg1", Colors.WhiteSmoke);
+        var back = ColorOf("MinimapBg", ColorOf("Bg1", Colors.WhiteSmoke)); // the minimap colour of a chosen editor theme, else the window theme
         context.FillRectangle(new SolidColorBrush(back), new Rect(0, 0, width, height));
         long length = _owner.Document.ByteLength;
         if (length == 0 || height < 4) return;

@@ -458,6 +458,9 @@ public class EditorThemeTests : IDisposable
                 Assert.True(Ratio(tint, "BgEditor") > 1.05, $"{theme.Id}: {tint} is {Ratio(tint, "BgEditor"):0.000} : 1 to the background");
             Assert.NotEqual(view["DiffRemoved"], view["DiffAdded"]);
             Assert.NotEqual(view["DiffAdded"], view["WarnBg"]);
+            // the hex minimap: its frame and marks in the accent and in red stand out from its background as graphics must (3 : 1)
+            foreach (var mark in new[] { "Accent", "Danger" })
+                Assert.True(Ratio(mark, "MinimapBg") >= 3, $"{theme.Id}: {mark} on the minimap is {Ratio(mark, "MinimapBg"):0.00} : 1");
         }
     }
 
@@ -474,6 +477,7 @@ public class EditorThemeTests : IDisposable
         w.UpdateLayout();
         Settle();
         var hex = w.ActiveHex!;
+        hex.SetMinimapVisible(true);
         w.OpenFile(_temp.File("data.csv", "id,name,value\n1,alpha,10\n2,beta,20\n3,gamma,30\n"), null);
         w.UpdateLayout();
         Settle();
@@ -506,6 +510,8 @@ public class EditorThemeTests : IDisposable
             frame = Frame(w, "hex-" + id);
             Assert.Equal(theme[EditorColorTheme.Background], MostOf(frame, AreaOf(hex, w)));
             Assert.True(CountOf(frame, AreaOf(hex, w), colors["CurrentLine"]) > 50, $"{id}: no current row in the colour of the theme");
+            var lane = AreaOf(hex.Minimap, w);
+            Assert.Equal(colors["MinimapBg"], MostOf(frame, new Avalonia.Rect(lane.Right - 8, lane.Top + 20, 6, lane.Height - 40))); // the lane beside the cells
 
             w.ActiveGroup.Select(w.Tabs.First(t => t.Table == table));
             frame = Frame(w, "table-" + id);
