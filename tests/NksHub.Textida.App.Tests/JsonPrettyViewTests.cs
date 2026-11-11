@@ -133,6 +133,25 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Typing_updates_the_horizontal_scroll_range_before_the_first_paint()
+    {
+        Open("{\"k\":\"" + new string('x', 400) + "\"}");
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"k\": \"".Length + 400);
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Dispatcher.UIThread.RunJobs();
+        var bar = view.Children.OfType<Avalonia.Controls.Primitives.ScrollBar>().Single(b => b.Orientation == Avalonia.Layout.Orientation.Horizontal);
+        double before = bar.Maximum;
+        Assert.True(before > 0);
+
+        TestApp.Type(_w, "x");
+
+        Assert.True(bar.Maximum > before, $"Horizontal maximum stayed at {bar.Maximum} after {before}");
+        Assert.Contains(new string('x', 401), view.RowText(1));
+    }
+
+    [AvaloniaFact]
     public void A_scrollbar_repaint_keeps_the_first_frame_of_the_new_text()
     {
         Open(Sample);
