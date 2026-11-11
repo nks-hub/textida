@@ -212,14 +212,16 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
 
     private async Task Series(string name, int count, Action action)
     {
-        List<double> ui = [], frame = [], work = [];
+        List<double> ui = [], frame = [], work = [], lastDraw = [];
         for (int i = 0; i < count; i++)
         {
+            long start = Stopwatch.GetTimestamp();
             var (u, f, h, d) = await Measure(action);
             if (u >= 0) { ui.Add(u); work.Add(h + d); }
+            if (window.ActiveJson is { } json && json.LastRenderedAt >= start) lastDraw.Add((json.LastRenderedAt - start) * 1000.0 / Stopwatch.Frequency);
             frame.Add(f);
         }
-        Log("series", ("name", name), ("backend", _backend), ("n", count), ("uiN", ui.Count), ("work", Pct(work)), ("ui", Pct(ui)), ("frame", Pct(frame)));
+        Log("series", ("name", name), ("backend", _backend), ("n", count), ("uiN", ui.Count), ("work", Pct(work)), ("ui", Pct(ui)), ("lastDraw", Pct(lastDraw)), ("frame", Pct(frame)));
     }
 
     private static string Pct(List<double> v)

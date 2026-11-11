@@ -133,6 +133,28 @@ public class JsonPrettyViewTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void A_scrollbar_repaint_keeps_the_first_frame_of_the_new_text()
+    {
+        Open(Sample);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+        TestApp.Type(_w, "x");
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        long first = view.RenderedAt, last = view.LastRenderedAt;
+        Assert.True(first > 0);
+        Assert.Contains("Anxn", view.RowText(1));
+        view.Refresh();
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.True(view.LastRenderedAt > last);
+        Assert.Equal(first, view.RenderedAt);
+        TestApp.Type(_w, "y");
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.True(view.RenderedAt > first);
+        Assert.Contains("Anxyn", view.RowText(1));
+    }
+
+    [AvaloniaFact]
     public void Collapsing_and_expanding_by_keys_and_by_the_gutter()
     {
         Open(Sample);
