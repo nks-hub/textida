@@ -30,6 +30,8 @@ internal sealed partial class PagedMeasure
         if (view.RenderedAt < start) throw new InvalidOperationException("The formatted JSON view did not draw a frame");
         Log("json-open", ("openCallMs", openMs), ("drawnMs", (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency),
             ("frameMs", Ms(start)), ("viewportBytes", view.Outline!.BytesRead), ("lines", view.Outline.State.Lines));
+        Log("window", ("hwnd", window.TryGetPlatformHandle()?.Handle.ToInt64()), ("title", window.Title),
+            ("visible", window.IsVisible), ("active", window.IsActive), ("opacity", window.Opacity));
         Snapshot("json shown");
         if (!await window.SaveAsync(_tab)) throw new IOException("Saving the unchanged JSON failed");
         using (var file = File.OpenRead(_file))
@@ -52,6 +54,13 @@ internal sealed partial class PagedMeasure
                 if (!view.ToggleFold(container.Number)) throw new InvalidOperationException("The container could not be folded");
             });
             if (view.Folds.IsFolded(container.Number)) view.ToggleFold(container.Number);
+            await Series("json-key", _keys, async () =>
+            {
+                if (!await view.GoToKeyAsync("n")) throw new InvalidOperationException("The next key was not found");
+                var line = view.Outline.GetLine(view.CaretLine) ?? throw new InvalidOperationException("The key has no formatted line");
+                if (view.Outline.PathOf(line) is not { } path || !path.EndsWith(".n", StringComparison.Ordinal))
+                    throw new InvalidOperationException("The jump reached an unexpected JSON path");
+            });
         }
         var rendered = view.Outline.Render(value);
         var span = rendered.Spans.First(s => s.Kind == JsonTokenKind.String);

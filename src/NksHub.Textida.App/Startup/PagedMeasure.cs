@@ -192,13 +192,17 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     /// Runs one input action. <c>Ui</c> is the time until the paged view had drawn the new state, <c>Frame</c> the time until two animation frames passed,
     /// <c>Handler</c> the time the input handlers took and <c>Draw</c> the time of the draw itself: the work on the UI thread without waiting for the frame clock.
     /// </summary>
-    private async Task<(double Ui, double Frame, double Handler, double Draw)> Measure(Action action)
+    private Task<(double Ui, double Frame, double Handler, double Draw, double Tick)> Measure(Action action)
+        => Measure(() => { action(); return Task.CompletedTask; });
+
+    private async Task<(double Ui, double Frame, double Handler, double Draw, double Tick)> Measure(Func<Task> action)
     {
         var paged = _tab!.Paged;
         long t0 = Stopwatch.GetTimestamp();
-        action();
+        await action();
         double handler = Ms(t0);
         await Frames(1);
+        double tick = Ms(t0);
         double ui = -1, draw = -1;
         long renderedAt = window.ActiveJson?.RenderedAt ?? paged?.RenderedAt ?? 0;
         if (renderedAt >= t0)
@@ -207,16 +211,30 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             draw = window.ActiveJson?.RenderMs ?? paged?.RenderMs ?? -1;
         }
         await Frames(1);
-        return (ui, Ms(t0), handler, draw);
+        return (ui, Ms(t0), handler, draw, tick);
     }
 
-    private async Task Series(string name, int count, Action action)
+    private Task Series(string name, int count, Action action)
+        => Series(name, count, () => { action(); return Task.CompletedTask; });
+
+    private async Task Series(string name, int count, Func<Task> action)
     {
         List<double> ui = [], frame = [], work = [], lastDraw = [];
         for (int i = 0; i < count; i++)
         {
             long start = Stopwatch.GetTimestamp();
-            var (u, f, h, d) = await Measure(action);
+            var jsonView = window.ActiveJson;
+            List<(long Start, long End)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && i < 6 ? [] : null;
+            void Record(long begin, long end) => draws!.Add((begin, end));
+            if (draws is not null) jsonView!.Drawn += Record;
+            var (u, f, h, d, tick) = await Measure(action);
+            if (draws is not null)
+            {
+                jsonView!.Drawn -= Record;
+                Log("json-frame-trace", ("name", name), ("sample", i), ("handlerMs", h), ("firstTickMs", tick),
+                    ("paints", string.Join(";", draws.Select(p => string.Create(CultureInfo.InvariantCulture,
+                        $"{(p.Start - start) * 1000.0 / Stopwatch.Frequency:0.00}-{(p.End - start) * 1000.0 / Stopwatch.Frequency:0.00}")))));
+            }
             if (u >= 0) { ui.Add(u); work.Add(h + d); }
             if (window.ActiveJson is { } json && json.LastRenderedAt >= start) lastDraw.Add((json.LastRenderedAt - start) * 1000.0 / Stopwatch.Frequency);
             frame.Add(f);

@@ -63,6 +63,14 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
         return Stopwatch.GetElapsedTime(start).TotalMilliseconds;
     }
 
+    private async Task<double> MeasureAsync(Func<Task> action)
+    {
+        long start = Stopwatch.GetTimestamp();
+        await action();
+        Frame();
+        return Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+    }
+
     private void CheckLatency(string name, List<double> times)
     {
         times.Sort();
@@ -78,7 +86,7 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
     }
 
     [AvaloniaFact]
-    public async Task A_gibibyte_json_opens_within_one_second_and_scroll_fold_and_typing_stay_within_33_ms()
+    public async Task A_gibibyte_json_opens_within_one_second_and_scroll_fold_key_jump_and_typing_stay_within_33_ms()
     {
         Assert.SkipWhen(Environment.GetEnvironmentVariable("TEXTIDA_HUGE") != "1", "Requires TEXTIDA_HUGE=1.");
         string path = WriteJson();
@@ -136,6 +144,17 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
             if (i >= 20) fold.Add(ms);
         }
 
+        var jumps = new List<double>();
+        view.MoveCaret(1, 0);
+        for (int i = 0; i < 270; i++)
+        {
+            long previous = view.CaretLine;
+            double ms = await MeasureAsync(async () => Assert.True(await view.GoToKeyAsync("n")));
+            Assert.True(view.CaretLine > previous);
+            Assert.EndsWith(".n", view.Outline.PathOf(view.Outline.GetLine(view.CaretLine)!.Value));
+            if (i >= 20) jumps.Add(ms);
+        }
+
         view.MoveCaret(2, "    \"id\": \"abc".Length);
         long at = view.SourceOffset;
         var typing = new List<double>();
@@ -161,6 +180,7 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
             () => Assert.True(viewportReads < 1L << 20),
             () => CheckLatency("Scroll", scroll),
             () => CheckLatency("Fold", fold),
+            () => CheckLatency("Key jump", jumps),
             () => CheckLatency("Typing", typing),
             () => Assert.True(grown <= 350L << 20, $"Private memory grew by {grown} bytes"));
     }
