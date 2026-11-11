@@ -5,6 +5,7 @@ using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
 using Doc = NksHub.Textida.Core.Documents.Document;
+using Xunit.Abstractions;
 
 namespace NksHub.Textida.Core.Tests;
 
