@@ -15,6 +15,7 @@ internal sealed partial class PagedMeasure
             ("size", new FileInfo(_file).Length), ("backendWanted", "json"), ("cpus", Environment.ProcessorCount));
         byte[] original;
         using (var file = File.OpenRead(_file)) original = SHA256.HashData(file);
+        Log("json-input", ("sha256", Convert.ToHexString(original)), ("cache", "read through SHA-256 before open; host cache unknown"));
         await Frames(3);
         await Task.Delay(3000);
         Settle();
@@ -28,12 +29,15 @@ internal sealed partial class PagedMeasure
         var view = window.ActiveJson ?? throw new InvalidOperationException("The formatted JSON view did not open");
         await Frames(2);
         if (view.RenderedAt < start) throw new InvalidOperationException("The formatted JSON view did not draw a frame");
-        samples.Append("json-open", _backend,
-            [new(start, (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency, Ms(start), openMs, view.RenderMs)]);
+        double firstFrameMs = Ms(start);
         Log("json-open", ("openCallMs", openMs), ("drawnMs", (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency),
             ("frameMs", Ms(start)), ("viewportBytes", view.Outline!.BytesRead), ("lines", view.Outline.State.Lines));
         Log("window", ("hwnd", window.TryGetPlatformHandle()?.Handle.ToInt64()), ("title", window.Title),
             ("visible", window.IsVisible), ("active", window.IsActive), ("opacity", window.Opacity));
+        var firstDesktop = await SetupDesktopAsync(view, start);
+        samples.Append("json-open", _backend,
+            [new(start, (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency, firstFrameMs, openMs, view.RenderMs, Desktop: firstDesktop)]);
+        RequireDesktop(firstDesktop);
         Snapshot("json shown");
         if (!await window.SaveAsync(_tab)) throw new IOException("Saving the unchanged JSON failed");
         using (var file = File.OpenRead(_file))

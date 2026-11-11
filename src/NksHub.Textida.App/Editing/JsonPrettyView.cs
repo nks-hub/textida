@@ -946,12 +946,6 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
             _ => null,
         };
 
-        public override void Render(DrawingContext context)
-        {
-            try { long start = System.Diagnostics.Stopwatch.GetTimestamp(); Draw(context); owner.MarkRendered(start); }
-            catch (IOException) { }
-        }
-
         private void Draw(DrawingContext context)
         {
             IBrush Brush(string key, IBrush fallback) => this.TryFindResource(key, ActualThemeVariant, out var v) && v is IBrush b ? b : fallback;

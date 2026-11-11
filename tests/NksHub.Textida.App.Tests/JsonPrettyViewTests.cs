@@ -1,4 +1,7 @@
 using System.Text;
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Platform;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -171,6 +174,46 @@ public class JsonPrettyViewTests : IDisposable
         using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
         Assert.True(view.RenderedAt > first);
         Assert.Contains("Anxyn", view.RowText(1));
+    }
+
+    [AvaloniaFact]
+    public void The_measurement_marker_waits_for_the_input_revision_and_does_not_replace_the_text_timestamp()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+
+        (uint First, uint Second) ReadMarker()
+        {
+            using var frame = _w.CaptureRenderedFrame()!;
+            using var buffer = frame.Lock();
+            uint Read(PixelPoint point)
+            {
+                var local = _w.PointToClient(point);
+                int x = (int)(local.X * frame.Dpi.X / 96), y = (int)(local.Y * frame.Dpi.Y / 96);
+                Assert.InRange(x, 0, frame.PixelSize.Width - 1);
+                Assert.InRange(y, 0, frame.PixelSize.Height - 1);
+                int at = y * buffer.RowBytes + x * 4;
+                uint color = (uint)Marshal.ReadInt32(buffer.Address, at) & 0xFFFFFF;
+                return frame.Format == PixelFormat.Bgra8888 ? color
+                    : (color & 0xFF00) | (color >> 16) | ((color & 0xFF) << 16);
+            }
+            return (Read(view.MeasureMarkerPoints.First), Read(view.MeasureMarkerPoints.Second));
+        }
+
+        Assert.NotEqual((0x1753A9u, 0xE8AC56u), ReadMarker());
+        view.SetMeasureMarker(0x1753A9, tab.Doc.Doc.Revision + 1);
+        view.Refresh();
+        Assert.NotEqual((0x1753A9u, 0xE8AC56u), ReadMarker());
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
+        Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
+        Assert.Contains("Anxn", view.RowText(1));
+        long first = view.RenderedAt;
+        view.SetMeasureMarker(0x1753AA, null);
+        view.ReleaseMeasureMarker();
+        Assert.Equal((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Equal(first, view.RenderedAt);
     }
 
     [AvaloniaFact]

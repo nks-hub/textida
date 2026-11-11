@@ -39,8 +39,11 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         var watchdog = Task.Delay(TimeSpan.FromMinutes(20)).ContinueWith(_ => Fail("timeout after 20 min"), TaskScheduler.Default);
         try
         {
+            if (Env("TEXTIDA_MEASURE_PRESENT") == "1" && Env("TEXTIDA_MEASURE_BACKEND") != "json")
+                throw new NotSupportedException("Desktop sampling is available for the JSON measurement backend");
             Log("samples", ("runId", samples.RunId), ("csv", Path.GetFileName(samples.Path)),
                 ("qpcFrequency", Stopwatch.Frequency), ("timing", "draw-complete"),
+                ("desktopRequested", Env("TEXTIDA_MEASURE_PRESENT") == "1"),
                 ("commit", Services.BuildStamp.Commit), ("runtime", RuntimeInformation.FrameworkDescription));
             if (Env("TEXTIDA_MEASURE_BACKEND") == "json") { await RunJsonAsync(); return; }
             Log("start", ("os", RuntimeInformation.OSDescription), ("arch", RuntimeInformation.OSArchitecture.ToString()), ("file", _file),
@@ -87,7 +90,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             _tab.View.Focus();
             await Frames(2);
             var first = await Measure(() => Type("a"));
-            samples.Append("firstEdit", _backend, [new(first.Start, first.Ui, first.Frame, first.Handler, first.Draw, first.Tick)]);
+            samples.Append("firstEdit", _backend, [new(first.Start, first.Ui, first.Frame, first.Handler, first.Draw, first.Tick, Desktop: first.Desktop)]);
             Log("firstEdit", ("backend", _backend), ("openToEditedMs", shown + (first.Ui >= 0 ? first.Ui : first.Frame)), ("openToEditedFrameMs", shown + first.Frame),
                 ("uiMs", first.Ui), ("frameMs", first.Frame), ("handlerMs", first.Handler), ("drawMs", first.Draw));
             Snapshot("first edit");
@@ -197,15 +200,17 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     /// Runs one input action. <c>Ui</c> is the time until the paged view had drawn the new state, <c>Frame</c> the time until two animation frames passed,
     /// <c>Handler</c> the time the input handlers took and <c>Draw</c> the time of the draw itself: the work on the UI thread without waiting for the frame clock.
     /// </summary>
-    private Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start)> Measure(Action action)
+    private Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start, DesktopFrame? Desktop)> Measure(Action action)
         => Measure(() => { action(); return Task.CompletedTask; });
 
-    private async Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start)> Measure(Func<Task> action)
+    private async Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start, DesktopFrame? Desktop)> Measure(Func<Task> action)
     {
         var paged = _tab!.Paged;
+        var observation = desktopProbe?.Begin();
         long t0 = Stopwatch.GetTimestamp();
         await action();
         double handler = Ms(t0);
+        desktopProbe?.Release();
         await Frames(1);
         double tick = Ms(t0);
         double ui = -1, draw = -1;
@@ -216,7 +221,9 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             draw = window.ActiveJson?.RenderMs ?? paged?.RenderMs ?? -1;
         }
         await Frames(1);
-        return (ui, Ms(t0), handler, draw, tick, t0);
+        double frame = Ms(t0);
+        DesktopFrame? seen = observation is null ? null : await observation;
+        return (ui, frame, handler, draw, tick, t0, seen);
     }
 
     private Task Series(string name, int count, Action action)
@@ -224,7 +231,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
 
     private async Task Series(string name, int count, Func<Task> action)
     {
-        List<double> ui = [], frame = [], work = [], lastDraw = [];
+        List<double> ui = [], frame = [], work = [], lastDraw = [], desktop = [];
         List<MeasureSample> rows = new(count);
         try
         {
@@ -236,10 +243,10 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
                 List<(long Start, long End, long Revision, double Scroll)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && traceSample ? [] : null;
                 void Record(long begin, long end) => draws!.Add((begin, end, jsonView!.Document.Doc.Revision, jsonView.HorizontalScroll));
                 if (draws is not null) jsonView!.Drawn += Record;
-                (double u, double f, double h, double d, double tick, long startedAt) result;
+                (double u, double f, double h, double d, double tick, long startedAt, DesktopFrame? seen) result;
                 try { result = await Measure(action); }
                 finally { if (draws is not null) jsonView!.Drawn -= Record; }
-                var (u, f, h, d, tick, startedAt) = result;
+                var (u, f, h, d, tick, startedAt, seen) = result;
                 if (draws is not null)
                 {
                     Log("json-frame-trace", ("name", name), ("sample", i), ("handlerMs", h), ("firstTickMs", tick),
@@ -251,11 +258,14 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
                     ? (json.LastRenderedAt - startedAt) * 1000.0 / Stopwatch.Frequency : null;
                 if (last is { } value) lastDraw.Add(value);
                 frame.Add(f);
-                rows.Add(new(startedAt, u, f, h, d, tick, last));
+                rows.Add(new(startedAt, u, f, h, d, tick, last, Desktop: seen));
+                RequireDesktop(seen);
+                if (seen?.Since(startedAt) is { } observedMs) desktop.Add(observedMs);
             }
         }
         finally { samples.Append(name, _backend, rows); }
-        Log("series", ("name", name), ("backend", _backend), ("n", count), ("uiN", ui.Count), ("work", Pct(work)), ("ui", Pct(ui)), ("lastDraw", Pct(lastDraw)), ("frame", Pct(frame)));
+        Log("series", ("name", name), ("backend", _backend), ("n", count), ("uiN", ui.Count), ("work", Pct(work)),
+            ("ui", Pct(ui)), ("lastDraw", Pct(lastDraw)), ("frame", Pct(frame)), ("desktopN", desktop.Count), ("desktop", Pct(desktop)));
     }
 
     private static string Pct(List<double> v)
@@ -285,6 +295,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         if (hwnd != 0) OsKeys.Focus(hwnd);
         await Frames(2);
         var ui = new List<double>();
+        var desktop = new List<double>();
         var paths = new Dictionary<string, int>();
         int delivered = 0;
         int count = json is null ? 40 : _keys;
@@ -295,28 +306,34 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             {
                 if (json is not null && !window.IsActive) throw new InvalidOperationException("The formatted JSON window lost focus during system input");
                 long before = _tab.Doc.Doc.Revision;
+                var observation = desktopProbe?.Begin(before + 1);
                 long t0 = Stopwatch.GetTimestamp();
                 bool sent = OsKeys.SendChar('k', hwnd);
                 paths[OsKeys.LastPath] = paths.GetValueOrDefault(OsKeys.LastPath) + 1;
                 for (int w = 0; w < 200 && _tab.Doc.Doc.Revision == before; w++) await Task.Delay(5);
                 if (_tab.Doc.Doc.Revision == before)
                 {
-                    rows.Add(new(t0, InputPath: OsKeys.LastPath, Sent: sent, Delivered: false));
+                    DesktopFrame? failed = observation is null ? null : await observation;
+                    rows.Add(new(t0, InputPath: OsKeys.LastPath, Sent: sent, Delivered: false, Desktop: failed));
                     Log("osInput", ("path", OsKeys.LastPath), ("sent", sent), ("delivered", false));
                     return;
                 }
                 await Frames(2);
                 delivered++;
+                double frameMs = Ms(t0);
                 long drawn = json?.RenderedAt ?? paged!.RenderedAt;
                 double? elapsed = drawn >= t0 ? (drawn - t0) * 1000.0 / Stopwatch.Frequency : null;
                 if (elapsed is { } value) ui.Add(value);
-                rows.Add(new(t0, elapsed, FrameMs: Ms(t0), InputPath: OsKeys.LastPath, Sent: sent, Delivered: true));
+                DesktopFrame? seen = observation is null ? null : await observation;
+                rows.Add(new(t0, elapsed, FrameMs: frameMs, InputPath: OsKeys.LastPath, Sent: sent, Delivered: true, Desktop: seen));
+                RequireDesktop(seen);
+                if (seen?.Since(t0) is { } observedMs) desktop.Add(observedMs);
             }
         }
         finally { samples.Append("osInput", _backend, rows); }
         if (json is not null && ui.Count != count) throw new InvalidOperationException("Some JSON system input has no rendered frame");
         Log("osInput", ("backend", _backend), ("path", OsKeys.LastPath), ("paths", string.Join(",", paths.Select(p => p.Key + "=" + p.Value))),
-            ("delivered", delivered), ("uiN", ui.Count), ("ui", Pct(ui)));
+            ("delivered", delivered), ("uiN", ui.Count), ("ui", Pct(ui)), ("desktopN", desktop.Count), ("desktop", Pct(desktop)));
     }
 
     // ---- memory ----

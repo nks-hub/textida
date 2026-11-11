@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.App.Editing;
@@ -13,6 +16,31 @@ internal sealed partial class JsonPrettyView
     internal double RenderMs { get; private set; }
     internal double HorizontalScroll => _hScroll;
     internal event Action<long, long>? Drawn;
+    private (IBrush First, IBrush Second, long? Revision, bool Ready)? measureMarker;
+
+    internal (PixelPoint First, PixelPoint Second) MeasureMarkerPoints
+    {
+        get
+        {
+            if (_canvas.Bounds.Width < 20 || _canvas.Bounds.Height < 12)
+                throw new InvalidOperationException("The JSON viewport is too small for a frame marker");
+            return (_canvas.PointToScreen(new Point(_canvas.Bounds.Width - 12, _canvas.Bounds.Height - 6)),
+                _canvas.PointToScreen(new Point(_canvas.Bounds.Width - 4, _canvas.Bounds.Height - 6)));
+        }
+    }
+
+    internal void SetMeasureMarker(uint rgb, long? revision)
+    {
+        static IBrush Brush(uint value) => new ImmutableSolidColorBrush(Color.FromRgb((byte)(value >> 16), (byte)(value >> 8), (byte)value));
+        measureMarker = (Brush(rgb), Brush(rgb ^ 0xFFFFFF), revision, false);
+    }
+
+    internal void ReleaseMeasureMarker()
+    {
+        if (measureMarker is not { } marker) return;
+        measureMarker = marker with { Ready = true };
+        _canvas.InvalidateVisual();
+    }
 
     private void MarkRendered(long start)
     {
@@ -23,5 +51,24 @@ internal sealed partial class JsonPrettyView
         drawn = state;
         RenderedAt = LastRenderedAt;
         RenderMs = Stopwatch.GetElapsedTime(start, RenderedAt).TotalMilliseconds;
+    }
+
+    private sealed partial class Surface
+    {
+        public override void Render(DrawingContext context)
+        {
+            try
+            {
+                long start = Stopwatch.GetTimestamp();
+                Draw(context);
+                if (owner.measureMarker is { } marker && (marker.Ready || marker.Revision is { } revision && owner.Doc.Revision >= revision))
+                {
+                    context.FillRectangle(marker.First, new Rect(Bounds.Width - 16, Bounds.Height - 10, 8, 8));
+                    context.FillRectangle(marker.Second, new Rect(Bounds.Width - 8, Bounds.Height - 10, 8, 8));
+                }
+                owner.MarkRendered(start);
+            }
+            catch (IOException) { }
+        }
     }
 }
