@@ -108,7 +108,7 @@ public class JsonPrettyViewTests : IDisposable
         long renderedAt = tab.Paged?.RenderedAt ?? 0;
         int runs = syntax.ViewportRuns;
         view.MoveCaret(1, "  \"name\": \"An".Length);
-        TestApp.Type(_w, "x");
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
         Dispatcher.UIThread.RunJobs();
         using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
         Assert.False(tab.View.IsVisible);
