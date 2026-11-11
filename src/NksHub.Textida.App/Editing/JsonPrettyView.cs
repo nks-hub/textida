@@ -484,28 +484,6 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
         ViewChanged?.Invoke();
     }
 
-    internal void UpdateScrollRange()
-    {
-        _syncing = true;
-        try
-        {
-            long rows = RowCount;
-            _top = Math.Clamp(_top, 0, Math.Max(0, rows - 1));
-            _vbar.Maximum = Math.Max(0, rows - 1);
-            _vbar.ViewportSize = Math.Max(1, VisibleRows);
-            _vbar.LargeChange = Math.Max(1, VisibleRows - 1);
-            _vbar.Value = _top;
-            _hbar.Maximum = Math.Max(0, _canvas.WidestLine - _canvas.TextWidth / 2);
-            _hbar.ViewportSize = Math.Max(1, _canvas.TextWidth);
-            _hbar.LargeChange = Math.Max(1, _canvas.TextWidth / 2);
-            _hbar.Value = Math.Min(_hScroll, _hbar.Maximum);
-        }
-        finally
-        {
-            _syncing = false;
-        }
-    }
-
     // ---- caret ----
 
     /// <summary>The document offset the caret stands on: inside a key or value its byte, elsewhere the start of the key or value of the line.</summary>
@@ -868,7 +846,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
 
     // ---- drawing ----
 
-    private sealed class Surface(JsonPrettyView owner) : Control
+    private sealed partial class Surface(JsonPrettyView owner) : Control
     {
         private const double Pad = 6;
         private double _lineHeight = 18, _charWidth = 8, _gutter = 40;
@@ -991,9 +969,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
                 context.DrawText(Format(Loc.Get(K.JsonPrettyEncoding), fore), new Point(Pad, Pad));
                 return;
             }
-            long lines = owner.LineCount;
-            int digits = Math.Max(3, lines.ToString(CultureInfo.InvariantCulture).Length);
-            _gutter = owner._options.LineNumbers ? (digits + 2) * _charWidth + Pad : 2 * _charWidth;
+            UpdateGutter();
             var selected = owner.Selection;
             double widest = 0;
             for (int i = 0; i < VisibleRows; i++)

@@ -26,18 +26,12 @@ internal sealed partial class PagedMeasure
         double openMs = Ms(start);
         window.SetJsonPretty(_tab, true);
         var view = window.ActiveJson ?? throw new InvalidOperationException("The formatted JSON view did not open");
-        bool fixedRange = Env("TEXTIDA_MEASURE_JSON_FIXED_EXTENT") == "1";
-        if (fixedRange)
-        {
-            var bar = view.Children.OfType<Avalonia.Controls.Primitives.ScrollBar>().Single(b => b.Orientation == Avalonia.Layout.Orientation.Horizontal);
-            bar.SetValue(Avalonia.Controls.Primitives.ScrollBar.MaximumProperty, 1_000_000.0, Avalonia.Data.BindingPriority.Animation);
-        }
         await Frames(2);
         if (view.RenderedAt < start) throw new InvalidOperationException("The formatted JSON view did not draw a frame");
         Log("json-open", ("openCallMs", openMs), ("drawnMs", (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency),
             ("frameMs", Ms(start)), ("viewportBytes", view.Outline!.BytesRead), ("lines", view.Outline.State.Lines));
         Log("window", ("hwnd", window.TryGetPlatformHandle()?.Handle.ToInt64()), ("title", window.Title),
-            ("visible", window.IsVisible), ("active", window.IsActive), ("opacity", window.Opacity), ("fixedRange", fixedRange));
+            ("visible", window.IsVisible), ("active", window.IsActive), ("opacity", window.Opacity));
         Snapshot("json shown");
         if (!await window.SaveAsync(_tab)) throw new IOException("Saving the unchanged JSON failed");
         using (var file = File.OpenRead(_file))
