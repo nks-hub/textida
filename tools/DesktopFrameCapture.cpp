@@ -1,5 +1,7 @@
 // Build in an x64 Visual Studio developer prompt:
 // cl /nologo /W4 /EHsc /MT /O2 /std:c++17 tools\DesktopFrameCapture.cpp /link d3d11.lib dxgi.lib user32.lib
+// Start with an awake console display. The capture request prevents an idle timeout;
+// it does not reliably wake a display that is already off.
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -46,6 +48,28 @@ long long Counter() {
     return value.QuadPart;
 }
 
+class DisplayRequest {
+    EXECUTION_STATE previous = 0;
+public:
+    DisplayRequest() {
+        const auto requested = Counter();
+        previous = SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+        if (!previous) throw std::runtime_error("Keeping the capture display awake failed");
+        std::printf("display_request_qpc=%lld previous=%08lx\n", requested, static_cast<unsigned long>(previous));
+    }
+    DisplayRequest(const DisplayRequest&) = delete;
+    DisplayRequest& operator=(const DisplayRequest&) = delete;
+    ~DisplayRequest() {
+        if (previous && !SetThreadExecutionState(previous))
+            std::fputs("Restoring the capture execution state failed\n", stderr);
+    }
+    void Restore() {
+        if (!SetThreadExecutionState(previous)) throw std::runtime_error("Restoring the capture execution state failed");
+        previous = 0;
+        std::printf("display_request_restored=1\n");
+    }
+};
+
 long Number(const wchar_t* text) {
     wchar_t* end = nullptr;
     errno = 0;
@@ -77,6 +101,7 @@ std::uint32_t Pixel(const BYTE* bytes, UINT pitch, POINT point) {
 int Capture(DWORD pid, POINT first, POINT second, int seconds, const wchar_t* path) {
     Handle process(OpenProcess(SYNCHRONIZE, FALSE, pid));
     if (!process.value) throw std::runtime_error("Opening target process failed");
+    DisplayRequest displayRequest;
     ComPtr<IDXGIFactory1> factory;
     Check(CreateDXGIFactory1(IID_PPV_ARGS(&factory)), "CreateDXGIFactory1");
     ComPtr<IDXGIOutputDuplication> capture;
@@ -194,6 +219,7 @@ int Capture(DWORD pid, POINT first, POINT second, int seconds, const wchar_t* pa
     }
     std::printf("frames=%u pointer_only=%u owned=%u finished_qpc=%lld target_exited=%d\n",
         frames, pointerOnly, owned, Counter(), WaitForSingleObject(process.value, 0) == WAIT_OBJECT_0);
+    displayRequest.Restore();
     return 0;
 }
 }
