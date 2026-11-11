@@ -95,7 +95,8 @@ public static partial class Program
         }
     }
 
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect().With(Editing.EditorFontFallbacks.Options).LogToTrace();
+    public static AppBuilder BuildAvaloniaApp() => Startup.MeasureRendering.Configure(
+        AppBuilder.Configure<App>().UsePlatformDetect().With(Editing.EditorFontFallbacks.Options)).LogToTrace();
 
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

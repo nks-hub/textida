@@ -48,6 +48,8 @@ internal sealed partial class PagedMeasure
             ("markerBinding", "draw-state"),
             ("openMarkerArmedBeforeDraw", true),
             ("viewportScope", "fixed geometry and options; one fold target; no DPI or font changes"),
+            ("requestedWin32Composition", Env("TEXTIDA_MEASURE_WIN32_COMPOSITION") ?? "platform-default"),
+            ("transparency", window.ActualTransparencyLevel.ToString()),
             ("scope", external ? "presentation is unverified until joined to external capture timestamps"
                 : "first observed interactive VM desktop pixels; upper bound, not physical display or RDP transport"),
             ("session", process.SessionId), ("x1", desktopProbe.Points.First.X), ("y1", desktopProbe.Points.First.Y),
