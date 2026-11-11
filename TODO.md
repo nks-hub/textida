@@ -2078,6 +2078,16 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Stav 27. 10. 2026 (noc):** částečně. Zavřít tag, protější tag, vybrat element, odstranit tag, obalit tagem, odstranit všechny tagy, entity i pro znaky mimo ASCII. Chybí vložení obrázku a odkazu s rozměrem; Tidy není přibalený.
   - **Ověření 28. 10. 2026 (odpoledne):** hotovo. příkazy Vložit obrázek a Vložit odkaz s rozměry z hlavičky PNG/GIF/JPEG/BMP/WebP; Tidy se nepřibaluje.
 
+- [ ] **P4.6.6** Stromový průzkumník a analýza JSON a XML
+  - **Co a proč:** Požadavek majitele 11. 11. 2026: práce s daty podobně jako v online nástrojích pro JSON a XML. Vedle zdrojového textu bude dokovatelný strom s rozbalováním objektů, polí a elementů; u uzlu klíč nebo název, typ, hodnota a počet potomků, u XML i atributy a jmenné prostory. Klik na uzel vybere odpovídající místo ve zdroji a pohyb kurzoru vybere uzel ve stromu. Vše běží místně nad otevřeným dokumentem.
+  - **Rozsah:** hledání podle názvu, hodnoty a cesty; kopírování cesty a obsahu uzlu; dotazy JSONPath a XPath s jasně uvedenou podporovanou syntaxí; přehled počtů uzlů, typů, hloubky a velikosti, duplicitní klíče JSON a seznam chyb se skokem na místo; úprava jednoduché hodnoty ve stromu jako jeden krok Zpět bez přeformátování zbytku souboru. Navázat na cesty z P4.6.4, formátovaný pohled JSON z P3.1.14 a ověřování schémat z P8.7.1; netvořit druhý nezávislý dokument.
+  - **Funkce:** žádná (požadavek majitele 11. 11. 2026)
+  - **Hotovo, když:** JSON, JSONC a XML mají strom, který jde ovládat myší i klávesnicí; výběr v obou směrech trefí stejný rozsah i u Unicode, polí, atributů, CDATA a jmenných prostorů; filtr a dotazy vrátí očekávané uzly; počty a duplicitní klíče odpovídají vzorkům; chyba ukáže místo a nezahodí zdroj; změna hodnoty upraví jen její rozsah, správně ošetří uvozovky a entity a jde vrátit jedním Zpět; výsledek staré revize se nezobrazí. Velké soubory se rozebírají na pozadí, strom načítá větve postupně a práci jde zrušit; rozpočty paměti a odezvy se určí před implementací podle PR.8.2. XML nesmí načítat vnější entity ani DTD a prohlížení ani analýza neposílají data na síť. Ověřit testy i použitím v běžící aplikaci.
+  - **Závisí na:** P1.2.1, P3.6.9, P4.6.4
+  - **Odhad:** bez odhadu; ocení PR.8.2 před zahájením
+  - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
+  - **Stav 11. 11. 2026:** plán. Existuje formátovaný pohled JSON a práce s cestami; společný průzkumník JSON/XML a uvedená analýza zatím nejsou hotové.
+
 ### P4.7 Zvýrazňovače jako data
 
 - [x] **P4.7.1** Multi-zvýraznění, uživatelské zvýrazňovače a jejich nastavení
@@ -3854,7 +3864,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P2 | 7 | 25 | 22–37 |
 | P3 | 7 | 55 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
-| P4 | 11 | 30 | 19,5–31,5 |
+| P4 | 11 | 31 | 19,5–31,5 (neúplné) |
 | P5 | 6 | 27 | 24–37 (neúplné) |
 | P6 | 6 | 22 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
@@ -3863,7 +3873,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **349** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **350** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
 
 ### Kritická cesta
 
