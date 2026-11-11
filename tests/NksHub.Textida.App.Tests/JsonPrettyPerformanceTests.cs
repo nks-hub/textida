@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core;
 using NksHub.Textida.Tests;
 
 namespace NksHub.Textida.App.Tests;
@@ -17,11 +18,13 @@ namespace NksHub.Textida.App.Tests;
 public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisposable
 {
     private readonly TempDir temp = new();
+    private readonly bool tracing = TypingTrace.Enabled;
     private App? app;
     private MainWindow? window;
 
     public void Dispose()
     {
+        TypingTrace.Enabled = tracing;
         if (app is not null) TestApp.Cleanup(app);
         Loc.SetLanguage(Loc.DefaultLanguage);
         temp.Dispose();
@@ -88,18 +91,24 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
         using var self = Process.GetCurrentProcess();
         self.Refresh();
         long before = self.PrivateMemorySize64;
+        TypingTrace.Enabled = true;
+        TypingTrace.Reset();
         var clock = Stopwatch.StartNew();
         var tab = window.OpenFile(path, null);
+        double openMs = clock.Elapsed.TotalMilliseconds;
         Assert.NotNull(tab.Paged);
         window.SetJsonPretty(tab, true);
+        double prettyMs = clock.Elapsed.TotalMilliseconds - openMs;
         var view = Assert.IsType<JsonPrettyView>(window.ActiveJson);
         Frame();
         double firstScreen = clock.Elapsed.TotalMilliseconds;
-        output.WriteLine($"First screen including open: {firstScreen:F2} ms, viewport reads={view.Outline!.BytesRead} bytes");
+        long viewportReads = view.Outline!.BytesRead;
+        TypingTrace.Enabled = tracing;
+        output.WriteLine($"First screen including open: {firstScreen:F2} ms (open={openMs:F2}, pretty={prettyMs:F2}, frame={firstScreen - openMs - prettyMs:F2}), viewport reads={viewportReads} bytes");
+        output.WriteLine(TypingTrace.Summary());
+        TypingTrace.Reset();
         Assert.Equal("[", view.RowText(0));
         Assert.Equal("    \"id\": \"abcdefgh\",", view.RowText(2));
-        Assert.True(firstScreen <= 1000, $"First screen took {firstScreen:F2} ms");
-        Assert.True(view.Outline.BytesRead < 1L << 20);
 
         Assert.True(await window.SaveAsync(tab));
         Assert.Equal(original, Hash(path));
@@ -142,9 +151,12 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
         self.Refresh();
         long grown = self.PrivateMemorySize64 - before;
         output.WriteLine($"Private memory growth after input: {grown / 1048576.0:F2} MiB, scanned={view.Outline.ScannedBytes} bytes, complete={view.Outline.State.Complete}");
-        CheckLatency("Scroll", scroll);
-        CheckLatency("Fold", fold);
-        CheckLatency("Typing", typing);
-        Assert.True(grown <= 350L << 20, $"Private memory grew by {grown} bytes");
+        Assert.Multiple(
+            () => Assert.True(firstScreen <= 1000, $"First screen took {firstScreen:F2} ms"),
+            () => Assert.True(viewportReads < 1L << 20),
+            () => CheckLatency("Scroll", scroll),
+            () => CheckLatency("Fold", fold),
+            () => CheckLatency("Typing", typing),
+            () => Assert.True(grown <= 350L << 20, $"Private memory grew by {grown} bytes"));
     }
 }
