@@ -39,11 +39,12 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         var watchdog = Task.Delay(TimeSpan.FromMinutes(20)).ContinueWith(_ => Fail("timeout after 20 min"), TaskScheduler.Default);
         try
         {
-            if (Env("TEXTIDA_MEASURE_PRESENT") == "1" && Env("TEXTIDA_MEASURE_BACKEND") != "json")
+            if (Env("TEXTIDA_MEASURE_PRESENT") is "1" or "external" && Env("TEXTIDA_MEASURE_BACKEND") != "json")
                 throw new NotSupportedException("Desktop sampling is available for the JSON measurement backend");
             Log("samples", ("runId", samples.RunId), ("csv", Path.GetFileName(samples.Path)),
                 ("qpcFrequency", Stopwatch.Frequency), ("timing", "draw-complete"),
-                ("desktopRequested", Env("TEXTIDA_MEASURE_PRESENT") == "1"),
+                ("desktopRequested", Env("TEXTIDA_MEASURE_PRESENT") is "1" or "external"),
+                ("desktopMode", Env("TEXTIDA_MEASURE_PRESENT") ?? "none"),
                 ("commit", Services.BuildStamp.Commit), ("runtime", RuntimeInformation.FrameworkDescription));
             if (Env("TEXTIDA_MEASURE_BACKEND") == "json") { await RunJsonAsync(); return; }
             Log("start", ("os", RuntimeInformation.OSDescription), ("arch", RuntimeInformation.OSArchitecture.ToString()), ("file", _file),

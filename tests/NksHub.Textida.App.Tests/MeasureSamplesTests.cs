@@ -54,11 +54,13 @@ public class MeasureSamplesTests
         var samples = new MeasureSamples(System.IO.Path.Combine(temp.Path, "measure.jsonl"));
         long observed = 100 + System.Diagnostics.Stopwatch.Frequency;
         samples.Append("type", "json", [new(100, 12.5, Desktop: new(0x1753A9, observed, 2.5, 1.25, 4, "seen")),
-            new(0, 14.5, Desktop: new(0x1753AA, 0, 1.5, 2.25, 5, "timeout"))]);
+            new(0, 14.5, Desktop: new(0x1753AA, 0, 1.5, 2.25, 5, "timeout")),
+            new(0, 13.5, Desktop: new(0x1753AB, 0, 0, 0, 0, "external"))]);
         var rows = File.ReadAllLines(samples.Path).Skip(1).Select(l => l.Split(',')).ToArray();
         Assert.Equal(new[] { "1753A9", observed.ToString(CultureInfo.InvariantCulture), "1000", "2.5", "1.25", "4", "seen" }, rows[0][15..]);
         Assert.Equal("14.5", rows[1][9]);
         Assert.Equal(new[] { "1753AA", "", "", "1.5", "2.25", "5", "timeout" }, rows[1][15..]);
+        Assert.Equal(new[] { "1753AB", "", "", "", "", "", "external" }, rows[2][15..]);
     }
 
     [Fact]

@@ -13,7 +13,7 @@ internal readonly record struct DesktopFrame(uint Marker, long ObservedAt, doubl
 
 // Reads the interactive desktop, not the window's backing bitmap. The result is an upper bound:
 // the first completed read that found this frame's two marker colors, not physical monitor latency.
-internal sealed partial class DesktopFrameProbe(nint hwnd, JsonPrettyView view)
+internal sealed partial class DesktopFrameProbe(nint hwnd, JsonPrettyView view, bool external = false)
 {
     private uint marker = (uint)Random.Shared.Next(1, 0xFFFFFF);
     internal (PixelPoint First, PixelPoint Second) Points { get; } = view.MeasureMarkerPoints;
@@ -25,6 +25,8 @@ internal sealed partial class DesktopFrameProbe(nint hwnd, JsonPrettyView view)
         view.SetMeasureMarker(next, revision);
         if (view.MeasureMarkerPoints != Points)
             return Task.FromResult(new DesktopFrame(next, 0, 0, 0, 0, "window-moved"));
+        if (external)
+            return Task.FromResult(new DesktopFrame(next, 0, 0, 0, 0, "external"));
         long armedAt = Stopwatch.GetTimestamp();
         return Task.Run(() => Read(next, armedAt));
     }

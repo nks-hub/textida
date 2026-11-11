@@ -33,8 +33,9 @@ internal sealed class MeasureSamples(string logPath)
                 s.InputPath, Flag(s.Sent), Flag(s.Delivered), Number(s.UiMs), Number(s.FrameMs), Number(s.HandlerMs),
                 Number(s.DrawMs), Number(s.FirstTickMs), Number(s.LastDrawMs), s.Desktop?.Marker.ToString("X6", CultureInfo.InvariantCulture) ?? "",
                 s.Desktop is { ObservedAt: > 0 } desktop ? desktop.ObservedAt.ToString(CultureInfo.InvariantCulture) : "",
-                Number(s.Desktop?.Since(s.StartedAt)), Number(s.Desktop?.ReadMs), Number(s.Desktop?.PollMs),
-                s.Desktop?.Reads.ToString(CultureInfo.InvariantCulture) ?? "", s.Desktop?.Status ?? ""];
+                Number(s.Desktop?.Since(s.StartedAt)), s.Desktop?.Status == "external" ? "" : Number(s.Desktop?.ReadMs),
+                s.Desktop?.Status == "external" ? "" : Number(s.Desktop?.PollMs),
+                s.Desktop?.Status == "external" ? "" : s.Desktop?.Reads.ToString(CultureInfo.InvariantCulture) ?? "", s.Desktop?.Status ?? ""];
             csv.AppendLine(string.Join(',', fields.Select(Escape)));
         }
         // Flush between series, outside the timed input and rendering path.
