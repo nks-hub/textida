@@ -8,7 +8,7 @@ using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
 
-public class JsonOutlineTests
+public class JsonOutlineTests(ITestOutputHelper output)
 {
     private static Doc Make(string text) => Doc.FromBytes(Encoding.UTF8.GetBytes(text), new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Utf8 });
 
@@ -571,14 +571,19 @@ public class JsonOutlineTests
     public void Jsonc_files_are_known_by_extension_and_name(string path, bool jsonc) => Assert.Equal(jsonc, JsonDataReader.IsJsoncFile(path));
 
     [Fact]
+    [Trait("Category", "Perf")]
     public void A_whole_gibibyte_is_scanned_in_bounded_memory()
     {
-        if (Environment.GetEnvironmentVariable("TEXTIDA_HUGE") != "1") return;
+        Assert.SkipWhen(Environment.GetEnvironmentVariable("TEXTIDA_HUGE") != "1", "Requires TEXTIDA_HUGE=1.");
         var source = new Synthetic(1L << 25);
         long before = GC.GetTotalMemory(true);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         using var outline = new JsonOutline(source, 0, TextCodec.Utf8);
         outline.ScanToEnd();
         long grown = GC.GetTotalMemory(true) - before;
+        output.WriteLine($"JSON source={source.ByteLength} bytes, lines={outline.State.Lines}, scan={clock.Elapsed.TotalSeconds:F2} s, retained={grown} bytes, read={source.Reads} bytes");
+        Assert.Null(outline.Error);
+        Assert.True(outline.State.Complete);
         Assert.Equal((1L << 25) * 5 + 2, outline.State.Lines);
         Assert.True(grown < 64L << 20, $"grew by {grown} bytes");
         Assert.Equal(outline.State.Lines - 1, outline.FindClose(0));
