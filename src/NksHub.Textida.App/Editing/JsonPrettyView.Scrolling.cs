@@ -5,14 +5,17 @@ namespace NksHub.Textida.App.Editing;
 
 internal sealed partial class JsonPrettyView
 {
+    private long RowCountOf(long lines) => Math.Max(0, lines - _folds.Hidden + ExtraRows);
+
     internal void UpdateScrollRange()
     {
         _syncing = true;
         try
         {
-            long rows = RowCount;
+            long lines = LineCount;
+            long rows = RowCountOf(lines);
             _top = Math.Clamp(_top, 0, Math.Max(0, rows - 1));
-            _canvas.UpdateWidth();
+            _canvas.UpdateWidth(lines);
             _vbar.Maximum = Math.Max(0, rows - 1);
             _vbar.ViewportSize = Math.Max(1, VisibleRows);
             _vbar.LargeChange = Math.Max(1, VisibleRows - 1);
@@ -30,15 +33,15 @@ internal sealed partial class JsonPrettyView
         private readonly Dictionary<string, double> widths = new(StringComparer.Ordinal);
         private (string Family, double Size, string Culture)? widthFont;
 
-        private void UpdateGutter()
+        private void UpdateGutter(long lines)
         {
-            int digits = Math.Max(3, owner.LineCount.ToString(CultureInfo.InvariantCulture).Length);
+            int digits = Math.Max(3, lines.ToString(CultureInfo.InvariantCulture).Length);
             _gutter = owner._options.LineNumbers ? (digits + 2) * _charWidth + Pad : 2 * _charWidth;
         }
 
-        public void UpdateWidth()
+        public void UpdateWidth(long lines)
         {
-            if (!owner.IsEffectivelyVisible) return;
+            if (!owner.IsEffectivelyVisible || Bounds.Width <= 0 || Bounds.Height <= 0) return;
             var font = (owner._options.FullFontFamily, owner._options.FontSize, CultureInfo.CurrentCulture.Name);
             // The cache holds about two viewports; each edit can introduce another version of its line.
             if (widthFont != font || widths.Count > Math.Max(64, 2 * VisibleRows))
@@ -48,7 +51,7 @@ internal sealed partial class JsonPrettyView
             }
             try
             {
-                UpdateGutter();
+                UpdateGutter(lines);
                 double widest = 0;
                 for (int i = 0; i < VisibleRows; i++)
                 {

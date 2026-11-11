@@ -158,7 +158,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
     /// <summary>Rows the wrapped value takes beyond its first one.</summary>
     private long ExtraRows => _expanded >= 0 && LineAt(_expanded) is { } l ? JsonOutline.PartCount(l, PartBytes) - 1 : 0;
 
-    private long RowCount => Math.Max(0, LineCount - _folds.Hidden + ExtraRows);
+    private long RowCount => RowCountOf(LineCount);
 
     /// <summary>The line and the part of a wrapped value shown in visible row <paramref name="row"/>.</summary>
     private (long Line, long Part) At(long row)
@@ -969,7 +969,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
                 context.DrawText(Format(Loc.Get(K.JsonPrettyEncoding), fore), new Point(Pad, Pad));
                 return;
             }
-            UpdateGutter();
+            UpdateGutter(owner.LineCount);
             var selected = owner.Selection;
             double widest = 0;
             for (int i = 0; i < VisibleRows; i++)
