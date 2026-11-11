@@ -17,6 +17,7 @@ internal sealed partial class JsonPrettyView
     internal double HorizontalScroll => _hScroll;
     internal event Action<long, long>? Drawn;
     private (IBrush First, IBrush Second, long? Revision, bool Ready)? measureMarker;
+    private (IBrush First, IBrush Second)? visibleMeasureMarker;
 
     internal (PixelPoint First, PixelPoint Second) MeasureMarkerPoints
     {
@@ -62,9 +63,11 @@ internal sealed partial class JsonPrettyView
                 long start = Stopwatch.GetTimestamp();
                 Draw(context);
                 if (owner.measureMarker is { } marker && (marker.Ready || marker.Revision is { } revision && owner.Doc.Revision >= revision))
+                    owner.visibleMeasureMarker = (marker.First, marker.Second);
+                if (owner.visibleMeasureMarker is { } visible)
                 {
-                    context.FillRectangle(marker.First, new Rect(Bounds.Width - 16, Bounds.Height - 10, 8, 8));
-                    context.FillRectangle(marker.Second, new Rect(Bounds.Width - 8, Bounds.Height - 10, 8, 8));
+                    context.FillRectangle(visible.First, new Rect(Bounds.Width - 16, Bounds.Height - 10, 8, 8));
+                    context.FillRectangle(visible.Second, new Rect(Bounds.Width - 8, Bounds.Height - 10, 8, 8));
                 }
                 owner.MarkRendered(start);
             }
