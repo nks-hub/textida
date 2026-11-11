@@ -139,11 +139,16 @@ public sealed class JsonPrettyPerformanceTests(ITestOutputHelper output) : IDisp
         view.MoveCaret(2, "    \"id\": \"abc".Length);
         long at = view.SourceOffset;
         var typing = new List<double>();
+        TypingTrace.Reset();
+        TypingTrace.Enabled = true;
         for (int i = 0; i < 270; i++)
         {
             double ms = Measure(() => TestApp.Type(window, "x"));
             if (i >= 20) typing.Add(ms);
         }
+        TypingTrace.Enabled = tracing;
+        output.WriteLine("Typing spans:\n" + TypingTrace.Summary());
+        TypingTrace.Reset();
         Assert.Equal(at + 270, view.SourceOffset);
         Assert.Equal(new string('x', 270), System.Text.Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new(at, at + 270))));
         TestApp.Press(window, Key.Z, TestApp.Mod);
