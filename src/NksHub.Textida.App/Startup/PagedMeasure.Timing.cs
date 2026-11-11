@@ -15,7 +15,8 @@ internal sealed partial class PagedMeasure
         uint status = TimeBeginPeriod(1);
         if (status != 0) throw new InvalidOperationException($"timeBeginPeriod(1) failed: {status}");
         measureTimerPeriod = true;
-        Log("timer-period", ("requestedMs", 1), ("status", status), ("scope", "measurement process only; balanced before shutdown"));
+        Log("timer-period", ("requestedMs", 1), ("status", status),
+            ("scope", "measurement process only; explicit end on normal or caught-error completion"));
     }
 
     private void EndMeasureTimer()
