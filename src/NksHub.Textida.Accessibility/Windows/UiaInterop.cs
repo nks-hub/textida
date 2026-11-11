@@ -84,7 +84,7 @@ internal partial interface ITextProvider2 : ITextProvider
     void GetCaretRange([MarshalAs(UnmanagedType.Bool)] out bool isActive, out ITextRangeProvider? range);
 }
 
-[GeneratedComInterface, Guid("5347ad7b-c355-46f8-aff5-909033582f63")]
+[GeneratedComInterface, Guid(UiaNative.TextRangeInterfaceId)]
 internal partial interface ITextRangeProvider
 {
     ITextRangeProvider Clone();
@@ -112,6 +112,7 @@ internal partial interface ITextRangeProvider
 [SupportedOSPlatform("windows")]
 internal static unsafe partial class UiaNative
 {
+    public const string TextRangeInterfaceId = "5347ad7b-c355-46f8-aff5-909033582f63";
     public const int UiaRootObjectId = -25;
     public const int WmGetObject = 0x003D;
     public const int TextSelectionChangedEventId = 20014, TextChangedEventId = 20015, FocusChangedEventId = 20005;
@@ -135,6 +136,8 @@ internal static unsafe partial class UiaNative
 
     [LibraryImport("oleaut32.dll")]
     public static partial nint SafeArrayCreateVector(ushort vt, int lowerBound, uint elements);
+    [LibraryImport("oleaut32.dll")]
+    public static partial nint SafeArrayCreateVectorEx(ushort vt, int lowerBound, uint elements, void* extra);
     [LibraryImport("oleaut32.dll")]
     public static partial int SafeArrayPutElement(nint array, int* index, void* value);
     [LibraryImport("oleaut32.dll")]
@@ -165,10 +168,12 @@ internal static unsafe partial class UiaNative
         return sa;
     }
 
-    /// <summary>A SAFEARRAY of IUnknown holding one reference to each object; the array owns its own references.</summary>
+    /// <summary>A SAFEARRAY of text-range interface pointers; the array owns its references.</summary>
     public static nint RangeArray(ReadOnlySpan<ITextRangeProvider> ranges)
     {
-        nint sa = SafeArrayCreateVector(VtUnknown, 0, (uint)ranges.Length);
+        Guid iid = new(TextRangeInterfaceId);
+        nint sa = SafeArrayCreateVectorEx(VtUnknown, 0, (uint)ranges.Length, &iid);
+        if (sa == 0) throw new OutOfMemoryException();
         for (int i = 0; i < ranges.Length; i++)
         {
             void* unk = ComInterfaceMarshaller<ITextRangeProvider>.ConvertToUnmanaged(ranges[i]);
