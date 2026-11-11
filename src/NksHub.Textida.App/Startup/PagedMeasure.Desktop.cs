@@ -11,6 +11,7 @@ internal sealed partial class PagedMeasure
     {
         string? mode = Env("TEXTIDA_MEASURE_PRESENT");
         if (mode is not ("1" or "external")) return null;
+        if (view.RenderedAt >= openedAt) throw new InvalidOperationException("The opening frame marker must be armed before the first draw");
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Desktop sampling requires Windows");
         using var process = Process.GetCurrentProcess();
         if (process.SessionId == 0) throw new InvalidOperationException("Desktop sampling requires an interactive session");
@@ -25,6 +26,8 @@ internal sealed partial class PagedMeasure
         Log("desktop-probe", ("method", external ? "frame markers for an external desktop capture; no internal pixel read"
                 : "BitBlt(GetDC(NULL)) to a top-down 32-bit DIB, GdiFlush, two frame-specific colors"),
             ("markerBinding", "draw-state"),
+            ("openMarkerArmedBeforeDraw", true),
+            ("viewportScope", "fixed geometry and options; one fold target; no DPI or font changes"),
             ("scope", external ? "presentation is unverified until joined to external capture timestamps"
                 : "first observed interactive VM desktop pixels; upper bound, not physical display or RDP transport"),
             ("session", process.SessionId), ("x1", desktopProbe.Points.First.X), ("y1", desktopProbe.Points.First.Y),

@@ -27,14 +27,16 @@ internal sealed partial class PagedMeasure
         double openMs = Ms(start);
         window.SetJsonPretty(_tab, true);
         var view = window.ActiveJson ?? throw new InvalidOperationException("The formatted JSON view did not open");
+        if (Env("TEXTIDA_MEASURE_PRESENT") is "1" or "external") window.UpdateLayout();
+        var firstDesktopTask = SetupDesktopAsync(view, start);
         await Frames(2);
+        var firstDesktop = await firstDesktopTask;
         if (view.RenderedAt < start) throw new InvalidOperationException("The formatted JSON view did not draw a frame");
         double firstFrameMs = Ms(start);
         Log("json-open", ("openCallMs", openMs), ("drawnMs", (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency),
             ("frameMs", Ms(start)), ("viewportBytes", view.Outline!.BytesRead), ("lines", view.Outline.State.Lines));
         Log("window", ("hwnd", window.TryGetPlatformHandle()?.Handle.ToInt64()), ("title", window.Title),
             ("visible", window.IsVisible), ("active", window.IsActive), ("opacity", window.Opacity));
-        var firstDesktop = await SetupDesktopAsync(view, start);
         samples.Append("json-open", _backend,
             [new(start, (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency, firstFrameMs, openMs, view.RenderMs, Desktop: firstDesktop)]);
         RequireDesktop(firstDesktop);
