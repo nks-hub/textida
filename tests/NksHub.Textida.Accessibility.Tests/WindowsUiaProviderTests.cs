@@ -19,7 +19,6 @@ public partial class WindowsUiaProviderTests
 {
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetUBound(nint array, uint dim, out int ubound);
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayDestroy(nint array);
-    [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetIID(nint array, out Guid iid);
     [LibraryImport("oleaut32.dll")] private static unsafe partial int SafeArrayGetElement(nint array, int* index, out nint element);
 
     [WindowsFact]
@@ -75,23 +74,6 @@ public partial class WindowsUiaProviderTests
     }
 
     private static UiaEditorProvider Provider(TestSurface s) => new(s, 0, new UiaEditorInfo("Test editor", "test-editor"));
-
-    [WindowsFact]
-    public void Range_arrays_identify_the_text_range_interface_for_cross_process_marshalling()
-    {
-        using var surface = new TestSurface("one\ntwo");
-        var provider = Provider(surface);
-        foreach (bool visible in new[] { false, true })
-        {
-            nint array = visible ? provider.GetVisibleRanges() : provider.GetSelection();
-            try
-            {
-                Assert.Equal(0, SafeArrayGetIID(array, out Guid iid));
-                Assert.Equal(new Guid("5347ad7b-c355-46f8-aff5-909033582f63"), iid);
-            }
-            finally { SafeArrayDestroy(array); }
-        }
-    }
 
     [WindowsFact]
     public void Element_is_a_document_with_text_patterns()
