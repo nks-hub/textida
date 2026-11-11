@@ -178,7 +178,7 @@ public sealed record JsonRenderedLine(JsonLine Line, string Text, IReadOnlyList<
 /// the states after it and the scan resumes from the last one before it.
 /// An edit inside a string that adds or removes no quote, backslash or control byte shifts the decoded lines too, so it reads a few bytes whatever the length of the string.
 /// </summary>
-public sealed class JsonOutline : IDisposable
+public sealed partial class JsonOutline : IDisposable
 {
     public const int SegmentLines = 512;
     /// <summary>A raw or comment line holds up to this many bytes; a key or value longer than that is shown cut with an ellipsis unless it is wrapped by <see cref="RenderPart"/>.</summary>
@@ -199,7 +199,7 @@ public sealed class JsonOutline : IDisposable
     private readonly TextCodec _codec;
     private readonly bool _comments;
     private IByteSnapshot _source;
-    private readonly List<ScanState> _points = [];
+    private readonly PointBlocks _points = new();
     private readonly List<int> _minDepth = []; // per segment; int.MaxValue while the segment is not complete
     private long _lines, _scanned;
     private bool _complete;
@@ -875,7 +875,7 @@ public sealed class JsonOutline : IDisposable
             _scanning = false;
             _shifts.Clear();
             _cts?.Cancel();
-            _points.RemoveRange(segment + 1, _points.Count - segment - 1);
+            _points.Truncate(segment + 1);
             _minDepth.RemoveRange(segment + 1, _minDepth.Count - segment - 1);
             _minDepth[segment] = int.MaxValue;
             _lines = (long)segment * SegmentLines;
@@ -891,9 +891,7 @@ public sealed class JsonOutline : IDisposable
     {
         lock (_gate)
         {
-            int segment = 0;
-            while (segment + 1 < _points.Count && _points[segment + 1].Offset < offset) segment++;
-            return (long)segment * SegmentLines;
+            return (long)SegmentBefore(offset) * SegmentLines;
         }
     }
 
@@ -914,11 +912,7 @@ public sealed class JsonOutline : IDisposable
     private void ShiftPoints(int segment, long start, long deleted, long delta, IByteSnapshot next)
     {
         if (_scanning) _shifts.Add((start, deleted, delta));
-        for (int i = segment + 1; i < _points.Count; i++)
-        {
-            var point = _points[i];
-            _points[i] = point with { Offset = point.Offset + delta, ErrorAt = Shift(point.ErrorAt, start, delta), KeyStart = Shift(point.KeyStart, start, delta), KeyEnd = Shift(point.KeyEnd, start, delta) };
-        }
+        _points.ShiftAfter(segment, start, delta);
         if (_error is { } error && error.Offset >= start) _error = (error.Offset + delta, error.Message);
         if (_complete) _scanned = next.ByteLength;
         else _scanned += delta;
