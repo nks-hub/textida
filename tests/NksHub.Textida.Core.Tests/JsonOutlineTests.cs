@@ -4,10 +4,18 @@ using System.Text.Json.Nodes;
 using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
-using Doc = NksHub.Textida.Core.Documents.Document;
 using Xunit.Abstractions;
+using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
+
+public sealed class HugeJsonFactAttribute : FactAttribute
+{
+    public HugeJsonFactAttribute()
+    {
+        if (Environment.GetEnvironmentVariable("TEXTIDA_HUGE") != "1") Skip = "Requires TEXTIDA_HUGE=1.";
+    }
+}
 
 public class JsonOutlineTests(ITestOutputHelper output)
 {
@@ -571,11 +579,10 @@ public class JsonOutlineTests(ITestOutputHelper output)
     [InlineData("settings.json", false)]
     public void Jsonc_files_are_known_by_extension_and_name(string path, bool jsonc) => Assert.Equal(jsonc, JsonDataReader.IsJsoncFile(path));
 
-    [Fact]
+    [HugeJsonFact]
     [Trait("Category", "Perf")]
     public void A_whole_gibibyte_is_scanned_in_bounded_memory()
     {
-        Assert.SkipWhen(Environment.GetEnvironmentVariable("TEXTIDA_HUGE") != "1", "Requires TEXTIDA_HUGE=1.");
         var source = new Synthetic(1L << 25);
         long before = GC.GetTotalMemory(true);
         var clock = System.Diagnostics.Stopwatch.StartNew();
