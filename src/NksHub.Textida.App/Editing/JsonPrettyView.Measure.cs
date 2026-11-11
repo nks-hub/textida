@@ -20,8 +20,9 @@ internal sealed partial class JsonPrettyView
     internal double RenderMs { get; private set; }
     internal double HorizontalScroll => _hScroll;
     internal event Action<long, long>? Drawn;
-    private (IBrush First, IBrush Second, long? Revision, bool Ready)? measureMarker;
-    private (IBrush First, IBrush Second, DrawState State)? visibleMeasureMarker;
+    internal event Action<uint, long>? MeasuredFrameDrawn;
+    private (uint Id, IBrush First, IBrush Second, long? Revision, bool Ready)? measureMarker;
+    private (uint Id, IBrush First, IBrush Second, DrawState State)? visibleMeasureMarker;
 
     internal (PixelPoint First, PixelPoint Second) MeasureMarkerPoints
     {
@@ -37,7 +38,7 @@ internal sealed partial class JsonPrettyView
     internal void SetMeasureMarker(uint rgb, long? revision)
     {
         static IBrush Brush(uint value) => new ImmutableSolidColorBrush(Color.FromRgb((byte)(value >> 16), (byte)(value >> 8), (byte)value));
-        measureMarker = (Brush(rgb), Brush(rgb ^ 0xFFFFFF), revision, false);
+        measureMarker = (rgb, Brush(rgb), Brush(rgb ^ 0xFFFFFF), revision, false);
     }
 
     internal void ReleaseMeasureMarker()
@@ -52,6 +53,8 @@ internal sealed partial class JsonPrettyView
         LastRenderedAt = Stopwatch.GetTimestamp();
         Drawn?.Invoke(start, LastRenderedAt);
         var state = CurrentDrawState;
+        if (visibleMeasureMarker is { } visible && visible.State == state)
+            MeasuredFrameDrawn?.Invoke(visible.Id, LastRenderedAt);
         if (drawn == state) return;
         drawn = state;
         RenderedAt = LastRenderedAt;
@@ -69,7 +72,7 @@ internal sealed partial class JsonPrettyView
                 var state = owner.CurrentDrawState;
                 if (owner.measureMarker is { } marker && (marker.Ready || marker.Revision is { } revision && owner.Doc.Revision >= revision))
                 {
-                    owner.visibleMeasureMarker = (marker.First, marker.Second, state);
+                    owner.visibleMeasureMarker = (marker.Id, marker.First, marker.Second, state);
                     owner.measureMarker = null;
                 }
                 // A later unmeasured change must not present the previous marker with different content.

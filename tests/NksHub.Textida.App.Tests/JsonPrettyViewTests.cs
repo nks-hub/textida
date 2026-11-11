@@ -184,6 +184,9 @@ public class JsonPrettyViewTests : IDisposable
         Scan(view);
         view.MoveCaret(1, "  \"name\": \"An".Length);
 
+        var measured = new List<(uint Marker, long Draw)>();
+        view.MeasuredFrameDrawn += (marker, draw) => measured.Add((marker, draw));
+
         (uint First, uint Second) ReadMarker()
         {
             using var frame = _w.CaptureRenderedFrame()!;
@@ -206,8 +209,11 @@ public class JsonPrettyViewTests : IDisposable
         view.SetMeasureMarker(0x1753A9, tab.Doc.Doc.Revision + 1);
         view.Refresh();
         Assert.NotEqual((0x1753A9u, 0xE8AC56u), ReadMarker());
+        Assert.Empty(measured);
         view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
         Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
+        Assert.Equal(0x1753A9u, measured[^1].Marker);
+        Assert.True(measured[^1].Draw > 0);
         Assert.Contains("Anxn", view.RowText(1));
         long first = view.RenderedAt;
         view.SetMeasureMarker(0x1753AA, null);
@@ -215,9 +221,12 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
         view.ReleaseMeasureMarker();
         Assert.Equal((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Equal(0x1753AAu, measured[^1].Marker);
         Assert.Equal(first, view.RenderedAt);
+        int beforeUnmeasuredChange = measured.Count;
         view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "y" });
         Assert.NotEqual((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Equal(beforeUnmeasuredChange, measured.Count);
         Assert.Contains("Anxyn", view.RowText(1));
     }
 

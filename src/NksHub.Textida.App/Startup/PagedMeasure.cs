@@ -131,6 +131,8 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         }
         catch (Exception e)
         {
+            try { await WriteCompositionTraceAsync(); }
+            catch (Exception traceError) { Log("composition-trace-error", ("message", traceError.ToString())); }
             Log("error", ("message", e.ToString()));
             Fail(e.Message);
         }

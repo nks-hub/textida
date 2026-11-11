@@ -95,6 +95,7 @@ internal sealed partial class PagedMeasure
         while (_tab.Doc.Doc.IsModified && undos++ <= edits + osEdits) Press(Key.Z, primary);
         if (_tab.Doc.Doc.IsModified) throw new InvalidOperationException("Undo did not restore the saved JSON");
         await Frames(2);
+        await WriteCompositionTraceAsync();
         Log("json-edit", ("inserted", edits), ("osInserted", osEdits), ("undoSteps", undos), ("undoClean", true),
             ("scannedBytes", view.Outline.ScannedBytes), ("indexComplete", view.Outline.State.Complete));
         Snapshot("json edited and undone");

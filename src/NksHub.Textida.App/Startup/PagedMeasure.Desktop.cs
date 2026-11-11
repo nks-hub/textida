@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia.Rendering.Composition;
 using NksHub.Textida.App.Editing;
 
 namespace NksHub.Textida.App.Startup;
@@ -6,6 +7,9 @@ namespace NksHub.Textida.App.Startup;
 internal sealed partial class PagedMeasure
 {
     private DesktopFrameProbe? desktopProbe;
+    private CompositionFrameTrace? compositionTrace;
+    private JsonPrettyView? compositionView;
+    private Action<uint, long>? compositionDrawn;
 
     private async Task<DesktopFrame?> SetupDesktopAsync(JsonPrettyView view, long openedAt)
     {
@@ -18,6 +22,22 @@ internal sealed partial class PagedMeasure
         nint hwnd = window.TryGetPlatformHandle()?.Handle ?? 0;
         if (hwnd == 0) throw new InvalidOperationException("The measured window has no native handle");
         bool external = mode == "external";
+        if (Env("TEXTIDA_MEASURE_COMPOSITION") == "1")
+        {
+            var compositor = ElementComposition.GetElementVisual(view)?.Compositor
+                ?? throw new InvalidOperationException("The measured view has no compositor");
+            var trace = compositionTrace = new CompositionFrameTrace(_log, samples.RunId);
+            compositionView = view;
+            compositionDrawn = (marker, draw) =>
+            {
+                if (trace.HasMarker(marker)) return;
+                var batch = compositor.RequestCompositionBatchCommitAsync();
+                trace.Record(marker, draw, batch.Processed, batch.Rendered);
+            };
+            view.MeasuredFrameDrawn += compositionDrawn;
+            Log("composition-trace", ("csv", Path.GetFileName(trace.Path)),
+                ("scope", "batch processed/rendered notifications only; not successful presentation"));
+        }
         desktopProbe = new DesktopFrameProbe(hwnd, view, external);
         var task = desktopProbe.Begin();
         desktopProbe.Release();
@@ -40,5 +60,13 @@ internal sealed partial class PagedMeasure
     {
         if (seen is { Status: not ("seen" or "external") } failure)
             throw new InvalidOperationException($"Desktop frame {failure.Marker:X6} was not observed: {failure.Status}");
+    }
+
+    private async Task WriteCompositionTraceAsync()
+    {
+        if (compositionView is not null) compositionView.MeasuredFrameDrawn -= compositionDrawn;
+        if (compositionTrace is not { } trace) return;
+        compositionTrace = null;
+        await trace.WriteAsync(TimeSpan.FromSeconds(2));
     }
 }
