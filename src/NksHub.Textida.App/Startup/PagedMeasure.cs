@@ -26,6 +26,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     public static bool Requested => Env("TEXTIDA_MEASURE") is not null;
 
     private readonly string _log = Env("TEXTIDA_MEASURE")!;
+    private readonly MeasureSamples samples = new(Env("TEXTIDA_MEASURE")!);
     private readonly string _file = Env("TEXTIDA_MEASURE_FILE") ?? throw new InvalidOperationException("TEXTIDA_MEASURE_FILE is not set");
     private readonly bool _paged = (Env("TEXTIDA_MEASURE_BACKEND") ?? "paged") == "paged";
     private readonly bool _quick = Env("TEXTIDA_MEASURE_QUICK") == "1";
@@ -38,6 +39,9 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         var watchdog = Task.Delay(TimeSpan.FromMinutes(20)).ContinueWith(_ => Fail("timeout after 20 min"), TaskScheduler.Default);
         try
         {
+            Log("samples", ("runId", samples.RunId), ("csv", Path.GetFileName(samples.Path)),
+                ("qpcFrequency", Stopwatch.Frequency), ("timing", "draw-complete"),
+                ("commit", Services.BuildStamp.Commit), ("runtime", RuntimeInformation.FrameworkDescription));
             if (Env("TEXTIDA_MEASURE_BACKEND") == "json") { await RunJsonAsync(); return; }
             Log("start", ("os", RuntimeInformation.OSDescription), ("arch", RuntimeInformation.OSArchitecture.ToString()), ("file", _file),
                 ("size", new FileInfo(_file).Length), ("backendWanted", _paged ? "paged" : "text"), ("cpus", Environment.ProcessorCount));
@@ -83,6 +87,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             _tab.View.Focus();
             await Frames(2);
             var first = await Measure(() => Type("a"));
+            samples.Append("firstEdit", _backend, [new(first.Start, first.Ui, first.Frame, first.Handler, first.Draw, first.Tick)]);
             Log("firstEdit", ("backend", _backend), ("openToEditedMs", shown + (first.Ui >= 0 ? first.Ui : first.Frame)), ("openToEditedFrameMs", shown + first.Frame),
                 ("uiMs", first.Ui), ("frameMs", first.Frame), ("handlerMs", first.Handler), ("drawMs", first.Draw));
             Snapshot("first edit");
@@ -192,10 +197,10 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     /// Runs one input action. <c>Ui</c> is the time until the paged view had drawn the new state, <c>Frame</c> the time until two animation frames passed,
     /// <c>Handler</c> the time the input handlers took and <c>Draw</c> the time of the draw itself: the work on the UI thread without waiting for the frame clock.
     /// </summary>
-    private Task<(double Ui, double Frame, double Handler, double Draw, double Tick)> Measure(Action action)
+    private Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start)> Measure(Action action)
         => Measure(() => { action(); return Task.CompletedTask; });
 
-    private async Task<(double Ui, double Frame, double Handler, double Draw, double Tick)> Measure(Func<Task> action)
+    private async Task<(double Ui, double Frame, double Handler, double Draw, double Tick, long Start)> Measure(Func<Task> action)
     {
         var paged = _tab!.Paged;
         long t0 = Stopwatch.GetTimestamp();
@@ -211,7 +216,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
             draw = window.ActiveJson?.RenderMs ?? paged?.RenderMs ?? -1;
         }
         await Frames(1);
-        return (ui, Ms(t0), handler, draw, tick);
+        return (ui, Ms(t0), handler, draw, tick, t0);
     }
 
     private Task Series(string name, int count, Action action)
@@ -220,26 +225,36 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     private async Task Series(string name, int count, Func<Task> action)
     {
         List<double> ui = [], frame = [], work = [], lastDraw = [];
-        for (int i = 0; i < count; i++)
+        List<MeasureSample> rows = new(count);
+        try
         {
-            long start = Stopwatch.GetTimestamp();
-            var jsonView = window.ActiveJson;
-            bool traceSample = i < 3 || i >= count / 2 && i < count / 2 + 3 || i >= count - 3;
-            List<(long Start, long End, long Revision, double Scroll)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && traceSample ? [] : null;
-            void Record(long begin, long end) => draws!.Add((begin, end, jsonView!.Document.Doc.Revision, jsonView.HorizontalScroll));
-            if (draws is not null) jsonView!.Drawn += Record;
-            var (u, f, h, d, tick) = await Measure(action);
-            if (draws is not null)
+            for (int i = 0; i < count; i++)
             {
-                jsonView!.Drawn -= Record;
-                Log("json-frame-trace", ("name", name), ("sample", i), ("handlerMs", h), ("firstTickMs", tick),
-                    ("paints", string.Join(";", draws.Select(p => string.Create(CultureInfo.InvariantCulture,
-                        $"{(p.Start - start) * 1000.0 / Stopwatch.Frequency:0.00}-{(p.End - start) * 1000.0 / Stopwatch.Frequency:0.00} rev={p.Revision} scroll={p.Scroll:0.0}")))));
+                long start = Stopwatch.GetTimestamp();
+                var jsonView = window.ActiveJson;
+                bool traceSample = i < 3 || i >= count / 2 && i < count / 2 + 3 || i >= count - 3;
+                List<(long Start, long End, long Revision, double Scroll)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && traceSample ? [] : null;
+                void Record(long begin, long end) => draws!.Add((begin, end, jsonView!.Document.Doc.Revision, jsonView.HorizontalScroll));
+                if (draws is not null) jsonView!.Drawn += Record;
+                (double u, double f, double h, double d, double tick, long startedAt) result;
+                try { result = await Measure(action); }
+                finally { if (draws is not null) jsonView!.Drawn -= Record; }
+                var (u, f, h, d, tick, startedAt) = result;
+                if (draws is not null)
+                {
+                    Log("json-frame-trace", ("name", name), ("sample", i), ("handlerMs", h), ("firstTickMs", tick),
+                        ("paints", string.Join(";", draws.Select(p => string.Create(CultureInfo.InvariantCulture,
+                            $"{(p.Start - start) * 1000.0 / Stopwatch.Frequency:0.00}-{(p.End - start) * 1000.0 / Stopwatch.Frequency:0.00} rev={p.Revision} scroll={p.Scroll:0.0}")))));
+                }
+                if (u >= 0) { ui.Add(u); work.Add(h + d); }
+                double? last = window.ActiveJson is { } json && json.LastRenderedAt >= startedAt
+                    ? (json.LastRenderedAt - startedAt) * 1000.0 / Stopwatch.Frequency : null;
+                if (last is { } value) lastDraw.Add(value);
+                frame.Add(f);
+                rows.Add(new(startedAt, u, f, h, d, tick, last));
             }
-            if (u >= 0) { ui.Add(u); work.Add(h + d); }
-            if (window.ActiveJson is { } json && json.LastRenderedAt >= start) lastDraw.Add((json.LastRenderedAt - start) * 1000.0 / Stopwatch.Frequency);
-            frame.Add(f);
         }
+        finally { samples.Append(name, _backend, rows); }
         Log("series", ("name", name), ("backend", _backend), ("n", count), ("uiN", ui.Count), ("work", Pct(work)), ("ui", Pct(ui)), ("lastDraw", Pct(lastDraw)), ("frame", Pct(frame)));
     }
 
@@ -273,20 +288,32 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         var paths = new Dictionary<string, int>();
         int delivered = 0;
         int count = json is null ? 40 : _keys;
-        for (int i = 0; i < count; i++)
+        List<MeasureSample> rows = new(count);
+        try
         {
-            if (json is not null && !window.IsActive) throw new InvalidOperationException("The formatted JSON window lost focus during system input");
-            long before = _tab.Doc.Doc.Revision;
-            long t0 = Stopwatch.GetTimestamp();
-            bool sent = OsKeys.SendChar('k', hwnd);
-            paths[OsKeys.LastPath] = paths.GetValueOrDefault(OsKeys.LastPath) + 1;
-            for (int w = 0; w < 200 && _tab.Doc.Doc.Revision == before; w++) await Task.Delay(5);
-            if (_tab.Doc.Doc.Revision == before) { Log("osInput", ("path", OsKeys.LastPath), ("sent", sent), ("delivered", false)); return; }
-            await Frames(2);
-            delivered++;
-            long drawn = json?.RenderedAt ?? paged!.RenderedAt;
-            if (drawn >= t0) ui.Add((drawn - t0) * 1000.0 / Stopwatch.Frequency);
+            for (int i = 0; i < count; i++)
+            {
+                if (json is not null && !window.IsActive) throw new InvalidOperationException("The formatted JSON window lost focus during system input");
+                long before = _tab.Doc.Doc.Revision;
+                long t0 = Stopwatch.GetTimestamp();
+                bool sent = OsKeys.SendChar('k', hwnd);
+                paths[OsKeys.LastPath] = paths.GetValueOrDefault(OsKeys.LastPath) + 1;
+                for (int w = 0; w < 200 && _tab.Doc.Doc.Revision == before; w++) await Task.Delay(5);
+                if (_tab.Doc.Doc.Revision == before)
+                {
+                    rows.Add(new(t0, InputPath: OsKeys.LastPath, Sent: sent, Delivered: false));
+                    Log("osInput", ("path", OsKeys.LastPath), ("sent", sent), ("delivered", false));
+                    return;
+                }
+                await Frames(2);
+                delivered++;
+                long drawn = json?.RenderedAt ?? paged!.RenderedAt;
+                double? elapsed = drawn >= t0 ? (drawn - t0) * 1000.0 / Stopwatch.Frequency : null;
+                if (elapsed is { } value) ui.Add(value);
+                rows.Add(new(t0, elapsed, FrameMs: Ms(t0), InputPath: OsKeys.LastPath, Sent: sent, Delivered: true));
+            }
         }
+        finally { samples.Append("osInput", _backend, rows); }
         if (json is not null && ui.Count != count) throw new InvalidOperationException("Some JSON system input has no rendered frame");
         Log("osInput", ("backend", _backend), ("path", OsKeys.LastPath), ("paths", string.Join(",", paths.Select(p => p.Key + "=" + p.Value))),
             ("delivered", delivered), ("uiN", ui.Count), ("ui", Pct(ui)));

@@ -28,6 +28,8 @@ internal sealed partial class PagedMeasure
         var view = window.ActiveJson ?? throw new InvalidOperationException("The formatted JSON view did not open");
         await Frames(2);
         if (view.RenderedAt < start) throw new InvalidOperationException("The formatted JSON view did not draw a frame");
+        samples.Append("json-open", _backend,
+            [new(start, (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency, Ms(start), openMs, view.RenderMs)]);
         Log("json-open", ("openCallMs", openMs), ("drawnMs", (view.RenderedAt - start) * 1000.0 / Stopwatch.Frequency),
             ("frameMs", Ms(start)), ("viewportBytes", view.Outline!.BytesRead), ("lines", view.Outline.State.Lines));
         Log("window", ("hwnd", window.TryGetPlatformHandle()?.Handle.ToInt64()), ("title", window.Title),
