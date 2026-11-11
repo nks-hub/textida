@@ -19,7 +19,7 @@ namespace NksHub.Textida.App.Startup;
 /// measurement. <c>TEXTIDA_MEASURE_BACKEND</c> is <c>paged</c> or <c>text</c> (forces AvaloniaEdit), <c>TEXTIDA_MEASURE_QUICK=1</c> stops after the
 /// first edit, <c>TEXTIDA_MEASURE_SAVE=1</c> saves the edited file, <c>TEXTIDA_MEASURE_OSINPUT=1</c> also sends keys through the operating system.
 /// </summary>
-internal sealed class PagedMeasure(App app, MainWindow window, IClassicDesktopStyleApplicationLifetime desktop)
+internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicDesktopStyleApplicationLifetime desktop)
 {
     private static string? Env(string name) => Environment.GetEnvironmentVariable(name) is { Length: > 0 } v ? v : null;
 
@@ -38,6 +38,7 @@ internal sealed class PagedMeasure(App app, MainWindow window, IClassicDesktopSt
         var watchdog = Task.Delay(TimeSpan.FromMinutes(20)).ContinueWith(_ => Fail("timeout after 20 min"), TaskScheduler.Default);
         try
         {
+            if (Env("TEXTIDA_MEASURE_BACKEND") == "json") { await RunJsonAsync(); return; }
             Log("start", ("os", RuntimeInformation.OSDescription), ("arch", RuntimeInformation.OSArchitecture.ToString()), ("file", _file),
                 ("size", new FileInfo(_file).Length), ("backendWanted", _paged ? "paged" : "text"), ("cpus", Environment.ProcessorCount));
             await Frames(3);
@@ -199,10 +200,11 @@ internal sealed class PagedMeasure(App app, MainWindow window, IClassicDesktopSt
         double handler = Ms(t0);
         await Frames(1);
         double ui = -1, draw = -1;
-        if (paged is not null && paged.RenderedAt >= t0)
+        long renderedAt = window.ActiveJson?.RenderedAt ?? paged?.RenderedAt ?? 0;
+        if (renderedAt >= t0)
         {
-            ui = (paged.RenderedAt - t0) * 1000.0 / Stopwatch.Frequency;
-            draw = paged.RenderMs;
+            ui = (renderedAt - t0) * 1000.0 / Stopwatch.Frequency;
+            draw = window.ActiveJson?.RenderMs ?? paged?.RenderMs ?? -1;
         }
         await Frames(1);
         return (ui, Ms(t0), handler, draw);

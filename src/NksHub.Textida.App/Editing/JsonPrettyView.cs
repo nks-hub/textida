@@ -23,7 +23,7 @@ namespace NksHub.Textida.App.Editing;
 /// lies over the text view of the tab like the table view, and a key or value typed here replaces only its own bytes of the same document.
 /// One line with a long key or value at a time can be wrapped over several rows (<see cref="ToggleExpand"/>), so it can be read and edited past the cut.
 /// </summary>
-internal sealed class JsonPrettyView : Grid, IDisposable
+internal sealed partial class JsonPrettyView : Grid, IDisposable
 {
     private const string Indent = "  ", FoldMark = " … ";
 
@@ -970,7 +970,7 @@ internal sealed class JsonPrettyView : Grid, IDisposable
 
         public override void Render(DrawingContext context)
         {
-            try { Draw(context); }
+            try { long start = System.Diagnostics.Stopwatch.GetTimestamp(); Draw(context); owner.MarkRendered(start); }
             catch (IOException) { }
         }
 
