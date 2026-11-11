@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Versioning;
 using NksHub.Textida.Accessibility.Windows;
 
@@ -19,6 +20,59 @@ public partial class WindowsUiaProviderTests
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetUBound(nint array, uint dim, out int ubound);
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayDestroy(nint array);
     [LibraryImport("oleaut32.dll")] private static partial int SafeArrayGetIID(nint array, out Guid iid);
+    [LibraryImport("oleaut32.dll")] private static unsafe partial int SafeArrayGetElement(nint array, int* index, out nint element);
+
+    [WindowsFact]
+    public unsafe void Scalar_and_array_ranges_expose_readable_native_text_interfaces()
+    {
+        using var surface = new TestSurface("one\ntwo");
+        var provider = Provider(surface);
+        nint scalar = (nint)ComInterfaceMarshaller<ITextRangeProvider>.ConvertToUnmanaged(provider.get_DocumentRange());
+        try { Assert.Equal("one\ntwo", ReadNativeText(scalar)); }
+        finally { Marshal.Release(scalar); }
+
+        foreach (bool visible in new[] { false, true })
+        {
+            nint array = visible ? provider.GetVisibleRanges() : provider.GetSelection();
+            nint element = 0;
+            try
+            {
+                int index = 0;
+                Assert.Equal(0, SafeArrayGetElement(array, &index, out element));
+                Assert.NotEqual(0, element);
+                Assert.Equal(visible ? "one\ntwo" : "", ReadNativeText(element));
+            }
+            finally
+            {
+                if (element != 0) Marshal.Release(element);
+                SafeArrayDestroy(array);
+            }
+        }
+    }
+
+    private static unsafe string ReadNativeText(nint unknown)
+    {
+        Guid iid = new("5347ad7b-c355-46f8-aff5-909033582f63");
+        Assert.Equal(0, Marshal.QueryInterface(unknown, in iid, out nint range));
+        nint text = 0;
+        try
+        {
+            var getText = (delegate* unmanaged[Stdcall]<nint, int, nint*, int>)(*(nint**)unknown)[12];
+            Assert.Equal(0, getText(unknown, -1, &text));
+            string raw = Marshal.PtrToStringBSTR(text);
+            Marshal.FreeBSTR(text);
+            text = 0;
+            getText = (delegate* unmanaged[Stdcall]<nint, int, nint*, int>)(*(nint**)range)[12];
+            Assert.Equal(0, getText(range, -1, &text));
+            Assert.Equal(raw, Marshal.PtrToStringBSTR(text));
+            return raw;
+        }
+        finally
+        {
+            Marshal.FreeBSTR(text);
+            Marshal.Release(range);
+        }
+    }
 
     private static UiaEditorProvider Provider(TestSurface s) => new(s, 0, new UiaEditorInfo("Test editor", "test-editor"));
 

@@ -89,6 +89,11 @@ internal static partial class Program
         Check("DocumentRange text", all == Sample, $"{all.Length} units: '{Show(all)}'");
         Check("GetText(maxLength)", doc.GetText(5) == "Hello");
 
+        Console.WriteLine("READ COM GetVisibleRanges.GetText");
+        Check("COM visible range text", NativeRangeText(hwnd, true, out string visibleDetail), visibleDetail);
+        Console.WriteLine("READ COM GetSelection.GetText");
+        Check("COM selection text", NativeRangeText(hwnd, false, out string selectionDetail), selectionDetail);
+
         var visible = text.GetVisibleRanges();
         Console.WriteLine($"READ GetVisibleRanges.GetText ({visible.Length} ranges)");
         Check("GetVisibleRanges text", visible.Length == 1 && visible[0].GetText(-1) == Sample);
@@ -197,7 +202,23 @@ internal static partial class Program
         return sb.ToString();
     }
 
-    // ---- UIA3 COM client, only for TextPattern2 which the managed wrapper does not offer ----
+    // The native client checks text-range arrays and TextPattern2.GetCaretRange.
+
+    private static bool NativeRangeText(nint hwnd, bool visible, out string detail)
+    {
+        var uia = (IUIAutomation)new CUIAutomation();
+        Marshal.ThrowExceptionForHR(uia.ElementFromHandle(hwnd, out var element));
+        Marshal.ThrowExceptionForHR(element.GetCurrentPattern(10024, out object pattern));
+        var text = (IUIAutomationTextPattern2)pattern;
+        IUIAutomationTextRangeArray ranges;
+        Marshal.ThrowExceptionForHR(visible ? text.GetVisibleRanges(out ranges) : text.GetSelection(out ranges));
+        Marshal.ThrowExceptionForHR(ranges.get_Length(out int length));
+        if (length != 1) { detail = $"ranges={length}"; return false; }
+        Marshal.ThrowExceptionForHR(ranges.GetElement(0, out var range));
+        Marshal.ThrowExceptionForHR(range.GetText(-1, out string value));
+        detail = $"ranges={length} text='{Show(value)}'";
+        return value == (visible ? Sample : "");
+    }
 
     private static bool CaretThroughComClient(nint hwnd, int expectedOffset, out string detail)
     {
@@ -236,11 +257,20 @@ internal static partial class Program
     [ComImport, Guid("506a921a-fcc9-409f-b23b-37eb74106872"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IUIAutomationTextPattern2
     {
-        void RangeFromPoint(); void RangeFromChild(); void GetSelection(); void GetVisibleRanges();
+        void RangeFromPoint(); void RangeFromChild();
+        [PreserveSig] int GetSelection(out IUIAutomationTextRangeArray ranges);
+        [PreserveSig] int GetVisibleRanges(out IUIAutomationTextRangeArray ranges);
         [PreserveSig] int get_DocumentRange(out IUIAutomationTextRange range);
         void get_SupportedTextSelection();
         void RangeFromAnnotation();
         [PreserveSig] int GetCaretRange(out int isActive, out IUIAutomationTextRange range);
+    }
+
+    [ComImport, Guid("ce4ae76a-e717-4c98-81ea-47371d028eb6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IUIAutomationTextRangeArray
+    {
+        [PreserveSig] int get_Length(out int length);
+        [PreserveSig] int GetElement(int index, out IUIAutomationTextRange range);
     }
 
     [ComImport, Guid("a543cc6a-f4ae-494b-8239-c814481187a8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
