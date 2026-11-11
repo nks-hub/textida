@@ -19,7 +19,7 @@ internal sealed partial class PagedMeasure
         var task = desktopProbe.Begin();
         desktopProbe.Release();
         var seen = await task;
-        Log("desktop-probe", ("method", "GetPixel(GetDC(NULL)), two frame-specific colors"),
+        Log("desktop-probe", ("method", "BitBlt(GetDC(NULL)) to a top-down 32-bit DIB, GdiFlush, two frame-specific colors"),
             ("scope", "first observed interactive VM desktop pixels; upper bound, not physical display or RDP transport"),
             ("session", process.SessionId), ("x1", desktopProbe.Points.First.X), ("y1", desktopProbe.Points.First.Y),
             ("x2", desktopProbe.Points.Second.X), ("y2", desktopProbe.Points.Second.Y),
