@@ -72,12 +72,22 @@ internal sealed partial class PagedMeasure
         byte[] expected = new byte[edits];
         expected.AsSpan().Fill((byte)'x');
         if (!_tab.Doc.Doc.ReadBytes(new(at, at + edits)).AsSpan().SequenceEqual(expected)) throw new InvalidOperationException("Typing changed unexpected bytes");
+        int osEdits = 0;
+        if (Env("TEXTIDA_MEASURE_OSINPUT") == "1")
+        {
+            await OsInput();
+            osEdits = _keys;
+            byte[] throughSystem = new byte[osEdits];
+            throughSystem.AsSpan().Fill((byte)'k');
+            if (view.SourceOffset != at + edits + osEdits || !_tab.Doc.Doc.ReadBytes(new(at + edits, at + edits + osEdits)).AsSpan().SequenceEqual(throughSystem))
+                throw new InvalidOperationException("System input changed unexpected bytes or did not reach the formatted view");
+        }
         var primary = OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control;
         int undos = 0;
-        while (_tab.Doc.Doc.IsModified && undos++ <= edits) Press(Key.Z, primary);
+        while (_tab.Doc.Doc.IsModified && undos++ <= edits + osEdits) Press(Key.Z, primary);
         if (_tab.Doc.Doc.IsModified) throw new InvalidOperationException("Undo did not restore the saved JSON");
         await Frames(2);
-        Log("json-edit", ("inserted", edits), ("undoSteps", undos), ("undoClean", true),
+        Log("json-edit", ("inserted", edits), ("osInserted", osEdits), ("undoSteps", undos), ("undoClean", true),
             ("scannedBytes", view.Outline.ScannedBytes), ("indexComplete", view.Outline.State.Complete));
         Snapshot("json edited and undone");
         Done();

@@ -263,25 +263,33 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
     private async Task OsInput()
     {
         var paged = _tab!.Paged;
-        if (paged is null) return;
-        _tab.View.Focus();
+        var json = window.ActiveJson;
+        if (paged is null && json is null) return;
+        (json as Control ?? _tab.View).Focus();
         nint hwnd = OperatingSystem.IsWindows() && window.TryGetPlatformHandle() is { } handle ? handle.Handle : 0;
         if (hwnd != 0) OsKeys.Focus(hwnd);
         await Frames(2);
         var ui = new List<double>();
+        var paths = new Dictionary<string, int>();
         int delivered = 0;
-        for (int i = 0; i < 40; i++)
+        int count = json is null ? 40 : _keys;
+        for (int i = 0; i < count; i++)
         {
+            if (json is not null && !window.IsActive) throw new InvalidOperationException("The formatted JSON window lost focus during system input");
             long before = _tab.Doc.Doc.Revision;
             long t0 = Stopwatch.GetTimestamp();
             bool sent = OsKeys.SendChar('k', hwnd);
+            paths[OsKeys.LastPath] = paths.GetValueOrDefault(OsKeys.LastPath) + 1;
             for (int w = 0; w < 200 && _tab.Doc.Doc.Revision == before; w++) await Task.Delay(5);
             if (_tab.Doc.Doc.Revision == before) { Log("osInput", ("path", OsKeys.LastPath), ("sent", sent), ("delivered", false)); return; }
             await Frames(2);
             delivered++;
-            if (paged.RenderedAt >= t0) ui.Add((paged.RenderedAt - t0) * 1000.0 / Stopwatch.Frequency);
+            long drawn = json?.RenderedAt ?? paged!.RenderedAt;
+            if (drawn >= t0) ui.Add((drawn - t0) * 1000.0 / Stopwatch.Frequency);
         }
-        Log("osInput", ("path", OsKeys.LastPath), ("delivered", delivered), ("ui", Pct(ui)));
+        if (json is not null && ui.Count != count) throw new InvalidOperationException("Some JSON system input has no rendered frame");
+        Log("osInput", ("backend", _backend), ("path", OsKeys.LastPath), ("paths", string.Join(",", paths.Select(p => p.Key + "=" + p.Value))),
+            ("delivered", delivered), ("uiN", ui.Count), ("ui", Pct(ui)));
     }
 
     // ---- memory ----
