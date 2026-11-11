@@ -506,6 +506,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         {
             if (LanguageModes.GrammarId(_doc) is null) return;
             _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle) { DefersJumps = true, DefersMoves = true };
+            _feeder.TrackVisibility(this);
         }
         if (_feeder.Active && layout.Rows > 0) _feeder.SetVisible(layout.Top, layout.Top + layout.Rows - 1, 0, columns);
     }

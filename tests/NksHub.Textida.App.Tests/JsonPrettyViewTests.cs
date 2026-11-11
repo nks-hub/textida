@@ -93,6 +93,38 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal(Sample.IndexOf("\"active\"", StringComparison.Ordinal), tab.Doc.TextBackend!.ToByteOffset(surface.CaretOffset));
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Hidden_text_stops_coloring_and_resumes_with_the_edited_json_when_shown_again(bool paged)
+    {
+        var tab = Open(Sample, paged);
+        var syntax = tab.Syntax!;
+        Assert.True(syntax.Active);
+        var view = Show();
+        Assert.False(syntax.Active);
+        int runs = syntax.ViewportRuns;
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+        TestApp.Type(_w, "x");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(runs, syntax.ViewportRuns);
+        Assert.Contains("Anxn", Text(tab));
+
+        Run("nks.view.jsonPretty");
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(syntax.Active);
+        Assert.True(syntax.ViewportRuns > runs);
+        if (paged) Assert.NotEmpty(tab.Paged!.TokensOf(0)!);
+        else
+        {
+            tab.Editor!.TextArea.TextView.EnsureVisualLines();
+            var expected = (Avalonia.Media.ISolidColorBrush)NksHub.Textida.App.Services.EditorLook.PaletteOf(tab.Editor).GetBrush("string")!;
+            Assert.Contains(tab.Editor.TextArea.TextView.GetVisualLine(1)!.Elements,
+                e => e.TextRunProperties.ForegroundBrush is Avalonia.Media.ISolidColorBrush b && b.Color == expected.Color);
+        }
+    }
+
     [AvaloniaFact]
     public void Collapsing_and_expanding_by_keys_and_by_the_gutter()
     {

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Documents;
@@ -43,6 +44,7 @@ internal sealed class SyntaxFeeder : IDisposable
     private bool _lineTooLong;
     private bool _queued;
     private bool _disposed;
+    private Visual? _view;
     private int _rowLimit = MaxRows, _columnLimit = MaxColumns;
     private readonly DispatcherTimer? _settleTimer;
 
@@ -77,6 +79,18 @@ internal sealed class SyntaxFeeder : IDisposable
 
     /// <summary>The document has a grammar, so colors are being kept; views skip measuring what is on screen otherwise.</summary>
     public bool Active => _session is not null;
+
+    public void TrackVisibility(Visual view)
+    {
+        _view = view;
+        view.PropertyChanged += OnVisibilityChanged;
+        OnSourceChanged();
+    }
+
+    private void OnVisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Visual.IsVisibleProperty) OnSourceChanged();
+    }
 
     /// <summary>The catch-up has been running for a noticeable time, so the view should say that its colors are not complete.</summary>
     public bool Pending => _pending;
@@ -210,7 +224,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _doneRevision = -1;
         _known = [];
         _tokenizer = null;
-        if (LanguageModes.GrammarId(_doc) is not { } id) return;
+        if (_view is { IsVisible: false } || LanguageModes.GrammarId(_doc) is not { } id) return;
         _bound = _doc.Doc;
         _tokenizer = LanguageModes.Tokenizer(id);
         try { _session = new CheckpointSyntaxSession(_bound, _tokenizer); }
@@ -401,6 +415,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _disposed = true;
         _settleTimer?.Stop();
         _jumpTimer?.Stop();
+        if (_view is not null) _view.PropertyChanged -= OnVisibilityChanged;
         _doc.LanguageChanged -= OnSourceChanged;
         _doc.Replaced -= OnSourceChanged;
         Release();

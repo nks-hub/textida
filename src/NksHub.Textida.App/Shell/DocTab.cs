@@ -34,6 +34,7 @@ internal sealed class DocTab
             Root.Children.Add(Minimap);
         }
         Root.Children.Add(View);
+        Syntax?.TrackVisibility(View);
         doc.Views.Add(this);
     }
 
