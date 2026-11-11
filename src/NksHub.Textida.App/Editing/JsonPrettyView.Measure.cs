@@ -8,7 +8,11 @@ namespace NksHub.Textida.App.Editing;
 
 internal sealed partial class JsonPrettyView
 {
-    private (long Revision, long Line, long Part, int Column, long Top, double Scroll, int Folds, long Expanded, Pos? Anchor, ByteRange? Mark)? drawn;
+    private readonly record struct DrawState(long Revision, long Line, long Part, int Column, long Top, double Scroll,
+        int Folds, long Expanded, Pos? Anchor, ByteRange? Mark);
+    private DrawState? drawn;
+    private DrawState CurrentDrawState => new(Doc.Revision, _caretLine, _caretPart, _caretColumn, _top, _hScroll,
+        _folds.Count, _expanded, _anchor, _mark);
 
     // A later scrollbar repaint must not replace the first frame that already showed the new text.
     internal long RenderedAt { get; private set; }
@@ -17,7 +21,7 @@ internal sealed partial class JsonPrettyView
     internal double HorizontalScroll => _hScroll;
     internal event Action<long, long>? Drawn;
     private (IBrush First, IBrush Second, long? Revision, bool Ready)? measureMarker;
-    private (IBrush First, IBrush Second)? visibleMeasureMarker;
+    private (IBrush First, IBrush Second, DrawState State)? visibleMeasureMarker;
 
     internal (PixelPoint First, PixelPoint Second) MeasureMarkerPoints
     {
@@ -47,7 +51,7 @@ internal sealed partial class JsonPrettyView
     {
         LastRenderedAt = Stopwatch.GetTimestamp();
         Drawn?.Invoke(start, LastRenderedAt);
-        var state = (Doc.Revision, _caretLine, _caretPart, _caretColumn, _top, _hScroll, _folds.Count, _expanded, _anchor, _mark);
+        var state = CurrentDrawState;
         if (drawn == state) return;
         drawn = state;
         RenderedAt = LastRenderedAt;
@@ -62,9 +66,14 @@ internal sealed partial class JsonPrettyView
             {
                 long start = Stopwatch.GetTimestamp();
                 Draw(context);
+                var state = owner.CurrentDrawState;
                 if (owner.measureMarker is { } marker && (marker.Ready || marker.Revision is { } revision && owner.Doc.Revision >= revision))
-                    owner.visibleMeasureMarker = (marker.First, marker.Second);
-                if (owner.visibleMeasureMarker is { } visible)
+                {
+                    owner.visibleMeasureMarker = (marker.First, marker.Second, state);
+                    owner.measureMarker = null;
+                }
+                // A later unmeasured change must not present the previous marker with different content.
+                if (owner.visibleMeasureMarker is { } visible && visible.State == state)
                 {
                     context.FillRectangle(visible.First, new Rect(Bounds.Width - 16, Bounds.Height - 10, 8, 8));
                     context.FillRectangle(visible.Second, new Rect(Bounds.Width - 8, Bounds.Height - 10, 8, 8));

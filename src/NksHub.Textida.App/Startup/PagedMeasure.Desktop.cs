@@ -24,6 +24,7 @@ internal sealed partial class PagedMeasure
         var seen = await task;
         Log("desktop-probe", ("method", external ? "frame markers for an external desktop capture; no internal pixel read"
                 : "BitBlt(GetDC(NULL)) to a top-down 32-bit DIB, GdiFlush, two frame-specific colors"),
+            ("markerBinding", "draw-state"),
             ("scope", external ? "presentation is unverified until joined to external capture timestamps"
                 : "first observed interactive VM desktop pixels; upper bound, not physical display or RDP transport"),
             ("session", process.SessionId), ("x1", desktopProbe.Points.First.X), ("y1", desktopProbe.Points.First.Y),
