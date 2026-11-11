@@ -216,6 +216,9 @@ public class JsonPrettyViewTests : IDisposable
         view.ReleaseMeasureMarker();
         Assert.Equal((0x1753AAu, 0xE8AC55u), ReadMarker());
         Assert.Equal(first, view.RenderedAt);
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "y" });
+        Assert.NotEqual((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Contains("Anxyn", view.RowText(1));
     }
 
     [AvaloniaFact]
