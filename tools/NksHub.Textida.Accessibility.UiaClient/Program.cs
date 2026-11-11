@@ -84,9 +84,14 @@ internal static partial class Program
         Thread.Sleep(300);
 
         var doc = text.DocumentRange;
+        Console.WriteLine("READ DocumentRange.GetText");
         string all = doc.GetText(-1);
         Check("DocumentRange text", all == Sample, $"{all.Length} units: '{Show(all)}'");
         Check("GetText(maxLength)", doc.GetText(5) == "Hello");
+
+        var visible = text.GetVisibleRanges();
+        Console.WriteLine($"READ GetVisibleRanges.GetText ({visible.Length} ranges)");
+        Check("GetVisibleRanges text", visible.Length == 1 && visible[0].GetText(-1) == Sample);
 
         var sel = text.GetSelection();
         Check("initial selection is a caret at 0", sel.Length == 1 && sel[0].GetText(-1) == "" && OffsetOf(doc, sel[0]) == 0, $"ranges={sel.Length}");
