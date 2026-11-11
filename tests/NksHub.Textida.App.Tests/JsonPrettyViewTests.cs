@@ -1,4 +1,5 @@
 using System.Text;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -103,10 +104,16 @@ public class JsonPrettyViewTests : IDisposable
         Assert.True(syntax.Active);
         var view = Show();
         Assert.False(syntax.Active);
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        long renderedAt = tab.Paged?.RenderedAt ?? 0;
         int runs = syntax.ViewportRuns;
         view.MoveCaret(1, "  \"name\": \"An".Length);
         TestApp.Type(_w, "x");
         Dispatcher.UIThread.RunJobs();
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.False(tab.View.IsVisible);
+        Assert.Equal(renderedAt, tab.Paged?.RenderedAt ?? 0);
+        Assert.True(view.RenderedAt > 0);
         Assert.Equal(runs, syntax.ViewportRuns);
         Assert.Contains("Anxn", Text(tab));
 

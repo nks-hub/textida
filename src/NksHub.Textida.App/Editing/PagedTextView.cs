@@ -2110,19 +2110,6 @@ internal sealed partial class PagedTextView : Grid
             owner.UpdateScrollRange();
         }
 
-        public override void Render(DrawingContext context)
-        {
-            long started = System.Diagnostics.Stopwatch.GetTimestamp();
-            Draw(context);
-            long ended = System.Diagnostics.Stopwatch.GetTimestamp();
-            TypingTrace.End("paged.render", started);
-            var state = (owner.Doc.Revision, owner._caret, owner.TopLine, owner._hScroll, owner.WindowsPending);
-            if (owner._drawn == state) return;
-            owner._drawn = state;
-            owner.RenderedAt = ended;
-            owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        }
-
         /// <summary>Fills the part of the selection that lies in <paramref name="window"/>, the columns from column <paramref name="column"/> of a truncated line drawn at <paramref name="x"/>.</summary>
         private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, string window, IBrush brush, long from, long to)
         {

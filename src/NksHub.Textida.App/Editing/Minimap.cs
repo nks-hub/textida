@@ -717,6 +717,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     public override void Render(DrawingContext context)
     {
+        if (!IsEffectivelyVisible) return;
         long trace = Core.TypingTrace.Begin();
         try { RenderCore(context); }
         finally { Core.TypingTrace.End("minimap.render", trace); }
