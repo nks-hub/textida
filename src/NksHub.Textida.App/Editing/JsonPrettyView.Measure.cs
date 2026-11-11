@@ -11,6 +11,7 @@ internal sealed partial class JsonPrettyView
     internal long RenderedAt { get; private set; }
     internal long LastRenderedAt { get; private set; }
     internal double RenderMs { get; private set; }
+    internal double HorizontalScroll => _hScroll;
     internal event Action<long, long>? Drawn;
 
     private void MarkRendered(long start)

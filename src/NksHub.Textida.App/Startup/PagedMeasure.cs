@@ -224,8 +224,9 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
         {
             long start = Stopwatch.GetTimestamp();
             var jsonView = window.ActiveJson;
-            List<(long Start, long End)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && i < 6 ? [] : null;
-            void Record(long begin, long end) => draws!.Add((begin, end));
+            bool traceSample = i < 3 || i >= count / 2 && i < count / 2 + 3 || i >= count - 3;
+            List<(long Start, long End, long Revision, double Scroll)>? draws = jsonView is not null && Env("TEXTIDA_MEASURE_TRACE") == "1" && traceSample ? [] : null;
+            void Record(long begin, long end) => draws!.Add((begin, end, jsonView!.Document.Doc.Revision, jsonView.HorizontalScroll));
             if (draws is not null) jsonView!.Drawn += Record;
             var (u, f, h, d, tick) = await Measure(action);
             if (draws is not null)
@@ -233,7 +234,7 @@ internal sealed partial class PagedMeasure(App app, MainWindow window, IClassicD
                 jsonView!.Drawn -= Record;
                 Log("json-frame-trace", ("name", name), ("sample", i), ("handlerMs", h), ("firstTickMs", tick),
                     ("paints", string.Join(";", draws.Select(p => string.Create(CultureInfo.InvariantCulture,
-                        $"{(p.Start - start) * 1000.0 / Stopwatch.Frequency:0.00}-{(p.End - start) * 1000.0 / Stopwatch.Frequency:0.00}")))));
+                        $"{(p.Start - start) * 1000.0 / Stopwatch.Frequency:0.00}-{(p.End - start) * 1000.0 / Stopwatch.Frequency:0.00} rev={p.Revision} scroll={p.Scroll:0.0}")))));
             }
             if (u >= 0) { ui.Add(u); work.Add(h + d); }
             if (window.ActiveJson is { } json && json.LastRenderedAt >= start) lastDraw.Add((json.LastRenderedAt - start) * 1000.0 / Stopwatch.Frequency);
