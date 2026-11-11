@@ -211,6 +211,8 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Contains("Anxn", view.RowText(1));
         long first = view.RenderedAt;
         view.SetMeasureMarker(0x1753AA, null);
+        view.Refresh();
+        Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
         view.ReleaseMeasureMarker();
         Assert.Equal((0x1753AAu, 0xE8AC55u), ReadMarker());
         Assert.Equal(first, view.RenderedAt);
