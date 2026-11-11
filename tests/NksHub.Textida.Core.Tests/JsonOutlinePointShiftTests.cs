@@ -11,9 +11,12 @@ public class JsonOutlinePointShiftTests
     private static Doc Make(string text) => Doc.FromBytes(Encoding.UTF8.GetBytes(text), new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Utf8 });
 
     private static void MatchesFresh(Doc doc, JsonOutline outline, bool comments = false)
+        => MatchesFresh(doc.GetSnapshot(), outline, comments);
+
+    private static void MatchesFresh(IByteSnapshot source, JsonOutline outline, bool comments = false)
     {
         outline.ScanToEnd();
-        using var fresh = new JsonOutline(doc.GetSnapshot(), 0, TextCodec.Utf8, comments);
+        using var fresh = new JsonOutline(source, 0, TextCodec.Utf8, comments);
         fresh.ScanToEnd();
         Assert.Equal(fresh.State, outline.State);
         Assert.Equal(fresh.Error, outline.Error);
@@ -28,6 +31,54 @@ public class JsonOutlinePointShiftTests
             Assert.Equal(fresh.LineOfOffset(expected.ValueStart), outline.LineOfOffset(expected.ValueStart));
         }
         Assert.Equal(fresh.Render(fresh.GetLine(fresh.State.Lines - 1)!.Value).Text, outline.Render(outline.GetLine(outline.State.Lines - 1)!.Value).Text);
+    }
+
+    private sealed class Bytes(byte[] bytes) : IByteSnapshot
+    {
+        public long ByteLength => bytes.Length;
+        public int Read(long offset, Span<byte> destination)
+        {
+            int length = (int)Math.Min(destination.Length, bytes.Length - offset);
+            bytes.AsSpan((int)offset, length).CopyTo(destination);
+            return length;
+        }
+    }
+
+    [Fact]
+    public void A_running_scan_appends_states_after_a_lazy_shift_without_reusing_old_offsets()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes("[" + string.Concat(Enumerable.Repeat("\"text\",", 3_000_000)));
+        bytes[^1] = (byte)']';
+        using var outline = new JsonOutline(new Bytes(bytes), 0, TextCodec.Utf8);
+        using var paused = new ManualResetEventSlim();
+        using var resume = new ManualResetEventSlim();
+        using var done = new ManualResetEventSlim();
+        int held = 0;
+        outline.Progress += (_, _) =>
+        {
+            var state = outline.State;
+            if (!state.Complete && state.Lines >= 200_000 && Interlocked.CompareExchange(ref held, 1, 0) == 0)
+            {
+                paused.Set();
+                resume.Wait(TimeSpan.FromSeconds(30));
+            }
+            if (outline.State.Complete) done.Set();
+        };
+        outline.GetLines(0, 10);
+        outline.Start();
+        try
+        {
+            Assert.True(paused.Wait(TimeSpan.FromSeconds(30)));
+            Assert.True(outline.SegmentCount > 256);
+            Assert.False(outline.State.Complete);
+            var next = new Bytes([.. bytes.AsSpan(0, 3), (byte)'X', .. bytes.AsSpan(3)]);
+            Assert.True(outline.Update(next, 3, 0, 1));
+            resume.Set();
+            Assert.True(done.Wait(TimeSpan.FromSeconds(30)));
+            Assert.Equal((3_000_002L, true), outline.State);
+            MatchesFresh(next, outline);
+        }
+        finally { resume.Set(); }
     }
 
     [Fact]
