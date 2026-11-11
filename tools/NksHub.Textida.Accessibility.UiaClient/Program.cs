@@ -89,10 +89,13 @@ internal static partial class Program
         Check("DocumentRange text", all == Sample, $"{all.Length} units: '{Show(all)}'");
         Check("GetText(maxLength)", doc.GetText(5) == "Hello");
 
-        Console.WriteLine("READ COM GetVisibleRanges.GetText");
-        Check("COM visible range text", NativeRangeText(hwnd, true, out string visibleDetail), visibleDetail);
-        Console.WriteLine("READ COM GetSelection.GetText");
-        Check("COM selection text", NativeRangeText(hwnd, false, out string selectionDetail), selectionDetail);
+        foreach (int patternId in new[] { 10014, 10024 })
+        {
+            Console.WriteLine($"READ COM pattern {patternId} GetVisibleRanges.GetText");
+            Check($"COM pattern {patternId} visible range text", NativeRangeText(hwnd, true, patternId, out string visibleDetail), visibleDetail);
+            Console.WriteLine($"READ COM pattern {patternId} GetSelection.GetText");
+            Check($"COM pattern {patternId} selection text", NativeRangeText(hwnd, false, patternId, out string selectionDetail), selectionDetail);
+        }
 
         var visible = text.GetVisibleRanges();
         Console.WriteLine($"READ GetVisibleRanges.GetText ({visible.Length} ranges)");
@@ -204,14 +207,22 @@ internal static partial class Program
 
     // The native client checks text-range arrays and TextPattern2.GetCaretRange.
 
-    private static bool NativeRangeText(nint hwnd, bool visible, out string detail)
+    private static bool NativeRangeText(nint hwnd, bool visible, int patternId, out string detail)
     {
         var uia = (IUIAutomation)new CUIAutomation();
         Marshal.ThrowExceptionForHR(uia.ElementFromHandle(hwnd, out var element));
-        Marshal.ThrowExceptionForHR(element.GetCurrentPattern(10024, out object pattern));
-        var text = (IUIAutomationTextPattern2)pattern;
+        Marshal.ThrowExceptionForHR(element.GetCurrentPattern(patternId, out object pattern));
         IUIAutomationTextRangeArray ranges;
-        Marshal.ThrowExceptionForHR(visible ? text.GetVisibleRanges(out ranges) : text.GetSelection(out ranges));
+        if (patternId == 10014)
+        {
+            var text = (IUIAutomationTextPattern)pattern;
+            Marshal.ThrowExceptionForHR(visible ? text.GetVisibleRanges(out ranges) : text.GetSelection(out ranges));
+        }
+        else
+        {
+            var text = (IUIAutomationTextPattern2)pattern;
+            Marshal.ThrowExceptionForHR(visible ? text.GetVisibleRanges(out ranges) : text.GetSelection(out ranges));
+        }
         Marshal.ThrowExceptionForHR(ranges.get_Length(out int length));
         if (length != 1) { detail = $"ranges={length}"; return false; }
         Marshal.ThrowExceptionForHR(ranges.GetElement(0, out var range));
@@ -252,6 +263,16 @@ internal static partial class Program
         void GetCurrentPropertyValue(); void GetCurrentPropertyValueEx(); void GetCachedPropertyValue(); void GetCachedPropertyValueEx();
         void GetCurrentPatternAs(); void GetCachedPatternAs();
         [PreserveSig] int GetCurrentPattern(int patternId, [MarshalAs(UnmanagedType.IUnknown)] out object pattern);
+    }
+
+    [ComImport, Guid("32eba289-3583-42c9-9c59-3b6d9a1e9b6a"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IUIAutomationTextPattern
+    {
+        void RangeFromPoint(); void RangeFromChild();
+        [PreserveSig] int GetSelection(out IUIAutomationTextRangeArray ranges);
+        [PreserveSig] int GetVisibleRanges(out IUIAutomationTextRangeArray ranges);
+        [PreserveSig] int get_DocumentRange(out IUIAutomationTextRange range);
+        void get_SupportedTextSelection();
     }
 
     [ComImport, Guid("506a921a-fcc9-409f-b23b-37eb74106872"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
