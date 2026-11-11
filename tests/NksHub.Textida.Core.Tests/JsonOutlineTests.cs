@@ -17,6 +17,7 @@ public sealed class HugeJsonFactAttribute : FactAttribute
     }
 }
 
+[Collection("Process memory")]
 public class JsonOutlineTests(ITestOutputHelper output)
 {
     private static Doc Make(string text) => Doc.FromBytes(Encoding.UTF8.GetBytes(text), new PagedBackendFactory(startIndexing: false), new() { Format = TextCodec.Utf8 });
