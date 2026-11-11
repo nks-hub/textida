@@ -108,7 +108,7 @@ public class JsonPrettyViewTests : IDisposable
         long renderedAt = tab.Paged?.RenderedAt ?? 0;
         int runs = syntax.ViewportRuns;
         view.MoveCaret(1, "  \"name\": \"An".Length);
-        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
+        TestApp.Type(_w, "x");
         Dispatcher.UIThread.RunJobs();
         using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
         Assert.False(tab.View.IsVisible);
@@ -145,7 +145,7 @@ public class JsonPrettyViewTests : IDisposable
         double before = bar.Maximum;
         Assert.True(before > 0);
 
-        TestApp.Type(_w, "x");
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
 
         Assert.True(bar.Maximum > before, $"Horizontal maximum stayed at {bar.Maximum} after {before}");
         Assert.Contains(new string('x', 401), view.RowText(1));
