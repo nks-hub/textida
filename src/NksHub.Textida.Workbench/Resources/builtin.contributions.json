@@ -3435,8 +3435,8 @@
       "title": "cmd.tools.lint",
       "category": "cat.tools",
       "icon": "checklist",
-      "when": "languageGroup != ''",
-      "enablement": "hasDocument"
+      "when": "lintSupported",
+      "enablement": "hasPath"
     },
     {
       "id": "nks.edit.runRecipeFiles",

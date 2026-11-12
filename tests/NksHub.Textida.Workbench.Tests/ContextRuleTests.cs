@@ -17,7 +17,7 @@ public class ContextRuleTests
     [Fact]
     public void The_new_context_keys_are_known_and_the_menu_keys_are_a_subset_of_them()
     {
-        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline"];
+        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline", "lintSupported"];
         Assert.All(added, k => Assert.Contains(k, ContextKeys.All));
         Assert.All(ContextKeys.MenuKeys, k => Assert.Contains(k, ContextKeys.All));
         Assert.Equal(ContextKeys.All.Count, ContextKeys.All.Distinct().Count());
@@ -87,6 +87,18 @@ public class ContextRuleTests
     }
 
     [Fact]
+    public void Lint_uses_the_host_capability_and_a_missing_file_name_is_grey()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        Assert.True(host.Commands.TryGet("nks.tools.lint", out var command));
+        var context = Text("python").Set(ContextKeys.LintSupported, true);
+        Assert.True(command.IsAvailable(context));
+        Assert.False(command.IsEnabled(context));
+        Assert.True(command.IsEnabled(context.Set(ContextKeys.HasPath, true)));
+        Assert.Contains(ContextKeys.LintSupported, ContextKeys.MenuKeys);
+    }
+
+    [Fact]
     public void The_formatters_are_shown_in_every_text_view_and_available_for_their_language_or_a_selection()
     {
         var host = WorkbenchHost.CreateBuiltin();
@@ -119,7 +131,7 @@ public class ContextRuleTests
         Assert.False(Available(host, "nks.log.unfold", Text()));
         Assert.True(Available(host, "nks.log.unfold", Text("log").Set(ContextKeys.LogMode, true)));
         Assert.False(Available(host, "nks.tools.lint", Text()));
-        Assert.True(Available(host, "nks.tools.lint", Text("csharp").Set(ContextKeys.LanguageGroup, "csharp")));
+        Assert.False(Available(host, "nks.tools.lint", Text("csharp").Set(ContextKeys.LanguageGroup, "csharp")));
         Assert.False(Available(host, "nks.lsp.start", Text("plaintext", "text")));
         Assert.True(Available(host, "nks.lsp.start", Text("yaml", "data")));
         Assert.False(Available(host, "nks.lsp.start", Text("csharp", "code").Set(ContextKeys.TextView, false)));

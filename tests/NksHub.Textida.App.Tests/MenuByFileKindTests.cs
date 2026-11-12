@@ -53,22 +53,22 @@ public class MenuByFileKindTests : IDisposable
     {
         yield return ["untitled", "json:G sql:G reload:G comment:G"];
         yield return ["text", "json:G sql:G reload:S comment:G"];
-        yield return ["code", "json:G sql:G outline:S lsp:S lint:S reload:S comment:S"];
+        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S"];
         yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["json", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S"];
-        yield return ["package", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S pkg:S"];
+        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S"];
+        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S"];
         yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S"];
         yield return ["csv", "json:G sql:G lsp:S reload:S comment:G"];
         yield return ["csvTable", "row:S reload:S comment:G"];
         yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S"];
         yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S"];
-        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
+        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S"];
         yield return ["log", "json:G sql:G unfold:S reload:S comment:G"];
         yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S"];
         yield return ["picture", "cycle:S reload:S comment:G"];
         yield return ["hex", "hex:S reload:S comment:G"];
         yield return ["binary", "hex:S reload:S comment:G"];
-        yield return ["git", "json:G sql:G outline:S git:S lsp:S lint:S reload:S comment:S"];
+        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S"];
     }
 
     private static async Task Until(Func<bool> condition, string what)
