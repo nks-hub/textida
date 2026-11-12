@@ -11,14 +11,14 @@ public class ContextRuleTests
         new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.HasDocument, true).Set(ContextKeys.TextView, true).Set(ContextKeys.ReadOnly, false)
             .Set(ContextKeys.Language, language).Set(ContextKeys.FileKind, kind).Set(ContextKeys.LanguageGroup, "").Set(ContextKeys.HexMode, false).Set(ContextKeys.TableMode, false)
             .Set(ContextKeys.CompareMode, false).Set(ContextKeys.InGitRepo, false).Set(ContextKeys.LogMode, false).Set(ContextKeys.RemoteFile, false).Set(ContextKeys.PackageManifest, false)
-            .Set(ContextKeys.JsonViewSupported, true).Set(ContextKeys.JsonEncodingSupported, true).Set(ContextKeys.JsonPretty, false);
+            .Set(ContextKeys.JsonViewSupported, true).Set(ContextKeys.JsonEncodingSupported, true).Set(ContextKeys.JsonPretty, false).Set(ContextKeys.TableViewSupported, true);
 
     private static bool Available(WorkbenchHost host, string id, IWhenContext context) => host.Commands.TryGet(id, out var c) && c.IsAvailable(context);
 
     [Fact]
     public void The_new_context_keys_are_known_and_the_menu_keys_are_a_subset_of_them()
     {
-        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline", "lintSupported", "jsonViewSupported", "jsonEncodingSupported"];
+        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline", "lintSupported", "jsonViewSupported", "jsonEncodingSupported", "tableViewSupported"];
         Assert.All(added, k => Assert.Contains(k, ContextKeys.All));
         Assert.All(ContextKeys.MenuKeys, k => Assert.Contains(k, ContextKeys.All));
         Assert.Equal(ContextKeys.All.Count, ContextKeys.All.Distinct().Count());
@@ -162,6 +162,7 @@ public class ContextRuleTests
         {
             var strings = StringTable.LoadBuiltin(language);
             var hits = CommandPalette.Query(host.Commands, keymap, strings, Text(), "", 2000);
+            Assert.True(hits.Single(h => h.CommandId == "nks.view.table").Enabled);
             Assert.Equal(strings.Get("reason.hasSelection.false"), hits.Single(h => h.CommandId == "nks.edit.formatJson").DisabledReason);
             Assert.Equal(strings.Get("reason.hasPath.false"), hits.Single(h => h.CommandId == "nks.file.reload").DisabledReason);
             Assert.Equal(strings.Get("reason.multipleCarets.false"), hits.Single(h => h.CommandId == "nks.edit.clearCarets").DisabledReason);
@@ -174,6 +175,7 @@ public class ContextRuleTests
             string[] jsonCommands = ["nks.view.jsonPretty", "nks.json.goToKey", "nks.json.copySource", "nks.json.expandValue"];
             var pretty = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.JsonPretty, true), "", 2000);
             Assert.All(jsonCommands, id => Assert.True(pretty.Single(h => h.CommandId == id).Enabled));
+            Assert.True(pretty.Single(h => h.CommandId == "nks.view.table").Enabled);
             var wide = CommandPalette.Query(host.Commands, keymap, strings,
                 Text().Set(ContextKeys.JsonPretty, true).Set(ContextKeys.JsonEncodingSupported, false), "", 2000);
             Assert.True(wide.Single(h => h.CommandId == "nks.view.jsonPretty").Enabled);
@@ -183,16 +185,20 @@ public class ContextRuleTests
                 Assert.False(item.Enabled);
                 Assert.Equal(strings.Get("reason.jsonEncodingSupported.false"), item.DisabledReason);
             }
-            var custom = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.JsonViewSupported, false), "", 2000);
+            var custom = CommandPalette.Query(host.Commands, keymap, strings,
+                Text().Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
             foreach (var id in jsonCommands.Take(2))
             {
                 var item = custom.Single(h => h.CommandId == id);
                 Assert.False(item.Enabled);
                 Assert.Equal(strings.Get("reason.jsonViewSupported.false"), item.DisabledReason);
             }
+            var table = custom.Single(h => h.CommandId == "nks.view.table");
+            Assert.False(table.Enabled);
+            Assert.Equal(strings.Get("reason.tableViewSupported.false"), table.DisabledReason);
             var empty = CommandPalette.Query(host.Commands, keymap, strings,
-                Text().Set(ContextKeys.HasDocument, false).Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.JsonEncodingSupported, false), "", 2000);
-            foreach (var id in jsonCommands)
+                Text().Set(ContextKeys.HasDocument, false).Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.JsonEncodingSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
+            foreach (var id in jsonCommands.Append("nks.view.table"))
             {
                 var item = empty.Single(h => h.CommandId == id);
                 Assert.False(item.Enabled);
@@ -207,7 +213,7 @@ public class ContextRuleTests
             Assert.Equal(strings.Get("reason.textView.false"), logs.Single(h => h.CommandId == "nks.log.nextError").DisabledReason);
             Assert.DoesNotContain(logs, h => h.CommandId == "nks.edit.formatJson");
             Assert.DoesNotContain(hits, h => h.CommandId.StartsWith("nks.hex.", StringComparison.Ordinal));
-            foreach (var key in new[] { "reason.fileType", "reason.textView.false", "reason.hasPath.false", "reason.multipleCarets.false", "reason.hasDocument.false", "reason.jsonPretty.false", "reason.jsonEncodingSupported.false", "reason.jsonViewSupported.false" })
+            foreach (var key in new[] { "reason.fileType", "reason.textView.false", "reason.hasPath.false", "reason.multipleCarets.false", "reason.hasDocument.false", "reason.jsonPretty.false", "reason.jsonEncodingSupported.false", "reason.jsonViewSupported.false", "reason.tableViewSupported.false" })
                 Assert.True(strings.HasOwn(key), $"{language}: {key}");
         }
     }

@@ -47,34 +47,35 @@ public class MenuByFileKindTests : IDisposable
         ["next"] = "nks.compare.next", ["git"] = "nks.git.status", ["lsp"] = "nks.lsp.goToDefinition", ["lint"] = "nks.tools.lint", ["unfold"] = "nks.log.unfold",
         ["upload"] = "nks.remote.upload", ["reload"] = "nks.file.reload", ["comment"] = "nks.edit.toggleComment", ["read"] = "nks.view.modeRead", ["pkg"] = "nks.packages.lookup",
         ["jsonView"] = "nks.view.jsonPretty", ["jsonKey"] = "nks.json.goToKey", ["jsonSource"] = "nks.json.copySource", ["jsonExpand"] = "nks.json.expandValue",
+        ["toggleTable"] = "nks.view.table",
     };
 
     /// <summary>One row per kind of file; a column that is not named is not shown.</summary>
     public static IEnumerable<object[]> Table()
     {
-        const string jsonInText = " jsonView:S jsonKey:S jsonSource:G jsonExpand:G";
-        const string jsonUnavailable = " jsonView:G jsonKey:G jsonSource:G jsonExpand:G";
-        yield return ["none", "reload:G comment:G" + jsonUnavailable];
-        yield return ["untitled", "json:G sql:G reload:G comment:G" + jsonInText];
-        yield return ["text", "json:G sql:G reload:S comment:G" + jsonInText];
-        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S" + jsonInText];
-        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S" + jsonInText];
-        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S" + jsonInText];
-        yield return ["jsonPretty", "keyPath:S reload:S comment:G jsonView:S jsonKey:S jsonSource:S jsonExpand:S"];
-        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S" + jsonInText];
-        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S" + jsonInText];
-        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G" + jsonInText];
-        yield return ["csvTable", "row:S reload:S comment:G" + jsonInText];
-        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S" + jsonInText];
-        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S" + jsonUnavailable];
-        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S" + jsonInText];
-        yield return ["log", "json:G sql:G unfold:S reload:S comment:G" + jsonInText];
-        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S" + jsonInText];
-        yield return ["picture", "cycle:S reload:S comment:G" + jsonUnavailable];
-        yield return ["hex", "hex:S reload:S comment:G" + jsonUnavailable];
-        yield return ["binary", "hex:S reload:S comment:G" + jsonUnavailable];
-        yield return ["results", "reload:G comment:G" + jsonUnavailable];
-        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S" + jsonInText];
+        const string textViews = " jsonView:S jsonKey:S jsonSource:G jsonExpand:G toggleTable:S";
+        const string unavailableViews = " jsonView:G jsonKey:G jsonSource:G jsonExpand:G toggleTable:G";
+        yield return ["none", "reload:G comment:G" + unavailableViews];
+        yield return ["untitled", "json:G sql:G reload:G comment:G" + textViews];
+        yield return ["text", "json:G sql:G reload:S comment:G" + textViews];
+        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S" + textViews];
+        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S" + textViews];
+        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S" + textViews];
+        yield return ["jsonPretty", "keyPath:S reload:S comment:G jsonView:S jsonKey:S jsonSource:S jsonExpand:S toggleTable:S"];
+        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S" + textViews];
+        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S" + textViews];
+        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G" + textViews];
+        yield return ["csvTable", "row:S reload:S comment:G" + textViews];
+        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S" + textViews];
+        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S" + unavailableViews];
+        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S" + textViews];
+        yield return ["log", "json:G sql:G unfold:S reload:S comment:G" + textViews];
+        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S" + textViews];
+        yield return ["picture", "cycle:S reload:S comment:G" + unavailableViews];
+        yield return ["hex", "hex:S reload:S comment:G" + unavailableViews];
+        yield return ["binary", "hex:S reload:S comment:G" + unavailableViews];
+        yield return ["results", "reload:G comment:G" + unavailableViews];
+        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S" + textViews];
     }
 
     private static async Task Until(Func<bool> condition, string what)
@@ -183,7 +184,7 @@ public class MenuByFileKindTests : IDisposable
         {
             Assert.True(_app.Workbench.Commands.TryGet(Columns[name], out var command), name);
             Assert.True((state == 'S') == command.IsEnabled(context), $"{kind}: {name} differs between the menu and the registry");
-            if (name is not ("jsonView" or "jsonKey" or "jsonSource" or "jsonExpand")) continue;
+            if (name is not ("jsonView" or "jsonKey" or "jsonSource" or "jsonExpand" or "toggleTable")) continue;
             _w.ShowPalette();
             _w.SetPaletteQuery(_app.Workbench.Strings.Get(command.TitleKey));
             var item = Assert.Single(_w.PaletteResults, r => r.CommandId == command.Id);
@@ -191,6 +192,7 @@ public class MenuByFileKindTests : IDisposable
             if (state == 'G')
             {
                 string reason = kind == "none" ? "reason.hasDocument.false"
+                    : name == "toggleTable" ? "reason.tableViewSupported.false"
                     : name is "jsonSource" or "jsonExpand" ? "reason.jsonPretty.false" : "reason.jsonViewSupported.false";
                 Assert.Equal(_app.Workbench.Strings.Get(reason), item.DisabledReason);
             }
