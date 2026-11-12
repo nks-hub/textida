@@ -119,7 +119,7 @@ public class MenuByFileKindTests : IDisposable
         }
     }
 
-    private static IEnumerable<MenuItem> Walk(ItemsControl root) => root.Items.OfType<MenuItem>().SelectMany(i => Walk(i).Prepend(i));
+    private static IEnumerable<MenuItem> Walk(ItemsControl root) => root.Items.OfType<MenuItem>().Where(i => i.IsVisible).SelectMany(i => Walk(i).Prepend(i));
 
     private static IEnumerable<MenuCommand> Shown(IEnumerable<MenuGroup> menu) => menu.SelectMany(g => g.Items).AllCommands();
 
