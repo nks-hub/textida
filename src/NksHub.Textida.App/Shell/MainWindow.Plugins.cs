@@ -50,7 +50,12 @@ internal sealed partial class MainWindow
         var header = new DockPanel { Background = Brushes.Transparent, Children = { Dock(_pluginPanelClose, Avalonia.Controls.Dock.Right), _pluginPanelTitle } };
         _pluginPanel.Children.Add(Dock(MakeDraggable(header, SidePanel.Plugin), Avalonia.Controls.Dock.Top));
         _pluginPanel.Children.Add(_pluginTree);
-        _pluginTree.DoubleTapped += (_, _) => ActivatePluginItem();
+        _pluginTree.AddHandler(InputElement.DoubleTappedEvent, (_, e) =>
+        {
+            // A parent handles the double tap while toggling its children.
+            if (e.Handled && !(_pluginPanelKey is { } key && key.Panel.StartsWith(PluginServices.SymbolsPanelPrefix, StringComparison.Ordinal))) return;
+            ActivatePluginItem();
+        }, Avalonia.Interactivity.RoutingStrategies.Bubble, handledEventsToo: true);
         _pluginTree.AddHandler(KeyDownEvent, (_, e) =>
         {
             if (e.Key != Key.Enter) return;

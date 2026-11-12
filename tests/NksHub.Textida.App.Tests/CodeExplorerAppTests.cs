@@ -1,6 +1,10 @@
 using System.Diagnostics;
 using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -76,6 +80,66 @@ public class CodeExplorerAppTests : IDisposable
         int at = text.IndexOf(name, StringComparison.Ordinal);
         long start = Encoding.UTF8.GetByteCount(text[..at]);
         return new ByteRange(start, start + Encoding.UTF8.GetByteCount(name));
+    }
+
+    private async Task<DocTab> OpenOutlineAsync(string name, string content)
+    {
+        var tab = Open(name, content);
+        var command = _app.Workbench.Commands.ExecuteAsync("nks.tools.showOutline", new ShellContext(_w, forMenu: false)).AsTask();
+        Assert.Equal(CommandOutcome.Handled, await Pump(command));
+        await Until(() => _w.PluginPanelOpen && !_app.Plugins.IsBusy, "the outline panel");
+        _w.Show();
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        return tab;
+    }
+
+    private void DoubleClickHeader(TreeViewItem item)
+    {
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        var header = Assert.IsType<StackPanel>(item.Header);
+        var label = Assert.IsType<TextBlock>(header.Children[0]);
+        Assert.True(label.Bounds.Width > 0 && label.Bounds.Height > 0);
+        var point = label.TranslatePoint(new Point(label.Bounds.Width / 2, label.Bounds.Height / 2), _w)!.Value;
+        for (int click = 0; click < 2; click++)
+        {
+            _w.MouseDown(point, MouseButton.Left);
+            _w.MouseUp(point, MouseButton.Left);
+        }
+        Dispatcher.UIThread.RunJobs();
+    }
+
+    [AvaloniaFact]
+    public async Task A_double_click_on_a_parent_symbol_selects_its_range_and_toggles_its_children()
+    {
+        var tab = await OpenOutlineAsync("parent.css", "@media print { .card { color: red } }\n");
+        var parent = Assert.IsType<TreeViewItem>(Assert.Single(_w.PluginTree.Items));
+        Assert.Single(parent.Items);
+        Assert.True(parent.IsExpanded);
+
+        DoubleClickHeader(parent);
+
+        Assert.False(parent.IsExpanded);
+        Assert.Same(parent, _w.PluginTree.SelectedItem);
+        Assert.Equal("@media print", tab.Editor!.SelectedText);
+        Assert.Equal(NameBytes(tab, "@media print"), tab.Editor.ByteSelections()!.Items[0].ToRange());
+    }
+
+    [AvaloniaFact]
+    public async Task A_double_click_on_a_leaf_symbol_selects_its_range_without_toggling()
+    {
+        var tab = await OpenOutlineAsync("leaf.css", "body { margin: 0 }\n");
+        var leaf = Assert.IsType<TreeViewItem>(Assert.Single(_w.PluginTree.Items));
+        Assert.Empty(leaf.Items);
+        bool expanded = leaf.IsExpanded;
+
+        DoubleClickHeader(leaf);
+
+        Assert.Equal(expanded, leaf.IsExpanded);
+        Assert.Same(leaf, _w.PluginTree.SelectedItem);
+        Assert.Equal("body", tab.Editor!.SelectedText);
+        Assert.Equal(NameBytes(tab, "body"), tab.Editor.ByteSelections()!.Items[0].ToRange());
     }
 
     [AvaloniaFact]
