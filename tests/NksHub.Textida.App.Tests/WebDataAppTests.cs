@@ -380,6 +380,7 @@ public class WebDataAppTests : IDisposable
         Assert.True(changedTab.Doc.Doc.Revision > revisionBefore);
         var after = _app.Output.Read(OutputChannel.Tasks).Select(l => l.Text).ToArray();
         Assert.True(before.SequenceEqual(after), "A document changed after its bytes were read, but the comparison was published:\n" + string.Join('\n', after));
+        Assert.Equal(Loc.Get(K.KeysCompareChanged), _w.StatusMessageText);
     }
 
     [AvaloniaFact]

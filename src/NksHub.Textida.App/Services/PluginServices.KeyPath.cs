@@ -99,4 +99,40 @@ internal sealed partial class PluginServices
         return true;
     }
 
+    /// <summary>Reports the keys each JSON or YAML document lacks only while both read revisions are current.</summary>
+    public async Task<bool> CompareKeysAsync(MainWindow window, DocTab tab, DocTab other)
+    {
+        if (tab.Surface is null || other.Surface is null || ReferenceEquals(tab.Doc, other.Doc)
+            || KeySyntax(tab.Doc.Language.Id) is not { } syntax || KeySyntax(other.Doc.Language.Id) is not { } otherSyntax) return false;
+        var document = tab.Doc.Doc;
+        var otherDocument = other.Doc.Doc;
+        long revision = document.Revision, otherRevision = otherDocument.Revision;
+        var outcome = await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.compare",
+            $",\"other\":\"{otherDocument.Id}\",\"otherRevision\":{otherRevision},\"syntax\":\"{syntax}\",\"otherSyntax\":\"{otherSyntax}\"", other);
+        if (!outcome.Started) return false;
+        var r = outcome.Result;
+        if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() != "compared") return true;
+        if (!ReferenceEquals(tab.Doc.Doc, document) || !ReferenceEquals(other.Doc.Doc, otherDocument)
+            || document.Revision != revision || otherDocument.Revision != otherRevision)
+        {
+            window.SetStatusMessage(Loc.Get(K.KeysCompareChanged));
+            return true;
+        }
+
+        string nameA = tab.Doc.Title, nameB = other.Doc.Title;
+        var lines = new List<string> { Loc.Get(K.KeysCompareHeader, ("a", nameA), ("b", nameB)) };
+        if (r.GetProperty("errorLine").GetInt32() is > 0 and var errorA) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameA), ("line", errorA)));
+        if (r.GetProperty("otherErrorLine").GetInt32() is > 0 and var errorB) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameB), ("line", errorB)));
+        void Section(string property, string file)
+        {
+            var keys = r.GetProperty(property).EnumerateArray().Select(k => k.GetString()!).ToList();
+            lines.Add(keys.Count == 0 ? Loc.Get(K.KeysCompareNoneMissing, ("file", file)) : Loc.Plural(K.KeysCompareMissing, keys.Count, ("file", file)));
+            lines.AddRange(keys.Select(k => "    " + k));
+        }
+        Section("missingInOther", nameB);
+        Section("missingInDocument", nameA);
+        _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.KeysCompareSource), string.Join('\n', lines));
+        window.ShowOutput(OutputChannel.Tasks);
+        return true;
+    }
 }

@@ -944,37 +944,6 @@ internal sealed partial class PluginServices : IEditProposals, IWorkspaceEdits, 
     public bool RevealTabSymbol(DocTab tab, string symbolId) =>
         SymbolSourceOf(tab) is { } plugin && RevealSymbol(plugin, SymbolsPanelPrefix + tab.Doc.Doc.Id.ToString("N"), symbolId);
 
-    /// <summary>
-    /// Compares the keys of two YAML or JSON tabs, each as it is now, and writes the keys each one lacks to the output window. Both files are read at the revision the
-    /// command started on; if either changed meanwhile the plugin says so and nothing is written.
-    /// </summary>
-    public async Task<bool> CompareKeysAsync(MainWindow window, DocTab tab, DocTab other)
-    {
-        if (tab.Surface is null || other.Surface is null || ReferenceEquals(tab.Doc, other.Doc)
-            || KeySyntax(tab.Doc.Language.Id) is not { } syntax || KeySyntax(other.Doc.Language.Id) is not { } otherSyntax) return false;
-        var outcome = await ExecuteAsync(window, tab, WebDataPluginId, WebDataActivation, "Web data", "keypath.compare",
-            $",\"other\":\"{other.Doc.Doc.Id}\",\"otherRevision\":{other.Doc.Doc.Revision},\"syntax\":\"{syntax}\",\"otherSyntax\":\"{otherSyntax}\"", other);
-        if (!outcome.Started) return false;
-        var r = outcome.Result;
-        if (r.ValueKind != JsonValueKind.Object || r.GetProperty("status").GetString() != "compared") return true;
-
-        string nameA = tab.Doc.Title, nameB = other.Doc.Title;
-        var lines = new List<string> { Loc.Get(K.KeysCompareHeader, ("a", nameA), ("b", nameB)) };
-        if (r.GetProperty("errorLine").GetInt32() is > 0 and var errorA) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameA), ("line", errorA)));
-        if (r.GetProperty("otherErrorLine").GetInt32() is > 0 and var errorB) lines.Add(Loc.Get(K.KeysCompareSyntax, ("file", nameB), ("line", errorB)));
-        void Section(string property, string file)
-        {
-            var keys = r.GetProperty(property).EnumerateArray().Select(k => k.GetString()!).ToList();
-            lines.Add(keys.Count == 0 ? Loc.Get(K.KeysCompareNoneMissing, ("file", file)) : Loc.Plural(K.KeysCompareMissing, keys.Count, ("file", file)));
-            lines.AddRange(keys.Select(k => "    " + k));
-        }
-        Section("missingInOther", nameB);
-        Section("missingInDocument", nameA);
-        _app.Output.Append(OutputChannel.Tasks, Loc.Get(K.KeysCompareSource), string.Join('\n', lines));
-        window.ShowOutput(OutputChannel.Tasks);
-        return true;
-    }
-
     private async Task<bool> RunCommandAsync(MainWindow window, DocTab tab, string pluginId, string activation, string name, string command, string extra = "") =>
         (await ExecuteAsync(window, tab, pluginId, activation, name, command, extra)).Started;
 
