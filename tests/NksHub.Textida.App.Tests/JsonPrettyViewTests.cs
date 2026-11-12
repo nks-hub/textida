@@ -560,6 +560,40 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal(json, Text(tab));
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_arrow_crossing_a_wrapped_key_row_selects_a_whole_supplementary_character(bool backward)
+    {
+        string json = "{\"" + string.Concat(Enumerable.Repeat("😀", 2000)) + "tail\":1}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, 0);
+        Assert.True(view.ToggleExpand());
+        long at = view.Outline!.PartStart(view.Outline.GetLine(1)!.Value, 1, view.PartBytes);
+        if (backward)
+        {
+            view.MoveCaret(1, 0, part: 1);
+            Press(Key.Home);
+        }
+        else view.MoveCaret(1, int.MaxValue, part: 0);
+        Assert.Equal(backward ? 1 : 0, view.CaretPart);
+        Assert.Equal(at, view.SourceOffset);
+
+        Press(backward ? Key.Left : Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(backward ? 0 : 1, view.CaretPart);
+        Assert.Equal(backward ? at - 4 : at + 4, view.SourceOffset);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.copy"));
+        Assert.Equal("😀", await Clip());
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
+        int from = checked((int)(backward ? at - 4 : at)), to = from + 4;
+        TestApp.Type(_w, "Z");
+        Assert.Equal(Encoding.UTF8.GetString([.. bytes[..from], (byte)'Z', .. bytes[to..]]), Text(tab));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(json, Text(tab));
+    }
+
     [AvaloniaFact]
     public void A_jsonc_file_shows_its_comments_on_lines_of_their_own()
     {
