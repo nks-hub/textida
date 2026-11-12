@@ -34,6 +34,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),
+            ContextKeys.TableViewSupported => Bool(window.CanShowTable),
             ContextKeys.InMarkdownTable => Bool(window.InMarkdownTable),
             ContextKeys.InSnippet => Bool(tab?.Surface?.InSnippet == true),
             ContextKeys.ImageFile => Bool(tab?.Doc.IsImageFile == true),

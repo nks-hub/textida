@@ -822,6 +822,7 @@
   "reason.panelOpen.false": "Není otevřený žádný panel",
   "reason.textView.false": "Dokument se teď nezobrazuje jako text",
   "reason.jsonViewSupported.false": "Tento pohled nepodporuje formátovaný JSON",
+  "reason.tableViewSupported.false": "Tento pohled nepodporuje tabulku",
   "reason.jsonEncodingSupported.false": "Vyžaduje UTF-8 nebo jednobajtové kódování",
   "reason.jsonPretty.false": "Nejprve zapněte formátovaný JSON",
   "reason.hasPath.false": "Dokument nemá soubor na disku",

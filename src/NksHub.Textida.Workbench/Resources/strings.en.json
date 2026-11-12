@@ -822,6 +822,7 @@
   "reason.panelOpen.false": "No panel is open",
   "reason.textView.false": "The document is not shown as text",
   "reason.jsonViewSupported.false": "This view cannot show formatted JSON",
+  "reason.tableViewSupported.false": "This view cannot show a table",
   "reason.jsonEncodingSupported.false": "Requires UTF-8 or a single-byte encoding",
   "reason.jsonPretty.false": "Open the formatted JSON view first",
   "reason.hasPath.false": "The document has no file on disk",

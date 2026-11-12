@@ -20,6 +20,7 @@ namespace NksHub.Textida.App.Shell;
 internal sealed partial class MainWindow
 {
     internal CsvView? ActiveTable => Active is { TableShown: true } tab ? tab.Table : null;
+    internal bool CanShowTable => Active is { Custom: null } tab && !tab.Doc.IsResults && !tab.Doc.IsHex;
 
     /// <summary>The accessible names of the table views follow the UI language.</summary>
     private void ApplyTableTexts()
@@ -34,7 +35,7 @@ internal sealed partial class MainWindow
     /// <summary>The command <c>nks.view.table</c>: the active document is shown as a table, or as text again.</summary>
     internal CommandOutcome ToggleTable()
     {
-        if (Active is not { Custom: null } tab || tab.Doc.IsResults || tab.Doc.IsHex) return CommandOutcome.NotHandled;
+        if (Active is not { } tab || !CanShowTable) return CommandOutcome.NotHandled;
         SetTable(tab, !tab.TableShown);
         return CommandOutcome.Handled;
     }
@@ -117,7 +118,7 @@ internal sealed partial class MainWindow
     /// <summary>The command <c>nks.table.editRegion</c>: the selected text becomes a table; the rest of the document stays text and is never read or changed by it.</summary>
     internal async Task EditSelectionAsTableAsync()
     {
-        if (Active is not { Custom: null } tab || tab.Doc.IsResults || tab.Doc.IsHex) return;
+        if (Active is not { } tab || !TextViewShown(tab) || tab.Doc.IsResults || tab.Doc.IsHex) return;
         if (tab.TableShown || SelectedBytes(tab) is not { } range)
         {
             SetStatusMessage(Loc.Get(K.TableRegionEmpty));

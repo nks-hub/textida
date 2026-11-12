@@ -461,7 +461,7 @@ internal static class AppCommands
         OnAsync("nks.json.copySource", w => w.CanReadJsonStructure && w.ActiveJson is { } json ? w.JsonCopyAsync(json, cut: false, source: true) : Task.FromResult(CommandOutcome.NotHandled));
         On("nks.json.expandValue", w => { if (!w.CanReadJsonStructure || w.ActiveJson is not { } json) return CommandOutcome.NotHandled; json.ToggleExpand(); return CommandOutcome.Handled; });
         On("nks.json.goToKey", w => { if (!w.CanShowJsonPretty || !w.CanReadJsonStructure) return CommandOutcome.NotHandled; _ = w.GoToJsonKeyAsync(); return CommandOutcome.Handled; });
-        On("nks.table.editRegion", w => { if (w.Active is not { Custom: null }) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
+        On("nks.table.editRegion", w => { if (!MainWindow.TextViewShown(w.Active)) return CommandOutcome.NotHandled; _ = w.EditSelectionAsTableAsync(); return CommandOutcome.Handled; });
         On("nks.table.dialect", w => { w.ShowTableDialectMenu(); return w.ActiveTable is null ? CommandOutcome.NotHandled : CommandOutcome.Handled; });
         On("nks.table.insertRow", w => w.TableCommand(t => t.InsertRow()));
         On("nks.table.deleteRow", w => w.TableCommand(t => t.DeleteRows()));
