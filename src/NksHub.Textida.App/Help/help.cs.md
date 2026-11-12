@@ -2052,7 +2052,7 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
 Příkazy v paletě příkazů vytvoří z JSONu strukturu Go, třídu C# nebo rozhraní TypeScript v nové kartě.
 1. Označte JSON, nebo nechte výběr prázdný pro celý dokument.
-2. Zvolte Úpravy, Převést a JSON na strukturu Go, třídu C# nebo rozhraní TypeScript.
+2. V paletě příkazů spusťte JSON na strukturu Go, JSON na třídu C# nebo JSON na rozhraní TypeScript.
 - Objekty v poli se sloučí do jednoho typu; pole, které některý z nich nemá nebo má null, je volitelné (v Go ukazatel a omitempty, v C# nullable, v TypeScriptu otazník).
 - Celé číslo, které se vejde do 64 bitů, je int64 (long, number), jiné číslo float64 (double, number). Pole bez známého typu (jen null, prázdné pole, smíšené hodnoty) dostane otevřený typ jazyka.
 - Jméno kořenového typu je jméno souboru; text, který není JSON, se odmítne s důvodem ve stavovém řádku.

@@ -2052,7 +2052,7 @@ When another program (a script, an assistant, a build tool) changes the file of 
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
 The commands in the command palette make a Go struct, a C# class or a TypeScript interface from JSON in a new tab.
 1. Select the JSON, or leave nothing selected for the whole document.
-2. Choose Edit, Convert and JSON to Go Struct, C# Class or TypeScript Interface.
+2. In the command palette, run JSON to Go Struct, JSON to C# Class or JSON to TypeScript Interface.
 - The objects of an array are merged into one type; a field some of them lack or hold null in is optional (a pointer and omitempty in Go, nullable in C#, a question mark in TypeScript).
 - A number that fits in 64 bits is int64 (long, number), any other number float64 (double, number). A field with no known type (only null, an empty array, mixed values) gets the open type of the language.
 - The name of the root type is the name of the file; text that is not JSON is refused with the reason in the status bar.

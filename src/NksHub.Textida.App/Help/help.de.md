@@ -2052,7 +2052,7 @@ commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previo
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
 Die Befehle in der Befehlspalette machen aus JSON eine Go-Struct, eine C#-Klasse oder ein TypeScript-Interface in einem neuen Tab.
 1. Markieren Sie das JSON oder lassen Sie nichts markiert für das ganze Dokument.
-2. Wählen Sie Bearbeiten, Umwandeln und JSON in Go-Struct, C#-Klasse oder TypeScript-Interface.
+2. Führen Sie in der Befehlspalette JSON in Go-Struct, JSON in C#-Klasse oder JSON in TypeScript-Interface aus.
 - Die Objekte eines Arrays werden zu einem Typ zusammengefasst; ein Feld, das einigen fehlt oder null ist, ist optional (in Go ein Zeiger und omitempty, in C# nullable, in TypeScript ein Fragezeichen).
 - Eine Zahl, die in 64 Bit passt, ist int64 (long, number), jede andere float64 (double, number). Ein Feld ohne bekannten Typ (nur null, leeres Array, gemischte Werte) bekommt den offenen Typ der Sprache.
 - Der Name des Wurzeltyps ist der Dateiname; Text, der kein JSON ist, wird mit dem Grund in der Statusleiste abgelehnt.
