@@ -404,6 +404,11 @@ internal sealed unsafe class Minimap : Control, IDisposable
     {
         if (!_attached) return;
         _attached = false;
+        if (_drag is not null)
+        {
+            _drag = null;
+            DragChanged(false);
+        }
         _host.MapChanged -= OnMapChanged;
         _host.ContentChanged -= Invalidate;
         _host.OccurrencesChanged -= OnOccurrencesChanged;
@@ -505,7 +510,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         if (_feeder is null)
         {
             if (LanguageModes.GrammarId(_doc) is null) return;
-            _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle) { DefersJumps = true, DefersMoves = true };
+            _feeder = new SyntaxFeeder(_doc, ApplyTokens, ClearTokens, _ => null, () => _host.LineCount, Invalidate, TextSettle) { DefersJumps = true, DefersMoves = true, IsDragging = _drag is not null };
             _feeder.TrackVisibility(this);
         }
         if (_feeder.Active && layout.Rows > 0) _feeder.SetVisible(layout.Top, layout.Top + layout.Rows - 1, 0, columns);
@@ -917,7 +922,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
             _drag = new DragState(layout, lines, count, wanted.RowPx, 0, first, y, _anchor);
         }
         e.Pointer.Capture(this);
-        _host.DragChanged(true);
+        DragChanged(true);
         e.Handled = true;
     }
 
@@ -936,7 +941,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
         base.OnPointerReleased(e);
         if (_drag is null) return;
         _drag = null;
-        _host.DragChanged(false);
+        DragChanged(false);
         e.Pointer.Capture(null);
         e.Handled = true;
     }
@@ -944,8 +949,14 @@ internal sealed unsafe class Minimap : Control, IDisposable
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
         base.OnPointerCaptureLost(e);
-        if (_drag is not null) _host.DragChanged(false);
+        if (_drag is not null) DragChanged(false);
         _drag = null;
+    }
+
+    private void DragChanged(bool dragging)
+    {
+        _host.DragChanged(dragging);
+        if (_feeder is not null) _feeder.IsDragging = dragging;
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)

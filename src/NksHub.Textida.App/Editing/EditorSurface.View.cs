@@ -301,7 +301,7 @@ internal sealed partial class EditorSurface : IMinimapHost
         }
     }
 
-    void IMinimapHost.DragChanged(bool dragging) => Syntax.DefersMoves = dragging;
+    void IMinimapHost.DragChanged(bool dragging) => Syntax.IsDragging = dragging;
 
     void IMinimapHost.ScrollToLine(long line)
     {

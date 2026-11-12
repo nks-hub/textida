@@ -1383,7 +1383,7 @@ public partial class ViewOptionsTests : IDisposable
     public void A_drag_that_moves_inside_the_window_of_the_colors_does_not_run_the_grammar_when_it_leaves_it()
     {
         var syntax = Open("d.cs", KeywordFile(5000)).Editor!.Syntax;
-        syntax.DefersMoves = true; // as a minimap drag sets it
+        syntax.DefersMoves = true; // the minimap feeder coalesces moves between its color windows
         syntax.SetVisible(1000, 1040, 0, 80); // a jump after a quiet time is colored at once
         int runs = syntax.ViewportRuns;
         for (int k = 1; k <= 30; k++)

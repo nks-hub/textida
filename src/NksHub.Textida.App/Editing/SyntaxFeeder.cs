@@ -43,6 +43,7 @@ internal sealed class SyntaxFeeder : IDisposable
     private bool _pending;
     private bool _lineTooLong;
     private bool _queued;
+    private bool _isDragging, _dragDeferred;
     private bool _disposed;
     private Visual? _view;
     private int _rowLimit = MaxRows, _columnLimit = MaxColumns;
@@ -196,6 +197,27 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>With <see cref="DefersJumps"/>, every request that leaves the last window waits like a jump, not only one that shares nothing with it; set by the minimap, whose window moves by dozens of lines per frame of a drag.</summary>
     public bool DefersMoves { get; set; }
 
+    /// <summary>Holds viewport coloring until a minimap drag ends, including already queued work.</summary>
+    public bool IsDragging
+    {
+        get => _isDragging;
+        set
+        {
+            if (_disposed || _isDragging == value) return;
+            _isDragging = value;
+            if (value)
+            {
+                _dragDeferred |= _jumpTimer?.IsEnabled == true;
+                _jumpTimer?.Stop();
+            }
+            else if (_dragDeferred)
+            {
+                _dragDeferred = false;
+                Queue();
+            }
+        }
+    }
+
     private DispatcherTimer NewJumpTimer()
     {
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.SyntaxJumpSettleMilliseconds) };
@@ -305,6 +327,8 @@ internal sealed class SyntaxFeeder : IDisposable
             _doneRevision = -1;
         }
         if (_doneRevision == _session.Revision) return;
+        // A queued slice or a settle timer can arrive after a slow drag frame.
+        if (_isDragging) { _dragDeferred = true; return; }
         SyntaxViewport result;
         ViewportRuns++;
         long tRun = Core.TypingTrace.Begin();
@@ -413,6 +437,7 @@ internal sealed class SyntaxFeeder : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _isDragging = _dragDeferred = false;
         _settleTimer?.Stop();
         _jumpTimer?.Stop();
         if (_view is not null) _view.PropertyChanged -= OnVisibilityChanged;
