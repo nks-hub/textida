@@ -136,6 +136,8 @@ internal static unsafe partial class UiaNative
     [LibraryImport("oleaut32.dll")]
     public static partial nint SafeArrayCreateVector(ushort vt, int lowerBound, uint elements);
     [LibraryImport("oleaut32.dll")]
+    public static partial int SafeArrayDestroy(nint array);
+    [LibraryImport("oleaut32.dll")]
     public static partial int SafeArrayPutElement(nint array, int* index, void* value);
     [LibraryImport("oleaut32.dll")]
     public static partial int SafeArrayAccessData(nint array, out void* data);
@@ -169,12 +171,21 @@ internal static unsafe partial class UiaNative
     public static nint RangeArray(ReadOnlySpan<ITextRangeProvider> ranges)
     {
         nint sa = SafeArrayCreateVector(VtUnknown, 0, (uint)ranges.Length);
-        for (int i = 0; i < ranges.Length; i++)
+        if (sa == 0) throw new OutOfMemoryException();
+        try
         {
-            void* unk = ComInterfaceMarshaller<ITextRangeProvider>.ConvertToUnmanaged(ranges[i]);
-            try { Marshal.ThrowExceptionForHR(SafeArrayPutElement(sa, &i, unk)); }
-            finally { Marshal.Release((nint)unk); }
+            for (int i = 0; i < ranges.Length; i++)
+            {
+                void* unk = ComInterfaceMarshaller<ITextRangeProvider>.ConvertToUnmanaged(ranges[i]);
+                try { Marshal.ThrowExceptionForHR(SafeArrayPutElement(sa, &i, unk)); }
+                finally { Marshal.Release((nint)unk); }
+            }
+            return sa;
         }
-        return sa;
+        catch
+        {
+            SafeArrayDestroy(sa);
+            throw;
+        }
     }
 }
