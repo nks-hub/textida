@@ -69,10 +69,13 @@ public static class CommandPalette
         }
 
         // without a document the context also says "read-only"; the missing document is the real reason
-        if (context.Get(ContextKeys.HasDocument) != "true" && enablement.Keys.Contains(ContextKeys.ReadOnly))
+        if (context.Get(ContextKeys.HasDocument) != "true" && (enablement.Keys.Contains(ContextKeys.ReadOnly) || enablement.Keys.Contains(ContextKeys.HasDocument)))
         {
             return strings.Get("reason.hasDocument.false");
         }
+
+        if (enablement.Keys.Contains(ContextKeys.JsonEncodingSupported) && context.Get(ContextKeys.JsonEncodingSupported) != "true")
+            return strings.Get("reason.jsonEncodingSupported.false");
 
         foreach (var key in enablement.Keys)
         {

@@ -2905,28 +2905,28 @@
       "title": "cmd.view.jsonPretty",
       "category": "cat.view",
       "icon": "braces",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonViewSupported"
     },
     {
       "id": "nks.json.goToKey",
       "title": "cmd.json.goToKey",
       "category": "cat.view",
       "icon": "key",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonViewSupported && jsonEncodingSupported"
     },
     {
       "id": "nks.json.copySource",
       "title": "cmd.json.copySource",
       "category": "cat.view",
       "icon": "copy",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonPretty && jsonEncodingSupported"
     },
     {
       "id": "nks.json.expandValue",
       "title": "cmd.json.expandValue",
       "category": "cat.view",
       "icon": "unfold",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonPretty && jsonEncodingSupported"
     },
     {
       "id": "nks.table.editRegion",

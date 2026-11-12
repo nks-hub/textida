@@ -29,6 +29,8 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             // the paged view and the formatted JSON view take only the edits they implement: cut and paste ask for largeFileMode or jsonPretty
             ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.OverlayShown),
             ContextKeys.JsonPretty => Bool(tab?.JsonShown == true),
+            ContextKeys.JsonViewSupported => Bool(window.CanShowJsonPretty),
+            ContextKeys.JsonEncodingSupported => Bool(window.CanReadJsonStructure),
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),

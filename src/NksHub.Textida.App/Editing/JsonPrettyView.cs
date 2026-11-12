@@ -62,6 +62,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
     {
         HelpContext.Set(this, "json.pretty");
         _od = doc;
+        SourceCodec = doc.Doc.Codec;
         _options = options;
         Focusable = true;
         ColumnDefinitions = new ColumnDefinitions("*,Auto");
@@ -104,6 +105,7 @@ internal sealed partial class JsonPrettyView : Grid, IDisposable
     public OpenDocument Document => _od;
     private Document Doc => _od.Doc;
     internal JsonOutline? Outline => _outline;
+    internal TextCodec SourceCodec { get; }
     internal JsonFolds Folds => _folds;
     public long CaretLine => _caretLine;
     public long CaretPart => _caretPart;
