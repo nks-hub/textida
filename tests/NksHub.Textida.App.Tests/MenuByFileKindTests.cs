@@ -2,6 +2,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -138,7 +139,22 @@ public class MenuByFileKindTests : IDisposable
         _w.SelectTab(tab);
         var wanted = expected.Split(' ').Select(p => p.Split(':')).ToDictionary(p => p[0], p => p[1][0]);
         Assert.All(wanted.Keys, name => Assert.True(Columns.ContainsKey(name), name));
-        var wrong = Columns.Where(c => State(c.Value) != wanted.GetValueOrDefault(c.Key, '-')).Select(c => $"{c.Key} ({c.Value}) is {State(c.Value)}, the table says {wanted.GetValueOrDefault(c.Key, '-')}").ToList();
+        _w.UpdateLayout();
+        var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+        var rendered = Walk(menu).Where(i => i.Tag is MenuCommand { CommandId: not null })
+            .ToLookup(i => ((MenuCommand)i.Tag!).CommandId!);
+        char RenderedState(string commandId)
+        {
+            var items = rendered[commandId].ToArray();
+            if (items.Length == 0) return '-';
+            Assert.All(items, item =>
+            {
+                Assert.Equal(items[0].IsEnabled, item.IsEnabled);
+                Assert.Equal(item.IsEnabled, ControlAutomationPeer.CreatePeerForElement(item).IsEnabled());
+            });
+            return items[0].IsEnabled ? 'S' : 'G';
+        }
+        var wrong = Columns.Where(c => RenderedState(c.Value) != wanted.GetValueOrDefault(c.Key, '-')).Select(c => $"{c.Key} ({c.Value}) is {RenderedState(c.Value)}, the table says {wanted.GetValueOrDefault(c.Key, '-')}").ToList();
         Assert.True(wrong.Count == 0, $"{kind}: " + string.Join("; ", wrong));
         // the HTML menu is drawn for the documents it is for and for no other
         Assert.Equal(kind is "php" or "html", _w.MenuHeaders.Contains("HTML"));
