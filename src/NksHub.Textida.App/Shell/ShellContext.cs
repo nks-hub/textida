@@ -21,6 +21,7 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.HasDocument => Bool(tab is not null),
             ContextKeys.Language => tab?.Doc.Language.Id ?? "",
             ContextKeys.CanToggleComment => Bool(window.CanToggleComment),
+            ContextKeys.CodeOutline => Bool(tab is not null && PluginServices.SymbolPlugin(tab.Doc.Language.Id) == PluginServices.CodeExplorerPluginId),
             ContextKeys.HasSelection => Bool(tab?.Surface?.HasSelection == true || tab?.Paged?.HasSelection == true || (tab?.JsonShown == true && tab.Json!.HasSelection)),
             // the paged view and the formatted JSON view take only the edits they implement: cut and paste ask for largeFileMode or jsonPretty
             ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.OverlayShown),

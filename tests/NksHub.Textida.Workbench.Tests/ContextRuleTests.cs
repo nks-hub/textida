@@ -17,7 +17,7 @@ public class ContextRuleTests
     [Fact]
     public void The_new_context_keys_are_known_and_the_menu_keys_are_a_subset_of_them()
     {
-        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest"];
+        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline"];
         Assert.All(added, k => Assert.Contains(k, ContextKeys.All));
         Assert.All(ContextKeys.MenuKeys, k => Assert.Contains(k, ContextKeys.All));
         Assert.Equal(ContextKeys.All.Count, ContextKeys.All.Distinct().Count());
@@ -56,8 +56,6 @@ public class ContextRuleTests
     [InlineData("nks.tools.copyKeyPath", "yaml", true)]
     [InlineData("nks.tools.copyKeyPath", "json", true)]
     [InlineData("nks.tools.copyKeyPath", "csharp", false)]
-    [InlineData("nks.tools.showOutline", "php", true)]
-    [InlineData("nks.tools.showOutline", "json", false)]
     [InlineData("nks.tools.emmetPreview", "css", true)]
     [InlineData("nks.tools.emmetWrap", "css", false)]
     [InlineData("nks.tools.sqlDialect", "sql", true)]
@@ -72,6 +70,20 @@ public class ContextRuleTests
     {
         var host = WorkbenchHost.CreateBuiltin();
         Assert.Equal(shown, Available(host, id, Text(language)));
+    }
+
+    [Theory]
+    [InlineData("php", true)]
+    [InlineData("javascript", true)]
+    [InlineData("php", false)]
+    [InlineData("json", false)]
+    public void Outline_and_symbol_commands_use_the_host_capability_including_the_context_menu(string language, bool codeOutline)
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var context = Text(language).Set(ContextKeys.CodeOutline, codeOutline);
+        Assert.Equal(codeOutline, Available(host, "nks.tools.showOutline", context));
+        Assert.Equal(codeOutline, Available(host, "nks.tools.goToSymbol", context));
+        Assert.Equal(codeOutline, host.Commands.GetMenu("editor.context", context).Any(c => c.CommandId == "nks.tools.goToSymbol"));
     }
 
     [Fact]

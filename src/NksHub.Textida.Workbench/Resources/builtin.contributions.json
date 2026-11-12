@@ -787,7 +787,7 @@
       "title": "cmd.tools.showOutline",
       "category": "cat.tools",
       "icon": "outline",
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "when": "codeOutline",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
@@ -795,7 +795,7 @@
       "title": "cmd.tools.goToSymbol",
       "category": "cat.tools",
       "icon": "goto",
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "when": "codeOutline",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
@@ -6098,7 +6098,7 @@
       "command": "nks.tools.goToSymbol",
       "group": "3_type",
       "order": 120,
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'"
+      "when": "codeOutline"
     },
     {
       "menu": "editor.context",

@@ -230,6 +230,31 @@ public class MenuByFileKindTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Outline_and_symbol_navigation_follow_every_language_the_code_explorer_supports()
+    {
+        var tab = _w.NewDocument();
+        var context = new ShellContext(_w, forMenu: true);
+        foreach (var language in LanguageModes.All)
+        {
+            tab.Doc.ChooseLanguage(language);
+            bool supported = PluginServices.SymbolPlugin(language.Id) == PluginServices.CodeExplorerPluginId;
+            Assert.Equal(supported ? "true" : "false", context.Get(ContextKeys.CodeOutline));
+            _w.UpdateLayout();
+            var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+            var rendered = Walk(menu).Where(i => i.Tag is MenuCommand { CommandId: not null })
+                .ToLookup(i => ((MenuCommand)i.Tag!).CommandId!);
+            foreach (var id in new[] { "nks.tools.showOutline", "nks.tools.goToSymbol" })
+            {
+                var items = rendered[id].ToArray();
+                Assert.True(supported == (items.Length > 0), language.Id + ": " + id);
+                Assert.All(items, item => Assert.True(item.IsEnabled && ControlAutomationPeer.CreatePeerForElement(item).IsEnabled(), language.Id + ": " + id));
+            }
+            var contextItems = MenuBuilder.Nodes(_app.Workbench, context, _ => null, _ => { }, "editor.context").AllCommands();
+            Assert.Equal(supported, contextItems.Any(c => c.CommandId == "nks.tools.goToSymbol"));
+        }
+    }
+
+    [AvaloniaFact]
     public async Task Saving_a_new_document_under_a_name_that_makes_it_a_package_manifest_shows_the_package_items()
     {
         var tab = _w.NewDocument();
