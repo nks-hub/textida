@@ -527,6 +527,39 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal("\"" + key + "Z\":1,", await Clip());
     }
 
+    [AvaloniaTheory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task Arrows_select_and_replace_a_whole_supplementary_character_in_a_wrapped_key_or_value(bool key, bool backward)
+    {
+        string prefix = new('k', 6000);
+        string json = key ? "{\"" + prefix + "😀tail\":1}" : "{\"k\":\"" + prefix + "😀tail\"}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        long at = Encoding.UTF8.GetByteCount(json.AsSpan(0, json.IndexOf("😀", StringComparison.Ordinal)));
+        long start = backward ? at + 4 : at;
+        view.RevealOffset(start, start);
+        Assert.Equal(1, view.ExpandedLine);
+        Assert.Equal(start, view.SourceOffset);
+
+        Press(backward ? Key.Left : Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(backward ? at : at + 4, view.SourceOffset);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.copy"));
+        Assert.Equal("😀", await Clip());
+
+        TestApp.Type(_w, "Z");
+        string expected = json.Replace("😀", "Z", StringComparison.Ordinal);
+        Assert.Equal(expected, Text(tab));
+        Assert.Equal(at + 1, view.SourceOffset);
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(tab.Doc.Path!));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(json, Text(tab));
+    }
+
     [AvaloniaFact]
     public void A_jsonc_file_shows_its_comments_on_lines_of_their_own()
     {
