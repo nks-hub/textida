@@ -162,6 +162,27 @@ public class JsonOutlineTests(ITestOutputHelper output)
         Assert.Equal(0, folds.Hidden);
     }
 
+    [Theory]
+    [InlineData(254, false)]
+    [InlineData(255, false)]
+    [InlineData(254, true)]
+    [InlineData(255, true)]
+    public void A_key_preview_keeps_supplementary_characters_whole(int prefixLength, bool escaped)
+    {
+        string prefix = new('k', prefixLength);
+        string token = prefix + (escaped ? "\\ud83d\\ude00" : "😀") + "tail";
+        using var doc = Make("{\"" + token + "\":{\"value\":1}}");
+        using var outline = new JsonOutline(doc);
+        outline.ScanToEnd();
+        string preview = prefix + (prefixLength == 254 ? "😀" : "");
+        Assert.Equal(preview, outline.KeyText(outline.GetLine(1)!.Value));
+        string path = prefixLength == 254
+            ? "$[\"" + prefix + "\\uD83D\\uDE00\"]"
+            : "$." + prefix;
+        Assert.Equal(path, outline.PathOf(outline.GetLine(1)!.Value));
+        Assert.Equal(path + ".value", outline.PathOf(outline.GetLine(2)!.Value));
+    }
+
     [Fact]
     public void A_key_is_found_after_the_caret_and_then_from_the_start()
     {
