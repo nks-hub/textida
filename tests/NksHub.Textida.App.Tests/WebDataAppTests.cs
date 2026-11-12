@@ -258,6 +258,26 @@ public class WebDataAppTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Copy_Key_Path_in_formatted_JSON_uses_the_visible_caret_instead_of_the_hidden_text_caret()
+    {
+        const string source = "{\"first\":\"žluťoučký\",\"a.b\":\"B\"}";
+        var tab = Open("data.json", source);
+        int textCaret = source.IndexOf("žluťoučký", StringComparison.Ordinal) + 1;
+        tab.Editor!.CaretOffset = textCaret;
+        _w.SetJsonPretty(tab, true);
+        Assert.True(await Pump(tab.Json!.GoToKeyAsync("a.b")));
+        Assert.Equal(textCaret, tab.Surface!.CaretOffset);
+        await _w.Clipboard!.SetTextAsync("before-pretty-key-path");
+
+        await RunAsync("nks.tools.copyKeyPath");
+        await Until(() => _w.Clipboard.TryGetTextAsync().GetAwaiter().GetResult() != "before-pretty-key-path", "the formatted key path on the clipboard");
+
+        Assert.Equal("[\"a.b\"]", await _w.Clipboard.TryGetTextAsync());
+        Assert.Equal(textCaret, tab.Surface.CaretOffset);
+        Assert.False(tab.Doc.Doc.IsModified);
+    }
+
+    [AvaloniaFact]
     public async Task A_command_of_the_user_waits_for_the_status_bar_query_instead_of_being_refused()
     {
         var tab = Open("en.yml", En);
