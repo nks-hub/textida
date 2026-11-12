@@ -46,29 +46,35 @@ public class MenuByFileKindTests : IDisposable
         ["cycle"] = "nks.view.cycleMode", ["keyPath"] = "nks.tools.copyKeyPath", ["outline"] = "nks.tools.showOutline", ["hex"] = "nks.hex.inspector", ["row"] = "nks.table.insertRow",
         ["next"] = "nks.compare.next", ["git"] = "nks.git.status", ["lsp"] = "nks.lsp.goToDefinition", ["lint"] = "nks.tools.lint", ["unfold"] = "nks.log.unfold",
         ["upload"] = "nks.remote.upload", ["reload"] = "nks.file.reload", ["comment"] = "nks.edit.toggleComment", ["read"] = "nks.view.modeRead", ["pkg"] = "nks.packages.lookup",
+        ["jsonView"] = "nks.view.jsonPretty", ["jsonKey"] = "nks.json.goToKey", ["jsonSource"] = "nks.json.copySource", ["jsonExpand"] = "nks.json.expandValue",
     };
 
     /// <summary>One row per kind of file; a column that is not named is not shown.</summary>
     public static IEnumerable<object[]> Table()
     {
-        yield return ["untitled", "json:G sql:G reload:G comment:G"];
-        yield return ["text", "json:G sql:G reload:S comment:G"];
-        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S"];
-        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S"];
-        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S"];
-        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S"];
-        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G"];
-        yield return ["csvTable", "row:S reload:S comment:G"];
-        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S"];
-        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S"];
-        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S"];
-        yield return ["log", "json:G sql:G unfold:S reload:S comment:G"];
-        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S"];
-        yield return ["picture", "cycle:S reload:S comment:G"];
-        yield return ["hex", "hex:S reload:S comment:G"];
-        yield return ["binary", "hex:S reload:S comment:G"];
-        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S"];
+        const string jsonInText = " jsonView:S jsonKey:S jsonSource:G jsonExpand:G";
+        const string jsonUnavailable = " jsonView:G jsonKey:G jsonSource:G jsonExpand:G";
+        yield return ["none", "reload:G comment:G" + jsonUnavailable];
+        yield return ["untitled", "json:G sql:G reload:G comment:G" + jsonInText];
+        yield return ["text", "json:G sql:G reload:S comment:G" + jsonInText];
+        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S" + jsonInText];
+        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S" + jsonInText];
+        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S" + jsonInText];
+        yield return ["jsonPretty", "keyPath:S reload:S comment:G jsonView:S jsonKey:S jsonSource:S jsonExpand:S"];
+        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S" + jsonInText];
+        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S" + jsonInText];
+        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G" + jsonInText];
+        yield return ["csvTable", "row:S reload:S comment:G" + jsonInText];
+        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S" + jsonInText];
+        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S" + jsonUnavailable];
+        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S" + jsonInText];
+        yield return ["log", "json:G sql:G unfold:S reload:S comment:G" + jsonInText];
+        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S" + jsonInText];
+        yield return ["picture", "cycle:S reload:S comment:G" + jsonUnavailable];
+        yield return ["hex", "hex:S reload:S comment:G" + jsonUnavailable];
+        yield return ["binary", "hex:S reload:S comment:G" + jsonUnavailable];
+        yield return ["results", "reload:G comment:G" + jsonUnavailable];
+        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S" + jsonInText];
     }
 
     private static async Task Until(Func<bool> condition, string what)
@@ -91,6 +97,10 @@ public class MenuByFileKindTests : IDisposable
             case "code": return _w.OpenFile(_temp.File("a.cs", "class A { }\n"), null);
             case "php": return _w.OpenFile(_temp.File("a.php", "<?php echo 1;\n"), null);
             case "json": return _w.OpenFile(_temp.File("a.json", "{\"a\":1}\n"), null);
+            case "jsonPretty":
+                var json = _w.OpenFile(_temp.File("pretty.json", "{\"a\":1}\n"), null);
+                _w.SetJsonPretty(json, true);
+                return json;
             case "package": return _w.OpenFile(_temp.File("package.json", "{\"name\":\"x\"}\n"), null);
             case "yaml": return _w.OpenFile(_temp.File("a.yaml", "a: 1\n"), null);
             case "csv": return _w.OpenFile(_temp.File("a.csv", "a,b\n1,2\n"), null);
@@ -112,6 +122,15 @@ public class MenuByFileKindTests : IDisposable
                 return _w.Active!;
             case "hex": return _w.OpenHex(_temp.File("h.txt", "hello\n"), null);
             case "binary": return _w.OpenHex(_temp.Bytes("b.bin", [0, 1, 2, 3, 255, 254]), null);
+            case "results":
+                var folder = Directory.CreateDirectory(Path.Combine(_temp.Path, "search")).FullName;
+                File.WriteAllText(Path.Combine(folder, "a.txt"), "needle\n");
+                _w.ShowFindInFiles(false);
+                _w.FindBar.FolderBox.Text = folder;
+                _w.FindBar.FindBox.Text = "needle";
+                await _w.RunFilesSearchAsync();
+                Assert.IsType<SearchResultsView>(_w.Active!.Custom);
+                return _w.ResultsTab!;
             case "git":
                 Directory.CreateDirectory(Path.Combine(_temp.Path, "repo", ".git"));
                 return _w.OpenFile(_temp.File(Path.Combine("repo", "g.cs"), "class G { }\n"), null);
@@ -134,9 +153,9 @@ public class MenuByFileKindTests : IDisposable
     [MemberData(nameof(Table))]
     public async Task The_menu_shows_greys_and_hides_the_items_of_each_kind_of_file_as_the_table_says(string kind, string expected)
     {
-        var tab = await OpenAsync(kind);
+        var tab = kind == "none" ? null : await OpenAsync(kind);
         Dispatcher.UIThread.RunJobs();
-        _w.SelectTab(tab);
+        if (tab is not null) _w.SelectTab(tab);
         var wanted = expected.Split(' ').Select(p => p.Split(':')).ToDictionary(p => p[0], p => p[1][0]);
         Assert.All(wanted.Keys, name => Assert.True(Columns.ContainsKey(name), name));
         _w.UpdateLayout();
@@ -158,12 +177,24 @@ public class MenuByFileKindTests : IDisposable
         Assert.True(wrong.Count == 0, $"{kind}: " + string.Join("; ", wrong));
         // the HTML menu is drawn for the documents it is for and for no other
         Assert.Equal(kind is "php" or "html", _w.MenuHeaders.Contains("HTML"));
-        // an item the table calls available can be run: its command has a handler and the registry does not refuse it
+        // the attached menu and the registry must agree on both enabled and grey items
         var context = new ShellContext(_w, forMenu: true);
-        foreach (var (name, state) in wanted.Where(w => w.Value == 'S'))
+        foreach (var (name, state) in wanted)
         {
             Assert.True(_app.Workbench.Commands.TryGet(Columns[name], out var command), name);
-            Assert.True(command.IsEnabled(context), $"{kind}: {name} is shown as available and the registry refuses it");
+            Assert.True((state == 'S') == command.IsEnabled(context), $"{kind}: {name} differs between the menu and the registry");
+            if (name is not ("jsonView" or "jsonKey" or "jsonSource" or "jsonExpand")) continue;
+            _w.ShowPalette();
+            _w.SetPaletteQuery(_app.Workbench.Strings.Get(command.TitleKey));
+            var item = Assert.Single(_w.PaletteResults, r => r.CommandId == command.Id);
+            Assert.Equal(state == 'S', item.Enabled);
+            if (state == 'G')
+            {
+                string reason = kind == "none" ? "reason.hasDocument.false"
+                    : name is "jsonSource" or "jsonExpand" ? "reason.jsonPretty.false" : "reason.jsonViewSupported.false";
+                Assert.Equal(_app.Workbench.Strings.Get(reason), item.DisabledReason);
+            }
+            _w.ClosePalette();
         }
     }
 

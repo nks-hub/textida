@@ -12,6 +12,7 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
@@ -73,14 +74,20 @@ public class JsonPrettyViewTests : IDisposable
     private static string Text(DocTab tab) => Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
     private void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) => TestApp.Press(_w, key, mods);
 
-    [AvaloniaFact]
-    public void Switching_shows_one_member_per_line_and_keeps_the_place_both_ways()
+    [AvaloniaTheory]
+    [InlineData("data.json")]
+    [InlineData("data.txt")]
+    public void Switching_shows_one_member_per_line_and_keeps_the_place_both_ways(string name)
     {
-        var tab = Open(Sample);
+        var tab = Open(Sample, name: name);
+        var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(("true", "true", "false"),
+            (context.Get(ContextKeys.JsonViewSupported), context.Get(ContextKeys.JsonEncodingSupported), context.Get(ContextKeys.JsonPretty)));
         var surface = tab.Surface!;
         surface.SetSelections([Sel.At(Sample.IndexOf("\"city\"", StringComparison.Ordinal))]);
         var view = Show();
         Scan(view);
+        Assert.Equal("true", context.Get(ContextKeys.JsonPretty));
         Assert.False(tab.View.IsVisible);
         Assert.Equal("{", view.RowText(0));
         Assert.Equal("  \"name\": \"Ann\",", view.RowText(1));
@@ -95,6 +102,150 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Null(_w.ActiveJson);
         Assert.True(tab.View.IsVisible);
         Assert.Equal(Sample.IndexOf("\"active\"", StringComparison.Ordinal), tab.Doc.TextBackend!.ToByteOffset(surface.CaretOffset));
+    }
+
+    [AvaloniaFact]
+    public async Task UTF16_can_leave_the_formatted_view_but_structure_commands_are_disabled()
+    {
+        byte[] bytes = [.. Encoding.Unicode.GetPreamble(), .. Encoding.Unicode.GetBytes(Sample)];
+        var path = _temp.Bytes("wide.json", bytes);
+        var tab = _w.OpenFile(path, null);
+        var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(("true", "false"), (context.Get(ContextKeys.JsonViewSupported), context.Get(ContextKeys.JsonEncodingSupported)));
+        _dialogs.Prompts.Enqueue("name");
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Null(_w.ActiveJson);
+
+        var view = Show();
+        Assert.Null(view.Outline);
+        await _w.Clipboard!.SetTextAsync("before");
+        foreach (var id in new[] { "nks.json.goToKey", "nks.json.copySource", "nks.json.expandValue" })
+        {
+            Assert.Equal(CommandOutcome.Disabled, Run(id));
+            Assert.True(_app.Workbench.Commands.TryGet(id, out var command));
+            _w.ShowPalette();
+            _w.SetPaletteQuery(_app.Workbench.Strings.Get(command.TitleKey));
+            var item = Assert.Single(_w.PaletteResults, r => r.CommandId == id);
+            Assert.False(item.Enabled);
+            Assert.Equal(_app.Workbench.Strings.Get("reason.jsonEncodingSupported.false"), item.DisabledReason);
+            _w.ClosePalette();
+        }
+        Assert.Equal("name", Assert.Single(_dialogs.Prompts));
+        Assert.Equal("before", await Clip());
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), view.StatusText());
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.jsonPretty"));
+        Assert.Null(_w.ActiveJson);
+        Assert.True(tab.View.IsVisible);
+        Assert.Equal(Sample, tab.Editor!.Document.Text);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(bytes, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task Rereading_rebuilds_the_formatted_view_for_the_current_encoding()
+    {
+        var tab = Open(Sample);
+        byte[] bytes = File.ReadAllBytes(tab.Path!);
+        var fingerprint = tab.Doc.Doc.Fingerprint;
+        var context = new ShellContext(_w, forMenu: true);
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        var unsupported = Show();
+        Assert.Null(unsupported.Outline);
+        Assert.Equal("false", context.Get(ContextKeys.JsonEncodingSupported));
+
+        _w.RereadAs(tab, TextCodec.Utf8);
+        Dispatcher.UIThread.RunJobs();
+        var supported = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Equal(TextCodec.Utf8, tab.Doc.Doc.Codec);
+        Assert.NotNull(supported.Outline);
+        Scan(supported);
+        Assert.Equal("true", context.Get(ContextKeys.JsonEncodingSupported));
+        Assert.Equal("  \"name\": \"Ann\",", supported.RowText(1));
+        _dialogs.Prompts.Enqueue("city");
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.goToKey"));
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); supported.CaretLine != 7 && sw.ElapsedMilliseconds < 10_000;)
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.Equal(7, supported.CaretLine);
+        Assert.Contains("$.address.city", _w.StatusLeftText);
+
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Dispatcher.UIThread.RunJobs();
+        var reread = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        Assert.Null(reread.Outline);
+        long line = reread.CaretLine;
+        _dialogs.Prompts.Enqueue("active");
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Equal("active", Assert.Single(_dialogs.Prompts));
+        Assert.Equal(line, reread.CaretLine);
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), reread.StatusText());
+        Assert.Equal(fingerprint, tab.Doc.Doc.Fingerprint);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(bytes, tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
+        Assert.Equal(bytes, File.ReadAllBytes(tab.Path!));
+    }
+
+    [AvaloniaFact]
+    public void Converting_and_undoing_refresh_the_formatted_view_without_saving_the_file()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        byte[] original = File.ReadAllBytes(tab.Path!);
+        var document = tab.Doc.Doc;
+        var inspection = document.InspectConvert(TextCodec.Utf16LE);
+        Assert.False(inspection.HasLoss);
+        inspection.Confirm();
+        Assert.True(document.Apply(inspection).Applied);
+        Assert.Equal(TextCodec.Utf16LE, document.Codec);
+        Assert.True(document.IsModified);
+        byte[] converted = document.ReadBytes(new ByteRange(0, document.ByteLength));
+        Assert.Equal(Encoding.Unicode.GetBytes(Sample), converted.AsSpan(document.BomLength).ToArray());
+
+        Dispatcher.UIThread.RunJobs();
+        var wide = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Null(wide.Outline);
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), wide.StatusText());
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.undo"));
+        Dispatcher.UIThread.RunJobs();
+        var restored = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.NotNull(restored.Outline);
+        Scan(restored);
+        Assert.Equal(TextCodec.Utf8, document.Codec);
+        Assert.Equal("  \"name\": \"Ann\",", restored.RowText(1));
+        Assert.Equal(original, document.ReadBytes(new ByteRange(0, document.ByteLength)));
+        Assert.False(document.IsModified);
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+    }
+
+    [AvaloniaFact]
+    public void Closing_the_window_before_the_encoding_callback_keeps_the_closed_view()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        bool closed = false;
+        _w.Closed += (_, _) => closed = true;
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        Assert.Same(view, tab.Json);
+        Assert.False(tab.Closed.Task.IsCompleted);
+
+        _w.Close();
+        Assert.True(closed);
+        Assert.True(tab.Closed.Task.IsCompleted);
+        Assert.DoesNotContain(_w, _app.Windows);
+        Assert.Null(Record.Exception(() => Dispatcher.UIThread.RunJobs()));
+        Assert.Same(view, tab.Json);
+        Assert.True(tab.Closed.Task.IsCompleted);
     }
 
     [AvaloniaTheory]
