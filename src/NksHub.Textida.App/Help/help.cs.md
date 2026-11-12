@@ -570,8 +570,8 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 
 ## [tools.outline] Osnova kódu a symboly
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. V souborech HTML, PHP, CSS, C# a Markdown ukáže Nástroje, Kód a jazyk, Zobrazit osnovu kódu funkce, třídy, nadpisy a pravidla souboru jako strom v panelu pluginu. Kliknutí označí jméno symbolu.
-2. Nástroje, Kód a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
+1. Nástroje, Kód a jazyk, Zobrazit osnovu kódu vypíše symboly jazyků uvedených níže jako strom v panelu pluginu. Dvojklik nebo Enter na vybrané položce označí odpovídající text v editoru; u HTML jde o otevírací značku.
+2. Nástroje, Kód a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejný text v editoru.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
 5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje. Osnova ukazuje stejnou položku tučně a čtečka obrazovky ji pojmenuje „aktuální položka“. Značka není výběr a nebere vám klávesnici; jde za kurzorem a při obnově osnovy zůstane u své položky.

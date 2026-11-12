@@ -570,8 +570,8 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 
 ## [tools.outline] Codegliederung und Symbole
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML-, PHP-, CSS-, C#- und Markdown-Dateien zeigt Extras, Code und Sprache, Codegliederung anzeigen die Funktionen, Klassen, Überschriften und Regeln der Datei als Baum im Plugin-Bereich. Ein Klick markiert den Namen des Symbols.
-2. Extras, Code und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
+1. Extras, Code und Sprache, Codegliederung anzeigen listet die Symbole der unten genannten Sprachen als Baum im Plugin-Bereich auf. Ein Doppelklick oder Enter auf dem ausgewählten Eintrag markiert den zugehörigen Text im Editor; bei HTML wird das öffnende Tag markiert.
+2. Extras, Code und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert denselben Quelltext.
 3. Die Gliederung gehört zu einer Revision des Dokuments. Nach einer Änderung wird sie von selbst erneuert; bis die neue da ist, bleibt die alte als veraltet markiert, und ein Sprung wird über die seitdem gemachten Änderungen getragen oder abgelehnt, wenn der Text, auf dem das Symbol stand, geändert wurde. Eine Antwort für eine ältere Revision wird nie als aktuell gezeigt.
 4. Hält der Plugin-Prozess an, wird die Gliederung nach seiner Rückkehr neu gelesen.
 5. Solange eine Datei eine Gliederung hat, nennt die Statusleiste das Symbol, in dem der Cursor steht, samt Eltern (zum Beispiel `Klasse › Methode`); sie folgt dem Cursor und ist bei veralteter Gliederung ausgeblendet. Die Gliederung zeigt dasselbe Element fett, und ein Screenreader nennt es „aktuelles Element“. Die Markierung ist keine Auswahl und nimmt Ihnen die Tastatur nicht weg; sie folgt dem Cursor und bleibt bei der Aktualisierung der Gliederung an ihrem Element.

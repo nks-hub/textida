@@ -570,8 +570,8 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 
 ## [tools.outline] Code outline and symbols
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML, PHP, CSS, C# and Markdown files, Tools, Code and Language, Show Code Outline lists the functions, classes, headings and rules of the file as a tree in the plugin panel. A click selects the name of the symbol.
-2. Tools, Code and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same bytes as a click in the outline.
+1. Tools, Code and Language, Show Code Outline lists the symbols of the languages below as a tree in the plugin panel. Double-click or press Enter on a selected item to select its source text in the editor; for HTML, this is the opening tag.
+2. Tools, Code and Language, Go to Symbol (or `@` in Go to Anything) lists the same symbols by name; Enter selects the same source text.
 3. The outline belongs to one revision of the document. After an edit it is refreshed on its own; until the new one arrives the old one stays, marked as outdated, and a jump is carried over the edits made since, or refused when the text the symbol stood on was changed. An answer for an older revision is never shown as current.
 4. If the plugin process stops, the outline is read again once it is back.
 5. While a file has an outline, the status bar names the symbol the caret is in, with its parents (for example `Class › method`); it follows the caret and is hidden while the outline is outdated. The outline shows the same item in bold, and a screen reader names it "current item". The mark is no selection and does not take the keyboard from you; it moves with the caret and stays on its item while the outline is refreshed.
