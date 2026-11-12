@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input.Platform;
@@ -11,6 +12,8 @@ using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Colors;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.PluginHost.Documents;
+using NksHub.Textida.PluginHost.Permissions;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
@@ -329,6 +332,54 @@ public class WebDataAppTests : IDisposable
         Assert.Equal(En, Utf8(en));
         Assert.Equal(Cs, Utf8(cs));
         Assert.False(_app.Plugins.Documents.IsExposed(cs.Doc.Doc.Id));
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Comparing_keys_discards_the_report_if_a_document_changes_after_its_bytes_were_read(bool changeSecond)
+    {
+        var first = Open("left.json", "{\"oldLeft\":1}");
+        var second = Open("right.json", "{\"oldRight\":2}");
+        Open("plain.txt", "no keys here");
+        await Pump(_app.Plugins.QueryKeyPathAsync(_w, first));
+        await Pump(_app.Plugins.QueryKeyPathAsync(_w, second));
+        var changedTab = changeSecond ? second : first;
+        long revisionBefore = changedTab.Doc.Doc.Revision;
+        var optionsField = typeof(DocumentApi).GetField("_options", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var options = Assert.IsType<DocumentApiOptions>(optionsField.GetValue(_app.Plugins.Documents));
+        int firstReads = 0, secondReads = 0, changed = 0, firstReadsAtChange = 0, secondReadsAtChange = 0;
+        void ReadFinished(CallLogEntry entry)
+        {
+            if (entry.PluginId != PluginServices.WebDataPluginId || entry.Outcome != CallOutcome.Ok) return;
+            if (entry.Method == DocumentMethods.ReadBytes && entry.DocumentId == first.Doc.Doc.Id) Interlocked.Increment(ref firstReads);
+            if (entry.Method == DocumentMethods.ReadBytes && entry.DocumentId == second.Doc.Doc.Id) Interlocked.Increment(ref secondReads);
+            if (entry.DocumentId != second.Doc.Doc.Id || entry.Method != (changeSecond ? DocumentMethods.ReadBytes : DocumentMethods.Info)
+                || Volatile.Read(ref firstReads) == 0 || Interlocked.CompareExchange(ref changed, 1, 0) != 0) return;
+            firstReadsAtChange = Volatile.Read(ref firstReads);
+            secondReadsAtChange = Volatile.Read(ref secondReads);
+            void Change() => changedTab.Editor!.Document.Text = "{\"replacement\":3}";
+            // Recorded runs before the RPC reply, so the edit must finish before this handler returns.
+            if (Dispatcher.UIThread.CheckAccess()) Change();
+            else Dispatcher.UIThread.InvokeAsync(Change).GetTask().GetAwaiter().GetResult();
+        }
+        var before = _app.Output.Read(OutputChannel.Tasks).Select(l => l.Text).ToArray();
+        options.CallLog.Recorded += ReadFinished;
+        try
+        {
+            Assert.True(await Pump(_app.Plugins.CompareKeysAsync(_w, first, second)));
+        }
+        finally
+        {
+            options.CallLog.Recorded -= ReadFinished;
+        }
+
+        Assert.Equal(1, changed);
+        Assert.Equal(1, firstReadsAtChange);
+        Assert.Equal(changeSecond ? 1 : 0, secondReadsAtChange);
+        Assert.True(changedTab.Doc.Doc.Revision > revisionBefore);
+        var after = _app.Output.Read(OutputChannel.Tasks).Select(l => l.Text).ToArray();
+        Assert.True(before.SequenceEqual(after), "A document changed after its bytes were read, but the comparison was published:\n" + string.Join('\n', after));
     }
 
     [AvaloniaFact]
