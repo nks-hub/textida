@@ -53,6 +53,72 @@ public class LanguageEditsTests
         Assert.Empty(CommentToggle.Toggle(["x"], BuiltinGrammars.Tokenizer("plaintext"), [(0, 0)]));
     }
 
+    [Theory]
+    [InlineData("plaintext", false)]
+    [InlineData("csharp", true)]
+    [InlineData("json", true)]
+    [InlineData("xml", true)]
+    [InlineData("html", true)]
+    [InlineData("markdown", true)]
+    public void Availability_uses_grammar_comment_markers(string id, bool expected) =>
+        Assert.Equal(expected, CommentToggle.Supports(BuiltinGrammars.Registry.Find(id)));
+
+    [Fact]
+    public void A_markerless_host_can_comment_an_embedded_language_reached_through_cyclic_includes()
+    {
+        var registry = new GrammarRegistry();
+        registry.Add("""{ "formatVersion": 1, "id": "guest", "comments": { "line": "//" }, "rules": [] }""");
+        var host = registry.Add("""
+            { "formatVersion": 1, "id": "host", "rules": [ { "include": "#body" } ],
+              "repository": { "body": [ { "include": "#body" },
+                { "begin": "<g>", "end": "</g>", "multiline": true, "embed": "guest" } ] } }
+            """);
+        registry.Validate();
+        Assert.True(CommentToggle.Supports(host));
+        string[] lines = ["outside", "<g>", "  value", "</g>"];
+        Assert.Equal(["outside", "<g>", "  // value", "</g>"], Apply(lines, CommentToggle.Toggle(lines, new Tokenizer(host), [(2, 2)])));
+    }
+
+    [Fact]
+    public void Included_matches_and_unused_repository_contexts_do_not_switch_the_language()
+    {
+        var registry = new GrammarRegistry();
+        registry.Add("""{ "formatVersion": 1, "id": "guest", "comments": { "line": "//" }, "rules": [ { "match": "word", "token": "keyword" } ] }""");
+        var host = registry.Add("""
+            { "formatVersion": 1, "id": "host", "rules": [ { "include": "#loop" } ],
+              "repository": { "loop": [ { "include": "#loop" }, { "include": "guest" } ],
+                "unused": [ { "begin": "<g>", "end": "</g>", "embed": "guest" } ] } }
+            """);
+        registry.Validate();
+        Assert.False(CommentToggle.Supports(host));
+        registry.Add("""{ "formatVersion": 1, "id": "guest", "comments": { "line": "//" }, "rules": [ { "begin": "<q>", "end": "</q>" } ] }""");
+        Assert.True(CommentToggle.Supports(host));
+    }
+
+    [Theory]
+    [InlineData("""{ "include": "missing" }""")]
+    [InlineData("""{ "include": "#missing" }""")]
+    [InlineData("""{ "begin": "<g>", "end": "</g>", "embed": "missing" }""")]
+    public void Unresolved_dependencies_do_not_throw_from_the_availability_query(string rule)
+    {
+        var grammar = new GrammarRegistry().Add("""{ "formatVersion": 1, "id": "host", "rules": [""" + rule + "] }");
+        Assert.False(CommentToggle.Supports(grammar));
+        Assert.Throws<GrammarException>(grammar.Validate);
+        Assert.False(CommentToggle.Supports(null));
+    }
+
+    [Fact]
+    public void Availability_follows_added_and_replaced_embedded_grammars()
+    {
+        var registry = new GrammarRegistry();
+        var host = registry.Add("""{ "formatVersion": 1, "id": "host", "rules": [ { "begin": "<g>", "end": "</g>", "embed": "guest" } ] }""");
+        Assert.False(CommentToggle.Supports(host));
+        registry.Add("""{ "formatVersion": 1, "id": "guest", "comments": { "line": "//" }, "rules": [] }""");
+        Assert.True(CommentToggle.Supports(host));
+        registry.Add("""{ "formatVersion": 1, "id": "guest", "rules": [] }""");
+        Assert.False(CommentToggle.Supports(host));
+    }
+
     private static (TextPosition, TextPosition) P(int l1, int c1, int l2, int c2) => (new TextPosition(l1, c1), new TextPosition(l2, c2));
 
     [Fact]

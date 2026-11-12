@@ -78,7 +78,7 @@ public static class CommandPalette
         {
             if (enablement.Evaluate(new Flipped(context, key)))
             {
-                var textKey = $"reason.{key}.{(context.Get(key) == "true" ? "true" : "false")}";
+                var textKey = key == ContextKeys.CanToggleComment ? FileTypeReason : $"reason.{key}.{(context.Get(key) == "true" ? "true" : "false")}";
                 return strings.Contains(textKey) ? strings.Get(textKey) : null;
             }
         }
@@ -87,7 +87,7 @@ public static class CommandPalette
         return enablement.Keys.Overlaps(TypeKeys) && strings.Contains(FileTypeReason) ? strings.Get(FileTypeReason) : null;
     }
 
-    private static readonly string[] TypeKeys = [ContextKeys.FileKind, ContextKeys.Language, ContextKeys.LanguageGroup];
+    private static readonly string[] TypeKeys = [ContextKeys.FileKind, ContextKeys.Language, ContextKeys.LanguageGroup, ContextKeys.CanToggleComment];
 
     private const string FileTypeReason = "reason.fileType";
 

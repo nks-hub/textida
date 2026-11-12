@@ -51,19 +51,19 @@ public class MenuByFileKindTests : IDisposable
     /// <summary>One row per kind of file; a column that is not named is not shown.</summary>
     public static IEnumerable<object[]> Table()
     {
-        yield return ["untitled", "json:G sql:G reload:G comment:S"];
-        yield return ["text", "json:G sql:G reload:S comment:S"];
+        yield return ["untitled", "json:G sql:G reload:G comment:G"];
+        yield return ["text", "json:G sql:G reload:S comment:G"];
         yield return ["code", "json:G sql:G outline:S lsp:S lint:S reload:S comment:S"];
         yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
         yield return ["json", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S"];
         yield return ["package", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S pkg:S"];
         yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S"];
-        yield return ["csv", "json:G sql:G lsp:S reload:S comment:S"];
+        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G"];
         yield return ["csvTable", "row:S reload:S comment:G"];
         yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S"];
         yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S"];
         yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["log", "json:G sql:G unfold:S reload:S comment:S"];
+        yield return ["log", "json:G sql:G unfold:S reload:S comment:G"];
         yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S"];
         yield return ["picture", "cycle:S reload:S comment:G"];
         yield return ["hex", "hex:S reload:S comment:G"];
@@ -213,7 +213,7 @@ public class MenuByFileKindTests : IDisposable
         Assert.Equal('S', State("nks.view.cycleMode"));
         Assert.True(_w.SetViewMode(picture.Doc, ViewMode.Text));
         Assert.Equal('G', State("nks.edit.formatSql"));
-        Assert.Equal('S', State("nks.edit.toggleComment"));
+        Assert.Equal('G', State("nks.edit.toggleComment"));
         Assert.True(_w.SetViewMode(picture.Doc, ViewMode.Image));
         await Until(() => _w.Active?.Custom is ImageView { Loading: false }, "the picture to be decoded again");
         Assert.Equal('-', State("nks.edit.formatSql"));
@@ -253,8 +253,37 @@ public class MenuByFileKindTests : IDisposable
         Assert.False(ControlAutomationPeer.CreatePeerForElement(grey).IsEnabled());
         Assert.Equal(_app.Workbench.Strings.Get("cmd.edit.formatJson"), Avalonia.Automation.AutomationProperties.GetName(grey));
         Assert.DoesNotContain(items, i => i.Tag is MenuCommand { CommandId: "nks.hex.inspector" });
-        var available = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.edit.toggleComment" });
+        var comment = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.edit.toggleComment" });
+        Assert.False(ControlAutomationPeer.CreatePeerForElement(comment).IsEnabled());
+        var available = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.file.reload" });
         Assert.True(ControlAutomationPeer.CreatePeerForElement(available).IsEnabled());
+    }
+
+    [AvaloniaFact]
+    public async Task Commenting_is_disabled_without_markers_and_follows_the_chosen_language()
+    {
+        const string id = "nks.edit.toggleComment";
+        var tab = await OpenAsync("text");
+        var context = new ShellContext(_w, forMenu: true);
+        var wb = _app.Workbench;
+        Assert.Equal('G', State(id));
+        Assert.Equal(CommandOutcome.Disabled, await wb.Commands.ExecuteAsync(id, context));
+        Assert.Equal("hello\n", tab.Editor!.Document.Text);
+        _w.ShowPalette();
+        _w.SetPaletteQuery(wb.Strings.Get("cmd.edit.toggleComment"));
+        var item = Assert.Single(_w.PaletteResults, r => r.CommandId == id);
+        Assert.False(item.Enabled);
+        Assert.Equal(wb.Strings.Get("reason.fileType"), item.DisabledReason);
+        _w.ClosePalette();
+
+        tab.Doc.ChooseLanguage(LanguageModes.ById("csharp"));
+        Assert.Equal('S', State(id));
+        Assert.Equal(CommandOutcome.Handled, await wb.Commands.ExecuteAsync(id, context));
+        Assert.Equal("// hello\n", tab.Editor.Document.Text);
+        Assert.Equal(CommandOutcome.Handled, await wb.Commands.ExecuteAsync("nks.edit.undo", context));
+        Assert.Equal("hello\n", tab.Editor.Document.Text);
+        tab.Doc.ChooseLanguage(LanguageModes.Plain);
+        Assert.Equal('G', State(id));
     }
 
     [AvaloniaFact]

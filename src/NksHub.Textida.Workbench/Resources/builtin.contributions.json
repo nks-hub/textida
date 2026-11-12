@@ -559,7 +559,7 @@
       "category": "cat.edit",
       "icon": "comment",
       "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "enablement": "!readOnly && !largeFileMode && canToggleComment",
       "undo": "transaction",
       "repeatable": true,
       "macro": true

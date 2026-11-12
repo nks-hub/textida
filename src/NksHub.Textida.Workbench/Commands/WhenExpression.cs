@@ -30,6 +30,7 @@ public static class ContextKeys
     public const string EditorFocus = "editorFocus";
     public const string HasDocument = "hasDocument";
     public const string Language = "language";
+    public const string CanToggleComment = "canToggleComment";
     public const string HasSelection = "hasSelection";
     public const string ReadOnly = "readOnly";
     public const string LargeFileMode = "largeFileMode";
@@ -78,7 +79,7 @@ public static class ContextKeys
 
     public static IReadOnlyList<string> All { get; } =
         [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile,
-            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty];
+            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty, CanToggleComment];
 
     /// <summary>The keys that decide which menu items are shown (<c>when</c>): when one of them changes for the active tab, the menu is built again. The others only grey an item and are asked as the menu opens.</summary>
     public static IReadOnlyList<string> MenuKeys { get; } =

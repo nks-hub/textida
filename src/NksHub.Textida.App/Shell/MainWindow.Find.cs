@@ -639,6 +639,8 @@ internal sealed partial class MainWindow
 
     // ---- language edits ----
 
+    internal bool CanToggleComment => Active is { } tab && CommentToggle.Supports(TokenizerOf(tab)?.Grammar);
+
     /// <summary>Comments the lines of every selection out, or back in, with the markers of the language at each line; one undo step.</summary>
     internal CommandOutcome ToggleComment()
     {

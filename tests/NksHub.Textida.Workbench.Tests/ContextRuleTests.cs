@@ -140,6 +140,11 @@ public class ContextRuleTests
             Assert.Equal(strings.Get("reason.hasSelection.false"), hits.Single(h => h.CommandId == "nks.edit.formatJson").DisabledReason);
             Assert.Equal(strings.Get("reason.hasPath.false"), hits.Single(h => h.CommandId == "nks.file.reload").DisabledReason);
             Assert.Equal(strings.Get("reason.multipleCarets.false"), hits.Single(h => h.CommandId == "nks.edit.clearCarets").DisabledReason);
+            var comment = hits.Single(h => h.CommandId == "nks.edit.toggleComment");
+            Assert.False(comment.Enabled);
+            Assert.Equal(strings.Get("reason.fileType"), comment.DisabledReason);
+            var supported = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.CanToggleComment, true), "", 2000);
+            Assert.True(supported.Single(h => h.CommandId == "nks.edit.toggleComment").Enabled);
             var logs = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.TextView, false), "", 2000);
             Assert.Equal(strings.Get("reason.textView.false"), logs.Single(h => h.CommandId == "nks.log.nextError").DisabledReason);
             Assert.DoesNotContain(logs, h => h.CommandId == "nks.edit.formatJson");
