@@ -23,6 +23,7 @@ public partial class ViewOptionsTests
         List<double> moves = new(200), layouts = new(200), jobs = new(200);
         using var process = Process.GetCurrentProcess();
         TimeSpan cpuBefore = process.TotalProcessorTime;
+        long loopStart = Stopwatch.GetTimestamp();
         for (int i = 0; i < 200; i++)
         {
             var clock = Stopwatch.StartNew();
@@ -36,11 +37,13 @@ public partial class ViewOptionsTests
             layouts.Add(afterLayout - afterMove);
             jobs.Add(times[^1] - afterLayout);
         }
+        long loopEnd = Stopwatch.GetTimestamp();
         double cpuMs = (process.TotalProcessorTime - cpuBefore).TotalMilliseconds;
         _w.MouseUp(new Point(start.X, start.Y + 700), MouseButton.Left);
         static string Spread(List<double> values) { var sorted = values.Order().ToArray(); return $"p50 {sorted[sorted.Length / 2]:0.0}, p95 {sorted[(int)(sorted.Length * 0.95)]:0.0}"; }
         _output.WriteLine($"100k minimap drag, parts: move [{Spread(moves)}], layout [{Spread(layouts)}], jobs [{Spread(jobs)}] ms");
         _output.WriteLine($"100k minimap drag, loop wall {times.Sum():0.0}, process CPU {cpuMs:0.0} ms");
+        _output.WriteLine($"100k minimap drag, pid {process.Id}, qpc {loopStart}..{loopEnd}, frequency {Stopwatch.Frequency}");
         if (Core.TypingTrace.Enabled)
         {
             _output.WriteLine("100k minimap drag, spans including press/release:\n" + Core.TypingTrace.Summary());
