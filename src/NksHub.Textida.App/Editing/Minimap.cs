@@ -525,6 +525,7 @@ internal sealed unsafe class Minimap : Control, IDisposable
 
     /// <summary>How many times the picture was started from its first row, for tests: a growing index must not start it at every notice.</summary>
     internal int BuildsStarted { get; private set; }
+    internal int ColorRuns => _feeder?.ViewportRuns ?? 0;
 
     /// <summary>The layout the minimap shows now, for tests; null while it is not visible.</summary>
     internal MinimapLayout? Layout => Wanted()?.Layout;
