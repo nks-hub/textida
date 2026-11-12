@@ -22,6 +22,58 @@ public partial class WindowsUiaProviderTests
     [LibraryImport("oleaut32.dll")] private static unsafe partial int SafeArrayGetElement(nint array, int* index, out nint element);
 
     [WindowsFact]
+    public unsafe void Range_array_releases_earlier_elements_when_a_later_range_cannot_be_marshaled()
+    {
+        using var surface = new TestSurface("one");
+        var range = Provider(surface).get_DocumentRange();
+        nint pointer = (nint)ComInterfaceMarshaller<ITextRangeProvider>.ConvertToUnmanaged(range);
+        nint array = 0;
+        try
+        {
+            int before = ReferenceCount(pointer);
+            var error = Record.Exception(() => { array = UiaNative.RangeArray([range, new UnexposedRange()]); });
+            Assert.NotNull(error);
+            Assert.Equal(before, ReferenceCount(pointer));
+            Assert.IsType<InvalidCastException>(error);
+        }
+        finally
+        {
+            if (array != 0) SafeArrayDestroy(array);
+            Marshal.Release(pointer);
+        }
+    }
+
+    private static int ReferenceCount(nint pointer)
+    {
+        int count = Marshal.AddRef(pointer);
+        Marshal.Release(pointer);
+        return count;
+    }
+
+    // Omitting GeneratedComClass makes the second COM conversion fail after the first element was stored.
+    private sealed class UnexposedRange : ITextRangeProvider
+    {
+        public ITextRangeProvider Clone() => throw new NotSupportedException();
+        public bool Compare(ITextRangeProvider range) => throw new NotSupportedException();
+        public int CompareEndpoints(int endpoint, ITextRangeProvider range, int targetEndpoint) => throw new NotSupportedException();
+        public void ExpandToEnclosingUnit(int unit) => throw new NotSupportedException();
+        public ITextRangeProvider? FindAttribute(int attribute, Variant value, bool backward) => throw new NotSupportedException();
+        public ITextRangeProvider? FindText(string text, bool backward, bool ignoreCase) => throw new NotSupportedException();
+        public Variant GetAttributeValue(int attribute) => throw new NotSupportedException();
+        public nint GetBoundingRectangles() => throw new NotSupportedException();
+        public IRawElementProviderSimple GetEnclosingElement() => throw new NotSupportedException();
+        public string GetText(int maxLength) => throw new NotSupportedException();
+        public int Move(int unit, int count) => throw new NotSupportedException();
+        public int MoveEndpointByUnit(int endpoint, int unit, int count) => throw new NotSupportedException();
+        public void MoveEndpointByRange(int endpoint, ITextRangeProvider range, int targetEndpoint) => throw new NotSupportedException();
+        public void Select() => throw new NotSupportedException();
+        public void AddToSelection() => throw new NotSupportedException();
+        public void RemoveFromSelection() => throw new NotSupportedException();
+        public void ScrollIntoView(bool alignToTop) => throw new NotSupportedException();
+        public nint GetChildren() => throw new NotSupportedException();
+    }
+
+    [WindowsFact]
     public unsafe void Scalar_and_array_ranges_expose_readable_native_text_interfaces()
     {
         using var surface = new TestSurface("one\ntwo");
