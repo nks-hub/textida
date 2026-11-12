@@ -230,7 +230,6 @@ internal sealed partial class HexView : Grid
         Editor.Clamp();
         UpdateScrollRange();
         _canvas.InvalidateVisual();
-        Inspector.Refresh();
         RaiseViewChanged();
         DocumentChanged?.Invoke();
     }
@@ -252,6 +251,7 @@ internal sealed partial class HexView : Grid
 
     private void RaiseViewChanged()
     {
+        Inspector.Refresh();
         Minimap.NoteView();
         ViewChanged?.Invoke();
         (Avalonia.Automation.Peers.ControlAutomationPeer.FromElement(this) as HexAutomationPeer)?.CaretMoved();
