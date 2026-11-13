@@ -1,6 +1,7 @@
 using Avalonia.Automation;
 using Avalonia.Input.Platform;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -39,7 +40,12 @@ internal sealed partial class MainWindow
     {
         if (!CanShowStructure || Active is not { } tab) return null;
         var document = tab.Doc.Doc;
-        var format = tab.Doc.Language.Id switch { "xml" => StructureFormat.Xml, "jsonc" => StructureFormat.Jsonc, _ => StructureFormat.Json };
+        var format = tab.Doc.Language.Id switch
+        {
+            "xml" => StructureFormat.Xml,
+            "jsonc" => StructureFormat.Jsonc,
+            _ => JsonDataReader.IsJsoncFile(tab.Path) ? StructureFormat.Jsonc : StructureFormat.Json,
+        };
         return new(tab.Doc, document.Id, document.Revision, document.Codec, document.BomLength, format,
             StructureOffset(tab), tab.Doc.ReadOnly, document.GetSnapshot,
             range => RevealStructureRange(tab, document, range),
