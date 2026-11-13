@@ -58,6 +58,8 @@ internal sealed partial class MainWindow
     private void RevealStructureRange(DocTab tab, Core.Documents.Document document, ByteRange range)
     {
         if (Active != tab || !ReferenceEquals(tab.Doc.Doc, document)) return;
+        long startOffset = Math.Clamp(range.Start, document.BomLength, document.ByteLength);
+        range = new(startOffset, Math.Clamp(range.End, startOffset, document.ByteLength));
         if (tab.JsonShown) tab.Json!.RevealOffset(range.Start, range.End);
         else if (tab.Paged is { } paged) paged.SelectBytes(range.Start, range.End);
         else if (tab.Surface is { } surface && tab.Doc.TextBackend is { } backend

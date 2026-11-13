@@ -92,6 +92,9 @@ public sealed class StructureIntegrationTests : IDisposable
         view.Tree.SelectedItem = attribute; await Drain();
         Assert.Equal("p:name='é😀'", tab.Surface!.SelectedText);
 
+        view.Tree.SelectedItem = Assert.Single(Rows(view.Tree)); await Drain();
+        Assert.Equal(text, tab.Surface.SelectedText);
+
         Assert.True(tab.Surface.TextArea.Focus());
         tab.Surface.Select(text.IndexOf("body", StringComparison.Ordinal) + 2, 0);
         await Drain();
