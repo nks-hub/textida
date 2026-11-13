@@ -65,6 +65,17 @@ public sealed class StructureNavigationTests
     }
 
     [Fact]
+    public void Source_declarations_have_no_xpath_path_and_do_not_interrupt_path_search()
+    {
+        using var analysis = Parse("<?xml version='1.0'?>\n<r/>", StructureFormat.Xml);
+        var index = analysis.Index;
+        Assert.Throws<InvalidOperationException>(() => StructurePaths.Create(index, index.ReadNode(1)));
+        var result = StructureSearch.ReadPage(index, "node()[1]", StructureSearchScope.Path, 0, 10);
+        Assert.Equal([3L], result.NodeIds);
+        Assert.Equal("/node()[1]", StructurePaths.Create(index, index.ReadNode(3)));
+    }
+
+    [Fact]
     public void Text_preview_distinguishes_decoded_value_from_source_and_never_splits_a_surrogate()
     {
         using var analysis = Parse("{\"x\":\"a😀\\n\"}");

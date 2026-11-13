@@ -25,6 +25,8 @@ public static class StructureSearch
             if (scope == StructureSearchScope.Name && !node.HasName) continue;
             if (scope == StructureSearchScope.Value && node.Kind is StructureKind.JsonObject or StructureKind.JsonArray
                 or StructureKind.XmlElement) continue;
+            if (scope == StructureSearchScope.Path && index.Format == StructureFormat.Xml
+                && node.Kind != StructureKind.XmlNamespace && !StructureXmlNodes.IsXPathNode(index, node, ct)) continue;
             IEnumerable<int> content = scope switch
             {
                 StructureSearchScope.Name => values.ReadName(node),

@@ -31,6 +31,12 @@ public static class StructurePaths
 
         public IEnumerable<int> ReadScalars(StructureNode node)
         {
+            if (index.Format == StructureFormat.Xml && node.Kind != StructureKind.XmlNamespace)
+            {
+                node = StructureXmlNodes.LogicalTextStart(index, node, ct);
+                if (!StructureXmlNodes.IsXPathNode(index, node, ct))
+                    throw new InvalidOperationException("This source item has no XPath node.");
+            }
             var ancestors = new Stack<StructureNode>();
             for (var current = node; current.ParentId >= 0; current = index.ReadNode(current.ParentId))
             {
