@@ -363,7 +363,7 @@ internal sealed partial class StructureNativeDiagnostic
             string json = row.ToJsonString();
             operation = "WriteTemp";
             await File.WriteAllTextAsync(temp, json, ct).ConfigureAwait(false);
-            operation = "MoveReplace";
+            operation = "PublishAtomic";
             Exception? retryReason = null;
             for (; ; retry++)
             {
@@ -382,7 +382,7 @@ internal sealed partial class StructureNativeDiagnostic
                     Record("publication-retry.jsonl", record);
                     retryReason = null;
                 }
-                try { File.Move(temp, final, overwrite: true); return; }
+                try { PublishFile(temp, final); return; }
                 catch (Exception error) when (retry < 4 && (error is IOException
                     || OperatingSystem.IsWindows() && error is UnauthorizedAccessException && unchecked((uint)error.HResult) == 0x80070005u))
                 {
@@ -401,6 +401,13 @@ internal sealed partial class StructureNativeDiagnostic
             };
             throw;
         }
+    }
+
+    internal static void PublishFile(string temp, string final)
+    {
+        // MoveFileEx cannot replace an open reader even when it shares deletion.
+        if (File.Exists(final)) File.Replace(temp, final, null);
+        else File.Move(temp, final);
     }
 
     private static JsonObject PathState(string path)
