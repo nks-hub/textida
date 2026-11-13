@@ -204,12 +204,12 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_line_beyond_the_full_scan_limit_is_colored_by_the_streaming_scan()
+    public async Task A_line_beyond_the_full_scan_limit_is_colored_by_the_streaming_scan()
     {
         var w = Window(paged: true);
         var tab = w.OpenFile(_temp.File("long.js", string.Concat(Enumerable.Repeat("var a = 1; ", 120_000)) + "\nvar b = 2;\n"), null);
         Assert.True(tab.Doc.IsLarge);
-        for (int i = 0; i < 400 && !(tab.Paged!.TokensOf(1)?.Any(t => t.Kind == "keyword") ?? false); i++) { Thread.Sleep(25); w.UpdateLayout(); Settle(); }
+        for (int i = 0; i < 400 && !(tab.Paged!.TokensOf(1)?.Any(t => t.Kind == "keyword") ?? false); i++) { await Task.Delay(25); w.UpdateLayout(); Settle(); }
         Assert.Contains(tab.Paged!.TokensOf(0) ?? [], t => t.Kind == "keyword");
         Assert.Contains(tab.Paged.TokensOf(1) ?? [], t => t.Kind == "keyword");
         Assert.False(tab.Syntax!.LineTooLong);
