@@ -1891,7 +1891,7 @@ Odhady položek F196–F201 a F204 dávají 13–21 ČT. Zbytek rozpočtu etapy 
 
 ## P4 – textové nástroje
 
-Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a LOG parser fungují na vlastních datech editoru; recept „vyber sloupec → uprav → náhled → použij“ projde i s návratem. Nástroje od P4 vznikají rovnou jako vestavěné pluginy nebo data nad API z P3b. Vlastní data editoru se tvoří znovu; data PSPadu se nenačítají (kap. 7).
+Odhad etapy 21,5–35,5 ČT. Hotovo, když: klip s formulářem, převodník a LOG parser fungují na vlastních datech editoru; recept „vyber sloupec → uprav → náhled → použij“ projde i s návratem. Nástroje od P4 vznikají rovnou jako vestavěné pluginy nebo data nad API z P3b. Vlastní data editoru se tvoří znovu; data PSPadu se nenačítají (kap. 7).
 
 ### P4.1 Klipy a šablony
 
@@ -2102,9 +2102,9 @@ Odhad etapy 19,5–31,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Funkce:** žádná (požadavek majitele 11. 11. 2026)
   - **Hotovo, když:** JSON, JSONC a XML mají strom, který jde ovládat myší i klávesnicí; výběr v obou směrech trefí stejný rozsah i u Unicode, polí, atributů, CDATA a jmenných prostorů; filtr a dotazy vrátí očekávané uzly; počty a duplicitní klíče odpovídají vzorkům; chyba ukáže místo a nezahodí zdroj; změna hodnoty upraví jen její rozsah, správně ošetří uvozovky a entity a jde vrátit jedním Zpět; výsledek staré revize se nezobrazí. Velké soubory se rozebírají na pozadí, strom načítá větve postupně a práci jde zrušit; rozpočty paměti a odezvy se určí před implementací podle PR.8.2. XML nesmí načítat vnější entity ani DTD a prohlížení ani analýza neposílají data na síť. Ověřit testy i použitím v běžící aplikaci.
   - **Závisí na:** P1.2.1, P3.6.9, P4.6.4
-  - **Odhad:** pracovní návrh 2–4 ČT; čeká na schválení podle PR.8.2 a není zahrnutý do schváleného rozpočtu P4.
+  - **Odhad:** 2–4 ČT, schváleno majitelem 13. 11. 2026 podle PR.8.2; rozpočet P4 zvýšen z 19,5–31,5 na 21,5–35,5 ČT.
   - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
-  - **Návrh limitů ke schválení 11. 11. 2026:** stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Strom a analýza JSON/XML zůstávají plánem; implementace těchto funkcí ještě nezačala.
+  - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; funkce ani dosažení limitů zatím ověřené nejsou.
 
 ### P4.7 Zvýrazňovače jako data
 
@@ -3882,7 +3882,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P2 | 7 | 25 | 22–37 |
 | P3 | 7 | 55 | 18,5–30,5 (dolní mez, neúplné) |
 | P3b | 5 | 17 | 18–28 |
-| P4 | 11 | 31 | 19,5–31,5 (neúplné) |
+| P4 | 11 | 31 | 21,5–35,5 (neúplné) |
 | P5 | 6 | 27 | 24–37 (neúplné) |
 | P6 | 6 | 22 | 21,5–38 |
 | P7 | 1 | 7 | 16–24 (neúplné) |
@@ -3891,7 +3891,7 @@ Počty celků a úkolů spočítal `tools/check_todo.py --stats` a kontrolor je 
 | P9 | 6 | 17 | 10,5–16 (neúplné, bez R10) |
 | P10 | 1 | 4 | 8–12 |
 | Později | 10 | 32 | mimo 1.0 |
-| **Celkem** | **91** | **350** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 226,5–365,5, s rezervou 284–457 |
+| **Celkem** | **91** | **350** | MVP (P0–P3) 58,5–94,5, s rezervou 74–119; 1.0 (P0–P10) 228,5–369,5, s rezervou 286–462 |
 
 ### Kritická cesta
 
