@@ -59,8 +59,20 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
         return null;
     }
 
+    public bool TryReadCached(long column, out int value)
+    {
+        var window = column < 0 ? null : Cached(column);
+        value = window is null ? -1 : window.Text[(int)(column - window.Column)];
+        return window is not null;
+    }
+
+    // Callers enumerate immediately; a cache hit needs no resumable loader.
     /// <summary>Each yielded step reads at most one byte window, including sparse-map replay after a backward jump.</summary>
     public IEnumerable<bool> Ensure(long column)
+        => column < 0 || length is { } end && column >= end || Cached(column) is not null
+            ? Array.Empty<bool>() : Load(column);
+
+    private IEnumerable<bool> Load(long column)
     {
         if (column < 0 || length is { } end && column >= end || Cached(column) is not null) yield break;
 

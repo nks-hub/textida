@@ -95,14 +95,20 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
         if (repeat.Lazy && repeat.Minimum == 0) yield return StreamMatchStep.Match(position);
         while (count < maximum)
         {
-            bool found = false;
-            long next = position;
-            foreach (var item in Match(repeat.Child, position, direction))
+            bool found = TryFirstChoiceCharacter(repeat.Child, position, direction, out long next);
+            if (found)
             {
-                if (!item.IsMatch) { yield return item; continue; }
-                next = item.End;
-                found = true;
-                break;
+                if ((++operations & 1023) == 0) yield return StreamMatchStep.Pending;
+            }
+            else
+            {
+                foreach (var item in Match(repeat.Child, position, direction))
+                {
+                    if (!item.IsMatch) { yield return item; continue; }
+                    next = item.End;
+                    found = true;
+                    break;
+                }
             }
             if (!found || next == position) break;
             position = next;
@@ -135,6 +141,12 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
             position = checkpoint.Position;
             while (done++ < count)
             {
+                if (TryFirstChoiceCharacter(repeat.Child, position, direction, out long next))
+                {
+                    position = next;
+                    if ((++operations & 1023) == 0) yield return StreamMatchStep.Pending;
+                    continue;
+                }
                 foreach (var item in Match(repeat.Child, position, direction))
                 {
                     if (!item.IsMatch) { yield return item; continue; }
@@ -144,6 +156,16 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
             }
             yield return StreamMatchStep.Match(position);
         }
+    }
+
+    private bool TryFirstChoiceCharacter(StreamNode node, long at, int direction, out long end)
+    {
+        end = at;
+        if (node is not StreamChoice { Items.Count: > 0 } choice || choice.Items[0] is not StreamChar first
+            || !source.TryReadCached(direction > 0 ? at : at - 1, out int value)
+            || !first.Characters.Matches((char)value)) return false;
+        end = at + direction;
+        return true;
     }
 
     private IEnumerable<StreamMatchStep> RepeatChar(StreamCharSet characters, StreamRepeat repeat, long start, int direction, bool backtrack)
