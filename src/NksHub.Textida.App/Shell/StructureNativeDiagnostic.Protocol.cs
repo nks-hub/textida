@@ -1,11 +1,14 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.Core.Data.Structure;
 
 namespace NksHub.Textida.App.Shell;
@@ -155,8 +158,54 @@ internal sealed partial class StructureNativeDiagnostic
         result["sourceRevision"] = current?.Revision;
         result["readOnly"] = current?.ReadOnly;
         result["cachedItems"] = view.CachedItems;
+        result["focus"] = FocusJson();
+        result["lastTreeKey"] = lastTreeKey is { } key ? new JsonObject
+        {
+            ["key"] = key.Key.ToString(), ["observedQpc"] = key.ObservedQpc, ["focusedNodeId"] = key.FocusedNodeId,
+        } : null;
         return result;
     }
+
+    private JsonObject FocusJson()
+    {
+        var focused = window.FocusManager?.GetFocusedElement();
+        var control = focused as Control;
+        var focusedItem = FocusedTreeItem(focused);
+        var selectedItem = view.Tree.SelectedItem as TreeViewItem;
+        return new()
+        {
+            ["windowActive"] = window.IsActive,
+            ["treeIsFocused"] = view.Tree.IsFocused,
+            ["treeKeyboardWithin"] = view.Tree.IsKeyboardFocusWithin,
+            ["focusedType"] = focused?.GetType().FullName,
+            ["focusedName"] = BoundedFocusName(control?.Name),
+            ["focusedAutomationName"] = BoundedFocusName(control is null ? null : AutomationProperties.GetName(control)),
+            ["focusedIsFocused"] = focused?.IsFocused,
+            ["focusedKeyboardWithin"] = focused?.IsKeyboardFocusWithin,
+            ["focusedInTree"] = focused is Visual visual && InMeasuredTree(visual),
+            ["focusedItem"] = FocusItemJson(focusedItem),
+            ["selectedItem"] = FocusItemJson(selectedItem),
+            ["selectedIsFocusedItem"] = selectedItem is not null && ReferenceEquals(selectedItem, focusedItem),
+            ["managedIdentityScope"] = "process-local CLR object identity; not a UIA runtime ID",
+        };
+    }
+
+    private bool InMeasuredTree(Visual visual) => ReferenceEquals(visual, view.Tree) || view.Tree.IsVisualAncestorOf(visual);
+
+    private TreeViewItem? FocusedTreeItem(IInputElement? focused) => focused is Visual visual && InMeasuredTree(visual)
+        ? visual.GetSelfAndVisualAncestors().OfType<TreeViewItem>().FirstOrDefault() : null;
+
+    private static JsonObject? FocusItemJson(TreeViewItem? item) => item is null ? null : new()
+    {
+        ["nodeId"] = item.Tag is StructureNode node ? node.Id : null,
+        ["automationName"] = BoundedFocusName(AutomationProperties.GetName(item)),
+        ["managedIdentity"] = RuntimeHelpers.GetHashCode(item),
+        ["isFocused"] = item.IsFocused,
+        ["keyboardWithin"] = item.IsKeyboardFocusWithin,
+        ["isSelected"] = item.IsSelected,
+    };
+
+    private static string? BoundedFocusName(string? name) => name is { Length: > 512 } ? name[..512] : name;
 
     private JsonObject SampleJson(Pending sample, string status)
     {

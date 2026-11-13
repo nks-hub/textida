@@ -33,6 +33,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
     private Identity? identity;
     private bool frameScheduled, readyWritten;
     private long lastStatus;
+    private TreeKey? lastTreeKey;
 
     private sealed record Arm(string Run, int Sample, string Action, uint Marker, string Target, string? Direction);
     private sealed record Identity(string Source, string ExeSha, int Pid, int Session);
@@ -52,6 +53,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         public IBrush Second { get; } = ColorBrush(arm.Marker ^ 0xFFFFFF);
     }
     private sealed record Visible(Pending Sample, State State);
+    private readonly record struct TreeKey(Key Key, long ObservedQpc, long? FocusedNodeId);
 
     internal static void Attach(Window window, StructureView view, Func<StructureSource?>? source = null)
     {
@@ -185,6 +187,9 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
+        long observed = Stopwatch.GetTimestamp();
+        var focusedItem = FocusedTreeItem(window.FocusManager?.GetFocusedElement());
+        lastTreeKey = new(e.Key, observed, focusedItem?.Tag is StructureNode node ? node.Id : null);
         if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Space or Key.Enter) ObserveInput();
     }
     private void OnPointer(object? sender, PointerPressedEventArgs e) => ObserveInput();
