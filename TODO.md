@@ -2104,7 +2104,8 @@ Odhad etapy 21,5–35,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Závisí na:** P1.2.1, P3.6.9, P4.6.4
   - **Odhad:** 2–4 ČT, schváleno majitelem 13. 11. 2026 podle PR.8.2; rozpočet P4 zvýšen z 19,5–31,5 na 21,5–35,5 ČT.
   - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
-  - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; funkce ani dosažení limitů zatím ověřené nejsou.
+  - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; k uzavření jsou nutná všechna uvedená měření.
+  - **Stav 13. 11. 2026:** Čtečky, dotazy, úpravy hodnot a propojený panel jsou implementované. Na Windows VM prošlo na c230d4ca 159 testů aplikace a související kontroly. Na f73ce615 prošlo 12 měření jádra včetně skutečných souborů 1 GiB: paměť navíc do 64 MiB a zrušení rozboru do 100 ms. Ověření celého panelu v nativní aplikaci, jeho paměti a odezvy ještě probíhá; položka zůstává otevřená.
 
 ### P4.7 Zvýrazňovače jako data
 
