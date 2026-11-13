@@ -17,7 +17,7 @@ public readonly record struct FileEdit(long Start, long Deleted, byte[] Inserted
 /// once the base file index is complete; until then <see cref="TryGetLineStart"/> returns false for an
 /// edited document. <see cref="ReadLinesAtAsync"/> works in all states.
 /// </remarks>
-public sealed class PagedDocument : IPagedTextSource
+public sealed partial class PagedDocument : IPagedTextSource
 {
     private readonly PieceTree _tree = new();
     private readonly EditStack _undo;

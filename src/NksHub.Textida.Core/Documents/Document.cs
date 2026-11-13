@@ -223,6 +223,7 @@ public sealed partial class Document : IDisposable
         _backend.EditedByBackend -= OnBackendEdit;
         _backend.Dispose();
         _undoSpill?.Dispose();
+        DisposePreparedUndo();
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

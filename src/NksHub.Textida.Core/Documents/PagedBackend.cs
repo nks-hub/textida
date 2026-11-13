@@ -24,6 +24,8 @@ public sealed class PagedBackend : IByteBackend
     private PagedDocument _doc;
     private string? _path;
     private int _bom;
+    private long rangeGeneration;
+    private sealed record RetainedRange(PagedDocument Owner, long Generation, object Pieces);
 
     private PagedBackend(PagedDocument doc, string? path, MappedFileSourceOptions options)
     {
@@ -90,6 +92,23 @@ public sealed class PagedBackend : IByteBackend
     public object ReplaceRepeated(long offset, long deleteLength, ReadOnlySpan<byte> pattern, long length) => _doc.ReplaceRepeated(offset, deleteLength, pattern, length);
     public void RestoreRemoved(long offset, long insertedLength, object removed) => _doc.RestoreRemoved(offset, insertedLength, removed);
 
+    internal object CaptureRange(long offset, long length) => new RetainedRange(_doc, rangeGeneration, _doc.CaptureRange(offset, length));
+
+    internal bool RestoreRange(long offset, long deleted, object? reference)
+    {
+        return RestoreCapturedRange(offset, deleted, reference, recordHistory: true);
+    }
+
+    internal bool RestoreCapturedRange(long offset, long deleted, object? reference, bool recordHistory = false)
+    {
+        if (reference is not RetainedRange retained || retained.Owner != _doc || retained.Generation != rangeGeneration) return false;
+        _doc.ReplaceCapturedRange(offset, deleted, retained.Pieces, recordHistory);
+        return true;
+    }
+
+    internal void ReplaceFromSnapshot(long offset, long deleted, IByteSnapshot source, CancellationToken ct = default) =>
+        _doc.ReplaceFromSnapshot(offset, deleted, source, 0, source.ByteLength, ct);
+
     public string ReadText(ByteRange range)
     {
         if (range.Length > Array.MaxLength) throw new NotSupportedException("A range over 2 GiB cannot be decoded in one piece.");
@@ -100,7 +119,11 @@ public sealed class PagedBackend : IByteBackend
 
     public IByteSnapshot CreateSnapshot() => _doc.CreateSnapshot();
 
-    public IInPlaceWriteScope? BeginInPlaceWrite() => _doc.Source.File.BeginInPlaceWrite();
+    public IInPlaceWriteScope? BeginInPlaceWrite()
+    {
+        rangeGeneration++;
+        return _doc.Source.File.BeginInPlaceWrite();
+    }
 
     public long UndoMemoryBudget => _options.SpillBudgetBytes;
     public string? SpillDirectory => _options.SpillDirectory;
@@ -113,6 +136,7 @@ public sealed class PagedBackend : IByteBackend
 
     public void ReplaceBackingFile(string tempPath, string targetPath)
     {
+        rangeGeneration++;
         if (_doc.InStreamingSave)
         {
             _doc.CommitStreamingSave(tempPath, targetPath);
