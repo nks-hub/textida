@@ -15,6 +15,7 @@ public static class StructureSearch
         int[] pattern = text.EnumerateRunes().Select(rune => Rune.ToUpperInvariant(rune).Value).ToArray();
         int[] prefix = Prefix(pattern);
         var values = new StructureQuery.ValueReader(index, ct);
+        var paths = new StructurePaths.Reader(index, ct);
         var result = new List<long>(pageSize);
         long id = Math.Max(1, nextNodeId);
         for (; id < index.Count && result.Count < pageSize; id++)
@@ -28,7 +29,7 @@ public static class StructureSearch
             {
                 StructureSearchScope.Name => values.ReadName(node),
                 StructureSearchScope.Value => values.ReadValue(node),
-                _ => StructurePaths.ReadScalars(index, node, ct),
+                _ => paths.ReadScalars(node),
             };
             if (Contains(content, pattern, prefix, ct)) result.Add(id);
         }

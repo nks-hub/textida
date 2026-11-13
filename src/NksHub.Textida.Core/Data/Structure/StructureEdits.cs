@@ -169,17 +169,23 @@ public static class StructureEdits
     private static void WriteXml(EncodedWriter output, string value, StructureNode node, char? quote, bool cdata, CancellationToken ct)
     {
         ValidateCharacters(value, node, xml: true, ct);
+        bool insideCdata = cdata;
         for (int at = 0; at < value.Length;)
         {
             if ((at & 2047) == 0) ct.ThrowIfCancellationRequested();
-            if (cdata && value.AsSpan(at).StartsWith("]]>"))
+            if (insideCdata && value.AsSpan(at).StartsWith("]]>"))
             {
                 output.Append("]]]]><![CDATA[>");
                 at += 3;
                 continue;
             }
             Rune.DecodeFromUtf16(value.AsSpan(at), out var rune, out int used);
-            string? escaped = cdata ? null : rune.Value switch
+            if (insideCdata && rune.Value == '\r')
+            {
+                output.Append("]]>");
+                insideCdata = false;
+            }
+            string? escaped = insideCdata ? null : rune.Value switch
             {
                 '&' => "&amp;",
                 '<' => "&lt;",
@@ -195,6 +201,7 @@ public static class StructureEdits
             else output.Append(value.AsSpan(at, used));
             at += used;
         }
+        if (cdata && !insideCdata) output.Append("<![CDATA[");
     }
 
     private static StructureSyntaxException Invalid(StructureNode node, string message) =>
@@ -227,10 +234,10 @@ public static class StructureEdits
             if (chars.Length == 0) return;
             byte[] encoded = codec.Encode(chars.ToString());
             ct.ThrowIfCancellationRequested();
-            // Every supported serializer emits at most six characters per input UTF-16 unit, plus JSON quotes.
+            // At most six characters per input unit, plus quotes or one CDATA-to-text transition.
             // Allocate once, so even the UTF-32 escape case stays below 25 MiB without a second output copy.
             int width = codec.Kind switch { CodecKind.SingleByte => 1, CodecKind.Utf16 => 2, _ => 4 };
-            bytes ??= new byte[checked((inputLength * 6 + 2) * width)];
+            bytes ??= new byte[checked((inputLength * 6 + 14) * width)];
             encoded.CopyTo(bytes.AsSpan(length));
             length += encoded.Length;
             chars.Clear();

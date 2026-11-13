@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Data.Structure;
 
@@ -8,6 +9,28 @@ public sealed record StructurePreview(string Text, bool Truncated);
 
 public sealed partial class StructureQuery
 {
+    /// <summary>Returns the full source range of one query result, including all adjacent XML text and CDATA parts.</summary>
+    public static ByteRange ResultRange(IStructureIndex index, long id, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        ct.ThrowIfCancellationRequested();
+        var node = index.ReadNode(id);
+        if (index.Format != StructureFormat.Xml || !StructureXmlNodes.IsText(node)) return node.Range;
+        var first = StructureXmlNodes.LogicalTextStart(index, node, ct);
+        return new(first.Start, StructureXmlNodes.LogicalTextEnd(index, node, ct).End);
+    }
+
+    /// <summary>Reads a bounded query result value. XML text groups and element string values follow the XPath data model.</summary>
+    public static StructurePreview ReadResultValue(IStructureIndex index, long id, int maxChars = 256, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+        if (maxChars is < 1 or > 4096) throw new ArgumentOutOfRangeException(nameof(maxChars));
+        ct.ThrowIfCancellationRequested();
+        var node = index.ReadNode(id);
+        if (index.Format == StructureFormat.Xml) node = StructureXmlNodes.LogicalTextStart(index, node, ct);
+        return new ValueReader(index, ct).ResultPreview(node, maxChars);
+    }
+
     public static StructurePreview ReadPreview(IStructureIndex index, StructureNode node, bool name = false,
         int maxChars = 256, CancellationToken ct = default)
     {
@@ -81,7 +104,14 @@ public sealed partial class StructureQuery
         public StructurePreview Preview(StructureNode node, bool name, int maxChars)
         {
             if (name && !node.HasName) return new("", false);
-            IEnumerable<int> content = name ? ReadName(node) : ReadValue(node);
+            return PreviewContent(name ? ReadName(node) : ReadValue(node), maxChars);
+        }
+
+        public StructurePreview ResultPreview(StructureNode node, int maxChars) =>
+            PreviewContent(index.Format == StructureFormat.Xml ? XmlStringValue(node) : ReadValue(node), maxChars);
+
+        private StructurePreview PreviewContent(IEnumerable<int> content, int maxChars)
+        {
             var text = new StringBuilder(Math.Min(maxChars, 256));
             foreach (int value in content)
             {
@@ -233,13 +263,27 @@ public sealed partial class StructureQuery
                 {
                     ct.ThrowIfCancellationRequested();
                     var child = index.ReadNode(id);
-                    if (child.Kind == StructureKind.XmlText)
+                    if (child.Kind == StructureKind.XmlText && index.ReadNode(child.ParentId).Kind == StructureKind.XmlElement)
                         foreach (int value in XmlText(child.ValueStart, child.ValueEnd, false)) yield return value;
                     else if (child.Kind == StructureKind.XmlCData)
                         foreach (int value in Raw(child.ValueStart, child.ValueEnd, true)) yield return value;
                 }
             }
-            else if (node.Kind is StructureKind.XmlText or StructureKind.XmlAttribute or StructureKind.XmlNamespace)
+            else if (StructureXmlNodes.IsText(node))
+            {
+                for (var part = node; ;)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var content = part.Kind == StructureKind.XmlText ? XmlText(part.ValueStart, part.ValueEnd, false)
+                        : Raw(part.ValueStart, part.ValueEnd, true);
+                    foreach (int value in content) yield return value;
+                    if (part.Id + 1 >= index.Count) break;
+                    var next = index.ReadNode(part.Id + 1);
+                    if (next.ParentId != node.ParentId || !StructureXmlNodes.IsText(next)) break;
+                    part = next;
+                }
+            }
+            else if (node.Kind is StructureKind.XmlAttribute or StructureKind.XmlNamespace)
             {
                 foreach (int value in XmlText(node.ValueStart, node.ValueEnd, node.Kind != StructureKind.XmlText)) yield return value;
             }

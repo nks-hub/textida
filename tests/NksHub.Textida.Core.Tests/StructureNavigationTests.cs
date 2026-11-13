@@ -38,7 +38,13 @@ public sealed class StructureNavigationTests
             if (node.Kind == StructureKind.XmlNamespace) continue;
             string path = StructurePaths.Create(index, node);
             var page = StructureQuery.Parse(path, StructureQueryLanguage.XPath).ReadPage(index, 0, 10, CancellationToken.None);
-            Assert.Equal([id], page.NodeIds);
+            long expected = id;
+            if (node.Kind is StructureKind.XmlText or StructureKind.XmlCData)
+                while (expected > 0 && index.ReadNode(expected - 1) is { } before && before.ParentId == node.ParentId
+                    && before.Kind is StructureKind.XmlText or StructureKind.XmlCData) expected--;
+            Assert.Equal([expected], page.NodeIds);
+            var range = StructureQuery.ResultRange(index, expected);
+            Assert.True(range.Start <= node.Start && range.End >= node.End);
         }
     }
 
@@ -76,6 +82,32 @@ public sealed class StructureNavigationTests
         Assert.False(analysis.IsValid);
         Assert.Single(analysis.Index.Issues);
         Assert.Equal(StructureIssueKind.Syntax, analysis.Index.Issues[0].Kind);
-        Assert.Equal("{\"x\":[0,]}", analysis.Index.Source.ReadText(new ByteRange(0, analysis.Index.Source.ByteLength)));
+        var bytes = new byte[analysis.Index.Source.ByteLength];
+        Assert.Equal(bytes.Length, analysis.Index.Source.Read(0, bytes));
+        Assert.Equal("{\"x\":[0,]}", Encoding.UTF8.GetString(bytes));
+    }
+
+    [Fact]
+    public void Path_search_reads_flat_xml_in_linear_work_instead_of_rescanning_every_previous_sibling()
+    {
+        using var analysis = Parse("<r>" + string.Concat(Enumerable.Repeat("<a/>", 10_000)) + "</r>", StructureFormat.Xml);
+        var counted = new CountedIndex(analysis.Index);
+        var page = StructureSearch.ReadPage(counted, "not-present", StructureSearchScope.Path, 0, 10);
+        Assert.Empty(page.NodeIds);
+        Assert.True(page.Complete);
+        Assert.InRange(counted.Reads, 1, 30 * counted.Count);
+    }
+
+    private sealed class CountedIndex(IStructureIndex source) : IStructureIndex
+    {
+        public long Reads { get; private set; }
+        public long Count => source.Count;
+        public IByteSnapshot Source => source.Source;
+        public TextCodec Codec => source.Codec;
+        public int BomLength => source.BomLength;
+        public StructureFormat Format => source.Format;
+        public Guid DocumentId => source.DocumentId;
+        public long Revision => source.Revision;
+        public StructureNode ReadNode(long id) { Reads++; return source.ReadNode(id); }
     }
 }

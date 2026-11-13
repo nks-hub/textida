@@ -86,7 +86,7 @@ public sealed class StructureQueryTests
     public void Xml_predicates_decode_entities_include_cdata_and_apply_positions_after_prior_predicates()
     {
         var index = Parse("""<r><item id="a&amp;b">one<![CDATA[&two]]></item><item id="z">three</item><item id="z">four</item><!--note--><?p data?></r>""", xml: true);
-        Assert.Equal(new[] { "one", "&two" }, Values(index, "//item[@id='a&b']/text()"));
+        Assert.Equal(new[] { "one&two" }, Values(index, "//item[@id='a&b']/text()"));
         Assert.Single(All(index, "//item[.='one&two']"));
         Assert.Equal(new[] { "three" }, Values(index, "//item[@id='z'][1]/text()"));
         Assert.Empty(All(index, "//item[1][@id='z']"));
@@ -95,6 +95,70 @@ public sealed class StructureQueryTests
         Assert.Single(All(index, "/r/comment()"));
         var nested = Parse("<r><item><name>A&amp;B</name></item><item><name>C</name></item></r>", xml: true);
         Assert.Single(All(nested, "//item[name='A&B']"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void XPath_text_results_coalesce_adjacent_text_and_cdata_without_changing_physical_nodes(bool utf16)
+    {
+        const string source = "<r xmlns:p='urn:p' a='v'>a<![CDATA[b]]>&amp;<![CDATA[😀]]><!--cut--><![CDATA[c]]>d<e/>e<![CDATA[f]]></r>";
+        var index = Parse(source, xml: true, codec: utf16 ? TextCodec.Utf16BEBom : TextCodec.Utf8);
+        Assert.Equal(new[] { "ab&😀", "cd", "ef" }, Values(index, "/r/text()"));
+        Assert.Single(All(index, "/r[text()='ab&😀']"));
+        Assert.Empty(All(index, "/r[text()='b']"));
+        Assert.Equal(new[] { "cd" }, Values(index, "/r/text()[2]"));
+        Assert.Equal(new[] { "cd" }, Values(index, "/r/node()[3]"));
+        Assert.Equal(5, All(index, "/r/node()").Length);
+        var group = index.ReadNode(All(index, "/r/text()")[0]);
+        var physicalSecond = index.ReadNode(group.Id + 1);
+        Assert.Equal(StructureKind.XmlCData, physicalSecond.Kind);
+        Assert.Equal(new StructurePreview("a", false), StructureQuery.ReadPreview(index, group));
+        Assert.Equal(new StructurePreview("b", false), StructureQuery.ReadPreview(index, physicalSecond));
+        Assert.Equal(new StructurePreview("ab&", true), StructureQuery.ReadResultValue(index, group.Id, maxChars: 3));
+        Assert.Equal(new StructurePreview("ab&😀", false), StructureQuery.ReadResultValue(index, physicalSecond.Id));
+        var range = StructureQuery.ResultRange(index, group.Id);
+        Assert.Equal(range, StructureQuery.ResultRange(index, physicalSecond.Id));
+        var bytes = new byte[checked((int)range.Length)];
+        Assert.Equal(bytes.Length, index.Source.Read(range.Start, bytes));
+        Assert.Equal("a<![CDATA[b]]>&amp;<![CDATA[😀]]>", index.Codec.GetString(bytes));
+        var query = StructureQuery.Parse("/r/text()", StructureQueryLanguage.XPath);
+        var first = query.ReadPage(index, 0, 1, default);
+        var second = query.ReadPage(index, first.NextNodeId, 1, default);
+        var third = query.ReadPage(index, second.NextNodeId, 1, default);
+        Assert.Equal(All(index, "/r/text()"), first.NodeIds.Concat(second.NodeIds).Concat(third.NodeIds));
+        Assert.Empty(query.ReadPage(index, third.NextNodeId, 1, default).NodeIds);
+        Assert.Throws<OperationCanceledException>(() => StructureQuery.ResultRange(index, group.Id, new CancellationToken(true)));
+    }
+
+    [Fact]
+    public void XPath_excludes_the_xml_declaration_top_level_whitespace_and_empty_text_from_node_positions()
+    {
+        var index = Parse("<?xml version='1.0'?>\n<!--before-->\n<r xmlns='urn:r' a='v'><![CDATA[]]><x/></r><?tail ok?>\n", xml: true);
+        Assert.Equal(2, index.Nodes.Count(node => node.Kind == StructureKind.XmlProcessingInstruction));
+        var children = All(index, "/node()");
+        Assert.Equal(new[] { StructureKind.XmlComment, StructureKind.XmlElement, StructureKind.XmlProcessingInstruction },
+            children.Select(id => index.ReadNode(id).Kind));
+        Assert.Equal(children[0], Assert.Single(All(index, "/node()[1]")));
+        Assert.Equal(children[1], Assert.Single(All(index, "/node()[2]")));
+        Assert.Equal(children[2], Assert.Single(All(index, "/node()[3]")));
+        Assert.Equal(4, All(index, "//node()").Length);
+        Assert.Empty(All(index, "//text()"));
+        Assert.Equal(StructureKind.XmlElement, index.ReadNode(Assert.Single(All(index, "/node()[2]/node()[1]"))).Kind);
+        Assert.Equal(new StructurePreview("", false), StructureQuery.ReadResultValue(index, 0));
+    }
+
+    [Fact]
+    public void A_logical_text_group_keeps_the_first_physical_id_even_when_its_first_cdata_part_is_empty()
+    {
+        var index = Parse("<r><![CDATA[]]>a<![CDATA[]]></r>", xml: true);
+        long id = Assert.Single(All(index, "/r/text()"));
+        var first = index.ReadNode(id);
+        Assert.Equal(StructureKind.XmlCData, first.Kind);
+        Assert.Equal(first.ValueStart, first.ValueEnd);
+        Assert.Equal(new StructurePreview("a", false), StructureQuery.ReadResultValue(index, id));
+        Assert.Single(All(index, "/r[text()='a']"));
+        Assert.Single(All(index, "/r/node()"));
     }
 
     [Fact]
@@ -187,7 +251,7 @@ public sealed class StructureQueryTests
     }
 
     private static string[] Values(MemoryIndex index, string expression, IReadOnlyDictionary<string, string>? ns = null) =>
-        All(index, expression, ns).Select(id => StructureQuery.ReadPreview(index, index.ReadNode(id)).Text).ToArray();
+        All(index, expression, ns).Select(id => StructureQuery.ReadResultValue(index, id).Text).ToArray();
 
     private sealed class MemoryIndex(IByteSnapshot source, TextCodec codec, StructureFormat format) : IStructureIndex, IStructureSink
     {

@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using NksHub.Textida.Document.Contract;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
 namespace NksHub.Textida.Core.Tests;
@@ -130,12 +131,13 @@ public class StructureEditTests
         using var fixture = new Fixture("<r a='keep'><!--keep--><![CDATA[old]]></r>", StructureFormat.Xml, Codec(encoding));
         var element = fixture.First(StructureKind.XmlElement);
         var body = fixture.First(StructureKind.XmlCData);
-        const string input = "  a]]>b & < é😀 ]]>  ";
+        const string input = "  a]]>b & < é😀 ]]> \r\r\n <&>  ";
         fixture.ApplyAndUndo(element, input, body.ValueRange, raw =>
         {
             var parsed = XDocument.Parse(raw, LoadOptions.PreserveWhitespace);
             Assert.Equal(input, parsed.Root!.Value);
             Assert.Contains("a]]]]><![CDATA[>b", raw, StringComparison.Ordinal);
+            Assert.Contains("&#xD;&#xD;", raw, StringComparison.Ordinal);
             Assert.Contains("<!--keep-->", raw, StringComparison.Ordinal);
             Assert.Equal("keep", parsed.Root.Attribute("a")!.Value);
         });

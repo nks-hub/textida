@@ -21,70 +21,93 @@ public static class StructurePaths
     }
 
     public static IEnumerable<int> ReadScalars(IStructureIndex index, StructureNode node, CancellationToken ct = default)
+        => new Reader(index, ct).ReadScalars(node);
+
+    internal sealed class Reader(IStructureIndex index, CancellationToken ct)
     {
-        var ancestors = new Stack<StructureNode>();
-        for (var current = node; current.ParentId >= 0; current = index.ReadNode(current.ParentId))
+        private readonly Dictionary<long, Cursor> positions = [];
+        private readonly StructureQuery.ValueReader values = new(index, ct);
+        private readonly record struct Cursor(long LastId, long NextId, long Nodes, long Attributes, long Position);
+
+        public IEnumerable<int> ReadScalars(StructureNode node)
         {
-            ct.ThrowIfCancellationRequested();
-            ancestors.Push(current);
-        }
-        var values = new StructureQuery.ValueReader(index, ct);
-        if (index.Format != StructureFormat.Xml) yield return '$';
-        else if (ancestors.Count == 0) yield return '/';
-        while (ancestors.TryPop(out var current))
-        {
-            ct.ThrowIfCancellationRequested();
-            if (index.Format != StructureFormat.Xml)
+            var ancestors = new Stack<StructureNode>();
+            for (var current = node; current.ParentId >= 0; current = index.ReadNode(current.ParentId))
             {
-                if (current.ParentId == 0) continue;
-                yield return '[';
-                if (current.HasName)
+                ct.ThrowIfCancellationRequested();
+                ancestors.Push(current);
+            }
+            if (index.Format != StructureFormat.Xml) yield return '$';
+            else if (ancestors.Count == 0) yield return '/';
+            while (ancestors.TryPop(out var current))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (index.Format != StructureFormat.Xml)
                 {
-                    yield return '"';
-                    foreach (int value in values.ReadName(current))
+                    if (current.ParentId == 0) continue;
+                    yield return '[';
+                    if (current.HasName)
                     {
-                        if (value is '"' or '\\') { yield return '\\'; yield return value; }
-                        else if (value < 32)
+                        yield return '"';
+                        foreach (int value in values.ReadName(current))
                         {
-                            foreach (char c in "\\u" + value.ToString("x4", CultureInfo.InvariantCulture)) yield return c;
+                            if (value is '"' or '\\') { yield return '\\'; yield return value; }
+                            else if (value < 32)
+                            {
+                                foreach (char c in "\\u" + value.ToString("x4", CultureInfo.InvariantCulture)) yield return c;
+                            }
+                            else yield return value;
                         }
-                        else yield return value;
+                        yield return '"';
                     }
-                    yield return '"';
+                    else foreach (char c in current.Ordinal.ToString(CultureInfo.InvariantCulture)) yield return c;
+                    yield return ']';
                 }
-                else foreach (char c in current.Ordinal.ToString(CultureInfo.InvariantCulture)) yield return c;
-                yield return ']';
-            }
-            else
-            {
-                yield return '/';
-                if (current.Kind == StructureKind.XmlNamespace)
+                else
                 {
-                    foreach (char c in "namespace::*[name()='") yield return c;
-                    bool afterColon = false;
-                    foreach (int value in values.ReadName(current))
+                    yield return '/';
+                    if (current.Kind == StructureKind.XmlNamespace)
                     {
-                        if (afterColon) yield return value;
-                        else if (value == ':') afterColon = true;
+                        foreach (char c in "namespace::*[name()='") yield return c;
+                        bool afterColon = false;
+                        foreach (int value in values.ReadName(current))
+                        {
+                            if (afterColon) yield return value;
+                            else if (value == ':') afterColon = true;
+                        }
+                        foreach (char c in "']") yield return c;
+                        continue;
                     }
-                    foreach (char c in "']") yield return c;
-                    continue;
+                    bool attribute = current.Kind == StructureKind.XmlAttribute;
+                    foreach (char c in attribute ? "@*[" : "node()[") yield return c;
+                    long position = PositionOf(current);
+                    foreach (char c in position.ToString(CultureInfo.InvariantCulture)) yield return c;
+                    yield return ']';
                 }
-                bool attribute = current.Kind == StructureKind.XmlAttribute;
-                foreach (char c in attribute ? "@*[" : "node()[") yield return c;
-                long position = 0;
-                var parent = index.ReadNode(current.ParentId);
-                for (long id = parent.Id + 1; id <= current.Id;)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var sibling = index.ReadNode(id);
-                    if (attribute ? sibling.Kind == StructureKind.XmlAttribute
-                        : sibling.Kind is not (StructureKind.XmlAttribute or StructureKind.XmlNamespace)) position++;
-                    id = sibling.LastDescendantId + 1;
-                }
-                foreach (char c in position.ToString(CultureInfo.InvariantCulture)) yield return c;
-                yield return ']';
             }
+        }
+
+        private long PositionOf(StructureNode node)
+        {
+            long nextId = node.ParentId + 1, nodes = 0, attributes = 0;
+            if (positions.TryGetValue(node.ParentId, out var saved))
+            {
+                if (saved.LastId == node.Id) return saved.Position;
+                if (saved.LastId < node.Id) (nextId, nodes, attributes) = (saved.NextId, saved.Nodes, saved.Attributes);
+            }
+            for (long id = nextId; id <= node.Id;)
+            {
+                ct.ThrowIfCancellationRequested();
+                var sibling = index.ReadNode(id);
+                if (sibling.Kind == StructureKind.XmlAttribute) attributes++;
+                else if (sibling.Kind != StructureKind.XmlNamespace && StructureXmlNodes.IsXPathNode(index, sibling, ct)) nodes++;
+                nextId = sibling.LastDescendantId + 1;
+                id = nextId;
+            }
+            long position = node.Kind == StructureKind.XmlAttribute ? attributes : nodes;
+            if (positions.Count >= 4096) positions.Clear();
+            positions[node.ParentId] = new(node.Id, nextId, nodes, attributes, position);
+            return position;
         }
     }
 }

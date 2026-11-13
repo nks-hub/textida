@@ -141,9 +141,9 @@ public sealed partial class StructureQuery
                 Test.JsonWildcard => IsJson(node.Kind) && node.ParentId >= 0 && IsJson(index.ReadNode(node.ParentId).Kind),
                 Test.XmlElement => node.Kind == StructureKind.XmlElement && MatchesXmlName(node, name!),
                 Test.XmlAttribute => node.Kind == StructureKind.XmlAttribute && MatchesXmlName(node, name!),
-                Test.XmlText => node.Kind is StructureKind.XmlText or StructureKind.XmlCData,
-                Test.XmlNode => node.Kind is StructureKind.XmlElement or StructureKind.XmlText or StructureKind.XmlCData
-                    or StructureKind.XmlComment or StructureKind.XmlProcessingInstruction,
+                Test.XmlText => StructureXmlNodes.IsText(node) && StructureXmlNodes.IsXPathNode(index, node, ct),
+                Test.XmlNode => node.Kind is not (StructureKind.Document or StructureKind.XmlAttribute)
+                    && StructureXmlNodes.IsXPathNode(index, node, ct),
                 Test.XmlComment => node.Kind == StructureKind.XmlComment,
                 _ => false,
             };
