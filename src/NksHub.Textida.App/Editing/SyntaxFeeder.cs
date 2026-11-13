@@ -22,6 +22,7 @@ internal sealed class SyntaxFeeder : IDisposable
     internal const int MaxRows = 1024, MaxColumns = 65536;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(6);
     private static readonly TimeSpan BackgroundSlice = TimeSpan.FromMilliseconds(16);
+    private static readonly TimeSpan ContinuationDelay = TimeSpan.FromMilliseconds(4);
     private static readonly TimeSpan ShowPendingAfter = TimeSpan.FromMilliseconds(150);
 
     private readonly OpenDocument _doc;
@@ -42,12 +43,12 @@ internal sealed class SyntaxFeeder : IDisposable
     private long _pendingSince;
     private bool _pending;
     private bool _lineTooLong;
-    private bool _queued;
     private bool _isDragging, _dragDeferred;
     private bool _disposed;
     private Visual? _view;
     private int _rowLimit = MaxRows, _columnLimit = MaxColumns;
     private readonly DispatcherTimer? _settleTimer;
+    private readonly DispatcherTimer _continuationTimer;
 
     /// <param name="apply">Receives the tokens of a complete viewport.</param>
     /// <param name="clear">Drops all tokens; called when the grammar or the document changes and for lines the grammar cannot handle.</param>
@@ -57,6 +58,12 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <param name="settle">When set, an edit is followed by one new request after this quiet time instead of at once; for views that are not the one being typed in.</param>
     public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount, Action viewRequested, TimeSpan? settle = null)
     {
+        _continuationTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = ContinuationDelay };
+        _continuationTimer.Tick += (_, _) =>
+        {
+            _continuationTimer.Stop();
+            if (!_disposed) Run();
+        };
         if (settle is { } quiet)
         {
             var timer = new DispatcherTimer { Interval = quiet };
@@ -318,7 +325,7 @@ internal sealed class SyntaxFeeder : IDisposable
         return true;
     }
 
-    private void Run(TimeSpan? slice = null)
+    private void Run()
     {
         if (_session is null || _wanted.First < 0) return;
         if (_requested != _wanted)
@@ -332,7 +339,7 @@ internal sealed class SyntaxFeeder : IDisposable
         SyntaxViewport result;
         ViewportRuns++;
         long tRun = Core.TypingTrace.Begin();
-        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
+        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
             Abandon();
@@ -374,13 +381,9 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void Queue()
     {
-        if (_queued) return;
-        _queued = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _queued = false;
-            if (!_disposed) Run(BackgroundSlice);
-        }, DispatcherPriority.Background);
+        if (_disposed || _continuationTimer.IsEnabled) return;
+        // Leave a 4 ms gap after each 6 ms slice so lower-priority dispatcher work can run too.
+        _continuationTimer.Start();
     }
 
     private void SetPending(bool value)
@@ -425,6 +428,7 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void Release()
     {
+        _continuationTimer.Stop();
         if (_bound is not null) _bound.Changed -= OnChanged;
         _session?.Dispose();
         _session = null;
