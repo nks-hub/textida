@@ -51,9 +51,25 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         public long ArmedAt { get; } = Stopwatch.GetTimestamp();
         public long InputAt;
         public bool Acknowledged;
+        public long FirstSelectionCompletedQpc, LastSelectionCompletedQpc;
+        public int SelectionCompletedCount;
+        public WorkingObservation? WorkingObservation;
+        public long FirstAnimationFrameCallbackQpc;
+        public int AnimationFrameCallbackCount;
+        public long FirstPaintQpc;
+        public int PaintAttempts;
+        public PaintObservation? FirstPaintState;
         public IBrush First { get; } = ColorBrush(arm.Marker);
         public IBrush Second { get; } = ColorBrush(arm.Marker ^ 0xFFFFFF);
     }
+    private sealed class WorkingObservation(int selectionCount, string kind)
+    {
+        public int SelectionCount { get; } = selectionCount;
+        public string Kind { get; } = kind;
+        public long ObservedCompleteQpc;
+    }
+    private sealed record PaintObservation(bool WorkingComplete, bool ParsingComplete, bool ViewArrangeValid,
+        bool ViewMeasureValid, bool TreeArrangeValid, bool TreeMeasureValid, bool TargetArrangeValid, bool TargetMeasureValid);
     private sealed record Visible(Pending Sample, State State);
     private readonly record struct TreeKey(Key Key, long ObservedQpc, long? FocusedNodeId);
 
@@ -233,7 +249,26 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         Record("input.jsonl", actual);
         ObserveInput(actual);
     }
-    private void OnSelection(object? sender, SelectionChangedEventArgs e) => markerControl?.InvalidateVisual();
+    private void OnSelection(object? sender, SelectionChangedEventArgs e)
+    {
+        if (pending is { Acknowledged: true, InputAt: > 0 } sample)
+        {
+            long observed = Stopwatch.GetTimestamp();
+            if (sample.SelectionCompletedCount++ == 0) sample.FirstSelectionCompletedQpc = observed;
+            sample.LastSelectionCompletedQpc = observed;
+            Task working = view.Working;
+            bool completed = working.IsCompleted;
+            var observation = new WorkingObservation(sample.SelectionCompletedCount, completed ? "already-complete" : "continuation");
+            sample.WorkingObservation = observation;
+            if (completed) Interlocked.CompareExchange(ref observation.ObservedCompleteQpc, Stopwatch.GetTimestamp(), 0);
+            else _ = working.ContinueWith(static (_, state) =>
+            {
+                var captured = (WorkingObservation)state!;
+                Interlocked.CompareExchange(ref captured.ObservedCompleteQpc, Stopwatch.GetTimestamp(), 0);
+            }, observation, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
+        markerControl?.InvalidateVisual();
+    }
     private void OnScroll(object? sender, ScrollChangedEventArgs e) => markerControl?.InvalidateVisual();
     private void OnLayout(object? sender, EventArgs e) { if (pending is not null || visible is not null) markerControl?.InvalidateVisual(); }
 
@@ -243,19 +278,29 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         frameScheduled = true;
         window.RequestAnimationFrame(_ =>
         {
+            long observed = Stopwatch.GetTimestamp();
             frameScheduled = false;
-            if (pending is { InputAt: > 0 }) { markerControl?.InvalidateVisual(); ScheduleFrame(); }
+            if (pending is { InputAt: > 0 } sample)
+            {
+                if (sample.AnimationFrameCallbackCount++ == 0) sample.FirstAnimationFrameCallbackQpc = observed;
+                markerControl?.InvalidateVisual(); ScheduleFrame();
+            }
         });
     }
 
     private void Paint(DrawingContext context, FrameMarker marker)
     {
+        if (pending is { Acknowledged: true, InputAt: > 0 } attempted && attempted.PaintAttempts++ == 0)
+            attempted.FirstPaintQpc = Stopwatch.GetTimestamp();
         if (stopped.IsCancellationRequested || !EnsureMarker()) return;
         Pending? drawn = null;
         State? drawnState = null;
         if (pending is { Acknowledged: true, InputAt: > 0 } sample)
         {
             var state = CaptureState(sample.Target);
+            if (sample.PaintAttempts == 1)
+                sample.FirstPaintState = new(state.WorkingComplete, state.ParsingComplete, view.IsArrangeValid, view.IsMeasureValid,
+                    view.Tree.IsArrangeValid, view.Tree.IsMeasureValid, sample.Target.IsArrangeValid, sample.Target.IsMeasureValid);
             if (Complete(sample, state) && sample.Points == Points())
             {
                 visible = new(sample, state);

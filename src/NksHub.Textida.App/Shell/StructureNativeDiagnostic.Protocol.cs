@@ -226,7 +226,27 @@ internal sealed partial class StructureNativeDiagnostic
         result["lastPointer"] = lastPointer?.DeepClone();
         result["lastWheel"] = lastWheel?.DeepClone();
         result["inspectionNonce"] = lastInspectionNonce;
+        result["gc"] = GcJson();
         return result;
+    }
+
+    private static JsonObject GcJson()
+    {
+        long observed = Stopwatch.GetTimestamp();
+        var last = GC.GetGCMemoryInfo();
+        return new()
+        {
+            ["observedQpc"] = observed,
+            ["estimatedManagedBytes"] = GC.GetTotalMemory(false),
+            ["estimatedTotalAllocatedBytes"] = GC.GetTotalAllocatedBytes(false),
+            ["collectionCount0"] = GC.CollectionCount(0),
+            ["collectionCount1"] = GC.CollectionCount(1),
+            ["collectionCount2"] = GC.CollectionCount(2),
+            ["lastGCIndex"] = last.Index,
+            ["lastGCHeapSizeBytes"] = last.Index > 0 ? last.HeapSizeBytes : null,
+            ["lastGCTotalCommittedBytes"] = last.Index > 0 ? last.TotalCommittedBytes : null,
+            ["lastGCFragmentedBytes"] = last.Index > 0 ? last.FragmentedBytes : null,
+        };
     }
 
     private JsonObject FocusJson()
@@ -290,6 +310,25 @@ internal sealed partial class StructureNativeDiagnostic
         result["targetParentNodeId"] = sample.Target.Tag is StructureNode data ? data.ParentId : null;
         result["inspectionNonce"] = sample.InspectionNonce;
         result["inputEvent"] = sample.InputEvent?.DeepClone();
+        result["firstSelectionCompletedQpc"] = sample.FirstSelectionCompletedQpc > 0 ? sample.FirstSelectionCompletedQpc : null;
+        result["lastSelectionCompletedQpc"] = sample.LastSelectionCompletedQpc > 0 ? sample.LastSelectionCompletedQpc : null;
+        result["selectionCompletedCount"] = sample.SelectionCompletedCount;
+        var working = sample.WorkingObservation;
+        long workingObserved = working is null ? 0 : Interlocked.Read(ref working.ObservedCompleteQpc);
+        result["workingObservedCompleteQpc"] = workingObserved > 0 ? workingObserved : null;
+        result["workingObservedCompleteKind"] = workingObserved > 0 ? working!.Kind : null;
+        result["workingObservedForSelectionCount"] = working?.SelectionCount;
+        result["firstAnimationFrameCallbackQpc"] = sample.FirstAnimationFrameCallbackQpc > 0 ? sample.FirstAnimationFrameCallbackQpc : null;
+        result["animationFrameCallbackCount"] = sample.AnimationFrameCallbackCount;
+        result["firstPaintQpc"] = sample.FirstPaintQpc > 0 ? sample.FirstPaintQpc : null;
+        result["paintAttempts"] = sample.PaintAttempts;
+        result["firstPaintState"] = sample.FirstPaintState is { } first ? new JsonObject
+        {
+            ["workingComplete"] = first.WorkingComplete, ["parsingComplete"] = first.ParsingComplete,
+            ["viewArrangeValid"] = first.ViewArrangeValid, ["viewMeasureValid"] = first.ViewMeasureValid,
+            ["treeArrangeValid"] = first.TreeArrangeValid, ["treeMeasureValid"] = first.TreeMeasureValid,
+            ["targetArrangeValid"] = first.TargetArrangeValid, ["targetMeasureValid"] = first.TargetMeasureValid,
+        } : null;
         return result;
     }
 
