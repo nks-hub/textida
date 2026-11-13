@@ -74,6 +74,10 @@ public static class CommandPalette
             return strings.Get("reason.hasDocument.false");
         }
 
+        if (context.Get(ContextKeys.JsonViewSupported) == "false"
+            && (enablement.Keys.Contains(ContextKeys.JsonViewSupported) || enablement.Keys.Contains(ContextKeys.JsonEncodingSupported)))
+            return strings.Get("reason.jsonViewSupported.false");
+
         if (enablement.Keys.Contains(ContextKeys.JsonEncodingSupported) && context.Get(ContextKeys.JsonEncodingSupported) != "true")
             return strings.Get("reason.jsonEncodingSupported.false");
 

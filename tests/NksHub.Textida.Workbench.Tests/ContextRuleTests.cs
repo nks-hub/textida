@@ -186,8 +186,8 @@ public class ContextRuleTests
                 Assert.Equal(strings.Get("reason.jsonEncodingSupported.false"), item.DisabledReason);
             }
             var custom = CommandPalette.Query(host.Commands, keymap, strings,
-                Text().Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
-            foreach (var id in jsonCommands.Take(2))
+                Text().Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.JsonEncodingSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
+            foreach (var id in jsonCommands)
             {
                 var item = custom.Single(h => h.CommandId == id);
                 Assert.False(item.Enabled);

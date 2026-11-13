@@ -193,6 +193,7 @@ public class MenuByFileKindTests : IDisposable
             {
                 string reason = kind == "none" ? "reason.hasDocument.false"
                     : name == "toggleTable" ? "reason.tableViewSupported.false"
+                    : kind is "markdownPage" or "picture" or "hex" or "binary" or "results" ? "reason.jsonViewSupported.false"
                     : name is "jsonSource" or "jsonExpand" ? "reason.jsonPretty.false" : "reason.jsonViewSupported.false";
                 Assert.Equal(_app.Workbench.Strings.Get(reason), item.DisabledReason);
             }
