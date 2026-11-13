@@ -395,6 +395,7 @@ Nový produkční projekt nahradí prototyp. Od začátku běží pod NativeAOT 
   - **Odhad:** bez odhadu
 - [ ] **P1.1.3** Vzhled D5 na Windows a macOS
   - **Co a proč:** D5 je jediný produkční vzhled. Na Windows menu v titulkovém pruhu a karty pod ním, Mica, systémový akcent. Na macOS skutečný AppKit: karty v titulku vedle semaforu, menu v systémové liště, zkratky ⌘. Témata světlé a tmavé; barvy PSPadu se nenačítají (import až po 1.0). Na Windows 10 není Mica, pozadí je jednobarevné podle tématu (R10).
+  - **Hlášená chyba 13. 11. 2026:** Na macOS nejde přesunout okno tažením za volné místo v liště záložek. Ověřit, zda oblast pro karty nezachytává tažení; volné místo musí přesouvat celé okno a tažení samotné karty má dál přesouvat kartu.
   - **Funkce:** F105, F008, F068
   - **Stav 26. 10. 2026:** D5 shell na Windows se světlým i tmavým tématem a Mica na Windows 11; review proti D5 (1. kolo) našlo odchylky: menu jen 4 položky, chybí čísla řádků, minimapa, tečka neuložené karty a stavový řádek podle D5. macOS vzhled bez snímku, DPI, Windows 10 22H2 a macOS 14 neověřeno.
   - **Hotovo, když:** hlavní okno na obou OS odpovídá měření kap. D5: nahoře jen menu a karty, žádný pruh tlačítek; na každém OS se navíc funkčně ověří menu, titulková oblast, fokus, přepnutí světlého a tmavého tématu za běhu, změna DPI a dostupnost skrytých panelů z klávesnice; na Windows 10 22H2 má okno jednobarevné pozadí podle tématu.
