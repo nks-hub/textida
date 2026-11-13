@@ -24,6 +24,7 @@ internal sealed partial class MainWindow
         var view = new StructureView(StructureSourceOfActive,
             async text => { if (Clipboard is { } clipboard) { RememberCopy(text); await clipboard.SetTextAsync(text); } },
             (title, label, initial) => _app.Dialogs.PromptValueAsync(this, title, label, initial, StructureEdits.MaxInputChars));
+        StructureNativeDiagnostic.Attach(this, view, StructureSourceOfActive);
         _structureTool.View = view;
         Closed += (_, _) =>
         {
