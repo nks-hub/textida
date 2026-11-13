@@ -1,13 +1,18 @@
 using System.Text;
 using System.Runtime.InteropServices;
 using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
@@ -61,6 +66,59 @@ public class JsonPrettyViewTests : IDisposable
         _w.UpdateLayout();
         view.Focus();
         return view;
+    }
+
+    [AvaloniaFact]
+    public async Task Go_to_key_from_raw_json_keeps_focus_in_the_real_prompt_after_queued_view_focus()
+    {
+        var tab = Open(Sample);
+        Assert.False(tab.JsonShown);
+        var dialogs = new AvaloniaDialogs();
+        Window? dialog = null;
+        bool opened = false;
+        IInputElement? openedFocus = null;
+        dialogs.Shown = window =>
+        {
+            dialog = window;
+            window.Opened += (_, _) =>
+            {
+                opened = true;
+                openedFocus = window.FocusManager?.GetFocusedElement();
+            };
+        };
+        _app.Dialogs = dialogs;
+        Task? command = null;
+        try
+        {
+            command = _w.GoToJsonKeyAsync();
+            var prompt = Assert.IsType<Window>(dialog);
+            Assert.True(opened);
+            Assert.False(command.IsCompleted);
+            Assert.True(tab.JsonShown);
+            Assert.Equal(Loc.Get(K.JsonGoToKeyTitle), prompt.Title);
+            var input = Assert.Single(prompt.GetVisualDescendants().OfType<TextBox>());
+            Assert.Equal(Loc.Get(K.JsonGoToKeyLabel), AutomationProperties.GetName(input));
+            Assert.Same(input, openedFocus);
+
+            prompt.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(prompt.IsVisible);
+            Assert.Same(input, prompt.FocusManager!.GetFocusedElement());
+
+            var cancel = prompt.GetVisualDescendants().OfType<Button>().Single(button => button.IsCancel);
+            cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await command.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.False(prompt.IsVisible);
+            Assert.Equal(Sample, Text(tab));
+            Assert.False(tab.Doc.Doc.IsModified);
+            Assert.True(await _w.CloseTabAsync(tab).WaitAsync(TimeSpan.FromSeconds(30)));
+        }
+        finally
+        {
+            _app.Dialogs = _dialogs;
+            dialog?.Close(null);
+            if (command is not null) await command.WaitAsync(TimeSpan.FromSeconds(30));
+        }
     }
 
     private static void Scan(JsonPrettyView view)
