@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Threading;
@@ -68,21 +69,28 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         this.copy = copy;
         this.prompt = prompt;
         var commands = Bar(refresh, cancel, up, jump, copyPath, copySource, edit);
-        var search = new Grid { ColumnDefinitions = new("Auto,*,Auto,Auto"), ColumnSpacing = 4 };
+        var search = new StackPanel { Spacing = 4 };
         search.Children.Add(scope);
-        Grid.SetColumn(filter, 1); search.Children.Add(filter);
-        Grid.SetColumn(find, 2); search.Children.Add(find);
-        Grid.SetColumn(clear, 3); search.Children.Add(clear);
+        search.Children.Add(filter);
+        search.Children.Add(Bar(find, clear));
         var paging = Bar(previous, next);
         var problems = Bar(issue, nextIssue);
         var top = new StackPanel { Spacing = 4, Margin = new Thickness(6) };
         var counts = new StackPanel();
-        foreach (var kind in Enum.GetValues<StructureKind>()) { var label = new TextBlock(); countLabels.Add(kind, label); counts.Children.Add(label); }
+        foreach (var kind in Enum.GetValues<StructureKind>()) { var label = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap }; countLabels.Add(kind, label); counts.Children.Add(label); }
         typeCounts.Content = counts;
         top.Children.Add(commands); top.Children.Add(search); top.Children.Add(namespaces);
         top.Children.Add(syntax); top.Children.Add(status); top.Children.Add(typeCounts); top.Children.Add(problems); top.Children.Add(paging);
-        SetDock(top, Dock.Top);
-        Children.Add(top); Children.Add(tree);
+        var controls = new ScrollViewer
+        {
+            Name = "StructureControlsScroll", Content = top,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        };
+        var body = new Grid { RowDefinitions = new("*,*") };
+        body.Children.Add(controls);
+        Grid.SetRow(tree, 1); body.Children.Add(tree);
+        Children.Add(body);
         refresh.Click += (_, _) => { if (!disposed) Invalidate(source()); };
         cancel.Click += (_, _) => { session?.Cancellation.Cancel(); SetStatus(K.StructureCancelled); UpdateButtons(); };
         up.Click += (_, _) => ShowParent();
