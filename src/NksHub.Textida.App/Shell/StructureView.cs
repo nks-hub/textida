@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -113,6 +114,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         filter.KeyDown += (_, e) => { if (e.Key == Key.Enter) { StartResults(0); e.Handled = true; } };
         tree.SelectionChanged += (_, _) => { UpdateButtons(); if (!selecting) Jump(); };
         tree.DoubleTapped += (_, e) => { if (!FromButton(e.Source)) Jump(); };
+        tree.AddHandler(KeyDownEvent, OnTreeKeyDown, RoutingStrategies.Tunnel);
         tree.KeyDown += (_, e) => { if (e.Key == Key.Enter && !FromButton(e.Source)) { Jump(); e.Handled = true; } };
         issue.Click += (_, _) => JumpIssue();
         nextIssue.Click += (_, _) => { issuePosition++; ShowIssues(); };
@@ -146,6 +148,17 @@ internal sealed partial class StructureView : DockPanel, IDisposable
 
     private static bool FromButton(object? value) => value is Visual visual
         && (visual is Button || visual.GetVisualAncestors().Any(ancestor => ancestor is Button));
+
+    private void OnTreeKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Handled || e.Key != Key.Left || e.KeyModifiers != KeyModifiers.None
+            || tree.SelectedItem is not TreeViewItem { Tag: StructureNode, IsExpanded: true, IsFocused: false } item
+            || !item.IsKeyboardFocusWithin || !rows.ContainsKey(item) || e.Source is not Visual sourceVisual
+            || !ReferenceEquals(sourceVisual.GetSelfAndVisualAncestors().OfType<TreeViewItem>().FirstOrDefault(), item)) return;
+        // Fluent focuses an inner border; its default Left only focuses the item instead of collapsing it.
+        item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
+        e.Handled = true;
+    }
 
     public void ApplyTexts()
     {
