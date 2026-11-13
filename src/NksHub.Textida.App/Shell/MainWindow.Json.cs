@@ -79,7 +79,7 @@ internal sealed partial class MainWindow
         if (on) tab.Json!.RevealOffset(offset, offset);
         else GoToByte(tab, offset);
         FocusView(tab);
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Active == tab) FocusView(tab); }, Avalonia.Threading.DispatcherPriority.Background);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Active == tab && !IsFocusInTextInput()) FocusView(tab); }, Avalonia.Threading.DispatcherPriority.Background);
         UpdateStatus();
         RefreshMenuIfContextChanged();
     }
