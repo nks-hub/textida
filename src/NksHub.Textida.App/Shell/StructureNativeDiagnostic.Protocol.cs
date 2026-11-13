@@ -326,11 +326,31 @@ internal sealed partial class StructureNativeDiagnostic
             operation = "WriteTemp";
             await File.WriteAllTextAsync(temp, json, ct).ConfigureAwait(false);
             operation = "MoveReplace";
+            Exception? retryReason = null;
             for (; ; retry++)
             {
                 ct.ThrowIfCancellationRequested();
+                if (retryReason is not null)
+                {
+                    var record = ErrorJson("publication-retry", retryReason, phase: "Publish:" + name);
+                    record["status"] = "retry";
+                    record["operation"] = operation;
+                    record["retry"] = retry;
+                    record["fileIo"] = new JsonObject
+                    {
+                        ["name"] = name, ["retry"] = retry,
+                        ["temp"] = PathState(temp), ["final"] = PathState(final), ["directory"] = PathState(directory),
+                    };
+                    Record("publication-retry.jsonl", record);
+                    retryReason = null;
+                }
                 try { File.Move(temp, final, overwrite: true); return; }
-                catch (IOException) when (retry < 4) { await Task.Delay(5, ct).ConfigureAwait(false); }
+                catch (Exception error) when (retry < 4 && (error is IOException
+                    || OperatingSystem.IsWindows() && error is UnauthorizedAccessException && unchecked((uint)error.HResult) == 0x80070005u))
+                {
+                    retryReason = error;
+                    await Task.Delay(5, ct).ConfigureAwait(false);
+                }
             }
         }
         catch (Exception error) when (error is not OperationCanceledException)
