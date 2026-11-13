@@ -40,12 +40,14 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
     private readonly record struct MarkerPoints(PixelPoint First, PixelPoint Second);
     private sealed record State(string? Selected, long? SelectedId, bool Expanded, int Children, bool WorkingComplete,
         bool ParsingComplete, double ScrollX, double ScrollY, int Items, bool TargetExists);
-    private sealed class Pending(Arm arm, TreeViewItem target, State initial, MarkerPoints points)
+    private sealed class Pending(Arm arm, TreeViewItem target, State initial, MarkerPoints points, string? inspectionNonce)
     {
         public Arm Arm { get; } = arm;
         public TreeViewItem Target { get; } = target;
         public State Initial { get; } = initial;
         public MarkerPoints Points { get; } = points;
+        public string? InspectionNonce { get; } = inspectionNonce;
+        public JsonObject? InputEvent;
         public long ArmedAt { get; } = Stopwatch.GetTimestamp();
         public long InputAt;
         public bool Acknowledged;
@@ -68,8 +70,8 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         this.source = source;
         this.directory = directory;
         view.Tree.AddHandler(InputElement.KeyDownEvent, OnKey, RoutingStrategies.Tunnel, handledEventsToo: true);
-        view.Tree.AddHandler(InputElement.PointerPressedEvent, OnPointer, RoutingStrategies.Tunnel, handledEventsToo: true);
-        view.Tree.AddHandler(InputElement.PointerWheelChangedEvent, OnWheel, RoutingStrategies.Tunnel, handledEventsToo: true);
+        window.AddHandler(InputElement.PointerPressedEvent, OnPointer, RoutingStrategies.Tunnel, handledEventsToo: true);
+        window.AddHandler(InputElement.PointerWheelChangedEvent, OnWheel, RoutingStrategies.Tunnel, handledEventsToo: true);
         view.Tree.SelectionChanged += OnSelection;
         view.AddHandler(ScrollViewer.ScrollChangedEvent, OnScroll, RoutingStrategies.Bubble, handledEventsToo: true);
         view.LayoutUpdated += OnLayout;
@@ -127,7 +129,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         }
         if (arm.Action == "scroll" && Scroller() is null) throw new InvalidOperationException("The tree has no scroll viewport.");
         visible = null;
-        pending = new(arm, target, initial, Points());
+        pending = new(arm, target, initial, Points(), lastInspectionNonce);
         markerControl!.InvalidateVisual();
         return pending;
     }
@@ -178,10 +180,25 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         };
     }
 
-    private void ObserveInput()
+    private void ObserveInput(JsonObject actual)
     {
         if (pending is not { Acknowledged: true, InputAt: 0 } sample) return;
-        sample.InputAt = Stopwatch.GetTimestamp();
+        if (actual["inTree"]?.GetValue<bool>() != true) return;
+        string? kind = actual["kind"]?.GetValue<string>();
+        if (sample.InspectionNonce is { } nonce)
+        {
+            if (actual["inspectionNonce"]?.GetValue<string>() != nonce) return;
+            string expected = sample.Arm.Action switch { "select" => "pointer", "expand" or "collapse" => "key", "scroll" => "wheel", _ => "" };
+            if (kind != expected || kind == "pointer" && actual["inHeader"]?.GetValue<bool>() != true) return;
+        }
+        if (sample.Arm.Action != "scroll")
+        {
+            long? nodeId = kind == "key" ? actual["keyTargetNodeId"]?.GetValue<long>() : actual["nodeId"]?.GetValue<long>();
+            if (sample.Target.Tag is not StructureNode node || nodeId != node.Id) return;
+        }
+        else if (kind is not ("key" or "wheel")) return;
+        sample.InputAt = actual["observedQpc"]!.GetValue<long>();
+        sample.InputEvent = (JsonObject)actual.DeepClone();
         ScheduleFrame();
     }
 
@@ -190,10 +207,32 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         long observed = Stopwatch.GetTimestamp();
         var focusedItem = FocusedTreeItem(window.FocusManager?.GetFocusedElement());
         lastTreeKey = new(e.Key, observed, focusedItem?.Tag is StructureNode node ? node.Id : null);
-        if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Space or Key.Enter) ObserveInput();
+        var actual = InputJson("key", e.Source, observed);
+        actual["key"] = e.Key.ToString();
+        actual["focus"] = FocusJson();
+        var keyTarget = focusedItem ?? (ReferenceEquals(window.FocusManager?.GetFocusedElement(), view.Tree) ? view.Tree.SelectedItem as TreeViewItem : null);
+        actual["keyTargetNodeId"] = keyTarget?.Tag is StructureNode keyNode ? keyNode.Id : null;
+        Record("input.jsonl", actual);
+        if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Space or Key.Enter) ObserveInput(actual);
     }
-    private void OnPointer(object? sender, PointerPressedEventArgs e) => ObserveInput();
-    private void OnWheel(object? sender, PointerWheelEventArgs e) => ObserveInput();
+    private void OnPointer(object? sender, PointerPressedEventArgs e)
+    {
+        long observed = Stopwatch.GetTimestamp();
+        var actual = InputJson("pointer", e.Source, observed, window.PointToScreen(e.GetPosition(window)));
+        actual["button"] = e.GetCurrentPoint(window).Properties.PointerUpdateKind.ToString();
+        lastPointer = actual;
+        Record("input.jsonl", actual);
+        ObserveInput(actual);
+    }
+    private void OnWheel(object? sender, PointerWheelEventArgs e)
+    {
+        long observed = Stopwatch.GetTimestamp();
+        var actual = InputJson("wheel", e.Source, observed, window.PointToScreen(e.GetPosition(window)));
+        actual["deltaX"] = e.Delta.X; actual["deltaY"] = e.Delta.Y;
+        lastWheel = actual;
+        Record("input.jsonl", actual);
+        ObserveInput(actual);
+    }
     private void OnSelection(object? sender, SelectionChangedEventArgs e) => markerControl?.InvalidateVisual();
     private void OnScroll(object? sender, ScrollChangedEventArgs e) => markerControl?.InvalidateVisual();
     private void OnLayout(object? sender, EventArgs e) { if (pending is not null || visible is not null) markerControl?.InvalidateVisual(); }
@@ -254,8 +293,8 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         stopped.Cancel();
         pending = null; visible = null;
         view.Tree.RemoveHandler(InputElement.KeyDownEvent, OnKey);
-        view.Tree.RemoveHandler(InputElement.PointerPressedEvent, OnPointer);
-        view.Tree.RemoveHandler(InputElement.PointerWheelChangedEvent, OnWheel);
+        window.RemoveHandler(InputElement.PointerPressedEvent, OnPointer);
+        window.RemoveHandler(InputElement.PointerWheelChangedEvent, OnWheel);
         view.Tree.SelectionChanged -= OnSelection;
         view.RemoveHandler(ScrollViewer.ScrollChangedEvent, OnScroll);
         view.LayoutUpdated -= OnLayout;

@@ -22,6 +22,7 @@ internal sealed partial class StructureNativeDiagnostic
     private async Task PollAsync()
     {
         string? previousArm = null;
+        string? previousInspection = null;
         string phase = "CreateDirectory";
         try
         {
@@ -44,6 +45,31 @@ internal sealed partial class StructureNativeDiagnostic
                 {
                     phase = "Publish:" + name;
                     await WriteAtomicAsync(name, record, stopped.Token).ConfigureAwait(false);
+                }
+                phase = "ReadInspection";
+                string? inspection = ReadRequest("inspect.json", 32768, "Inspection");
+                if (inspection is not null && inspection != previousInspection)
+                {
+                    previousInspection = inspection;
+                    Inspection? parsed = null;
+                    try
+                    {
+                        phase = "ParseInspection";
+                        parsed = ParseInspection(inspection);
+                        phase = "CaptureInspection";
+                        var response = await Dispatcher.UIThread.InvokeAsync(() => Inspect(parsed), DispatcherPriority.Background);
+                        phase = "Publish:inspection.json";
+                        await WriteAtomicAsync("inspection.json", response, stopped.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception error) when (error is not OperationCanceledException)
+                    {
+                        var record = ErrorJson("inspection", error, phase: phase);
+                        record["inspectionNonce"] = parsed?.Nonce;
+                        record["requestedTarget"] = parsed?.Target;
+                        record["result"] = "error";
+                        Record("error.jsonl", record);
+                        await WriteAtomicAsync("inspection.json", record, stopped.Token).ConfigureAwait(false);
+                    }
                 }
                 phase = "ReadArm";
                 string? request = ReadArm();
@@ -126,19 +152,24 @@ internal sealed partial class StructureNativeDiagnostic
         return records;
     }
 
-    private string? ReadArm()
+    private string? ReadArm() => ReadRequest("arm.json", 16384, "Arm");
+
+    private string? ReadRequest(string name, int maximumBytes, string kind)
     {
-        string path = Path.Combine(directory, "arm.json");
+        string path = Path.Combine(directory, name);
         if (!File.Exists(path)) return null;
-        string operation = "OpenArm";
+        string operation = "Open" + kind;
         try
         {
             using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            operation = "ReadArmLength";
-            if (file.Length is < 2 or > 16384) throw new InvalidDataException("The arm request must contain 2 to 16384 bytes.");
-            operation = "ReadArmText";
-            using var reader = new StreamReader(file, Encoding.UTF8, detectEncodingFromByteOrderMarks: false);
-            return reader.ReadToEnd();
+            operation = "Read" + kind + "Length";
+            if (file.Length < 2 || file.Length > maximumBytes) throw new InvalidDataException($"The {kind} request must contain 2 to {maximumBytes} bytes.");
+            operation = "Read" + kind + "Text";
+            var bytes = new byte[(int)file.Length];
+            file.ReadExactly(bytes);
+            if (file.ReadByte() != -1) throw new InvalidDataException("The request grew while it was being read.");
+            int preamble = bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }) ? 3 : 0;
+            return new UTF8Encoding(false, true).GetString(bytes.AsSpan(preamble));
         }
         catch (Exception error)
         {
@@ -192,6 +223,9 @@ internal sealed partial class StructureNativeDiagnostic
         {
             ["key"] = key.Key.ToString(), ["observedQpc"] = key.ObservedQpc, ["focusedNodeId"] = key.FocusedNodeId,
         } : null;
+        result["lastPointer"] = lastPointer?.DeepClone();
+        result["lastWheel"] = lastWheel?.DeepClone();
+        result["inspectionNonce"] = lastInspectionNonce;
         return result;
     }
 
@@ -252,6 +286,10 @@ internal sealed partial class StructureNativeDiagnostic
         result["points"] = PointsJson(sample.Points);
         result["viewport"] = ViewportJson();
         result["initialState"] = StateJson(sample.Initial);
+        result["targetNodeId"] = sample.Target.Tag is StructureNode node ? node.Id : null;
+        result["targetParentNodeId"] = sample.Target.Tag is StructureNode data ? data.ParentId : null;
+        result["inspectionNonce"] = sample.InspectionNonce;
+        result["inputEvent"] = sample.InputEvent?.DeepClone();
         return result;
     }
 
