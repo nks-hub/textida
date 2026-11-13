@@ -1,0 +1,257 @@
+using System.Globalization;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Data.Structure;
+using NksHub.Textida.Core.Documents;
+
+namespace NksHub.Textida.App.Shell;
+
+internal sealed partial class StructureView
+{
+    private sealed record RowData(StructureNode Node, string Name, string Value, ByteRange? ResultRange = null)
+    {
+        public ByteRange Range => ResultRange ?? Node.Range;
+        public bool Grouped => ResultRange.HasValue && ResultRange.Value != Node.Range;
+    }
+    private sealed record ChildPage(IReadOnlyList<RowData> Rows, long After, bool Complete);
+    private sealed class Row(RowData data, TreeViewItem item, TextBlock marker, TextBlock heading, TextBlock value, Row? parent)
+    {
+        public RowData Data { get; } = data;
+        public TreeViewItem Item { get; } = item;
+        public TextBlock Marker { get; } = marker;
+        public TextBlock Heading { get; } = heading;
+        public TextBlock Value { get; } = value;
+        public Row? Parent { get; } = parent;
+        public long Touched, RequestId;
+        public bool Loaded, Loading;
+        public Request? Request;
+    }
+    private long rootParentId = -1;
+    private readonly List<Row> markedRows = [];
+
+    private static RowData ReadRow(IStructureIndex index, StructureNode node, CancellationToken ct, StructureText.Reader? reader = null)
+    {
+        reader ??= new StructureText.Reader(index, ct);
+        var name = reader.ReadName(node, 160);
+        var value = node.Kind is StructureKind.Document or StructureKind.JsonArray or StructureKind.JsonObject or StructureKind.XmlElement
+            ? new StructurePreview("", false) : reader.ReadValue(node, 256);
+        return new(node, name.Text + (name.Truncated ? "…" : ""), value.Text + (value.Truncated ? "…" : ""));
+    }
+
+    private static ChildPage ReadPage(StructureIndex index, StructureNode parent, long after, CancellationToken ct)
+    {
+        var nodes = index.ReadChildren(parent.Id, after, PageSize, ct);
+        var result = new List<RowData>(nodes.Count);
+        var reader = new StructureText.Reader(index, ct);
+        foreach (var node in nodes) { ct.ThrowIfCancellationRequested(); result.Add(ReadRow(index, node, ct, reader)); }
+        return new(result, after, nodes.Count == 0 || nodes[^1].Ordinal + 1 >= parent.ChildCount);
+    }
+
+    private Row NewRow(RowData data, Row? parent)
+    {
+        var item = new TreeViewItem { Tag = data.Node };
+        var marker = new TextBlock { Width = 14, VerticalAlignment = VerticalAlignment.Center };
+        var heading = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700 };
+        var value = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700, FontSize = 11 };
+        var labels = new StackPanel(); labels.Children.Add(heading); labels.Children.Add(value);
+        var header = new StackPanel { Orientation = Orientation.Horizontal };
+        header.Children.Add(marker); header.Children.Add(labels); item.Header = header;
+        var row = new Row(data, item, marker, heading, value, parent) { Touched = ++clock };
+        rows.Add(item, row);
+        if (data.Node.ChildCount > 0) item.Items.Add(Placeholder());
+        item.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TreeViewItem.IsExpandedProperty || !rows.ContainsKey(item)) return;
+            row.Touched = ++clock;
+            if (!item.IsExpanded && row.Loading) { row.Request?.Cancel(); row.Loading = false; }
+            if (item.IsExpanded && !row.Loaded && !row.Loading) LoadChildren(row, -1);
+        };
+        Label(row);
+        return row;
+    }
+
+    private void Label(Row row)
+    {
+        var node = row.Data.Node;
+        string kind = Loc.Get("structure.kind." + node.Kind);
+        string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + node.Ordinal.ToString(CultureInfo.CurrentCulture) + "]";
+        row.Heading.Text = name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
+        row.Value.Text = row.Data.Value;
+        row.Value.IsVisible = row.Data.Value.Length > 0;
+        AutomationProperties.SetName(row.Item, row.Heading.Text + " " + row.Data.Value);
+    }
+
+    private static TreeViewItem Placeholder() => new() { Header = Loc.Get("structure.loading"), IsEnabled = false };
+
+    private void InstallRoot(RowData root, ChildPage page)
+        => Programmatic(() => InstallRootCore(root, page));
+
+    private void InstallRootCore(RowData root, ChildPage page)
+    {
+        ResetRows();
+        rootParentId = root.Node.ParentId;
+        var row = NewRow(root, null);
+        tree.Items.Add(row.Item);
+        InstallPage(row, page);
+        row.Item.IsExpanded = true;
+        showingResults = false;
+        UpdateButtons();
+    }
+
+    private void ResetRows()
+    {
+        treeVersion++;
+        foreach (var row in rows.Values) row.Request?.Cancel();
+        rows.Clear(); markedRows.Clear(); Programmatic(() => tree.Items.Clear()); rootParentId = -1;
+    }
+
+    private void RemoveChildren(Row row)
+    {
+        foreach (var item in row.Item.Items.OfType<TreeViewItem>().ToArray()) RemoveItem(item);
+        row.Item.Items.Clear();
+    }
+
+    private void RemoveItem(TreeViewItem item)
+    {
+        // Iterate the bounded visual tree; deep source trees never recurse on the managed call stack.
+        var pending = new Stack<TreeViewItem>(); pending.Push(item);
+        while (pending.TryPop(out var nextItem))
+        {
+            foreach (var child in nextItem.Items.OfType<TreeViewItem>()) pending.Push(child);
+            if (rows.Remove(nextItem, out var row)) row.Request?.Cancel();
+        }
+    }
+
+    private int CountItems()
+    {
+        int count = 0;
+        var pending = new Stack<TreeViewItem>(tree.Items.OfType<TreeViewItem>());
+        while (pending.TryPop(out var item))
+        {
+            count++;
+            foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
+        }
+        return count;
+    }
+
+    private static bool Protects(Row candidate, Row target)
+    {
+        for (Row? row = target; row != null; row = row.Parent) if (ReferenceEquals(row, candidate)) return true;
+        return false;
+    }
+
+    private Row MakeRoom(Row parent, int needed)
+    {
+        RemoveChildren(parent);
+        int depth = 0;
+        for (var ancestor = parent.Parent; ancestor != null; ancestor = ancestor.Parent) depth++;
+        if (depth >= MaximumRevealLevels) parent = Anchor(parent.Data);
+        while (CountItems() + needed > MaximumItems)
+        {
+            var victim = rows.Values.Where(row => row.Loaded && row.Item.Items.Count > 0 && !Protects(row, parent))
+                .OrderBy(row => row.Item.IsExpanded).ThenBy(row => row.Touched).FirstOrDefault();
+            if (victim != null)
+            {
+                victim.Request?.Cancel(); victim.RequestId++;
+                RemoveChildren(victim); victim.Loaded = false; victim.Loading = false;
+                victim.Item.IsExpanded = false;
+                if (victim.Data.Node.ChildCount > 0) victim.Item.Items.Add(Placeholder());
+                continue;
+            }
+            // A path can be deeper than the control cache. Keep its current subtree navigable via Parent.
+            parent = Anchor(parent.Data);
+            break;
+        }
+        return parent;
+    }
+
+    private Row Anchor(RowData data)
+    {
+        ResetRows(); rootParentId = data.Node.ParentId;
+        var row = NewRow(data, null); tree.Items.Add(row.Item); RemoveChildren(row);
+        return row;
+    }
+
+    private void InstallPage(Row original, ChildPage page)
+        => Programmatic(() => InstallPageCore(original, page));
+
+    private void InstallPageCore(Row original, ChildPage page)
+    {
+        treeVersion++;
+        int needed = page.Rows.Sum(row => row.Node.ChildCount > 0 ? 2 : 1) + 1;
+        Row parent = MakeRoom(original, needed);
+        foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
+        if (page.After >= 0 || !page.Complete)
+        {
+            var before = new Button { Content = Loc.Get("structure.previous"), IsEnabled = page.After >= 0 };
+            var after = new Button { Content = Loc.Get("structure.next"), IsEnabled = !page.Complete };
+            before.Click += (_, _) => LoadChildren(parent, page.After, previousPage: true);
+            after.Click += (_, _) => { if (page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
+            parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });
+        }
+        parent.Loaded = true; parent.Loading = false; parent.Touched = ++clock;
+        parent.Item.IsExpanded = true;
+        UpdateButtons();
+    }
+
+    private void LoadChildren(Row row, long after, bool previousPage = false)
+    {
+        if (session is not { Analysis.IsValid: true } owner || !Current(owner) || !rows.ContainsKey(row.Item)) return;
+        row.Request?.Cancel();
+        var request = row.Request = new Request(owner.Token);
+        long version = ++row.RequestId;
+        row.Loading = true;
+        Task task = Run(owner, ct =>
+        {
+            var index = owner.Analysis!.Index;
+            if (previousPage)
+            {
+                long ordinal = after < 0 ? 0 : index.ReadNode(after).Ordinal + 1;
+                long target = Math.Max(0, ordinal - PageSize);
+                after = -1;
+                for (long id = row.Data.Node.Id + 1; id <= row.Data.Node.LastDescendantId;)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var candidate = index.ReadNode(id);
+                    if (candidate.Ordinal >= target) break;
+                    after = candidate.Id; id = candidate.LastDescendantId + 1;
+                }
+            }
+            return ReadPage(index, row.Data.Node, after, ct);
+        }, page =>
+        {
+            if (!rows.ContainsKey(row.Item) || row.RequestId != version) return;
+            InstallPage(row, page); MarkCaret(owner, reveal: false);
+        }, request.Token);
+        _ = task.ContinueWith(_ =>
+        {
+            request.Dispose();
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (rows.ContainsKey(row.Item) && row.RequestId == version) row.Loading = false; });
+        }, TaskScheduler.Default);
+    }
+
+    private void ShowDocument()
+    {
+        filterRequest?.Cancel();
+        changing = true; filter.Text = ""; changing = false;
+        LoadRoot(0);
+    }
+
+    private void ShowParent() { if (rootParentId >= 0) LoadRoot(rootParentId); }
+
+    private void LoadRoot(long id)
+    {
+        if (session is not { Analysis.IsValid: true } owner || !Current(owner)) return;
+        Run(owner, ct =>
+        {
+            var index = owner.Analysis!.Index;
+            var node = index.ReadNode(id);
+            return (ReadRow(index, node, ct), ReadPage(index, node, -1, ct));
+        }, result => { InstallRoot(result.Item1, result.Item2); ShowStats(owner); MarkCaret(owner, reveal: false); });
+    }
+
+}

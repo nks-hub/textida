@@ -26,6 +26,7 @@ internal static class NavigationCommands
         Do("nks.file.openPathAtCaret", w => w.OpenPathAtCaret());
         Fire("nks.file.openFolder", w => w.OpenFolderWithDialogAsync());
         Do("nks.view.toggleFilePanel", w => w.ToggleFiles());
+        Do("nks.view.structure", w => w.ShowStructurePanel());
         Do("nks.files.toggleHidden", w => w.ToggleHiddenFiles());
         Do("nks.panel.dockLeft", w => w.DockCurrentPanel(PanelDock.Left));
         Do("nks.panel.dockRight", w => w.DockCurrentPanel(PanelDock.Right));

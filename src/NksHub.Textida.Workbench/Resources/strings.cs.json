@@ -829,5 +829,7 @@
   "reason.multipleCarets.false": "Je jen jeden kurzor",
   "reason.fileType": "Příkaz je pro jiný druh souboru",
   "cmd.file.clearRecent": "Vymazat seznam posledních souborů",
-  "submenu.recent": "Otevřít poslední"
+  "submenu.recent": "Otevřít poslední",
+  "cmd.view.structure": "Zobrazit strom JSON/XML",
+  "reason.structureSupported.false": "Toto zobrazení nepodporuje strom JSON/XML"
 }

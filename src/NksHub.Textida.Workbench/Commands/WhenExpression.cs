@@ -82,10 +82,11 @@ public static class ContextKeys
     public const string JsonPretty = "jsonPretty";
     public const string JsonViewSupported = "jsonViewSupported";
     public const string JsonEncodingSupported = "jsonEncodingSupported";
+    public const string StructureSupported = "structureSupported";
 
     public static IReadOnlyList<string> All { get; } =
         [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile,
-            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty, JsonViewSupported, JsonEncodingSupported, TableViewSupported, CanToggleComment, CodeOutline, LintSupported];
+            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty, JsonViewSupported, JsonEncodingSupported, StructureSupported, TableViewSupported, CanToggleComment, CodeOutline, LintSupported];
 
     /// <summary>The keys that decide which menu items are shown (<c>when</c>): when one of them changes for the active tab, the menu is built again. The others only grey an item and are asked as the menu opens.</summary>
     public static IReadOnlyList<string> MenuKeys { get; } =

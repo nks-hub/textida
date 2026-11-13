@@ -107,6 +107,7 @@ internal sealed partial class MainWindow
     {
         RefreshToolbarState();
         SyncHeadings();
+        SyncStructure();
         long part = Core.TypingTrace.Begin();
         CheckJournalHealth();
         Core.TypingTrace.End("win.status.journalHealth", part);

@@ -829,5 +829,7 @@
   "reason.multipleCarets.false": "Es gibt nur einen Cursor",
   "reason.fileType": "Der Befehl ist für eine andere Dateiart",
   "cmd.file.clearRecent": "Liste der zuletzt geöffneten Dateien leeren",
-  "submenu.recent": "Zuletzt geöffnet"
+  "submenu.recent": "Zuletzt geöffnet",
+  "cmd.view.structure": "JSON/XML-Struktur anzeigen",
+  "reason.structureSupported.false": "Diese Ansicht unterstützt keine JSON/XML-Struktur"
 }

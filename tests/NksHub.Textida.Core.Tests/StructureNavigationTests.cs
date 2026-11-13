@@ -87,6 +87,22 @@ public sealed class StructureNavigationTests
     }
 
     [Fact]
+    public void A_page_of_decoded_previews_reuses_its_source_buffer()
+    {
+        using var analysis = Parse("[" + string.Join(',', Enumerable.Repeat("\"value😀\"", 128)) + "]");
+        var index = analysis.Index;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        var reader = new StructureText.Reader(index);
+        foreach (var node in index.ReadChildren(1, -1, 128, CancellationToken.None))
+        {
+            Assert.Equal("", reader.ReadName(node).Text);
+            Assert.Equal("value😀", reader.ReadValue(node).Text);
+            Assert.Equal("value😀", reader.ReadResultValue(node).Text);
+        }
+        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 1, 512 * 1024);
+    }
+
+    [Fact]
     public void Invalid_analysis_preserves_the_source_and_does_not_present_a_valid_partial_tree()
     {
         using var analysis = Parse("{\"x\":[0,]}");

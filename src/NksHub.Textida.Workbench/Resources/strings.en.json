@@ -829,5 +829,7 @@
   "reason.multipleCarets.false": "There is only one caret",
   "reason.fileType": "The command is for another kind of file",
   "cmd.file.clearRecent": "Clear Recent Files List",
-  "submenu.recent": "Open Recent"
+  "submenu.recent": "Open Recent",
+  "cmd.view.structure": "Show JSON/XML Structure",
+  "reason.structureSupported.false": "This view cannot show a JSON/XML structure"
 }

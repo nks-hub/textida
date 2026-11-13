@@ -6,6 +6,29 @@ public static class StructureText
 {
     public const int MaxChars = 1_048_576;
 
+    public sealed class Reader(IStructureIndex index, CancellationToken ct = default)
+    {
+        private readonly StructureQuery.ValueReader values = new(index, ct);
+
+        public StructurePreview ReadName(StructureNode node, int maxChars = 256) => Read(node, true, maxChars);
+        public StructurePreview ReadValue(StructureNode node, int maxChars = 256) => Read(node, false, maxChars);
+
+        public StructurePreview ReadResultValue(StructureNode node, int maxChars = 256)
+        {
+            CheckLimit(maxChars);
+            ct.ThrowIfCancellationRequested();
+            if (index.Format == StructureFormat.Xml) node = StructureXmlNodes.LogicalTextStart(index, node, ct);
+            return values.ResultPreview(node, maxChars);
+        }
+
+        private StructurePreview Read(StructureNode node, bool name, int maxChars)
+        {
+            CheckLimit(maxChars);
+            ct.ThrowIfCancellationRequested();
+            return values.Preview(node, name, maxChars);
+        }
+    }
+
     public static StructurePreview ReadName(IStructureIndex index, StructureNode node, int maxChars = 256,
         CancellationToken ct = default) => Read(index, node, true, maxChars, ct);
 
