@@ -20,18 +20,20 @@ internal sealed partial class StructureView
     private sealed record ChildPage(IReadOnlyList<RowData> Rows, long After, bool Complete);
     private sealed class Row(RowData data, TreeViewItem item, TextBlock marker, TextBlock heading, TextBlock value, Row? parent)
     {
-        public RowData Data { get; } = data;
+        public RowData Data { get; set; } = data;
         public TreeViewItem Item { get; } = item;
         public TextBlock Marker { get; } = marker;
         public TextBlock Heading { get; } = heading;
         public TextBlock Value { get; } = value;
-        public Row? Parent { get; } = parent;
+        public Row? Parent { get; set; } = parent;
         public long Touched, RequestId;
         public bool Loaded, Loading;
         public Request? Request;
     }
     private long rootParentId = -1;
     private readonly List<Row> markedRows = [];
+    private readonly Stack<Row> freeRows = [];
+    private static readonly RowData EmptyRow = new(default, "", "");
 
     private static RowData ReadRow(IStructureIndex index, StructureNode node, CancellationToken ct, StructureText.Reader? reader = null)
     {
@@ -51,26 +53,32 @@ internal sealed partial class StructureView
         return new(result, after, nodes.Count == 0 || nodes[^1].Ordinal + 1 >= parent.ChildCount);
     }
 
-    private Row NewRow(RowData data, Row? parent)
+    private Row NewRow(RowData data, Row? parent, bool placeholder = true)
     {
-        var item = new TreeViewItem { Tag = data.Node };
-        var marker = new TextBlock { Width = 14, VerticalAlignment = VerticalAlignment.Center };
-        var heading = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700 };
-        var value = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700, FontSize = 11 };
-        var labels = new StackPanel(); labels.Children.Add(heading); labels.Children.Add(value);
-        var header = new StackPanel { Orientation = Orientation.Horizontal };
-        header.Children.Add(marker); header.Children.Add(labels); item.Header = header;
-        var row = new Row(data, item, marker, heading, value, parent) { Touched = ++clock };
-        rows.Add(item, row);
-        if (data.Node.ChildCount > 0) item.Items.Add(Placeholder());
-        item.PropertyChanged += (_, e) =>
+        if (!freeRows.TryPop(out var row))
         {
-            if (e.Property != TreeViewItem.IsExpandedProperty || !rows.ContainsKey(item)) return;
-            row.Touched = ++clock;
-            if (!item.IsExpanded && row.Loading) { row.Request?.Cancel(); row.Loading = false; }
-            if (item.IsExpanded && !row.Loaded && !row.Loading) LoadChildren(row, -1);
-        };
+            var item = new TreeViewItem();
+            var marker = new TextBlock { Width = 14, VerticalAlignment = VerticalAlignment.Center };
+            var heading = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700 };
+            var value = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700, FontSize = 11 };
+            var labels = new StackPanel(); labels.Children.Add(heading); labels.Children.Add(value);
+            var header = new StackPanel { Orientation = Orientation.Horizontal };
+            header.Children.Add(marker); header.Children.Add(labels); item.Header = header;
+            row = new(EmptyRow, item, marker, heading, value, null);
+            item.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != TreeViewItem.IsExpandedProperty || !rows.ContainsKey(item)) return;
+                row.Touched = ++clock;
+                if (!item.IsExpanded && row.Loading) { row.Request?.Cancel(); row.Loading = false; }
+                if (item.IsExpanded && !row.Loaded && !row.Loading) LoadChildren(row, -1);
+            };
+        }
+        row.RequestId++;
+        row.Data = data; row.Parent = parent; row.Touched = ++clock;
+        row.Item.Tag = data.Node;
         Label(row);
+        if (placeholder && data.Node.ChildCount > 0) row.Item.Items.Add(Placeholder());
+        rows.Add(row.Item, row);
         return row;
     }
 
@@ -113,7 +121,8 @@ internal sealed partial class StructureView
     {
         ResetRows();
         rootParentId = root.Node.ParentId;
-        var row = NewRow(root, null);
+        ReserveRows(1, 0);
+        var row = NewRow(root, null, placeholder: false);
         tree.Items.Add(row.Item);
         InstallPage(row, page);
         row.Item.IsExpanded = true;
@@ -121,28 +130,64 @@ internal sealed partial class StructureView
         UpdateButtons();
     }
 
-    private void ResetRows()
+    private void ResetRows(bool retainPool = true)
     {
         treeVersion++;
-        foreach (var row in rows.Values) row.Request?.Cancel();
-        rows.Clear(); markedRows.Clear(); Programmatic(() => tree.Items.Clear()); rootParentId = -1;
+        RetireItems(tree.Items.OfType<TreeViewItem>().ToArray(), () => tree.Items.Clear(), retainPool);
+        rows.Clear(); markedRows.Clear(); rootParentId = -1;
+        if (!retainPool) freeRows.Clear();
     }
 
     private void RemoveChildren(Row row)
+        => RetireItems(row.Item.Items.OfType<TreeViewItem>().ToArray(), () => row.Item.Items.Clear(), retainPool: true);
+
+    private void RetireItems(TreeViewItem[] roots, Action detach, bool retainPool)
     {
-        foreach (var item in row.Item.Items.OfType<TreeViewItem>().ToArray()) RemoveItem(item);
-        row.Item.Items.Clear();
+        var selected = Selected;
+        var items = new List<TreeViewItem>();
+        var retired = new List<(Row Row, bool Reuse)>();
+        var pending = new Stack<TreeViewItem>(roots);
+        while (pending.TryPop(out var item))
+        {
+            items.Add(item);
+            foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
+            if (!rows.Remove(item, out var row)) continue;
+            row.RequestId++; row.Request?.Cancel();
+            bool reuse = retainPool && !item.IsFocused && !item.IsKeyboardFocusWithin
+                && (selected == null || !Protects(row, selected));
+            retired.Add((row, reuse));
+            markedRows.Remove(row);
+        }
+        Programmatic(detach);
+        foreach (var item in items) item.Items.Clear();
+        foreach (var (row, reuse) in retired)
+        {
+            row.Parent = null; row.Request = null; row.Data = EmptyRow;
+            row.Loaded = row.Loading = false; row.Touched = 0;
+            row.Marker.Text = "";
+            AutomationProperties.SetItemStatus(row.Item, "");
+            if (!reuse) continue;
+            row.Item.SetCurrentValue(TreeViewItem.IsSelectedProperty, false);
+            row.Item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
+            row.Item.Tag = null;
+            row.Heading.Text = row.Value.Text = ""; row.Value.IsVisible = false;
+            AutomationProperties.SetName(row.Item, "");
+            freeRows.Push(row);
+        }
     }
 
-    private void RemoveItem(TreeViewItem item)
+    private void TrimPool(int maximum)
     {
-        // Iterate the bounded visual tree; deep source trees never recurse on the managed call stack.
-        var pending = new Stack<TreeViewItem>(); pending.Push(item);
-        while (pending.TryPop(out var nextItem))
-        {
-            foreach (var child in nextItem.Items.OfType<TreeViewItem>()) pending.Push(child);
-            if (rows.Remove(nextItem, out var row)) row.Request?.Cancel();
-        }
+        while (freeRows.Count > Math.Max(0, maximum)) freeRows.Pop();
+    }
+
+    private void ReserveRows(int count, int additionalItems)
+    {
+        int active = CountItems();
+        if (active + count + additionalItems > MaximumItems)
+            throw new InvalidOperationException("The structure control cache exceeded its bound.");
+        // Reusing data rows leaves active + max(free, count) + additionalItems retained slots.
+        TrimPool(MaximumItems - active - additionalItems);
     }
 
     private int CountItems()
@@ -163,6 +208,9 @@ internal sealed partial class StructureView
         return false;
     }
 
+    private bool ProtectsUserState(Row candidate) => candidate.Item.IsFocused || candidate.Item.IsKeyboardFocusWithin
+        || Selected is { } selected && Protects(candidate, selected);
+
     private Row MakeRoom(Row parent, int needed)
     {
         RemoveChildren(parent);
@@ -171,14 +219,18 @@ internal sealed partial class StructureView
         if (depth >= MaximumRevealLevels) parent = Anchor(parent.Data);
         while (CountItems() + needed > MaximumItems)
         {
-            var victim = rows.Values.Where(row => row.Loaded && row.Item.Items.Count > 0 && !Protects(row, parent))
+            var victim = rows.Values.Where(row => row.Loaded && row.Item.Items.Count > 0 && !Protects(row, parent) && !ProtectsUserState(row))
                 .OrderBy(row => row.Item.IsExpanded).ThenBy(row => row.Touched).FirstOrDefault();
             if (victim != null)
             {
                 victim.Request?.Cancel(); victim.RequestId++;
                 RemoveChildren(victim); victim.Loaded = false; victim.Loading = false;
                 victim.Item.IsExpanded = false;
-                if (victim.Data.Node.ChildCount > 0) victim.Item.Items.Add(Placeholder());
+                if (victim.Data.Node.ChildCount > 0)
+                {
+                    TrimPool(MaximumItems - CountItems() - 1);
+                    victim.Item.Items.Add(Placeholder());
+                }
                 continue;
             }
             // A path can be deeper than the control cache. Keep its current subtree navigable via Parent.
@@ -191,7 +243,8 @@ internal sealed partial class StructureView
     private Row Anchor(RowData data)
     {
         ResetRows(); rootParentId = data.Node.ParentId;
-        var row = NewRow(data, null); tree.Items.Add(row.Item); RemoveChildren(row);
+        ReserveRows(1, 0);
+        var row = NewRow(data, null, placeholder: false); tree.Items.Add(row.Item);
         return row;
     }
 
@@ -201,15 +254,19 @@ internal sealed partial class StructureView
     private void InstallPageCore(Row original, ChildPage page)
     {
         treeVersion++;
-        int needed = page.Rows.Sum(row => row.Node.ChildCount > 0 ? 2 : 1) + 1;
+        bool pager = page.After >= 0 || !page.Complete;
+        int additional = page.Rows.Count(row => row.Node.ChildCount > 0) + (pager ? 1 : 0);
+        int needed = page.Rows.Count + additional;
         Row parent = MakeRoom(original, needed);
+        ReserveRows(page.Rows.Count, additional);
         foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
-        if (page.After >= 0 || !page.Complete)
+        if (pager)
         {
+            long version = parent.RequestId, nodeId = parent.Data.Node.Id, epoch = generation;
             var before = new Button { Content = Loc.Get(K.StructurePrevious), IsEnabled = page.After >= 0 };
             var after = new Button { Content = Loc.Get(K.StructureNext), IsEnabled = !page.Complete };
-            before.Click += (_, _) => LoadChildren(parent, page.After, previousPage: true);
-            after.Click += (_, _) => { if (page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
+            before.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId)) LoadChildren(parent, page.After, previousPage: true); };
+            after.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId) && page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
             parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });
         }
         parent.Loaded = true; parent.Loading = false; parent.Touched = ++clock;
@@ -220,6 +277,7 @@ internal sealed partial class StructureView
     private void LoadChildren(Row row, long after, bool previousPage = false)
     {
         if (session is not { Analysis.IsValid: true } owner || !Current(owner) || !rows.ContainsKey(row.Item)) return;
+        var requestedNode = row.Data.Node;
         row.Request?.Cancel();
         var request = row.Request = new Request(owner.Token);
         long version = ++row.RequestId;
@@ -232,7 +290,7 @@ internal sealed partial class StructureView
                 long ordinal = after < 0 ? 0 : index.ReadNode(after).Ordinal + 1;
                 long target = Math.Max(0, ordinal - PageSize);
                 after = -1;
-                for (long id = row.Data.Node.Id + 1; id <= row.Data.Node.LastDescendantId;)
+                for (long id = requestedNode.Id + 1; id <= requestedNode.LastDescendantId;)
                 {
                     ct.ThrowIfCancellationRequested();
                     var candidate = index.ReadNode(id);
@@ -240,18 +298,21 @@ internal sealed partial class StructureView
                     after = candidate.Id; id = candidate.LastDescendantId + 1;
                 }
             }
-            return ReadPage(index, row.Data.Node, after, ct);
+            return ReadPage(index, requestedNode, after, ct);
         }, page =>
         {
-            if (!rows.ContainsKey(row.Item) || row.RequestId != version) return;
+            if (!CurrentRow(row, version, requestedNode.Id)) return;
             InstallPage(row, page); MarkCaret(owner, reveal: false);
         }, request.Token);
         _ = task.ContinueWith(_ =>
         {
             request.Dispose();
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (rows.ContainsKey(row.Item) && row.RequestId == version) row.Loading = false; });
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (CurrentRow(row, version, requestedNode.Id)) row.Loading = false; });
         }, TaskScheduler.Default);
     }
+
+    private bool CurrentRow(Row row, long version, long nodeId) => rows.TryGetValue(row.Item, out var current)
+        && ReferenceEquals(current, row) && row.RequestId == version && row.Data.Node.Id == nodeId;
 
     private void ShowDocument()
     {

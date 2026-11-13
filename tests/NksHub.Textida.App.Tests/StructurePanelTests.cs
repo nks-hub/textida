@@ -48,12 +48,12 @@ public class StructurePanelTests
         var array = Assert.Single(DataItems(document));
         Assert.Single(array.Items);
         array.IsExpanded = true; await Drain(host.View);
-        Assert.Equal(Enumerable.Range(0, 128).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
+        Assert.Equal(Enumerable.Range(0, StructureView.PageSize).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
         int firstCount = host.View.CachedItems;
         var pager = array.Items.OfType<TreeViewItem>().Single(item => item.Tag == null);
         Click(Assert.IsType<WrapPanel>(pager.Header).Children.OfType<Button>().Last());
         await Drain(host.View);
-        Assert.Equal(Enumerable.Range(128, 128).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
+        Assert.Equal(Enumerable.Range(StructureView.PageSize, StructureView.PageSize).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
         Assert.Equal(firstCount, host.View.CachedItems);
         pager = array.Items.OfType<TreeViewItem>().Single(item => item.Tag == null);
         Click(Assert.IsType<WrapPanel>(pager.Header).Children.OfType<Button>().First());
@@ -137,7 +137,7 @@ public class StructurePanelTests
         Assert.False(branches[0].IsExpanded);
         Assert.True(branches[^1].IsExpanded);
         branches[0].IsExpanded = true; await Drain(host.View);
-        Assert.Equal(128, DataItems(branches[0]).Count());
+        Assert.Equal(StructureView.PageSize, DataItems(branches[0]).Count());
         Assert.InRange(host.View.CachedItems, 1, StructureView.MaximumItems);
     }
 

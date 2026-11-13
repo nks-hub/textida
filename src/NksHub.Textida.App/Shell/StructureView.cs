@@ -15,8 +15,8 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed partial class StructureView : DockPanel, IDisposable
 {
-    internal const int PageSize = 128;
-    internal const int MaximumItems = 2048;
+    internal const int PageSize = 64;
+    internal const int MaximumItems = 256;
     private readonly Func<StructureSource?> source;
     private readonly Func<string, Task> copy;
     private readonly Func<string, string, string, Task<string?>> prompt;
@@ -136,7 +136,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     internal Button JumpButton => jump;
     internal Button IssueButton => issue;
     internal Expander TypeCounts => typeCounts;
-    internal int CachedItems => CountItems();
+    internal int CachedItems => CountItems() + freeRows.Count;
     internal string Message => status.Text ?? "";
 
     private static WrapPanel Bar(params Control[] controls)
@@ -223,7 +223,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         filterRequest?.Cancel(); caretRequest?.Cancel();
         session = null;
         generation++;
-        ResetRows();
+        ResetRows(retainPool: false);
         showingResults = false; resultCursors.Clear(); issuePosition = 0;
         if (old != null) Queue(async () => { old.Analysis?.Dispose(); old.Analysis = null; old.Cancellation.Dispose(); await Task.CompletedTask; });
         if (current == null || disposed) { SetStatus(K.StructureUnsupported); ApplyTexts(); return; }

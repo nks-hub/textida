@@ -86,6 +86,7 @@ internal sealed partial class StructureView
         }, result =>
         {
             ResetRows(); showingResults = true; rootParentId = -1;
+            ReserveRows(result.Rows.Count, result.Rows.Count(data => data.Node.ChildCount > 0));
             Programmatic(() => { foreach (var data in result.Rows) tree.Items.Add(NewRow(data, null).Item); });
             resultPage = page;
             resultCursors[page] = result.Cursor;
@@ -118,14 +119,15 @@ internal sealed partial class StructureView
     private Task CopyAsync(bool path)
     {
         if (session is not { Analysis.IsValid: true } owner || !Current(owner) || Selected is not { } row) return Task.CompletedTask;
+        var data = row.Data;
         return Queue(async () =>
         {
             try
             {
                 owner.Token.ThrowIfCancellationRequested();
                 var index = owner.Analysis!.Index;
-                var text = path ? new StructurePreview(StructurePaths.Create(index, row.Data.Node, ct: owner.Token), false)
-                    : StructureText.ReadSource(index, row.Data.Node with { Start = row.Data.Range.Start, End = row.Data.Range.End }, StructureText.MaxChars, owner.Token);
+                var text = path ? new StructurePreview(StructurePaths.Create(index, data.Node, ct: owner.Token), false)
+                    : StructureText.ReadSource(index, data.Node with { Start = data.Range.Start, End = data.Range.End }, StructureText.MaxChars, owner.Token);
                 owner.Token.ThrowIfCancellationRequested();
                 Task copyTask = await Dispatcher.UIThread.InvokeAsync<Task>(() =>
                 {
@@ -143,14 +145,15 @@ internal sealed partial class StructureView
     private Task EditAsync()
     {
         if (session is not { Analysis.IsValid: true } owner || !Current(owner) || owner.Source.ReadOnly || Selected is not { } row) return Task.CompletedTask;
-        if (row.Data.Grouped) { SetStatus(K.StructureGroupEdit); return Task.CompletedTask; }
+        var data = row.Data;
+        if (data.Grouped) { SetStatus(K.StructureGroupEdit); return Task.CompletedTask; }
         return Queue(async () =>
         {
             try
             {
                 owner.Token.ThrowIfCancellationRequested();
                 var index = owner.Analysis!.Index;
-                var target = EditableLeaf(index, row.Data.Node, owner.Token);
+                var target = EditableLeaf(index, data.Node, owner.Token);
                 var previousValue = StructureText.ReadValue(index, target, StructureEdits.MaxInputChars, owner.Token);
                 Task<string?> dialog = await Dispatcher.UIThread.InvokeAsync<Task<string?>>(() =>
                 {
