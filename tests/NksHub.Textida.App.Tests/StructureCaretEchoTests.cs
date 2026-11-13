@@ -5,6 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data.Structure;
@@ -141,9 +142,14 @@ public sealed class StructureCaretEchoTests
         public void Click(TreeViewItem item)
         {
             Layout();
-            var point = StructureNativeDiagnostic.InspectHeader(Window, View.Tree, item)!["headerPoint"]!;
-            var client = Window.PointToClient(new PixelPoint(point["x"]!.GetValue<int>(), point["y"]!.GetValue<int>()));
-            Window.MouseDown(client, MouseButton.Left); Window.MouseUp(client, MouseButton.Left);
+            var header = Assert.IsAssignableFrom<Control>(item.Header);
+            var label = header.GetVisualDescendants().OfType<TextBlock>().OrderByDescending(text => text.Bounds.Width).First();
+            var point = label.TranslatePoint(new Point(label.Bounds.Width / 2, label.Bounds.Height / 2), Window);
+            Assert.NotNull(point);
+            var hit = Assert.IsAssignableFrom<Visual>(Window.InputHitTest(point.Value));
+            Assert.True(ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
+            Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<TreeViewItem>().First());
+            Window.MouseDown(point.Value, MouseButton.Left); Window.MouseUp(point.Value, MouseButton.Left);
         }
 
         private void Layout()
