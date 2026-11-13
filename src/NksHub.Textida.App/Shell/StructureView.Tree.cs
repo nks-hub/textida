@@ -74,10 +74,29 @@ internal sealed partial class StructureView
         return row;
     }
 
+    private static string KindKey(StructureKind kind) => kind switch
+    {
+        StructureKind.Document => K.StructureKindDocument,
+        StructureKind.JsonObject => K.StructureKindJsonObject,
+        StructureKind.JsonArray => K.StructureKindJsonArray,
+        StructureKind.JsonString => K.StructureKindJsonString,
+        StructureKind.JsonNumber => K.StructureKindJsonNumber,
+        StructureKind.JsonBoolean => K.StructureKindJsonBoolean,
+        StructureKind.JsonNull => K.StructureKindJsonNull,
+        StructureKind.XmlElement => K.StructureKindXmlElement,
+        StructureKind.XmlAttribute => K.StructureKindXmlAttribute,
+        StructureKind.XmlNamespace => K.StructureKindXmlNamespace,
+        StructureKind.XmlText => K.StructureKindXmlText,
+        StructureKind.XmlCData => K.StructureKindXmlCData,
+        StructureKind.XmlComment => K.StructureKindXmlComment,
+        StructureKind.XmlProcessingInstruction => K.StructureKindXmlProcessingInstruction,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
+
     private void Label(Row row)
     {
         var node = row.Data.Node;
-        string kind = Loc.Get("structure.kind." + node.Kind);
+        string kind = Loc.Get(KindKey(node.Kind));
         string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + node.Ordinal.ToString(CultureInfo.CurrentCulture) + "]";
         row.Heading.Text = name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
         row.Value.Text = row.Data.Value;
@@ -85,7 +104,7 @@ internal sealed partial class StructureView
         AutomationProperties.SetName(row.Item, row.Heading.Text + " " + row.Data.Value);
     }
 
-    private static TreeViewItem Placeholder() => new() { Header = Loc.Get("structure.loading"), IsEnabled = false };
+    private static TreeViewItem Placeholder() => new() { Header = Loc.Get(K.StructureLoading), IsEnabled = false };
 
     private void InstallRoot(RowData root, ChildPage page)
         => Programmatic(() => InstallRootCore(root, page));
@@ -187,8 +206,8 @@ internal sealed partial class StructureView
         foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
         if (page.After >= 0 || !page.Complete)
         {
-            var before = new Button { Content = Loc.Get("structure.previous"), IsEnabled = page.After >= 0 };
-            var after = new Button { Content = Loc.Get("structure.next"), IsEnabled = !page.Complete };
+            var before = new Button { Content = Loc.Get(K.StructurePrevious), IsEnabled = page.After >= 0 };
+            var after = new Button { Content = Loc.Get(K.StructureNext), IsEnabled = !page.Complete };
             before.Click += (_, _) => LoadChildren(parent, page.After, previousPage: true);
             after.Click += (_, _) => { if (page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
             parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });

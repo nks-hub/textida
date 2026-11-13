@@ -7,7 +7,7 @@
   "structure.failed": "Struktur konnte nicht gelesen werden: {message}",
   "structure.stats": "{nodes} Knoten · Tiefe {depth} · {bytes} Bytes · {duplicates} doppelte Schlüssel",
   "structure.issues": "{shown} von {total} Problemen gespeichert",
-  "structure.issue": "{position}/{count}: {message}",
+  "structure.issue": "{position}/{total}: {message}",
   "structure.refresh": "Aktualisieren",
   "structure.cancel": "Abbrechen",
   "structure.up": "Übergeordneter Knoten",

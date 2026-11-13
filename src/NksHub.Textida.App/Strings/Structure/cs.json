@@ -7,7 +7,7 @@
   "structure.failed": "Strukturu nelze načíst: {message}",
   "structure.stats": "{nodes} uzlů · hloubka {depth} · {bytes} bajtů · {duplicates} duplicitních klíčů",
   "structure.issues": "Uloženo {shown} z {total} problémů",
-  "structure.issue": "{position}/{count}: {message}",
+  "structure.issue": "{position}/{total}: {message}",
   "structure.refresh": "Obnovit",
   "structure.cancel": "Zrušit",
   "structure.up": "Nadřazený uzel",

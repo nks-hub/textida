@@ -51,7 +51,7 @@ internal sealed partial class StructureView
         filterRequest?.Cancel();
         var request = filterRequest = new Request(owner.Token);
         var known = resultCursors.ToDictionary(pair => pair.Key, pair => pair.Value);
-        SetStatus("structure.loading");
+        SetStatus(K.StructureLoading);
         Task task = Run(owner, ct =>
         {
             var index = owner.Analysis!.Index;
@@ -92,7 +92,7 @@ internal sealed partial class StructureView
             if (!result.Complete) resultCursors[page + 1] = result.Next;
             while (resultCursors.Count > 64) resultCursors.Remove(resultCursors.Keys.First());
             previous.IsEnabled = page > 0; next.IsEnabled = !result.Complete;
-            SetStatus(result.Rows.Count == 0 ? "structure.noResults" : "structure.results", ("page", page + 1));
+            SetStatus(result.Rows.Count == 0 ? K.StructureNoResults : K.StructureResults, ("page", page + 1));
             UpdateButtons(); MarkCaret(owner, reveal: false);
         }, request.Token, debounce ? 300 : 0);
         _ = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
@@ -106,11 +106,11 @@ internal sealed partial class StructureView
             string line = entry.Trim();
             if (line.Length == 0) continue;
             int equal = line.IndexOf('=');
-            if (equal < 1 || equal == line.Length - 1) throw new FormatException(Loc.Get("structure.namespaceError"));
+            if (equal < 1 || equal == line.Length - 1) throw new FormatException(Loc.Get(K.StructureNamespaceError));
             string prefix = line[..equal].Trim(), uri = line[(equal + 1)..].Trim();
             try { System.Xml.XmlConvert.VerifyNCName(prefix); }
-            catch (System.Xml.XmlException) { throw new FormatException(Loc.Get("structure.namespaceError")); }
-            if (uri.Length == 0 || !result.TryAdd(prefix, uri)) throw new FormatException(Loc.Get("structure.namespaceError"));
+            catch (System.Xml.XmlException) { throw new FormatException(Loc.Get(K.StructureNamespaceError)); }
+            if (uri.Length == 0 || !result.TryAdd(prefix, uri)) throw new FormatException(Loc.Get(K.StructureNamespaceError));
         }
         return result;
     }
@@ -130,20 +130,20 @@ internal sealed partial class StructureView
                 Task copyTask = await Dispatcher.UIThread.InvokeAsync<Task>(() =>
                 {
                     if (!Current(owner) || source() is not { } latest || !SameSource(latest, owner.Source)) return Task.CompletedTask;
-                    if (text.Truncated) { SetStatus("structure.copyLimit", ("limit", StructureText.MaxChars)); return Task.CompletedTask; }
+                    if (text.Truncated) { SetStatus(K.StructureCopyLimit, ("limit", StructureText.MaxChars)); return Task.CompletedTask; }
                     return copy(text.Text);
                 });
                 await copyTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException) { }
-            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner)) SetStatus("structure.failed", ("message", error.Message)); }); }
+            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner)) SetStatus(K.StructureFailed, ("message", error.Message)); }); }
         });
     }
 
     private Task EditAsync()
     {
         if (session is not { Analysis.IsValid: true } owner || !Current(owner) || owner.Source.ReadOnly || Selected is not { } row) return Task.CompletedTask;
-        if (row.Data.Grouped) { SetStatus("structure.groupEdit"); return Task.CompletedTask; }
+        if (row.Data.Grouped) { SetStatus(K.StructureGroupEdit); return Task.CompletedTask; }
         return Queue(async () =>
         {
             try
@@ -155,7 +155,7 @@ internal sealed partial class StructureView
                 Task<string?> dialog = await Dispatcher.UIThread.InvokeAsync<Task<string?>>(() =>
                 {
                     if (!Current(owner) || source() is not { ReadOnly: false } latest || !SameSource(latest, owner.Source)) return Task.FromResult<string?>(null);
-                    return prompt(Loc.Get("structure.editTitle"), Loc.Get(previousValue.Truncated ? "structure.editLarge" : "structure.editLabel", ("limit", StructureEdits.MaxInputChars)), previousValue.Truncated ? "" : previousValue.Text);
+                    return prompt(Loc.Get(K.StructureEditTitle), Loc.Get(previousValue.Truncated ? K.StructureEditLarge : K.StructureEditLabel, ("limit", StructureEdits.MaxInputChars)), previousValue.Truncated ? "" : previousValue.Text);
                 });
                 string? value = await dialog.ConfigureAwait(false);
                 owner.Token.ThrowIfCancellationRequested();
@@ -171,11 +171,11 @@ internal sealed partial class StructureView
                 {
                     if (!Current(owner)) return;
                     if (applied) Sync();
-                    else SetStatus("structure.stale");
+                    else SetStatus(K.StructureStale);
                 });
             }
             catch (OperationCanceledException) { }
-            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner)) SetStatus("structure.editFailed", ("message", error.Message)); }); }
+            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner)) SetStatus(K.StructureEditFailed, ("message", error.Message)); }); }
         });
     }
 
@@ -188,11 +188,11 @@ internal sealed partial class StructureView
             ct.ThrowIfCancellationRequested();
             var child = index.ReadNode(id);
             if (child.Kind == StructureKind.XmlElement || (child.Kind is StructureKind.XmlText or StructureKind.XmlCData && selected.HasValue))
-                throw new InvalidOperationException(Loc.Get("structure.singleValue"));
+                throw new InvalidOperationException(Loc.Get(K.StructureSingleValue));
             if (child.Kind is StructureKind.XmlText or StructureKind.XmlCData) selected = child;
             id = child.LastDescendantId + 1;
         }
-        return selected ?? throw new InvalidOperationException(Loc.Get("structure.singleValue"));
+        return selected ?? throw new InvalidOperationException(Loc.Get(K.StructureSingleValue));
     }
 
     private void ShowIssues()
@@ -204,8 +204,8 @@ internal sealed partial class StructureView
         if (count == 0) return;
         issuePosition %= count;
         var problem = index!.Issues[issuePosition];
-        issue.Content = Loc.Get("structure.issue", ("position", issuePosition + 1), ("count", count), ("message", problem.Message));
-        ToolTip.SetTip(issue, Loc.Get("structure.issues", ("shown", count), ("total", index.IssueCount)));
+        issue.Content = Loc.Get(K.StructureIssue, ("position", issuePosition + 1), ("total", count), ("message", problem.Message));
+        ToolTip.SetTip(issue, Loc.Get(K.StructureIssues, ("shown", count), ("total", index.IssueCount)));
     }
 
     private void JumpIssue()

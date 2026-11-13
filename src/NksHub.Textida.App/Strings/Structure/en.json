@@ -7,7 +7,7 @@
   "structure.failed": "Structure could not be read: {message}",
   "structure.stats": "{nodes} nodes · depth {depth} · {bytes} bytes · {duplicates} duplicate keys",
   "structure.issues": "{shown} stored issues of {total}",
-  "structure.issue": "{position}/{count}: {message}",
+  "structure.issue": "{position}/{total}: {message}",
   "structure.refresh": "Refresh",
   "structure.cancel": "Cancel",
   "structure.up": "Parent",

@@ -38,7 +38,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     private long resultPage;
     private readonly Dictionary<long, long> resultCursors = [];
     private int issuePosition;
-    private string statusKey = "structure.unsupported";
+    private string statusKey = K.StructureUnsupported;
     private (string Name, object Value)[] statusArguments = [];
 
     private sealed class Session(StructureSource source, long generation)
@@ -84,7 +84,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         SetDock(top, Dock.Top);
         Children.Add(top); Children.Add(tree);
         refresh.Click += (_, _) => { if (!disposed) Invalidate(source()); };
-        cancel.Click += (_, _) => { session?.Cancellation.Cancel(); SetStatus("structure.cancelled"); UpdateButtons(); };
+        cancel.Click += (_, _) => { session?.Cancellation.Cancel(); SetStatus(K.StructureCancelled); UpdateButtons(); };
         up.Click += (_, _) => ShowParent();
         jump.Click += (_, _) => Jump();
         copyPath.Click += async (_, _) => await CopyAsync(path: true);
@@ -143,30 +143,30 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     {
         (Button Button, string Key)[] buttons =
         [
-            (refresh, "refresh"), (cancel, "cancel"), (up, "up"), (jump, "jump"), (copyPath, "copyPath"),
-            (copySource, "copySource"), (edit, "edit"), (find, "find"), (clear, "clear"),
-            (previous, "previous"), (next, "next"), (nextIssue, "nextIssue"),
+            (refresh, K.StructureRefresh), (cancel, K.StructureCancel), (up, K.StructureUp), (jump, K.StructureJump), (copyPath, K.StructureCopyPath),
+            (copySource, K.StructureCopySource), (edit, K.StructureEdit), (find, K.StructureFind), (clear, K.StructureClear),
+            (previous, K.StructurePrevious), (next, K.StructureNext), (nextIssue, K.StructureNextIssue),
         ];
         foreach (var (button, key) in buttons)
         {
-            button.Content = Loc.Get("structure." + key);
-            AutomationProperties.SetName(button, Loc.Get("structure." + key));
+            button.Content = Loc.Get(key);
+            AutomationProperties.SetName(button, Loc.Get(key));
         }
         changing = true;
         int selected = Math.Max(0, scope.SelectedIndex);
         scope.Items.Clear();
-        foreach (string key in new[] { "name", "value", "path", session?.Source.Format == StructureFormat.Xml ? "queryXml" : "queryJson" })
-            scope.Items.Add(Loc.Get("structure.scope." + key));
+        foreach (string key in new[] { K.StructureScopeName, K.StructureScopeValue, K.StructureScopePath, session?.Source.Format == StructureFormat.Xml ? K.StructureScopeQueryXml : K.StructureScopeQueryJson })
+            scope.Items.Add(Loc.Get(key));
         scope.SelectedIndex = selected;
         changing = false;
-        filter.PlaceholderText = Loc.Get("structure.filter");
-        namespaces.PlaceholderText = Loc.Get("structure.namespaces");
-        AutomationProperties.SetName(filter, Loc.Get("structure.filter"));
-        AutomationProperties.SetName(namespaces, Loc.Get("structure.namespaces"));
-        AutomationProperties.SetName(scope, Loc.Get("structure.find"));
-        AutomationProperties.SetName(tree, Loc.Get("structure.tree"));
+        filter.PlaceholderText = Loc.Get(K.StructureFilter);
+        namespaces.PlaceholderText = Loc.Get(K.StructureNamespaces);
+        AutomationProperties.SetName(filter, Loc.Get(K.StructureFilter));
+        AutomationProperties.SetName(namespaces, Loc.Get(K.StructureNamespaces));
+        AutomationProperties.SetName(scope, Loc.Get(K.StructureFind));
+        AutomationProperties.SetName(tree, Loc.Get(K.StructureTree));
         namespaces.IsVisible = session?.Source.Format == StructureFormat.Xml;
-        syntax.Text = Loc.Get(session?.Source.Format == StructureFormat.Xml ? "structure.syntaxXml" : "structure.syntaxJson");
+        syntax.Text = Loc.Get(session?.Source.Format == StructureFormat.Xml ? K.StructureSyntaxXml : K.StructureSyntaxJson);
         ShowTypeCounts();
         foreach (var row in rows.Values) Label(row);
         status.Text = Loc.Get(statusKey, statusArguments);
@@ -192,7 +192,8 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         && a.DocumentId == b.DocumentId && a.Revision == b.Revision && ReferenceEquals(a.Codec, b.Codec)
         && a.BomLength == b.BomLength && a.Format == b.Format;
 
-    private bool Current(Session value) => !disposed && value.Generation == generation && ReferenceEquals(session, value) && !value.Token.IsCancellationRequested;
+    private bool Current(Session value) => !disposed && value.Generation == generation && ReferenceEquals(session, value)
+        && !value.Token.IsCancellationRequested && source() is { } latest && SameSource(latest, value.Source);
 
     private void Invalidate(StructureSource? current)
     {
@@ -204,10 +205,10 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         ResetRows();
         showingResults = false; resultCursors.Clear(); issuePosition = 0;
         if (old != null) Queue(async () => { old.Analysis?.Dispose(); old.Analysis = null; old.Cancellation.Dispose(); await Task.CompletedTask; });
-        if (current == null || disposed) { SetStatus("structure.unsupported"); ApplyTexts(); return; }
+        if (current == null || disposed) { SetStatus(K.StructureUnsupported); ApplyTexts(); return; }
         var nextSession = new Session(current, generation);
         session = nextSession;
-        SetStatus("structure.parsing");
+        SetStatus(K.StructureParsing);
         ApplyTexts();
         Parsing = Queue(async () =>
         {
@@ -222,7 +223,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                 });
                 if (snapshot == null)
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() => { if (Current(nextSession)) { nextSession.Parsing = false; SetStatus("structure.stale"); UpdateButtons(); } });
+                    await Dispatcher.UIThread.InvokeAsync(() => { if (Current(nextSession)) { nextSession.Parsing = false; SetStatus(K.StructureStale); UpdateButtons(); } });
                     return;
                 }
                 long lastProgress = 0;
@@ -231,7 +232,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                     long now = Environment.TickCount64;
                     if (now - lastProgress < 150) return;
                     lastProgress = now;
-                    Dispatcher.UIThread.Post(() => { if (Current(nextSession) && nextSession.Parsing) SetStatus("structure.progress", ("bytes", bytes), ("total", snapshot.ByteLength)); });
+                    Dispatcher.UIThread.Post(() => { if (Current(nextSession) && nextSession.Parsing) SetStatus(K.StructureProgress, ("bytes", bytes), ("total", snapshot.ByteLength)); });
                 });
                 bool published = false;
                 try
@@ -250,7 +251,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                 finally { if (!published) analysis.Dispose(); }
             }
             catch (OperationCanceledException) { }
-            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(nextSession)) { nextSession.Parsing = false; SetStatus("structure.failed", ("message", error.Message)); UpdateButtons(); } }); }
+            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(nextSession)) { nextSession.Parsing = false; SetStatus(K.StructureFailed, ("message", error.Message)); UpdateButtons(); } }); }
         });
     }
 
@@ -278,7 +279,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                 await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner) && !ct.IsCancellationRequested) publish(result); });
             }
             catch (OperationCanceledException) { }
-            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner) && !ct.IsCancellationRequested) SetStatus("structure.failed", ("message", error.Message)); }); }
+            catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(owner) && !ct.IsCancellationRequested) SetStatus(K.StructureFailed, ("message", error.Message)); }); }
         });
     }
 
@@ -293,16 +294,16 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         if (owner.Analysis is not { } analysis) return;
         var index = analysis.Index;
         ShowTypeCounts();
-        if (!analysis.IsValid) { SetStatus("structure.invalid", ("errors", index.IssueCount)); return; }
-        SetStatus("structure.stats", ("nodes", index.Count), ("depth", index.MaximumDepth),
+        if (!analysis.IsValid) { SetStatus(K.StructureInvalid, ("errors", index.IssueCount)); return; }
+        SetStatus(K.StructureStats, ("nodes", index.Count), ("depth", index.MaximumDepth),
             ("bytes", index.Source.ByteLength), ("duplicates", analysis.DuplicateKeys));
     }
 
     private void ShowTypeCounts()
     {
-        typeCounts.Header = Loc.Get("structure.typeCounts");
+        typeCounts.Header = Loc.Get(K.StructureTypeCounts);
         foreach (var (kind, label) in countLabels)
-            label.Text = Loc.Get("structure.kind." + kind) + ": " + (session?.Analysis?.Index.CountOf(kind) ?? 0).ToString(System.Globalization.CultureInfo.CurrentCulture);
+            label.Text = Loc.Get(KindKey(kind)) + ": " + (session?.Analysis?.Index.CountOf(kind) ?? 0).ToString(System.Globalization.CultureInfo.CurrentCulture);
     }
 
     private void Programmatic(Action action)

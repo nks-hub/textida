@@ -12,6 +12,6 @@
     }
   ],
   "menus": [
-    { "menu": "view", "command": "nks.view.structure", "group": "4_panels", "order": 150 }
+    { "menu": "view", "command": "nks.view.structure", "group": "4_panels/07.01", "submenu": "panels", "order": 150 }
   ]
 }

@@ -14,7 +14,7 @@ internal sealed partial class MainWindow
     private StructureView? _structureView;
     private Core.Documents.Document? _structureDocument;
 
-    internal bool CanShowStructure => Active is { Custom: null, Hex: null, TableShown: false } tab && !tab.Doc.IsResults
+    internal bool CanShowStructure => _activeGroup?.Active is { Custom: null, Hex: null, TableShown: false } tab && !tab.Doc.IsResults
         && tab.Doc.Language.Id is "json" or "jsonc" or "xml";
 
     internal StructureView StructurePanelView => _structureView ??= CreateStructureView();
@@ -60,8 +60,11 @@ internal sealed partial class MainWindow
         if (tab.JsonShown) tab.Json!.RevealOffset(range.Start, range.End);
         else if (tab.Paged is { } paged) paged.SelectBytes(range.Start, range.End);
         else if (tab.Surface is { } surface && tab.Doc.TextBackend is { } backend
-            && backend.TryToCharOffset(range.Start, out int start) && backend.TryToCharOffset(range.End, out int end))
+            && backend.TryToCharOffset(range.Start, out int start))
+        {
+            if (!backend.TryToCharOffset(range.End, out int end)) end = start;
             surface.SetSelections([new Sel(start, end)]);
+        }
         // Keep the keyboard in the tree so its next arrow key still works there.
     }
 
@@ -92,9 +95,9 @@ internal sealed partial class MainWindow
 
     private void ApplyStructureTexts()
     {
-        _structureTool.Title.Text = Loc.Get("structure.title");
-        AutomationProperties.SetName(_structureTool, Loc.Get("structure.title"));
-        AutomationProperties.SetName(_structureTool.Close, Loc.Get(K.PanelToolHide, ("panel", Loc.Get("structure.title"))));
+        _structureTool.Title.Text = Loc.Get(K.StructureTitle);
+        AutomationProperties.SetName(_structureTool, Loc.Get(K.StructureTitle));
+        AutomationProperties.SetName(_structureTool.Close, Loc.Get(K.PanelToolHide, ("panel", Loc.Get(K.StructureTitle))));
         _structureView?.ApplyTexts();
     }
 

@@ -116,4 +116,18 @@ public sealed class StructureIntegrationTests : IDisposable
         tab.Doc.Doc.Undo(); await Drain();
         Assert.Equal(before, tab.Doc.Doc.ReadText(new ByteRange(0, tab.Doc.Doc.ByteLength)));
     }
+
+    [AvaloniaFact]
+    public async Task Utf16_issue_jump_reaches_its_start_even_when_the_issue_end_is_inside_a_character()
+    {
+        const string text = "<!DOCTYPE r><r/>";
+        string path = temporary.File("invalid.xml", "");
+        File.WriteAllBytes(path, [.. TextCodec.Utf16LEBom.Bom, .. TextCodec.Utf16LEBom.Encode(text)]);
+        var tab = window.OpenFile(path, null);
+        window.SelectTab(tab); tab.Surface!.CaretOffset = text.Length;
+        window.ShowStructurePanel(); await Drain();
+        window.StructurePanelView.IssueButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(0, tab.Surface.CaretOffset);
+        Assert.Equal(text, tab.Doc.Doc.ReadText(new ByteRange(tab.Doc.Doc.BomLength, tab.Doc.Doc.ByteLength)));
+    }
 }

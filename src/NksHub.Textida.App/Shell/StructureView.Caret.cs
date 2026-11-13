@@ -118,7 +118,7 @@ internal sealed partial class StructureView
             tree.SelectedItem = row.Item;
         });
         row.Marker.Text = "●";
-        AutomationProperties.SetItemStatus(row.Item, Loc.Get("structure.caret"));
+        AutomationProperties.SetItemStatus(row.Item, Loc.Get(K.StructureCaret));
         markedRows.Add(row);
     }
 }

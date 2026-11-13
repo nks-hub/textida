@@ -63,7 +63,7 @@ internal sealed partial class MainWindow
         SidePanel.Commit => Loc.Get(K.PanelCommitName),
         SidePanel.History => Loc.Get(K.PanelHistoryName),
         SidePanel.Headings => Loc.Get(K.PanelHeadingsName),
-        SidePanel.Structure => Loc.Get("structure.title"),
+        SidePanel.Structure => Loc.Get(K.StructureTitle),
         _ => _pluginPanelTitle.Text is { Length: > 0 } title ? title : Loc.Get(K.PanelPluginName),
     };
 
