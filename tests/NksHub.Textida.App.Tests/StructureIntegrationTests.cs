@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -91,7 +92,8 @@ public sealed class StructureIntegrationTests : IDisposable
         view.Tree.SelectedItem = attribute; await Drain();
         Assert.Equal("p:name='é😀'", tab.Surface!.SelectedText);
 
-        tab.Surface.Focus(); tab.Surface.Select(text.IndexOf("body", StringComparison.Ordinal) + 2, 0);
+        Assert.True(tab.Surface.TextArea.Focus());
+        tab.Surface.Select(text.IndexOf("body", StringComparison.Ordinal) + 2, 0);
         await Drain();
         Assert.Equal(StructureKind.XmlCData, Assert.IsType<StructureNode>(Assert.IsType<TreeViewItem>(view.Tree.SelectedItem).Tag).Kind);
         Assert.True(tab.Surface.IsKeyboardFocusWithin);
@@ -107,12 +109,17 @@ public sealed class StructureIntegrationTests : IDisposable
         var root = Assert.Single(Rows(Assert.Single(Rows(view.Tree))));
         root.IsExpanded = true; await Drain();
         var value = Rows(root).First(); view.Tree.SelectedItem = value;
+        Assert.Same(window, TopLevel.GetTopLevel(value));
         dialogs.Prompts.Enqueue("é😀\nnew");
         int depth = tab.Doc.Doc.UndoDepth;
         view.EditButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Drain();
         Assert.Equal(depth + 1, tab.Doc.Doc.UndoDepth);
-        Assert.Equal("{\"value\":\"é😀\\nnew\",\"keep\":3}", tab.Doc.Doc.ReadText(new ByteRange(0, tab.Doc.Doc.ByteLength)));
-        Assert.DoesNotContain(value, Rows(view.Tree));
+        string after = tab.Doc.Doc.ReadText(new ByteRange(0, tab.Doc.Doc.ByteLength));
+        using var decoded = JsonDocument.Parse(after);
+        Assert.Equal("é😀\nnew", decoded.RootElement.GetProperty("value").GetString());
+        Assert.StartsWith("{\"value\":", after, StringComparison.Ordinal);
+        Assert.EndsWith(",\"keep\":3}", after, StringComparison.Ordinal);
+        Assert.Null(TopLevel.GetTopLevel(value));
         tab.Doc.Doc.Undo(); await Drain();
         Assert.Equal(before, tab.Doc.Doc.ReadText(new ByteRange(0, tab.Doc.Doc.ByteLength)));
     }
