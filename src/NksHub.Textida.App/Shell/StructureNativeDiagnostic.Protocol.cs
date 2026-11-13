@@ -15,24 +15,37 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed partial class StructureNativeDiagnostic
 {
+    private const string OperationKey = "Textida.StructureNativeDiagnostic.Operation";
+    private const string FileIoKey = "Textida.StructureNativeDiagnostic.FileIo";
     private long nativeWindow;
 
     private async Task PollAsync()
     {
         string? previousArm = null;
+        string phase = "CreateDirectory";
         try
         {
             Directory.CreateDirectory(directory);
+            phase = "ResolveExecutable";
             string executable = Environment.ProcessPath ?? throw new InvalidOperationException("The process executable is unavailable.");
+            phase = "ReadExecutableIdentity";
             using (var file = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             using (var process = Process.GetCurrentProcess())
                 identity = new(Services.BuildStamp.Commit, Convert.ToHexString(SHA256.HashData(file)).ToLowerInvariant(), Environment.ProcessId, process.SessionId);
+            phase = "VerifySession";
             if (identity.Session == 0) throw new InvalidOperationException("Desktop measurements require an interactive session.");
+            phase = "VerifyPins";
             VerifyPins();
             while (!stopped.IsCancellationRequested)
             {
+                phase = "CapturePublications";
                 var publications = await Dispatcher.UIThread.InvokeAsync(Publications, DispatcherPriority.Background);
-                foreach (var (name, record) in publications) await WriteAtomicAsync(name, record, stopped.Token).ConfigureAwait(false);
+                foreach (var (name, record) in publications)
+                {
+                    phase = "Publish:" + name;
+                    await WriteAtomicAsync(name, record, stopped.Token).ConfigureAwait(false);
+                }
+                phase = "ReadArm";
                 string? request = ReadArm();
                 if (request is not null && request != previousArm)
                 {
@@ -40,7 +53,9 @@ internal sealed partial class StructureNativeDiagnostic
                     Arm? arm = null;
                     try
                     {
+                        phase = "ParseArm";
                         arm = ParseArm(request);
+                        phase = "ArmSample";
                         var acknowledged = await Dispatcher.UIThread.InvokeAsync(() =>
                         {
                             var sample = ArmSample(arm);
@@ -48,18 +63,20 @@ internal sealed partial class StructureNativeDiagnostic
                             sample.Acknowledged = true;
                             return SampleJson(sample, "armed");
                         }, DispatcherPriority.Background);
+                        phase = "Publish:armed.json";
                         await WriteAtomicAsync("armed.json", acknowledged, stopped.Token).ConfigureAwait(false);
                     }
                     catch (Exception error) when (error is not OperationCanceledException)
                     {
-                        Record("error.jsonl", ErrorJson("arm", error, arm));
+                        Record("error.jsonl", ErrorJson("arm", error, arm, phase));
                     }
                 }
+                phase = "PollDelay";
                 await Task.Delay(10, stopped.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) { }
-        catch (Exception error) { Record("error.jsonl", ErrorJson("adapter", error)); }
+        catch (Exception error) { Record("error.jsonl", ErrorJson("adapter", error, phase: phase)); }
     }
 
     private void VerifyPins()
@@ -113,10 +130,22 @@ internal sealed partial class StructureNativeDiagnostic
     {
         string path = Path.Combine(directory, "arm.json");
         if (!File.Exists(path)) return null;
-        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        if (file.Length is < 2 or > 16384) throw new InvalidDataException("The arm request must contain 2 to 16384 bytes.");
-        using var reader = new StreamReader(file, Encoding.UTF8, detectEncodingFromByteOrderMarks: false);
-        return reader.ReadToEnd();
+        string operation = "OpenArm";
+        try
+        {
+            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            operation = "ReadArmLength";
+            if (file.Length is < 2 or > 16384) throw new InvalidDataException("The arm request must contain 2 to 16384 bytes.");
+            operation = "ReadArmText";
+            using var reader = new StreamReader(file, Encoding.UTF8, detectEncodingFromByteOrderMarks: false);
+            return reader.ReadToEnd();
+        }
+        catch (Exception error)
+        {
+            error.Data[OperationKey] = operation;
+            error.Data[FileIoKey] = new JsonObject { ["input"] = PathState(path) };
+            throw;
+        }
     }
 
     private static Arm ParseArm(string request)
@@ -226,12 +255,28 @@ internal sealed partial class StructureNativeDiagnostic
         return result;
     }
 
-    private JsonObject ErrorJson(string stage, Exception error, Arm? arm = null)
+    private JsonObject ErrorJson(string stage, Exception error, Arm? arm = null, string? phase = null)
     {
         var result = IdentityJson();
         result["status"] = "error";
         result["stage"] = stage;
-        result["error"] = error.Message;
+        result["error"] = BoundedDiagnostic(error.Message, 2048);
+        result["exceptionType"] = error.GetType().FullName;
+        result["hResultHex"] = HResultHex(error);
+        result["stackTrace"] = BoundedDiagnostic(error.StackTrace, 8192);
+        result["phase"] = phase;
+        result["operation"] = error.Data[OperationKey] as string;
+        if (error.Data[FileIoKey] is JsonObject fileIo) result["fileIo"] = fileIo.DeepClone();
+        var innerChain = new JsonArray();
+        var inner = error.InnerException;
+        for (int depth = 0; inner is not null && depth < 4; depth++, inner = inner.InnerException)
+            innerChain.Add((JsonNode)new JsonObject
+            {
+                ["exceptionType"] = inner.GetType().FullName, ["hResultHex"] = HResultHex(inner),
+                ["error"] = BoundedDiagnostic(inner.Message, 1024), ["stackTrace"] = BoundedDiagnostic(inner.StackTrace, 2048),
+            });
+        result["innerChain"] = innerChain;
+        result["innerChainTruncated"] = inner is not null;
         result["observedQpc"] = Stopwatch.GetTimestamp();
         if (arm is not null)
         {
@@ -273,12 +318,53 @@ internal sealed partial class StructureNativeDiagnostic
     private async Task WriteAtomicAsync(string name, JsonObject row, CancellationToken ct)
     {
         string final = Path.Combine(directory, name), temp = final + "." + Environment.ProcessId + ".tmp";
-        await File.WriteAllTextAsync(temp, row.ToJsonString(), ct).ConfigureAwait(false);
-        for (int retry = 0; ; retry++)
+        string operation = "SerializeRecord";
+        int retry = 0;
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            try { File.Move(temp, final, overwrite: true); return; }
-            catch (IOException) when (retry < 4) { await Task.Delay(5, ct).ConfigureAwait(false); }
+            string json = row.ToJsonString();
+            operation = "WriteTemp";
+            await File.WriteAllTextAsync(temp, json, ct).ConfigureAwait(false);
+            operation = "MoveReplace";
+            for (; ; retry++)
+            {
+                ct.ThrowIfCancellationRequested();
+                try { File.Move(temp, final, overwrite: true); return; }
+                catch (IOException) when (retry < 4) { await Task.Delay(5, ct).ConfigureAwait(false); }
+            }
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            error.Data[OperationKey] = operation;
+            error.Data[FileIoKey] = new JsonObject
+            {
+                ["name"] = name, ["retry"] = retry,
+                ["temp"] = PathState(temp), ["final"] = PathState(final), ["directory"] = PathState(directory),
+            };
+            throw;
         }
     }
+
+    private static JsonObject PathState(string path)
+    {
+        var result = new JsonObject { ["path"] = path, ["observedQpc"] = Stopwatch.GetTimestamp() };
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            result["exists"] = true;
+            result["attributes"] = attributes.ToString();
+            result["attributesHex"] = "0x" + ((uint)attributes).ToString("X8");
+        }
+        catch (Exception error)
+        {
+            result["exists"] = error is FileNotFoundException or DirectoryNotFoundException ? false : null;
+            result["probeExceptionType"] = error.GetType().FullName;
+            result["probeHResultHex"] = HResultHex(error);
+            result["probeError"] = BoundedDiagnostic(error.Message, 1024);
+        }
+        return result;
+    }
+
+    private static string HResultHex(Exception error) => "0x" + unchecked((uint)error.HResult).ToString("X8");
+    private static string? BoundedDiagnostic(string? value, int limit) => value is { } text && text.Length > limit ? text[..limit] : value;
 }
