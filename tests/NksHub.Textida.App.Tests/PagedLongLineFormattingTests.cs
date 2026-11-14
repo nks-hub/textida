@@ -1,8 +1,11 @@
 using System.Globalization;
+using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
@@ -34,6 +37,8 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
             TypingTrace.Enabled = false;
             using var host = new Host();
             for (int i = 0; i < 4; i++) { host.Paged.SelectBytes(i + 1, i + 2); host.Draw(); }
+            object? previousEntry = host.Entry();
+            var probes = new List<object> { host.CacheProbe(null, -1) };
             TypingTrace.Reset();
             TypingTrace.Enabled = true;
             const int draws = 10;
@@ -44,9 +49,12 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
                 host.Paged.SelectBytes(2 + i, 3 + i);
                 host.Draw();
                 Assert.True(host.Paged.RenderedAt > before);
+                probes.Add(host.CacheProbe(previousEntry, i));
+                previousEntry = host.Entry();
             }
             string summary = TypingTrace.Summary();
             output.WriteLine(summary);
+            output.WriteLine(JsonSerializer.Serialize(new { cacheProbes = probes }));
             var render = Regex.Match(summary, @"(?m)^paged\.render\s+n=\s*(\d+)[^\r\n]*\balloc=(\d+)");
             Assert.True(render.Success, "The actual paged render span was not recorded.");
             Assert.True(int.Parse(render.Groups[1].Value, CultureInfo.InvariantCulture) >= draws);
@@ -220,6 +228,54 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
         }
 
         public void ClearTokens() => typeof(PagedTextView).GetMethod("ClearTokens", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Paged, null);
+
+        private object? Field(string name) => typeof(PagedTextView).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Paged);
+        private static object? Property(object? target, string name) => target?.GetType().GetProperty(name)?.GetValue(target);
+        private static int Id(object? value) => value is null ? 0 : RuntimeHelpers.GetHashCode(value);
+
+        public object? Entry()
+        {
+            object canvas = Field("_canvas")!;
+            return canvas.GetType().GetField("formattedLine", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(canvas);
+        }
+
+        public object CacheProbe(object? previous, int draw)
+        {
+            var canvas = (Control)Field("_canvas")!;
+            object? entry = Entry(), key = Property(entry, "Key");
+            object? view = ((IDictionary)Field("_lines")!)[0L];
+            object? map = Property(view, "Map");
+            var options = (EditorOptions)Field("_options")!;
+            var look = EditorLook.Of(canvas);
+            var fore = look.Id == EditorColorTheme.AutoId
+                ? canvas.TryFindResource("Fg", canvas.ActualThemeVariant, out var value) && value is IBrush brush ? brush : Brushes.Black
+                : new Avalonia.Media.Immutable.ImmutableSolidColorBrush(look[EditorColorTheme.Foreground]);
+            return new
+            {
+                draw, entryId = Id(entry), sameEntry = entry is not null && ReferenceEquals(previous, entry),
+                cached = new
+                {
+                    viewId = Id(Property(key, "View")), revision = Property(key, "Revision"), tokensId = Id(Property(key, "Tokens")),
+                    cultureId = Id(Property(key, "Culture")), themeId = Id(Property(key, "Theme")), paletteId = Id(Property(key, "Palette")),
+                    family = Property(key, "Family"), size = Property(key, "FontSize"), fore = Property(key, "Foreground")?.ToString(),
+                    opacity = Property(key, "Opacity"), hidden = Property(key, "SecretsHidden"), revealed = Property(key, "SecretsRevealed")
+                },
+                current = new
+                {
+                    viewId = Id(view), revision = Tab.Doc.Doc.Revision, tokensId = Id(Paged.TokensOf(0)),
+                    cultureId = Id(CultureInfo.CurrentCulture), themeId = Id(look), paletteId = Id(look.Palette),
+                    family = options.FullFontFamily, size = options.FontSize, fore = (fore as ISolidColorBrush)?.Color.ToString(),
+                    opacity = (fore as ISolidColorBrush)?.Opacity, hidden = Paged.SecretsHidden, revealed = Paged.SecretsRevealed
+                },
+                admissibility = new
+                {
+                    truncated = Property(view, "Truncated"), displayIsMap = ReferenceEquals(Property(view, "Display"), Property(map, "Text")),
+                    log = Tab.Doc.IsLog, hideAnsi = typeof(PagedTextView).GetProperty("HideAnsi", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Paged),
+                    hasLogHighlight = Tab.Doc.LogHighlight is not null, preeditLength = ((string)Field("_preedit")!).Length,
+                    whitespace = options.ShowWhitespace, solidFore = fore is ISolidColorBrush
+                }
+            };
+        }
 
         public void Dispose() { TestApp.Cleanup(App); Loc.SetLanguage(Loc.DefaultLanguage); temp.Dispose(); }
     }
