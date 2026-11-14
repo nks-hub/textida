@@ -65,7 +65,24 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
         var blue = Color.Parse("#1279D4");
         host.App.Workbench.Set(EditorThemes.ColorsSetting, "keyword=#D412A7");
         host.Tokens([new Token(0, 24, "keyword")]);
-        Assert.True(Count(host.Frame(), pink) > 10);
+        byte[] first = host.Frame();
+        var tokens = host.Paged.TokensOf(0);
+        var effective = EditorLook.Of(host.Paged).Palette.GetBrush("keyword") as ISolidColorBrush;
+        int nearestDistance = int.MaxValue;
+        Color nearest = default;
+        for (int i = 0; i < first.Length; i += 4)
+        {
+            int r = first[i] - pink.R, g = first[i + 1] - pink.G, b = first[i + 2] - pink.B;
+            int distance = r * r + g * g + b * b;
+            if (distance >= nearestDistance) continue;
+            nearestDistance = distance;
+            nearest = Color.FromRgb(first[i], first[i + 1], first[i + 2]);
+        }
+        string observed = $"expected={pink}; palette={effective?.Color}; exact-pixels={Count(first, pink)}; nearest={nearest}; squared-distance={nearestDistance}; tokens={string.Join(',', tokens?.Select(token => $"{token.Start}:{token.Length}:{token.Kind}") ?? [])}";
+        output.WriteLine(observed);
+        Assert.Contains(tokens ?? [], token => token.Start == 0 && token.Length == 24 && token.Kind == "keyword");
+        Assert.Equal(pink, effective?.Color);
+        Assert.True(Count(first, pink) > 10, observed);
 
         host.Tokens([new Token(0, 24, "number")]);
         Assert.Equal(0, Count(host.Frame(), pink));
