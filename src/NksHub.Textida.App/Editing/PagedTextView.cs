@@ -2215,7 +2215,6 @@ internal sealed partial class PagedTextView : Grid
             var current = new ImmutableSolidColorBrush(look[EditorColorTheme.CurrentLine]);
             var palette = look.Palette;
             var options = owner._options;
-            var levels = owner._doc.IsLog ? owner._doc.LogLevels : null;
             var selection = new ImmutableSolidColorBrush(look[EditorColorTheme.Selection]);
             var occurrences = BeginOccurrences(Brush);
             long occurrenceOwn = owner._occ?.Target?.Own ?? -1;
@@ -2303,28 +2302,7 @@ internal sealed partial class PagedTextView : Grid
                         else if (caretLine is { } pl && pl.Line == line) _composed.Add(view.DisplayAt[view.Map.CharIndexOf(owner._caret - view.Start)]);
                         for (int k = _composed.Count - 1; k >= 0; k--) shown = shown.Insert(_composed[k], owner._preedit);
                     }
-                    bool dimmed = levels is not null && owner.FoldCriteria is { } fold && !LogFold.KeepsAlone(view.Map.Text, levels, fold);
-                    var text = Format(shown, dimmed ? dim : fore);
-                    if (!dimmed && levels?.Classify(view.Map.Text) is { } level && palette.GetBrush(LogLevelKinds.Of(level)) is { } levelBrush) text.SetForegroundBrush(levelBrush);
-                    if (owner._tokens.TryGetValue(line, out var tokens))
-                        foreach (var token in tokens)
-                        {
-                            int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
-                            if (_composed.Count > 0)
-                            {
-                                (int start, int end) = (from, to);
-                                foreach (int at in _composed)
-                                {
-                                    if (start >= at) from += insertLength;
-                                    if (end > at) to += insertLength;
-                                }
-                            }
-                            if (to > from) Paint(text, palette, token.Kind, from, to - from);
-
-                        }
-                    if (owner.HideAnsi && _composed.Count == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
-                    for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);
-                    if (options.ShowWhitespace) DimMarks(text, shown, dim);
+                    var text = FormatLine(context, view, line, y, shown, look, fore, dim, insertLength);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
                     {
                         string searched = view.Map.Text.Length > LogLevelColorizer.MaxClassifiedChars ? view.Map.Text[..LogLevelColorizer.MaxClassifiedChars] : view.Map.Text;
