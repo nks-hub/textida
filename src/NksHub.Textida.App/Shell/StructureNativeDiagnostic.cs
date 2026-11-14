@@ -59,6 +59,8 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         public long FirstPaintQpc;
         public int PaintAttempts;
         public PaintObservation? FirstPaintState;
+        public string? TypingTraceBeforeArm;
+        public long TypingTraceWindowBeginQpc;
         public IBrush First { get; } = ColorBrush(arm.Marker);
         public IBrush Second { get; } = ColorBrush(arm.Marker ^ 0xFFFFFF);
     }
@@ -146,6 +148,12 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         if (arm.Action == "scroll" && Scroller() is null) throw new InvalidOperationException("The tree has no scroll viewport.");
         visible = null;
         pending = new(arm, target, initial, Points(), lastInspectionNonce);
+        if (Core.TypingTrace.Enabled)
+        {
+            pending.TypingTraceBeforeArm = Core.TypingTrace.Summary();
+            Core.TypingTrace.Reset();
+            pending.TypingTraceWindowBeginQpc = Stopwatch.GetTimestamp();
+        }
         markerControl!.InvalidateVisual();
         return pending;
     }

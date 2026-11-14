@@ -329,6 +329,14 @@ internal sealed partial class StructureNativeDiagnostic
             ["treeArrangeValid"] = first.TreeArrangeValid, ["treeMeasureValid"] = first.TreeMeasureValid,
             ["targetArrangeValid"] = first.TargetArrangeValid, ["targetMeasureValid"] = first.TargetMeasureValid,
         } : null;
+        if (sample.TypingTraceWindowBeginQpc > 0)
+        {
+            result["typingTraceBeforeArm"] = sample.TypingTraceBeforeArm;
+            result["typingTraceSinceArm"] = Core.TypingTrace.Summary();
+            result["typingTraceWindowBeginQpc"] = sample.TypingTraceWindowBeginQpc;
+            result["typingTraceSnapshotQpc"] = Stopwatch.GetTimestamp();
+            result["typingTraceScope"] = "Non-atomic process-wide completed-span snapshot since reset; spans may start before reset, and nested spans overlap. QPC values bracket the observation, not each span.";
+        }
         return result;
     }
 
