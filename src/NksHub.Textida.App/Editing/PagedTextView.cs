@@ -2312,7 +2312,7 @@ internal sealed partial class PagedTextView : Grid
                             context.FillRectangle(highlightBrush, new Rect(TextLeft - owner._hScroll + left, y, XOf(view, start + length) - left, _lineHeight));
                         }
                     }
-                    context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
+                    DrawLineText(context, text, new Point(TextLeft - owner._hScroll, y));
                     if (options.ShowLineEndings && !view.Truncated) DrawLineEnding(context, line, TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length), y, dim);
                 }
                 if (multi is not null)

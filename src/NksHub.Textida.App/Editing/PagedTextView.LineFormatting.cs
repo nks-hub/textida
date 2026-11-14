@@ -1,4 +1,5 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using NksHub.Textida.App.Services;
@@ -15,7 +16,7 @@ internal sealed partial class PagedTextView
         private readonly record struct LineFormatKey(LineView View, long Revision, Token[]? Tokens, string Family,
             double FontSize, CultureInfo Culture, EditorColorTheme Theme, SyntaxPalette Palette, Color Foreground,
             double Opacity, bool SecretsHidden, bool SecretsRevealed);
-        private sealed record FormattedLine(LineFormatKey Key, FormattedText Text);
+        private sealed record FormattedLine(LineFormatKey Key, FormattedText Text, DrawingGroup Drawing);
         private FormattedLine? formattedLine;
 
         private FormattedText FormatLine(DrawingContext context, LineView view, long line, double y, string shown,
@@ -59,8 +60,22 @@ internal sealed partial class PagedTextView
             if (owner.HideAnsi && _composed.Count == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
             for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);
             if (owner._options.ShowWhitespace) DimMarks(text, shown, dim);
-            if (reusable is { } current) formattedLine = new(current, text);
+            if (reusable is { } current)
+            {
+                var drawing = new DrawingGroup();
+                using (var recording = drawing.Open()) recording.DrawText(text, default);
+                formattedLine = new(current, text, drawing);
+            }
             return text;
+        }
+
+        private void DrawLineText(DrawingContext context, FormattedText text, Point origin)
+        {
+            if (formattedLine is { } cached && ReferenceEquals(text, cached.Text))
+            {
+                using (context.PushTransform(Matrix.CreateTranslation(origin))) cached.Drawing.Draw(context);
+            }
+            else context.DrawText(text, origin);
         }
     }
 }
