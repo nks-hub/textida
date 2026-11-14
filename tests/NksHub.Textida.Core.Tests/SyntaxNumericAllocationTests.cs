@@ -94,7 +94,7 @@ public sealed class SyntaxNumericAllocationTests(ITestOutputHelper output)
         using var session = new StreamingSyntaxSession(document, tokenizer);
         SyntaxWindow pending;
         do pending = session.TokenizeWindow(0, 1, 0, 128, TimeSpan.FromMilliseconds(1));
-        while (session.BytesRead == 0);
+        while (session.BytesRead <= SyntaxChunkReader.WindowBytes + 8);
         Assert.Equal(SyntaxViewportStatus.Pending, pending.Status);
         Assert.Empty(pending.Lines);
         using var cancellation = new CancellationTokenSource();
