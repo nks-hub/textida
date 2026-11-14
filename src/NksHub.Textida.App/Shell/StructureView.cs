@@ -206,7 +206,16 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         bool moved = current.Offset != session.Source.Offset;
         session.Source = current;
         UpdateButtons();
-        if (moved) MarkCaret(session);
+        if (moved)
+        {
+            if (sourceJump is { } jump && ReferenceEquals(jump.Owner, session) && jump.Offset == current.Offset
+                && session.Analysis is { IsValid: true } && CurrentRow(jump.Row, jump.RequestId, jump.NodeId))
+            {
+                caretRequest?.Cancel();
+                Mark(jump.Row, revealParents: false);
+            }
+            else MarkCaret(session);
+        }
     }
 
     private static bool SameSource(StructureSource a, StructureSource b) => ReferenceEquals(a.Key, b.Key)

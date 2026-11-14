@@ -8,6 +8,7 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed partial class StructureView
 {
+    private (Session Owner, Row Row, long RequestId, long NodeId, long Offset)? sourceJump;
     private sealed record Results(IReadOnlyList<RowData> Rows, long Cursor, long Next, bool Complete);
     private string resultSignature = "";
     private Row? Selected => tree.SelectedItem is TreeViewItem item && rows.TryGetValue(item, out var row) ? row : null;
@@ -35,7 +36,11 @@ internal sealed partial class StructureView
         if (session is { } owner && Current(owner) && Selected is { } row && source() is { } latest && SameSource(latest, owner.Source))
         {
             row.Touched = ++clock;
-            latest.Jump(row.Data.Range);
+            var range = row.Data.Range;
+            var previous = sourceJump;
+            sourceJump = (owner, row, row.RequestId, row.Data.Node.Id, Math.Max(latest.BomLength, range.Start));
+            try { latest.Jump(range); }
+            finally { sourceJump = previous; }
         }
     }
 
