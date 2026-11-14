@@ -60,7 +60,8 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
     [AvaloniaFact]
     public void Replacing_or_clearing_tokens_and_changing_theme_updates_the_drawn_long_line()
     {
-        using var host = new Host();
+        using var host = new Host(new string('\u2588', 32) + new string('x', 2 << 20));
+        host.App.Workbench.Set("editor.fontSize", JsonValue.Create(24));
         var pink = Color.Parse("#D412A7");
         var blue = Color.Parse("#1279D4");
         host.App.Workbench.Set(EditorThemes.ColorsSetting, "keyword=#D412A7");
