@@ -47,7 +47,7 @@ internal sealed partial class StructureNativeDiagnostic
                     await WriteAtomicAsync(name, record, stopped.Token).ConfigureAwait(false);
                 }
                 phase = "ReadInspection";
-                string? inspection = ReadRequest("inspect.json", 32768, "Inspection");
+                string? inspection = await ReadRequest("inspect.json", 32768, "Inspection").ConfigureAwait(false);
                 if (inspection is not null && inspection != previousInspection)
                 {
                     previousInspection = inspection;
@@ -72,7 +72,7 @@ internal sealed partial class StructureNativeDiagnostic
                     }
                 }
                 phase = "ReadArm";
-                string? request = ReadArm();
+                string? request = await ReadArm().ConfigureAwait(false);
                 if (request is not null && request != previousArm)
                 {
                     previousArm = request;
@@ -141,6 +141,7 @@ internal sealed partial class StructureNativeDiagnostic
                     ["expanded"] = item.IsExpanded, ["childCount"] = node.ChildCount });
             }
             ready["targets"] = targets;
+            AddTypingTraceSnapshot(ready, "typingTraceAtReady");
             records.Add(("ready.json", ready));
             readyWritten = true;
         }
@@ -152,24 +153,46 @@ internal sealed partial class StructureNativeDiagnostic
         return records;
     }
 
-    private string? ReadArm() => ReadRequest("arm.json", 16384, "Arm");
+    private Task<string?> ReadArm() => ReadRequest("arm.json", 16384, "Arm");
 
-    private string? ReadRequest(string name, int maximumBytes, string kind)
+    private async Task<string?> ReadRequest(string name, int maximumBytes, string kind)
     {
         string path = Path.Combine(directory, name);
         if (!File.Exists(path)) return null;
         string operation = "Open" + kind;
         try
         {
-            using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            operation = "Read" + kind + "Length";
-            if (file.Length < 2 || file.Length > maximumBytes) throw new InvalidDataException($"The {kind} request must contain 2 to {maximumBytes} bytes.");
-            operation = "Read" + kind + "Text";
-            var bytes = new byte[(int)file.Length];
-            file.ReadExactly(bytes);
-            if (file.ReadByte() != -1) throw new InvalidDataException("The request grew while it was being read.");
-            int preamble = bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }) ? 3 : 0;
-            return new UTF8Encoding(false, true).GetString(bytes.AsSpan(preamble));
+            FileStream file;
+            for (int attempt = 1; ; attempt++)
+            {
+                stopped.Token.ThrowIfCancellationRequested();
+                try
+                {
+                    file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    break;
+                }
+                catch (IOException error) when (attempt < 5 && unchecked((uint)error.HResult) is 0x80070002u or 0x80070020u)
+                {
+                    var record = ErrorJson("request-open-retry", error, phase: "Read" + kind);
+                    record["status"] = "retry";
+                    record["operation"] = operation;
+                    record["attempt"] = attempt;
+                    record["fileIo"] = new JsonObject { ["input"] = PathState(path) };
+                    Record("request-open-retry.jsonl", record);
+                    await Task.Delay(5, stopped.Token).ConfigureAwait(false);
+                }
+            }
+            using (file)
+            {
+                operation = "Read" + kind + "Length";
+                if (file.Length < 2 || file.Length > maximumBytes) throw new InvalidDataException($"The {kind} request must contain 2 to {maximumBytes} bytes.");
+                operation = "Read" + kind + "Text";
+                var bytes = new byte[(int)file.Length];
+                file.ReadExactly(bytes);
+                if (file.ReadByte() != -1) throw new InvalidDataException("The request grew while it was being read.");
+                int preamble = bytes.AsSpan().StartsWith(new byte[] { 0xEF, 0xBB, 0xBF }) ? 3 : 0;
+                return new UTF8Encoding(false, true).GetString(bytes.AsSpan(preamble));
+            }
         }
         catch (Exception error)
         {
@@ -363,12 +386,20 @@ internal sealed partial class StructureNativeDiagnostic
         result["innerChain"] = innerChain;
         result["innerChainTruncated"] = inner is not null;
         result["observedQpc"] = Stopwatch.GetTimestamp();
+        if (stage == "adapter") AddTypingTraceSnapshot(result, "typingTraceAtFailure");
         if (arm is not null)
         {
             result["run"] = arm.Run; result["sample"] = arm.Sample;
             result["action"] = arm.Action; result["marker"] = arm.Marker;
         }
         return result;
+    }
+
+    private static void AddTypingTraceSnapshot(JsonObject record, string name)
+    {
+        if (!Core.TypingTrace.Enabled) return;
+        record[name] = Core.TypingTrace.Summary();
+        record["typingTraceScope"] = "Non-atomic process-wide completed-span snapshot since the latest trace reset; spans may start before reset and nested spans overlap. Elapsed spans are not CPU time or input latency.";
     }
 
     private static JsonObject StateJson(State state) => new()

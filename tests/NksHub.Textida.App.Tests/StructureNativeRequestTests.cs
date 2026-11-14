@@ -46,7 +46,7 @@ public sealed class StructureNativeRequestTests
         Assert.Equal(path, fileIo["input"]!["path"]!.GetValue<string>());
         var retries = await requests.Retries(4);
         Assert.Equal(4, retries.Count);
-        Assert.Equal([1, 2, 3, 4], retries.Select(row => row["attempt"]!.GetValue<int>()));
+        Assert.Equal([1, 2, 3, 4], retries.Select(row => row["attempt"]!.GetValue<int>()).Order());
         foreach (var retry in retries) CheckRetry(retry, path, "Inspection");
     }
 
