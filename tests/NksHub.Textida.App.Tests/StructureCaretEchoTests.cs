@@ -29,10 +29,12 @@ public sealed class StructureCaretEchoTests
     {
         using var host = new Host(utf16 ? TextCodec.Utf16BEBom : TextCodec.Utf8);
         var (alpha, delta) = await host.Open();
+        Task previousWork = host.View.Working;
         host.Click(alpha);
 
         Assert.Equal(Node(alpha).Range, host.Jumped);
         Assert.Same(alpha, host.View.Tree.SelectedItem);
+        Assert.Same(previousWork, host.View.Working);
         Assert.True(host.View.Working.IsCompleted, "The known selected node queued a redundant source-caret lookup.");
         Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(alpha));
 
