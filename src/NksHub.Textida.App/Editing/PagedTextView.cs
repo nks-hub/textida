@@ -122,6 +122,7 @@ internal sealed partial class PagedTextView : Grid
             RaiseViewChanged();
         };
         InitOccurrences();
+        InitTouch();
     }
 
     private void RepaintLog()
@@ -346,6 +347,7 @@ internal sealed partial class PagedTextView : Grid
     private void OnDocChanged(object? sender, DocumentChangedEventArgs e)
     {
         long t = TypingTrace.Begin();
+        _touchInput.Cancel();
         _preedit = "";
         if (!_own)
         {
@@ -1696,66 +1698,6 @@ internal sealed partial class PagedTextView : Grid
     }
 
     private readonly Glide _glide;
-
-    protected override void OnPointerPressed(PointerPressedEventArgs e)
-    {
-        Focus();
-        base.OnPointerPressed(e);
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if ((e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)) && StackTraceAt(e.GetPosition(_canvas)) is { } link)
-        {
-            e.Handled = true;
-            StackTraceClicked?.Invoke(link);
-            return;
-        }
-        if (e.KeyModifiers == KeyModifiers.Alt)
-        {
-            // Alt+click adds a caret where it lands, or removes the one that is there
-            if (OffsetAt(e.GetPosition(_canvas)) is { } at) AddOrRemoveCaretAt(at.Offset);
-            e.Handled = true;
-            return;
-        }
-        Place(e.GetPosition(_canvas), e.KeyModifiers.HasFlag(KeyModifiers.Shift));
-        _dragFrom = _caret;
-        e.Pointer.Capture(this);
-        e.Handled = true;
-    }
-
-    protected override void OnPointerMoved(PointerEventArgs e)
-    {
-        base.OnPointerMoved(e);
-        if (_dragFrom < 0) return;
-        Place(e.GetPosition(_canvas), extend: true);
-        e.Handled = true;
-    }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
-    {
-        base.OnPointerReleased(e);
-        if (_dragFrom < 0) return;
-        _dragFrom = -1;
-        e.Pointer.Capture(null);
-    }
-
-    /// <summary>The line and the byte offset under a point of the text area; null while the line is not known yet.</summary>
-    private (long Offset, long Line)? OffsetAt(Point point)
-    {
-        long line = Math.Clamp(TopLine + (long)Math.Floor(point.Y / _canvas.LineHeight), 0, LineCount - 1);
-        if (GetLine(line) is not { } view) return null;
-        double x = point.X - _canvas.TextLeft + _hScroll;
-        long to = view.Truncated && x / _canvas.CharWidth >= view.Display.Length
-            ? OffsetOfColumn(view, _canvas.ColumnAtX(view, x))
-            : view.Start + view.Map.ByteOffsetOf(_canvas.IndexAtX(view, x));
-        return (to, line);
-    }
-
-    private void Place(Point point, bool extend)
-    {
-        if (OffsetAt(point) is not { } at) return;
-        _extend = extend;
-        try { MoveTo(at.Offset, at.Line); }
-        finally { _extend = false; }
-    }
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
