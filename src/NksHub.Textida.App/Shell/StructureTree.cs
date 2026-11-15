@@ -126,6 +126,10 @@ internal sealed partial class StructureTree : Grid
         suppressListSelection++;
         try
         {
+            var visibleSet = new HashSet<StructureTreeNode>(visible);
+            // Remove hidden nodes before shifting survivors, so their containers remain attached.
+            for (int index = projection.Count - 1; index >= 0; index--)
+                if (!visibleSet.Contains(projection[index])) projection.RemoveAt(index);
             for (int index = 0; index < visible.Count; index++)
             {
                 if (index < projection.Count && ReferenceEquals(projection[index], visible[index])
