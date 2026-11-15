@@ -19,6 +19,9 @@ public sealed class StructureTreeControlTests
         using var host = new Host(nodes);
         host.Tree.SelectAndReveal(nodes[0]);
         await host.Until(() => host.Tree.TryGetRealizedRow(nodes[0]) is not null);
+        Assert.True(host.Tree.TryGetRealizedRow(nodes[1])!.Focus());
+        host.Tree.SelectedNode = nodes[0];
+        Assert.True(host.Outside.Focus());
         var seen = host.Tree.GetRealizedRows().ToHashSet();
         Assert.InRange(seen.Count, 1, 63);
         for (int iteration = 0; iteration < 4; iteration++)
@@ -36,6 +39,24 @@ public sealed class StructureTreeControlTests
         Assert.True(seen.Count < 128, $"Scrolling created {seen.Count} different row containers.");
         var first = Assert.IsType<StructureTreeRow>(host.Tree.TryGetRealizedRow(nodes[0]));
         Assert.True(first.IsSelected);
+    }
+
+    [AvaloniaFact]
+    public async Task The_last_focused_row_stays_bounded_and_its_peer_reports_offscreen_geometry()
+    {
+        var nodes = Nodes(256);
+        using var host = new Host(nodes);
+        host.Tree.SelectAndReveal(nodes[0]); await host.Drain();
+        var first = host.Tree.TryGetRealizedRow(nodes[0])!;
+        host.Tree.List.ScrollIntoView(255);
+        await host.Until(() => host.Tree.TryGetRealizedRow(nodes[^1]) is not null);
+        Assert.Same(nodes[0], first.BoundNode); Assert.True(first.IsFocused);
+        Assert.Same(nodes[0], host.Tree.SelectedNode);
+        Assert.InRange(host.Tree.BoundRowCount, 1, 64);
+        var peer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(first)!;
+        Assert.True(peer.IsOffscreen());
+        Assert.False(new Rect(host.Window.ClientSize).Intersects(peer.GetBoundingRectangle()));
+        Assert.Equal("Node 0", peer.GetName());
     }
 
     [AvaloniaFact]

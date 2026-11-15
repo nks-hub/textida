@@ -23,13 +23,14 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public sealed class StructureRowCacheTests(ITestOutputHelper output)
 {
-    private static StructureNode Node(TreeViewItem item) => Assert.IsType<StructureNode>(item.Tag);
-    private static IEnumerable<TreeViewItem> DataItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode);
+    private static StructureNode Node(StructureTreeNode item) => Assert.IsType<StructureNode>(item.Tag);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTreeNode parent) => parent.Items.Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode);
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-    private static Button Pager(TreeViewItem item, bool next) => Assert.IsType<WrapPanel>(
-        item.Items.OfType<TreeViewItem>().Single(child => child.Tag == null).Header).Children.OfType<Button>().ElementAt(next ? 1 : 0);
+    private static Button Pager(StructureTreeNode item, bool next) => Assert.IsType<WrapPanel>(
+        item.Items.OfType<StructureTreeNode>().Single(child => child.Kind == StructureTreeNodeKind.Pager).PagerContent).Children.OfType<Button>().ElementAt(next ? 1 : 0);
 
-    private static int ActiveItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Sum(item => 1 + ActiveItems(item));
+    private static int ActiveItems(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Sum(item => 1 + ActiveItems(item));
 
     private static void Bound(StructureView view)
     {
@@ -37,11 +38,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Assert.InRange(view.CachedItems, ActiveItems(view.Tree), StructureView.MaximumItems);
     }
 
-    private static Control[] RowControls(TreeViewItem item)
-    {
-        var header = Assert.IsAssignableFrom<Control>(item.Header);
-        return [item, header, .. header.GetVisualDescendants().OfType<Control>()];
-    }
+    private static int ActiveItems(StructureTreeNode parent) => parent.Items.Sum(item => 1 + ActiveItems(item));
 
     [AvaloniaFact]
     public async Task Installing_32_cold_pages_of_64_rows_allocates_at_most_64_mib()
@@ -66,7 +63,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
             {
                 Assert.False(branch.IsExpanded);
                 Assert.Empty(DataItems(branch));
-                host.View.Tree.SelectedItem = branch; await host.Drain();
+                host.View.Tree.SelectedNode = branch; await host.Drain();
                 Assert.Empty(DataItems(branch));
                 branch.IsExpanded = true; await host.Drain();
                 var children = DataItems(branch).ToArray();
@@ -104,7 +101,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
     }
 
     [AvaloniaFact]
-    public async Task Rotating_32_branches_reuses_the_row_and_single_header_and_keeps_exact_tags_parents_and_pages()
+    public async Task Rotating_32_branches_reuses_models_and_keeps_exact_tags_parents_and_pages()
     {
         string text = "[" + string.Join(',', Enumerable.Range(0, 32).Select(group => "["
             + string.Join(',', Enumerable.Range(0, 135).Select(i => group * 1000 + i)) + "]")) + "]";
@@ -114,50 +111,29 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         array.IsExpanded = true; await host.Drain();
         var branches = DataItems(array).ToArray();
         Assert.Equal(32, branches.Length);
-        var identities = new Dictionary<TreeViewItem, (long Id, Control[] Controls)>();
-        var prepared = new List<(TreeViewItem Item, StructureNode Node, StyledElement? Parent)>();
-        foreach (var branch in branches)
-            branch.ContainerPrepared += (_, e) =>
-            {
-                if (e.Container is TreeViewItem item && item.Tag is StructureNode node)
-                    prepared.Add((item, node, item.Parent));
-            };
+        var identities = new Dictionary<StructureTreeNode, long>();
         int reused = 0;
         foreach (var branch in branches.Concat(branches))
         {
-            prepared.Clear();
-            host.View.Tree.SelectedItem = branch;
+            host.View.Tree.SelectedNode = branch;
             branch.IsExpanded = true; await host.Drain();
-            Assert.Equal(Enumerable.Range(0, StructureView.PageSize).Select(i => (long)i), DataItems(branch).Select(item => Node(item).Ordinal));
-            Assert.Equal(StructureView.PageSize, prepared.Count);
-            Assert.Equal(DataItems(branch), prepared.Select(row => row.Item));
-            Assert.All(prepared, row =>
-            {
-                Assert.Same(branch, row.Parent);
-                Assert.Equal(Node(branch).Id, row.Node.ParentId);
-                Assert.Equal(row.Node, Node(row.Item));
-            });
-            foreach (var leaf in DataItems(branch))
+            var children = DataItems(branch).ToArray();
+            Assert.Equal(Enumerable.Range(0, StructureView.PageSize).Select(i => (long)i), children.Select(item => Node(item).Ordinal));
+            foreach (var leaf in children)
             {
                 var node = Node(leaf);
-                var controls = RowControls(leaf);
-                Assert.Equal(2, controls.Length);
-                Assert.IsType<StructureRowHeader>(leaf.Header);
-                if (identities.TryGetValue(leaf, out var old) && old.Id != node.Id)
-                {
-                    reused++;
-                    foreach (var (before, after) in old.Controls.Zip(controls)) Assert.Same(before, after);
-                    Assert.Equal("", AutomationProperties.GetItemStatus(leaf));
-                }
-                identities[leaf] = (node.Id, controls);
+                if (identities.TryGetValue(leaf, out var old) && old != node.Id) reused++;
+                identities[leaf] = node.Id;
+                Assert.Same(branch, leaf.Parent);
                 Assert.Equal(Node(branch).Id, node.ParentId);
-                Assert.False(leaf.IsExpanded); Assert.False(leaf.IsSelected);
+                Assert.False(leaf.IsExpanded); Assert.False(leaf.IsCaret);
                 Assert.Empty(leaf.Items);
                 string value = (Node(branch).Ordinal * 1000 + node.Ordinal).ToString(CultureInfo.InvariantCulture);
-                Assert.EndsWith(" " + value, AutomationProperties.GetName(leaf), StringComparison.Ordinal);
-                Assert.Contains("[" + node.Ordinal + "]", AutomationProperties.GetName(leaf), StringComparison.Ordinal);
+                Assert.EndsWith(" " + value, leaf.DisplayName, StringComparison.Ordinal);
+                Assert.Contains("[" + node.Ordinal + "]", leaf.DisplayName, StringComparison.Ordinal);
             }
             Bound(host.View);
+            Assert.InRange(host.View.Tree.GetRealizedRows().Count, 1, 63);
             branch.IsExpanded = false; await host.Drain();
             Bound(host.View);
         }
@@ -176,7 +152,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Assert.True(host.View.CachedItems > ActiveItems(host.View.Tree));
         var selected = DataItems(last).First();
         var selectedNode = Node(selected);
-        host.View.Tree.SelectedItem = selected;
+        host.View.Tree.SelectedNode = selected;
         Assert.Equal(selectedNode.Range, host.Jumped);
         Click(host.View.CopyPathButton); await host.Drain();
         Assert.Equal("$[31][128]", host.Copied);
@@ -188,7 +164,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
     }
 
     [AvaloniaFact]
-    public async Task Pooled_leaves_restore_branch_templates_and_children_and_return_to_leaf_templates()
+    public async Task Recycled_models_restore_branch_expansion_and_return_to_leaf_rows()
     {
         string text = "[" + string.Join(',', Enumerable.Range(0, 192).Select(i => i is >= 64 and < 128 ? "[1]" : i.ToString(CultureInfo.InvariantCulture))) + "]";
         using var host = new Host(text, StructureFormat.Json);
@@ -197,38 +173,32 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         array.IsExpanded = true; await host.Drain();
         var leaves = DataItems(array).ToArray();
         Assert.Equal(StructureView.PageSize, leaves.Length);
-        Assert.All(leaves, item => Assert.DoesNotContain(item.GetVisualDescendants(), visual => visual is ToggleButton or ItemsPresenter));
-        var headers = leaves.ToDictionary(item => item, item => item.Header);
-        host.View.Tree.SelectedItem = array; array.Focus();
+        Assert.All(leaves, item => Assert.False(item.HasChildren));
+        host.View.Tree.SelectAndReveal(array);
         Click(Pager(array, next: true)); await host.Drain();
         var branches = DataItems(array).ToArray();
         Assert.Equal(Enumerable.Range(64, 64).Select(i => (long)i), branches.Select(item => Node(item).Ordinal));
-        Assert.All(branches, item =>
-        {
-            Assert.True(headers.TryGetValue(item, out var header)); Assert.Same(header, item.Header);
-            Assert.Null(item.Theme);
-            Assert.Contains(item.GetVisualDescendants().OfType<ItemsPresenter>(), presenter => presenter.TemplatedParent == item);
-            Assert.Contains(item.GetVisualDescendants().OfType<ToggleButton>(), button => button.TemplatedParent == item && button.IsVisible);
-        });
+        Assert.All(branches, item => Assert.True(item.HasChildren));
+        Assert.InRange(branches.Count(item => leaves.Contains(item)), 1, StructureView.PageSize);
         var branch = branches[0];
+        host.View.Tree.SelectAndReveal(branch); await host.Drain();
+        Assert.True(host.View.Tree.TryGetRealizedRow(branch)!.ExpanderVisual.IsVisible);
         branch.IsExpanded = true; await host.Drain();
         var child = Assert.Single(DataItems(branch));
         Assert.Equal(Node(branch).Id, Node(child).ParentId); Assert.Same(branch, child.Parent);
-        headers[child] = child.Header;
-        host.View.Tree.SelectedItem = array; array.Focus();
+        host.View.Tree.SelectAndReveal(array);
         Click(Pager(array, next: true)); await host.Drain();
         var reused = DataItems(array).ToArray();
         Assert.Equal(Enumerable.Range(128, 64).Select(i => (long)i), reused.Select(item => Node(item).Ordinal));
         Assert.True(reused.Count(item => leaves.Contains(item)) >= StructureView.PageSize - 1);
         Assert.All(reused, item =>
         {
-            Assert.True(headers.TryGetValue(item, out var header)); Assert.Same(header, item.Header);
-            Assert.NotNull(item.Theme?.BasedOn);
+            Assert.False(item.HasChildren); Assert.False(item.IsExpanded);
             Assert.Equal(Node(array).Id, Node(item).ParentId); Assert.Same(array, item.Parent);
             Assert.Empty(item.Items);
-            Assert.DoesNotContain(item.GetVisualDescendants(), visual => visual is ToggleButton or ItemsPresenter);
         });
-        host.View.Tree.SelectedItem = reused[0];
+        host.View.Tree.SelectAndReveal(reused[0]); await host.Drain();
+        Assert.False(host.View.Tree.TryGetRealizedRow(reused[0])!.ExpanderVisual.IsVisible);
         Assert.Equal(Node(reused[0]).Range, host.Jumped);
         Bound(host.View);
     }
@@ -259,7 +229,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         var cdataNode = Node(cdata);
         Assert.Equal(-1, Node(attribute).NamespaceId);
         Assert.True(Node(last).NamespaceId >= 0);
-        host.View.Tree.SelectedItem = attribute;
+        host.View.Tree.SelectedNode = attribute;
         Assert.Equal(Node(attribute).Range, host.Jumped);
         Click(host.View.CopySourceButton); await host.Drain();
         Assert.Equal("名='é'", host.Copied);
@@ -269,15 +239,15 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Assert.Equal(rootNode, Node(Assert.Single(DataItems(host.View.Tree))));
         host.Jumped = null;
         host.Offset = cdataNode.ValueStart; host.View.Sync(); await host.Drain();
-        var revealed = Assert.IsType<TreeViewItem>(host.View.Tree.SelectedItem);
+        var revealed = Assert.IsType<StructureTreeNode>(host.View.Tree.SelectedNode);
         Assert.Equal(cdataNode, Node(revealed));
         Assert.Null(host.Jumped);
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(revealed));
+        Assert.True(revealed.IsCaret);
         Bound(host.View);
 
-        var element = Assert.IsType<TreeViewItem>(revealed.Parent);
+        var element = Assert.IsType<StructureTreeNode>(revealed.Parent);
         attribute = DataItems(element).Single(item => Node(item).Kind == StructureKind.XmlAttribute);
-        host.View.Tree.SelectedItem = attribute;
+        host.View.Tree.SelectedNode = attribute;
         host.PromptValue = "new & é";
         Click(host.View.EditButton); await host.Drain();
         Assert.Contains("名='new &amp; é'", host.Text, StringComparison.Ordinal);
@@ -309,10 +279,10 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         root.IsExpanded = true; await host.Drain();
         var fresh = Assert.Single(DataItems(root));
         Assert.NotSame(old, fresh);
-        Assert.Contains("fresh", AutomationProperties.GetName(fresh), StringComparison.Ordinal);
+        Assert.Contains("fresh", fresh.DisplayName, StringComparison.Ordinal);
         fresh.IsExpanded = true; await host.Drain();
         var value = Assert.Single(DataItems(fresh));
-        Assert.EndsWith(" 9", AutomationProperties.GetName(value), StringComparison.Ordinal);
+        Assert.EndsWith(" 9", value.DisplayName, StringComparison.Ordinal);
         Assert.Equal(Node(fresh).Id, Node(value).ParentId);
         Bound(host.View);
     }

@@ -18,10 +18,11 @@ internal sealed partial class StructureTree : Grid
     private readonly HashSet<StructureTreeNode> watched = [];
     private readonly HashSet<StructureTreeRow> boundRows = [];
     private readonly Dictionary<StructureTreeNode, StructureTreeNode?> previousParents = [];
+    private readonly HashSet<StructureTreeNode> changedBindings = [];
     private StructureTreeNode? selectedNode;
     private long selectedVersion, focusRequest;
-    private int suppressListSelection;
-    private bool refreshing, refreshAgain, attached, observing = true, refreshQueued;
+    private int suppressListSelection, deferredRefresh;
+    private bool refreshing, refreshAgain, attached, observing = true, refreshQueued, refreshPending;
 
     public StructureTree()
     {
@@ -63,8 +64,27 @@ internal sealed partial class StructureTree : Grid
     internal void RowUnbound(StructureTreeRow row) => boundRows.Remove(row);
     internal AutomationPeer GetRootAutomationPeer() => ControlAutomationPeer.CreatePeerForElement(this)!;
 
+    internal IDisposable DeferRefresh()
+    {
+        deferredRefresh++;
+        return new RefreshScope(this);
+    }
+
+    private sealed class RefreshScope(StructureTree owner) : IDisposable
+    {
+        private StructureTree? tree = owner;
+        public void Dispose()
+        {
+            if (tree is not { } owner) return;
+            tree = null;
+            if (--owner.deferredRefresh == 0 && owner.refreshPending) owner.RefreshProjection();
+        }
+    }
+
     public void RefreshProjection()
     {
+        if (deferredRefresh > 0) { refreshPending = true; return; }
+        refreshPending = refreshQueued = false;
         if (refreshing) { refreshAgain = true; return; }
         refreshing = true;
         try
@@ -108,12 +128,14 @@ internal sealed partial class StructureTree : Grid
         {
             for (int index = 0; index < visible.Count; index++)
             {
-                if (index < projection.Count && ReferenceEquals(projection[index], visible[index])) continue;
+                if (index < projection.Count && ReferenceEquals(projection[index], visible[index])
+                    && !changedBindings.Contains(visible[index])) continue;
                 int old = projection.IndexOf(visible[index]);
                 if (old >= 0) projection.RemoveAt(old);
                 projection.Insert(index, visible[index]);
             }
             while (projection.Count > visible.Count) projection.RemoveAt(projection.Count - 1);
+            changedBindings.Clear();
             list.SelectedItem = wanted;
         }
         finally { suppressListSelection--; }
@@ -137,11 +159,13 @@ internal sealed partial class StructureTree : Grid
         if (e.PropertyName is nameof(StructureTreeNode.Parent) or nameof(StructureTreeNode.Items))
         {
             // Reparenting publishes a removal before the new parent is assigned.
+            if (deferredRefresh > 0) { refreshPending = true; return; }
             if (!refreshQueued)
             {
                 refreshQueued = true;
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (!refreshQueued) return;
                     refreshQueued = false;
                     if (observing) RefreshProjection();
                 }, DispatcherPriority.Loaded);
@@ -150,15 +174,7 @@ internal sealed partial class StructureTree : Grid
         }
         if (AutomationRequested && e.PropertyName == nameof(StructureTreeNode.BindingVersion)
             && sender is StructureTreeNode changed)
-        {
-            int index = projection.IndexOf(changed);
-            if (index >= 0)
-            {
-                suppressListSelection++;
-                try { projection.RemoveAt(index); projection.Insert(index, changed); }
-                finally { suppressListSelection--; }
-            }
-        }
+            changedBindings.Add(changed);
         if (e.PropertyName is nameof(StructureTreeNode.IsExpanded) or nameof(StructureTreeNode.Items)
             or nameof(StructureTreeNode.Parent) or nameof(StructureTreeNode.BindingVersion)
             or nameof(StructureTreeNode.IsBindingValid) or nameof(StructureTreeNode.IsEnabled) or nameof(StructureTreeNode.Kind))
@@ -205,10 +221,10 @@ internal sealed partial class StructureTree : Grid
 
     public void SelectAndReveal(StructureTreeNode node, bool focus = true)
     {
-        RefreshProjection();
         if (!IsSelectable(node)) return;
-        for (var parent = node.Parent; parent is not null; parent = parent.Parent) parent.IsExpanded = true;
-        RefreshProjection();
+        using (DeferRefresh())
+            for (var parent = node.Parent; parent is not null; parent = parent.Parent) parent.IsExpanded = true;
+        if (refreshQueued) RefreshProjection();
         int index = projection.IndexOf(node);
         if (index < 0) return;
         SetSelected(node);

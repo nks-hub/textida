@@ -5,6 +5,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -183,7 +184,7 @@ internal sealed partial class StructureTree
         private StructureTreeNode Node => anchor.Node;
         private bool Current => anchor.IsCurrent;
         private bool Selectable => Current && Node.Kind == StructureTreeNodeKind.Normal;
-        private string CurrentName => Current ? (Node.Heading + " " + Node.Value).TrimEnd() : "";
+        private string CurrentName => Current ? Node.DisplayName : "";
         public bool IsSelected => Selectable && ReferenceEquals(Tree.SelectedNode, Node);
         public ISelectionProvider? SelectionContainer => Current ? Tree.GetRootAutomationPeer().GetProvider<ISelectionProvider>() : null;
         public bool ShowsMenu => false;
@@ -193,6 +194,7 @@ internal sealed partial class StructureTree
         protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.TreeItem;
         protected override string GetClassNameCore() => nameof(StructureTreeNode);
         protected override string GetNameCore() => CurrentName;
+        protected override string GetItemStatusCore() => Current && Node.IsCaret ? Loc.Get(K.StructureCaret) : "";
         protected override bool IsEnabledCore() => Current && Node.IsEnabled && Tree.IsEffectivelyEnabled;
         protected override bool IsKeyboardFocusableCore() => Selectable && IsEnabled();
         protected override bool HasKeyboardFocusCore() => Current && CurrentRow() is { IsKeyboardFocusWithin: true };
@@ -291,6 +293,7 @@ internal sealed partial class StructureTree
 
         public void RefreshModel()
         {
+            AutomationProperties.SetItemStatus(anchor, GetItemStatusCore());
             string nextName = CurrentName;
             if (name != nextName)
             {

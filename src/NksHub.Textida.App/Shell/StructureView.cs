@@ -20,7 +20,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     private readonly Func<StructureSource?> source;
     private readonly Func<string, Task> copy;
     private readonly Func<string, string, string, Task<string?>> prompt;
-    private readonly TreeView tree = new() { Name = "StructureTree" };
+    private readonly StructureTree tree = new() { Name = "StructureTree" };
     private readonly TextBox filter = new() { Name = "StructureFilter", MaxLength = 16384, MinWidth = 100 };
     private readonly TextBox namespaces = new() { Name = "StructureNamespaces", MaxLength = 16384, AcceptsReturn = true, MaxHeight = 72 };
     private readonly ComboBox scope = new() { Name = "StructureSearchScope", SelectedIndex = 0, MinWidth = 80 };
@@ -30,7 +30,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     private readonly Dictionary<StructureKind, TextBlock> countLabels = [];
     private readonly Button refresh = new(), cancel = new(), up = new(), jump = new(), copyPath = new(), copySource = new(), edit = new();
     private readonly Button find = new(), clear = new(), previous = new(), next = new(), issue = new(), nextIssue = new();
-    private readonly Dictionary<TreeViewItem, Row> rows = [];
+    private readonly Dictionary<StructureTreeNode, Row> rows = [];
     private Task work = Task.CompletedTask;
     private Session? session;
     private Request? filterRequest, caretRequest;
@@ -114,8 +114,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         filter.KeyDown += (_, e) => { if (e.Key == Key.Enter) { StartResults(0); e.Handled = true; } };
         tree.SelectionChanged += (_, _) => { UpdateButtons(); if (!selecting) Jump(); };
         tree.DoubleTapped += (_, e) => { if (!FromButton(e.Source)) Jump(); };
-        tree.AddHandler(KeyDownEvent, OnTreeKeyDown, RoutingStrategies.Tunnel);
-        tree.KeyDown += (_, e) => { if (e.Key == Key.Enter && !FromButton(e.Source)) { Jump(); e.Handled = true; } };
+        tree.NodeActivated += (_, _) => Jump();
         issue.Click += (_, _) => JumpIssue();
         nextIssue.Click += (_, _) => { issuePosition++; ShowIssues(); };
         ApplyTexts();
@@ -124,7 +123,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     protected override Type StyleKeyOverride => typeof(DockPanel);
     internal Task Parsing { get; private set; } = Task.CompletedTask;
     internal Task Working => work;
-    internal TreeView Tree => tree;
+    internal StructureTree Tree => tree;
     internal TextBox Filter => filter;
     internal ComboBox SearchScope => scope;
     internal Button FindButton => find;
@@ -148,17 +147,6 @@ internal sealed partial class StructureView : DockPanel, IDisposable
 
     private static bool FromButton(object? value) => value is Visual visual
         && (visual is Button || visual.GetVisualAncestors().Any(ancestor => ancestor is Button));
-
-    private void OnTreeKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Handled || e.Key != Key.Left || e.KeyModifiers != KeyModifiers.None
-            || tree.SelectedItem is not TreeViewItem { Tag: StructureNode, IsExpanded: true, IsFocused: false } item
-            || !item.IsKeyboardFocusWithin || !rows.ContainsKey(item) || e.Source is not Visual sourceVisual
-            || !ReferenceEquals(sourceVisual.GetSelfAndVisualAncestors().OfType<TreeViewItem>().FirstOrDefault(), item)) return;
-        // Fluent focuses an inner border; its default Left only focuses the item instead of collapsing it.
-        item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
-        e.Handled = true;
-    }
 
     public void ApplyTexts()
     {
@@ -195,7 +183,11 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         UpdateButtons();
     }
 
-    public bool FocusTree() => tree.Focus() || filter.Focus();
+    public bool FocusTree()
+    {
+        if (tree.SelectedNode is { } node) tree.SelectAndReveal(node);
+        return tree.IsKeyboardFocusWithin || tree.List.Focus() || filter.Focus();
+    }
 
     public void Sync()
     {
@@ -340,7 +332,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     {
         bool previousSelection = selecting;
         selecting = true;
-        try { action(); }
+        try { using (tree.DeferRefresh()) action(); }
         finally { selecting = previousSelection; }
     }
 

@@ -28,6 +28,7 @@ internal sealed class StructureTreeNode : INotifyPropertyChanged
     public bool IsBindingValid => bindingValid;
     public string Heading { get => heading; set => Set(ref heading, value); }
     public string Value { get => value; set => Set(ref this.value, value); }
+    public string DisplayName => (Heading + " " + Value).TrimEnd();
     public object? Tag
     {
         get => tag;

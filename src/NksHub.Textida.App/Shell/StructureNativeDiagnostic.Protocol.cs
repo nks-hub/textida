@@ -137,7 +137,7 @@ internal sealed partial class StructureNativeDiagnostic
             foreach (var item in Items())
             {
                 var node = (StructureNode)item.Tag!;
-                targets.Add((JsonNode)new JsonObject { ["target"] = AutomationProperties.GetName(item), ["nodeId"] = node.Id,
+                targets.Add((JsonNode)new JsonObject { ["target"] = NodeName(item), ["nodeId"] = node.Id,
                     ["expanded"] = item.IsExpanded, ["childCount"] = node.ChildCount });
             }
             ready["targets"] = targets;
@@ -241,6 +241,14 @@ internal sealed partial class StructureNativeDiagnostic
         result["sourceRevision"] = current?.Revision;
         result["readOnly"] = current?.ReadOnly;
         result["cachedItems"] = view.CachedItems;
+        result["logicalCachedChildren"] = Items().Sum(item => item.Items.Count(child => child.Tag is StructureNode));
+        result["realizedRows"] = view.Tree.GetRealizedRows().Count;
+        result["boundRows"] = view.Tree.BoundRowCount;
+        result["cumulativeCreatedRows"] = view.Tree.CreatedRowCount;
+        result["cumulativeRecyclingRows"] = view.Tree.RecyclingRowCreationCount;
+        result["automationAnchors"] = view.Tree.AutomationAnchorCount;
+        result["automationRequested"] = view.Tree.AutomationRequested;
+        result["visualControls"] = view.Tree.GetVisualDescendants().Count(visual => visual is Control);
         result["focus"] = FocusJson();
         result["lastTreeKey"] = lastTreeKey is { } key ? new JsonObject
         {
@@ -294,7 +302,7 @@ internal sealed partial class StructureNativeDiagnostic
         var focused = window.FocusManager?.GetFocusedElement();
         var control = focused as Control;
         var focusedItem = FocusedTreeItem(focused);
-        var selectedItem = view.Tree.SelectedItem as TreeViewItem;
+        var selectedItem = view.Tree.SelectedNode;
         return new()
         {
             ["windowActive"] = window.IsActive,
@@ -315,25 +323,31 @@ internal sealed partial class StructureNativeDiagnostic
 
     private bool InMeasuredTree(Visual visual) => ReferenceEquals(visual, view.Tree) || view.Tree.IsVisualAncestorOf(visual);
 
-    private TreeViewItem? FocusedTreeItem(IInputElement? focused) => focused is Visual visual && InMeasuredTree(visual)
-        ? visual.GetSelfAndVisualAncestors().OfType<TreeViewItem>().FirstOrDefault() : null;
+    private StructureTreeNode? FocusedTreeItem(IInputElement? focused) => focused is Visual visual && InMeasuredTree(visual)
+        ? SourceItem(view.Tree, visual)?.BoundNode : null;
 
-    private static JsonObject? FocusItemJson(TreeViewItem? item) => item is null ? null : new()
+    private JsonObject? FocusItemJson(StructureTreeNode? item) => item is null ? null : new()
     {
         ["nodeId"] = item.Tag is StructureNode node ? node.Id : null,
-        ["automationName"] = BoundedFocusName(AutomationProperties.GetName(item)),
+        ["automationName"] = BoundedFocusName(NodeName(item)),
         ["managedIdentity"] = RuntimeHelpers.GetHashCode(item),
-        ["isFocused"] = item.IsFocused,
-        ["keyboardWithin"] = item.IsKeyboardFocusWithin,
-        ["isSelected"] = item.IsSelected,
+        ["isFocused"] = view.Tree.TryGetRealizedRow(item)?.IsFocused == true,
+        ["keyboardWithin"] = view.Tree.TryGetRealizedRow(item)?.IsKeyboardFocusWithin == true,
+        ["isSelected"] = ReferenceEquals(view.Tree.SelectedNode, item),
+        ["bindingVersion"] = item.BindingVersion,
     };
 
     private static string? BoundedFocusName(string? name) => name is { Length: > 512 } ? name[..512] : name;
+
+    private static string NodeName(StructureTreeNode item) => item.DisplayName;
 
     private JsonObject SampleJson(Pending sample, string status)
     {
         var result = StatusJson();
         result["status"] = status;
+        result["targetBindingVersion"] = sample.TargetVersion;
+        result["targetCurrentBindingVersion"] = sample.Target.BindingVersion;
+        result["targetIsCurrent"] = view.Tree.IsCurrent(sample.Target, sample.TargetVersion);
         result["run"] = sample.Arm.Run;
         result["sample"] = sample.Arm.Sample;
         result["action"] = sample.Arm.Action;

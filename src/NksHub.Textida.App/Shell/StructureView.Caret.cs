@@ -41,7 +41,7 @@ internal sealed partial class StructureView
             if (actual == null && plan.Anchor != null)
             {
                 if (treeVersion != version) { MarkCaret(owner, reveal); return; }
-                var root = tree.Items.OfType<TreeViewItem>().FirstOrDefault();
+                var root = tree.Items.OfType<StructureTreeNode>().FirstOrDefault();
                 if (root == null || !rows.TryGetValue(root, out var rootRow) || rootRow.Data.Node.Id != plan.Anchor.Node.Id)
                 {
                     var firstPage = plan.Levels.Count > 0 ? plan.Levels[0].Page : new ChildPage([], -1, true);
@@ -61,7 +61,7 @@ internal sealed partial class StructureView
         _ = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
     }
 
-    private static IEnumerable<long> DataChildIds(Row row) => row.Item.Items.OfType<TreeViewItem>()
+    private static IEnumerable<long> DataChildIds(Row row) => row.Item.Items.OfType<StructureTreeNode>()
         .Where(item => item.Tag is StructureNode).Select(item => ((StructureNode)item.Tag!).Id);
 
     private static Reveal ReadReveal(StructureIndex index, StructureNode target, CancellationToken ct)
@@ -104,7 +104,7 @@ internal sealed partial class StructureView
 
     private void Mark(Row? row, bool revealParents)
     {
-        foreach (var marked in markedRows) { marked.Header.SetCaret(false); AutomationProperties.SetItemStatus(marked.Item, ""); }
+        foreach (var marked in markedRows) { marked.Item.IsCaret = false; }
         markedRows.Clear();
         if (row == null) return;
         Programmatic(() =>
@@ -115,10 +115,10 @@ internal sealed partial class StructureView
                 for (var parent = row.Parent; parent != null; parent = parent.Parent) parents.Push(parent);
                 while (parents.TryPop(out var parent)) parent.Item.IsExpanded = true;
             }
-            tree.SelectedItem = row.Item;
+            tree.SelectedNode = row.Item;
         });
-        row.Header.SetCaret(true);
-        AutomationProperties.SetItemStatus(row.Item, Loc.Get(K.StructureCaret));
+        row.Item.IsCaret = true;
+        if (revealParents) tree.SelectAndReveal(row.Item, focus: false);
         markedRows.Add(row);
     }
 }

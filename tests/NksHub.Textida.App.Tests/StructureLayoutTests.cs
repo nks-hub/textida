@@ -104,7 +104,7 @@ public sealed class StructureLayoutTests : IDisposable
         Assert.Equal(language, Loc.Language);
         if (bottom) Assert.Equal(PanelLayout.DefaultHeight, host.Bounds.Height);
         else Assert.Equal(PanelLayout.DefaultWidth, host.Bounds.Width);
-        Assert.Single(view.Tree.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode));
+        Assert.Single(view.Tree.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode));
         Assert.True(view.CopyPathButton.IsEnabled);
         Assert.True(view.EditButton.IsEnabled);
 

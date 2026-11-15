@@ -40,10 +40,11 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
     private readonly record struct MarkerPoints(PixelPoint First, PixelPoint Second);
     private sealed record State(string? Selected, long? SelectedId, bool Expanded, int Children, bool WorkingComplete,
         bool ParsingComplete, double ScrollX, double ScrollY, int Items, bool TargetExists);
-    private sealed class Pending(Arm arm, TreeViewItem target, State initial, MarkerPoints points, string? inspectionNonce)
+    private sealed class Pending(Arm arm, StructureTreeNode target, State initial, MarkerPoints points, string? inspectionNonce)
     {
         public Arm Arm { get; } = arm;
-        public TreeViewItem Target { get; } = target;
+        public StructureTreeNode Target { get; } = target;
+        public long TargetVersion { get; } = target.BindingVersion;
         public State Initial { get; } = initial;
         public MarkerPoints Points { get; } = points;
         public string? InspectionNonce { get; } = inspectionNonce;
@@ -134,11 +135,11 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         if (GetForegroundWindow() != OwnedWindow()) throw new InvalidOperationException("The measured window is not foreground.");
         if (samples.Count >= 4096 || !samples.Add((arm.Run, arm.Sample)) || !markers.Add(arm.Marker))
             throw new InvalidOperationException("Samples and marker colors must be unique; at most 4096 samples are accepted.");
-        var candidates = Items().Where(item => AutomationProperties.GetName(item) == arm.Target).Take(2).ToArray();
+        var candidates = Items().Where(item => NodeName(item) == arm.Target).Take(2).ToArray();
         if (candidates.Length != 1) throw new InvalidOperationException("The target label must identify exactly one tree item.");
         var target = candidates[0];
         if (arm.Action != "scroll" && !HeaderVisible(target)) throw new InvalidOperationException("The target header is outside the tree viewport.");
-        var initial = CaptureState(target);
+        var initial = CaptureState(target, target.BindingVersion);
         if (arm.Action == "select" && initial.Selected == arm.Target) throw new InvalidOperationException("The selection target is already selected.");
         if (arm.Action is "expand" or "collapse")
         {
@@ -156,32 +157,33 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         return pending;
     }
 
-    private IEnumerable<TreeViewItem> Items()
+    private IEnumerable<StructureTreeNode> Items()
     {
-        var stack = new Stack<TreeViewItem>(view.Tree.Items.OfType<TreeViewItem>().Reverse());
+        var stack = new Stack<StructureTreeNode>(view.Tree.Items.OfType<StructureTreeNode>().Reverse());
         int count = 0;
         while (stack.TryPop(out var item))
         {
             if (++count > StructureView.MaximumItems) throw new InvalidOperationException("The diagnostic tree exceeded its control bound.");
             if (item.Tag is StructureNode) yield return item;
-            foreach (var child in item.Items.OfType<TreeViewItem>().Reverse()) stack.Push(child);
+            foreach (var child in item.Items.OfType<StructureTreeNode>().Reverse()) stack.Push(child);
         }
     }
 
     private ScrollViewer? Scroller() => view.Tree.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
 
-    private State CaptureState(TreeViewItem target)
+    private State CaptureState(StructureTreeNode target, long version)
     {
-        var selected = view.Tree.SelectedItem as TreeViewItem;
+        var selected = view.Tree.SelectedNode;
         var scroll = Scroller()?.Offset ?? default;
-        return new(selected is null ? null : AutomationProperties.GetName(selected), selected?.Tag is StructureNode n ? n.Id : null,
-            target.IsExpanded, target.Items.OfType<TreeViewItem>().Count(item => item.Tag is StructureNode),
-            view.Working.IsCompleted, view.Parsing.IsCompleted, scroll.X, scroll.Y, view.CachedItems, Items().Any(item => ReferenceEquals(item, target)));
+        return new(selected is null ? null : NodeName(selected), selected?.Tag is StructureNode n ? n.Id : null,
+            target.IsExpanded, target.Items.OfType<StructureTreeNode>().Count(item => item.Tag is StructureNode),
+            view.Working.IsCompleted, view.Parsing.IsCompleted, scroll.X, scroll.Y, view.CachedItems, view.Tree.IsCurrent(target, version));
     }
 
-    private bool HeaderVisible(TreeViewItem target)
+    private bool HeaderVisible(StructureTreeNode target)
     {
-        var header = target.Header as Visual ?? target;
+        if (view.Tree.TryGetRealizedRow(target) is not { } row) return false;
+        var header = row.HeaderVisual;
         if (!header.IsEffectivelyVisible || header.Bounds.Width <= 0 || header.Bounds.Height <= 0) return false;
         var origin = header.TranslatePoint(default, view.Tree);
         return origin.HasValue && new Rect(origin.Value, header.Bounds.Size).Intersects(new Rect(view.Tree.Bounds.Size));
@@ -190,12 +192,12 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
     private bool Complete(Pending sample, State state)
     {
         if (!state.TargetExists || !state.WorkingComplete || !state.ParsingComplete || !view.Tree.IsArrangeValid || !view.Tree.IsMeasureValid
-            || sample.Arm.Action != "scroll" && (!sample.Target.IsArrangeValid || !sample.Target.IsMeasureValid)
+            || sample.Arm.Action != "scroll" && view.Tree.TryGetRealizedRow(sample.Target) is not { IsArrangeValid: true, IsMeasureValid: true }
             || !view.IsArrangeValid || !view.IsMeasureValid) return false;
         return sample.Arm.Action switch
         {
-            "select" => ReferenceEquals(view.Tree.SelectedItem, sample.Target),
-            "expand" => state.Expanded && state.Children > 0 && !sample.Target.Items.OfType<TreeViewItem>().Any(item => !item.IsEnabled && item.Tag is not StructureNode),
+            "select" => ReferenceEquals(view.Tree.SelectedNode, sample.Target),
+            "expand" => state.Expanded && state.Children > 0 && !sample.Target.Items.OfType<StructureTreeNode>().Any(item => !item.IsEnabled && item.Tag is not StructureNode),
             "collapse" => !state.Expanded,
             "scroll" => sample.Arm.Direction == "down" ? state.ScrollY > sample.Initial.ScrollY + 0.001 : state.ScrollY < sample.Initial.ScrollY - 0.001,
             _ => false,
@@ -205,6 +207,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
     private void ObserveInput(JsonObject actual)
     {
         if (pending is not { Acknowledged: true, InputAt: 0 } sample) return;
+        if (!view.Tree.IsCurrent(sample.Target, sample.TargetVersion)) return;
         if (actual["inTree"]?.GetValue<bool>() != true) return;
         string? kind = actual["kind"]?.GetValue<string>();
         if (sample.InspectionNonce is { } nonce)
@@ -232,7 +235,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         var actual = InputJson("key", e.Source, observed);
         actual["key"] = e.Key.ToString();
         actual["focus"] = FocusJson();
-        var keyTarget = focusedItem ?? (ReferenceEquals(window.FocusManager?.GetFocusedElement(), view.Tree) ? view.Tree.SelectedItem as TreeViewItem : null);
+        var keyTarget = focusedItem ?? (ReferenceEquals(window.FocusManager?.GetFocusedElement(), view.Tree) ? view.Tree.SelectedNode : null);
         actual["keyTargetNodeId"] = keyTarget?.Tag is StructureNode keyNode ? keyNode.Id : null;
         Record("input.jsonl", actual);
         if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Space or Key.Enter) ObserveInput(actual);
@@ -255,7 +258,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         Record("input.jsonl", actual);
         ObserveInput(actual);
     }
-    private void OnSelection(object? sender, SelectionChangedEventArgs e)
+    private void OnSelection(object? sender, EventArgs e)
     {
         if (pending is { Acknowledged: true, InputAt: > 0 } sample)
         {
@@ -303,10 +306,12 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         State? drawnState = null;
         if (pending is { Acknowledged: true, InputAt: > 0 } sample)
         {
-            var state = CaptureState(sample.Target);
+            var state = CaptureState(sample.Target, sample.TargetVersion);
             if (sample.PaintAttempts == 1)
                 sample.FirstPaintState = new(state.WorkingComplete, state.ParsingComplete, view.IsArrangeValid, view.IsMeasureValid,
-                    view.Tree.IsArrangeValid, view.Tree.IsMeasureValid, sample.Target.IsArrangeValid, sample.Target.IsMeasureValid);
+                    view.Tree.IsArrangeValid, view.Tree.IsMeasureValid,
+                    view.Tree.TryGetRealizedRow(sample.Target)?.IsArrangeValid == true,
+                    view.Tree.TryGetRealizedRow(sample.Target)?.IsMeasureValid == true);
             if (Complete(sample, state) && sample.Points == Points())
             {
                 visible = new(sample, state);
@@ -315,7 +320,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
                 drawnState = state;
             }
         }
-        if (visible is not { } frame || frame.Sample.Points != Points() || CaptureState(frame.Sample.Target) != frame.State) return;
+        if (visible is not { } frame || frame.Sample.Points != Points() || CaptureState(frame.Sample.Target, frame.Sample.TargetVersion) != frame.State) return;
         context.FillRectangle(frame.Sample.First, new Rect(marker.Bounds.Width - 16, marker.Bounds.Height - 10, 8, 8));
         context.FillRectangle(frame.Sample.Second, new Rect(marker.Bounds.Width - 8, marker.Bounds.Height - 10, 8, 8));
         if (drawn is not null)

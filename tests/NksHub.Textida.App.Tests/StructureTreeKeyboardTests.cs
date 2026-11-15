@@ -18,7 +18,7 @@ namespace NksHub.Textida.App.Tests;
 public sealed class StructureTreeKeyboardTests
 {
     [AvaloniaFact]
-    public async Task Header_click_then_one_Left_collapses_with_inner_border_focus_and_keeps_parent_navigation()
+    public async Task Header_click_then_one_Left_collapses_the_loaded_branch_and_keeps_parent_navigation()
     {
         using var host = new Host();
         host.View.Sync(); await host.Drain();
@@ -34,12 +34,11 @@ public sealed class StructureTreeKeyboardTests
         var leaf = Assert.Single(DataItems(branch));
         Assert.Equal(StructureKind.JsonNumber, Node(leaf).Kind);
         Assert.True(branch.IsExpanded);
-        var focused = Assert.IsType<Border>(host.Window.FocusManager!.GetFocusedElement());
-        Assert.Equal("PART_LayoutRoot", focused.Name);
-        Assert.Same(branch, focused.GetVisualAncestors().OfType<TreeViewItem>().First());
-        Assert.True(branch.IsKeyboardFocusWithin);
-        Assert.False(branch.IsFocused);
-        Assert.Same(branch, host.View.Tree.SelectedItem);
+        var focused = Assert.IsAssignableFrom<Visual>(host.Window.FocusManager!.GetFocusedElement());
+        var focusedRow = focused.GetSelfAndVisualAncestors().OfType<StructureTreeRow>().First();
+        Assert.Same(branch, focusedRow.BoundNode);
+        Assert.True(focusedRow.IsKeyboardFocusWithin);
+        Assert.Same(branch, host.View.Tree.SelectedNode);
         object? actualLeftSource = null;
         host.Window.AddHandler(InputElement.KeyDownEvent, (_, e) =>
         {
@@ -49,24 +48,25 @@ public sealed class StructureTreeKeyboardTests
         host.Press(Key.Left); await host.Drain();
         Assert.Same(focused, actualLeftSource);
         Assert.False(branch.IsExpanded);
-        Assert.Same(branch, host.View.Tree.SelectedItem);
+        Assert.Same(branch, host.View.Tree.SelectedNode);
         host.Press(Key.Right); await host.Drain();
         Assert.True(branch.IsExpanded);
         Assert.Same(leaf, Assert.Single(DataItems(branch)));
 
         host.ClickHeader(leaf);
         host.Press(Key.Left); await host.Drain();
-        Assert.Same(branch, host.View.Tree.SelectedItem);
+        Assert.Same(branch, host.View.Tree.SelectedNode);
         Assert.True(branch.IsExpanded);
         host.ClickHeader(branch);
         host.Press(Key.Left); await host.Drain();
         Assert.False(branch.IsExpanded);
         host.Press(Key.Left); await host.Drain();
-        Assert.Same(root, host.View.Tree.SelectedItem);
+        Assert.Same(root, host.View.Tree.SelectedNode);
     }
 
-    private static StructureNode Node(TreeViewItem item) => Assert.IsType<StructureNode>(item.Tag);
-    private static IEnumerable<TreeViewItem> DataItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode);
+    private static StructureNode Node(StructureTreeNode item) => Assert.IsType<StructureNode>(item.Tag);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTreeNode parent) => parent.Items.Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode);
 
     private sealed class Host : IDisposable
     {
@@ -113,23 +113,23 @@ public sealed class StructureTreeKeyboardTests
             Assert.Fail("The structure worker did not finish.");
         }
 
-        public void ClickHeader(TreeViewItem item)
+        public void ClickHeader(StructureTreeNode item)
         {
             Layout();
-            var header = Assert.IsAssignableFrom<Control>(item.Header);
+            var header = Assert.IsType<StructureTreeRow>(View.Tree.TryGetRealizedRow(item)).HeaderVisual;
             var inspected = StructureNativeDiagnostic.InspectHeader(Window, View.Tree, item);
             Assert.NotNull(inspected?["headerPoint"]);
             var position = inspected!["headerPoint"]!;
             var point = Window.PointToClient(new PixelPoint(position["x"]!.GetValue<int>(), position["y"]!.GetValue<int>()));
             var hit = Assert.IsAssignableFrom<Visual>(Window.InputHitTest(point));
             Assert.True(ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
-            Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<TreeViewItem>().First());
+            Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<StructureTreeRow>().First().BoundNode);
             var source = StructureNativeDiagnostic.ActualSource(View.Tree, hit);
             Assert.True(source["inHeader"]!.GetValue<bool>());
             Assert.Equal(Node(item).Id, source["nodeId"]!.GetValue<long>());
             Window.MouseDown(point, MouseButton.Left); Window.MouseUp(point, MouseButton.Left);
             Layout();
-            Assert.Same(item, View.Tree.SelectedItem);
+            Assert.Same(item, View.Tree.SelectedNode);
         }
 
         public void Press(Key key) { TestApp.Press(Window, key); Layout(); }

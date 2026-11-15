@@ -11,7 +11,7 @@ internal sealed partial class StructureView
     private (Session Owner, Row Row, long RequestId, long NodeId, long Offset)? sourceJump;
     private sealed record Results(IReadOnlyList<RowData> Rows, long Cursor, long Next, bool Complete);
     private string resultSignature = "";
-    private Row? Selected => tree.SelectedItem is TreeViewItem item && rows.TryGetValue(item, out var row) ? row : null;
+    private Row? Selected => tree.SelectedNode is { } item && rows.TryGetValue(item, out var row) ? row : null;
 
     private void UpdateButtons()
     {

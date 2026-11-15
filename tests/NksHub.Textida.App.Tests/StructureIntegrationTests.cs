@@ -54,7 +54,8 @@ public sealed class StructureIntegrationTests : IDisposable
         Assert.Fail("The integrated structure panel did not finish.");
     }
 
-    private static IEnumerable<TreeViewItem> Rows(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> Rows(StructureTreeNode parent) => parent.Items.Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> Rows(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode);
 
     [AvaloniaFact]
     public async Task Builtin_command_docks_and_persists_the_panel_and_refuses_non_data_views()
@@ -89,16 +90,16 @@ public sealed class StructureIntegrationTests : IDisposable
         var root = Assert.Single(Rows(Assert.Single(Rows(view.Tree))));
         root.IsExpanded = true; await Drain();
         var attribute = Assert.Single(Rows(root).Where(item => ((StructureNode)item.Tag!).Kind == StructureKind.XmlAttribute));
-        view.Tree.SelectedItem = attribute; await Drain();
+        view.Tree.SelectedNode = attribute; await Drain();
         Assert.Equal("p:name='é😀'", tab.Surface!.SelectedText);
 
-        view.Tree.SelectedItem = Assert.Single(Rows(view.Tree)); await Drain();
+        view.Tree.SelectedNode = Assert.Single(Rows(view.Tree)); await Drain();
         Assert.Equal(text, tab.Surface.SelectedText);
 
         Assert.True(tab.Surface.TextArea.Focus());
         tab.Surface.Select(text.IndexOf("body", StringComparison.Ordinal) + 2, 0);
         await Drain();
-        Assert.Equal(StructureKind.XmlCData, Assert.IsType<StructureNode>(Assert.IsType<TreeViewItem>(view.Tree.SelectedItem).Tag).Kind);
+        Assert.Equal(StructureKind.XmlCData, Assert.IsType<StructureNode>(Assert.IsType<StructureTreeNode>(view.Tree.SelectedNode).Tag).Kind);
         Assert.True(tab.Surface.IsKeyboardFocusWithin);
     }
 
@@ -111,8 +112,8 @@ public sealed class StructureIntegrationTests : IDisposable
         var view = window.StructurePanelView;
         var root = Assert.Single(Rows(Assert.Single(Rows(view.Tree))));
         root.IsExpanded = true; await Drain();
-        var value = Rows(root).First(); view.Tree.SelectedItem = value;
-        Assert.Same(window, TopLevel.GetTopLevel(value));
+        var value = Rows(root).First(); view.Tree.SelectedNode = value;
+        Assert.Same(window, TopLevel.GetTopLevel(view.Tree.TryGetRealizedRow(value)));
         dialogs.Prompts.Enqueue("é😀\nnew");
         int depth = tab.Doc.Doc.UndoDepth;
         view.EditButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Drain();
@@ -122,7 +123,7 @@ public sealed class StructureIntegrationTests : IDisposable
         Assert.Equal("é😀\nnew", decoded.RootElement.GetProperty("value").GetString());
         Assert.StartsWith("{\"value\":", after, StringComparison.Ordinal);
         Assert.EndsWith(",\"keep\":3}", after, StringComparison.Ordinal);
-        Assert.Null(TopLevel.GetTopLevel(value));
+        Assert.Null(TopLevel.GetTopLevel(view.Tree.TryGetRealizedRow(value)));
         tab.Doc.Doc.Undo(); await Drain();
         Assert.Equal(before, tab.Doc.Doc.ReadText(new ByteRange(0, tab.Doc.Doc.ByteLength)));
     }
@@ -160,7 +161,7 @@ public sealed class StructureIntegrationTests : IDisposable
         var node = Assert.IsType<StructureNode>(result.Tag);
         Assert.Equal(StructureKind.JsonNumber, node.Kind);
         Assert.Equal("7", tab.Doc.Doc.ReadText(node.ValueRange));
-        view.Tree.SelectedItem = result; await Drain();
+        view.Tree.SelectedNode = result; await Drain();
         Assert.Equal("\"value\":7", tab.Surface!.SelectedText);
         Assert.Equal(text, tab.Doc.Doc.ReadText(new ByteRange(tab.Doc.Doc.BomLength, tab.Doc.Doc.ByteLength)));
         Assert.False(tab.Doc.Doc.CanUndo);
@@ -201,7 +202,7 @@ public sealed class StructureIntegrationTests : IDisposable
         view.Filter.Text = "$.value";
         view.FindButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Drain();
         var value = Assert.Single(Rows(view.Tree));
-        view.Tree.SelectedItem = value; await Drain();
+        view.Tree.SelectedNode = value; await Drain();
         Assert.Equal("\"value\":7", tab.Surface!.SelectedText);
     }
 }

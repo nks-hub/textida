@@ -93,6 +93,9 @@ public sealed class StructureTreeAutomationTests
         Assert.Same(canonical, firstPeer);
         var selection = Assert.IsAssignableFrom<ISelectionItemProvider>(firstPeer.GetProvider<ISelectionItemProvider>());
         selection.Select(); await host.Drain();
+        Assert.True(host.Tree.TryGetRealizedRow(nodes[1])!.Focus());
+        host.Tree.SelectedNode = nodes[0]; Assert.True(host.Outside.Focus());
+        Assert.True(selection.IsSelected);
         host.Tree.List.ScrollIntoView(255);
         await host.Until(() => host.Tree.TryGetRealizedRow(nodes[^1]) is not null);
         Assert.Null(firstRow.BoundNode);
@@ -149,6 +152,8 @@ public sealed class StructureTreeAutomationTests
             Assert.Contains(current, parent.GetChildren());
         invoke.Invoke(); await host.Drain();
         Assert.True(nodes[0].IsExpanded);
+        Assert.True(host.Tree.TryGetRealizedRow(nodes[1])!.Focus());
+        host.Tree.SelectedNode = nodes[0]; Assert.True(host.Outside.Focus());
         host.Tree.List.ScrollIntoView(255);
         await host.Until(() => host.Tree.TryGetRealizedRow(nodes[^1]) is not null);
         Assert.Null(oldRow.BoundNode);

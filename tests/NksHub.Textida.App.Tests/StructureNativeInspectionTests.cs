@@ -23,14 +23,15 @@ public sealed class StructureNativeInspectionTests
         var actual = Item(12, 10, "actual", 40);
         var parent = Item(10, -1, "parent", 40);
         parent.Items.Add(requested); parent.Items.Add(actual); parent.IsExpanded = true;
-        var tree = new TreeView(); tree.Items.Add(parent);
+        var tree = new StructureTree(); tree.Items.Add(parent);
         var outside = new Border { Height = 45, Background = Avalonia.Media.Brushes.Gray, Child = new TextBlock { Text = "Outside the measured tree" } };
         var content = new DockPanel(); DockPanel.SetDock(outside, Dock.Bottom);
         content.Children.Add(outside); content.Children.Add(tree);
         var window = new Window { Width = 420, Height = 360, Content = content };
         try
         {
-            window.Show(); Layout(window);
+            window.Show();
+            SetHeights(tree, 60); Layout(window);
             var requestedHeader = StructureNativeDiagnostic.InspectHeader(window, tree, requested);
             var actualHeader = StructureNativeDiagnostic.InspectHeader(window, tree, actual);
             Assert.NotNull(requestedHeader?["headerPoint"]);
@@ -64,7 +65,7 @@ public sealed class StructureNativeInspectionTests
         var first = Item(1, -1, "first", 60);
         var partial = Item(2, -1, "partially visible", 60);
         var hidden = Item(3, -1, "outside clip", 60);
-        var tree = new TreeView { Height = 240, VerticalAlignment = VerticalAlignment.Top };
+        var tree = new StructureTree { Height = 240, VerticalAlignment = VerticalAlignment.Top };
         tree.Items.Add(first); tree.Items.Add(partial); tree.Items.Add(hidden);
         var clip = new Border { Width = 300, Height = 100, ClipToBounds = true, VerticalAlignment = VerticalAlignment.Top, Child = tree };
         var overlay = new Border { Background = Avalonia.Media.Brushes.Black, IsVisible = false };
@@ -72,7 +73,8 @@ public sealed class StructureNativeInspectionTests
         var window = new Window { Width = 380, Height = 300, Content = content };
         try
         {
-            window.Show(); Layout(window);
+            window.Show();
+            SetHeights(tree, 60); Layout(window);
             var inspection = StructureNativeDiagnostic.InspectHeader(window, tree, partial);
             Assert.NotNull(inspection?["headerRect"]);
             var rectangle = inspection!["headerRect"]!;
@@ -103,18 +105,21 @@ public sealed class StructureNativeInspectionTests
     {
         var item = Item(20, -1, "real header", 60);
         var overlay = new Border { Background = Avalonia.Media.Brushes.Black, IsVisible = false };
-        item.Template = new FuncControlTemplate<TreeViewItem>((owner, _) =>
-        {
-            var panel = new Grid();
-            panel.Children.Add(new ContentPresenter { Content = owner.Header });
-            panel.Children.Add(overlay);
-            return panel;
-        });
-        var tree = new TreeView(); tree.Items.Add(item);
+        var tree = new StructureTree(); tree.Items.Add(item);
         var window = new Window { Width = 360, Height = 200, Content = tree };
         try
         {
-            window.Show(); Layout(window);
+            window.Show();
+            SetHeights(tree, 60);
+            var row = tree.TryGetRealizedRow(item)!;
+            row.Template = new FuncControlTemplate<StructureTreeRow>((owner, _) =>
+            {
+                var panel = new Grid();
+                panel.Children.Add(new ContentPresenter { Content = owner.Content });
+                panel.Children.Add(overlay);
+                return panel;
+            });
+            Layout(window);
             var original = StructureNativeDiagnostic.InspectHeader(window, tree, item);
             Assert.NotNull(original?["headerPoint"]);
             var point = ClientPoint(window, original!["headerPoint"]!);
@@ -137,12 +142,17 @@ public sealed class StructureNativeInspectionTests
         finally { window.Close(); }
     }
 
-    private static TreeViewItem Item(long id, long parent, string text, double height) => new()
+    private static StructureTreeNode Item(long id, long parent, string text, double height) => new()
     {
         Tag = new StructureNode(id, parent, StructureKind.JsonNumber, id, id + 1, -1, -1, id, id + 1, 0, 0, id, 1),
-        Header = new Border { Height = height, Background = Avalonia.Media.Brushes.Transparent,
-            Child = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center } },
+        Heading = text,
     };
+
+    private static void SetHeights(StructureTree tree, double height)
+    {
+        Layout((Window)TopLevel.GetTopLevel(tree)!);
+        foreach (var row in tree.GetRealizedRows()) row.HeaderVisual.Height = height;
+    }
 
     private static Point ClientPoint(Window window, JsonNode point) => window.PointToClient(
         new PixelPoint(point["x"]!.GetValue<int>(), point["y"]!.GetValue<int>()));

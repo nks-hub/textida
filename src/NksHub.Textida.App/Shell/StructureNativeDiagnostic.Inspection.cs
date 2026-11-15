@@ -49,7 +49,7 @@ internal sealed partial class StructureNativeDiagnostic
             if (request.Target.Length == 0) result["result"] = "viewport";
             else
             {
-                var matches = Items().Where(item => AutomationProperties.GetName(item) == request.Target).Take(2).ToArray();
+                var matches = Items().Where(item => NodeName(item) == request.Target).Take(2).ToArray();
                 result["result"] = matches.Length switch { 0 => "not-found", 1 => "unique", _ => "ambiguous" };
                 if (matches.Length == 1)
                 {
@@ -74,10 +74,10 @@ internal sealed partial class StructureNativeDiagnostic
     private bool InspectionReady() => window.IsVisible && view.Working.IsCompleted && view.Parsing.IsCompleted
         && view.IsArrangeValid && view.IsMeasureValid && view.Tree.IsArrangeValid && view.Tree.IsMeasureValid;
 
-    private JsonObject InspectRow(TreeViewItem target)
+    private JsonObject InspectRow(StructureTreeNode target)
     {
         var node = (StructureNode)target.Tag!;
-        var children = target.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode).ToArray();
+        var children = target.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode).ToArray();
         var list = new JsonArray();
         JsonObject? firstVisible = null;
         int headerHitTests = 0;
@@ -85,16 +85,16 @@ internal sealed partial class StructureNativeDiagnostic
         {
             var data = (StructureNode)child.Tag!;
             list.Add((JsonNode)new JsonObject { ["nodeId"] = data.Id, ["parentNodeId"] = data.ParentId,
-                ["name"] = BoundedDiagnostic(AutomationProperties.GetName(child), 4096) });
+                ["name"] = BoundedDiagnostic(NodeName(child), 4096) });
             if (firstVisible is not null || headerHitTests >= 8) continue;
-            if (child.Header is not Visual childHeader || ClippedPixels(window, childHeader) is null) continue;
+            if (view.Tree.TryGetRealizedRow(child) is not { } childRow || ClippedPixels(window, childRow.HeaderVisual) is null) continue;
             headerHitTests++;
             var geometry = InspectHeader(window, view.Tree, child);
             if (geometry?["headerPoint"] is null) continue;
             firstVisible = new JsonObject
             {
                 ["nodeId"] = data.Id, ["parentNodeId"] = data.ParentId, ["treeParentNodeId"] = ParentNodeId(child),
-                ["name"] = BoundedDiagnostic(AutomationProperties.GetName(child), 4096),
+                ["name"] = BoundedDiagnostic(NodeName(child), 4096),
                 ["headerRect"] = geometry["headerRect"]?.DeepClone(), ["headerPoint"] = geometry["headerPoint"]?.DeepClone(),
             };
         }
@@ -102,35 +102,38 @@ internal sealed partial class StructureNativeDiagnostic
         return new()
         {
             ["nodeId"] = node.Id, ["parentNodeId"] = node.ParentId, ["treeParentNodeId"] = ParentNodeId(target),
-            ["name"] = BoundedDiagnostic(AutomationProperties.GetName(target), 4096), ["expanded"] = target.IsExpanded,
+            ["name"] = BoundedDiagnostic(NodeName(target), 4096), ["expanded"] = target.IsExpanded,
             ["children"] = children.Length, ["childRows"] = list, ["childrenTruncated"] = children.Length > StructureView.PageSize,
+            ["logicalCachedChildren"] = children.Length,
+            ["realizedChildRows"] = children.Count(child => view.Tree.TryGetRealizedRow(child) is not null),
             ["firstVisibleChild"] = firstVisible,
             ["headerRect"] = header?["headerRect"]?.DeepClone(), ["headerPoint"] = header?["headerPoint"]?.DeepClone(),
         };
     }
 
-    internal static JsonObject ActualSource(TreeView tree, object? source)
+    internal static JsonObject ActualSource(StructureTree tree, object? source)
     {
         bool inTree = source is Visual visual && (ReferenceEquals(visual, tree) || tree.IsVisualAncestorOf(visual));
-        var item = inTree ? SourceItem(tree, source) : null;
+        var row = inTree ? SourceItem(tree, source) : null;
+        var item = row?.BoundNode;
         return new()
         {
             ["sourceType"] = source?.GetType().FullName, ["inTree"] = inTree,
-            ["inHeader"] = InHeader(item, source),
+            ["inHeader"] = InHeader(row, source),
             ["nodeId"] = item?.Tag is StructureNode node ? node.Id : null,
             ["parentNodeId"] = item?.Tag is StructureNode data ? data.ParentId : null,
             ["treeParentNodeId"] = item is null ? null : ParentNodeId(item),
         };
     }
 
-    private static TreeViewItem? SourceItem(TreeView tree, object? source) => source is Visual visual
+    private static StructureTreeRow? SourceItem(StructureTree tree, object? source) => source is Visual visual
         && (ReferenceEquals(visual, tree) || tree.IsVisualAncestorOf(visual))
-        ? visual.GetSelfAndVisualAncestors().OfType<TreeViewItem>().FirstOrDefault() : null;
+        ? visual.GetSelfAndVisualAncestors().OfType<StructureTreeRow>().FirstOrDefault(row => row.IsBindingCurrent) : null;
 
-    private static bool InHeader(TreeViewItem? item, object? source) => item?.Header is Visual header && source is Visual hit
+    private static bool InHeader(StructureTreeRow? item, object? source) => item?.HeaderVisual is { } header && source is Visual hit
         && (ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
 
-    private static long? ParentNodeId(TreeViewItem item) => item.GetVisualAncestors().OfType<TreeViewItem>().FirstOrDefault()?.Tag is StructureNode node
+    private static long? ParentNodeId(StructureTreeNode item) => item.Parent?.Tag is StructureNode node
         ? node.Id : null;
 
     private JsonObject InputJson(string kind, object? eventSource, long observed, PixelPoint? point = null)
@@ -145,16 +148,18 @@ internal sealed partial class StructureNativeDiagnostic
         return record;
     }
 
-    internal static JsonObject? InspectHeader(Window window, TreeView tree, TreeViewItem target)
+    internal static JsonObject? InspectHeader(Window window, StructureTree tree, StructureTreeNode target)
     {
-        if (target.Tag is not StructureNode || target.Header is not Visual header || !tree.IsVisualAncestorOf(header)) return null;
+        if (target.Tag is not StructureNode || tree.TryGetRealizedRow(target) is not { } row) return null;
+        var header = row.HeaderVisual;
+        if (!tree.IsVisualAncestorOf(header)) return null;
         var clipped = ClippedPixels(window, header);
         if (clipped is not { } bounds || bounds.Width <= 0 || bounds.Height <= 0) return null;
         var hit = SafePoint(window, tree, bounds, target);
         return new() { ["headerRect"] = RectJson(bounds), ["headerPoint"] = hit };
     }
 
-    private static JsonObject? SafePoint(Window window, TreeView tree, PixelRect? area, TreeViewItem? target = null)
+    private static JsonObject? SafePoint(Window window, StructureTree tree, PixelRect? area, StructureTreeNode? target = null)
     {
         if (area is not { Width: > 0, Height: > 0 } rectangle) return null;
         foreach (var point in PointsInside(rectangle))
@@ -162,7 +167,7 @@ internal sealed partial class StructureNativeDiagnostic
             var hit = window.InputHitTest(window.PointToClient(point));
             var actual = ActualSource(tree, hit);
             if (actual["inTree"]?.GetValue<bool>() != true
-                || target is not null && (!ReferenceEquals(SourceItem(tree, hit), target) || !InHeader(target, hit))) continue;
+                || target is not null && (!ReferenceEquals(SourceItem(tree, hit)?.BoundNode, target) || !InHeader(SourceItem(tree, hit), hit))) continue;
             actual["x"] = point.X; actual["y"] = point.Y;
             if (target is not null) actual["headerMatches"] = true;
             return actual;
@@ -178,7 +183,7 @@ internal sealed partial class StructureNativeDiagnostic
                     area.Y + Math.Min(area.Height - 1, (int)(area.Height * y)));
     }
 
-    private static PixelRect? TreeViewport(Window window, TreeView tree)
+    private static PixelRect? TreeViewport(Window window, StructureTree tree)
     {
         var presenter = tree.GetVisualDescendants().OfType<ScrollContentPresenter>().FirstOrDefault();
         return ClippedPixels(window, presenter ?? (Visual)tree);

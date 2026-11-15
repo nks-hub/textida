@@ -18,9 +18,10 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public sealed class StructureCaretEchoTests
 {
-    private static IEnumerable<TreeViewItem> DataItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>()
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTreeNode parent) => parent.Items.Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTree parent) => parent.Items.OfType<StructureTreeNode>()
         .Where(item => item.Tag is StructureNode);
-    private static StructureNode Node(TreeViewItem item) => Assert.IsType<StructureNode>(item.Tag);
+    private static StructureNode Node(StructureTreeNode item) => Assert.IsType<StructureNode>(item.Tag);
 
     [AvaloniaTheory]
     [InlineData(false)]
@@ -33,17 +34,17 @@ public sealed class StructureCaretEchoTests
         host.Click(alpha);
 
         Assert.Equal(Node(alpha).Range, host.Jumped);
-        Assert.Same(alpha, host.View.Tree.SelectedItem);
+        Assert.Same(alpha, host.View.Tree.SelectedNode);
         Assert.Same(previousWork, host.View.Working);
         Assert.True(host.View.Working.IsCompleted, "The known selected node queued a redundant source-caret lookup.");
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(alpha));
+        Assert.True(alpha.IsCaret);
 
         int jumps = host.JumpCount;
         host.Offset = Node(delta).ValueStart;
         host.View.Sync(); await host.Drain();
-        Assert.Same(delta, host.View.Tree.SelectedItem);
+        Assert.Same(delta, host.View.Tree.SelectedNode);
         Assert.Equal(jumps, host.JumpCount);
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(delta));
+        Assert.True(delta.IsCaret);
     }
 
     [AvaloniaFact]
@@ -56,9 +57,9 @@ public sealed class StructureCaretEchoTests
         await host.Drain();
 
         Assert.Equal(Node(alpha).Range, host.Jumped);
-        Assert.Same(delta, host.View.Tree.SelectedItem);
+        Assert.Same(delta, host.View.Tree.SelectedNode);
         Assert.Equal(1, host.JumpCount);
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(delta));
+        Assert.True(delta.IsCaret);
     }
 
     [AvaloniaFact]
@@ -70,8 +71,8 @@ public sealed class StructureCaretEchoTests
         host.ChangeOnJump = "{\"fresh\":9}";
         host.Click(alpha);
         Assert.Empty(host.View.Tree.Items);
-        Assert.NotEqual(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(alpha));
-        Assert.NotSame(alpha, host.View.Tree.SelectedItem);
+        Assert.False(alpha.IsCaret);
+        Assert.NotSame(alpha, host.View.Tree.SelectedNode);
         await host.Drain();
 
         Assert.NotSame(oldDocument, host.Document);
@@ -79,7 +80,7 @@ public sealed class StructureCaretEchoTests
         root.IsExpanded = true; await host.Drain();
         var fresh = Assert.Single(DataItems(root));
         Assert.NotSame(alpha, fresh);
-        Assert.Contains("fresh", AutomationProperties.GetName(fresh), StringComparison.Ordinal);
+        Assert.Contains("fresh", fresh.DisplayName, StringComparison.Ordinal);
         Assert.Equal(1, host.JumpCount);
     }
 
@@ -130,28 +131,28 @@ public sealed class StructureCaretEchoTests
                 }, (_, _, _) => Task.FromResult(false));
         }
 
-        public async Task<(TreeViewItem Alpha, TreeViewItem Delta)> Open()
+        public async Task<(StructureTreeNode Alpha, StructureTreeNode Delta)> Open()
         {
             View.Sync(); await Drain();
             var root = Assert.Single(DataItems(Assert.Single(DataItems(View.Tree))));
             root.IsExpanded = true; await Drain();
             var items = DataItems(root).ToArray();
             Assert.Equal(2, items.Length);
-            Assert.StartsWith("alpha", AutomationProperties.GetName(items[0]), StringComparison.Ordinal);
+            Assert.StartsWith("alpha", items[0].DisplayName, StringComparison.Ordinal);
             return (items[0], items[1]);
         }
 
-        public void Click(TreeViewItem item)
+        public void Click(StructureTreeNode item)
         {
             Layout();
-            var header = Assert.IsAssignableFrom<Control>(item.Header);
+            var header = Assert.IsType<StructureTreeRow>(View.Tree.TryGetRealizedRow(item)).HeaderVisual;
             var inspected = StructureNativeDiagnostic.InspectHeader(Window, View.Tree, item);
             Assert.NotNull(inspected?["headerPoint"]);
             var position = inspected!["headerPoint"]!;
             var point = Window.PointToClient(new PixelPoint(position["x"]!.GetValue<int>(), position["y"]!.GetValue<int>()));
             var hit = Assert.IsAssignableFrom<Visual>(Window.InputHitTest(point));
             Assert.True(ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
-            Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<TreeViewItem>().First());
+            Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<StructureTreeRow>().First().BoundNode);
             var source = StructureNativeDiagnostic.ActualSource(View.Tree, hit);
             Assert.True(source["inHeader"]!.GetValue<bool>());
             Assert.Equal(Node(item).Id, source["nodeId"]!.GetValue<long>());

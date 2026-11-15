@@ -1,9 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
-using Avalonia.Collections;
 using Avalonia.Controls;
-using Avalonia.Styling;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
@@ -18,11 +16,10 @@ internal sealed partial class StructureView
         public bool Grouped => ResultRange.HasValue && ResultRange.Value != Node.Range;
     }
     private sealed record ChildPage(IReadOnlyList<RowData> Rows, long After, bool Complete);
-    private sealed class Row(RowData data, TreeViewItem item, StructureRowHeader header, Row? parent)
+    private sealed class Row(RowData data, StructureTreeNode item, Row? parent)
     {
         public RowData Data { get; set; } = data;
-        public TreeViewItem Item { get; } = item;
-        public StructureRowHeader Header { get; } = header;
+        public StructureTreeNode Item { get; } = item;
         public Row? Parent { get; set; } = parent;
         public long Touched, RequestId;
         public bool Loaded, Loading;
@@ -31,7 +28,6 @@ internal sealed partial class StructureView
     private long rootParentId = -1;
     private readonly List<Row> markedRows = [];
     private readonly Stack<Row> freeRows = [];
-    private ControlTheme? leafRowTheme;
     private static readonly RowData EmptyRow = new(default, "", "");
 
     private static RowData ReadRow(IStructureIndex index, StructureNode node, CancellationToken ct, StructureText.Reader? reader = null)
@@ -56,13 +52,11 @@ internal sealed partial class StructureView
     {
         if (!freeRows.TryPop(out var row))
         {
-            var item = new TreeViewItem();
-            var header = new StructureRowHeader();
-            item.Header = header;
-            row = new(EmptyRow, item, header, null);
+            var item = new StructureTreeNode();
+            row = new(EmptyRow, item, null);
             item.PropertyChanged += (_, e) =>
             {
-                if (e.Property != TreeViewItem.IsExpandedProperty || !rows.ContainsKey(item)) return;
+                if (e.PropertyName != nameof(StructureTreeNode.IsExpanded) || !rows.ContainsKey(item)) return;
                 row.Touched = ++clock;
                 if (!item.IsExpanded && row.Loading) { row.Request?.Cancel(); row.Loading = false; }
                 if (item.IsExpanded && !row.Loaded && !row.Loading) LoadChildren(row, -1);
@@ -70,11 +64,7 @@ internal sealed partial class StructureView
         }
         row.RequestId++;
         row.Data = data; row.Parent = parent; row.Touched = ++clock;
-        row.Item.Tag = data.Node;
-        if (data.Node.ChildCount == 0 && (leafRowTheme ??= StructureRowThemes.TryCreateLeaf(tree)) is { } theme)
-            row.Item.Theme = theme;
-        else row.Item.ClearValue(StyledElement.ThemeProperty);
-        Label(row);
+        row.Item.Update(Heading(row), data.Value, data.Node, data.Node.ChildCount > 0);
         if (placeholder && data.Node.ChildCount > 0) row.Item.Items.Add(Placeholder());
         rows.Add(row.Item, row);
         return row;
@@ -99,17 +89,20 @@ internal sealed partial class StructureView
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
-    private void Label(Row row)
+    private static string Heading(Row row)
     {
         var node = row.Data.Node;
         string kind = Loc.Get(KindKey(node.Kind));
         string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + node.Ordinal.ToString(CultureInfo.CurrentCulture) + "]";
-        string heading = name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
-        row.Header.SetText(heading, row.Data.Value);
-        AutomationProperties.SetName(row.Item, heading + " " + row.Data.Value);
+        return name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
     }
 
-    private static TreeViewItem Placeholder() => new() { Header = Loc.Get(K.StructureLoading), IsEnabled = false };
+    private static void Label(Row row) { row.Item.Heading = Heading(row); row.Item.Value = row.Data.Value; }
+
+    private static StructureTreeNode Placeholder() => new()
+    {
+        Heading = Loc.Get(K.StructureLoading), Kind = StructureTreeNodeKind.Loading, IsEnabled = false,
+    };
 
     private void InstallRoot(RowData root, ChildPage page)
         => Programmatic(() => InstallRootCore(root, page));
@@ -130,30 +123,30 @@ internal sealed partial class StructureView
     private void ResetRows(bool retainPool = true)
     {
         treeVersion++;
-        RetireItems(tree.Items.OfType<TreeViewItem>().ToArray(), () => tree.Items.Clear(), retainPool);
+        RetireItems(tree.Items.OfType<StructureTreeNode>().ToArray(), () => tree.Items.Clear(), retainPool);
         rows.Clear(); markedRows.Clear(); rootParentId = -1;
         if (!retainPool) freeRows.Clear();
     }
 
     private void RemoveChildren(Row row)
-        => RetireItems(row.Item.Items.OfType<TreeViewItem>().ToArray(), () => row.Item.Items.Clear(), retainPool: true);
+        => RetireItems(row.Item.Items.OfType<StructureTreeNode>().ToArray(), () => row.Item.Items.Clear(), retainPool: true);
 
-    private void RetireItems(TreeViewItem[] roots, Action detach, bool retainPool)
+    private void RetireItems(StructureTreeNode[] roots, Action detach, bool retainPool)
     {
         long started = Core.TypingTrace.Begin();
         try
         {
             var selected = Selected;
-            var items = new List<TreeViewItem>();
+            var items = new List<StructureTreeNode>();
             var retired = new List<(Row Row, bool Reuse)>();
-            var pending = new Stack<TreeViewItem>(roots);
+            var pending = new Stack<StructureTreeNode>(roots);
             while (pending.TryPop(out var item))
             {
                 items.Add(item);
-                foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
+                foreach (var child in item.Items.OfType<StructureTreeNode>()) pending.Push(child);
                 if (!rows.Remove(item, out var row)) continue;
                 row.RequestId++; row.Request?.Cancel();
-                bool reuse = retainPool && !item.IsFocused && !item.IsKeyboardFocusWithin
+                bool reuse = retainPool && !ProtectsUserState(row)
                     && (selected == null || !Protects(row, selected));
                 retired.Add((row, reuse));
                 markedRows.Remove(row);
@@ -164,14 +157,9 @@ internal sealed partial class StructureView
             {
                 row.Parent = null; row.Request = null; row.Data = EmptyRow;
                 row.Loaded = row.Loading = false; row.Touched = 0;
-                row.Header.SetCaret(false);
-                AutomationProperties.SetItemStatus(row.Item, "");
-                if (!reuse) continue;
-                row.Item.SetCurrentValue(TreeViewItem.IsSelectedProperty, false);
-                row.Item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
-                row.Item.Tag = null;
-                row.Header.SetText("", "");
-                AutomationProperties.SetName(row.Item, "");
+                row.Item.IsCaret = false;
+                if (!reuse) { row.Item.Invalidate(); continue; }
+                row.Item.Reset();
                 freeRows.Push(row);
             }
         }
@@ -187,7 +175,7 @@ internal sealed partial class StructureView
     {
         int active = CountItems();
         if (active + count + additionalItems > MaximumItems)
-            throw new InvalidOperationException("The structure control cache exceeded its bound.");
+            throw new InvalidOperationException("The structure model cache exceeded its bound.");
         // Reusing data rows leaves active + max(free, count) + additionalItems retained slots.
         TrimPool(MaximumItems - active - additionalItems);
     }
@@ -195,11 +183,11 @@ internal sealed partial class StructureView
     private int CountItems()
     {
         int count = 0;
-        var pending = new Stack<TreeViewItem>(tree.Items.OfType<TreeViewItem>());
+        var pending = new Stack<StructureTreeNode>(tree.Items.OfType<StructureTreeNode>());
         while (pending.TryPop(out var item))
         {
             count++;
-            foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
+            foreach (var child in item.Items.OfType<StructureTreeNode>()) pending.Push(child);
         }
         return count;
     }
@@ -210,7 +198,7 @@ internal sealed partial class StructureView
         return false;
     }
 
-    private bool ProtectsUserState(Row candidate) => candidate.Item.IsFocused || candidate.Item.IsKeyboardFocusWithin
+    private bool ProtectsUserState(Row candidate) => tree.TryGetRealizedRow(candidate.Item) is { IsKeyboardFocusWithin: true }
         || Selected is { } selected && Protects(candidate, selected);
 
     private Row MakeRoom(Row parent, int needed)
@@ -264,7 +252,7 @@ internal sealed partial class StructureView
             int needed = page.Rows.Count + additional;
             Row parent = MakeRoom(original, needed);
             ReserveRows(page.Rows.Count, additional);
-            var items = new TreeViewItem[page.Rows.Count];
+            var items = new StructureTreeNode[page.Rows.Count];
             for (int i = 0; i < items.Length; i++)
             {
                 long rowStarted = Core.TypingTrace.Begin();
@@ -274,12 +262,7 @@ internal sealed partial class StructureView
             long attachStarted = Core.TypingTrace.Begin();
             try
             {
-                if (items.Length > 0)
-                {
-                    parent.Item.Items.Add(items[0]);
-                    if (parent.Item.Items.Source is IAvaloniaList<object?> list) list.AddRange(items[1..]);
-                    else foreach (var item in items.Skip(1)) parent.Item.Items.Add(item);
-                }
+                parent.Item.Items.AddRange(items);
             }
             finally { Core.TypingTrace.End("structure.page.attach", attachStarted); }
             if (pager)
@@ -289,7 +272,7 @@ internal sealed partial class StructureView
                 var after = new Button { Content = Loc.Get(K.StructureNext), IsEnabled = !page.Complete };
                 before.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId)) LoadChildren(parent, page.After, previousPage: true); };
                 after.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId) && page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
-                parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });
+                parent.Item.Items.Add(new StructureTreeNode { Kind = StructureTreeNodeKind.Pager, PagerContent = Bar(before, after) });
             }
             parent.Loaded = true; parent.Loading = false; parent.Touched = ++clock;
             parent.Item.IsExpanded = true;

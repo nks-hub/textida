@@ -18,8 +18,9 @@ namespace NksHub.Textida.App.Tests;
 public class StructurePanelTests
 {
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-    private static StructureNode Node(TreeViewItem item) => Assert.IsType<StructureNode>(item.Tag);
-    private static IEnumerable<TreeViewItem> DataItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode);
+    private static StructureNode Node(StructureTreeNode item) => Assert.IsType<StructureNode>(item.Tag);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTreeNode parent) => parent.Items.Where(item => item.Tag is StructureNode);
+    private static IEnumerable<StructureTreeNode> DataItems(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode);
 
     private static async Task Drain(StructureView view)
     {
@@ -50,17 +51,17 @@ public class StructurePanelTests
         array.IsExpanded = true; await Drain(host.View);
         Assert.Equal(Enumerable.Range(0, StructureView.PageSize).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
         int firstCount = host.View.CachedItems;
-        var pager = array.Items.OfType<TreeViewItem>().Single(item => item.Tag == null);
-        Click(Assert.IsType<WrapPanel>(pager.Header).Children.OfType<Button>().Last());
+        var pager = array.Items.OfType<StructureTreeNode>().Single(item => item.Tag == null);
+        Click(Assert.IsType<WrapPanel>(pager.PagerContent).Children.OfType<Button>().Last());
         await Drain(host.View);
         Assert.Equal(Enumerable.Range(StructureView.PageSize, StructureView.PageSize).Select(i => (long)i), DataItems(array).Select(item => Node(item).Ordinal));
         Assert.Equal(firstCount, host.View.CachedItems);
-        pager = array.Items.OfType<TreeViewItem>().Single(item => item.Tag == null);
-        Click(Assert.IsType<WrapPanel>(pager.Header).Children.OfType<Button>().First());
+        pager = array.Items.OfType<StructureTreeNode>().Single(item => item.Tag == null);
+        Click(Assert.IsType<WrapPanel>(pager.PagerContent).Children.OfType<Button>().First());
         await Drain(host.View);
         var first = DataItems(array).First();
         Assert.Equal(0, Node(first).Ordinal);
-        host.View.Tree.SelectedItem = first;
+        host.View.Tree.SelectedNode = first;
         Assert.Equal(Node(first).Range, host.Jumped);
         Click(host.View.CopyPathButton); await Drain(host.View);
         Assert.Equal("$[0]", host.Copied);
@@ -78,11 +79,11 @@ public class StructurePanelTests
         host.Jumped = null;
         host.Offset = text.IndexOf("300", StringComparison.Ordinal);
         host.View.Sync(); await Drain(host.View);
-        var selected = Assert.IsType<TreeViewItem>(host.View.Tree.SelectedItem);
+        var selected = Assert.IsType<StructureTreeNode>(host.View.Tree.SelectedNode);
         Assert.Equal(StructureKind.JsonNumber, Node(selected).Kind);
         Assert.Equal(300, Node(selected).Ordinal);
         Assert.Equal(host.Offset, Node(selected).ValueStart);
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(selected));
+        Assert.True(selected.IsCaret);
         Assert.Same(host.Editor, host.Window.FocusManager!.GetFocusedElement());
         Assert.Null(host.Jumped);
         Assert.InRange(host.View.CachedItems, 1, StructureView.MaximumItems);
@@ -106,7 +107,7 @@ public class StructurePanelTests
             host.Jumped = null;
             host.Offset = codec.Bom.Length + codec.Encode(text[..text.IndexOf(fragment, StringComparison.Ordinal)]).Length;
             host.View.Sync(); await Drain(host.View);
-            var selected = Assert.IsType<TreeViewItem>(host.View.Tree.SelectedItem);
+            var selected = Assert.IsType<StructureTreeNode>(host.View.Tree.SelectedNode);
             Assert.Equal(kind, Node(selected).Kind);
             Assert.True(Node(selected).ValueStart <= host.Offset && host.Offset < Node(selected).ValueEnd);
             Assert.Null(host.Jumped);
@@ -115,7 +116,7 @@ public class StructurePanelTests
         var document = Assert.Single(DataItems(host.View.Tree));
         var element = Assert.Single(DataItems(document));
         var attribute = DataItems(element).Single(item => Node(item).Kind == StructureKind.XmlAttribute);
-        host.View.Tree.SelectedItem = attribute;
+        host.View.Tree.SelectedNode = attribute;
         Assert.Equal(Node(attribute).Range, host.Jumped);
         Assert.False(host.Document.CanUndo);
     }
@@ -153,12 +154,12 @@ public class StructurePanelTests
         var objectItem = Assert.Single(DataItems(root));
         objectItem.IsExpanded = true; await Drain(host.View);
         var value = Assert.Single(DataItems(objectItem));
-        Assert.Contains("new", AutomationProperties.GetName(value), StringComparison.Ordinal);
+        Assert.Contains("new", value.DisplayName, StringComparison.Ordinal);
         host.Editor.Focus();
         host.Offset = Node(value).ValueStart;
         host.View.Sync(); await Drain(host.View);
         Assert.Same(host.Editor, host.Window.FocusManager!.GetFocusedElement());
-        Assert.Equal(Loc.Get("structure.caret"), AutomationProperties.GetItemStatus(value));
+        Assert.True(value.IsCaret);
         host.View.Suspend(); await Drain(host.View);
         Assert.Empty(host.View.Tree.Items);
         host.View.Sync(); await Drain(host.View);
@@ -174,7 +175,7 @@ public class StructurePanelTests
         host.View.Filter.Text = "FIND";
         Click(host.View.FindButton); await Drain(host.View);
         Assert.Equal(2, DataItems(host.View.Tree).Count());
-        host.View.Tree.SelectedItem = DataItems(host.View.Tree).First();
+        host.View.Tree.SelectedNode = DataItems(host.View.Tree).First();
         Click(host.View.CopySourceButton); await Drain(host.View);
         Assert.Equal("\"find me\"", host.Copied);
         host.PromptValue = "new value";
@@ -195,8 +196,8 @@ public class StructurePanelTests
         host.View.Filter.Text = "/r/text()";
         Click(host.View.FindButton); await Drain(host.View);
         var result = Assert.Single(DataItems(host.View.Tree));
-        Assert.Contains("abc", AutomationProperties.GetName(result), StringComparison.Ordinal);
-        host.View.Tree.SelectedItem = result;
+        Assert.Contains("abc", result.DisplayName, StringComparison.Ordinal);
+        host.View.Tree.SelectedNode = result;
         Click(host.View.JumpButton);
         Assert.Equal(new ByteRange(3, 18), host.Jumped);
         Click(host.View.CopySourceButton); await Drain(host.View);

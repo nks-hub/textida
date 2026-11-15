@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
+using NksHub.Textida.App.Text;
 
 namespace NksHub.Textida.App.Shell;
 
@@ -69,6 +70,7 @@ internal sealed partial class StructureTreeRow : ListBoxItem
         header.SetCaret(false); header.SetText("", "");
         body.Margin = default; expander.Content = null; expander.IsVisible = false;
         Tag = null; AutomationProperties.SetName(this, "");
+        AutomationProperties.SetItemStatus(this, "");
         Content = null;
         DataContext = null;
         Owner = null; BoundNode = null; BindingVersion = 0;
@@ -122,7 +124,8 @@ internal sealed partial class StructureTreeRow : ListBoxItem
         header.SetText(node.Heading, node.Value); header.SetCaret(node.IsCaret);
         expander.Content = node.IsExpanded ? "▾" : "▸";
         expander.IsVisible = node.HasChildren && node.Kind == StructureTreeNodeKind.Normal;
-        AutomationProperties.SetName(this, (node.Heading + " " + node.Value).TrimEnd());
+        AutomationProperties.SetName(this, node.DisplayName);
+        AutomationProperties.SetItemStatus(this, node.IsCaret ? Loc.Get(K.StructureCaret) : "");
         if (node.Kind == StructureTreeNodeKind.Pager && node.PagerContent is { } pager)
             Content = pager;
         else if (!ReferenceEquals(Content, body)) Content = body;
