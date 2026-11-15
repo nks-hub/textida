@@ -8,6 +8,7 @@ using Avalonia.Threading;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.App.Tests;
 
@@ -51,8 +52,10 @@ public partial class ViewOptionsTests
         }
         Assert.True(syntax.ViewportRuns > editorRuns, "Editor colors did not resume after the drag.");
         Assert.True(map.IsSampled || map.ColorRuns > mapRuns, "Minimap colors did not resume after the drag.");
-        Assert.True(EditorHasVisibleSyntaxColors(tab), "The visible editor text stayed uncolored after the drag.");
-        Assert.True(WaitForColors(tab, ["keyword", "comment"]), "The minimap stayed uncolored after the drag.");
+        bool editorColored = EditorHasVisibleSyntaxColors(tab);
+        Assert.True(editorColored, editorColored ? null : "The visible editor text stayed uncolored after the drag. " + ColorRecoveryState(tab));
+        bool mapColored = await WaitForMinimapColorsAsync(tab);
+        Assert.True(mapColored, mapColored ? null : "The minimap stayed uncolored after the drag. " + ColorRecoveryState(tab));
         IMinimapHost host = tab.Editor is { } editor ? editor : tab.Paged!;
         Assert.True(host.Visible.First > 0, "The held pointer did not move the editor.");
     }
@@ -86,7 +89,8 @@ public partial class ViewOptionsTests
                 Dispatcher.UIThread.RunJobs();
             }
             Assert.True(syntax.ViewportRuns > runs, "Removing the minimap left the editor colors deferred.");
-            Assert.True(EditorHasVisibleSyntaxColors(tab), "Removing the minimap left the visible editor text uncolored.");
+            bool colored = EditorHasVisibleSyntaxColors(tab);
+            Assert.True(colored, colored ? null : "Removing the minimap left the visible editor text uncolored. " + ColorRecoveryState(tab));
         }
         finally { _w.MouseUp(target, MouseButton.Left); }
     }
@@ -96,5 +100,51 @@ public partial class ViewOptionsTests
         Control surface = tab.Editor is { } editor ? editor : tab.Paged!;
         var area = InWindow(surface, new Rect(0, 0, surface.Bounds.Width, Math.Min(100, surface.Bounds.Height)));
         return Matching(Capture(), area, SyntaxColors(["keyword", "comment"]).ToList()) > 20;
+    }
+
+    private async Task<bool> WaitForMinimapColorsAsync(DocTab tab)
+    {
+        var colors = SyntaxColors(["keyword", "comment"]).ToList();
+        var clock = Stopwatch.StartNew();
+        while (clock.Elapsed.TotalSeconds < 10)
+        {
+            var area = MinimapLowerPart(tab);
+            if (Matching(Capture(), area, colors) > 20) return true;
+            await Task.Delay(50);
+        }
+        return false;
+    }
+
+    private string ColorRecoveryState(DocTab tab)
+    {
+        Control surface = tab.Editor is { } editor ? editor : tab.Paged!;
+        IMinimapHost host = tab.Editor is { } editorHost ? editorHost : tab.Paged!;
+        var syntax = tab.Editor?.Syntax ?? tab.Paged!.Syntax;
+        var visible = host.Visible;
+        var shot = Capture();
+        var area = InWindow(surface, new Rect(0, 0, surface.Bounds.Width, Math.Min(100, surface.Bounds.Height)));
+        int pixels = Matching(shot, area, SyntaxColors(["keyword", "comment"]).ToList());
+        var state = syntax.CaptureReadiness(tab.Doc.Doc);
+        string pagedState = "";
+        if (tab.Paged is { } paged && tab.Doc.Doc.Backend is PagedBackend backend)
+        {
+            var cache = paged.CaptureReadiness(tab.Doc.Doc, backend);
+            pagedState = $"\npaged current={cache.CurrentCache} rows={cache.CachedRows}/{cache.VisibleRows} long={cache.LongRows} "
+                + $"columns={cache.CompleteColumnIndexes}/{cache.RequiredColumnIndexes} windows={cache.CachedWindows}/{cache.WindowRows} detour={cache.Detour}"
+                + $"\npaged viewport={paged.CaptureReadinessViewport()} windowsPending={cache.WindowsPending} columnWork={cache.ColumnWork} "
+                + $"columnFailed={cache.ColumnFailed} indexTimer={cache.IndexTimerPending}";
+            var rows = Enumerable.Range(0, (int)Math.Min(6, visible.Count)).Select(offset =>
+            {
+                long line = visible.First + offset;
+                string text = paged.DisplayOf(line) ?? "<unavailable>";
+                var tokens = paged.TokensOf(line);
+                return $"{line}:text={text[..Math.Min(80, text.Length)]},tokens={string.Join(',', tokens?.Select(token => $"{token.Start}+{token.Length}:{token.Kind}") ?? [])}";
+            });
+            pagedState += $"\nrows=[{string.Join("\n", rows)}]";
+        }
+        return $"\npixels={pixels} area={area} surface={surface.Bounds} visible={surface.IsEffectivelyVisible} host={visible}"
+            + $"\nframeRows={shot.Data.Length / shot.Stride} stride={shot.Stride} window={_w.ClientSize} mapRuns={tab.Minimap?.ColorRuns} mapLayout={tab.Minimap?.Layout}"
+            + $"\nsyntax runs={syntax.ViewportRuns} requested={syntax.Requested} sessionRev={state.SessionRevision} doneRev={state.DoneRevision} "
+            + $"matches={state.RequestedMatches} pending={state.Pending} scheduled={state.Scheduled} dragging={syntax.IsDragging}{pagedState}";
     }
 }
