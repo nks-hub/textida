@@ -80,11 +80,70 @@ public sealed class StructureRowHeaderTests
         }
         finally { window.Close(); TypingTrace.Enabled = tracing; TypingTrace.Reset(); }
 
-        static int Layouts()
+    }
+
+    [AvaloniaFact]
+    public void Fitting_left_ltr_text_matches_start_with_one_layout_per_line_and_keeps_fallbacks()
+    {
+        bool tracing = TypingTrace.Enabled;
+        string title = new string('\u2588', 6) + " heading", preview = new string('\u2588', 3) + " value";
+        var ink = Color.Parse("#125DA7");
+        var header = new StructureRowHeader(); header.SetText(title, preview);
+        var item = new TreeViewItem { Header = header };
+        TextElement.SetForeground(item, new SolidColorBrush(ink));
+        var tree = new TreeView(); tree.Items.Add(item);
+        var window = new Window { Width = 900, Height = 300, Content = tree, FlowDirection = FlowDirection.LeftToRight };
+        try
         {
-            var count = Regex.Match(TypingTrace.Summary(), @"(?m)^structure\.header\.layout\s+n=\s*(\d+)");
-            return count.Success ? int.Parse(count.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
+            TypingTrace.Enabled = false;
+            window.Show(); _ = Frame(window, null);
+            var reference = Capture(TextAlignment.Start);
+            Assert.Equal(4, reference.Layouts);
+            var left = Capture(TextAlignment.Left);
+            EqualFrames(reference, left, 2);
+            header.InvalidateMeasure();
+            EqualFrames(left, Capture(TextAlignment.Left), 0);
+
+            foreach (var (direction, expected, actual, heading, maxLines) in new[]
+            {
+                (FlowDirection.LeftToRight, TextAlignment.End, TextAlignment.Right, title, 0),
+                (FlowDirection.RightToLeft, TextAlignment.End, TextAlignment.Left, title, 0),
+                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, title + "\nsecond line", 0),
+                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, title + "\nsecond line", 1),
+                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, new string('\u2588', 100), 0),
+            })
+            {
+                window.FlowDirection = direction;
+                header.SetText(heading, preview);
+                header.SetValue(TextBlock.MaxLinesProperty, maxLines);
+                var fallback = Capture(expected);
+                EqualFrames(fallback, Capture(actual), fallback.Layouts);
+            }
+            header.SetText(title, preview); header.SetValue(TextBlock.MaxLinesProperty, 0);
+            var centered = Capture(TextAlignment.Center);
+            Assert.Equal(4, centered.Layouts);
+            header.InvalidateMeasure();
+            EqualFrames(centered, Capture(TextAlignment.Center), 0);
+
+            (HeaderFrame Image, Size Desired, Rect Bounds, int Layouts) Capture(TextAlignment alignment)
+            {
+                header.SetValue(TextBlock.TextAlignmentProperty, alignment);
+                TypingTrace.Reset(); TypingTrace.Enabled = true;
+                var image = Frame(window, header);
+                Assert.True(image.Count(ink) > 20);
+                return (image, header.DesiredSize, new Rect(header.TranslatePoint(default, window)!.Value, header.Bounds.Size), Layouts());
+            }
+
+            static void EqualFrames((HeaderFrame Image, Size Desired, Rect Bounds, int Layouts) expected,
+                (HeaderFrame Image, Size Desired, Rect Bounds, int Layouts) actual, int layouts)
+            {
+                Assert.Equal(expected.Image.Width, actual.Image.Width); Assert.Equal(expected.Image.Height, actual.Image.Height);
+                Assert.Equal(expected.Image.Pixels, actual.Image.Pixels);
+                Assert.Equal(expected.Desired, actual.Desired); Assert.Equal(expected.Bounds, actual.Bounds);
+                Assert.Equal(layouts, actual.Layouts);
+            }
         }
+        finally { window.Close(); TypingTrace.Enabled = tracing; TypingTrace.Reset(); }
     }
 
     [AvaloniaFact]
@@ -252,6 +311,12 @@ public sealed class StructureRowHeaderTests
             }
         }
         finally { window.Close(); }
+    }
+
+    private static int Layouts()
+    {
+        var count = Regex.Match(TypingTrace.Summary(), @"(?m)^structure\.header\.layout\s+n=\s*(\d+)");
+        return count.Success ? int.Parse(count.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
     }
 
     private sealed record HeaderFrame(int Width, int Height, byte[] Pixels)
