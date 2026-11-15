@@ -27,15 +27,18 @@ public sealed partial class PagedLongLineFormattingTests
         await Settled();
         host.Paged.SelectBytes(1949, 11091);
         await Settled();
+        Note("branch00-prefix");
         var beforeRequest = host.Paged.Syntax.Requested;
         var before = host.Paged.TokensOf(0)!.ToArray();
         object? prefixEntry = host.Entry();
         Assert.NotNull(prefixEntry);
         Assert.NotEmpty(before);
-        Assert.InRange(beforeRequest.Column, 9000, 11091);
+        Assert.Equal(0, beforeRequest.Column);
+        Assert.True(beforeRequest.Columns > 11091);
 
         host.Paged.SelectBytes(75093, 84235);
         await Settled();
+        Note("branch08-window");
         Assert.Equal(84235, host.Paged.CaretOffset);
         Assert.Equal(new ByteRange(75093, 84235), host.Paged.SelectionRange);
         Assert.Equal(1, host.Paged.CaptureReadiness(document, backend).WindowRows);
@@ -43,6 +46,7 @@ public sealed partial class PagedLongLineFormattingTests
 
         host.Paged.SelectBytes(41, 1939);
         await Settled();
+        Note("rows-prefix");
         var afterRequest = host.Paged.Syntax.Requested;
         var after = host.Paged.TokensOf(0)!.ToArray();
         Assert.Equal(1939, host.Paged.CaretOffset);
@@ -50,17 +54,30 @@ public sealed partial class PagedLongLineFormattingTests
         Assert.Equal("\"rows\":[" + rows + "]", host.Paged.SelectedText());
         Assert.Equal(0, host.Paged.CaptureReadiness(document, backend).WindowRows);
         Assert.NotEmpty(after);
-        Assert.True(afterRequest.Column + afterRequest.Columns < beforeRequest.Column);
+        Assert.Equal(0, afterRequest.Column);
+        Assert.True(afterRequest.Columns < beforeRequest.Columns);
         Assert.False(before.AsSpan().SequenceEqual(after));
         Assert.NotSame(prefixEntry, host.Entry());
         output.WriteLine(JsonSerializer.Serialize(new
         {
-            width, beforeRequest, afterRequest,
+            width,
             beforeTokens = before.Select(t => new { t.Start, t.Length, t.Kind }),
             afterTokens = after.Select(t => new { t.Start, t.Length, t.Kind }),
             viewport = host.Paged.CaptureReadinessViewport(),
             cache = host.CacheProbe(prefixEntry, 0)
         }));
+
+        void Note(string stage)
+        {
+            var requested = host.Paged.Syntax.Requested;
+            output.WriteLine(JsonSerializer.Serialize(new
+            {
+                stage, width, caret = host.Paged.CaretOffset, selection = host.Paged.SelectionRange,
+                requested = new { requested.First, requested.Count, requested.Column, requested.Columns },
+                viewport = host.Paged.CaptureReadinessViewport(),
+                tokens = host.Paged.TokensOf(0)?.Select(t => new { t.Start, t.Length, t.Kind })
+            }));
+        }
 
         async Task Settled()
         {
