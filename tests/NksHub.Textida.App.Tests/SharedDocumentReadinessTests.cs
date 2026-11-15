@@ -219,6 +219,55 @@ public sealed class SharedDocumentReadinessTests : IDisposable
         Assert.Equal(final, File.ReadAllText(Path.Combine(directory, "shared-document.json")));
     }
 
+    [AvaloniaFact]
+    public async Task A_locked_request_is_read_after_release_without_another_file_event()
+    {
+        const string contents = "{\"nonce\":\"released\",\"requestedQpc\":1,\"pid\":1,\"session\":0}";
+        string path = temp.Bytes("locked-request.json", Encoding.UTF8.GetBytes(contents));
+        Task<string> pending;
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            pending = MainWindow.DocumentReadiness.ReadRequestAsync(path, CancellationToken.None);
+            Assert.False(pending.IsCompleted);
+        }
+        Assert.Equal(contents, await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [AvaloniaFact]
+    public async Task A_request_missing_during_replacement_is_read_when_it_appears()
+    {
+        const string contents = "{\"nonce\":\"replaced\",\"requestedQpc\":1,\"pid\":1,\"session\":0}";
+        string path = Path.Combine(temp.Path, "replaced-request.json");
+        string temporary = temp.Bytes("replaced-request.tmp", Encoding.UTF8.GetBytes(contents));
+        var pending = MainWindow.DocumentReadiness.ReadRequestAsync(path, CancellationToken.None);
+        Assert.False(pending.IsCompleted);
+        File.Move(temporary, path);
+        Assert.Equal(contents, await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [AvaloniaFact]
+    public async Task A_request_that_stays_locked_fails_within_the_retry_bound()
+    {
+        string path = temp.Bytes("unreleased-request.json", Encoding.UTF8.GetBytes("{}"));
+        using var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        var pending = MainWindow.DocumentReadiness.ReadRequestAsync(path, CancellationToken.None);
+        var error = await Assert.ThrowsAsync<IOException>(() => pending.WaitAsync(TimeSpan.FromSeconds(2)));
+        Assert.Equal(unchecked((int)0x80070020), error.HResult);
+    }
+
+    [AvaloniaFact]
+    public async Task Cancellation_interrupts_a_locked_request_retry()
+    {
+        string path = temp.Bytes("cancelled-request.json", Encoding.UTF8.GetBytes("{}"));
+        using var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+        using var cancellation = new CancellationTokenSource();
+        var pending = MainWindow.DocumentReadiness.ReadRequestAsync(path, cancellation.Token);
+        Assert.False(pending.IsCompleted);
+        cancellation.Cancel();
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending.WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.Equal(cancellation.Token, error.CancellationToken);
+    }
+
     private async Task<DocTab> OpenReadyDocument()
     {
         string path = temp.Bytes("sample.json", Encoding.UTF8.GetBytes("{\"padding\":\"" + new string('x', FixturePaddingChars) + "\",\"n\":1}"));
@@ -250,7 +299,8 @@ public sealed class SharedDocumentReadinessTests : IDisposable
             ["revision"] = request.Revision };
         string path = Path.Combine(directory, "shared-document-request.json"), temporary = path + ".tmp";
         File.WriteAllText(temporary, json.ToJsonString());
-        File.Move(temporary, path, true);
+        if (File.Exists(path)) File.Replace(temporary, path, null);
+        else File.Move(temporary, path);
     }
 
     private async Task<JsonObject> Send(MainWindow.DocumentReadinessRequest request)

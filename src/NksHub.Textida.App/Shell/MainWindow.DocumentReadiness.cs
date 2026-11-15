@@ -107,7 +107,7 @@ internal sealed partial class MainWindow
         ["caretMovePending"] = state.CaretMovePending, ["indexTimerPending"] = state.IndexTimerPending,
     };
 
-    private sealed class DocumentReadiness
+    internal sealed class DocumentReadiness
     {
         private const string RequestName = "shared-document-request.json";
         private const string ResponseName = "shared-document.json";
@@ -160,7 +160,7 @@ internal sealed partial class MainWindow
                     JsonObject response;
                     try
                     {
-                        string text = ReadRequest(path);
+                        string text = await ReadRequestAsync(path, stopped.Token).ConfigureAwait(false);
                         if (text == previousRequest) continue;
                         previousRequest = text;
                         var request = ParseRequest(text);
@@ -199,6 +199,20 @@ internal sealed partial class MainWindow
             ["errorType"] = error.GetType().FullName, ["hResult"] = error.HResult,
             ["captureEndQpc"] = Stopwatch.GetTimestamp(),
         };
+
+        internal static async Task<string> ReadRequestAsync(string path, CancellationToken token)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                token.ThrowIfCancellationRequested();
+                try { return ReadRequest(path); }
+                catch (IOException error) when (attempt < 4
+                    && error.HResult is unchecked((int)0x80070020) or unchecked((int)0x80070002))
+                {
+                    await Task.Delay(5, token).ConfigureAwait(false);
+                }
+            }
+        }
 
         private static string ReadRequest(string path)
         {
