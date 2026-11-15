@@ -257,7 +257,7 @@ internal sealed partial class StructureNativeDiagnostic
     {
         long observed = Stopwatch.GetTimestamp();
         var last = GC.GetGCMemoryInfo();
-        return new()
+        var result = new JsonObject
         {
             ["observedQpc"] = observed,
             ["estimatedManagedBytes"] = GC.GetTotalMemory(false),
@@ -270,6 +270,23 @@ internal sealed partial class StructureNativeDiagnostic
             ["lastGCTotalCommittedBytes"] = last.Index > 0 ? last.TotalCommittedBytes : null,
             ["lastGCFragmentedBytes"] = last.Index > 0 ? last.FragmentedBytes : null,
         };
+        if (Core.TypingTrace.Enabled && last.Index > 0)
+        {
+            var generations = last.GenerationInfo;
+            var sizes = new JsonArray();
+            for (int index = 0; index < generations.Length; index++)
+            {
+                var generation = generations[index];
+                sizes.Add((JsonNode)new JsonObject
+                {
+                    ["index"] = index,
+                    ["sizeAfterBytes"] = generation.SizeAfterBytes,
+                    ["fragmentationAfterBytes"] = generation.FragmentationAfterBytes,
+                });
+            }
+            result["lastGCGenerationInfo"] = sizes;
+        }
+        return result;
     }
 
     private JsonObject FocusJson()

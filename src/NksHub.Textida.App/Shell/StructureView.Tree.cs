@@ -143,37 +143,42 @@ internal sealed partial class StructureView
 
     private void RetireItems(TreeViewItem[] roots, Action detach, bool retainPool)
     {
-        var selected = Selected;
-        var items = new List<TreeViewItem>();
-        var retired = new List<(Row Row, bool Reuse)>();
-        var pending = new Stack<TreeViewItem>(roots);
-        while (pending.TryPop(out var item))
+        long started = Core.TypingTrace.Begin();
+        try
         {
-            items.Add(item);
-            foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
-            if (!rows.Remove(item, out var row)) continue;
-            row.RequestId++; row.Request?.Cancel();
-            bool reuse = retainPool && !item.IsFocused && !item.IsKeyboardFocusWithin
-                && (selected == null || !Protects(row, selected));
-            retired.Add((row, reuse));
-            markedRows.Remove(row);
+            var selected = Selected;
+            var items = new List<TreeViewItem>();
+            var retired = new List<(Row Row, bool Reuse)>();
+            var pending = new Stack<TreeViewItem>(roots);
+            while (pending.TryPop(out var item))
+            {
+                items.Add(item);
+                foreach (var child in item.Items.OfType<TreeViewItem>()) pending.Push(child);
+                if (!rows.Remove(item, out var row)) continue;
+                row.RequestId++; row.Request?.Cancel();
+                bool reuse = retainPool && !item.IsFocused && !item.IsKeyboardFocusWithin
+                    && (selected == null || !Protects(row, selected));
+                retired.Add((row, reuse));
+                markedRows.Remove(row);
+            }
+            Programmatic(detach);
+            foreach (var item in items) item.Items.Clear();
+            foreach (var (row, reuse) in retired)
+            {
+                row.Parent = null; row.Request = null; row.Data = EmptyRow;
+                row.Loaded = row.Loading = false; row.Touched = 0;
+                row.Marker.Text = "";
+                AutomationProperties.SetItemStatus(row.Item, "");
+                if (!reuse) continue;
+                row.Item.SetCurrentValue(TreeViewItem.IsSelectedProperty, false);
+                row.Item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
+                row.Item.Tag = null;
+                row.Heading.Text = row.Value.Text = ""; row.Value.IsVisible = false;
+                AutomationProperties.SetName(row.Item, "");
+                freeRows.Push(row);
+            }
         }
-        Programmatic(detach);
-        foreach (var item in items) item.Items.Clear();
-        foreach (var (row, reuse) in retired)
-        {
-            row.Parent = null; row.Request = null; row.Data = EmptyRow;
-            row.Loaded = row.Loading = false; row.Touched = 0;
-            row.Marker.Text = "";
-            AutomationProperties.SetItemStatus(row.Item, "");
-            if (!reuse) continue;
-            row.Item.SetCurrentValue(TreeViewItem.IsSelectedProperty, false);
-            row.Item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
-            row.Item.Tag = null;
-            row.Heading.Text = row.Value.Text = ""; row.Value.IsVisible = false;
-            AutomationProperties.SetName(row.Item, "");
-            freeRows.Push(row);
-        }
+        finally { Core.TypingTrace.End("structure.retireItems", started); }
     }
 
     private void TrimPool(int maximum)
@@ -253,25 +258,30 @@ internal sealed partial class StructureView
 
     private void InstallPageCore(Row original, ChildPage page)
     {
-        treeVersion++;
-        bool pager = page.After >= 0 || !page.Complete;
-        int additional = page.Rows.Count(row => row.Node.ChildCount > 0) + (pager ? 1 : 0);
-        int needed = page.Rows.Count + additional;
-        Row parent = MakeRoom(original, needed);
-        ReserveRows(page.Rows.Count, additional);
-        foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
-        if (pager)
+        long started = Core.TypingTrace.Begin();
+        try
         {
-            long version = parent.RequestId, nodeId = parent.Data.Node.Id, epoch = generation;
-            var before = new Button { Content = Loc.Get(K.StructurePrevious), IsEnabled = page.After >= 0 };
-            var after = new Button { Content = Loc.Get(K.StructureNext), IsEnabled = !page.Complete };
-            before.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId)) LoadChildren(parent, page.After, previousPage: true); };
-            after.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId) && page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
-            parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });
+            treeVersion++;
+            bool pager = page.After >= 0 || !page.Complete;
+            int additional = page.Rows.Count(row => row.Node.ChildCount > 0) + (pager ? 1 : 0);
+            int needed = page.Rows.Count + additional;
+            Row parent = MakeRoom(original, needed);
+            ReserveRows(page.Rows.Count, additional);
+            foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
+            if (pager)
+            {
+                long version = parent.RequestId, nodeId = parent.Data.Node.Id, epoch = generation;
+                var before = new Button { Content = Loc.Get(K.StructurePrevious), IsEnabled = page.After >= 0 };
+                var after = new Button { Content = Loc.Get(K.StructureNext), IsEnabled = !page.Complete };
+                before.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId)) LoadChildren(parent, page.After, previousPage: true); };
+                after.Click += (_, _) => { if (generation == epoch && CurrentRow(parent, version, nodeId) && page.Rows.Count > 0) LoadChildren(parent, page.Rows[^1].Node.Id); };
+                parent.Item.Items.Add(new TreeViewItem { Header = Bar(before, after), Focusable = false });
+            }
+            parent.Loaded = true; parent.Loading = false; parent.Touched = ++clock;
+            parent.Item.IsExpanded = true;
+            UpdateButtons();
         }
-        parent.Loaded = true; parent.Loading = false; parent.Touched = ++clock;
-        parent.Item.IsExpanded = true;
-        UpdateButtons();
+        finally { Core.TypingTrace.End("structure.installPage", started); }
     }
 
     private void LoadChildren(Row row, long after, bool previousPage = false)
