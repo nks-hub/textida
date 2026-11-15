@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -9,6 +10,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
@@ -17,7 +19,7 @@ using Doc = NksHub.Textida.Core.Documents.Document;
 namespace NksHub.Textida.App.Tests;
 
 [Collection("LocState")]
-public sealed class StructureRowCacheTests
+public sealed class StructureRowCacheTests(ITestOutputHelper output)
 {
     private static StructureNode Node(TreeViewItem item) => Assert.IsType<StructureNode>(item.Tag);
     private static IEnumerable<TreeViewItem> DataItems(ItemsControl parent) => parent.Items.OfType<TreeViewItem>().Where(item => item.Tag is StructureNode);
@@ -37,6 +39,56 @@ public sealed class StructureRowCacheTests
     {
         var header = Assert.IsAssignableFrom<Control>(item.Header);
         return [item, header, .. header.GetVisualDescendants().OfType<Control>()];
+    }
+
+    [AvaloniaFact]
+    public async Task Installing_32_cold_pages_of_64_rows_allocates_at_most_64_mib()
+    {
+        bool tracing = TypingTrace.Enabled;
+        try
+        {
+            TypingTrace.Enabled = false;
+            string values = "[" + string.Join(',', Enumerable.Range(0, 2048)) + "]";
+            string text = "[" + string.Join(',', Enumerable.Repeat(values, 32)) + "]";
+            using var host = new Host(text, StructureFormat.Json);
+            Assert.Contains(Application.Current!.Styles, style => style is Avalonia.Themes.Fluent.FluentTheme);
+            host.View.Sync(); await host.Drain();
+            var array = Assert.Single(DataItems(Assert.Single(DataItems(host.View.Tree))));
+            array.IsExpanded = true; await host.Drain();
+            var branches = DataItems(array).ToArray();
+            Assert.Equal(32, branches.Length);
+
+            TypingTrace.Reset(); TypingTrace.Enabled = true;
+            int maximum = 0;
+            foreach (var branch in branches)
+            {
+                Assert.False(branch.IsExpanded);
+                Assert.Empty(DataItems(branch));
+                host.View.Tree.SelectedItem = branch; await host.Drain();
+                Assert.Empty(DataItems(branch));
+                branch.IsExpanded = true; await host.Drain();
+                var children = DataItems(branch).ToArray();
+                Assert.Equal(64, children.Length);
+                Assert.Equal(Enumerable.Range(0, 64).Select(i => (long)i), children.Select(item => Node(item).Ordinal));
+                Assert.All(children, child => Assert.Equal(Node(branch).Id, Node(child).ParentId));
+                maximum = Math.Max(maximum, host.View.CachedItems);
+                Bound(host.View);
+                branch.IsExpanded = false; await host.Drain();
+            }
+            Assert.InRange(maximum, StructureView.MaximumItems - StructureView.PageSize, StructureView.MaximumItems);
+            Assert.Empty(DataItems(branches[0]));
+            string summary = TypingTrace.Summary();
+            output.WriteLine(summary);
+            var install = Regex.Match(summary, @"(?m)^structure\.installPage\s+n=\s*(\d+)[^\r\n]*\balloc=(\d+)");
+            Assert.True(install.Success, "The actual page installation span was not recorded.");
+            int pages = int.Parse(install.Groups[1].Value, CultureInfo.InvariantCulture);
+            long mean = long.Parse(install.Groups[2].Value, CultureInfo.InvariantCulture);
+            Assert.Equal(32, pages);
+            long allocatedUpper = checked(pages * (mean + 1));
+            output.WriteLine($"installed-pages={pages}; rows-per-page=64; rounded-allocation-upper-bytes={allocatedUpper}; limit-bytes={64L << 20}");
+            Assert.InRange(allocatedUpper, 0, 64L << 20);
+        }
+        finally { TypingTrace.Enabled = tracing; TypingTrace.Reset(); }
     }
 
     [AvaloniaFact]
