@@ -156,6 +156,11 @@ public sealed class StreamingSyntaxSession : IDisposable
             foreach (var plan in plans.Plans)
             {
                 if (c >= 0 && !StreamingMatcher.Nullable(plan.Pattern) && !StreamingMatcher.CanStart(plan.Pattern, (char)c)) continue;
+                if (plan.Pattern is StreamChar atom)
+                {
+                    if (c >= 0 && atom.Characters.Matches((char)c)) { selected = plan; end = search + 1; break; }
+                    continue;
+                }
                 if (plan.FastNumber is { } number && StreamingNumberProbe.TryMatch(number, source, search, out bool matched, out long cachedEnd))
                 {
                     if (matched) { selected = plan; end = cachedEnd; break; }
