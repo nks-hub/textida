@@ -101,6 +101,7 @@ public class TranslationGateTests
         ["structure.scope.queryJson"] = "cs sk de",
         ["structure.scope.queryXml"] = "cs sk de",
         ["structure.kind.JsonArray"] = "de",
+        ["structure.kind.XmlElement"] = "de",
         ["structure.kind.XmlText"] = "cs sk de",
         ["structure.kind.XmlCData"] = "cs sk de",
         ["commit.title"] = "cs sk de", // Commit is the word of Git in each of them
