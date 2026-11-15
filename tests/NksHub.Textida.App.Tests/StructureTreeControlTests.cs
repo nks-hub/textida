@@ -23,12 +23,20 @@ public sealed class StructureTreeControlTests
         host.Tree.SelectedNode = nodes[0];
         Assert.True(host.Outside.Focus());
         var seen = host.Tree.GetRealizedRows().ToHashSet();
+        var panel = host.Tree.List.GetVisualDescendants().OfType<VirtualizingStackPanel>().Single();
         Assert.InRange(seen.Count, 1, 63);
         for (int iteration = 0; iteration < 4; iteration++)
         {
             int index = iteration % 2 == 0 ? 255 : 0;
+            if (index == 255)
+            {
+                Assert.True(host.Tree.TryGetRealizedRow(nodes[1])!.Focus());
+                host.Tree.SelectedNode = nodes[0];
+                Assert.True(host.Outside.Focus());
+            }
             host.Tree.List.ScrollIntoView(index);
-            await host.Until(() => host.Tree.TryGetRealizedRow(nodes[index]) is not null);
+            // ScrollIntoView exposes its target before the viewport has recycled the old range.
+            await host.Until(() => panel.FirstRealizedIndex <= index && panel.LastRealizedIndex >= index);
             var realized = host.Tree.GetRealizedRows();
             Assert.InRange(realized.Count, 1, 63);
             seen.UnionWith(realized);

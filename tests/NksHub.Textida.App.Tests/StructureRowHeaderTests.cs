@@ -202,6 +202,7 @@ public sealed class StructureRowHeaderTests
             }
             item.Padding = default; window.Width = 1000; window.FlowDirection = FlowDirection.LeftToRight;
             tree.SelectedNode = null; window.FocusManager?.Focus(null);
+            window.MouseMove(new Point(5, window.Height - 5));
             node.Heading = title; node.Value = preview;
             var first = Frame(window, header);
             Assert.True(first.Count(pink.Color) > 20);

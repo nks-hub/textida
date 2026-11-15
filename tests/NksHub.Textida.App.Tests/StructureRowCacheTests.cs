@@ -346,6 +346,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
             await host.Gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Task page = host.View.Working;
             host.View.Filter.Text = "2";
+            Click(host.View.FindButton);
             Assert.NotSame(page, host.View.Working);
             Click(host.View.CancelButton);
             var pending = Assert.IsType<StructureView.CancellationObservation>(host.View.ObservedCancellation);

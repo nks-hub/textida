@@ -26,7 +26,7 @@ internal sealed partial class StructureTree : Grid
 
     public StructureTree()
     {
-        list = new(this) { ItemsSource = projection };
+        list = new(this) { ItemsSource = projection, Focusable = true };
         ScrollViewer.SetHorizontalScrollBarVisibility(list, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         Children.Add(list);
         Items.CollectionChanged += RootsChanged;
