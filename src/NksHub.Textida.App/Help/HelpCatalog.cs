@@ -72,11 +72,14 @@ internal static class HelpCatalog
         return topics;
     }
 
-    private static IReadOnlyList<HelpTopic> Load(string tag)
+    private static IReadOnlyList<HelpTopic> Load(string tag) =>
+        [.. Parse(Read("help", tag)), .. Parse(Read("help-structure", tag))];
+
+    private static string Read(string section, string tag)
     {
-        var name = $"NksHub.Textida.App.Help.help.{tag}.md";
+        var name = $"NksHub.Textida.App.Help.{section}.{tag}.md";
         using var stream = typeof(HelpCatalog).Assembly.GetManifestResourceStream(name) ?? throw new InvalidDataException($"help file {name} is not embedded");
         using var reader = new StreamReader(stream, Encoding.UTF8);
-        return Parse(reader.ReadToEnd());
+        return reader.ReadToEnd();
     }
 }
