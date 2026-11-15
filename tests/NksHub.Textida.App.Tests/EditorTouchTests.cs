@@ -38,6 +38,7 @@ public class EditorTouchTests : IDisposable
         var tab = window.NewDocument();
         var editor = tab.Editor!;
         editor.Document.Text = text;
+        editor.CaretOffset = 0;
         editor.TextArea.Focus();
         Draw();
         return editor;
@@ -188,6 +189,22 @@ public class EditorTouchTests : IDisposable
         pen.Up(At(editor, 22));
         Assert.Equal("alpha_beta", editor.SelectedText);
         Assert.Equal("before alpha_beta after", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task Keyboard_move_cancels_pending_hold_before_it_can_replace_the_caret()
+    {
+        var editor = Open("before alpha_beta after");
+        using var finger = new TouchTestInput(editor.TextArea.TextView, window, PointerType.Touch);
+        var point = At(editor, 12);
+        finger.Down(point);
+        TestApp.Press(window, Key.Right);
+        Assert.Equal(1, editor.CaretOffset);
+        await Task.Delay((Application.Current!.PlatformSettings?.HoldWaitDuration ?? TimeSpan.FromMilliseconds(500)) + TimeSpan.FromMilliseconds(100));
+        Dispatcher.UIThread.RunJobs();
+        finger.Up(point);
+        Assert.Equal(1, editor.CaretOffset);
+        Assert.Equal(0, editor.SelectionLength);
     }
 
     [AvaloniaFact]

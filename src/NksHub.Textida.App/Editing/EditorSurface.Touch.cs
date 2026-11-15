@@ -34,7 +34,7 @@ internal sealed partial class EditorSurface
         view.VisualLinesChanged += RefreshTouch;
         TextArea.SelectionChanged += RefreshTouch;
         TextArea.Caret.PositionChanged += RefreshTouch;
-        TextArea.AddHandler(KeyDownEvent, CancelTouchKey, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, CancelTouchKey, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
 
     private void RefreshTouch(object? sender, EventArgs e) => touch?.Refresh();
@@ -99,6 +99,6 @@ internal sealed partial class EditorSurface
         TextArea.TextView.VisualLinesChanged -= RefreshTouch;
         TextArea.SelectionChanged -= RefreshTouch;
         TextArea.Caret.PositionChanged -= RefreshTouch;
-        TextArea.RemoveHandler(KeyDownEvent, CancelTouchKey);
+        RemoveHandler(KeyDownEvent, CancelTouchKey);
     }
 }
