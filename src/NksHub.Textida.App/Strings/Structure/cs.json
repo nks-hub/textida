@@ -46,7 +46,7 @@
   "structure.kind.JsonString": "Řetězec",
   "structure.kind.JsonNumber": "Číslo",
   "structure.kind.JsonBoolean": "Logická hodnota",
-  "structure.kind.JsonNull": "Null",
+  "structure.kind.JsonNull": "Hodnota null",
   "structure.kind.XmlElement": "Prvek",
   "structure.kind.XmlAttribute": "Atribut",
   "structure.kind.XmlNamespace": "Jmenný prostor",
