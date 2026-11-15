@@ -83,7 +83,7 @@ public sealed class StructureRowHeaderTests
     }
 
     [AvaloniaFact]
-    public void Fitting_left_ltr_text_matches_start_with_one_layout_per_line_and_keeps_fallbacks()
+    public void Fitting_start_and_left_ltr_text_share_one_layout_per_line_and_keep_fallbacks()
     {
         bool tracing = TypingTrace.Enabled;
         string title = new string('\u2588', 6) + " heading", preview = new string('\u2588', 3) + " value";
@@ -97,8 +97,13 @@ public sealed class StructureRowHeaderTests
         {
             TypingTrace.Enabled = false;
             window.Show(); _ = Frame(window, null);
-            var reference = Capture(TextAlignment.Start);
+            var reference = Capture(TextAlignment.DetectFromContent);
             Assert.Equal(4, reference.Layouts);
+            var start = Capture(null);
+            Assert.Equal(TextAlignment.Start, TextBlock.GetTextAlignment(header));
+            EqualFrames(reference, start, 2);
+            header.InvalidateMeasure();
+            EqualFrames(start, Capture(null), 0);
             var left = Capture(TextAlignment.Left);
             EqualFrames(reference, left, 2);
             header.InvalidateMeasure();
@@ -108,9 +113,9 @@ public sealed class StructureRowHeaderTests
             {
                 (FlowDirection.LeftToRight, TextAlignment.End, TextAlignment.Right, title, 0),
                 (FlowDirection.RightToLeft, TextAlignment.End, TextAlignment.Left, title, 0),
-                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, title + "\nsecond line", 0),
-                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, title + "\nsecond line", 1),
-                (FlowDirection.LeftToRight, TextAlignment.Start, TextAlignment.Left, new string('\u2588', 100), 0),
+                (FlowDirection.LeftToRight, TextAlignment.DetectFromContent, TextAlignment.Left, title + "\nsecond line", 0),
+                (FlowDirection.LeftToRight, TextAlignment.DetectFromContent, TextAlignment.Left, title + "\nsecond line", 1),
+                (FlowDirection.LeftToRight, TextAlignment.DetectFromContent, TextAlignment.Left, title + new string('\u2588', 100), 0),
             })
             {
                 window.FlowDirection = direction;
@@ -125,9 +130,10 @@ public sealed class StructureRowHeaderTests
             header.InvalidateMeasure();
             EqualFrames(centered, Capture(TextAlignment.Center), 0);
 
-            (HeaderFrame Image, Size Desired, Rect Bounds, int Layouts) Capture(TextAlignment alignment)
+            (HeaderFrame Image, Size Desired, Rect Bounds, int Layouts) Capture(TextAlignment? alignment)
             {
-                header.SetValue(TextBlock.TextAlignmentProperty, alignment);
+                if (alignment is { } actual) header.SetValue(TextBlock.TextAlignmentProperty, actual);
+                else header.ClearValue(TextBlock.TextAlignmentProperty);
                 TypingTrace.Reset(); TypingTrace.Enabled = true;
                 var image = Frame(window, header);
                 Assert.True(image.Count(ink) > 20);
