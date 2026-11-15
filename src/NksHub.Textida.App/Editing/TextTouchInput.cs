@@ -24,6 +24,7 @@ internal sealed class TextTouchInput : IDisposable
     private readonly Action<TouchRange> select;
     private readonly Action<Vector> scroll;
     private readonly Func<long, Rect?> caretRect;
+    private readonly bool holdingEnabled;
     private readonly DispatcherTimer hold = new();
     private readonly DispatcherTimer edge = new() { Interval = TimeSpan.FromMilliseconds(33) };
     private readonly HashSet<int> contacts = [];
@@ -54,6 +55,9 @@ internal sealed class TextTouchInput : IDisposable
         this.select = select;
         this.scroll = scroll;
         this.caretRect = caretRect;
+        // Avalonia's built-in hold still opens a context menu after PreventGestureRecognition.
+        holdingEnabled = InputElement.GetIsHoldingEnabled(surface);
+        InputElement.SetIsHoldingEnabled(surface, false);
         handles = new Handles(this) { IsHitTestVisible = false };
         surface.AddHandler(InputElement.PointerPressedEvent, Press, RoutingStrategies.Tunnel);
         surface.AddHandler(InputElement.PointerMovedEvent, Move, RoutingStrategies.Tunnel);
@@ -336,6 +340,7 @@ internal sealed class TextTouchInput : IDisposable
         surface.DetachedFromVisualTree -= Detached;
         hold.Tick -= Hold;
         edge.Tick -= ScrollAtEdge;
+        InputElement.SetIsHoldingEnabled(surface, holdingEnabled);
     }
 
     private sealed class Handles(TextTouchInput owner) : Control

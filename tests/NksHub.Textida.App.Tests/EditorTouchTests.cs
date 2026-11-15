@@ -216,6 +216,29 @@ public class EditorTouchTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Holding_selects_word_without_opening_context_menu_and_right_click_still_opens_it()
+    {
+        var editor = Open("before alpha_beta after");
+        var menu = new ContextMenu { Items = { new MenuItem { Header = "Copy" } } };
+        editor.ContextMenu = menu;
+        using var finger = new TouchTestInput(editor.TextArea.TextView, window, PointerType.Touch);
+        var point = At(editor, 12);
+        finger.Down(point);
+        await Eventually(() => editor.SelectedText == "alpha_beta");
+        await Task.Delay(TimeSpan.FromMilliseconds(200));
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(menu.IsOpen);
+        finger.Up(point);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(menu.IsOpen);
+        var screen = editor.TextArea.TextView.TranslatePoint(point, window)!.Value;
+        window.MouseDown(screen, MouseButton.Right);
+        window.MouseUp(screen, MouseButton.Right);
+        await Eventually(() => menu.IsOpen);
+        menu.Close();
+    }
+
+    [AvaloniaFact]
     public async Task Keyboard_move_cancels_pending_hold_before_it_can_replace_the_caret()
     {
         var editor = Open("before alpha_beta after");
