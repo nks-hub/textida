@@ -11,14 +11,20 @@ internal sealed partial class StructureView
     private sealed record Reveal(long Id, RowData? Anchor, IReadOnlyList<RevealLevel> Levels);
     private const int MaximumRevealLevels = 32;
 
-    private void MarkCaret(Session owner, bool reveal = true)
+    private void MarkCaret(Session owner, bool reveal = true, (StructureSource Source, long Id)? known = null)
     {
         if (owner.Analysis is not { IsValid: true } analysis || !Current(owner)) return;
         if (source() is not { } latest || !SameSource(latest, owner.Source)) return;
         owner.Source = latest;
         caretRequest?.Cancel();
+        long offset = owner.Source.Offset;
+        if (!reveal && known is { } target && SameSource(latest, target.Source) && target.Source.Offset == offset)
+        {
+            Mark(CaretRow(target.Id, offset, showingResults), revealParents: false);
+            return;
+        }
         var request = caretRequest = new Request(owner.Token);
-        long offset = owner.Source.Offset, version = treeVersion;
+        long version = treeVersion;
         bool results = showingResults;
         var loaded = rows.Values.Select(row => row.Data.Node.Id).ToHashSet();
         Task task = Run(owner, ct =>
@@ -32,12 +38,10 @@ internal sealed partial class StructureView
             if (showingResults != results) { MarkCaret(owner, reveal); return; }
             if (results)
             {
-                var match = rows.Values.Where(row => row.Data.Node.Id == plan.Id || row.Data.Range.Start <= offset && offset < row.Data.Range.End)
-                    .OrderBy(row => row.Data.Node.Id == plan.Id ? 0 : 1).ThenBy(row => row.Data.Range.Length).FirstOrDefault();
-                Mark(match, revealParents: false);
+                Mark(CaretRow(plan.Id, offset, results: true), revealParents: false);
                 return;
             }
-            Row? actual = rows.Values.FirstOrDefault(row => row.Data.Node.Id == plan.Id);
+            Row? actual = CaretRow(plan.Id, offset, results: false);
             if (actual == null && plan.Anchor != null)
             {
                 if (treeVersion != version) { MarkCaret(owner, reveal); return; }
@@ -61,6 +65,11 @@ internal sealed partial class StructureView
         var cleanup = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
         ObserveCancellationCleanup(owner, cleanup);
     }
+
+    private Row? CaretRow(long id, long offset, bool results) => results
+        ? rows.Values.Where(row => row.Data.Node.Id == id || row.Data.Range.Start <= offset && offset < row.Data.Range.End)
+            .OrderBy(row => row.Data.Node.Id == id ? 0 : 1).ThenBy(row => row.Data.Range.Length).FirstOrDefault()
+        : rows.Values.FirstOrDefault(row => row.Data.Node.Id == id);
 
     private static IEnumerable<long> DataChildIds(Row row) => row.Item.Items.OfType<StructureTreeNode>()
         .Where(item => item.Tag is StructureNode).Select(item => ((StructureNode)item.Tag!).Id);

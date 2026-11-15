@@ -283,7 +283,8 @@ internal sealed partial class StructureView
 
     private void LoadChildren(Row row, long after, bool previousPage = false)
     {
-        if (session is not { Analysis.IsValid: true } owner || !Current(owner) || !rows.ContainsKey(row.Item)) return;
+        if (session is not { Analysis.IsValid: true } owner || !Current(owner) || !rows.ContainsKey(row.Item)
+            || source() is not { } caretSource || !SameSource(caretSource, owner.Source)) return;
         var requestedNode = row.Data.Node;
         row.Request?.Cancel();
         var request = row.Request = new Request(owner.Token);
@@ -305,11 +306,12 @@ internal sealed partial class StructureView
                     after = candidate.Id; id = candidate.LastDescendantId + 1;
                 }
             }
-            return ReadPage(index, requestedNode, after, ct);
-        }, page =>
+            var page = ReadPage(index, requestedNode, after, ct);
+            return (Page: page, CaretId: index.FindContaining(caretSource.Offset, ct)?.Id ?? -1);
+        }, result =>
         {
             if (!CurrentRow(row, version, requestedNode.Id)) return;
-            InstallPage(row, page); MarkCaret(owner, reveal: false);
+            InstallPage(row, result.Page); MarkCaret(owner, reveal: false, known: (caretSource, result.CaretId));
         }, request.Token);
         var cleanup = task.ContinueWith(_ =>
         {
