@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -16,6 +18,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NksHub.Textida.App.Shell;
+using NksHub.Textida.Core;
 using NksHub.Textida.Core.Data.Structure;
 
 namespace NksHub.Textida.App.Tests;
@@ -23,6 +26,67 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public sealed class StructureRowHeaderTests
 {
+    [AvaloniaFact]
+    public void Repeated_measure_and_caret_changes_reuse_heading_and_value_layouts()
+    {
+        bool tracing = TypingTrace.Enabled;
+        var ink = Color.Parse("#125DA7");
+        var header = new StructureRowHeader();
+        header.SetText(new string('\u2588', 6) + " heading", new string('\u2588', 3) + " preview");
+        var item = new TreeViewItem { Header = header };
+        TextElement.SetForeground(item, new SolidColorBrush(ink));
+        var tree = new TreeView(); tree.Items.Add(item);
+        var window = new Window { Width = 900, Height = 300, Content = tree, FlowDirection = FlowDirection.LeftToRight };
+        try
+        {
+            TypingTrace.Enabled = false;
+            window.Show();
+            var before = Frame(window, header);
+            Assert.True(before.Count(ink) > 20);
+            Size desired = header.DesiredSize;
+            Rect bounds = new(header.TranslatePoint(default, window)!.Value, header.Bounds.Size);
+            TypingTrace.Reset(); TypingTrace.Enabled = true;
+            for (int i = 0; i < 5; i++)
+            {
+                header.InvalidateMeasure();
+                var measured = Frame(window, header);
+                Assert.Equal(before.Width, measured.Width); Assert.Equal(before.Height, measured.Height);
+                Assert.Equal(before.Pixels, measured.Pixels);
+                Assert.Equal(desired, header.DesiredSize);
+                Assert.Equal(bounds, new Rect(header.TranslatePoint(default, window)!.Value, header.Bounds.Size));
+            }
+            Assert.Equal(0, Layouts());
+
+            TypingTrace.Reset();
+            header.SetCaret(true);
+            var marked = Frame(window, header);
+            Assert.Equal(1, Layouts());
+            Assert.Equal(before.Width, marked.Width); Assert.Equal(before.Height, marked.Height);
+            Assert.Equal(desired, header.DesiredSize);
+            Assert.False(before.Pixels.AsSpan().SequenceEqual(marked.Pixels));
+            int marker = (int)Math.Ceiling(14 * window.RenderScaling);
+            for (int y = 0; y < before.Height; y++)
+            {
+                int at = (y * before.Width + marker) * 4, count = (before.Width - marker) * 4;
+                Assert.True(before.Pixels.AsSpan(at, count).SequenceEqual(marked.Pixels.AsSpan(at, count)));
+            }
+
+            TypingTrace.Reset();
+            header.SetText("replacement heading", "new preview");
+            var changed = Frame(window, header);
+            Assert.InRange(Layouts(), 2, int.MaxValue);
+            Assert.True(changed.Count(ink) > 20);
+            Assert.False(marked.Pixels.AsSpan().SequenceEqual(changed.Pixels));
+        }
+        finally { window.Close(); TypingTrace.Enabled = tracing; TypingTrace.Reset(); }
+
+        static int Layouts()
+        {
+            var count = Regex.Match(TypingTrace.Summary(), @"(?m)^structure\.header\.layout\s+n=\s*(\d+)");
+            return count.Success ? int.Parse(count.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
+        }
+    }
+
     [AvaloniaFact]
     public void Header_redraws_text_marker_font_and_theme_and_keeps_its_actual_tree_hit()
     {
