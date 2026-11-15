@@ -26,7 +26,7 @@ using NksHub.Textida.Core.Syntax;
 namespace NksHub.Textida.App.Tests;
 
 [Collection("LocState")]
-public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
+public sealed partial class PagedLongLineFormattingTests(ITestOutputHelper output)
 {
     [AvaloniaFact]
     public void Selection_and_caret_redraws_of_the_same_long_line_allocate_at_most_250_kb_per_render()
@@ -178,14 +178,14 @@ public sealed class PagedLongLineFormattingTests(ITestOutputHelper output)
         public DocTab Tab { get; }
         public PagedTextView Paged => Tab.Paged!;
 
-        public Host(string? text = null)
+        public Host(string? text = null, string name = "long.txt", int width = 900)
         {
             App = TestApp.Prepare(temp);
             App.History.Policy = new Core.History.HistoryPolicy { Enabled = false };
             App.Workbench.Set("files.largeFileThreshold", JsonValue.Create(1));
             window = App.CreateWindow(null);
-            window.Width = 900; window.Height = 500;
-            Tab = window.OpenFile(temp.Bytes("long.txt", Encoding.UTF8.GetBytes((text ?? new string('x', 2 << 20)) + "\nnext\n")), null);
+            window.Width = width; window.Height = 500;
+            Tab = window.OpenFile(temp.Bytes(name, Encoding.UTF8.GetBytes((text ?? new string('x', 2 << 20)) + "\nnext\n")), null);
             Assert.NotNull(Tab.Paged);
             Assert.True(Tab.Doc.IsLarge);
             for (int i = 0; i < 400 && !Paged.Index.Complete; i++) { Thread.Sleep(10); Dispatcher.UIThread.RunJobs(); }
