@@ -19,10 +19,12 @@ internal sealed partial class StructureView
         private readonly object gate = new();
         private readonly Guid nonce = Guid.NewGuid();
         private Task finalWork = work;
+        private long tailVersion;
         private long requestedQpc, workerStoppedQpc;
         private bool workerWasActive, workerCompleted, workerSucceeded, workerOnDispatcher;
         private int requestedThreadId, workerThreadId;
         public Session Owner { get; } = owner;
+        private readonly record struct Completion(CancellationCapture Capture, long Version);
 
         public void Requested()
         {
@@ -34,26 +36,33 @@ internal sealed partial class StructureView
         public void ObserveCompletion()
         {
             // Queue and cleanup work must finish first; scheduler delay only increases this bound.
-            _ = finalWork.ContinueWith(static (finished, state) =>
+            Task observedWork;
+            long version;
+            lock (gate) { observedWork = finalWork; version = tailVersion; }
+            _ = observedWork.ContinueWith(static (finished, state) =>
             {
                 long stopped = Stopwatch.GetTimestamp();
-                var capture = (CancellationCapture)state!;
+                var completion = (Completion)state!;
+                var capture = completion.Capture;
                 lock (capture.gate)
                 {
-                    if (!ReferenceEquals(finished, capture.finalWork) || capture.workerCompleted) return;
+                    if (completion.Version != capture.tailVersion || !ReferenceEquals(finished, capture.finalWork)
+                        || capture.workerCompleted) return;
                     capture.workerStoppedQpc = stopped;
                     capture.workerCompleted = finished.IsCompleted;
                     capture.workerSucceeded = finished.Status == TaskStatus.RanToCompletion;
                     capture.workerOnDispatcher = Dispatcher.UIThread.CheckAccess();
                     capture.workerThreadId = Environment.CurrentManagedThreadId;
                 }
-            }, this, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+            }, new Completion(this, version), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
         }
 
         public void Extend(Task next)
         {
             lock (gate)
             {
+                // A completed cleanup can yield the same Task again; version every extension.
+                tailVersion++;
                 finalWork = next;
                 workerStoppedQpc = 0; workerCompleted = workerSucceeded = false;
                 workerOnDispatcher = false; workerThreadId = 0;
