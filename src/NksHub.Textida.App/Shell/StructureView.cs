@@ -93,7 +93,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         Grid.SetRow(tree, 1); body.Children.Add(tree);
         Children.Add(body);
         refresh.Click += (_, _) => { if (!disposed) Invalidate(source()); };
-        cancel.Click += (_, _) => { session?.Cancellation.Cancel(); SetStatus(K.StructureCancelled); UpdateButtons(); };
+        cancel.Click += (_, _) => CancelWork();
         up.Click += (_, _) => ShowParent();
         jump.Click += (_, _) => Jump();
         copyPath.Click += async (_, _) => await CopyAsync(path: true);
@@ -219,6 +219,8 @@ internal sealed partial class StructureView : DockPanel, IDisposable
 
     private void Invalidate(StructureSource? current)
     {
+        cancellationCapture = null;
+        cancellationCleanups?.Clear();
         var old = session;
         old?.Cancellation.Cancel();
         filterRequest?.Cancel(); caretRequest?.Cancel();
@@ -280,11 +282,14 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     private Task Queue(Func<Task> action)
     {
         Task previousWork = work;
-        return work = Task.Run(async () =>
+        work = Task.Run(async () =>
         {
             try { await previousWork.ConfigureAwait(false); } catch { }
             await action().ConfigureAwait(false);
         });
+        if (observeCancellation && cancellationCapture is { } capture && ReferenceEquals(session, capture.Owner))
+            capture.Extend(CancellationTail(capture.Owner));
+        return work;
     }
 
     private Task Run<T>(Session owner, Func<CancellationToken, T> action, Action<T> publish, CancellationToken? request = null, int delay = 0)

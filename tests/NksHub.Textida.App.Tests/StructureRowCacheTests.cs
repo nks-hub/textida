@@ -287,6 +287,103 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Bound(host.View);
     }
 
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cancel_observation_is_opt_in_and_waits_for_the_actual_worker_exit(bool observe)
+    {
+        using var host = new Host("[1,2,3]", StructureFormat.Json);
+        if (observe) host.View.EnableCancellationObservation();
+        Guid nonce = default;
+        host.Gate.Arm(); host.View.Sync();
+        try
+        {
+            await host.Gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(host.View.Working.IsCompleted);
+            Click(host.View.CancelButton);
+            await Task.Delay(20);
+            Assert.False(host.View.Working.IsCompleted);
+            if (observe)
+            {
+                var pending = Assert.IsType<StructureView.CancellationObservation>(host.View.ObservedCancellation);
+                Assert.True(pending.WorkerWasActive); Assert.False(pending.WorkerCompleted);
+                Assert.True(pending.RequestedQpc > 0); Assert.Equal(0, pending.WorkerStoppedQpc);
+                Assert.NotEqual(Guid.Empty, pending.Nonce);
+                nonce = pending.Nonce;
+            }
+            else Assert.Null(host.View.ObservedCancellation);
+        }
+        finally { host.Gate.Release(); }
+        await host.Drain();
+        if (!observe) { Assert.Null(host.View.ObservedCancellation); return; }
+        var stopped = await CompletedCancellation(host);
+        Assert.Equal(nonce, stopped.Nonce);
+        Assert.True(stopped.WorkerStoppedQpc >= stopped.RequestedQpc);
+        Assert.NotEqual(stopped.RequestedThreadId, stopped.WorkerThreadId);
+        Assert.Equal(host.Document.Id, stopped.DocumentId); Assert.Equal(host.Document.Revision, stopped.Revision);
+        Assert.Equal(host.View.SourceGeneration, stopped.Generation);
+        host.Change("[9]");
+        Assert.Null(host.View.ObservedCancellation);
+        host.View.Sync(); await host.Drain();
+        Assert.Null(host.View.ObservedCancellation);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_cancelled_page_and_queued_query_capture_only_their_own_source_generation(bool changeSource)
+    {
+        using var host = new Host("{\"old\":[1,2,3]}", StructureFormat.Json);
+        host.View.EnableCancellationObservation(); host.View.Sync(); await host.Drain();
+        var root = Assert.Single(DataItems(Assert.Single(DataItems(host.View.Tree))));
+        root.IsExpanded = true; await host.Drain();
+        var branch = Assert.Single(DataItems(root));
+        Guid nonce = default;
+        host.Gate.Arm();
+        try
+        {
+            branch.IsExpanded = true;
+            await host.Gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Task page = host.View.Working;
+            host.View.Filter.Text = "2";
+            Assert.NotSame(page, host.View.Working);
+            Click(host.View.CancelButton);
+            var pending = Assert.IsType<StructureView.CancellationObservation>(host.View.ObservedCancellation);
+            nonce = pending.Nonce;
+            Assert.False(pending.WorkerCompleted); Assert.Equal(0, pending.WorkerStoppedQpc);
+            if (changeSource)
+            {
+                host.Change("{\"fresh\":9}"); host.View.Filter.Text = ""; host.View.Sync();
+                Assert.Null(host.View.ObservedCancellation);
+                Assert.True(host.View.SourceGeneration > pending.Generation);
+            }
+        }
+        finally { host.Gate.Release(); }
+        await host.Drain();
+        if (!changeSource)
+        {
+            var stopped = await CompletedCancellation(host);
+            Assert.Equal(nonce, stopped.Nonce); Assert.Equal(host.Document.Id, stopped.DocumentId);
+            Assert.Equal(host.View.SourceGeneration, stopped.Generation);
+            return;
+        }
+        Assert.Null(host.View.ObservedCancellation);
+        root = Assert.Single(DataItems(Assert.Single(DataItems(host.View.Tree))));
+        root.IsExpanded = true; await host.Drain();
+        Assert.StartsWith("fresh", Assert.Single(DataItems(root)).Heading, StringComparison.Ordinal);
+    }
+
+    private static async Task<StructureView.CancellationObservation> CompletedCancellation(Host host)
+    {
+        for (int attempt = 0; attempt < 200 && host.View.ObservedCancellation?.WorkerCompleted != true; attempt++)
+            await Task.Delay(5);
+        var stopped = Assert.IsType<StructureView.CancellationObservation>(host.View.ObservedCancellation);
+        Assert.True(stopped.WorkerCompleted); Assert.True(stopped.WorkerSucceeded);
+        Assert.True(stopped.WorkerWasActive); Assert.False(stopped.WorkerOnDispatcher);
+        Assert.True(stopped.WorkerStoppedQpc >= stopped.RequestedQpc);
+        return stopped;
+    }
+
     private sealed class ReadGate : IDisposable
     {
         private int armed;

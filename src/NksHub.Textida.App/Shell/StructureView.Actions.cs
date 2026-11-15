@@ -101,7 +101,8 @@ internal sealed partial class StructureView
             SetStatus(result.Rows.Count == 0 ? K.StructureNoResults : K.StructureResults, ("page", page + 1));
             UpdateButtons(); MarkCaret(owner, reveal: false);
         }, request.Token, debounce ? 300 : 0);
-        _ = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
+        var cleanup = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
+        ObserveCancellationCleanup(owner, cleanup);
     }
 
     private static Dictionary<string, string> NamespaceMap(string text)

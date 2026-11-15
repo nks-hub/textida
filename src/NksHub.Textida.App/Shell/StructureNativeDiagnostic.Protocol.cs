@@ -239,6 +239,16 @@ internal sealed partial class StructureNativeDiagnostic
         result["message"] = view.Message;
         result["sourceDocumentId"] = current?.DocumentId.ToString();
         result["sourceRevision"] = current?.Revision;
+        result["sourceGeneration"] = view.SourceGeneration;
+        result["cancellation"] = view.ObservedCancellation is { } cancellation ? new JsonObject
+        {
+            ["nonce"] = cancellation.Nonce.ToString(), ["sourceDocumentId"] = cancellation.DocumentId.ToString(),
+            ["sourceRevision"] = cancellation.Revision, ["sourceGeneration"] = cancellation.Generation,
+            ["requestedQpc"] = cancellation.RequestedQpc, ["workerStoppedQpc"] = cancellation.WorkerStoppedQpc,
+            ["workerWasActive"] = cancellation.WorkerWasActive, ["workerCompleted"] = cancellation.WorkerCompleted,
+            ["workerSucceeded"] = cancellation.WorkerSucceeded, ["workerOnDispatcher"] = cancellation.WorkerOnDispatcher,
+            ["requestedThreadId"] = cancellation.RequestedThreadId, ["workerThreadId"] = cancellation.WorkerThreadId,
+        } : null;
         result["readOnly"] = current?.ReadOnly;
         result["cachedItems"] = view.CachedItems;
         result["logicalCachedChildren"] = Items().Sum(item => item.Items.Count(child => child.Tag is StructureNode));

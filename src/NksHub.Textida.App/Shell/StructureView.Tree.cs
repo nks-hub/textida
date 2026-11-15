@@ -311,11 +311,12 @@ internal sealed partial class StructureView
             if (!CurrentRow(row, version, requestedNode.Id)) return;
             InstallPage(row, page); MarkCaret(owner, reveal: false);
         }, request.Token);
-        _ = task.ContinueWith(_ =>
+        var cleanup = task.ContinueWith(_ =>
         {
             request.Dispose();
             Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (CurrentRow(row, version, requestedNode.Id)) row.Loading = false; });
         }, TaskScheduler.Default);
+        ObserveCancellationCleanup(owner, cleanup);
     }
 
     private bool CurrentRow(Row row, long version, long nodeId) => rows.TryGetValue(row.Item, out var current)

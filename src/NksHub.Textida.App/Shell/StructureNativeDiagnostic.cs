@@ -88,6 +88,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         this.view = view;
         this.source = source;
         this.directory = directory;
+        view.EnableCancellationObservation();
         view.Tree.AddHandler(InputElement.KeyDownEvent, OnKey, RoutingStrategies.Tunnel, handledEventsToo: true);
         window.AddHandler(InputElement.PointerPressedEvent, OnPointer, RoutingStrategies.Tunnel, handledEventsToo: true);
         window.AddHandler(InputElement.PointerWheelChangedEvent, OnWheel, RoutingStrategies.Tunnel, handledEventsToo: true);

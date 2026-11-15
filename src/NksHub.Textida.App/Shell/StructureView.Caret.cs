@@ -58,7 +58,8 @@ internal sealed partial class StructureView
             }
             Mark(actual, revealParents: reveal);
         }, request.Token);
-        _ = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
+        var cleanup = task.ContinueWith(_ => request.Dispose(), TaskScheduler.Default);
+        ObserveCancellationCleanup(owner, cleanup);
     }
 
     private static IEnumerable<long> DataChildIds(Row row) => row.Item.Items.OfType<StructureTreeNode>()
