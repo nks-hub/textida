@@ -124,6 +124,22 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>How many times the grammar was run for a viewport on the UI thread, for tests.</summary>
     internal int ViewportRuns { get; private set; }
 
+    internal readonly record struct Readiness(bool Disposed, bool BoundToDocument, long First, int Count,
+        int Column, int Columns, bool RequestedMatches, long SessionRevision, long DoneRevision,
+        bool Pending, bool LineTooLong, bool Scheduled)
+    {
+        public bool Ready(long revision) => !Disposed && BoundToDocument && First >= 0 && RequestedMatches
+            && DoneRevision == revision && SessionRevision == revision && !Pending && !LineTooLong && !Scheduled;
+    }
+
+    internal Readiness CaptureReadiness(Document document)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        return new(_disposed, _session is not null && ReferenceEquals(_bound, document), _wanted.First, _wanted.Count,
+            _wanted.Column, _wanted.Columns, _requested == _wanted, _session?.Revision ?? -1, _doneRevision,
+            _pending, _lineTooLong, _continuationTimer.IsEnabled || _settleTimer?.IsEnabled == true || _jumpTimer?.IsEnabled == true);
+    }
+
     /// <summary>
     /// Lowers how much around the screen is colored in one request, for a slow machine; a value above <see cref="MaxRows"/> or <see cref="MaxColumns"/> is brought down to it.
     /// A change makes the view report what is on screen again, so the colors follow the new limits at once.

@@ -117,6 +117,7 @@ internal sealed partial class MainWindow : Window
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
         _app.Workbench.SettingChanged += OnSettingChanged;
+        AttachDocumentReadiness();
     }
 
     public SavedWindow CaptureGeometry() => new()

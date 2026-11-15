@@ -1301,24 +1301,6 @@ internal sealed partial class PagedTextView : Grid
         _pending.Clear();
     }
 
-    /// <summary>
-    /// Notes the column points of a long line on the thread pool, so that later jumps along it resume from a known point, and its length in characters for the bar.
-    /// It reads the mapped original, so it only starts while the document is unedited; the index belongs to that file and survives later edits of other parts.
-    /// </summary>
-    private void BuildColumnIndexInBackground(long lineStart)
-    {
-        // a view line cut out of a longer one would scan the rest of the real line from its own start, and every cut of the line would do it
-        if (Paged.IsModified || _detour is { } d && d.Cuts.Contains(lineStart) || !_indexing.Add(lineStart)) return;
-        var source = Paged.Source;
-        var token = (_indexCts ??= new()).Token;
-        _ = Task.Run(() =>
-        {
-            try { source.ReadColumns(lineStart, long.MaxValue, 0, token); }
-            catch (OperationCanceledException) { return; }
-            Dispatcher.UIThread.Post(_canvas.InvalidateVisual);
-        });
-    }
-
     // ---- editing ----
 
     /// <summary>Set while the file is locked by another program or window: edits are refused with this text.</summary>
