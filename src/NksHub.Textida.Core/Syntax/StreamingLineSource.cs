@@ -1,3 +1,4 @@
+using System.Buffers;
 using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Syntax;
@@ -7,7 +8,13 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
 {
     private const int MaximumAnchors = 512;
     private readonly record struct Anchor(long Column, long Offset);
-    private sealed record Window(long Column, string Text, long NextOffset);
+    private sealed class Window
+    {
+        public readonly char[] Text = new char[SyntaxChunkReader.BufferBytes];
+        public long Column;
+        public int Length;
+        public long NextOffset;
+    }
     private readonly List<Anchor> anchors = [new(0, byteStart)];
     private readonly List<Window> windows = [];
     private long spacing = 64 << 10;
@@ -23,7 +30,7 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
     {
         if (column < 0 || length is { } end && column >= end) return -1;
         var window = Cached(column) ?? throw new InvalidOperationException("Prepare the syntax window before reading it.");
-        return column - window.Column < window.Text.Length ? window.Text[(int)(column - window.Column)] : -1;
+        return column - window.Column < window.Length ? window.Text[(int)(column - window.Column)] : -1;
     }
 
     public string SmallSlice(long from, int count)
@@ -38,7 +45,7 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
         if (length is { } end && from >= end) return from;
         var window = Cached(from) ?? throw new InvalidOperationException("Prepare the syntax window before scanning it.");
         int at = (int)(from - window.Column);
-        while (at < window.Text.Length && !canStart(window.Text[at])) at++;
+        while (at < window.Length && !canStart(window.Text[at])) at++;
         return window.Column + at;
     }
 
@@ -46,7 +53,7 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
     {
         if (length is { } end && from >= end) return end;
         var window = Cached(from) ?? throw new InvalidOperationException("Prepare the syntax window before reading its end.");
-        return window.Column + window.Text.Length;
+        return window.Column + window.Length;
     }
 
     private Window? Cached(long column)
@@ -54,13 +61,25 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
         for (int i = windows.Count - 1; i >= 0; i--)
         {
             var item = windows[i];
-            if (column >= item.Column && column < item.Column + item.Text.Length) return item;
+            if (column >= item.Column && column < item.Column + item.Length) return item;
         }
         return null;
     }
 
+    public bool TryReadCached(long column, out int value)
+    {
+        var window = column < 0 ? null : Cached(column);
+        value = window is null ? -1 : window.Text[(int)(column - window.Column)];
+        return window is not null;
+    }
+
+    // Callers enumerate immediately; a cache hit needs no resumable loader.
     /// <summary>Each yielded step reads at most one byte window, including sparse-map replay after a backward jump.</summary>
     public IEnumerable<bool> Ensure(long column)
+        => column < 0 || length is { } end && column >= end || Cached(column) is not null
+            ? Array.Empty<bool>() : Load(column);
+
+    private IEnumerable<bool> Load(long column)
     {
         if (column < 0 || length is { } end && column >= end || Cached(column) is not null) yield break;
 
@@ -72,34 +91,42 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
         }
         foreach (var item in windows)
         {
-            long next = item.Column + item.Text.Length;
+            long next = item.Column + item.Length;
             if (next <= column && next > anchor.Column) anchor = new(next, item.NextOffset);
         }
-        var reader = new SyntaxChunkReader(snapshot, anchor.Offset);
-        long at = anchor.Column;
-        while (true)
+        byte[] bytes = ArrayPool<byte>.Shared.Rent(SyntaxChunkReader.BufferBytes);
+        try
         {
-            long before = reader.Offset;
-            var chunk = reader.Read();
-            BytesRead += reader.Offset - before;
-            onRead?.Invoke(reader.Offset - before);
-            var window = new Window(at, chunk.Text, reader.Offset);
-            if (windows.Count == 4) windows.RemoveAt(0);
-            windows.Add(window);
-            long next = at + chunk.Text.Length;
-            if (chunk.LineEnd)
+            var reader = new SyntaxChunkReader(snapshot, anchor.Offset, bytes);
+            long at = anchor.Column;
+            while (true)
             {
-                length = next;
-                NextByteOffset = reader.Offset;
-                IsDocumentEnd = chunk.DocumentEnd;
+                var window = windows.Count == 4 ? windows[0] : new Window();
+                if (windows.Count == 4) windows.RemoveAt(0);
+                long before = reader.Offset;
+                int count = reader.ReadInto(window.Text, out bool lineEnd, out bool documentEnd);
+                BytesRead += reader.Offset - before;
+                onRead?.Invoke(reader.Offset - before);
+                window.Column = at;
+                window.Length = count;
+                window.NextOffset = reader.Offset;
+                windows.Add(window);
+                long next = at + count;
+                if (lineEnd)
+                {
+                    length = next;
+                    NextByteOffset = reader.Offset;
+                    IsDocumentEnd = documentEnd;
+                    yield return true;
+                    yield break;
+                }
+                AddAnchor(new(next, reader.Offset));
                 yield return true;
-                yield break;
+                if (column < next) yield break;
+                at = next;
             }
-            AddAnchor(new(next, reader.Offset));
-            yield return true;
-            if (column < next) yield break;
-            at = next;
         }
+        finally { ArrayPool<byte>.Shared.Return(bytes); }
     }
 
     private void AddAnchor(Anchor anchor)

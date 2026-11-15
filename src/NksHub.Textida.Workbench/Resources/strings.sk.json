@@ -821,9 +821,15 @@
   "cmd.view.toggleHistoryPanel": "Panel histórie",
   "reason.panelOpen.false": "Nie je otvorený žiadny panel",
   "reason.textView.false": "Dokument sa teraz nezobrazuje ako text",
+  "reason.jsonViewSupported.false": "Toto zobrazenie nepodporuje formátovaný JSON",
+  "reason.tableViewSupported.false": "Toto zobrazenie nepodporuje tabuľku",
+  "reason.jsonEncodingSupported.false": "Vyžaduje UTF-8 alebo jednobajtové kódovanie",
+  "reason.jsonPretty.false": "Najprv zapnite formátovaný JSON",
   "reason.hasPath.false": "Dokument nemá súbor na disku",
   "reason.multipleCarets.false": "Je len jeden kurzor",
   "reason.fileType": "Príkaz je pre iný druh súboru",
   "cmd.file.clearRecent": "Vymazať zoznam posledných súborov",
-  "submenu.recent": "Otvoriť posledné"
+  "submenu.recent": "Otvoriť posledné",
+  "cmd.view.structure": "Zobraziť strom JSON/XML",
+  "reason.structureSupported.false": "Toto zobrazenie nepodporuje strom JSON/XML"
 }

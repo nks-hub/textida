@@ -79,5 +79,17 @@ public class PagedMeasureTests : IDisposable
             Assert.NotNull(r["mappedMiB"]);
         });
         Assert.Equal("complete", (string?)memory.First(r => (string?)r["moment"] == "opened+indexed")["indexing"]);
+        var samples = records.Single(r => (string?)r["t"] == "samples");
+        string csvPath = Path.Combine(_temp.Path, (string)samples["csv"]!);
+        var rows = File.ReadAllLines(csvPath).Skip(1).Select(l => l.Split(',')).ToArray();
+        Assert.Equal(201, rows.Length);
+        Assert.All(rows, r => Assert.Equal((string?)samples["runId"], r[0]));
+        var jumps = rows.Where(r => r[1] == "jumpThrough").ToArray();
+        Assert.Equal(200, jumps.Length);
+        Assert.Equal(Enumerable.Range(0, 200), jumps.Select(r => int.Parse(r[3], System.Globalization.CultureInfo.InvariantCulture)));
+        var starts = jumps.Select(r => long.Parse(r[4], System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        Assert.True(starts.Zip(starts.Skip(1)).All(p => p.First < p.Second));
+        Assert.All(rows, r => Assert.Equal(((long)samples["qpcFrequency"]!).ToString(System.Globalization.CultureInfo.InvariantCulture), r[5]));
+        Assert.Single(rows, r => r[1] == "firstEdit" && r[9].Length > 0);
     }
 }

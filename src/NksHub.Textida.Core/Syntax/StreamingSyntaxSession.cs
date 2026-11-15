@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.Core.Syntax;
@@ -14,9 +15,10 @@ public sealed record SyntaxWindow(Guid DocumentId, long Revision, IReadOnlyList<
 /// <summary>Resumable builtin grammar matching against an immutable snapshot, without retaining whole lines.</summary>
 public sealed class StreamingSyntaxSession : IDisposable
 {
+    private const int MaximumTokens = 65536;
     private readonly record struct Request(long First, int Count, long Column, int Columns);
     private readonly record struct Checkpoint(long Line, long Offset, LineState State);
-    private sealed record Plan(StreamNode Pattern, Alt Alt);
+    private sealed record Plan(StreamNode Pattern, Alt Alt, Regex? FastNumber);
     private sealed class ContextPlans
     {
         public Plan[] Plans { get; }
@@ -33,7 +35,8 @@ public sealed class StreamingSyntaxSession : IDisposable
         private static Plan[] Compile(ContextDef context)
         {
             var matcher = context.GetMatcher();
-            return matcher.Alts.Select((alt, i) => new Plan(StreamPattern.Compile(matcher.Patterns[i], alt.Owner.CaseSensitive), alt)).ToArray();
+            return matcher.Alts.Select((alt, i) => new Plan(StreamPattern.Compile(matcher.Patterns[i], alt.Owner.CaseSensitive),
+                alt, StreamingNumberProbe.Create(matcher.Patterns[i], alt))).ToArray();
         }
 
         public bool CanStart(char c) => c < ascii.Length ? ascii[c] : Test(c);
@@ -67,6 +70,7 @@ public sealed class StreamingSyntaxSession : IDisposable
     private SyntaxViewportStatus status;
     private bool disposed;
     private int maximumRepeats;
+    private int retainedTokens;
 
     public StreamingSyntaxSession(Document document, Tokenizer tokenizer)
     {
@@ -100,7 +104,15 @@ public sealed class StreamingSyntaxSession : IDisposable
         {
             ct.ThrowIfCancellationRequested();
             pending ??= ScanLine().GetEnumerator();
-            if (!pending.MoveNext())
+            bool hasMore;
+            try { hasMore = pending.MoveNext(); }
+            catch (InvalidOperationException)
+            {
+                // A failed Emit may already have changed the current line's context.
+                Begin(wanted);
+                throw;
+            }
+            if (!hasMore)
             {
                 pending.Dispose();
                 pending = null;
@@ -116,6 +128,7 @@ public sealed class StreamingSyntaxSession : IDisposable
         request = wanted;
         results.Clear();
         tokens.Clear();
+        retainedTokens = 0;
         var checkpoint = checkpoints[0];
         foreach (var entry in checkpoints)
         {
@@ -154,6 +167,16 @@ public sealed class StreamingSyntaxSession : IDisposable
             foreach (var plan in plans.Plans)
             {
                 if (c >= 0 && !StreamingMatcher.Nullable(plan.Pattern) && !StreamingMatcher.CanStart(plan.Pattern, (char)c)) continue;
+                if (plan.Pattern is StreamChar atom)
+                {
+                    if (c >= 0 && atom.Characters.Matches((char)c)) { selected = plan; end = search + 1; break; }
+                    continue;
+                }
+                if (plan.FastNumber is { } number && StreamingNumberProbe.TryMatch(number, source, search, out bool matched, out long cachedEnd))
+                {
+                    if (matched) { selected = plan; end = cachedEnd; break; }
+                    continue;
+                }
                 foreach (var step in matcher.Match(plan.Pattern, search))
                 {
                     if (!step.IsMatch) { yield return true; continue; }
@@ -211,7 +234,11 @@ public sealed class StreamingSyntaxSession : IDisposable
         }
         Emit(position, search, state.Context.Token, wanted);
         while (state.Parent is not null && !state.Context.Multiline) state = state.Parent;
-        if (nextLine >= wanted.First) results.Add(new(nextLine, wanted.Column, tokens.ToArray(), startState, state));
+        if (nextLine >= wanted.First)
+        {
+            results.Add(new(nextLine, wanted.Column, tokens.ToArray(), startState, state));
+            retainedTokens += tokens.Count;
+        }
         nextLine++;
         nextOffset = source.NextByteOffset;
         if (!source.IsDocumentEnd) SaveCheckpoint();
@@ -227,7 +254,12 @@ public sealed class StreamingSyntaxSession : IDisposable
         var token = new Token((int)(from - wanted.Column), (int)(to - from), kind);
         if (tokens.Count > 0 && tokens[^1].End == token.Start && tokens[^1].Kind == kind)
             tokens[^1] = tokens[^1] with { Length = tokens[^1].Length + token.Length };
-        else tokens.Add(token);
+        else
+        {
+            if (retainedTokens + tokens.Count >= MaximumTokens)
+                throw new InvalidOperationException("The syntax viewport has too many token runs; request fewer rows or columns.");
+            tokens.Add(token);
+        }
     }
 
     private void SaveCheckpoint()
@@ -259,6 +291,7 @@ public sealed class StreamingSyntaxSession : IDisposable
         snapshot = document.GetSnapshot();
         results.Clear();
         tokens.Clear();
+        retainedTokens = 0;
     }
 
     public void Dispose()

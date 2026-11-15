@@ -57,6 +57,9 @@ internal sealed partial class MainWindow
         _encodingItem.Click += (_, _) => ShowEncodingMenu(null);
         _eolItem.Click += (_, _) => ShowEolMenu();
         _languageItem.Click += (_, _) => ShowLanguagePicker();
+        // A pointer tooltip can cover this button at the bottom of the screen.
+        ToolTip.SetPlacement(_zoomItem, PlacementMode.Top);
+        ToolTip.SetVerticalOffset(_zoomItem, 0);
         _zoomItem.Click += (_, _) => ShowZoomMenu();
         _configItem.Click += (_, _) => ShowConfigFiles();
         _tokensItem.Click += (_, _) => ShowTokenMenu();
@@ -104,6 +107,7 @@ internal sealed partial class MainWindow
     {
         RefreshToolbarState();
         SyncHeadings();
+        SyncStructure();
         long part = Core.TypingTrace.Begin();
         CheckJournalHealth();
         Core.TypingTrace.End("win.status.journalHealth", part);

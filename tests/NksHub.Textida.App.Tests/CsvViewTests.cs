@@ -8,6 +8,7 @@ using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Csv;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Workbench.Commands;
@@ -546,6 +547,50 @@ public class CsvViewTests : IDisposable
         Assert.StartsWith("Row 1 of 2, column 1 of 2 (A) · only the selected text", _w.StatusLeftText);
         Assert.True(view.SetCell(1, 1, "9"));
         Assert.Equal("x\na;\"b\n1;9\ny\n", Text(tab));
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_formatted_json_selection_cannot_use_a_hidden_text_selection_as_a_table(bool retainRawSelection)
+    {
+        var tab = OpenCsv("{\"a\":1,\"b\":2}\n", "data.json");
+        var surface = tab.Surface!;
+        var rawSelection = retainRawSelection ? new Sel(1, 6) : Sel.At(0);
+        surface.SetSelections([rawSelection]);
+        byte[] before = Bytes(tab), disk = File.ReadAllBytes(tab.Path!);
+        long revision = tab.Doc.Doc.Revision;
+        Assert.False(tab.Doc.Doc.IsModified);
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.jsonPretty"));
+        var view = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        _w.UpdateLayout();
+        view.Focus();
+        for (var clock = System.Diagnostics.Stopwatch.StartNew(); !view.Outline!.State.Complete && clock.ElapsedMilliseconds < 30_000;)
+            await Task.Delay(5);
+        Assert.True(view.Outline!.State.Complete);
+        Dispatcher.UIThread.RunJobs();
+        view.Refresh();
+        Assert.Equal("  \"b\": 2", view.RowText(2));
+        view.Select(2, 7, 2, 8);
+        Assert.True(view.HasSelection);
+        Assert.Equal("2", view.CopyText(source: true));
+        Assert.Equal(rawSelection, Assert.Single(surface.GetSelections()));
+        Assert.Equal(retainRawSelection, surface.HasSelection);
+        _dialogs.TableRegions.Enqueue(CsvDialect.Csv);
+
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.table.editRegion"));
+        await _w.EditSelectionAsTableAsync();
+
+        Assert.Equal(CsvDialect.Csv, Assert.Single(_dialogs.TableRegions));
+        Assert.Empty(_dialogs.TableRegionPreviews);
+        Assert.False(tab.TableShown);
+        Assert.Null(tab.Table);
+        Assert.Same(view, _w.ActiveJson);
+        Assert.Equal(revision, tab.Doc.Doc.Revision);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(before, Bytes(tab));
+        Assert.Equal(disk, File.ReadAllBytes(tab.Path!));
     }
 
     [AvaloniaFact]

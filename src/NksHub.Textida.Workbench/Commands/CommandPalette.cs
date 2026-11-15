@@ -69,16 +69,23 @@ public static class CommandPalette
         }
 
         // without a document the context also says "read-only"; the missing document is the real reason
-        if (context.Get(ContextKeys.HasDocument) != "true" && enablement.Keys.Contains(ContextKeys.ReadOnly))
+        if (context.Get(ContextKeys.HasDocument) != "true" && (enablement.Keys.Contains(ContextKeys.ReadOnly) || enablement.Keys.Contains(ContextKeys.HasDocument)))
         {
             return strings.Get("reason.hasDocument.false");
         }
+
+        if (context.Get(ContextKeys.JsonViewSupported) == "false"
+            && (enablement.Keys.Contains(ContextKeys.JsonViewSupported) || enablement.Keys.Contains(ContextKeys.JsonEncodingSupported)))
+            return strings.Get("reason.jsonViewSupported.false");
+
+        if (enablement.Keys.Contains(ContextKeys.JsonEncodingSupported) && context.Get(ContextKeys.JsonEncodingSupported) != "true")
+            return strings.Get("reason.jsonEncodingSupported.false");
 
         foreach (var key in enablement.Keys)
         {
             if (enablement.Evaluate(new Flipped(context, key)))
             {
-                var textKey = $"reason.{key}.{(context.Get(key) == "true" ? "true" : "false")}";
+                var textKey = key == ContextKeys.CanToggleComment ? FileTypeReason : $"reason.{key}.{(context.Get(key) == "true" ? "true" : "false")}";
                 return strings.Contains(textKey) ? strings.Get(textKey) : null;
             }
         }
@@ -87,7 +94,7 @@ public static class CommandPalette
         return enablement.Keys.Overlaps(TypeKeys) && strings.Contains(FileTypeReason) ? strings.Get(FileTypeReason) : null;
     }
 
-    private static readonly string[] TypeKeys = [ContextKeys.FileKind, ContextKeys.Language, ContextKeys.LanguageGroup];
+    private static readonly string[] TypeKeys = [ContextKeys.FileKind, ContextKeys.Language, ContextKeys.LanguageGroup, ContextKeys.CanToggleComment];
 
     private const string FileTypeReason = "reason.fileType";
 

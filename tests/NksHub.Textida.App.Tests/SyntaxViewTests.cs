@@ -129,14 +129,17 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
         Assert.True(expected.Count > 10, "the grammar colors almost nothing");
 
         List<string> wrong = [];
+        bool compared = false;
         for (int round = 0; round < 100; round++)
         {
             await Task.Delay(20); // the dispatcher runs meanwhile: layout, the feeder's slices and its timers
             var view = tab.Editor!.TextArea.TextView;
-            if (!view.VisualLinesValid) continue;
+            if (!view.IsEffectivelyVisible || !view.VisualLinesValid) continue;
+            compared = true;
             wrong = [.. expected.Where(e => PaintedAt(view, e.Line, e.Column) != e.Color).Select(e => $"{e.Line + 1}:{e.Column + 1} '{lines[e.Line][e.Column]}' {PaintedAt(view, e.Line, e.Column)} != {e.Color}")];
             if (wrong.Count == 0) break;
         }
+        Assert.True(compared, "The source editor never produced visible visual lines to check");
         Assert.True(wrong.Count == 0, $"{wrong.Count} of {expected.Count} characters wrong (window {tab.Syntax!.Requested}, width {tab.Editor!.TextArea.TextView.Bounds.Width}), first: {string.Join("; ", wrong.Take(12))}");
     }
 
@@ -201,12 +204,12 @@ public class SyntaxViewTests(ITestOutputHelper output) : IDisposable
     }
 
     [AvaloniaFact]
-    public void A_line_beyond_the_full_scan_limit_is_colored_by_the_streaming_scan()
+    public async Task A_line_beyond_the_full_scan_limit_is_colored_by_the_streaming_scan()
     {
         var w = Window(paged: true);
         var tab = w.OpenFile(_temp.File("long.js", string.Concat(Enumerable.Repeat("var a = 1; ", 120_000)) + "\nvar b = 2;\n"), null);
         Assert.True(tab.Doc.IsLarge);
-        for (int i = 0; i < 400 && !(tab.Paged!.TokensOf(1)?.Any(t => t.Kind == "keyword") ?? false); i++) { Thread.Sleep(25); w.UpdateLayout(); Settle(); }
+        for (int i = 0; i < 400 && !(tab.Paged!.TokensOf(1)?.Any(t => t.Kind == "keyword") ?? false); i++) { await Task.Delay(25); w.UpdateLayout(); Settle(); }
         Assert.Contains(tab.Paged!.TokensOf(0) ?? [], t => t.Kind == "keyword");
         Assert.Contains(tab.Paged.TokensOf(1) ?? [], t => t.Kind == "keyword");
         Assert.False(tab.Syntax!.LineTooLong);

@@ -2,6 +2,7 @@ using Avalonia.Automation;
 using Avalonia.Input.Platform;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Text;
+using NksHub.Textida.Core.Data;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Shell;
@@ -15,11 +16,55 @@ internal sealed partial class MainWindow
     private string _lastJsonKey = "";
 
     internal JsonPrettyView? ActiveJson => Active is { JsonShown: true } tab ? tab.Json : null;
+    internal bool CanShowJsonPretty => Active is { Custom: null, Hex: null } tab && !tab.Doc.IsResults && !tab.Doc.IsHex;
+    internal bool CanReadJsonStructure => Active is { } tab && JsonOutline.Supports(tab.Doc.Doc.Codec)
+        && (!tab.JsonShown || tab.Json?.SourceCodec == tab.Doc.Doc.Codec);
+
+    private readonly HashSet<OpenDocument> _jsonEncodingQueued = [];
+
+    private void QueueJsonEncoding(OpenDocument document)
+    {
+        if (!_jsonEncodingQueued.Add(document)) return;
+        var source = document.Doc;
+        var views = document.Views.Where(tab => tab.Json is { } json && json.SourceCodec != source.Codec)
+            .Select(tab => (Tab: tab, View: tab.Json!, Offset: tab.Json!.SourceOffset)).ToArray();
+        // Capture the caret before the old outline handles this edit; dispose it only after Document.Changed returns.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _jsonEncodingQueued.Remove(document);
+            if (!document.Closed.Task.IsCompleted && ReferenceEquals(document.Doc, source)) RefreshJsonEncoding(document, views);
+        });
+    }
+
+    private void RefreshJsonEncoding(OpenDocument document, (DocTab Tab, JsonPrettyView View, long Offset)[] views)
+    {
+        bool changed = false;
+        foreach (var (tab, before, savedOffset) in views)
+        {
+            if (!document.Views.Contains(tab) || !ReferenceEquals(tab.Json, before) || before.SourceCodec == document.Doc.Codec) continue;
+            bool shown = tab.JsonShown, focused = before.IsKeyboardFocusWithin;
+            var options = OptionsFor(tab);
+            tab.DropJson(options);
+            changed = true;
+            if (!shown) continue;
+            tab.ShowJson(true, options);
+            var fresh = tab.Json!;
+            WireJson(tab, fresh);
+            long offset = Math.Clamp(savedOffset, document.Doc.BomLength, document.Doc.ByteLength);
+            fresh.RevealOffset(offset, offset);
+            if (Active == tab && focused) FocusView(tab);
+        }
+        if (changed && Active?.Doc == document)
+        {
+            UpdateStatus();
+            RefreshMenuIfContextChanged();
+        }
+    }
 
     /// <summary>The command <c>nks.view.jsonPretty</c>: the active document is shown formatted, or as text again.</summary>
     internal CommandOutcome ToggleJsonPretty()
     {
-        if (Active is not { Custom: null, Hex: null } tab || tab.Doc.IsResults || tab.Doc.IsHex) return CommandOutcome.NotHandled;
+        if (Active is not { } tab || !CanShowJsonPretty) return CommandOutcome.NotHandled;
         SetJsonPretty(tab, !tab.JsonShown);
         return CommandOutcome.Handled;
     }
@@ -34,7 +79,7 @@ internal sealed partial class MainWindow
         if (on) tab.Json!.RevealOffset(offset, offset);
         else GoToByte(tab, offset);
         FocusView(tab);
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Active == tab) FocusView(tab); }, Avalonia.Threading.DispatcherPriority.Background);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (Active == tab && !IsFocusInTextInput()) FocusView(tab); }, Avalonia.Threading.DispatcherPriority.Background);
         UpdateStatus();
         RefreshMenuIfContextChanged();
     }
@@ -71,7 +116,7 @@ internal sealed partial class MainWindow
     /// <summary>The command <c>nks.json.goToKey</c>: asks for a key name and moves to its next occurrence after the caret, in the formatted view.</summary>
     internal async Task GoToJsonKeyAsync()
     {
-        if (Active is not { Custom: null, Hex: null } tab) return;
+        if (Active is not { } tab || !CanShowJsonPretty || !CanReadJsonStructure) return;
         if (!tab.JsonShown) SetJsonPretty(tab, true);
         if (tab.Json is not { } json) return;
         if (await _app.Dialogs.PromptAsync(this, Loc.Get(K.JsonGoToKeyTitle), Loc.Get(K.JsonGoToKeyLabel), _lastJsonKey) is not { Length: > 0 } key) return;

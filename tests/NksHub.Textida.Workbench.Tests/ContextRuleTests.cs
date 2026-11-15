@@ -10,14 +10,15 @@ public class ContextRuleTests
     private static WhenContext Text(string language = "plaintext", string kind = "text") =>
         new WhenContext().Set(ContextKeys.EditorFocus, true).Set(ContextKeys.HasDocument, true).Set(ContextKeys.TextView, true).Set(ContextKeys.ReadOnly, false)
             .Set(ContextKeys.Language, language).Set(ContextKeys.FileKind, kind).Set(ContextKeys.LanguageGroup, "").Set(ContextKeys.HexMode, false).Set(ContextKeys.TableMode, false)
-            .Set(ContextKeys.CompareMode, false).Set(ContextKeys.InGitRepo, false).Set(ContextKeys.LogMode, false).Set(ContextKeys.RemoteFile, false).Set(ContextKeys.PackageManifest, false);
+            .Set(ContextKeys.CompareMode, false).Set(ContextKeys.InGitRepo, false).Set(ContextKeys.LogMode, false).Set(ContextKeys.RemoteFile, false).Set(ContextKeys.PackageManifest, false)
+            .Set(ContextKeys.JsonViewSupported, true).Set(ContextKeys.JsonEncodingSupported, true).Set(ContextKeys.JsonPretty, false).Set(ContextKeys.TableViewSupported, true);
 
     private static bool Available(WorkbenchHost host, string id, IWhenContext context) => host.Commands.TryGet(id, out var c) && c.IsAvailable(context);
 
     [Fact]
     public void The_new_context_keys_are_known_and_the_menu_keys_are_a_subset_of_them()
     {
-        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest"];
+        string[] added = ["fileKind", "languageGroup", "logMode", "inGitRepo", "remoteFile", "markdownPreview", "textView", "hasPath", "packageManifest", "codeOutline", "lintSupported", "jsonViewSupported", "jsonEncodingSupported", "tableViewSupported"];
         Assert.All(added, k => Assert.Contains(k, ContextKeys.All));
         Assert.All(ContextKeys.MenuKeys, k => Assert.Contains(k, ContextKeys.All));
         Assert.Equal(ContextKeys.All.Count, ContextKeys.All.Distinct().Count());
@@ -56,8 +57,6 @@ public class ContextRuleTests
     [InlineData("nks.tools.copyKeyPath", "yaml", true)]
     [InlineData("nks.tools.copyKeyPath", "json", true)]
     [InlineData("nks.tools.copyKeyPath", "csharp", false)]
-    [InlineData("nks.tools.showOutline", "php", true)]
-    [InlineData("nks.tools.showOutline", "json", false)]
     [InlineData("nks.tools.emmetPreview", "css", true)]
     [InlineData("nks.tools.emmetWrap", "css", false)]
     [InlineData("nks.tools.sqlDialect", "sql", true)]
@@ -72,6 +71,32 @@ public class ContextRuleTests
     {
         var host = WorkbenchHost.CreateBuiltin();
         Assert.Equal(shown, Available(host, id, Text(language)));
+    }
+
+    [Theory]
+    [InlineData("php", true)]
+    [InlineData("javascript", true)]
+    [InlineData("php", false)]
+    [InlineData("json", false)]
+    public void Outline_and_symbol_commands_use_the_host_capability_including_the_context_menu(string language, bool codeOutline)
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        var context = Text(language).Set(ContextKeys.CodeOutline, codeOutline);
+        Assert.Equal(codeOutline, Available(host, "nks.tools.showOutline", context));
+        Assert.Equal(codeOutline, Available(host, "nks.tools.goToSymbol", context));
+        Assert.Equal(codeOutline, host.Commands.GetMenu("editor.context", context).Any(c => c.CommandId == "nks.tools.goToSymbol"));
+    }
+
+    [Fact]
+    public void Lint_uses_the_host_capability_and_a_missing_file_name_is_grey()
+    {
+        var host = WorkbenchHost.CreateBuiltin();
+        Assert.True(host.Commands.TryGet("nks.tools.lint", out var command));
+        var context = Text("python").Set(ContextKeys.LintSupported, true);
+        Assert.True(command.IsAvailable(context));
+        Assert.False(command.IsEnabled(context));
+        Assert.True(command.IsEnabled(context.Set(ContextKeys.HasPath, true)));
+        Assert.Contains(ContextKeys.LintSupported, ContextKeys.MenuKeys);
     }
 
     [Fact]
@@ -107,7 +132,7 @@ public class ContextRuleTests
         Assert.False(Available(host, "nks.log.unfold", Text()));
         Assert.True(Available(host, "nks.log.unfold", Text("log").Set(ContextKeys.LogMode, true)));
         Assert.False(Available(host, "nks.tools.lint", Text()));
-        Assert.True(Available(host, "nks.tools.lint", Text("csharp").Set(ContextKeys.LanguageGroup, "csharp")));
+        Assert.False(Available(host, "nks.tools.lint", Text("csharp").Set(ContextKeys.LanguageGroup, "csharp")));
         Assert.False(Available(host, "nks.lsp.start", Text("plaintext", "text")));
         Assert.True(Available(host, "nks.lsp.start", Text("yaml", "data")));
         Assert.False(Available(host, "nks.lsp.start", Text("csharp", "code").Set(ContextKeys.TextView, false)));
@@ -137,14 +162,59 @@ public class ContextRuleTests
         {
             var strings = StringTable.LoadBuiltin(language);
             var hits = CommandPalette.Query(host.Commands, keymap, strings, Text(), "", 2000);
+            Assert.True(hits.Single(h => h.CommandId == "nks.view.table").Enabled);
             Assert.Equal(strings.Get("reason.hasSelection.false"), hits.Single(h => h.CommandId == "nks.edit.formatJson").DisabledReason);
             Assert.Equal(strings.Get("reason.hasPath.false"), hits.Single(h => h.CommandId == "nks.file.reload").DisabledReason);
             Assert.Equal(strings.Get("reason.multipleCarets.false"), hits.Single(h => h.CommandId == "nks.edit.clearCarets").DisabledReason);
+            foreach (var id in new[] { "nks.json.copySource", "nks.json.expandValue" })
+            {
+                var item = hits.Single(h => h.CommandId == id);
+                Assert.False(item.Enabled);
+                Assert.Equal(strings.Get("reason.jsonPretty.false"), item.DisabledReason);
+            }
+            string[] jsonCommands = ["nks.view.jsonPretty", "nks.json.goToKey", "nks.json.copySource", "nks.json.expandValue"];
+            var pretty = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.JsonPretty, true), "", 2000);
+            Assert.All(jsonCommands, id => Assert.True(pretty.Single(h => h.CommandId == id).Enabled));
+            Assert.True(pretty.Single(h => h.CommandId == "nks.view.table").Enabled);
+            var wide = CommandPalette.Query(host.Commands, keymap, strings,
+                Text().Set(ContextKeys.JsonPretty, true).Set(ContextKeys.JsonEncodingSupported, false), "", 2000);
+            Assert.True(wide.Single(h => h.CommandId == "nks.view.jsonPretty").Enabled);
+            foreach (var id in jsonCommands.Skip(1))
+            {
+                var item = wide.Single(h => h.CommandId == id);
+                Assert.False(item.Enabled);
+                Assert.Equal(strings.Get("reason.jsonEncodingSupported.false"), item.DisabledReason);
+            }
+            var custom = CommandPalette.Query(host.Commands, keymap, strings,
+                Text().Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.JsonEncodingSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
+            foreach (var id in jsonCommands)
+            {
+                var item = custom.Single(h => h.CommandId == id);
+                Assert.False(item.Enabled);
+                Assert.Equal(strings.Get("reason.jsonViewSupported.false"), item.DisabledReason);
+            }
+            var table = custom.Single(h => h.CommandId == "nks.view.table");
+            Assert.False(table.Enabled);
+            Assert.Equal(strings.Get("reason.tableViewSupported.false"), table.DisabledReason);
+            var empty = CommandPalette.Query(host.Commands, keymap, strings,
+                Text().Set(ContextKeys.HasDocument, false).Set(ContextKeys.JsonViewSupported, false).Set(ContextKeys.JsonEncodingSupported, false).Set(ContextKeys.TableViewSupported, false), "", 2000);
+            foreach (var id in jsonCommands.Append("nks.view.table"))
+            {
+                var item = empty.Single(h => h.CommandId == id);
+                Assert.False(item.Enabled);
+                Assert.Equal(strings.Get("reason.hasDocument.false"), item.DisabledReason);
+            }
+            var comment = hits.Single(h => h.CommandId == "nks.edit.toggleComment");
+            Assert.False(comment.Enabled);
+            Assert.Equal(strings.Get("reason.fileType"), comment.DisabledReason);
+            var supported = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.CanToggleComment, true), "", 2000);
+            Assert.True(supported.Single(h => h.CommandId == "nks.edit.toggleComment").Enabled);
             var logs = CommandPalette.Query(host.Commands, keymap, strings, Text().Set(ContextKeys.TextView, false), "", 2000);
             Assert.Equal(strings.Get("reason.textView.false"), logs.Single(h => h.CommandId == "nks.log.nextError").DisabledReason);
             Assert.DoesNotContain(logs, h => h.CommandId == "nks.edit.formatJson");
             Assert.DoesNotContain(hits, h => h.CommandId.StartsWith("nks.hex.", StringComparison.Ordinal));
-            foreach (var key in new[] { "reason.fileType", "reason.textView.false", "reason.hasPath.false", "reason.multipleCarets.false" }) Assert.True(strings.HasOwn(key), $"{language}: {key}");
+            foreach (var key in new[] { "reason.fileType", "reason.textView.false", "reason.hasPath.false", "reason.multipleCarets.false", "reason.hasDocument.false", "reason.jsonPretty.false", "reason.jsonEncodingSupported.false", "reason.jsonViewSupported.false", "reason.tableViewSupported.false" })
+                Assert.True(strings.HasOwn(key), $"{language}: {key}");
         }
     }
 

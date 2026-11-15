@@ -40,6 +40,8 @@ internal sealed partial class PagedTextView : IMinimapHost
 
     bool IMinimapHost.Sampled => true;
 
+    void IMinimapHost.DragChanged(bool dragging) => Syntax.IsDragging = dragging;
+
     bool IMinimapHost.IndexComplete => Indexed;
 
     long IMinimapHost.MapBytes => Doc.ByteLength;

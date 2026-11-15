@@ -570,8 +570,8 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 
 ## [tools.outline] Osnova kódu a symboly
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. V souborech HTML, PHP, CSS, C# a Markdown ukáže Nástroje, Kód a jazyk, Zobrazit osnovu kódu funkce, třídy, nadpisy a pravidla souboru jako strom v panelu pluginu. Kliknutí označí jméno symbolu.
-2. Nástroje, Kód a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejné bajty jako kliknutí v osnově.
+1. Nástroje, Kód a jazyk, Zobrazit osnovu kódu vypíše symboly jazyků uvedených níže jako strom v panelu pluginu. Dvojklik nebo Enter na vybrané položce označí odpovídající text v editoru; u HTML jde o otevírací značku.
+2. Nástroje, Kód a jazyk, Přejít na symbol (nebo `@` v Přejít na cokoli) vypíše tytéž symboly podle jména; Enter označí stejný text v editoru.
 3. Osnova patří ke konkrétní revizi dokumentu. Po úpravě se sama obnoví; než přijde nová, zůstane stará označená jako zastaralá a skok se přesune přes provedené úpravy, nebo se odmítne, když se změnil text, na kterém symbol stál. Odpověď pro starší revizi se nikdy nezobrazí jako aktuální.
 4. Když se proces pluginu zastaví, osnova se po jeho obnovení načte znovu.
 5. Dokud má soubor osnovu, ukazuje stavový řádek symbol, ve kterém je kurzor, i s nadřazenými (například `Třída › metoda`); jde za kurzorem a při zastaralé osnově se skryje. Osnova ukazuje stejnou položku tučně a čtečka obrazovky ji pojmenuje „aktuální položka“. Značka není výběr a nebere vám klávesnici; jde za kurzorem a při obnově osnovy zůstane u své položky.
@@ -2052,7 +2052,7 @@ Když jiný program (skript, asistent, nástroj sestavení) změní soubor karty
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
 Příkazy v paletě příkazů vytvoří z JSONu strukturu Go, třídu C# nebo rozhraní TypeScript v nové kartě.
 1. Označte JSON, nebo nechte výběr prázdný pro celý dokument.
-2. Zvolte Úpravy, Převést a JSON na strukturu Go, třídu C# nebo rozhraní TypeScript.
+2. V paletě příkazů spusťte JSON na strukturu Go, JSON na třídu C# nebo JSON na rozhraní TypeScript.
 - Objekty v poli se sloučí do jednoho typu; pole, které některý z nich nemá nebo má null, je volitelné (v Go ukazatel a omitempty, v C# nullable, v TypeScriptu otazník).
 - Celé číslo, které se vejde do 64 bitů, je int64 (long, number), jiné číslo float64 (double, number). Pole bez známého typu (jen null, prázdné pole, smíšené hodnoty) dostane otevřený typ jazyka.
 - Jméno kořenového typu je jméno souboru; text, který není JSON, se odmítne s důvodem ve stavovém řádku.

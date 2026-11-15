@@ -174,6 +174,36 @@ internal sealed class AddBuffer(long budget, string? spillDirectory, DurableSpil
         }
     }
 
+    public long Append(IByteSnapshot source, long offset, long length, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            ct.ThrowIfCancellationRequested();
+            long start = _length;
+            if (_file is null)
+            {
+                var file = _durable is { } durable ? SpillFile.CreateDurable(durable.Directory, durable.Name) : SpillFile.Create(spillDirectory, "add");
+                try { file.Write(0, _mem.AsSpan(0, checked((int)start))); }
+                catch { file.Dispose(); throw; }
+                _file = file;
+                _mem = [];
+            }
+            var buffer = new byte[64 * 1024];
+            for (long done = 0; done < length;)
+            {
+                ct.ThrowIfCancellationRequested();
+                int want = (int)Math.Min(buffer.Length, length - done);
+                int read = source.Read(offset + done, buffer.AsSpan(0, want));
+                if (read <= 0 || read > want) throw new EndOfStreamException("The inserted snapshot range is incomplete.");
+                _file.Write(start + done, buffer.AsSpan(0, read));
+                done += read;
+            }
+            ct.ThrowIfCancellationRequested();
+            _length = checked(start + length);
+            return start;
+        }
+    }
+
     /// <summary>Makes the spill file of this buffer a durable one; false when the buffer is already on disk in a file that dies with the process.</summary>
     public bool TryMakeDurable(DurableSpill durable)
     {

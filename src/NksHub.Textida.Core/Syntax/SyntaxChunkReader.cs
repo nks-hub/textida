@@ -6,10 +6,13 @@ namespace NksHub.Textida.Core.Syntax;
 
 internal readonly record struct SyntaxChunk(string Text, bool LineEnd, bool DocumentEnd);
 
-internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset)
+internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset, byte[]? borrowedBuffer = null)
 {
     internal const int WindowBytes = 32 << 10;
-    private readonly byte[] buffer = new byte[WindowBytes + 8];
+    internal const int BufferBytes = WindowBytes + 8;
+    private readonly byte[] buffer = borrowedBuffer is null ? new byte[BufferBytes]
+        : borrowedBuffer.Length >= BufferBytes ? borrowedBuffer
+        : throw new ArgumentException("The syntax byte buffer is too small.", nameof(borrowedBuffer));
     private long bufferStart = offset;
     private int position;
     private int length;
@@ -18,8 +21,22 @@ internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset)
 
     public SyntaxChunk Read()
     {
+        var bytes = Next(out bool lineEnd, out bool documentEnd);
+        return new(snapshot.Codec.GetString(bytes), lineEnd, documentEnd);
+    }
+
+    public int ReadInto(Span<char> destination, out bool lineEnd, out bool documentEnd) =>
+        snapshot.Codec.GetChars(Next(out lineEnd, out documentEnd), destination);
+
+    private ReadOnlySpan<byte> Next(out bool lineEnd, out bool documentEnd)
+    {
+        lineEnd = documentEnd = false;
         if (length - position < 8 && bufferStart + length < snapshot.ByteLength) Fill();
-        if (Offset == snapshot.ByteLength) return new("", true, true);
+        if (Offset == snapshot.ByteLength)
+        {
+            lineEnd = documentEnd = true;
+            return [];
+        }
         var available = buffer.AsSpan(position, length - position);
         var codec = snapshot.Codec;
         int width = codec.Kind == CodecKind.Utf16 ? 2 : codec.Kind == CodecKind.Utf32 ? 4 : 1;
@@ -31,16 +48,15 @@ internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset)
             {
                 if (end + 2 * width > available.Length && bufferStart + length < snapshot.ByteLength)
                 {
-                    string preceding = codec.GetString(available[..end]);
                     position += end;
-                    return new(preceding, false, false);
+                    return available[..end];
                 }
                 if (end + 2 * width <= available.Length && Unit(available[(end + width)..], width, codec.BigEndian) == '\n')
                     terminator += width;
             }
-            string text = codec.GetString(available[..end]);
             position += end + terminator;
-            return new(text, true, false);
+            lineEnd = true;
+            return available[..end];
         }
 
         bool final = bufferStart + length == snapshot.ByteLength;
@@ -48,11 +64,11 @@ internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset)
         if (take == 0)
         {
             Fill();
-            return Read();
+            return Next(out lineEnd, out documentEnd);
         }
-        string part = codec.GetString(available[..take]);
         position += take;
-        return new(part, final, final);
+        lineEnd = documentEnd = final;
+        return available[..take];
     }
 
     private void Fill()
@@ -62,7 +78,7 @@ internal sealed class SyntaxChunkReader(DocumentSnapshot snapshot, long offset)
         bufferStart += position;
         position = 0;
         length = kept;
-        int wanted = (int)Math.Min(buffer.Length - kept, snapshot.ByteLength - bufferStart - kept);
+        int wanted = (int)Math.Min(BufferBytes - kept, snapshot.ByteLength - bufferStart - kept);
         while (wanted > 0)
         {
             int read = snapshot.Read(bufferStart + length, buffer.AsSpan(length, wanted));

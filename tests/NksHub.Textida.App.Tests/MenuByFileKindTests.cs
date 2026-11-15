@@ -2,6 +2,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
@@ -45,29 +46,36 @@ public class MenuByFileKindTests : IDisposable
         ["cycle"] = "nks.view.cycleMode", ["keyPath"] = "nks.tools.copyKeyPath", ["outline"] = "nks.tools.showOutline", ["hex"] = "nks.hex.inspector", ["row"] = "nks.table.insertRow",
         ["next"] = "nks.compare.next", ["git"] = "nks.git.status", ["lsp"] = "nks.lsp.goToDefinition", ["lint"] = "nks.tools.lint", ["unfold"] = "nks.log.unfold",
         ["upload"] = "nks.remote.upload", ["reload"] = "nks.file.reload", ["comment"] = "nks.edit.toggleComment", ["read"] = "nks.view.modeRead", ["pkg"] = "nks.packages.lookup",
+        ["jsonView"] = "nks.view.jsonPretty", ["jsonKey"] = "nks.json.goToKey", ["jsonSource"] = "nks.json.copySource", ["jsonExpand"] = "nks.json.expandValue",
+        ["toggleTable"] = "nks.view.table",
     };
 
     /// <summary>One row per kind of file; a column that is not named is not shown.</summary>
     public static IEnumerable<object[]> Table()
     {
-        yield return ["untitled", "json:G sql:G reload:G comment:S"];
-        yield return ["text", "json:G sql:G reload:S comment:S"];
-        yield return ["code", "json:G sql:G outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["json", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S"];
-        yield return ["package", "json:S sql:G keyPath:S lsp:S lint:S reload:S comment:S pkg:S"];
-        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S"];
-        yield return ["csv", "json:G sql:G lsp:S reload:S comment:S"];
-        yield return ["csvTable", "row:S reload:S comment:G"];
-        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S"];
-        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S"];
-        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S lint:S reload:S comment:S"];
-        yield return ["log", "json:G sql:G unfold:S reload:S comment:S"];
-        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S"];
-        yield return ["picture", "cycle:S reload:S comment:G"];
-        yield return ["hex", "hex:S reload:S comment:G"];
-        yield return ["binary", "hex:S reload:S comment:G"];
-        yield return ["git", "json:G sql:G outline:S git:S lsp:S lint:S reload:S comment:S"];
+        const string textViews = " jsonView:S jsonKey:S jsonSource:G jsonExpand:G toggleTable:S";
+        const string unavailableViews = " jsonView:G jsonKey:G jsonSource:G jsonExpand:G toggleTable:G";
+        yield return ["none", "reload:G comment:G" + unavailableViews];
+        yield return ["untitled", "json:G sql:G reload:G comment:G" + textViews];
+        yield return ["text", "json:G sql:G reload:S comment:G" + textViews];
+        yield return ["code", "json:G sql:G outline:S lsp:S reload:S comment:S" + textViews];
+        yield return ["php", "json:G sql:G closeTag:S outline:S lsp:S lint:S reload:S comment:S" + textViews];
+        yield return ["json", "json:S sql:G keyPath:S lsp:S reload:S comment:S" + textViews];
+        yield return ["jsonPretty", "keyPath:S reload:S comment:G jsonView:S jsonKey:S jsonSource:S jsonExpand:S toggleTable:S"];
+        yield return ["package", "json:S sql:G keyPath:S lsp:S reload:S comment:S pkg:S" + textViews];
+        yield return ["yaml", "json:G sql:G keyPath:S lsp:S reload:S comment:S" + textViews];
+        yield return ["csv", "json:G sql:G lsp:S reload:S comment:G" + textViews];
+        yield return ["csvTable", "row:S reload:S comment:G" + textViews];
+        yield return ["markdown", "json:G sql:G toc:S cycle:S outline:S reload:S comment:S read:S" + textViews];
+        yield return ["markdownPage", "toc:G cycle:S outline:S reload:S comment:G read:S" + unavailableViews];
+        yield return ["html", "json:G sql:G tidy:S closeTag:S outline:S lsp:S reload:S comment:S" + textViews];
+        yield return ["log", "json:G sql:G unfold:S reload:S comment:G" + textViews];
+        yield return ["sql", "json:G sql:S lsp:S lint:S reload:S comment:S" + textViews];
+        yield return ["picture", "cycle:S reload:S comment:G" + unavailableViews];
+        yield return ["hex", "hex:S reload:S comment:G" + unavailableViews];
+        yield return ["binary", "hex:S reload:S comment:G" + unavailableViews];
+        yield return ["results", "reload:G comment:G" + unavailableViews];
+        yield return ["git", "json:G sql:G outline:S git:S lsp:S reload:S comment:S" + textViews];
     }
 
     private static async Task Until(Func<bool> condition, string what)
@@ -90,6 +98,10 @@ public class MenuByFileKindTests : IDisposable
             case "code": return _w.OpenFile(_temp.File("a.cs", "class A { }\n"), null);
             case "php": return _w.OpenFile(_temp.File("a.php", "<?php echo 1;\n"), null);
             case "json": return _w.OpenFile(_temp.File("a.json", "{\"a\":1}\n"), null);
+            case "jsonPretty":
+                var json = _w.OpenFile(_temp.File("pretty.json", "{\"a\":1}\n"), null);
+                _w.SetJsonPretty(json, true);
+                return json;
             case "package": return _w.OpenFile(_temp.File("package.json", "{\"name\":\"x\"}\n"), null);
             case "yaml": return _w.OpenFile(_temp.File("a.yaml", "a: 1\n"), null);
             case "csv": return _w.OpenFile(_temp.File("a.csv", "a,b\n1,2\n"), null);
@@ -111,6 +123,15 @@ public class MenuByFileKindTests : IDisposable
                 return _w.Active!;
             case "hex": return _w.OpenHex(_temp.File("h.txt", "hello\n"), null);
             case "binary": return _w.OpenHex(_temp.Bytes("b.bin", [0, 1, 2, 3, 255, 254]), null);
+            case "results":
+                var folder = Directory.CreateDirectory(Path.Combine(_temp.Path, "search")).FullName;
+                File.WriteAllText(Path.Combine(folder, "a.txt"), "needle\n");
+                _w.ShowFindInFiles(false);
+                _w.FindBar.FolderBox.Text = folder;
+                _w.FindBar.FindBox.Text = "needle";
+                await _w.RunFilesSearchAsync();
+                Assert.IsType<SearchResultsView>(_w.Active!.Custom);
+                return _w.ResultsTab!;
             case "git":
                 Directory.CreateDirectory(Path.Combine(_temp.Path, "repo", ".git"));
                 return _w.OpenFile(_temp.File(Path.Combine("repo", "g.cs"), "class G { }\n"), null);
@@ -118,7 +139,7 @@ public class MenuByFileKindTests : IDisposable
         }
     }
 
-    private static IEnumerable<MenuItem> Walk(ItemsControl root) => root.Items.OfType<MenuItem>().SelectMany(i => Walk(i).Prepend(i));
+    private static IEnumerable<MenuItem> Walk(ItemsControl root) => root.Items.OfType<MenuItem>().Where(i => i.IsVisible).SelectMany(i => Walk(i).Prepend(i));
 
     private static IEnumerable<MenuCommand> Shown(IEnumerable<MenuGroup> menu) => menu.SelectMany(g => g.Items).AllCommands();
 
@@ -133,21 +154,50 @@ public class MenuByFileKindTests : IDisposable
     [MemberData(nameof(Table))]
     public async Task The_menu_shows_greys_and_hides_the_items_of_each_kind_of_file_as_the_table_says(string kind, string expected)
     {
-        var tab = await OpenAsync(kind);
+        var tab = kind == "none" ? null : await OpenAsync(kind);
         Dispatcher.UIThread.RunJobs();
-        _w.SelectTab(tab);
+        if (tab is not null) _w.SelectTab(tab);
         var wanted = expected.Split(' ').Select(p => p.Split(':')).ToDictionary(p => p[0], p => p[1][0]);
         Assert.All(wanted.Keys, name => Assert.True(Columns.ContainsKey(name), name));
-        var wrong = Columns.Where(c => State(c.Value) != wanted.GetValueOrDefault(c.Key, '-')).Select(c => $"{c.Key} ({c.Value}) is {State(c.Value)}, the table says {wanted.GetValueOrDefault(c.Key, '-')}").ToList();
+        _w.UpdateLayout();
+        var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+        var rendered = Walk(menu).Where(i => i.Tag is MenuCommand { CommandId: not null })
+            .ToLookup(i => ((MenuCommand)i.Tag!).CommandId!);
+        char RenderedState(string commandId)
+        {
+            var items = rendered[commandId].ToArray();
+            if (items.Length == 0) return '-';
+            Assert.All(items, item =>
+            {
+                Assert.Equal(items[0].IsEnabled, item.IsEnabled);
+                Assert.Equal(item.IsEnabled, ControlAutomationPeer.CreatePeerForElement(item).IsEnabled());
+            });
+            return items[0].IsEnabled ? 'S' : 'G';
+        }
+        var wrong = Columns.Where(c => RenderedState(c.Value) != wanted.GetValueOrDefault(c.Key, '-')).Select(c => $"{c.Key} ({c.Value}) is {RenderedState(c.Value)}, the table says {wanted.GetValueOrDefault(c.Key, '-')}").ToList();
         Assert.True(wrong.Count == 0, $"{kind}: " + string.Join("; ", wrong));
         // the HTML menu is drawn for the documents it is for and for no other
         Assert.Equal(kind is "php" or "html", _w.MenuHeaders.Contains("HTML"));
-        // an item the table calls available can be run: its command has a handler and the registry does not refuse it
+        // the attached menu and the registry must agree on both enabled and grey items
         var context = new ShellContext(_w, forMenu: true);
-        foreach (var (name, state) in wanted.Where(w => w.Value == 'S'))
+        foreach (var (name, state) in wanted)
         {
             Assert.True(_app.Workbench.Commands.TryGet(Columns[name], out var command), name);
-            Assert.True(command.IsEnabled(context), $"{kind}: {name} is shown as available and the registry refuses it");
+            Assert.True((state == 'S') == command.IsEnabled(context), $"{kind}: {name} differs between the menu and the registry");
+            if (name is not ("jsonView" or "jsonKey" or "jsonSource" or "jsonExpand" or "toggleTable")) continue;
+            _w.ShowPalette();
+            _w.SetPaletteQuery(_app.Workbench.Strings.Get(command.TitleKey));
+            var item = Assert.Single(_w.PaletteResults, r => r.CommandId == command.Id);
+            Assert.Equal(state == 'S', item.Enabled);
+            if (state == 'G')
+            {
+                string reason = kind == "none" ? "reason.hasDocument.false"
+                    : name == "toggleTable" ? "reason.tableViewSupported.false"
+                    : kind is "markdownPage" or "picture" or "hex" or "binary" or "results" ? "reason.jsonViewSupported.false"
+                    : name is "jsonSource" or "jsonExpand" ? "reason.jsonPretty.false" : "reason.jsonViewSupported.false";
+                Assert.Equal(_app.Workbench.Strings.Get(reason), item.DisabledReason);
+            }
+            _w.ClosePalette();
         }
     }
 
@@ -197,7 +247,7 @@ public class MenuByFileKindTests : IDisposable
         Assert.Equal('S', State("nks.view.cycleMode"));
         Assert.True(_w.SetViewMode(picture.Doc, ViewMode.Text));
         Assert.Equal('G', State("nks.edit.formatSql"));
-        Assert.Equal('S', State("nks.edit.toggleComment"));
+        Assert.Equal('G', State("nks.edit.toggleComment"));
         Assert.True(_w.SetViewMode(picture.Doc, ViewMode.Image));
         await Until(() => _w.Active?.Custom is ImageView { Loading: false }, "the picture to be decoded again");
         Assert.Equal('-', State("nks.edit.formatSql"));
@@ -211,6 +261,31 @@ public class MenuByFileKindTests : IDisposable
         Assert.Equal('S', State("nks.table.insertRow"));
         _w.SetTable(csv, false);
         Assert.Equal('-', State("nks.table.insertRow"));
+    }
+
+    [AvaloniaFact]
+    public void Outline_and_symbol_navigation_follow_every_language_the_code_explorer_supports()
+    {
+        var tab = _w.NewDocument();
+        var context = new ShellContext(_w, forMenu: true);
+        foreach (var language in LanguageModes.All)
+        {
+            tab.Doc.ChooseLanguage(language);
+            bool supported = PluginServices.SymbolPlugin(language.Id) == PluginServices.CodeExplorerPluginId;
+            Assert.Equal(supported ? "true" : "false", context.Get(ContextKeys.CodeOutline));
+            _w.UpdateLayout();
+            var menu = _w.GetVisualDescendants().OfType<Menu>().Single();
+            var rendered = Walk(menu).Where(i => i.Tag is MenuCommand { CommandId: not null })
+                .ToLookup(i => ((MenuCommand)i.Tag!).CommandId!);
+            foreach (var id in new[] { "nks.tools.showOutline", "nks.tools.goToSymbol" })
+            {
+                var items = rendered[id].ToArray();
+                Assert.True(supported == (items.Length > 0), language.Id + ": " + id);
+                Assert.All(items, item => Assert.True(item.IsEnabled && ControlAutomationPeer.CreatePeerForElement(item).IsEnabled(), language.Id + ": " + id));
+            }
+            var contextItems = MenuBuilder.Nodes(_app.Workbench, context, _ => null, _ => { }, "editor.context").AllCommands();
+            Assert.Equal(supported, contextItems.Any(c => c.CommandId == "nks.tools.goToSymbol"));
+        }
     }
 
     [AvaloniaFact]
@@ -237,8 +312,37 @@ public class MenuByFileKindTests : IDisposable
         Assert.False(ControlAutomationPeer.CreatePeerForElement(grey).IsEnabled());
         Assert.Equal(_app.Workbench.Strings.Get("cmd.edit.formatJson"), Avalonia.Automation.AutomationProperties.GetName(grey));
         Assert.DoesNotContain(items, i => i.Tag is MenuCommand { CommandId: "nks.hex.inspector" });
-        var available = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.edit.toggleComment" });
+        var comment = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.edit.toggleComment" });
+        Assert.False(ControlAutomationPeer.CreatePeerForElement(comment).IsEnabled());
+        var available = items.Single(i => i.Tag is MenuCommand { CommandId: "nks.file.reload" });
         Assert.True(ControlAutomationPeer.CreatePeerForElement(available).IsEnabled());
+    }
+
+    [AvaloniaFact]
+    public async Task Commenting_is_disabled_without_markers_and_follows_the_chosen_language()
+    {
+        const string id = "nks.edit.toggleComment";
+        var tab = await OpenAsync("text");
+        var context = new ShellContext(_w, forMenu: true);
+        var wb = _app.Workbench;
+        Assert.Equal('G', State(id));
+        Assert.Equal(CommandOutcome.Disabled, await wb.Commands.ExecuteAsync(id, context));
+        Assert.Equal("hello\n", tab.Editor!.Document.Text);
+        _w.ShowPalette();
+        _w.SetPaletteQuery(wb.Strings.Get("cmd.edit.toggleComment"));
+        var item = Assert.Single(_w.PaletteResults, r => r.CommandId == id);
+        Assert.False(item.Enabled);
+        Assert.Equal(wb.Strings.Get("reason.fileType"), item.DisabledReason);
+        _w.ClosePalette();
+
+        tab.Doc.ChooseLanguage(LanguageModes.ById("csharp"));
+        Assert.Equal('S', State(id));
+        Assert.Equal(CommandOutcome.Handled, await wb.Commands.ExecuteAsync(id, context));
+        Assert.Equal("// hello\n", tab.Editor.Document.Text);
+        Assert.Equal(CommandOutcome.Handled, await wb.Commands.ExecuteAsync("nks.edit.undo", context));
+        Assert.Equal("hello\n", tab.Editor.Document.Text);
+        tab.Doc.ChooseLanguage(LanguageModes.Plain);
+        Assert.Equal('G', State(id));
     }
 
     [AvaloniaFact]

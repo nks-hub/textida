@@ -1303,24 +1303,6 @@ internal sealed partial class PagedTextView : Grid
         _pending.Clear();
     }
 
-    /// <summary>
-    /// Notes the column points of a long line on the thread pool, so that later jumps along it resume from a known point, and its length in characters for the bar.
-    /// It reads the mapped original, so it only starts while the document is unedited; the index belongs to that file and survives later edits of other parts.
-    /// </summary>
-    private void BuildColumnIndexInBackground(long lineStart)
-    {
-        // a view line cut out of a longer one would scan the rest of the real line from its own start, and every cut of the line would do it
-        if (Paged.IsModified || _detour is { } d && d.Cuts.Contains(lineStart) || !_indexing.Add(lineStart)) return;
-        var source = Paged.Source;
-        var token = (_indexCts ??= new()).Token;
-        _ = Task.Run(() =>
-        {
-            try { source.ReadColumns(lineStart, long.MaxValue, 0, token); }
-            catch (OperationCanceledException) { return; }
-            Dispatcher.UIThread.Post(_canvas.InvalidateVisual);
-        });
-    }
-
     // ---- editing ----
 
     /// <summary>Set while the file is locked by another program or window: edits are refused with this text.</summary>
@@ -2038,19 +2020,6 @@ internal sealed partial class PagedTextView : Grid
             owner.UpdateScrollRange();
         }
 
-        public override void Render(DrawingContext context)
-        {
-            long started = System.Diagnostics.Stopwatch.GetTimestamp();
-            Draw(context);
-            long ended = System.Diagnostics.Stopwatch.GetTimestamp();
-            TypingTrace.End("paged.render", started);
-            var state = (owner.Doc.Revision, owner._caret, owner.TopLine, owner._hScroll, owner.WindowsPending);
-            if (owner._drawn == state) return;
-            owner._drawn = state;
-            owner.RenderedAt = ended;
-            owner.RenderMs = (ended - started) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        }
-
         /// <summary>Fills the part of the selection that lies in <paramref name="window"/>, the columns from column <paramref name="column"/> of a truncated line drawn at <paramref name="x"/>.</summary>
         private void DrawWindowSelection(DrawingContext context, LineView view, double y, double x, long column, string window, IBrush brush, long from, long to)
         {
@@ -2156,7 +2125,6 @@ internal sealed partial class PagedTextView : Grid
             var current = new ImmutableSolidColorBrush(look[EditorColorTheme.CurrentLine]);
             var palette = look.Palette;
             var options = owner._options;
-            var levels = owner._doc.IsLog ? owner._doc.LogLevels : null;
             var selection = new ImmutableSolidColorBrush(look[EditorColorTheme.Selection]);
             var occurrences = BeginOccurrences(Brush);
             long occurrenceOwn = owner._occ?.Target?.Own ?? -1;
@@ -2244,28 +2212,7 @@ internal sealed partial class PagedTextView : Grid
                         else if (caretLine is { } pl && pl.Line == line) _composed.Add(view.DisplayAt[view.Map.CharIndexOf(owner._caret - view.Start)]);
                         for (int k = _composed.Count - 1; k >= 0; k--) shown = shown.Insert(_composed[k], owner._preedit);
                     }
-                    bool dimmed = levels is not null && owner.FoldCriteria is { } fold && !LogFold.KeepsAlone(view.Map.Text, levels, fold);
-                    var text = Format(shown, dimmed ? dim : fore);
-                    if (!dimmed && levels?.Classify(view.Map.Text) is { } level && palette.GetBrush(LogLevelKinds.Of(level)) is { } levelBrush) text.SetForegroundBrush(levelBrush);
-                    if (owner._tokens.TryGetValue(line, out var tokens))
-                        foreach (var token in tokens)
-                        {
-                            int from = view.DisplayAt[Math.Min(token.Start, view.Map.Text.Length)], to = view.DisplayAt[Math.Min(token.End, view.Map.Text.Length)];
-                            if (_composed.Count > 0)
-                            {
-                                (int start, int end) = (from, to);
-                                foreach (int at in _composed)
-                                {
-                                    if (start >= at) from += insertLength;
-                                    if (end > at) to += insertLength;
-                                }
-                            }
-                            if (to > from) Paint(text, palette, token.Kind, from, to - from);
-
-                        }
-                    if (owner.HideAnsi && _composed.Count == 0 && owner.AnsiOf(line, view) is { Spans.Count: > 0 } ansi) DrawAnsi(context, text, view, y, ansi.Spans);
-                    for (int k = 0; k < _composed.Count; k++) text.SetTextDecorations(TextDecorations.Underline, _composed[k] + k * insertLength, insertLength);
-                    if (options.ShowWhitespace) DimMarks(text, shown, dim);
+                    var text = FormatLine(context, view, line, y, shown, look, fore, dim, insertLength);
                     if (owner._doc.LogHighlight is { } highlight && palette.GetBrush(LogHighlightColorizer.Kind) is { } highlightBrush)
                     {
                         string searched = view.Map.Text.Length > LogLevelColorizer.MaxClassifiedChars ? view.Map.Text[..LogLevelColorizer.MaxClassifiedChars] : view.Map.Text;
@@ -2275,7 +2222,7 @@ internal sealed partial class PagedTextView : Grid
                             context.FillRectangle(highlightBrush, new Rect(TextLeft - owner._hScroll + left, y, XOf(view, start + length) - left, _lineHeight));
                         }
                     }
-                    context.DrawText(text, new Point(TextLeft - owner._hScroll, y));
+                    DrawLineText(context, text, new Point(TextLeft - owner._hScroll, y));
                     if (options.ShowLineEndings && !view.Truncated) DrawLineEnding(context, line, TextLeft - owner._hScroll + XOf(view, view.Map.Text.Length), y, dim);
                 }
                 if (multi is not null)

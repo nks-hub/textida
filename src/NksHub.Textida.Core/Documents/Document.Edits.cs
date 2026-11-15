@@ -8,12 +8,13 @@ public sealed partial class Document
     private readonly record struct AppliedEdit(long Offset, UndoBytes Removed, UndoBytes Inserted);
 
     /// <summary>Bytes of an undo step: in memory, or in the document's scratch file once the history holds more than the backend's budget (<see cref="IByteBackend.UndoMemoryBudget"/>).</summary>
-    private readonly record struct UndoBytes(byte[]? Memory, SpillFile? File, long At, int Length, bool HasLineBreak)
+    internal readonly record struct UndoBytes(byte[]? Memory, SpillFile? File, long At, long Length, bool HasLineBreak, object? Reference = null)
     {
         public ReadOnlyMemory<byte> Read()
         {
-            if (Memory is not null) return new ReadOnlyMemory<byte>(Memory, (int)At, Length);
-            var bytes = new byte[Length];
+            if (Length > Array.MaxLength) throw new NotSupportedException("This undo range must be restored as a stream.");
+            if (Memory is not null) return new ReadOnlyMemory<byte>(Memory, checked((int)At), checked((int)Length));
+            var bytes = new byte[checked((int)Length)];
             File!.ReadExactly(At, bytes);
             return bytes;
         }
@@ -76,7 +77,7 @@ public sealed partial class Document
         return applied;
     }
     private sealed record Step(AppliedEdit[] Edits, IReadOnlyList<ByteRange>? Before, IReadOnlyList<ByteRange>? After, TextCodec? CodecBefore = null, TextCodec? CodecAfter = null, FillEdit? Fill = null,
-        bool IsTranscode = false, TextCodec? PendingBefore = null, TextCodec? PendingAfter = null);
+        bool IsTranscode = false, TextCodec? PendingBefore = null, TextCodec? PendingAfter = null, bool Streamed = false);
 
     /// <summary>A fill kept as pattern and lengths; <see cref="Removed"/> is what the backend gave back for the bytes it replaced, null while the step is undone or after a save made it unusable.</summary>
     private sealed class FillEdit(long offset, long deleted, long length, byte[] pattern, object removed)
@@ -202,6 +203,9 @@ public sealed partial class Document
                     return EditResult.Fail(ConflictReason.EditsOverlap, _revision);
             }
         }
+
+        if (_backend is PagedBackend && work.Any(w => w.Deleted > StreamUndoThreshold || w.Insert.Length > StreamUndoThreshold))
+            return ApplyStreamed(work, options);
 
         long tExec = TypingTrace.Begin();
         var removed = Execute(work, validate: !options.RawBytes, captureRemoved: true, out var failure);
@@ -587,6 +591,17 @@ public sealed partial class Document
                 Commit(ChangeKind.Undo, null, [new ChangeSet.Span(fill.Offset, fill.Length, fill.Deleted)], null, null);
                 continue;
             }
+            if (entry.Steps[s].Streamed)
+            {
+                try { RestoreStreamed(entry.Steps[s], undo: true); }
+                catch
+                {
+                    _redo.RemoveAt(_redo.Count - 1);
+                    _undo.Add(entry);
+                    throw;
+                }
+                continue;
+            }
             long shift = 0;
             var work = new List<Pending>();
             foreach (var e in entry.Steps[s].Edits)
@@ -622,6 +637,17 @@ public sealed partial class Document
             {
                 fill.Removed = _backend.ReplaceRepeated(fill.Offset, fill.Deleted, fill.Pattern, fill.Length);
                 Commit(ChangeKind.Redo, null, [new ChangeSet.Span(fill.Offset, fill.Deleted, fill.Length) { Pattern = fill.Pattern }], null, null);
+                continue;
+            }
+            if (step.Streamed)
+            {
+                try { RestoreStreamed(step, undo: false); }
+                catch
+                {
+                    _undo.RemoveAt(_undo.Count - 1);
+                    _redo.Add(entry);
+                    throw;
+                }
                 continue;
             }
             var work = step.Edits.Select(e => new Pending(e.Offset, e.Removed.Length, e.Inserted.Read())).ToList();

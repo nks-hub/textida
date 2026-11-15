@@ -32,6 +32,7 @@ internal sealed class HexInspectorPanel : Border
     private bool _bigEndian;
     private InspectorKind? _editing;
     private long _editStart;
+    private int _editLength;
     private bool _refreshing;
     private int _pluginRun;
 
@@ -279,6 +280,7 @@ internal sealed class HexInspectorPanel : Border
         }
         _editing = _kinds[index];
         _editStart = ValueStart;
+        _editLength = value.Status == InspectorStatus.Ok ? value.Length : DataInspector.SizeOf(_kinds[index]);
         _edit.IsVisible = true;
         _hint.IsVisible = true;
         _hint.Text = Loc.Get(K.HexInspectorEditHint, ("type", KindName(_kinds[index])));
@@ -346,10 +348,8 @@ internal sealed class HexInspectorPanel : Border
     /// <summary>Writes the typed value over the bytes it was read from, as one undo step; a value of another length needs insert mode.</summary>
     private void Commit()
     {
-        if (!Validate(out var bytes) || _editing is not { } kind) return;
-        int index = Array.IndexOf(_kinds, kind);
-        var current = _values[index]!;
-        int length = current.Status == InspectorStatus.Ok ? current.Length : DataInspector.SizeOf(kind);
+        if (!Validate(out var bytes)) return;
+        int length = _editLength;
         if (length == 0) length = bytes.Length;
         if (bytes.Length != length && !_owner.Insert)
         {

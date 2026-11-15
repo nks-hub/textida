@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="using:Avalonia.Controls.Converters"
              x:Class="NksHub.Textida.App.App"
+             Name="Textida"
              RequestedThemeVariant="Default">
 
     <Application.Resources>

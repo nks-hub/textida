@@ -821,9 +821,15 @@
   "cmd.view.toggleHistoryPanel": "Panel historie",
   "reason.panelOpen.false": "Není otevřený žádný panel",
   "reason.textView.false": "Dokument se teď nezobrazuje jako text",
+  "reason.jsonViewSupported.false": "Tento pohled nepodporuje formátovaný JSON",
+  "reason.tableViewSupported.false": "Tento pohled nepodporuje tabulku",
+  "reason.jsonEncodingSupported.false": "Vyžaduje UTF-8 nebo jednobajtové kódování",
+  "reason.jsonPretty.false": "Nejprve zapněte formátovaný JSON",
   "reason.hasPath.false": "Dokument nemá soubor na disku",
   "reason.multipleCarets.false": "Je jen jeden kurzor",
   "reason.fileType": "Příkaz je pro jiný druh souboru",
   "cmd.file.clearRecent": "Vymazat seznam posledních souborů",
-  "submenu.recent": "Otevřít poslední"
+  "submenu.recent": "Otevřít poslední",
+  "cmd.view.structure": "Zobrazit strom JSON/XML",
+  "reason.structureSupported.false": "Toto zobrazení nepodporuje strom JSON/XML"
 }

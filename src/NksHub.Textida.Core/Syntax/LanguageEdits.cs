@@ -10,6 +10,40 @@ public readonly record struct LineEdit(int Line, int Column, int Length, string 
 /// </summary>
 public static class CommentToggle
 {
+    /// <summary>Whether the grammar or a language reachable in one of its contexts has comment markers. Does not scan text or compile matchers.</summary>
+    public static bool Supports(Grammar? grammar)
+    {
+        if (grammar is null) return false;
+        var contexts = new Stack<ContextDef>();
+        var rules = new Stack<List<Rule>>();
+        var seenContexts = new HashSet<ContextDef>(ReferenceEqualityComparer.Instance);
+        var seenRules = new HashSet<List<Rule>>(ReferenceEqualityComparer.Instance);
+        contexts.Push(grammar.Root);
+        while (contexts.TryPop(out var context))
+        {
+            if (!seenContexts.Add(context)) continue;
+            var language = (context.Embed is { } id ? grammar.Registry.Find(id) : null) ?? context.Owner;
+            if (language.LineComment is not null || language.BlockComment is not null) return true;
+            rules.Push(context.Rules);
+            if (context.Embed is { } embed && context.Owner.Registry.Find(embed) is { } guest) rules.Push(guest.Root.Rules);
+            while (rules.TryPop(out var list))
+            {
+                if (!seenRules.Add(list)) continue;
+                foreach (var rule in list)
+                {
+                    if (rule is ContextDef child) contexts.Push(child);
+                    else if (rule is IncludeRule include)
+                    {
+                        // A missing dependency must not throw while the menu asks about availability.
+                        try { rules.Push(ContextDef.Resolve(include)); }
+                        catch (GrammarException) { }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /// <summary>
     /// The edits for the given line ranges (0-based, inclusive). Within a range the lines of one language are commented when
     /// any non-blank one is not commented yet, otherwise uncommented. Blank lines and languages without markers are left alone.

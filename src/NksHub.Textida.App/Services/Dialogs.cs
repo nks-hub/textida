@@ -43,6 +43,8 @@ internal interface IDialogs
     Task<string?> PickSaveFileAsync(Window owner, string title, string suggestedName);
     /// <param name="preview">Text shown under the input and refreshed on every edit, so the user sees what the answer would do before confirming.</param>
     Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null);
+    Task<string?> PromptValueAsync(Window owner, string title, string label, string initial, int maxLength)
+        => PromptAsync(owner, title, label, initial);
     /// <summary>Like <see cref="PromptAsync"/> for a password: the typed characters are masked and nothing is preset. Null when cancelled. A dialog that cannot mask answers null.</summary>
     Task<string?> PromptSecretAsync(Window owner, string title, string label) => Task.FromResult<string?>(null);
     /// <summary>The encoding the user picked from <paramref name="targets"/> (lossy ones marked), or null when cancelled.</summary>
@@ -188,9 +190,22 @@ internal sealed partial class AvaloniaDialogs : IDialogs
         return await ShowAsync<TextCodec?>(dialog, owner);
     }
 
-    public async Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null)
+    public Task<string?> PromptAsync(Window owner, string title, string label, string initial, Func<string, string>? preview = null)
+        => PromptTextAsync(owner, title, label, initial, preview, int.MaxValue, multiline: false);
+
+    public Task<string?> PromptValueAsync(Window owner, string title, string label, string initial, int maxLength)
+        => PromptTextAsync(owner, title, label, initial, null, maxLength, multiline: true);
+
+    private async Task<string?> PromptTextAsync(Window owner, string title, string label, string initial,
+        Func<string, string>? preview, int maxLength, bool multiline)
     {
-        var input = new TextBox { Text = initial, MinWidth = 260 };
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxLength);
+        var input = new TextBox
+        {
+            MaxLength = maxLength, Text = initial, MinWidth = 260, AcceptsReturn = multiline,
+            TextWrapping = multiline ? TextWrapping.Wrap : TextWrapping.NoWrap,
+            MinHeight = multiline ? 100 : 0, MaxHeight = multiline ? 260 : double.PositiveInfinity,
+        };
         AutomationProperties.SetName(input, label);
         var ok = new Button { Content = Loc.Get(K.DialogOk), IsDefault = true, MinWidth = 84 };
         var cancel = new Button { Content = Loc.Get(K.DialogCancel), IsCancel = true, MinWidth = 84 };
@@ -216,7 +231,7 @@ internal sealed partial class AvaloniaDialogs : IDialogs
             };
             panel.Children.Insert(2, shown);
         }
-        var dialog = Frame(title, panel, 360);
+        var dialog = Frame(title, panel, multiline ? 560 : 360);
         ok.Click += (_, _) => dialog.Close(input.Text ?? "");
         cancel.Click += (_, _) => dialog.Close(null);
         dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Threading;
 using NksHub.Textida.App.Services;
 using NksHub.Textida.Core.Documents;
@@ -21,6 +22,7 @@ internal sealed class SyntaxFeeder : IDisposable
     internal const int MaxRows = 1024, MaxColumns = 65536;
     private static readonly TimeSpan Slice = TimeSpan.FromMilliseconds(6);
     private static readonly TimeSpan BackgroundSlice = TimeSpan.FromMilliseconds(16);
+    private static readonly TimeSpan ContinuationDelay = TimeSpan.FromMilliseconds(4);
     private static readonly TimeSpan ShowPendingAfter = TimeSpan.FromMilliseconds(150);
 
     private readonly OpenDocument _doc;
@@ -41,10 +43,12 @@ internal sealed class SyntaxFeeder : IDisposable
     private long _pendingSince;
     private bool _pending;
     private bool _lineTooLong;
-    private bool _queued;
+    private bool _isDragging, _dragDeferred;
     private bool _disposed;
+    private Visual? _view;
     private int _rowLimit = MaxRows, _columnLimit = MaxColumns;
     private readonly DispatcherTimer? _settleTimer;
+    private readonly DispatcherTimer _continuationTimer;
 
     /// <param name="apply">Receives the tokens of a complete viewport.</param>
     /// <param name="clear">Drops all tokens; called when the grammar or the document changes and for lines the grammar cannot handle.</param>
@@ -54,6 +58,12 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <param name="settle">When set, an edit is followed by one new request after this quiet time instead of at once; for views that are not the one being typed in.</param>
     public SyntaxFeeder(OpenDocument doc, Action<SyntaxViewport> apply, Action clear, Func<long, string?> lineText, Func<long> lineCount, Action viewRequested, TimeSpan? settle = null)
     {
+        _continuationTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = ContinuationDelay };
+        _continuationTimer.Tick += (_, _) =>
+        {
+            _continuationTimer.Stop();
+            if (!_disposed) Run();
+        };
         if (settle is { } quiet)
         {
             var timer = new DispatcherTimer { Interval = quiet };
@@ -78,6 +88,18 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>The document has a grammar, so colors are being kept; views skip measuring what is on screen otherwise.</summary>
     public bool Active => _session is not null;
 
+    public void TrackVisibility(Visual view)
+    {
+        _view = view;
+        view.PropertyChanged += OnVisibilityChanged;
+        OnSourceChanged();
+    }
+
+    private void OnVisibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == Visual.IsVisibleProperty) OnSourceChanged();
+    }
+
     /// <summary>The catch-up has been running for a noticeable time, so the view should say that its colors are not complete.</summary>
     public bool Pending => _pending;
 
@@ -101,6 +123,22 @@ internal sealed class SyntaxFeeder : IDisposable
 
     /// <summary>How many times the grammar was run for a viewport on the UI thread, for tests.</summary>
     internal int ViewportRuns { get; private set; }
+
+    internal readonly record struct Readiness(bool Disposed, bool BoundToDocument, long First, int Count,
+        int Column, int Columns, bool RequestedMatches, long SessionRevision, long DoneRevision,
+        bool Pending, bool LineTooLong, bool Scheduled)
+    {
+        public bool Ready(long revision) => !Disposed && BoundToDocument && First >= 0 && RequestedMatches
+            && DoneRevision == revision && SessionRevision == revision && !Pending && !LineTooLong && !Scheduled;
+    }
+
+    internal Readiness CaptureReadiness(Document document)
+    {
+        Dispatcher.UIThread.VerifyAccess();
+        return new(_disposed, _session is not null && ReferenceEquals(_bound, document), _wanted.First, _wanted.Count,
+            _wanted.Column, _wanted.Columns, _requested == _wanted, _session?.Revision ?? -1, _doneRevision,
+            _pending, _lineTooLong, _continuationTimer.IsEnabled || _settleTimer?.IsEnabled == true || _jumpTimer?.IsEnabled == true);
+    }
 
     /// <summary>
     /// Lowers how much around the screen is colored in one request, for a slow machine; a value above <see cref="MaxRows"/> or <see cref="MaxColumns"/> is brought down to it.
@@ -182,6 +220,27 @@ internal sealed class SyntaxFeeder : IDisposable
     /// <summary>With <see cref="DefersJumps"/>, every request that leaves the last window waits like a jump, not only one that shares nothing with it; set by the minimap, whose window moves by dozens of lines per frame of a drag.</summary>
     public bool DefersMoves { get; set; }
 
+    /// <summary>Holds viewport coloring until a minimap drag ends, including already queued work.</summary>
+    public bool IsDragging
+    {
+        get => _isDragging;
+        set
+        {
+            if (_disposed || _isDragging == value) return;
+            _isDragging = value;
+            if (value)
+            {
+                _dragDeferred |= _jumpTimer?.IsEnabled == true;
+                _jumpTimer?.Stop();
+            }
+            else if (_dragDeferred)
+            {
+                _dragDeferred = false;
+                Queue();
+            }
+        }
+    }
+
     private DispatcherTimer NewJumpTimer()
     {
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(PluginLimits.SyntaxJumpSettleMilliseconds) };
@@ -210,7 +269,7 @@ internal sealed class SyntaxFeeder : IDisposable
         _doneRevision = -1;
         _known = [];
         _tokenizer = null;
-        if (LanguageModes.GrammarId(_doc) is not { } id) return;
+        if (_view is { IsVisible: false } || LanguageModes.GrammarId(_doc) is not { } id) return;
         _bound = _doc.Doc;
         _tokenizer = LanguageModes.Tokenizer(id);
         try { _session = new CheckpointSyntaxSession(_bound, _tokenizer); }
@@ -282,7 +341,7 @@ internal sealed class SyntaxFeeder : IDisposable
         return true;
     }
 
-    private void Run(TimeSpan? slice = null)
+    private void Run()
     {
         if (_session is null || _wanted.First < 0) return;
         if (_requested != _wanted)
@@ -291,10 +350,12 @@ internal sealed class SyntaxFeeder : IDisposable
             _doneRevision = -1;
         }
         if (_doneRevision == _session.Revision) return;
+        // A queued slice or a settle timer can arrive after a slow drag frame.
+        if (_isDragging) { _dragDeferred = true; return; }
         SyntaxViewport result;
         ViewportRuns++;
         long tRun = Core.TypingTrace.Begin();
-        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, slice ?? Slice, default, _wanted.Column, _wanted.Columns); }
+        try { result = _session.TokenizeViewport(_wanted.First, _wanted.Count, Slice, default, _wanted.Column, _wanted.Columns); }
         catch (IOException) // the file changed behind a paged snapshot: no tokens from this revision, the external-change path takes over
         {
             Abandon();
@@ -336,13 +397,9 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void Queue()
     {
-        if (_queued) return;
-        _queued = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _queued = false;
-            if (!_disposed) Run(BackgroundSlice);
-        }, DispatcherPriority.Background);
+        if (_disposed || _continuationTimer.IsEnabled) return;
+        // Leave a 4 ms gap after each 6 ms slice so lower-priority dispatcher work can run too.
+        _continuationTimer.Start();
     }
 
     private void SetPending(bool value)
@@ -387,6 +444,7 @@ internal sealed class SyntaxFeeder : IDisposable
 
     private void Release()
     {
+        _continuationTimer.Stop();
         if (_bound is not null) _bound.Changed -= OnChanged;
         _session?.Dispose();
         _session = null;
@@ -399,8 +457,10 @@ internal sealed class SyntaxFeeder : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _isDragging = _dragDeferred = false;
         _settleTimer?.Stop();
         _jumpTimer?.Stop();
+        if (_view is not null) _view.PropertyChanged -= OnVisibilityChanged;
         _doc.LanguageChanged -= OnSourceChanged;
         _doc.Replaced -= OnSourceChanged;
         Release();

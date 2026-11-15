@@ -821,9 +821,15 @@
   "cmd.view.toggleHistoryPanel": "History Panel",
   "reason.panelOpen.false": "No panel is open",
   "reason.textView.false": "The document is not shown as text",
+  "reason.jsonViewSupported.false": "This view cannot show formatted JSON",
+  "reason.tableViewSupported.false": "This view cannot show a table",
+  "reason.jsonEncodingSupported.false": "Requires UTF-8 or a single-byte encoding",
+  "reason.jsonPretty.false": "Open the formatted JSON view first",
   "reason.hasPath.false": "The document has no file on disk",
   "reason.multipleCarets.false": "There is only one caret",
   "reason.fileType": "The command is for another kind of file",
   "cmd.file.clearRecent": "Clear Recent Files List",
-  "submenu.recent": "Open Recent"
+  "submenu.recent": "Open Recent",
+  "cmd.view.structure": "Show JSON/XML Structure",
+  "reason.structureSupported.false": "This view cannot show a JSON/XML structure"
 }

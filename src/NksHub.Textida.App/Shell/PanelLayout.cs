@@ -9,7 +9,7 @@ using NksHub.Textida.App.Profile;
 namespace NksHub.Textida.App.Shell;
 
 /// <summary>The tool windows that stand beside or below the text: the open documents, the files of a folder, the panel a plug-in fills, the commit panel of a repository, the local history of a file and the headings of a Markdown file.</summary>
-internal enum SidePanel { Documents, Files, Plugin, Commit, History, Headings }
+internal enum SidePanel { Documents, Files, Plugin, Commit, History, Headings, Structure }
 
 /// <summary>The sides of the window a panel is docked to.</summary>
 internal enum PanelDock { Left, Right, Bottom }
@@ -32,10 +32,10 @@ internal sealed class PanelLayout
     private readonly Dictionary<SidePanel, PanelDock> _docks = Panels.ToDictionary(p => p, DefaultDock);
     private readonly Dictionary<PanelDock, double> _sizes = new() { [PanelDock.Left] = DefaultWidth, [PanelDock.Right] = DefaultWidth, [PanelDock.Bottom] = DefaultHeight };
 
-    public static IReadOnlyList<SidePanel> Panels { get; } = [SidePanel.Documents, SidePanel.Files, SidePanel.Plugin, SidePanel.Commit, SidePanel.History, SidePanel.Headings];
+    public static IReadOnlyList<SidePanel> Panels { get; } = [SidePanel.Documents, SidePanel.Files, SidePanel.Plugin, SidePanel.Commit, SidePanel.History, SidePanel.Headings, SidePanel.Structure];
 
     /// <summary>The side a panel stands on until it is moved: the commit panel and the history are wide, so they start at the bottom; the headings stand right of the document.</summary>
-    public static PanelDock DefaultDock(SidePanel panel) => panel switch { SidePanel.Commit or SidePanel.History => PanelDock.Bottom, SidePanel.Headings => PanelDock.Right, _ => PanelDock.Left };
+    public static PanelDock DefaultDock(SidePanel panel) => panel switch { SidePanel.Commit or SidePanel.History => PanelDock.Bottom, SidePanel.Headings or SidePanel.Structure => PanelDock.Right, _ => PanelDock.Left };
 
     public static IReadOnlyList<PanelDock> Docks { get; } = [PanelDock.Left, PanelDock.Right, PanelDock.Bottom];
 
@@ -76,7 +76,7 @@ internal sealed class PanelLayout
     public SavedPanels ToSaved() => new()
     {
         Documents = Name(_docks[SidePanel.Documents]), Files = Name(_docks[SidePanel.Files]), Plugin = Name(_docks[SidePanel.Plugin]),
-        Commit = Name(_docks[SidePanel.Commit]), History = Name(_docks[SidePanel.History]), Headings = Name(_docks[SidePanel.Headings]),
+        Commit = Name(_docks[SidePanel.Commit]), History = Name(_docks[SidePanel.History]), Headings = Name(_docks[SidePanel.Headings]), Structure = Name(_docks[SidePanel.Structure]),
         LeftWidth = _sizes[PanelDock.Left], RightWidth = _sizes[PanelDock.Right], BottomHeight = _sizes[PanelDock.Bottom],
     };
 
@@ -91,6 +91,7 @@ internal sealed class PanelLayout
         layout._docks[SidePanel.Commit] = Parse(saved.Commit, SidePanel.Commit);
         layout._docks[SidePanel.History] = Parse(saved.History, SidePanel.History);
         layout._docks[SidePanel.Headings] = Parse(saved.Headings, SidePanel.Headings);
+        layout._docks[SidePanel.Structure] = Parse(saved.Structure, SidePanel.Structure);
         layout.SetSize(PanelDock.Left, saved.LeftWidth);
         layout.SetSize(PanelDock.Right, saved.RightWidth);
         layout.SetSize(PanelDock.Bottom, saved.BottomHeight);

@@ -559,7 +559,7 @@
       "category": "cat.edit",
       "icon": "comment",
       "when": "editorFocus",
-      "enablement": "!readOnly && !largeFileMode",
+      "enablement": "!readOnly && !largeFileMode && canToggleComment",
       "undo": "transaction",
       "repeatable": true,
       "macro": true
@@ -787,7 +787,7 @@
       "title": "cmd.tools.showOutline",
       "category": "cat.tools",
       "icon": "outline",
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "when": "codeOutline",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
@@ -795,7 +795,7 @@
       "title": "cmd.tools.goToSymbol",
       "category": "cat.tools",
       "icon": "goto",
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'",
+      "when": "codeOutline",
       "enablement": "hasDocument && !largeFileMode"
     },
     {
@@ -2898,42 +2898,42 @@
       "title": "cmd.view.table",
       "category": "cat.view",
       "icon": "table",
-      "enablement": "hasDocument"
+      "enablement": "hasDocument && tableViewSupported"
     },
     {
       "id": "nks.view.jsonPretty",
       "title": "cmd.view.jsonPretty",
       "category": "cat.view",
       "icon": "braces",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonViewSupported"
     },
     {
       "id": "nks.json.goToKey",
       "title": "cmd.json.goToKey",
       "category": "cat.view",
       "icon": "key",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonViewSupported && jsonEncodingSupported"
     },
     {
       "id": "nks.json.copySource",
       "title": "cmd.json.copySource",
       "category": "cat.view",
       "icon": "copy",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonPretty && jsonEncodingSupported"
     },
     {
       "id": "nks.json.expandValue",
       "title": "cmd.json.expandValue",
       "category": "cat.view",
       "icon": "unfold",
-      "enablement": "hasDocument && !hexMode"
+      "enablement": "hasDocument && jsonPretty && jsonEncodingSupported"
     },
     {
       "id": "nks.table.editRegion",
       "title": "cmd.table.editRegion",
       "category": "cat.view",
       "icon": "pencil",
-      "enablement": "hasSelection && !tableMode"
+      "enablement": "hasSelection && textView && !tableMode"
     },
     {
       "id": "nks.table.dialect",
@@ -3435,8 +3435,8 @@
       "title": "cmd.tools.lint",
       "category": "cat.tools",
       "icon": "checklist",
-      "when": "languageGroup != ''",
-      "enablement": "hasDocument"
+      "when": "lintSupported",
+      "enablement": "hasPath"
     },
     {
       "id": "nks.edit.runRecipeFiles",
@@ -6098,7 +6098,7 @@
       "command": "nks.tools.goToSymbol",
       "group": "3_type",
       "order": 120,
-      "when": "language == 'html' || language == 'php' || language == 'css' || language == 'csharp' || language == 'markdown'"
+      "when": "codeOutline"
     },
     {
       "menu": "editor.context",

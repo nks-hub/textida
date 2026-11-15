@@ -95,14 +95,20 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
         if (repeat.Lazy && repeat.Minimum == 0) yield return StreamMatchStep.Match(position);
         while (count < maximum)
         {
-            bool found = false;
-            long next = position;
-            foreach (var item in Match(repeat.Child, position, direction))
+            bool found = TryFirstChoiceCharacter(repeat.Child, position, direction, out long next);
+            if (found)
             {
-                if (!item.IsMatch) { yield return item; continue; }
-                next = item.End;
-                found = true;
-                break;
+                if ((++operations & 1023) == 0) yield return StreamMatchStep.Pending;
+            }
+            else
+            {
+                foreach (var item in Match(repeat.Child, position, direction))
+                {
+                    if (!item.IsMatch) { yield return item; continue; }
+                    next = item.End;
+                    found = true;
+                    break;
+                }
             }
             if (!found || next == position) break;
             position = next;
@@ -135,6 +141,12 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
             position = checkpoint.Position;
             while (done++ < count)
             {
+                if (TryFirstChoiceCharacter(repeat.Child, position, direction, out long next))
+                {
+                    position = next;
+                    if ((++operations & 1023) == 0) yield return StreamMatchStep.Pending;
+                    continue;
+                }
                 foreach (var item in Match(repeat.Child, position, direction))
                 {
                     if (!item.IsMatch) { yield return item; continue; }
@@ -144,6 +156,16 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
             }
             yield return StreamMatchStep.Match(position);
         }
+    }
+
+    private bool TryFirstChoiceCharacter(StreamNode node, long at, int direction, out long end)
+    {
+        end = at;
+        if (node is not StreamChoice { Items.Count: > 0 } choice || choice.Items[0] is not StreamChar first
+            || !source.TryReadCached(direction > 0 ? at : at - 1, out int value)
+            || !first.Characters.Matches((char)value)) return false;
+        end = at + direction;
+        return true;
     }
 
     private IEnumerable<StreamMatchStep> RepeatChar(StreamCharSet characters, StreamRepeat repeat, long start, int direction, bool backtrack)
@@ -197,14 +219,20 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
     private static bool IsWord(int c) => c >= 0 && (c is 0x200C or 0x200D || Word.Matches((char)c));
     private static readonly StreamCharSet Word = new(@"\w", true);
 
-    internal static bool CanStart(StreamNode node, char c, int direction = 1) => node switch
+    internal static bool CanStart(StreamNode node, char c, int direction = 1)
     {
-        StreamChar atom => atom.Characters.Matches(c),
-        StreamChoice choice => choice.Items.Any(item => CanStart(item, c, direction)),
-        StreamSequence sequence => SequenceStart(sequence.Items, c, direction),
-        StreamRepeat repeat => CanStart(repeat.Child, c, direction),
-        _ => false,
-    };
+        switch (node)
+        {
+            case StreamChar atom: return atom.Characters.Matches(c);
+            case StreamChoice choice:
+                for (int i = 0; i < choice.Items.Count; i++)
+                    if (CanStart(choice.Items[i], c, direction)) return true;
+                return false;
+            case StreamSequence sequence: return SequenceStart(sequence.Items, c, direction);
+            case StreamRepeat repeat: return CanStart(repeat.Child, c, direction);
+            default: return false;
+        }
+    }
 
     private static bool SequenceStart(IReadOnlyList<StreamNode> items, char c, int direction)
     {
@@ -216,14 +244,23 @@ internal sealed class StreamingMatcher(StreamingLineSource source)
         return false;
     }
 
-    internal static bool Nullable(StreamNode node) => node switch
+    internal static bool Nullable(StreamNode node)
     {
-        StreamChar => false,
-        StreamSequence sequence => sequence.Items.All(Nullable),
-        StreamChoice choice => choice.Items.Any(Nullable),
-        StreamRepeat repeat => repeat.Minimum == 0 || Nullable(repeat.Child),
-        _ => true,
-    };
+        switch (node)
+        {
+            case StreamChar: return false;
+            case StreamSequence sequence:
+                for (int i = 0; i < sequence.Items.Count; i++)
+                    if (!Nullable(sequence.Items[i])) return false;
+                return true;
+            case StreamChoice choice:
+                for (int i = 0; i < choice.Items.Count; i++)
+                    if (Nullable(choice.Items[i])) return true;
+                return false;
+            case StreamRepeat repeat: return repeat.Minimum == 0 || Nullable(repeat.Child);
+            default: return true;
+        }
+    }
 
     private static char? Literal(StreamCharSet set)
     {

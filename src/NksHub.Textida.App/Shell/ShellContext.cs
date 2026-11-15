@@ -1,5 +1,6 @@
 using NksHub.Textida.App.Editing;
 using NksHub.Textida.App.Services;
+using NksHub.Textida.Core.Tools;
 using NksHub.Textida.Workbench.Commands;
 using NksHub.Textida.Workbench.Keys;
 using NksHub.Textida.Workbench.Toolbar;
@@ -20,13 +21,21 @@ internal sealed class ShellContext(MainWindow window, bool forMenu) : IWhenConte
             ContextKeys.EditorFocus => Bool(forMenu || (tab is not null && window.EditorHasFocus)),
             ContextKeys.HasDocument => Bool(tab is not null),
             ContextKeys.Language => tab?.Doc.Language.Id ?? "",
+            ContextKeys.CanToggleComment => Bool(window.CanToggleComment),
+            ContextKeys.CodeOutline => Bool(tab is not null && PluginServices.SymbolPlugin(tab.Doc.Language.Id) == PluginServices.CodeExplorerPluginId),
+            ContextKeys.LintSupported => Bool(tab is { Custom: null, Hex: null } && (tab.Path is { } path
+                ? Linters.For(path).Count > 0 : tab.Doc.Language.Extensions.Any(extension => Linters.For("file" + extension).Count > 0))),
             ContextKeys.HasSelection => Bool(tab?.Surface?.HasSelection == true || tab?.Paged?.HasSelection == true || (tab?.JsonShown == true && tab.Json!.HasSelection)),
             // the paged view and the formatted JSON view take only the edits they implement: cut and paste ask for largeFileMode or jsonPretty
             ContextKeys.ReadOnly => Bool(tab?.Surface is null || tab.OverlayShown),
             ContextKeys.JsonPretty => Bool(tab?.JsonShown == true),
+            ContextKeys.JsonViewSupported => Bool(window.CanShowJsonPretty),
+            ContextKeys.JsonEncodingSupported => Bool(window.CanReadJsonStructure),
+            ContextKeys.StructureSupported => Bool(window.CanShowStructure),
             ContextKeys.LargeFileMode => Bool(tab?.Doc.IsLarge == true || tab?.Doc.IsHex == true),
             ContextKeys.HexMode => Bool(tab?.Hex is not null),
             ContextKeys.TableMode => Bool(tab?.TableShown == true),
+            ContextKeys.TableViewSupported => Bool(window.CanShowTable),
             ContextKeys.InMarkdownTable => Bool(window.InMarkdownTable),
             ContextKeys.InSnippet => Bool(tab?.Surface?.InSnippet == true),
             ContextKeys.ImageFile => Bool(tab?.Doc.IsImageFile == true),

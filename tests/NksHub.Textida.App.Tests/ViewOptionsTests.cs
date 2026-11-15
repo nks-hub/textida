@@ -208,7 +208,7 @@ public class MinimapGeometryTests
 
 /// <summary>P3.6.1 and P3.3.1 on both surfaces: the view switches, the hidden characters, wrapping, the fonts and the minimap.</summary>
 [Collection("LocState")]
-public class ViewOptionsTests : IDisposable
+public partial class ViewOptionsTests : IDisposable
 {
     private readonly TempDir _temp = new();
     private readonly App _app;
@@ -1383,7 +1383,7 @@ public class ViewOptionsTests : IDisposable
     public void A_drag_that_moves_inside_the_window_of_the_colors_does_not_run_the_grammar_when_it_leaves_it()
     {
         var syntax = Open("d.cs", KeywordFile(5000)).Editor!.Syntax;
-        syntax.DefersMoves = true; // as a minimap drag sets it
+        syntax.DefersMoves = true; // the minimap feeder coalesces moves between its color windows
         syntax.SetVisible(1000, 1040, 0, 80); // a jump after a quiet time is colored at once
         int runs = syntax.ViewportRuns;
         for (int k = 1; k <= 30; k++)
@@ -1393,109 +1393,6 @@ public class ViewOptionsTests : IDisposable
         }
         Assert.True(syntax.Requested.First > 1100, "the drag never left the first window");
         Assert.Equal(runs, syntax.ViewportRuns);
-    }
-
-    [AvaloniaFact]
-    [Trait("Category", "Perf")]
-    public void Dragging_the_minimap_of_a_file_of_100000_lines_moves_the_editor_within_the_budget()
-    {
-        var tab = Open("p100k.cs", KeywordFile(100_000));
-        var map = tab.Minimap!;
-        var origin = map.TranslatePoint(default, _w)!.Value;
-        var start = new Point(origin.X + 40, origin.Y + 20);
-        _w.MouseDown(start, MouseButton.Left);
-        var times = new List<double>();
-        for (int i = 0; i < 200; i++)
-        {
-            var clock = Stopwatch.StartNew();
-            _w.MouseMove(new Point(start.X, start.Y + i * 3.5));
-            _w.UpdateLayout();
-            Dispatcher.UIThread.RunJobs();
-            times.Add(clock.Elapsed.TotalMilliseconds);
-        }
-        _w.MouseUp(new Point(start.X, start.Y + 700), MouseButton.Left);
-        times.Sort();
-        double p95 = times[(int)(times.Count * 0.95)];
-        _output.WriteLine($"minimap drag over 100000 lines: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, max {times[^1]:0.0} ms");
-        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
-    }
-
-    [AvaloniaFact]
-    [Trait("Category", "Perf")]
-    public void Dragging_the_minimap_moves_the_editor_within_the_budget()
-    {
-        var tab = Open("p.cs", KeywordFile(20_000));
-        var map = tab.Minimap!;
-        var origin = map.TranslatePoint(default, _w)!.Value;
-        var start = new Point(origin.X + 40, origin.Y + 100);
-        _w.MouseDown(start, MouseButton.Left);
-        var times = new List<double>();
-        for (int i = 0; i < 200; i++)
-        {
-            var clock = Stopwatch.StartNew();
-            _w.MouseMove(new Point(start.X, start.Y + i * 2.5));
-            _w.UpdateLayout();
-            Dispatcher.UIThread.RunJobs();
-            times.Add(clock.Elapsed.TotalMilliseconds);
-        }
-        _w.MouseUp(new Point(start.X, start.Y + 500), MouseButton.Left);
-        times.Sort();
-        double p95 = times[(int)(times.Count * 0.95)];
-        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
-    }
-
-    [AvaloniaFact]
-    [Trait("Category", "Perf")]
-    public void Dragging_the_sampled_minimap_moves_the_paged_surface_within_the_budget()
-    {
-        var tab = Open("pp.cs", KeywordFile(400_000), paged: true);
-        var map = tab.Minimap!;
-        Assert.True(map.IsSampled);
-        var origin = map.TranslatePoint(default, _w)!.Value;
-        var start = new Point(origin.X + 40, origin.Y + 2);
-        _w.MouseDown(start, MouseButton.Left);
-        var times = new List<double>();
-        List<double> moves = [], layouts = [], jobs = [];
-        long before = tab.Paged!.TopLine;
-        for (int i = 0; i < 200; i++)
-        {
-            var clock = Stopwatch.StartNew();
-            _w.MouseMove(new Point(start.X, start.Y + i * 2.5));
-            double afterMove = clock.Elapsed.TotalMilliseconds;
-            _w.UpdateLayout();
-            double afterLayout = clock.Elapsed.TotalMilliseconds;
-            Dispatcher.UIThread.RunJobs();
-            times.Add(clock.Elapsed.TotalMilliseconds);
-            moves.Add(afterMove);
-            layouts.Add(afterLayout - afterMove);
-            jobs.Add(times[^1] - afterLayout);
-        }
-        _w.MouseUp(new Point(start.X, start.Y + 500), MouseButton.Left);
-        Assert.True(tab.Paged.TopLine > before + 100_000, $"{before} -> {tab.Paged.TopLine}");
-        static string Spread(List<double> v) { var s = v.Order().ToArray(); return $"p50 {s[s.Length / 2]:0.0}, p95 {s[(int)(s.Length * 0.95)]:0.0}"; }
-        _output.WriteLine($"sampled minimap drag, parts: move [{Spread(moves)}], layout [{Spread(layouts)}], jobs [{Spread(jobs)}] ms");
-        times.Sort();
-        double p95 = times[(int)(times.Count * 0.95)];
-        _output.WriteLine($"sampled minimap drag: p50 {times[times.Count / 2]:0.0}, p95 {p95:0.0}, max {times[^1]:0.0} ms");
-
-        // where the time goes: the spans over a second drag back (the measured one above runs without them)
-        _w.MouseDown(new Point(start.X, start.Y + 500), MouseButton.Left);
-        NksHub.Textida.Core.TypingTrace.Reset();
-        NksHub.Textida.Core.TypingTrace.Enabled = true;
-        try
-        {
-            for (int i = 0; i < 200; i++)
-            {
-                _w.MouseMove(new Point(start.X, start.Y + 500 - i * 2.5));
-                _w.UpdateLayout();
-                Dispatcher.UIThread.RunJobs();
-            }
-        }
-        finally { NksHub.Textida.Core.TypingTrace.Enabled = false; }
-        _w.MouseUp(new Point(start.X, start.Y), MouseButton.Left);
-        _output.WriteLine("sampled minimap drag, spans of 200 moves:\n" + NksHub.Textida.Core.TypingTrace.Summary());
-        NksHub.Textida.Core.TypingTrace.Reset();
-        Assert.True(p95 <= 33, $"p95 {p95:0.0} ms");
     }
 
     [AvaloniaFact]

@@ -343,7 +343,7 @@ internal sealed class ContextDef : Rule
         return new Matcher(re, [.. alts], groups, [.. patterns]);
     }
 
-    private static List<Rule> Resolve(IncludeRule include)
+    internal static List<Rule> Resolve(IncludeRule include)
     {
         var owner = include.Owner;
         string target = include.Target;

@@ -26,7 +26,9 @@ public sealed class WorkbenchHost
     public static WorkbenchHost CreateBuiltin()
     {
         var host = new WorkbenchHost();
-        var errors = host.AddManifest(BuiltinResources.ReadText(BuiltinManifestResource), ManifestTrust.Builtin);
+        var errors = new List<string>();
+        foreach (string resource in new[] { BuiltinManifestResource, "structure.contributions.json" })
+            errors.AddRange(host.AddManifest(BuiltinResources.ReadText(resource), ManifestTrust.Builtin));
         return errors.Count == 0
             ? host
             : throw new InvalidOperationException("Built-in manifest is invalid: " + string.Join("; ", errors));

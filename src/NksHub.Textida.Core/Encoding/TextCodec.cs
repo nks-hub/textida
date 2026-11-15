@@ -425,6 +425,18 @@ public sealed class TextCodec
         return text.ToString();
     }
 
+    internal int GetChars(ReadOnlySpan<byte> bytes, Span<char> destination)
+    {
+        if (Kind == CodecKind.Utf8)
+        {
+            if (Ascii.IsValid(bytes)) return Encoding.ASCII.GetChars(bytes, destination);
+            if (System.Text.Unicode.Utf8.IsValid(bytes)) return Encoding.UTF8.GetChars(bytes, destination);
+        }
+        string text = GetString(bytes);
+        text.AsSpan().CopyTo(destination);
+        return text.Length;
+    }
+
     public int CountChars(ReadOnlySpan<byte> bytes) => Kind switch
     {
         CodecKind.Utf8 => Encoding.UTF8.GetCharCount(bytes),

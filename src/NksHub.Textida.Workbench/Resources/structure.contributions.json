@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "nks.structure",
+  "commands": [
+    {
+      "id": "nks.view.structure",
+      "title": "cmd.view.structure",
+      "category": "cat.view",
+      "icon": "outline",
+      "when": "language == 'json' || language == 'jsonc' || language == 'xml'",
+      "enablement": "hasDocument && structureSupported"
+    }
+  ],
+  "menus": [
+    { "menu": "view", "command": "nks.view.structure", "group": "4_panels/07.01", "submenu": "panels", "order": 150 }
+  ]
+}

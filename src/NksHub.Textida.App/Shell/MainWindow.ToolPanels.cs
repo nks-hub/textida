@@ -44,6 +44,7 @@ internal sealed partial class MainWindow
         SidePanel.Commit => _commitView is not null,
         SidePanel.History => _historyView is not null,
         SidePanel.Headings => IsOpen(SidePanel.Headings) || _activeGroup?.Active?.Doc.Language.Id == "markdown",
+        SidePanel.Structure => IsOpen(SidePanel.Structure) || CanShowStructure,
         _ => true,
     };
 
@@ -52,7 +53,7 @@ internal sealed partial class MainWindow
     private void BuildToolPanels()
     {
         _ = HeadingsPanelView;
-        foreach (var (panel, tool) in new[] { (SidePanel.Commit, _commitTool), (SidePanel.History, _historyTool), (SidePanel.Headings, _headingsTool) })
+        foreach (var (panel, tool) in new[] { (SidePanel.Commit, _commitTool), (SidePanel.History, _historyTool), (SidePanel.Headings, _headingsTool), (SidePanel.Structure, _structureTool) })
         {
             var which = panel;
             MakeDraggable(tool.Header, which);
@@ -170,6 +171,7 @@ internal sealed partial class MainWindow
         AutomationProperties.SetName(_headingsTool, Loc.Get(K.PanelHeadingsName));
         AutomationProperties.SetName(_headingsTool.Close, Loc.Get(K.PanelToolHide, ("panel", Loc.Get(K.PanelHeadingsName))));
         _headingsView?.ApplyTexts();
+        ApplyStructureTexts();
     }
 
     private void ApplyStripTexts()

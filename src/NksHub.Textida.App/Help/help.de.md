@@ -570,8 +570,8 @@ commands: nks.tools.copyKeyPath, nks.tools.showKeys, nks.tools.goToKey, nks.tool
 
 ## [tools.outline] Codegliederung und Symbole
 commands: nks.tools.showOutline, nks.tools.goToSymbol
-1. In HTML-, PHP-, CSS-, C#- und Markdown-Dateien zeigt Extras, Code und Sprache, Codegliederung anzeigen die Funktionen, Klassen, Überschriften und Regeln der Datei als Baum im Plugin-Bereich. Ein Klick markiert den Namen des Symbols.
-2. Extras, Code und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert dieselben Bytes wie ein Klick in der Gliederung.
+1. Extras, Code und Sprache, Codegliederung anzeigen listet die Symbole der unten genannten Sprachen als Baum im Plugin-Bereich auf. Ein Doppelklick oder Enter auf dem ausgewählten Eintrag markiert den zugehörigen Text im Editor; bei HTML wird das öffnende Tag markiert.
+2. Extras, Code und Sprache, Gehe zu Symbol (oder `@` in Gehe zu Beliebigem) listet dieselben Symbole nach Namen; Enter markiert denselben Quelltext.
 3. Die Gliederung gehört zu einer Revision des Dokuments. Nach einer Änderung wird sie von selbst erneuert; bis die neue da ist, bleibt die alte als veraltet markiert, und ein Sprung wird über die seitdem gemachten Änderungen getragen oder abgelehnt, wenn der Text, auf dem das Symbol stand, geändert wurde. Eine Antwort für eine ältere Revision wird nie als aktuell gezeigt.
 4. Hält der Plugin-Prozess an, wird die Gliederung nach seiner Rückkehr neu gelesen.
 5. Solange eine Datei eine Gliederung hat, nennt die Statusleiste das Symbol, in dem der Cursor steht, samt Eltern (zum Beispiel `Klasse › Methode`); sie folgt dem Cursor und ist bei veralteter Gliederung ausgeblendet. Die Gliederung zeigt dasselbe Element fett, und ein Screenreader nennt es „aktuelles Element“. Die Markierung ist keine Auswahl und nimmt Ihnen die Tastatur nicht weg; sie folgt dem Cursor und bleibt bei der Aktualisierung der Gliederung an ihrem Element.
@@ -2052,7 +2052,7 @@ commands: nks.review.open, nks.review.folder, nks.review.next, nks.review.previo
 commands: nks.edit.jsonToGo, nks.edit.jsonToCSharp, nks.edit.jsonToTypeScript
 Die Befehle in der Befehlspalette machen aus JSON eine Go-Struct, eine C#-Klasse oder ein TypeScript-Interface in einem neuen Tab.
 1. Markieren Sie das JSON oder lassen Sie nichts markiert für das ganze Dokument.
-2. Wählen Sie Bearbeiten, Umwandeln und JSON in Go-Struct, C#-Klasse oder TypeScript-Interface.
+2. Führen Sie in der Befehlspalette JSON in Go-Struct, JSON in C#-Klasse oder JSON in TypeScript-Interface aus.
 - Die Objekte eines Arrays werden zu einem Typ zusammengefasst; ein Feld, das einigen fehlt oder null ist, ist optional (in Go ein Zeiger und omitempty, in C# nullable, in TypeScript ein Fragezeichen).
 - Eine Zahl, die in 64 Bit passt, ist int64 (long, number), jede andere float64 (double, number). Ein Feld ohne bekannten Typ (nur null, leeres Array, gemischte Werte) bekommt den offenen Typ der Sprache.
 - Der Name des Wurzeltyps ist der Dateiname; Text, der kein JSON ist, wird mit dem Grund in der Statusleiste abgelehnt.

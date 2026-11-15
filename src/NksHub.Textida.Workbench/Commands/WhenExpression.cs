@@ -30,6 +30,10 @@ public static class ContextKeys
     public const string EditorFocus = "editorFocus";
     public const string HasDocument = "hasDocument";
     public const string Language = "language";
+    public const string CanToggleComment = "canToggleComment";
+    /// <summary>The language has an outline in the built-in Code Explorer.</summary>
+    public const string CodeOutline = "codeOutline";
+    public const string LintSupported = "lintSupported";
     public const string HasSelection = "hasSelection";
     public const string ReadOnly = "readOnly";
     public const string LargeFileMode = "largeFileMode";
@@ -42,6 +46,7 @@ public static class ContextKeys
     public const string HexMode = "hexMode";
     /// <summary>The active tab shows its document as a table.</summary>
     public const string TableMode = "tableMode";
+    public const string TableViewSupported = "tableViewSupported";
     /// <summary>The active tab is a comparison of two sides.</summary>
     public const string CompareMode = "compareMode";
     /// <summary>The caret is in a Markdown table with a header and a row of dashes.</summary>
@@ -75,14 +80,17 @@ public static class ContextKeys
     public const string PackageManifest = "packageManifest";
     /// <summary>The active tab shows its document as formatted JSON: <see cref="ReadOnly"/> is true there, and typing, cut and paste go only into the key or value under the caret.</summary>
     public const string JsonPretty = "jsonPretty";
+    public const string JsonViewSupported = "jsonViewSupported";
+    public const string JsonEncodingSupported = "jsonEncodingSupported";
+    public const string StructureSupported = "structureSupported";
 
     public static IReadOnlyList<string> All { get; } =
         [EditorFocus, HasDocument, Language, HasSelection, ReadOnly, LargeFileMode, Platform, IsDirty, HasFolder, FileSelected, MultipleCarets, HexMode, TableMode, CompareMode, InMarkdownTable, InSnippet, PanelOpen, ImageFile,
-            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty];
+            FileKind, LanguageGroup, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, HasPath, PackageManifest, JsonPretty, JsonViewSupported, JsonEncodingSupported, StructureSupported, TableViewSupported, CanToggleComment, CodeOutline, LintSupported];
 
     /// <summary>The keys that decide which menu items are shown (<c>when</c>): when one of them changes for the active tab, the menu is built again. The others only grey an item and are asked as the menu opens.</summary>
     public static IReadOnlyList<string> MenuKeys { get; } =
-        [HasDocument, Language, LanguageGroup, FileKind, HexMode, TableMode, CompareMode, ImageFile, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, PackageManifest, LargeFileMode];
+        [HasDocument, Language, LanguageGroup, FileKind, HexMode, TableMode, CompareMode, ImageFile, LogMode, InGitRepo, RemoteFile, MarkdownPreview, TextView, PackageManifest, LargeFileMode, CodeOutline, LintSupported];
 }
 
 /// <summary>

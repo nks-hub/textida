@@ -202,7 +202,11 @@ internal sealed partial class MainWindow
         od.EnsureWatching();
         if (od.Autosave is null) ConfigureAutosave(od);
         Core.TypingTrace.End("win.watchAutosave", t);
-        foreach (var view in od.Views) ScheduleGitGutter(view);
+        foreach (var view in od.Views)
+        {
+            ScheduleGitGutter(view);
+            if (view.Json is { } json && json.SourceCodec != od.Doc.Codec) QueueJsonEncoding(od);
+        }
     }
 
     /// <summary>The document under the tabs was swapped (reload). A view of the other kind (text or paged) is rebuilt in place.</summary>

@@ -1,13 +1,23 @@
 using System.Text;
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Controls;
+using Avalonia.Platform;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using NksHub.Textida.App.Editing;
+using NksHub.Textida.App.Services;
 using NksHub.Textida.App.Shell;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.AvaloniaEditAdapter;
 using NksHub.Textida.Core.Documents;
+using NksHub.Textida.Core.Encodings;
 using NksHub.Textida.Workbench.Commands;
 
 namespace NksHub.Textida.App.Tests;
@@ -58,6 +68,59 @@ public class JsonPrettyViewTests : IDisposable
         return view;
     }
 
+    [AvaloniaFact]
+    public async Task Go_to_key_from_raw_json_keeps_focus_in_the_real_prompt_after_queued_view_focus()
+    {
+        var tab = Open(Sample);
+        Assert.False(tab.JsonShown);
+        var dialogs = new AvaloniaDialogs();
+        Window? dialog = null;
+        bool opened = false;
+        IInputElement? openedFocus = null;
+        dialogs.Shown = window =>
+        {
+            dialog = window;
+            window.Opened += (_, _) =>
+            {
+                opened = true;
+                openedFocus = window.FocusManager?.GetFocusedElement();
+            };
+        };
+        _app.Dialogs = dialogs;
+        Task? command = null;
+        try
+        {
+            command = _w.GoToJsonKeyAsync();
+            var prompt = Assert.IsType<Window>(dialog);
+            Assert.True(opened);
+            Assert.False(command.IsCompleted);
+            Assert.True(tab.JsonShown);
+            Assert.Equal(Loc.Get(K.JsonGoToKeyTitle), prompt.Title);
+            var input = Assert.Single(prompt.GetVisualDescendants().OfType<TextBox>());
+            Assert.Equal(Loc.Get(K.JsonGoToKeyLabel), AutomationProperties.GetName(input));
+            Assert.Same(input, openedFocus);
+
+            prompt.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(prompt.IsVisible);
+            Assert.Same(input, prompt.FocusManager!.GetFocusedElement());
+
+            var cancel = prompt.GetVisualDescendants().OfType<Button>().Single(button => button.IsCancel);
+            cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await command.WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.False(prompt.IsVisible);
+            Assert.Equal(Sample, Text(tab));
+            Assert.False(tab.Doc.Doc.IsModified);
+            Assert.True(await _w.CloseTabAsync(tab).WaitAsync(TimeSpan.FromSeconds(30)));
+        }
+        finally
+        {
+            _app.Dialogs = _dialogs;
+            dialog?.Close(null);
+            if (command is not null) await command.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+    }
+
     private static void Scan(JsonPrettyView view)
     {
         for (var sw = System.Diagnostics.Stopwatch.StartNew(); !view.Outline!.State.Complete && sw.ElapsedMilliseconds < 30_000;) Thread.Sleep(5);
@@ -69,14 +132,20 @@ public class JsonPrettyViewTests : IDisposable
     private static string Text(DocTab tab) => Encoding.UTF8.GetString(tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
     private void Press(Key key, RawInputModifiers mods = RawInputModifiers.None) => TestApp.Press(_w, key, mods);
 
-    [AvaloniaFact]
-    public void Switching_shows_one_member_per_line_and_keeps_the_place_both_ways()
+    [AvaloniaTheory]
+    [InlineData("data.json")]
+    [InlineData("data.txt")]
+    public void Switching_shows_one_member_per_line_and_keeps_the_place_both_ways(string name)
     {
-        var tab = Open(Sample);
+        var tab = Open(Sample, name: name);
+        var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(("true", "true", "false"),
+            (context.Get(ContextKeys.JsonViewSupported), context.Get(ContextKeys.JsonEncodingSupported), context.Get(ContextKeys.JsonPretty)));
         var surface = tab.Surface!;
         surface.SetSelections([Sel.At(Sample.IndexOf("\"city\"", StringComparison.Ordinal))]);
         var view = Show();
         Scan(view);
+        Assert.Equal("true", context.Get(ContextKeys.JsonPretty));
         Assert.False(tab.View.IsVisible);
         Assert.Equal("{", view.RowText(0));
         Assert.Equal("  \"name\": \"Ann\",", view.RowText(1));
@@ -91,6 +160,283 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Null(_w.ActiveJson);
         Assert.True(tab.View.IsVisible);
         Assert.Equal(Sample.IndexOf("\"active\"", StringComparison.Ordinal), tab.Doc.TextBackend!.ToByteOffset(surface.CaretOffset));
+    }
+
+    [AvaloniaFact]
+    public async Task UTF16_can_leave_the_formatted_view_but_structure_commands_are_disabled()
+    {
+        byte[] bytes = [.. Encoding.Unicode.GetPreamble(), .. Encoding.Unicode.GetBytes(Sample)];
+        var path = _temp.Bytes("wide.json", bytes);
+        var tab = _w.OpenFile(path, null);
+        var context = new ShellContext(_w, forMenu: true);
+        Assert.Equal(("true", "false"), (context.Get(ContextKeys.JsonViewSupported), context.Get(ContextKeys.JsonEncodingSupported)));
+        _dialogs.Prompts.Enqueue("name");
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Null(_w.ActiveJson);
+
+        var view = Show();
+        Assert.Null(view.Outline);
+        await _w.Clipboard!.SetTextAsync("before");
+        foreach (var id in new[] { "nks.json.goToKey", "nks.json.copySource", "nks.json.expandValue" })
+        {
+            Assert.Equal(CommandOutcome.Disabled, Run(id));
+            Assert.True(_app.Workbench.Commands.TryGet(id, out var command));
+            _w.ShowPalette();
+            _w.SetPaletteQuery(_app.Workbench.Strings.Get(command.TitleKey));
+            var item = Assert.Single(_w.PaletteResults, r => r.CommandId == id);
+            Assert.False(item.Enabled);
+            Assert.Equal(_app.Workbench.Strings.Get("reason.jsonEncodingSupported.false"), item.DisabledReason);
+            _w.ClosePalette();
+        }
+        Assert.Equal("name", Assert.Single(_dialogs.Prompts));
+        Assert.Equal("before", await Clip());
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), view.StatusText());
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.view.jsonPretty"));
+        Assert.Null(_w.ActiveJson);
+        Assert.True(tab.View.IsVisible);
+        Assert.Equal(Sample, tab.Editor!.Document.Text);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(bytes, File.ReadAllBytes(path));
+    }
+
+    [AvaloniaFact]
+    public async Task Rereading_rebuilds_the_formatted_view_for_the_current_encoding()
+    {
+        var tab = Open(Sample);
+        byte[] bytes = File.ReadAllBytes(tab.Path!);
+        var fingerprint = tab.Doc.Doc.Fingerprint;
+        var context = new ShellContext(_w, forMenu: true);
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        var unsupported = Show();
+        Assert.Null(unsupported.Outline);
+        Assert.Equal("false", context.Get(ContextKeys.JsonEncodingSupported));
+
+        _w.RereadAs(tab, TextCodec.Utf8);
+        Dispatcher.UIThread.RunJobs();
+        var supported = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Equal(TextCodec.Utf8, tab.Doc.Doc.Codec);
+        Assert.NotNull(supported.Outline);
+        Scan(supported);
+        Assert.Equal("true", context.Get(ContextKeys.JsonEncodingSupported));
+        Assert.Equal("  \"name\": \"Ann\",", supported.RowText(1));
+        _dialogs.Prompts.Enqueue("city");
+        Assert.Equal(CommandOutcome.Handled, Run("nks.json.goToKey"));
+        for (var sw = System.Diagnostics.Stopwatch.StartNew(); supported.CaretLine != 7 && sw.ElapsedMilliseconds < 10_000;)
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+        Assert.Equal(7, supported.CaretLine);
+        Assert.Contains("$.address.city", _w.StatusLeftText);
+
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Dispatcher.UIThread.RunJobs();
+        var reread = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        Assert.Null(reread.Outline);
+        long line = reread.CaretLine;
+        _dialogs.Prompts.Enqueue("active");
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Equal("active", Assert.Single(_dialogs.Prompts));
+        Assert.Equal(line, reread.CaretLine);
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), reread.StatusText());
+        Assert.Equal(fingerprint, tab.Doc.Doc.Fingerprint);
+        Assert.False(tab.Doc.Doc.IsModified);
+        Assert.Equal(bytes, tab.Doc.Doc.ReadBytes(new ByteRange(0, tab.Doc.Doc.ByteLength)));
+        Assert.Equal(bytes, File.ReadAllBytes(tab.Path!));
+    }
+
+    [AvaloniaFact]
+    public void Converting_and_undoing_refresh_the_formatted_view_without_saving_the_file()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        byte[] original = File.ReadAllBytes(tab.Path!);
+        var document = tab.Doc.Doc;
+        var inspection = document.InspectConvert(TextCodec.Utf16LE);
+        Assert.False(inspection.HasLoss);
+        inspection.Confirm();
+        Assert.True(document.Apply(inspection).Applied);
+        Assert.Equal(TextCodec.Utf16LE, document.Codec);
+        Assert.True(document.IsModified);
+        byte[] converted = document.ReadBytes(new ByteRange(0, document.ByteLength));
+        Assert.Equal(Encoding.Unicode.GetBytes(Sample), converted.AsSpan(document.BomLength).ToArray());
+
+        Dispatcher.UIThread.RunJobs();
+        var wide = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.Null(wide.Outline);
+        Assert.Equal(Loc.Get(K.JsonPrettyEncoding), wide.StatusText());
+        Assert.Equal(CommandOutcome.Disabled, Run("nks.json.goToKey"));
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.undo"));
+        Dispatcher.UIThread.RunJobs();
+        var restored = Assert.IsType<JsonPrettyView>(_w.ActiveJson);
+        Assert.NotNull(restored.Outline);
+        Scan(restored);
+        Assert.Equal(TextCodec.Utf8, document.Codec);
+        Assert.Equal("  \"name\": \"Ann\",", restored.RowText(1));
+        Assert.Equal(original, document.ReadBytes(new ByteRange(0, document.ByteLength)));
+        Assert.False(document.IsModified);
+        Assert.Equal(original, File.ReadAllBytes(tab.Path!));
+    }
+
+    [AvaloniaFact]
+    public void Closing_the_window_before_the_encoding_callback_keeps_the_closed_view()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        bool closed = false;
+        _w.Closed += (_, _) => closed = true;
+        _w.RereadAs(tab, TextCodec.Utf16LE);
+        Assert.Equal(TextCodec.Utf16LE, tab.Doc.Doc.Codec);
+        Assert.Same(view, tab.Json);
+        Assert.False(tab.Closed.Task.IsCompleted);
+
+        _w.Close();
+        Assert.True(closed);
+        Assert.True(tab.Closed.Task.IsCompleted);
+        Assert.DoesNotContain(_w, _app.Windows);
+        Assert.Null(Record.Exception(() => Dispatcher.UIThread.RunJobs()));
+        Assert.Same(view, tab.Json);
+        Assert.True(tab.Closed.Task.IsCompleted);
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Hidden_text_stops_coloring_and_resumes_with_the_edited_json_when_shown_again(bool paged)
+    {
+        var tab = Open(Sample, paged);
+        var syntax = tab.Syntax!;
+        Assert.True(syntax.Active);
+        var view = Show();
+        Assert.False(syntax.Active);
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        long renderedAt = tab.Paged?.RenderedAt ?? 0;
+        int runs = syntax.ViewportRuns;
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+        TestApp.Type(_w, "x");
+        Dispatcher.UIThread.RunJobs();
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.False(tab.View.IsVisible);
+        Assert.Equal(renderedAt, tab.Paged?.RenderedAt ?? 0);
+        Assert.True(view.RenderedAt > 0);
+        Assert.Equal(runs, syntax.ViewportRuns);
+        Assert.Contains("Anxn", Text(tab));
+
+        Run("nks.view.jsonPretty");
+        _w.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(syntax.Active);
+        Assert.True(syntax.ViewportRuns > runs);
+        if (paged) Assert.NotEmpty(tab.Paged!.TokensOf(0)!);
+        else
+        {
+            tab.Editor!.TextArea.TextView.EnsureVisualLines();
+            var expected = (Avalonia.Media.ISolidColorBrush)NksHub.Textida.App.Services.EditorLook.PaletteOf(tab.Editor).GetBrush("string")!;
+            Assert.Contains(tab.Editor.TextArea.TextView.GetVisualLine(1)!.Elements,
+                e => e.TextRunProperties.ForegroundBrush is Avalonia.Media.ISolidColorBrush b && b.Color == expected.Color);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Typing_updates_the_horizontal_scroll_range_before_the_first_paint()
+    {
+        Open("{\"k\":\"" + new string('x', 400) + "\"}");
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"k\": \"".Length + 400);
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Dispatcher.UIThread.RunJobs();
+        var bar = view.Children.OfType<Avalonia.Controls.Primitives.ScrollBar>().Single(b => b.Orientation == Avalonia.Layout.Orientation.Horizontal);
+        double before = bar.Maximum;
+        Assert.True(before > 0);
+
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
+
+        Assert.True(bar.Maximum > before, $"Horizontal maximum stayed at {bar.Maximum} after {before}");
+        Assert.Contains(new string('x', 401), view.RowText(1));
+    }
+
+    [AvaloniaFact]
+    public void A_scrollbar_repaint_keeps_the_first_frame_of_the_new_text()
+    {
+        Open(Sample);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+        TestApp.Type(_w, "x");
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        long first = view.RenderedAt, last = view.LastRenderedAt;
+        Assert.True(first > 0);
+        Assert.Contains("Anxn", view.RowText(1));
+        view.Refresh();
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.True(view.LastRenderedAt > last);
+        Assert.Equal(first, view.RenderedAt);
+        TestApp.Type(_w, "y");
+        using (var frame = _w.CaptureRenderedFrame()) Assert.NotNull(frame);
+        Assert.True(view.RenderedAt > first);
+        Assert.Contains("Anxyn", view.RowText(1));
+    }
+
+    [AvaloniaFact]
+    public void The_measurement_marker_waits_for_the_input_revision_and_does_not_replace_the_text_timestamp()
+    {
+        var tab = Open(Sample);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, "  \"name\": \"An".Length);
+
+        var measured = new List<(uint Marker, long Draw)>();
+        view.MeasuredFrameDrawn += (marker, draw) => measured.Add((marker, draw));
+
+        (uint First, uint Second) ReadMarker()
+        {
+            using var frame = _w.CaptureRenderedFrame()!;
+            using var buffer = frame.Lock();
+            uint Read(PixelPoint point)
+            {
+                var local = _w.PointToClient(point);
+                int x = (int)(local.X * frame.Dpi.X / 96), y = (int)(local.Y * frame.Dpi.Y / 96);
+                Assert.InRange(x, 0, frame.PixelSize.Width - 1);
+                Assert.InRange(y, 0, frame.PixelSize.Height - 1);
+                int at = y * buffer.RowBytes + x * 4;
+                uint color = (uint)Marshal.ReadInt32(buffer.Address, at) & 0xFFFFFF;
+                return frame.Format == PixelFormat.Bgra8888 ? color
+                    : (color & 0xFF00) | (color >> 16) | ((color & 0xFF) << 16);
+            }
+            return (Read(view.MeasureMarkerPoints.First), Read(view.MeasureMarkerPoints.Second));
+        }
+
+        Assert.NotEqual((0x1753A9u, 0xE8AC56u), ReadMarker());
+        view.SetMeasureMarker(0x1753A9, tab.Doc.Doc.Revision + 1);
+        view.Refresh();
+        Assert.NotEqual((0x1753A9u, 0xE8AC56u), ReadMarker());
+        Assert.Empty(measured);
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "x" });
+        Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
+        Assert.Equal(0x1753A9u, measured[^1].Marker);
+        Assert.True(measured[^1].Draw > 0);
+        Assert.Contains("Anxn", view.RowText(1));
+        long first = view.RenderedAt;
+        view.SetMeasureMarker(0x1753AA, null);
+        view.Refresh();
+        Assert.Equal((0x1753A9u, 0xE8AC56u), ReadMarker());
+        view.ReleaseMeasureMarker();
+        Assert.Equal((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Equal(0x1753AAu, measured[^1].Marker);
+        Assert.Equal(first, view.RenderedAt);
+        int beforeUnmeasuredChange = measured.Count;
+        view.RaiseEvent(new TextInputEventArgs { RoutedEvent = InputElement.TextInputEvent, Source = view, Text = "y" });
+        Assert.NotEqual((0x1753AAu, 0xE8AC55u), ReadMarker());
+        Assert.Equal(beforeUnmeasuredChange, measured.Count);
+        Assert.Contains("Anxyn", view.RowText(1));
     }
 
     [AvaloniaFact]
@@ -388,6 +734,73 @@ public class JsonPrettyViewTests : IDisposable
         Assert.Equal(Lines("  \"" + key + "Z\": 1,", ""), await Clip());
         Assert.Equal(CommandOutcome.Handled, Run("nks.json.copySource"));
         Assert.Equal("\"" + key + "Z\":1,", await Clip());
+    }
+
+    [AvaloniaTheory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task Arrows_select_and_replace_a_whole_supplementary_character_in_a_wrapped_key_or_value(bool key, bool backward)
+    {
+        string prefix = new('k', 6000);
+        string json = key ? "{\"" + prefix + "😀tail\":1}" : "{\"k\":\"" + prefix + "😀tail\"}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        long at = Encoding.UTF8.GetByteCount(json.AsSpan(0, json.IndexOf("😀", StringComparison.Ordinal)));
+        long start = backward ? at + 4 : at;
+        view.RevealOffset(start, start);
+        Assert.Equal(1, view.ExpandedLine);
+        Assert.Equal(start, view.SourceOffset);
+
+        Press(backward ? Key.Left : Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(backward ? at : at + 4, view.SourceOffset);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.copy"));
+        Assert.Equal("😀", await Clip());
+
+        TestApp.Type(_w, "Z");
+        string expected = json.Replace("😀", "Z", StringComparison.Ordinal);
+        Assert.Equal(expected, Text(tab));
+        Assert.Equal(at + 1, view.SourceOffset);
+        Assert.True(await _w.SaveAsync(tab));
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), File.ReadAllBytes(tab.Doc.Path!));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(json, Text(tab));
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_arrow_crossing_a_wrapped_key_row_selects_a_whole_supplementary_character(bool backward)
+    {
+        string json = "{\"" + string.Concat(Enumerable.Repeat("😀", 2000)) + "tail\":1}";
+        var tab = Open(json);
+        var view = Show();
+        Scan(view);
+        view.MoveCaret(1, 0);
+        Assert.True(view.ToggleExpand());
+        long at = view.Outline!.PartStart(view.Outline.GetLine(1)!.Value, 1, view.PartBytes);
+        if (backward)
+        {
+            view.MoveCaret(1, 0, part: 1);
+            Press(Key.Home);
+        }
+        else view.MoveCaret(1, int.MaxValue, part: 0);
+        Assert.Equal(backward ? 1 : 0, view.CaretPart);
+        Assert.Equal(at, view.SourceOffset);
+
+        Press(backward ? Key.Left : Key.Right, RawInputModifiers.Shift);
+        Assert.Equal(backward ? 0 : 1, view.CaretPart);
+        Assert.Equal(backward ? at - 4 : at + 4, view.SourceOffset);
+        Assert.Equal(CommandOutcome.Handled, Run("nks.edit.copy"));
+        Assert.Equal("😀", await Clip());
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
+        int from = checked((int)(backward ? at - 4 : at)), to = from + 4;
+        TestApp.Type(_w, "Z");
+        Assert.Equal(Encoding.UTF8.GetString([.. bytes[..from], (byte)'Z', .. bytes[to..]]), Text(tab));
+        Press(Key.Z, TestApp.Mod);
+        Assert.Equal(json, Text(tab));
     }
 
     [AvaloniaFact]
