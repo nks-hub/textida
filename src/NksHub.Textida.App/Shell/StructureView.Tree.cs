@@ -2,8 +2,6 @@ using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
@@ -18,13 +16,11 @@ internal sealed partial class StructureView
         public bool Grouped => ResultRange.HasValue && ResultRange.Value != Node.Range;
     }
     private sealed record ChildPage(IReadOnlyList<RowData> Rows, long After, bool Complete);
-    private sealed class Row(RowData data, TreeViewItem item, TextBlock marker, TextBlock heading, TextBlock value, Row? parent)
+    private sealed class Row(RowData data, TreeViewItem item, StructureRowHeader header, Row? parent)
     {
         public RowData Data { get; set; } = data;
         public TreeViewItem Item { get; } = item;
-        public TextBlock Marker { get; } = marker;
-        public TextBlock Heading { get; } = heading;
-        public TextBlock Value { get; } = value;
+        public StructureRowHeader Header { get; } = header;
         public Row? Parent { get; set; } = parent;
         public long Touched, RequestId;
         public bool Loaded, Loading;
@@ -58,13 +54,9 @@ internal sealed partial class StructureView
         if (!freeRows.TryPop(out var row))
         {
             var item = new TreeViewItem();
-            var marker = new TextBlock { Width = 14, VerticalAlignment = VerticalAlignment.Center };
-            var heading = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700 };
-            var value = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, MaxWidth = 700, FontSize = 11 };
-            var labels = new StackPanel(); labels.Children.Add(heading); labels.Children.Add(value);
-            var header = new StackPanel { Orientation = Orientation.Horizontal };
-            header.Children.Add(marker); header.Children.Add(labels); item.Header = header;
-            row = new(EmptyRow, item, marker, heading, value, null);
+            var header = new StructureRowHeader();
+            item.Header = header;
+            row = new(EmptyRow, item, header, null);
             item.PropertyChanged += (_, e) =>
             {
                 if (e.Property != TreeViewItem.IsExpandedProperty || !rows.ContainsKey(item)) return;
@@ -106,10 +98,9 @@ internal sealed partial class StructureView
         var node = row.Data.Node;
         string kind = Loc.Get(KindKey(node.Kind));
         string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + node.Ordinal.ToString(CultureInfo.CurrentCulture) + "]";
-        row.Heading.Text = name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
-        row.Value.Text = row.Data.Value;
-        row.Value.IsVisible = row.Data.Value.Length > 0;
-        AutomationProperties.SetName(row.Item, row.Heading.Text + " " + row.Data.Value);
+        string heading = name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
+        row.Header.SetText(heading, row.Data.Value);
+        AutomationProperties.SetName(row.Item, heading + " " + row.Data.Value);
     }
 
     private static TreeViewItem Placeholder() => new() { Header = Loc.Get(K.StructureLoading), IsEnabled = false };
@@ -167,13 +158,13 @@ internal sealed partial class StructureView
             {
                 row.Parent = null; row.Request = null; row.Data = EmptyRow;
                 row.Loaded = row.Loading = false; row.Touched = 0;
-                row.Marker.Text = "";
+                row.Header.SetCaret(false);
                 AutomationProperties.SetItemStatus(row.Item, "");
                 if (!reuse) continue;
                 row.Item.SetCurrentValue(TreeViewItem.IsSelectedProperty, false);
                 row.Item.SetCurrentValue(TreeViewItem.IsExpandedProperty, false);
                 row.Item.Tag = null;
-                row.Heading.Text = row.Value.Text = ""; row.Value.IsVisible = false;
+                row.Header.SetText("", "");
                 AutomationProperties.SetName(row.Item, "");
                 freeRows.Push(row);
             }

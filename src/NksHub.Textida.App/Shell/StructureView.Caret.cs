@@ -104,7 +104,7 @@ internal sealed partial class StructureView
 
     private void Mark(Row? row, bool revealParents)
     {
-        foreach (var marked in markedRows) { marked.Marker.Text = ""; AutomationProperties.SetItemStatus(marked.Item, ""); }
+        foreach (var marked in markedRows) { marked.Header.SetCaret(false); AutomationProperties.SetItemStatus(marked.Item, ""); }
         markedRows.Clear();
         if (row == null) return;
         Programmatic(() =>
@@ -117,7 +117,7 @@ internal sealed partial class StructureView
             }
             tree.SelectedItem = row.Item;
         });
-        row.Marker.Text = "●";
+        row.Header.SetCaret(true);
         AutomationProperties.SetItemStatus(row.Item, Loc.Get(K.StructureCaret));
         markedRows.Add(row);
     }

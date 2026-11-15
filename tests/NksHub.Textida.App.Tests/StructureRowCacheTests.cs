@@ -92,7 +92,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
     }
 
     [AvaloniaFact]
-    public async Task Rotating_32_branches_reuses_all_six_row_controls_and_keeps_exact_tags_parents_and_pages()
+    public async Task Rotating_32_branches_reuses_the_row_and_single_header_and_keeps_exact_tags_parents_and_pages()
     {
         string text = "[" + string.Join(',', Enumerable.Range(0, 32).Select(group => "["
             + string.Join(',', Enumerable.Range(0, 135).Select(i => group * 1000 + i)) + "]")) + "]";
@@ -113,7 +113,8 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
             {
                 var node = Node(leaf);
                 var controls = RowControls(leaf);
-                Assert.Equal(6, controls.Length);
+                Assert.Equal(2, controls.Length);
+                Assert.IsType<StructureRowHeader>(leaf.Header);
                 if (identities.TryGetValue(leaf, out var old) && old.Id != node.Id)
                 {
                     reused++;
