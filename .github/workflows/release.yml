@@ -230,7 +230,7 @@ jobs:
 
   release:
     needs: [clean-room, windows, macos, linux]
-    if: always() && github.ref_type == 'tag' && needs.clean-room.result == 'success' && needs.windows.result == 'success' && needs.macos.result == 'success' && needs.linux.result == 'success'
+    if: always() && github.event_name == 'push' && github.ref_type == 'tag' && needs.clean-room.result == 'success' && needs.windows.result == 'success' && needs.macos.result == 'success' && needs.linux.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
