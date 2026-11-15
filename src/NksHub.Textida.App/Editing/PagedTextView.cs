@@ -2023,20 +2023,6 @@ internal sealed partial class PagedTextView : Grid
         public double XOf(LineView view, int index) =>
             view.DisplayAt[index] == 0 ? 0 : Format(view.Display[..view.DisplayAt[index]], Brushes.Black).WidthIncludingTrailingWhitespace;
 
-        /// <summary>Character index (on a boundary) nearest to the horizontal position <paramref name="x"/> in the text.</summary>
-        public int IndexAtX(LineView view, double x)
-        {
-            int lo = 0, hi = view.Map.Text.Length;
-            while (lo < hi)
-            {
-                int mid = (lo + hi + 1) / 2;
-                if (XOf(view, mid) <= x) lo = mid; else hi = mid - 1;
-            }
-            if (lo < view.Map.Text.Length && XOf(view, lo + 1) - x < x - XOf(view, lo)) lo++;
-            while (lo > 0 && !view.Map.IsCharBoundary(lo)) lo--;
-            return lo;
-        }
-
         protected override Size MeasureOverride(Size availableSize)
         {
             var sample = Format("0", Brushes.Black);

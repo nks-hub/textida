@@ -171,6 +171,44 @@ public class PagedTouchTests : IDisposable
         Assert.Equal(0, _window.Active!.Doc.Doc.Revision);
     }
 
+    [AvaloniaTheory]
+    [InlineData(0.0, false)]
+    [InlineData(0.25, false)]
+    [InlineData(0.75, true)]
+    [InlineData(1.0, true)]
+    public async Task Pen_endpoint_around_emoji_after_a_tab_and_scroll_selects_whole_characters(double glyphFraction, bool includesEmoji)
+    {
+        _app.Workbench.Set("editor.fontFamily", JsonValue.Create("Consolas"));
+        _app.Workbench.Set("editor.fontSize", JsonValue.Create(20));
+        string[] rows = [.. Enumerable.Range(0, 100).Select(i => $"row{i:D6} alpha beta gamma\tměsto 😀 tail abcdefghijklmnopqrstuvwxyz\n")];
+        byte[] content = Encoding.UTF8.GetBytes(string.Concat(rows) + string.Concat(Enumerable.Repeat("padding row\n", 100_000)));
+        var view = await Open(content);
+        view.ReadOnlyReason = "read only";
+        Assert.True(view.GoToLine(11));
+        Draw();
+        Assert.Equal(10, view.TopLine);
+        long lineStart = Encoding.UTF8.GetByteCount(string.Concat(rows.Take(10)));
+        long start = lineStart + Encoding.UTF8.GetByteCount("row000010 alpha beta gamma\t");
+        long emojiStart = start + Encoding.UTF8.GetByteCount("město ");
+        long emojiEnd = emojiStart + Encoding.UTF8.GetByteCount("😀");
+        var left = PointAt(view, emojiStart);
+        var right = PointAt(view, emojiEnd);
+        Assert.True(right.X > left.X);
+        var endpoint = new Point(left.X + (right.X - left.X) * glyphFraction, left.Y);
+        var expected = new ByteRange(start, includesEmoji ? emojiEnd : emojiStart);
+        using var pen = new TouchTestInput(view.Children[0], _window, PointerType.Pen);
+        pen.Down(PointAt(view, start));
+        pen.Move(endpoint);
+        pen.Up(endpoint);
+        await Eventually(() => view.SelectionRange == expected);
+        string selected = includesEmoji ? "město 😀" : "město ";
+        Assert.Equal(selected, view.SelectedText());
+        var document = _window.Active!.Doc.Doc;
+        Assert.Equal(Encoding.UTF8.GetBytes(selected), document.ReadBytes(expected));
+        Assert.Equal(0, document.Revision);
+        Assert.Equal(content, document.ReadBytes(new ByteRange(0, document.ByteLength)));
+    }
+
     [AvaloniaFact]
     public async Task Far_touch_hit_test_yields_the_UI_thread_and_discards_a_changed_revision()
     {
