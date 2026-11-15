@@ -258,7 +258,16 @@ internal sealed partial class StructureView
             int needed = page.Rows.Count + additional;
             Row parent = MakeRoom(original, needed);
             ReserveRows(page.Rows.Count, additional);
-            foreach (var data in page.Rows) parent.Item.Items.Add(NewRow(data, parent).Item);
+            foreach (var data in page.Rows)
+            {
+                Row row;
+                long rowStarted = Core.TypingTrace.Begin();
+                try { row = NewRow(data, parent); }
+                finally { Core.TypingTrace.End("structure.row.prepare", rowStarted); }
+                rowStarted = Core.TypingTrace.Begin();
+                try { parent.Item.Items.Add(row.Item); }
+                finally { Core.TypingTrace.End("structure.row.attach", rowStarted); }
+            }
             if (pager)
             {
                 long version = parent.RequestId, nodeId = parent.Data.Node.Id, epoch = generation;

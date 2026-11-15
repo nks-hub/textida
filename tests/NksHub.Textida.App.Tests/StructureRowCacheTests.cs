@@ -86,6 +86,16 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
             Assert.Equal(32, pages);
             long allocatedUpper = checked(pages * (mean + 1));
             output.WriteLine($"installed-pages={pages}; rows-per-page=64; rounded-allocation-upper-bytes={allocatedUpper}; limit-bytes={64L << 20}");
+            foreach (string name in new[] { "structure.row.prepare", "structure.row.attach" })
+            {
+                var detail = Regex.Match(summary, @"(?m)^" + Regex.Escape(name) + @"\s+n=\s*(\d+)[^\r\n]*\balloc=(\d+)");
+                Assert.True(detail.Success, $"The {name} span was not recorded.");
+                int count = int.Parse(detail.Groups[1].Value, CultureInfo.InvariantCulture);
+                long rowMean = long.Parse(detail.Groups[2].Value, CultureInfo.InvariantCulture);
+                Assert.Equal(pages * StructureView.PageSize, count);
+                long rowAllocatedUpper = checked(count * (rowMean + 1));
+                output.WriteLine($"{name}; rows={count}; rounded-allocation-upper-bytes={rowAllocatedUpper}; share-of-install-percent={100.0 * rowAllocatedUpper / allocatedUpper:0.00}");
+            }
             Assert.InRange(allocatedUpper, 0, 64L << 20);
         }
         finally { TypingTrace.Enabled = tracing; TypingTrace.Reset(); }
