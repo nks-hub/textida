@@ -86,15 +86,15 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
             Assert.Equal(32, pages);
             long allocatedUpper = checked(pages * (mean + 1));
             output.WriteLine($"installed-pages={pages}; rows-per-page=64; rounded-allocation-upper-bytes={allocatedUpper}; limit-bytes={64L << 20}");
-            foreach (string name in new[] { "structure.row.prepare", "structure.row.attach" })
+            foreach (var (name, expectedCount) in new[] { ("structure.row.prepare", pages * StructureView.PageSize), ("structure.page.attach", pages) })
             {
                 var detail = Regex.Match(summary, @"(?m)^" + Regex.Escape(name) + @"\s+n=\s*(\d+)[^\r\n]*\balloc=(\d+)");
                 Assert.True(detail.Success, $"The {name} span was not recorded.");
                 int count = int.Parse(detail.Groups[1].Value, CultureInfo.InvariantCulture);
                 long rowMean = long.Parse(detail.Groups[2].Value, CultureInfo.InvariantCulture);
-                Assert.Equal(pages * StructureView.PageSize, count);
+                Assert.Equal(expectedCount, count);
                 long rowAllocatedUpper = checked(count * (rowMean + 1));
-                output.WriteLine($"{name}; rows={count}; rounded-allocation-upper-bytes={rowAllocatedUpper}; share-of-install-percent={100.0 * rowAllocatedUpper / allocatedUpper:0.00}");
+                output.WriteLine($"{name}; count={count}; rounded-allocation-upper-bytes={rowAllocatedUpper}; share-of-install-percent={100.0 * rowAllocatedUpper / allocatedUpper:0.00}");
             }
             Assert.InRange(allocatedUpper, 0, 64L << 20);
         }
@@ -113,12 +113,28 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         var branches = DataItems(array).ToArray();
         Assert.Equal(32, branches.Length);
         var identities = new Dictionary<TreeViewItem, (long Id, Control[] Controls)>();
+        var prepared = new List<(TreeViewItem Item, StructureNode Node, StyledElement? Parent)>();
+        foreach (var branch in branches)
+            branch.ContainerPrepared += (_, e) =>
+            {
+                if (e.Container is TreeViewItem item && item.Tag is StructureNode node)
+                    prepared.Add((item, node, item.Parent));
+            };
         int reused = 0;
         foreach (var branch in branches.Concat(branches))
         {
+            prepared.Clear();
             host.View.Tree.SelectedItem = branch;
             branch.IsExpanded = true; await host.Drain();
             Assert.Equal(Enumerable.Range(0, StructureView.PageSize).Select(i => (long)i), DataItems(branch).Select(item => Node(item).Ordinal));
+            Assert.Equal(StructureView.PageSize, prepared.Count);
+            Assert.Equal(DataItems(branch), prepared.Select(row => row.Item));
+            Assert.All(prepared, row =>
+            {
+                Assert.Same(branch, row.Parent);
+                Assert.Equal(Node(branch).Id, row.Node.ParentId);
+                Assert.Equal(row.Node, Node(row.Item));
+            });
             foreach (var leaf in DataItems(branch))
             {
                 var node = Node(leaf);

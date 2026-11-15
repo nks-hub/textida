@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Automation;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data.Structure;
@@ -258,16 +259,24 @@ internal sealed partial class StructureView
             int needed = page.Rows.Count + additional;
             Row parent = MakeRoom(original, needed);
             ReserveRows(page.Rows.Count, additional);
-            foreach (var data in page.Rows)
+            var items = new TreeViewItem[page.Rows.Count];
+            for (int i = 0; i < items.Length; i++)
             {
-                Row row;
                 long rowStarted = Core.TypingTrace.Begin();
-                try { row = NewRow(data, parent); }
+                try { items[i] = NewRow(page.Rows[i], parent).Item; }
                 finally { Core.TypingTrace.End("structure.row.prepare", rowStarted); }
-                rowStarted = Core.TypingTrace.Begin();
-                try { parent.Item.Items.Add(row.Item); }
-                finally { Core.TypingTrace.End("structure.row.attach", rowStarted); }
             }
+            long attachStarted = Core.TypingTrace.Begin();
+            try
+            {
+                if (items.Length > 0)
+                {
+                    parent.Item.Items.Add(items[0]);
+                    if (parent.Item.Items.Source is IAvaloniaList<object?> list) list.AddRange(items[1..]);
+                    else foreach (var item in items.Skip(1)) parent.Item.Items.Add(item);
+                }
+            }
+            finally { Core.TypingTrace.End("structure.page.attach", attachStarted); }
             if (pager)
             {
                 long version = parent.RequestId, nodeId = parent.Data.Node.Id, epoch = generation;
