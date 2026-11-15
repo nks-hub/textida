@@ -16,7 +16,7 @@ public partial class ViewOptionsTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Slow_frames_during_a_minimap_drag_keep_colors_deferred_until_release(bool paged)
+    public async Task Slow_frames_during_a_minimap_drag_keep_colors_deferred_until_release(bool paged)
     {
         var tab = Open("slow-drag.cs", KeywordFile(paged ? 100_000 : 5000), paged);
         var map = tab.Minimap!;
@@ -46,7 +46,7 @@ public partial class ViewOptionsTests
         while (clock.Elapsed < TimeSpan.FromSeconds(3)
             && (syntax.ViewportRuns == editorRuns || (!map.IsSampled && map.ColorRuns == mapRuns) || !EditorHasVisibleSyntaxColors(tab)))
         {
-            Thread.Sleep(15);
+            await Task.Delay(15);
             Dispatcher.UIThread.RunJobs();
         }
         Assert.True(syntax.ViewportRuns > editorRuns, "Editor colors did not resume after the drag.");
@@ -60,7 +60,7 @@ public partial class ViewOptionsTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Removing_the_minimap_during_a_drag_resumes_editor_colors(bool paged)
+    public async Task Removing_the_minimap_during_a_drag_resumes_editor_colors(bool paged)
     {
         var tab = Open("removed-map.cs", KeywordFile(paged ? 100_000 : 5000), paged);
         var map = tab.Minimap!;
@@ -82,7 +82,7 @@ public partial class ViewOptionsTests
             var clock = Stopwatch.StartNew();
             while ((syntax.ViewportRuns == runs || !EditorHasVisibleSyntaxColors(tab)) && clock.Elapsed < TimeSpan.FromSeconds(3))
             {
-                Thread.Sleep(15);
+                await Task.Delay(15);
                 Dispatcher.UIThread.RunJobs();
             }
             Assert.True(syntax.ViewportRuns > runs, "Removing the minimap left the editor colors deferred.");

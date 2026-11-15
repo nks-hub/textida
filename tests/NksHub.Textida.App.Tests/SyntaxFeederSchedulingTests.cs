@@ -11,6 +11,42 @@ namespace NksHub.Textida.App.Tests;
 public class SyntaxFeederSchedulingTests
 {
     [AvaloniaFact]
+    public async Task Ending_a_drag_applies_the_latest_viewport_without_another_scroll()
+    {
+        var text = string.Concat(Enumerable.Range(0, 40).Select(line => $"const value{line} = 1;\n"));
+        using var document = OpenDocument.FromSource(Encoding.UTF8.GetBytes(text), "drag.js");
+        var applied = new List<SyntaxViewport>();
+        using var feeder = new SyntaxFeeder(document, applied.Add, () => { }, _ => null, () => -1, () => { });
+        feeder.SetVisible(1, 1, 0, 80);
+        Assert.NotEmpty(applied);
+        applied.Clear();
+        int runs = feeder.ViewportRuns;
+
+        feeder.IsDragging = true;
+        feeder.SetVisible(20, 20, 0, 80);
+        feeder.SetVisible(30, 30, 0, 80);
+        await Task.Delay(20);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(runs, feeder.ViewportRuns);
+        Assert.Empty(applied);
+
+        feeder.IsDragging = false;
+        var clock = Stopwatch.StartNew();
+        while (applied.Count == 0 && clock.Elapsed < TimeSpan.FromSeconds(3))
+        {
+            await Task.Delay(5);
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        var result = Assert.Single(applied);
+        Assert.True(result.IsComplete);
+        Assert.Equal(document.Doc.Id, result.DocumentId);
+        Assert.Equal(document.Doc.Revision, result.Revision);
+        Assert.Contains(Assert.Single(result.Lines, line => line.Line == 30).Tokens, token => token.Kind == "keyword");
+        Assert.DoesNotContain(result.Lines, line => line.Line == 20);
+    }
+
+    [AvaloniaFact]
     public async Task Pending_syntax_leaves_idle_work_runnable_and_delivers_the_latest_viewport()
     {
         using var document = PendingDocument();
