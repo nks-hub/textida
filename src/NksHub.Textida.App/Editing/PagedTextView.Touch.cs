@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using NksHub.Textida.Core.Documents;
 
 namespace NksHub.Textida.App.Editing;
@@ -14,7 +15,10 @@ internal sealed partial class PagedTextView
             () => new TouchRange(HasSelection ? _anchor : _caret, _caret), SelectTouch, ScrollTouch, TouchCaretRect);
         ViewChanged += _touchInput.Refresh;
         _hBar.ValueChanged += (_, _) => _touchInput.Refresh();
+        AddHandler(KeyDownEvent, CancelTouchKey, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
+
+    private void CancelTouchKey(object? sender, KeyEventArgs e) => _touchInput.Cancel();
 
     internal async Task<long?> HitTestTouchAsync(Point point, CancellationToken token)
     {

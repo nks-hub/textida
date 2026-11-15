@@ -190,4 +190,49 @@ public class PagedTouchTests : IDisposable
         Assert.Equal(before, view.CaretOffset);
         Assert.False(view.HasSelection);
     }
+
+    [AvaloniaTheory]
+    [InlineData(Key.Right)]
+    [InlineData(Key.Escape)]
+    public async Task Keyboard_input_on_the_focused_owner_cancels_a_pending_pen_hit_test(Key key)
+    {
+        byte[] content = Encoding.UTF8.GetBytes(new string('a', 1_200_000) + "\nnext\n");
+        var view = await Open(content);
+        view.SelectBytes(2, 6);
+        view.ScrollToColumn(900_000);
+        view.FarMoveBytes = 1;
+        using var gate = new ManualResetEventSlim();
+        using var started = new ManualResetEventSlim();
+        var returned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken hitToken = default;
+        view.FarMoveHook = token =>
+        {
+            hitToken = token;
+            started.Set();
+            try { gate.Wait(TimeSpan.FromSeconds(5)); }
+            finally { returned.TrySetResult(); }
+        };
+        using var pen = new TouchTestInput(view.Children[0], _window, PointerType.Pen);
+        pen.Down(new Point(400, 8));
+        var expected = key == Key.Right ? new ByteRange(6, 6) : new ByteRange(2, 6);
+        try
+        {
+            Assert.True(started.Wait(TimeSpan.FromSeconds(5)));
+            Assert.True(view.IsFocused);
+            Assert.False(hitToken.IsCancellationRequested);
+            TestApp.Press(_window, key);
+            Assert.True(hitToken.IsCancellationRequested);
+            Assert.Equal(expected, view.SelectionRange);
+            pen.Up(new Point(400, 8));
+        }
+        finally { gate.Set(); }
+        await returned.Task;
+        await Task.Yield();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(expected, view.SelectionRange);
+        Assert.Equal(6, view.CaretOffset);
+        var document = _window.Active!.Doc.Doc;
+        Assert.Equal(0, document.Revision);
+        Assert.Equal(content, document.ReadBytes(new ByteRange(0, document.ByteLength)));
+    }
 }
