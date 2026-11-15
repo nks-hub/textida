@@ -1,6 +1,6 @@
 # Textida – úkoly
 
-Stav 1. 11. 2026. Úkoly vycházejí z interního plánu, zadání a měření, které v repozitáři nejsou; tady je jen jejich výsledek: etapy, celky, úkoly, kritéria dokončení a odhady.
+Priorita 15. 11. 2026: připravit další vydání. Kandidát 0.1.8-rc.1 ze zdroje d8e9b7d8 prošel CI pro pět RID, instalačním ověřením a testy syntetického vstupu Windows; fyzický dotyk a telefonní RDP nejsou ověřené. Strom JSON/XML se dokončuje souběžně a testování na sdíleném Macu je odložené. Úkoly vycházejí z interního plánu, zadání a měření, které v repozitáři nejsou; tady je jen jejich výsledek: etapy, celky, úkoly, kritéria dokončení a odhady.
 
 Jak číst položku:
 - ID má tvar `etapa.celek.úkol` a nemění se. `PR` jsou průběžné úkoly, `PZ` úkoly po verzi 1.0. Nové úkoly dostávají další volné číslo v celku, proto pořadí v textu nemusí odpovídat číslům.
