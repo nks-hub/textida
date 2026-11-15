@@ -2,6 +2,17 @@
 
 Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular release. Packages are signed ad hoc on macOS and carry no Authenticode signature on Windows.
 
+## [Unreleased]
+
+### Added
+
+- Touch input in the text editor and the large-file editor: drag to scroll, hold to select a word, and drag the selection handles to change the range.
+- Pen input selects text by dragging. Keyboard input cancels a pending touch gesture; holding the text does not open the context menu.
+
+### Validation
+
+Touch and pen input has been checked with Windows-generated pointer events. Physical touchscreens, pens and mobile RDP clients have not been checked.
+
 ## [0.1.7] - 2026-11-07
 
 ### Added
