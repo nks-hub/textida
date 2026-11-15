@@ -46,7 +46,7 @@
   "structure.kind.JsonString": "Zeichenfolge",
   "structure.kind.JsonNumber": "Zahl",
   "structure.kind.JsonBoolean": "Boolescher Wert",
-  "structure.kind.JsonNull": "Null",
+  "structure.kind.JsonNull": "Nullwert",
   "structure.kind.XmlElement": "Element",
   "structure.kind.XmlAttribute": "Attribut",
   "structure.kind.XmlNamespace": "Namensraum",

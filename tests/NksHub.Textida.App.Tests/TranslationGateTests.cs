@@ -97,6 +97,12 @@ public class TranslationGateTests
         ["update.title"] = "de",
         ["viewmode.text"] = "cs sk de",
         ["viewmode.hex"] = "cs sk de",
+        ["structure.scope.name"] = "de",
+        ["structure.scope.queryJson"] = "cs sk de",
+        ["structure.scope.queryXml"] = "cs sk de",
+        ["structure.kind.JsonArray"] = "de",
+        ["structure.kind.XmlText"] = "cs sk de",
+        ["structure.kind.XmlCData"] = "cs sk de",
         ["commit.title"] = "cs sk de", // Commit is the word of Git in each of them
         ["commit.commit"] = "cs sk de",
         ["panel.commit.name"] = "cs sk de",
