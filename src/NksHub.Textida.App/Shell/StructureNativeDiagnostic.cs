@@ -146,7 +146,6 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
             if (initial.Expanded == (arm.Action == "expand")) throw new InvalidOperationException("The target already has the requested expansion state.");
         }
         if (arm.Action == "scroll" && Scroller() is null) throw new InvalidOperationException("The tree has no scroll viewport.");
-        visible = null;
         pending = new(arm, target, initial, Points(), lastInspectionNonce);
         if (Core.TypingTrace.Enabled)
         {
@@ -154,7 +153,6 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
             Core.TypingTrace.Reset();
             pending.TypingTraceWindowBeginQpc = Stopwatch.GetTimestamp();
         }
-        markerControl!.InvalidateVisual();
         return pending;
     }
 
