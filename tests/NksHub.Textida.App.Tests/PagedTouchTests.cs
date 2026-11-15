@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Nodes;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
@@ -124,6 +125,32 @@ public class PagedTouchTests : IDisposable
         finger.Up(point);
         Assert.Equal(new ByteRange(7, 17), view.SelectionRange);
         Assert.Equal(0, _window.Active!.Doc.Doc.Revision);
+    }
+
+    [AvaloniaFact]
+    public async Task Holding_selects_word_without_opening_context_menu_and_right_click_still_opens_it()
+    {
+        var view = await Open(Rows("before alpha_beta after"));
+        var menu = new ContextMenu { Items = { new MenuItem { Header = "Copy" } } };
+        view.ContextMenu = menu;
+        var canvas = view.Children[0];
+        using var finger = new TouchTestInput(canvas, _window, PointerType.Touch);
+        var point = PointAt(view, 12);
+        finger.Down(point);
+        await Task.Delay(Application.Current!.PlatformSettings?.HoldWaitDuration ?? TimeSpan.FromMilliseconds(500));
+        Dispatcher.UIThread.RunJobs();
+        await Eventually(() => view.SelectedText() == "alpha_beta");
+        await Task.Delay(TimeSpan.FromMilliseconds(200));
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(menu.IsOpen);
+        finger.Up(point);
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(menu.IsOpen);
+        var windowPoint = canvas.TranslatePoint(point, _window)!.Value;
+        _window.MouseDown(windowPoint, MouseButton.Right);
+        _window.MouseUp(windowPoint, MouseButton.Right);
+        await Eventually(() => menu.IsOpen);
+        menu.Close();
     }
 
     [AvaloniaFact]
