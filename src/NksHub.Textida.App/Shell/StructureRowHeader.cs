@@ -100,14 +100,22 @@ internal sealed class StructureRowHeader : Control
         if (value.Length > 0) valueLayout = CreateLayout(value, 11, width, TextTrimming.CharacterEllipsis);
     }
 
-    private TextLayout CreateLayout(string text, double size, double width, TextTrimming trimming) => new(text,
-        new Typeface(TextElement.GetFontFamily(this), TextElement.GetFontStyle(this),
-            TextElement.GetFontWeight(this), TextElement.GetFontStretch(this)),
-        size, TextElement.GetForeground(this), TextBlock.GetTextAlignment(this), TextWrapping.NoWrap,
-        trimming, GetValue(TextBlock.TextDecorationsProperty), FlowDirection,
-        maxWidth: width, lineHeight: TextBlock.GetLineHeight(this),
-        letterSpacing: GetValue(TextElement.LetterSpacingProperty), maxLines: GetValue(TextBlock.MaxLinesProperty),
-        fontFeatures: GetValue(TextElement.FontFeaturesProperty));
+    private TextLayout CreateLayout(string text, double size, double width, TextTrimming trimming)
+    {
+        long started = Core.TypingTrace.Begin();
+        try
+        {
+            return new(text,
+                new Typeface(TextElement.GetFontFamily(this), TextElement.GetFontStyle(this),
+                    TextElement.GetFontWeight(this), TextElement.GetFontStretch(this)),
+                size, TextElement.GetForeground(this), TextBlock.GetTextAlignment(this), TextWrapping.NoWrap,
+                trimming, GetValue(TextBlock.TextDecorationsProperty), FlowDirection,
+                maxWidth: width, lineHeight: TextBlock.GetLineHeight(this),
+                letterSpacing: GetValue(TextElement.LetterSpacingProperty), maxLines: GetValue(TextBlock.MaxLinesProperty),
+                fontFeatures: GetValue(TextElement.FontFeaturesProperty));
+        }
+        finally { Core.TypingTrace.End("structure.header.layout", started); }
+    }
 
     private void DisposeLayouts()
     {
