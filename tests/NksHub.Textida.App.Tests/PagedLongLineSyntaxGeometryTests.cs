@@ -75,7 +75,7 @@ public sealed partial class PagedLongLineFormattingTests
         host.Tokens(original);
         host.Paged.SelectBytes(0, Encoding.UTF8.GetByteCount(prefix));
         host.Draw();
-        if (sample.Contains('\0')) Assert.Contains('\0', host.Paged.DisplayOf(0));
+        if (sample.Contains('\0')) Assert.Contains('\0', Assert.IsType<string>(host.Paged.DisplayOf(0)));
         object? geometry = host.Geometry(), entry = host.Entry();
         Assert.NotNull(geometry);
         var caret = SyntaxCaret(host).CursorRectangle;
