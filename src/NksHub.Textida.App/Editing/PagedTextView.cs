@@ -324,6 +324,7 @@ internal sealed partial class PagedTextView : Grid
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        _canvas.ReleaseLineGeometry();
         Doc.Changed -= OnDocChanged;
         _doc.Edited -= KeepUntouchedLines;
         _doc.Bookmarks.Changed -= RepaintBookmarks;
@@ -2001,9 +2002,6 @@ internal sealed partial class PagedTextView : Grid
             if (lo < w.Text.Length && WindowX(w.Text, lo + 1) - local < local - WindowX(w.Text, lo)) lo++;
             return w.Column + lo;
         }
-
-        public double XOf(LineView view, int index) =>
-            view.DisplayAt[index] == 0 ? 0 : Format(view.Display[..view.DisplayAt[index]], Brushes.Black).WidthIncludingTrailingWhitespace;
 
         protected override Size MeasureOverride(Size availableSize)
         {

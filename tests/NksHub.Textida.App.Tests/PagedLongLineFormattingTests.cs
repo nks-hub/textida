@@ -239,6 +239,12 @@ public sealed partial class PagedLongLineFormattingTests(ITestOutputHelper outpu
             return canvas.GetType().GetField("formattedLine", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(canvas);
         }
 
+        public object? Geometry()
+        {
+            object canvas = Field("_canvas")!;
+            return canvas.GetType().GetField("lineGeometry", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(canvas);
+        }
+
         public object CacheProbe(object? previous, int draw)
         {
             var canvas = (Control)Field("_canvas")!;

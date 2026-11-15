@@ -12,7 +12,7 @@ public sealed partial class PagedLongLineFormattingTests
     [AvaloniaTheory]
     [InlineData(900)]
     [InlineData(3800)]
-    public async Task Returning_from_a_tail_window_keeps_the_selection_end_and_requests_different_prefix_tokens(int width)
+    public async Task Returning_from_a_tail_window_recolors_the_prefix_without_reshaping_or_moving_its_selection(int width)
     {
         string rows = string.Join(',', Enumerable.Range(0, 500));
         string branch = string.Join(',', Enumerable.Range(0, 2048));
@@ -32,6 +32,8 @@ public sealed partial class PagedLongLineFormattingTests
         var before = host.Paged.TokensOf(0)!.ToArray();
         object? prefixEntry = host.Entry();
         Assert.NotNull(prefixEntry);
+        object? prefixGeometry = host.Geometry();
+        Assert.NotNull(prefixGeometry);
         Assert.NotEmpty(before);
         Assert.Equal(0, beforeRequest.Column);
         Assert.True(beforeRequest.Columns > 11091);
@@ -43,6 +45,7 @@ public sealed partial class PagedLongLineFormattingTests
         Assert.Equal(new ByteRange(75093, 84235), host.Paged.SelectionRange);
         Assert.Equal(1, host.Paged.CaptureReadiness(document, backend).WindowRows);
         Assert.Same(prefixEntry, host.Entry());
+        Assert.Same(prefixGeometry, host.Geometry());
 
         host.Paged.SelectBytes(41, 1939);
         await Settled();
@@ -57,7 +60,7 @@ public sealed partial class PagedLongLineFormattingTests
         Assert.Equal(0, afterRequest.Column);
         Assert.True(afterRequest.Columns < beforeRequest.Columns);
         Assert.False(before.AsSpan().SequenceEqual(after));
-        Assert.NotSame(prefixEntry, host.Entry());
+        Assert.Same(prefixGeometry, host.Geometry());
         output.WriteLine(JsonSerializer.Serialize(new
         {
             width,
