@@ -87,6 +87,7 @@ internal sealed partial class EditorSurface
 
     private void OnCoreChangedCore(NksHub.Textida.Core.Documents.DocumentChangedEventArgs e)
     {
+        touch?.Cancel();
         _stamp++;
         _occ?.Touch();
         EndComposition();
@@ -101,6 +102,7 @@ internal sealed partial class EditorSurface
     /// <summary>Releases what the surface holds on the document; called when its tab closes.</summary>
     public void Detach()
     {
+        ReleaseTouch();
         EndSnippet();
         Doc.LanguageChanged -= ApplyLogLevels;
         Doc.LogLevelsChanged -= ApplyLogLevels;
@@ -715,6 +717,7 @@ internal sealed partial class EditorSurface
 
     private void OnPointerPressedTunnel(object? sender, PointerPressedEventArgs e)
     {
+        if (e.Pointer.Type != PointerType.Mouse) return;
         if (!e.GetCurrentPoint(TextArea).Properties.IsLeftButtonPressed || BlockMode) return;
         _preAlt = null;
         bool alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt) && !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Meta) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -740,6 +743,7 @@ internal sealed partial class EditorSurface
 
     private void OnPointerReleasedAfter(object? sender, PointerReleasedEventArgs e)
     {
+        if (e.Pointer.Type != PointerType.Mouse) return;
         if (_preAlt is not { } before) return;
         _preAlt = null;
         var point = e.GetPosition(TextArea);

@@ -82,6 +82,7 @@ internal sealed partial class EditorSurface : TextEditor
         AddHandler(KeyDownEvent, OnKeyDownTunnel, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         ActualThemeVariantChanged += (_, _) => ApplyTheme();
         InitViewOptions();
+        InitTouch();
         InitCarets();
         InitIme();
         InitSecrets();
@@ -156,6 +157,7 @@ internal sealed partial class EditorSurface : TextEditor
 
     public void BindDocument()
     {
+        touch?.Cancel();
         EndSnippet();
         TextArea.ClearSelection();
         ClearFolds();
