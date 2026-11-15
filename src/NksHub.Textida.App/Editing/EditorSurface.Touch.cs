@@ -45,7 +45,9 @@ internal sealed partial class EditorSurface
         token.ThrowIfCancellationRequested();
         var view = TextArea.TextView;
         view.EnsureVisualLines();
-        long? result = view.GetPosition(point + view.ScrollOffset) is { } position
+        var visual = point + view.ScrollOffset;
+        visual = visual.WithY(Math.Clamp(visual.Y, 0, Math.Max(0, Math.BitDecrement(view.DocumentHeight))));
+        long? result = view.GetPosition(visual) is { } position
             ? Document.GetOffset(position.Location) : null;
         return Task.FromResult(result);
     }

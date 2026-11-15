@@ -101,6 +101,30 @@ public class EditorTouchTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Tapping_below_the_last_line_places_caret_at_its_end()
+    {
+        var editor = Open("first\nlast");
+        using var finger = new TouchTestInput(editor.TextArea.TextView, window, PointerType.Touch);
+        var blank = new Point(500, 250);
+        finger.Down(blank);
+        finger.Up(blank);
+        await Eventually(() => editor.CaretOffset == editor.Document.TextLength);
+        Assert.Equal(0, editor.SelectionLength);
+    }
+
+    [AvaloniaFact]
+    public async Task Pen_drag_into_blank_space_extends_selection_through_last_line()
+    {
+        var editor = Open("first\nlast");
+        using var pen = new TouchTestInput(editor.TextArea.TextView, window, PointerType.Pen);
+        pen.Down(At(editor, 2));
+        pen.Move(new Point(500, 250));
+        pen.Up(new Point(500, 250));
+        await Eventually(() => editor.SelectedText == "rst\nlast");
+        Assert.Equal(editor.Document.TextLength, editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
     public async Task Hold_selects_word_and_handles_adjust_both_ends_in_read_only_text()
     {
         var editor = Open("before alpha_beta after");
