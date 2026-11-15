@@ -111,11 +111,27 @@ internal sealed class StructureRowHeader : Control
     private void EnsureLayout(double width)
     {
         double scale = LayoutHelper.GetLayoutScale(this);
-        if (headingLayout is not null && width == layoutWidth && scale == layoutScale) return;
+        if (headingLayout is not null && scale == layoutScale
+            && (width == layoutWidth || CanUseNaturalLayout(width))) return;
         DisposeLayouts();
         layoutWidth = width; layoutScale = scale;
         headingLayout = CreateLayout(heading, TextElement.GetFontSize(this), width, TextTrimming.CharacterEllipsis);
         if (value.Length > 0) valueLayout = CreateLayout(value, 11, width, TextTrimming.CharacterEllipsis);
+    }
+
+    private bool CanUseNaturalLayout(double width)
+        => layoutWidth == MaximumTextWidth && width <= MaximumTextWidth
+            && FlowDirection == FlowDirection.LeftToRight
+            && TextBlock.GetTextAlignment(this) is TextAlignment.Start or TextAlignment.Left
+            && FitsNaturalLine(headingLayout!, heading, width)
+            && (valueLayout is null || FitsNaturalLine(valueLayout, value, width));
+
+    private static bool FitsNaturalLine(TextLayout layout, string text, double width)
+    {
+        if (layout.TextLines.Count != 1) return false;
+        var line = layout.TextLines[0];
+        return !line.HasCollapsed && !line.HasOverflowed && line.Start == 0
+            && line.Length == text.Length && line.WidthIncludingTrailingWhitespace <= width;
     }
 
     private TextLayout GetMarkerLayout(double width)
