@@ -13,14 +13,14 @@ internal sealed partial class PagedTextView
 {
     private sealed partial class LinesSurface
     {
-        private readonly record struct GeometryKey(LineView View, long Revision, string Family, double Size, CultureInfo Culture,
+        private readonly record struct GeometryKey(string Text, long Revision, string Family, double Size, CultureInfo Culture,
             bool SecretsHidden, bool SecretsRevealed);
         private readonly record struct FontSpan(int Start, int Length, TokenStyle Style);
         private LineGeometry? lineGeometry;
 
         private LineGeometry GeometryOf(LineFormatKey key, string shown, Token[]? tokens, SyntaxPalette palette)
         {
-            var geometryKey = new GeometryKey(key.View, key.Revision, key.Family, key.FontSize, key.Culture,
+            var geometryKey = new GeometryKey(shown, key.Revision, key.Family, key.FontSize, key.Culture,
                 key.SecretsHidden, key.SecretsRevealed);
             var spans = FontSpans(key.View, tokens, palette);
             if (lineGeometry is { } cached && cached.Key == geometryKey
