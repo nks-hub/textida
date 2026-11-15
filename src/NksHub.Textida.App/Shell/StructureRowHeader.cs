@@ -12,8 +12,10 @@ internal sealed class StructureRowHeader : Control
     private const double MarkerWidth = 14;
     private const double MaximumTextWidth = 700;
     private string heading = "", value = "";
-    private bool caret;
-    private double layoutWidth = double.NaN;
+    private bool caret, measured;
+    private Size naturalHeadingSize, naturalValueSize;
+    private double layoutWidth = double.NaN, layoutScale = double.NaN;
+    private double markerLayoutWidth = double.NaN, markerLayoutScale = double.NaN;
     private double textWidth;
     private TextLayout? headingLayout, valueLayout, markerLayout;
 
@@ -38,23 +40,20 @@ internal sealed class StructureRowHeader : Control
     {
         if (caret == marked) return;
         caret = marked;
-        markerLayout?.Dispose(); markerLayout = null;
+        DisposeMarkerLayout();
         InvalidateMeasure(); InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        EnsureLayout(MaximumTextWidth);
-        var title = SizeOf(headingLayout!);
-        var preview = valueLayout is null ? default : SizeOf(valueLayout);
-        if (caret) markerLayout ??= CreateLayout("●", TextElement.GetFontSize(this), MarkerColumn, TextTrimming.None);
-        double markerHeight = markerLayout is null ? 0 : SizeOf(markerLayout).Height;
-        textWidth = Math.Max(title.Width, preview.Width);
+        var (title, preview) = MeasureText();
+        double markerHeight = caret ? SizeOf(GetMarkerLayout(MarkerColumn)).Height : 0;
         return new(MarkerColumn + textWidth, Math.Max(markerHeight, title.Height + preview.Height));
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        MeasureText();
         EnsureLayout(Math.Max(1, textWidth));
         return finalSize;
     }
@@ -63,6 +62,7 @@ internal sealed class StructureRowHeader : Control
     {
         base.Render(context);
         double markerWidth = MarkerColumn;
+        MeasureText();
         EnsureLayout(Math.Max(1, textWidth));
         context.DrawRectangle(Brushes.Transparent, null, new Rect(Bounds.Size));
         bool rightToLeft = FlowDirection == FlowDirection.RightToLeft;
@@ -73,10 +73,10 @@ internal sealed class StructureRowHeader : Control
             Draw(context, valueLayout, new(textX, titleHeight, textWidth, SizeOf(valueLayout).Height));
         if (caret)
         {
-            markerLayout ??= CreateLayout("●", TextElement.GetFontSize(this), markerWidth, TextTrimming.None);
+            var marker = GetMarkerLayout(markerWidth);
             double markerX = rightToLeft ? Math.Max(0, Bounds.Width - markerWidth) : 0;
-            Draw(context, markerLayout, new(markerX, (Bounds.Height - SizeOf(markerLayout).Height) / 2,
-                markerWidth, SizeOf(markerLayout).Height));
+            Draw(context, marker, new(markerX, (Bounds.Height - SizeOf(marker).Height) / 2,
+                markerWidth, SizeOf(marker).Height));
         }
     }
 
@@ -85,19 +85,49 @@ internal sealed class StructureRowHeader : Control
         using (context.PushClip(bounds)) layout.Draw(context, bounds.TopLeft);
     }
 
-    private Size SizeOf(TextLayout layout)
+    private (Size Heading, Size Value) MeasureText()
     {
-        var size = new Size(Math.Min(MaximumTextWidth, layout.WidthIncludingTrailingWhitespace), layout.Height);
-        return UseLayoutRounding ? LayoutHelper.RoundLayoutSizeUp(size, LayoutHelper.GetLayoutScale(this)) : size;
+        if (!measured)
+        {
+            EnsureLayout(MaximumTextWidth);
+            naturalHeadingSize = RawSizeOf(headingLayout!);
+            naturalValueSize = valueLayout is null ? default : RawSizeOf(valueLayout);
+            measured = true;
+        }
+        var title = RoundSize(naturalHeadingSize);
+        var preview = RoundSize(naturalValueSize);
+        textWidth = Math.Max(title.Width, preview.Width);
+        return (title, preview);
     }
+
+    private static Size RawSizeOf(TextLayout layout)
+        => new(Math.Min(MaximumTextWidth, layout.WidthIncludingTrailingWhitespace), layout.Height);
+
+    private Size RoundSize(Size size)
+        => UseLayoutRounding ? LayoutHelper.RoundLayoutSizeUp(size, LayoutHelper.GetLayoutScale(this)) : size;
+
+    private Size SizeOf(TextLayout layout) => RoundSize(RawSizeOf(layout));
 
     private void EnsureLayout(double width)
     {
-        if (headingLayout is not null && width == layoutWidth) return;
+        double scale = LayoutHelper.GetLayoutScale(this);
+        if (headingLayout is not null && width == layoutWidth && scale == layoutScale) return;
         DisposeLayouts();
-        layoutWidth = width;
+        layoutWidth = width; layoutScale = scale;
         headingLayout = CreateLayout(heading, TextElement.GetFontSize(this), width, TextTrimming.CharacterEllipsis);
         if (value.Length > 0) valueLayout = CreateLayout(value, 11, width, TextTrimming.CharacterEllipsis);
+    }
+
+    private TextLayout GetMarkerLayout(double width)
+    {
+        double scale = LayoutHelper.GetLayoutScale(this);
+        if (markerLayout is null || width != markerLayoutWidth || scale != markerLayoutScale)
+        {
+            DisposeMarkerLayout();
+            markerLayout = CreateLayout("●", TextElement.GetFontSize(this), width, TextTrimming.None);
+            markerLayoutWidth = width; markerLayoutScale = scale;
+        }
+        return markerLayout;
     }
 
     private TextLayout CreateLayout(string text, double size, double width, TextTrimming trimming)
@@ -121,25 +151,27 @@ internal sealed class StructureRowHeader : Control
     {
         headingLayout?.Dispose(); headingLayout = null;
         valueLayout?.Dispose(); valueLayout = null;
+        DisposeMarkerLayout();
+        layoutWidth = layoutScale = double.NaN;
+    }
+
+    private void DisposeMarkerLayout()
+    {
         markerLayout?.Dispose(); markerLayout = null;
-        layoutWidth = double.NaN;
+        markerLayoutWidth = markerLayoutScale = double.NaN;
     }
 
     private void InvalidateText()
     {
+        measured = false;
         DisposeLayouts();
         InvalidateMeasure(); InvalidateVisual();
-    }
-
-    protected override void OnMeasureInvalidated()
-    {
-        DisposeLayouts();
-        base.OnMeasureInvalidated();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        measured = false;
         DisposeLayouts();
     }
 
