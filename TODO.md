@@ -1,6 +1,6 @@
 # Textida – úkoly
 
-Priorita 15. 11. 2026: připravit další vydání. Kandidát 0.1.8-rc.1 ze zdroje d8e9b7d8 prošel CI pro pět RID, instalačním ověřením a testy syntetického vstupu Windows; fyzický dotyk a telefonní RDP nejsou ověřené. Strom JSON/XML se dokončuje souběžně a testování na sdíleném Macu je odložené. Úkoly vycházejí z interního plánu, zadání a měření, které v repozitáři nejsou; tady je jen jejich výsledek: etapy, celky, úkoly, kritéria dokončení a odhady.
+Priorita 15. 11. 2026: připravit vydání 0.1.8 se stromem JSON/XML a dotykovým ovládáním. Společný kandidát 0.1.8-rc.2 prošel CI pro pět platforem a sedmi klikacími scénáři stromu, ale nesplnil paměťový limit ani limit odezvy. Oprava zbytečné tvorby řádků už prošla 154 testy na Windows VM; její měření v novém balíku ještě chybí. Fyzický dotyk a telefonní RDP nejsou ověřené, sdílený Mac je odložený. Úkoly vycházejí z interního plánu, zadání a měření, které v repozitáři nejsou; tady je jen jejich výsledek: etapy, celky, úkoly, kritéria dokončení a odhady.
 
 Jak číst položku:
 - ID má tvar `etapa.celek.úkol` a nemění se. `PR` jsou průběžné úkoly, `PZ` úkoly po verzi 1.0. Nové úkoly dostávají další volné číslo v celku, proto pořadí v textu nemusí odpovídat číslům.
@@ -2105,7 +2105,7 @@ Odhad etapy 21,5–35,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** 2–4 ČT, schváleno majitelem 13. 11. 2026 podle PR.8.2; rozpočet P4 zvýšen z 19,5–31,5 na 21,5–35,5 ČT.
   - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
   - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; k uzavření jsou nutná všechna uvedená měření.
-  - **Stav 15. 11. 2026:** Čtečky, dotazy, úpravy hodnot a propojený panel jsou implementované. Na Windows VM prošlo na c230d4ca 159 testů aplikace a na f73ce615 12 měření jádra včetně souborů 1 GiB, paměti a zrušení. Na 37e02fd2 prošlo v nativní aplikaci všech sedm malých scénářů: JSON, JSONC, UTF-16, XML se jmennými prostory, odmítnutí chybné syntaxe a DTD i zrušení běžícího rozboru; výběr, kopírování, dotazy, úpravy, jedno Zpět a režim jen pro čtení mají skutečné důkazy. Plná měření paměti celého panelu, osmi sérií odezvy a tvrdého limitu zrušení ještě neprošla; položka zůstává otevřená.
+  - **Stav 15. 11. 2026:** Čtečky, dotazy, úpravy hodnot a propojený panel jsou implementované. V distribuovaném kandidátu 0.1.8-rc.2 ze zdroje 8ce09fc0 prošlo na Windows všech sedm malých scénářů: JSON, JSONC, UTF-16, XML se jmennými prostory, odmítnutí chybné syntaxe a DTD i zrušení běžícího rozboru. U souboru JSON 1 GiB ale panel přidal 68,86 MiB paměti a odezva vstup → obraz měla p95 65–167 ms; limity 64 MiB a 33 ms nesplnil. Následná oprava zachovává řádky za sbalenou větví a na revizi 71c9ebe5 prošla 154 testy stromu, dotyku a stránkovaného editoru. Velká měření nové opravy, zbývající čtyři série XML a tvrdý limit zrušení 100 ms ještě chybějí; položka zůstává otevřená.
 
 ### P4.7 Zvýrazňovače jako data
 

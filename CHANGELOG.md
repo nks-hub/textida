@@ -6,6 +6,8 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 
 ### Added
 
+- JSON and XML structure panel with an expandable tree, search by name, value or path, a subset of JSONPath and XPath queries, and navigation to the source.
+- Copy a node's path or source and edit JSON values, XML attributes and text as one undoable change while preserving the surrounding bytes.
 - Touch input in the text editor and the large-file editor: drag to scroll, hold to select a word, and drag the selection handles to change the range.
 - Pen input selects text by dragging. Keyboard input cancels a pending touch gesture; holding the text does not open the context menu.
 
