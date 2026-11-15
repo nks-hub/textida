@@ -73,6 +73,13 @@ internal sealed class StreamingLineSource(DocumentSnapshot snapshot, long byteSt
         return window is not null;
     }
 
+    public ReadOnlySpan<char> CachedSpan(long column)
+    {
+        if (column < 0 || Cached(column) is not { } window) return [];
+        int offset = (int)(column - window.Column);
+        return window.Text.AsSpan(offset, window.Length - offset);
+    }
+
     // Callers enumerate immediately; a cache hit needs no resumable loader.
     /// <summary>Each yielded step reads at most one byte window, including sparse-map replay after a backward jump.</summary>
     public IEnumerable<bool> Ensure(long column)

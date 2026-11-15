@@ -18,7 +18,7 @@ public sealed class StreamingSyntaxSession : IDisposable
     private const int MaximumTokens = 65536;
     private readonly record struct Request(long First, int Count, long Column, int Columns);
     private readonly record struct Checkpoint(long Line, long Offset, LineState State);
-    private sealed record Plan(StreamNode Pattern, Alt Alt, Regex? FastNumber);
+    private sealed record Plan(StreamNode Pattern, Alt Alt, Regex? FastNumber, Regex? FastTag);
     private sealed class ContextPlans
     {
         public Plan[] Plans { get; }
@@ -36,7 +36,7 @@ public sealed class StreamingSyntaxSession : IDisposable
         {
             var matcher = context.GetMatcher();
             return matcher.Alts.Select((alt, i) => new Plan(StreamPattern.Compile(matcher.Patterns[i], alt.Owner.CaseSensitive),
-                alt, StreamingNumberProbe.Create(matcher.Patterns[i], alt))).ToArray();
+                alt, StreamingNumberProbe.Create(matcher.Patterns[i], alt), StreamingTagProbe.Create(matcher.Patterns[i], alt))).ToArray();
         }
 
         public bool CanStart(char c) => c < ascii.Length ? ascii[c] : Test(c);
@@ -175,6 +175,11 @@ public sealed class StreamingSyntaxSession : IDisposable
                 if (plan.FastNumber is { } number && StreamingNumberProbe.TryMatch(number, source, search, out bool matched, out long cachedEnd))
                 {
                     if (matched) { selected = plan; end = cachedEnd; break; }
+                    continue;
+                }
+                if (plan.FastTag is { } tag && StreamingTagProbe.TryMatch(tag, source, search, out bool tagMatched, out long tagEnd))
+                {
+                    if (tagMatched) { selected = plan; end = tagEnd; break; }
                     continue;
                 }
                 foreach (var step in matcher.Match(plan.Pattern, search))
