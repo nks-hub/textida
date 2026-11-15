@@ -17,6 +17,7 @@ namespace NksHub.Textida.App.Tests;
 [Collection("LocState")]
 public sealed class SharedDocumentReadinessTests : IDisposable
 {
+    private const int FixturePaddingChars = 2 << 20;
     private readonly TempDir temp = new();
     private readonly string? previousRoot = Environment.GetEnvironmentVariable("TEXTIDA_STRUCTURE_NATIVE");
     private readonly string directory;
@@ -105,7 +106,8 @@ public sealed class SharedDocumentReadinessTests : IDisposable
     [AvaloniaFact]
     public async Task Incomplete_source_index_stays_not_ready_without_starting_more_work()
     {
-        string path = temp.Bytes("loading.json", Encoding.UTF8.GetBytes("{\"padding\":\"" + new string('x', 64 << 10) + "\"}"));
+        string path = temp.Bytes("loading.json", Encoding.UTF8.GetBytes("{\"padding\":\"" + new string('x', FixturePaddingChars) + "\"}"));
+        Assert.True(new FileInfo(path).Length > (1L << 20));
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         var previousHook = MappedFileSource.IndexBlockHook;
@@ -118,6 +120,8 @@ public sealed class SharedDocumentReadinessTests : IDisposable
         try
         {
             var tab = window.OpenFile(path, null);
+            Assert.NotNull(tab.Paged);
+            Assert.IsType<PagedBackend>(tab.Doc.Doc.Backend);
             Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
             int runs = tab.Paged!.Syntax.ViewportRuns;
             var snapshot = window.CaptureDocumentReadiness(Request(tab));
@@ -217,9 +221,11 @@ public sealed class SharedDocumentReadinessTests : IDisposable
 
     private async Task<DocTab> OpenReadyDocument()
     {
-        string path = temp.Bytes("sample.json", Encoding.UTF8.GetBytes("{\"padding\":\"" + new string('x', 64 << 10) + "\",\"n\":1}"));
+        string path = temp.Bytes("sample.json", Encoding.UTF8.GetBytes("{\"padding\":\"" + new string('x', FixturePaddingChars) + "\",\"n\":1}"));
+        Assert.True(new FileInfo(path).Length > (1L << 20));
         var tab = window.OpenFile(path, null);
         Assert.NotNull(tab.Paged);
+        Assert.IsType<PagedBackend>(tab.Doc.Doc.Backend);
         await Until(() =>
         {
             window.UpdateLayout();
