@@ -17,6 +17,39 @@ namespace NksHub.Textida.App.Tests;
 public sealed class StructureNativeInspectionTests
 {
     [AvaloniaFact]
+    public void A_key_from_the_focused_list_targets_the_current_selected_model_without_a_focused_row()
+    {
+        var node = Item(7, -1, "selected", 40);
+        var tree = new StructureTree(); tree.Items.Add(node);
+        var outside = new Button { Content = "Outside" };
+        var panel = new StackPanel(); panel.Children.Add(tree); panel.Children.Add(outside);
+        var window = new Window { Width = 420, Height = 300, Content = panel };
+        try
+        {
+            window.Show(); Layout(window);
+            tree.SelectedNode = node;
+            Assert.True(tree.List.Focus());
+            Assert.Same(tree.List, window.FocusManager!.GetFocusedElement());
+            StructureTreeNode? target = null; object? source = null;
+            window.AddHandler(InputElement.KeyDownEvent, (_, e) =>
+            {
+                source = e.Source;
+                target = StructureNativeDiagnostic.KeyTarget(tree, window.FocusManager.GetFocusedElement());
+            }, RoutingStrategies.Tunnel, handledEventsToo: true);
+            TestApp.Press(window, Key.Right);
+            Assert.Same(tree.List, source); Assert.Same(node, target);
+            var actual = StructureNativeDiagnostic.ActualSource(tree, source);
+            Assert.True(actual["inTree"]!.GetValue<bool>()); Assert.Null(actual["nodeId"]);
+            Assert.Equal(7, Assert.IsType<StructureNode>(target!.Tag).Id);
+            Assert.True(outside.Focus());
+            Assert.Null(StructureNativeDiagnostic.KeyTarget(tree, window.FocusManager.GetFocusedElement()));
+            node.Reset();
+            Assert.Null(StructureNativeDiagnostic.KeyTarget(tree, tree.List));
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
     public void Pointer_identity_comes_from_the_actual_header_even_when_a_different_item_was_requested()
     {
         var requested = Item(11, 10, "requested", 40);

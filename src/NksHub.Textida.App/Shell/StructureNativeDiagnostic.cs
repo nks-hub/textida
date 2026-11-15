@@ -235,7 +235,7 @@ internal sealed partial class StructureNativeDiagnostic : IDisposable
         var actual = InputJson("key", e.Source, observed);
         actual["key"] = e.Key.ToString();
         actual["focus"] = FocusJson();
-        var keyTarget = focusedItem ?? (ReferenceEquals(window.FocusManager?.GetFocusedElement(), view.Tree) ? view.Tree.SelectedNode : null);
+        var keyTarget = KeyTarget(view.Tree, window.FocusManager?.GetFocusedElement());
         actual["keyTargetNodeId"] = keyTarget?.Tag is StructureNode keyNode ? keyNode.Id : null;
         Record("input.jsonl", actual);
         if (e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Space or Key.Enter) ObserveInput(actual);

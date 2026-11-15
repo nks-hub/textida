@@ -130,6 +130,13 @@ internal sealed partial class StructureNativeDiagnostic
         && (ReferenceEquals(visual, tree) || tree.IsVisualAncestorOf(visual))
         ? visual.GetSelfAndVisualAncestors().OfType<StructureTreeRow>().FirstOrDefault(row => row.IsBindingCurrent) : null;
 
+    internal static StructureTreeNode? KeyTarget(StructureTree tree, IInputElement? focused)
+    {
+        if (SourceItem(tree, focused)?.BoundNode is { } row) return row;
+        return (ReferenceEquals(focused, tree) || ReferenceEquals(focused, tree.List))
+            && tree.SelectedNode is { } selected && tree.IsCurrent(selected, selected.BindingVersion) ? selected : null;
+    }
+
     private static bool InHeader(StructureTreeRow? item, object? source) => item?.HeaderVisual is { } header && source is Visual hit
         && (ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
 

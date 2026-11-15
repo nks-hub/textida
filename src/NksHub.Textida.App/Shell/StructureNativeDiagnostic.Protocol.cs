@@ -307,6 +307,10 @@ internal sealed partial class StructureNativeDiagnostic
         {
             ["windowActive"] = window.IsActive,
             ["treeIsFocused"] = view.Tree.IsFocused,
+            ["treeListIsFocused"] = view.Tree.List.IsFocused,
+            ["focusedIsTreeList"] = ReferenceEquals(focused, view.Tree.List),
+            ["treeListType"] = view.Tree.List.GetType().FullName,
+            ["treeAutomationId"] = view.Tree.Name,
             ["treeKeyboardWithin"] = view.Tree.IsKeyboardFocusWithin,
             ["focusedType"] = focused?.GetType().FullName,
             ["focusedName"] = BoundedFocusName(control?.Name),
