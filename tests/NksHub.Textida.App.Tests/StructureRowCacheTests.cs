@@ -3,6 +3,8 @@ using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -182,6 +184,52 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Assert.Equal(64, Node(DataItems(last).First()).Ordinal);
         Assert.DoesNotContain(selected, DataItems(last));
         Assert.Equal(selectedNode, Node(selected));
+        Bound(host.View);
+    }
+
+    [AvaloniaFact]
+    public async Task Pooled_leaves_restore_branch_templates_and_children_and_return_to_leaf_templates()
+    {
+        string text = "[" + string.Join(',', Enumerable.Range(0, 192).Select(i => i is >= 64 and < 128 ? "[1]" : i.ToString(CultureInfo.InvariantCulture))) + "]";
+        using var host = new Host(text, StructureFormat.Json);
+        host.View.Sync(); await host.Drain();
+        var array = Assert.Single(DataItems(Assert.Single(DataItems(host.View.Tree))));
+        array.IsExpanded = true; await host.Drain();
+        var leaves = DataItems(array).ToArray();
+        Assert.Equal(StructureView.PageSize, leaves.Length);
+        Assert.All(leaves, item => Assert.DoesNotContain(item.GetVisualDescendants(), visual => visual is ToggleButton or ItemsPresenter));
+        var headers = leaves.ToDictionary(item => item, item => item.Header);
+        host.View.Tree.SelectedItem = array; array.Focus();
+        Click(Pager(array, next: true)); await host.Drain();
+        var branches = DataItems(array).ToArray();
+        Assert.Equal(Enumerable.Range(64, 64).Select(i => (long)i), branches.Select(item => Node(item).Ordinal));
+        Assert.All(branches, item =>
+        {
+            Assert.True(headers.TryGetValue(item, out var header)); Assert.Same(header, item.Header);
+            Assert.Null(item.Theme);
+            Assert.Contains(item.GetVisualDescendants().OfType<ItemsPresenter>(), presenter => presenter.TemplatedParent == item);
+            Assert.Contains(item.GetVisualDescendants().OfType<ToggleButton>(), button => button.TemplatedParent == item && button.IsVisible);
+        });
+        var branch = branches[0];
+        branch.IsExpanded = true; await host.Drain();
+        var child = Assert.Single(DataItems(branch));
+        Assert.Equal(Node(branch).Id, Node(child).ParentId); Assert.Same(branch, child.Parent);
+        headers[child] = child.Header;
+        host.View.Tree.SelectedItem = array; array.Focus();
+        Click(Pager(array, next: true)); await host.Drain();
+        var reused = DataItems(array).ToArray();
+        Assert.Equal(Enumerable.Range(128, 64).Select(i => (long)i), reused.Select(item => Node(item).Ordinal));
+        Assert.True(reused.Count(item => leaves.Contains(item)) >= StructureView.PageSize - 1);
+        Assert.All(reused, item =>
+        {
+            Assert.True(headers.TryGetValue(item, out var header)); Assert.Same(header, item.Header);
+            Assert.NotNull(item.Theme?.BasedOn);
+            Assert.Equal(Node(array).Id, Node(item).ParentId); Assert.Same(array, item.Parent);
+            Assert.Empty(item.Items);
+            Assert.DoesNotContain(item.GetVisualDescendants(), visual => visual is ToggleButton or ItemsPresenter);
+        });
+        host.View.Tree.SelectedItem = reused[0];
+        Assert.Equal(Node(reused[0]).Range, host.Jumped);
         Bound(host.View);
     }
 

@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Collections;
 using Avalonia.Controls;
+using Avalonia.Styling;
 using NksHub.Textida.App.Text;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
@@ -30,6 +31,7 @@ internal sealed partial class StructureView
     private long rootParentId = -1;
     private readonly List<Row> markedRows = [];
     private readonly Stack<Row> freeRows = [];
+    private ControlTheme? leafRowTheme;
     private static readonly RowData EmptyRow = new(default, "", "");
 
     private static RowData ReadRow(IStructureIndex index, StructureNode node, CancellationToken ct, StructureText.Reader? reader = null)
@@ -69,6 +71,9 @@ internal sealed partial class StructureView
         row.RequestId++;
         row.Data = data; row.Parent = parent; row.Touched = ++clock;
         row.Item.Tag = data.Node;
+        if (data.Node.ChildCount == 0 && (leafRowTheme ??= StructureRowThemes.TryCreateLeaf(tree)) is { } theme)
+            row.Item.Theme = theme;
+        else row.Item.ClearValue(StyledElement.ThemeProperty);
         Label(row);
         if (placeholder && data.Node.ChildCount > 0) row.Item.Items.Add(Placeholder());
         rows.Add(row.Item, row);
