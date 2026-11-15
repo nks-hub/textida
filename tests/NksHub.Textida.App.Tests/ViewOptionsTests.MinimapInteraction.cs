@@ -99,7 +99,7 @@ public partial class ViewOptionsTests
     {
         Control surface = tab.Editor is { } editor ? editor : tab.Paged!;
         var area = InWindow(surface, new Rect(0, 0, surface.Bounds.Width, Math.Min(100, surface.Bounds.Height)));
-        return Matching(Capture(), area, SyntaxColors(["keyword", "comment"]).ToList()) > 20;
+        return Matching(Capture(settle: false), area, SyntaxColors(["keyword", "comment"]).ToList()) > 20;
     }
 
     private async Task<bool> WaitForMinimapColorsAsync(DocTab tab)
@@ -109,7 +109,7 @@ public partial class ViewOptionsTests
         while (clock.Elapsed.TotalSeconds < 10)
         {
             var area = MinimapLowerPart(tab);
-            if (Matching(Capture(), area, colors) > 20) return true;
+            if (Matching(Capture(settle: false), area, colors) > 20) return true;
             await Task.Delay(50);
         }
         return false;
@@ -121,7 +121,7 @@ public partial class ViewOptionsTests
         IMinimapHost host = tab.Editor is { } editorHost ? editorHost : tab.Paged!;
         var syntax = tab.Editor?.Syntax ?? tab.Paged!.Syntax;
         var visible = host.Visible;
-        var shot = Capture();
+        var shot = Capture(settle: false);
         var area = InWindow(surface, new Rect(0, 0, surface.Bounds.Width, Math.Min(100, surface.Bounds.Height)));
         int pixels = Matching(shot, area, SyntaxColors(["keyword", "comment"]).ToList());
         var state = syntax.CaptureReadiness(tab.Doc.Doc);

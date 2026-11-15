@@ -270,11 +270,11 @@ public partial class ViewOptionsTests : IDisposable
 
     private sealed record Shot(byte[] Data, int Stride);
 
-    private Shot Capture()
+    private Shot Capture(bool settle = true)
     {
         _w.UpdateLayout();
-        Settle(10);
-        var frame = _w.CaptureRenderedFrame()!;
+        if (settle) Settle(10);
+        using var frame = _w.CaptureRenderedFrame()!;
         using var buffer = frame.Lock();
         var data = new byte[buffer.RowBytes * buffer.Size.Height];
         Marshal.Copy(buffer.Address, data, 0, data.Length);
