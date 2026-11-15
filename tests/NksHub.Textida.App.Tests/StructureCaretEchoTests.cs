@@ -145,13 +145,17 @@ public sealed class StructureCaretEchoTests
         {
             Layout();
             var header = Assert.IsAssignableFrom<Control>(item.Header);
-            var label = header.GetVisualDescendants().OfType<TextBlock>().OrderByDescending(text => text.Bounds.Width).First();
-            var point = label.TranslatePoint(new Point(label.Bounds.Width / 2, label.Bounds.Height / 2), Window);
-            Assert.NotNull(point);
-            var hit = Assert.IsAssignableFrom<Visual>(Window.InputHitTest(point.Value));
+            var inspected = StructureNativeDiagnostic.InspectHeader(Window, View.Tree, item);
+            Assert.NotNull(inspected?["headerPoint"]);
+            var position = inspected!["headerPoint"]!;
+            var point = Window.PointToClient(new PixelPoint(position["x"]!.GetValue<int>(), position["y"]!.GetValue<int>()));
+            var hit = Assert.IsAssignableFrom<Visual>(Window.InputHitTest(point));
             Assert.True(ReferenceEquals(header, hit) || header.IsVisualAncestorOf(hit));
             Assert.Same(item, hit.GetSelfAndVisualAncestors().OfType<TreeViewItem>().First());
-            Window.MouseDown(point.Value, MouseButton.Left); Window.MouseUp(point.Value, MouseButton.Left);
+            var source = StructureNativeDiagnostic.ActualSource(View.Tree, hit);
+            Assert.True(source["inHeader"]!.GetValue<bool>());
+            Assert.Equal(Node(item).Id, source["nodeId"]!.GetValue<long>());
+            Window.MouseDown(point, MouseButton.Left); Window.MouseUp(point, MouseButton.Left);
         }
 
         private void Layout()
