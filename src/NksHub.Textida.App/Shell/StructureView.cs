@@ -256,7 +256,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                     long now = Environment.TickCount64;
                     if (now - lastProgress < 150) return;
                     lastProgress = now;
-                    Dispatcher.UIThread.Post(() => { if (Current(nextSession) && nextSession.Parsing) SetStatus(K.StructureProgress, ("bytes", bytes), ("total", snapshot.ByteLength)); });
+                    PostProgress(nextSession, bytes, snapshot.ByteLength);
                 });
                 bool published = false;
                 try
@@ -277,6 +277,12 @@ internal sealed partial class StructureView : DockPanel, IDisposable
             catch (OperationCanceledException) { }
             catch (Exception error) { await Dispatcher.UIThread.InvokeAsync(() => { if (Current(nextSession)) { nextSession.Parsing = false; SetStatus(K.StructureFailed, ("message", error.Message)); UpdateButtons(); } }); }
         });
+    }
+
+    // Keep the UI closure here so skipped 150 ms updates do not allocate.
+    private void PostProgress(Session owner, long bytes, long total)
+    {
+        Dispatcher.UIThread.Post(() => { if (Current(owner) && owner.Parsing) SetStatus(K.StructureProgress, ("bytes", bytes), ("total", total)); });
     }
 
     private Task Queue(Func<Task> action)
