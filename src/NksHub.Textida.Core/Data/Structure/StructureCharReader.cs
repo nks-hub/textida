@@ -129,9 +129,8 @@ public sealed class StructureCharReader
             bytes = 4;
             return (int)value;
         }
-        bytes = codec.ReadUnit(data, out _);
-        string text = codec.GetString(data[..bytes]);
-        return Rune.TryGetRuneAt(text, 0, out var decoded) ? decoded.Value : throw BadEncoding(at);
+        int scalar = codec.ReadLegacyScalar(data, out bytes);
+        return scalar >= 0 ? scalar : throw BadEncoding(at);
     }
 
     private static StructureSyntaxException BadEncoding(long at) => new(StructureIssueKind.Encoding, at, at + 1, "Invalid encoded character.");

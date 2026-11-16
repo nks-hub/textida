@@ -477,6 +477,28 @@ public sealed class TextCodec
         }
     }
 
+    internal int ReadLegacyScalar(ReadOnlySpan<byte> data, out int bytes)
+    {
+        bytes = 0;
+        if (data.IsEmpty) return -1;
+        bytes = 1;
+        if (Kind == CodecKind.SingleByte)
+            return Rune.TryCreate(_toChar![data[0]], out var single) ? single.Value : -1;
+        if (data[0] < 0x80) return data[0];
+
+        int length = MultiLength(data, 0);
+        // Malformed legacy units keep their replacement character and advance by one byte.
+        if (length > data.Length) return Rune.ReplacementChar.Value;
+        Span<char> chars = stackalloc char[4];
+        int count;
+        try { count = _multi!.GetChars(data[..length], chars); }
+        catch (DecoderFallbackException) { return Rune.ReplacementChar.Value; }
+        if (count == 0) return Rune.ReplacementChar.Value;
+        bytes = length;
+        if (Rune.TryCreate(chars[0], out var scalar)) return scalar.Value;
+        return count > 1 && Rune.TryCreate(chars[0], chars[1], out scalar) ? scalar.Value : -1;
+    }
+
     private uint ReadU32(ReadOnlySpan<byte> d, int at) =>
         BigEndian ? (uint)(d[at] << 24 | d[at + 1] << 16 | d[at + 2] << 8 | d[at + 3]) : (uint)(d[at + 3] << 24 | d[at + 2] << 16 | d[at + 1] << 8 | d[at]);
 
