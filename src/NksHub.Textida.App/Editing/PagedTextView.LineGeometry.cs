@@ -70,7 +70,9 @@ internal sealed partial class PagedTextView
             private readonly DrawingGroup drawing = new();
             private readonly Dictionary<GlyphRun, int> sourceStarts = new(ReferenceEqualityComparer.Instance);
             private readonly IBrush?[] colors;
-            private List<GlyphRun> fragments = [];
+            private Dictionary<FragmentKey, GlyphRun> fragments = [];
+            private Dictionary<FragmentKey, GlyphRun> workingFragments = [];
+            private readonly record struct FragmentKey(GlyphRun Run, int From, int To, int Low, int High, int SourceStart);
 
             public LineGeometry(GeometryKey key, string text, FontSpan[] spans)
             {
@@ -105,14 +107,23 @@ internal sealed partial class PagedTextView
                             if (from < to) Array.Fill(colors, brush, from, to - from);
                         }
                     var result = new DrawingGroup();
-                    var next = new List<GlyphRun>();
+                    var next = workingFragments;
                     try
                     {
                         using var recording = result.Open();
-                        Recolor(drawing, recording, colors, foreground, sourceStarts, next);
+                        Recolor(drawing, recording, colors, foreground, sourceStarts, fragments, next);
                     }
-                    catch { foreach (var run in next) run.Dispose(); throw; }
-                    foreach (var run in fragments) run.Dispose();
+                    catch
+                    {
+                        foreach (var (key, run) in next)
+                            if (!fragments.ContainsKey(key)) run.Dispose();
+                        next.Clear();
+                        throw;
+                    }
+                    foreach (var (key, run) in fragments)
+                        if (!next.ContainsKey(key)) run.Dispose();
+                    fragments.Clear();
+                    workingFragments = fragments;
                     fragments = next;
                     return result;
                 }
@@ -120,14 +131,15 @@ internal sealed partial class PagedTextView
             }
 
             private static void Recolor(Drawing source, DrawingContext context, IBrush?[] colors,
-                IBrush foreground, IReadOnlyDictionary<GlyphRun, int> sourceStarts, List<GlyphRun> fragments)
+                IBrush foreground, IReadOnlyDictionary<GlyphRun, int> sourceStarts,
+                IReadOnlyDictionary<FragmentKey, GlyphRun> previous, Dictionary<FragmentKey, GlyphRun> next)
             {
                 if (source is DrawingGroup group)
                 {
                     using (context.PushTransform(group.Transform?.Value ?? Matrix.Identity))
                     using (context.PushOpacity(group.Opacity))
                     using (group.ClipGeometry is { } clip ? context.PushGeometryClip(clip) : default)
-                        foreach (var child in group.Children) Recolor(child, context, colors, foreground, sourceStarts, fragments);
+                        foreach (var child in group.Children) Recolor(child, context, colors, foreground, sourceStarts, previous, next);
                     return;
                 }
                 if (source is not GlyphRunDrawing { GlyphRun: { } run })
@@ -151,10 +163,15 @@ internal sealed partial class PagedTextView
                         int high = run.IsLeftToRight
                             ? to < infos.Count ? infos[to].GlyphCluster : first + run.Characters.Length
                             : from > 0 ? infos[from - 1].GlyphCluster : first + run.Characters.Length;
-                        var fragment = new GlyphRun(run.GlyphTypeface, run.FontRenderingEmSize,
-                            run.Characters.Slice(low - first, high - low), new GlyphSlice(infos, from, to - from, low),
-                            run.BaselineOrigin + new Vector(x, 0), run.BiDiLevel);
-                        fragments.Add(fragment);
+                        var key = new FragmentKey(run, from, to, low, high, start);
+                        if (!next.TryGetValue(key, out var fragment))
+                        {
+                            if (!previous.TryGetValue(key, out fragment))
+                                fragment = new GlyphRun(run.GlyphTypeface, run.FontRenderingEmSize,
+                                    run.Characters.Slice(low - first, high - low), new GlyphSlice(infos, from, to - from, low),
+                                    run.BaselineOrigin + new Vector(x, 0), run.BiDiLevel);
+                            next.Add(key, fragment);
+                        }
                         context.DrawGlyphRun(brush, fragment);
                     }
                     for (int at = from; at < to; at++) x += infos[at].GlyphAdvance;
@@ -164,8 +181,9 @@ internal sealed partial class PagedTextView
 
             public void Dispose()
             {
-                foreach (var run in fragments) run.Dispose();
+                foreach (var run in fragments.Values) run.Dispose();
                 fragments.Clear();
+                workingFragments.Clear();
                 layout.Dispose();
             }
 
