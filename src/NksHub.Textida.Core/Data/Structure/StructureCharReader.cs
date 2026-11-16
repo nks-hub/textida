@@ -16,6 +16,41 @@ public sealed class StructureCharReader
     private long bufferStart = -1;
     private int bufferLength;
     private int untilCancellationCheck;
+    private LegacyWindow? legacyWindow;
+
+    private sealed class LegacyWindow
+    {
+        private const int Size = 8192;
+        public readonly int[] Scalars = new int[Size];
+        public readonly ushort[] ByteEnds = new ushort[Size];
+        public readonly char[] Chars = new char[Size];
+        public long Start;
+        public int Count;
+        public int Index;
+
+        public bool TryRead(long at, out int scalar, out int bytes)
+        {
+            scalar = bytes = 0;
+            long relative = at - Start;
+            if (Count == 0 || relative < 0 || relative >= ByteEnds[Count - 1]) return false;
+            int start = Index == 0 ? 0 : ByteEnds[Index - 1];
+            if (relative != start)
+            {
+                if (relative == 0) Index = 0;
+                else if (relative == ByteEnds[Index] && Index + 1 < Count) Index++;
+                else
+                {
+                    int previous = Array.BinarySearch(ByteEnds, 0, Count, (ushort)relative);
+                    if (previous < 0 || previous + 1 == Count) return false;
+                    Index = previous + 1;
+                }
+            }
+            start = Index == 0 ? 0 : ByteEnds[Index - 1];
+            scalar = Scalars[Index];
+            bytes = ByteEnds[Index] - start;
+            return true;
+        }
+    }
 
     public StructureCharReader(IByteSnapshot source, TextCodec codec, int bomLength, CancellationToken cancellationToken, Action<long>? progress = null)
     {
@@ -90,6 +125,8 @@ public sealed class StructureCharReader
         if (bufferStart < 0 || at < bufferStart || at + Math.Min(8L, source.ByteLength - at) > bufferStart + bufferLength)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // A decoded tail depends on the source bytes available before this refill.
+            if (legacyWindow is not null) legacyWindow.Count = 0;
             bufferStart = at;
             bufferLength = source.Read(at, buffer);
             if (bufferLength == 0) throw new EndOfStreamException("The source snapshot ended before its declared length.");
@@ -129,7 +166,23 @@ public sealed class StructureCharReader
             bytes = 4;
             return (int)value;
         }
-        int scalar = codec.ReadLegacyScalar(data, out bytes);
+        int scalar;
+        if (codec.Kind == CodecKind.SingleByte || data[0] < 0x80)
+            scalar = codec.ReadLegacyScalar(data, out bytes);
+        else
+        {
+            legacyWindow ??= new LegacyWindow();
+            if (!legacyWindow.TryRead(at, out scalar, out bytes))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                legacyWindow.Count = 0;
+                legacyWindow.Start = at;
+                legacyWindow.Count = codec.ReadLegacyBlock(data, legacyWindow.Scalars, legacyWindow.ByteEnds,
+                    legacyWindow.Chars, cancellationToken);
+                legacyWindow.Index = 0;
+                if (!legacyWindow.TryRead(at, out scalar, out bytes)) throw BadEncoding(at);
+            }
+        }
         return scalar >= 0 ? scalar : throw BadEncoding(at);
     }
 

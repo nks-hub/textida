@@ -2,10 +2,11 @@ using System.Text;
 using NksHub.Textida.Core.Data.Structure;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Encodings;
+using Xunit.Abstractions;
 
 namespace NksHub.Textida.Core.Tests;
 
-public sealed class StructureLegacyEncodingTests
+public sealed class StructureLegacyEncodingTests(ITestOutputHelper output)
 {
     public static IEnumerable<object[]> LegacyCodecs => TextCodec.All
         .Where(codec => codec.Kind is CodecKind.SingleByte or CodecKind.MultiByte)
@@ -43,6 +44,48 @@ public sealed class StructureLegacyEncodingTests
     }
 
     [Theory]
+    [MemberData(nameof(LegacyCodecs))]
+    public void LegacyReaderBlocksMatchTheOriginalUnitsAndByteOffsets(string name)
+    {
+        var codec = Codec(name);
+        string sample = codec.CodePage switch
+        {
+            932 or 51932 => "あ漢ｶx",
+            936 => "汉字x",
+            54936 => "汉字𠀀𝄞Žx",
+            950 => "漢字x",
+            51949 => "한글x",
+            _ => "x",
+        };
+        byte[] pattern = codec.Encode(sample);
+        byte[] bytes = new byte[64 * 1024 + 37];
+        for (int i = 0; i < bytes.Length; i++) bytes[i] = pattern[i % pattern.Length];
+        byte[] allBytes = Enumerable.Range(0, 256).Select(value => (byte)value).ToArray();
+        allBytes.CopyTo(bytes, 8190);
+        byte[] malformed = [0x81, 0x30, 0x20, 0x30, 0xFF, 0x8F, 0xA2];
+        malformed.CopyTo(bytes, 64 * 1024 - 3);
+        var reader = new StructureCharReader(new ArraySnapshot(bytes), codec, 0, CancellationToken.None);
+        int offset = 0;
+        while (offset < bytes.Length)
+        {
+            int expected = OriginalScalar(codec, bytes.AsSpan(offset), out int used);
+            Assert.Equal(offset, reader.Position);
+            Assert.Equal(expected, reader.Peek());
+            Assert.Equal(expected, reader.Read());
+            offset += used;
+        }
+        Assert.Equal(bytes.Length, reader.Position);
+        Assert.Equal(-1, reader.Read());
+        for (int at = 8188; at < 8208; at++)
+        {
+            reader.Seek(at);
+            int expected = OriginalScalar(codec, bytes.AsSpan(at), out int used);
+            Assert.Equal(expected, reader.Read());
+            Assert.Equal(at + used, reader.Position);
+        }
+    }
+
+    [Theory]
     [InlineData("Windows-1250", StructureFormat.Json)]
     [InlineData("GB18030", StructureFormat.Json)]
     [InlineData("Windows-1250", StructureFormat.Xml)]
@@ -56,6 +99,8 @@ public sealed class StructureLegacyEncodingTests
         Parse(small, codec, format);
         long smallAllocated = Parse(small, codec, format);
         long largeAllocated = Parse(large, codec, format);
+        output.WriteLine($"{name} {format}: small-bytes={small.ByteLength} small-allocated={smallAllocated} " +
+            $"large-bytes={large.ByteLength} large-allocated={largeAllocated}");
         Assert.True(largeAllocated <= smallAllocated + 256 * 1024,
             $"{name} {format}: 64 KiB allocated {smallAllocated} bytes; 8 MiB allocated {largeAllocated} bytes.");
     }
@@ -72,10 +117,14 @@ public sealed class StructureLegacyEncodingTests
         var reader = new StructureCharReader(new ArraySnapshot(bytes), codec, 0, CancellationToken.None);
         for (int i = 0; i < padding; i++) Assert.Equal('x', reader.Read());
         long offset = padding;
-        foreach (var rune in tail.EnumerateRunes())
+        Rune[] runes = tail.EnumerateRunes().ToArray();
+        for (int i = 0; i < runes.Length; i++)
         {
+            var rune = runes[i];
             Assert.Equal(offset, reader.Position);
             Assert.Equal(rune.Value, reader.Peek());
+            Assert.Equal(i + 1 < runes.Length ? runes[i + 1].Value : -1, reader.Peek(1));
+            Assert.Equal(offset, reader.Position);
             Assert.Equal(rune.Value, reader.Read());
             offset += codec.Encode(rune.ToString()).Length;
             Assert.Equal(offset, reader.Position);
@@ -84,6 +133,55 @@ public sealed class StructureLegacyEncodingTests
         Assert.Equal(-1, reader.Read());
         reader.Seek(padding);
         Assert.Equal(tail.EnumerateRunes().First().Value, reader.Read());
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Gb18030ScalarsSurviveOneToThreeByteSourceReads(int readSize)
+    {
+        var codec = Codec("GB18030");
+        const string text = "a𠀀汉字Žz";
+        byte[] bytes = codec.Encode(text);
+        var source = new ShortSnapshot(bytes, readSize);
+        var reader = new StructureCharReader(source, codec, 0, CancellationToken.None);
+        long offset = 0;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            Assert.Equal(offset, reader.Position);
+            Assert.Equal(rune.Value, reader.Peek());
+            Assert.Equal(rune.Value, reader.Read());
+            offset += codec.Encode(rune.ToString()).Length;
+        }
+        Assert.Equal(bytes.Length, reader.Position);
+        Assert.Equal(-1, reader.Read());
+        Assert.True(source.ReadCalls > 1);
+    }
+
+    [Theory]
+    [InlineData(1, 6)]
+    [InlineData(2, 6)]
+    [InlineData(3, 6)]
+    [InlineData(64 * 1024, 64 * 1024 - 2)]
+    public void MalformedBlockDoesNotKeepAReplacementForAnIncompleteSourceUnit(int readSize, int splitAt)
+    {
+        var codec = Codec("GB18030");
+        byte[] bytes = new byte[splitAt + 20];
+        Array.Fill(bytes, (byte)'a');
+        bytes[Math.Max(0, splitAt - 8190)] = 0xFF;
+        codec.Encode("𐀀").CopyTo(bytes, splitAt);
+        bytes[^1] = 0x81;
+        var reader = new StructureCharReader(new ShortSnapshot(bytes, readSize), codec, 0, CancellationToken.None);
+        int offset = 0;
+        while (offset < bytes.Length)
+        {
+            int expected = OriginalScalar(codec, bytes.AsSpan(offset), out int used);
+            Assert.Equal(expected, reader.Read());
+            offset += used;
+            Assert.Equal(offset, reader.Position);
+        }
+        Assert.Equal(-1, reader.Read());
     }
 
     [Theory]
@@ -121,16 +219,36 @@ public sealed class StructureLegacyEncodingTests
         }
     }
 
+    [Fact]
+    public void MalformedLegacyBlockChecksCancellationInsideItsFallback()
+    {
+        var codec = Codec("GB18030");
+        byte[] bytes = new byte[8192];
+        Array.Fill(bytes, (byte)0xFF);
+        var scalars = new int[8192];
+        var byteEnds = new ushort[8192];
+        var chars = new char[8192];
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() =>
+            codec.ReadLegacyBlock(bytes, scalars, byteEnds, chars, cancellation.Token));
+    }
+
     private static TextCodec Codec(string name) => TextCodec.All.Single(codec => codec.Name == name);
 
     private static void CheckUnit(TextCodec codec, ReadOnlySpan<byte> bytes)
     {
-        int expectedBytes = codec.ReadUnit(bytes, out _);
-        string text = codec.GetString(bytes[..expectedBytes]);
-        int expected = Rune.TryGetRuneAt(text, 0, out var scalar) ? scalar.Value : -1;
+        int expected = OriginalScalar(codec, bytes, out int expectedBytes);
         int actual = codec.ReadLegacyScalar(bytes, out int actualBytes);
         if (expected != actual || expectedBytes != actualBytes)
             Assert.Fail($"{codec.Name} {Convert.ToHexString(bytes)}: expected {expected}/{expectedBytes}, got {actual}/{actualBytes}.");
+    }
+
+    private static int OriginalScalar(TextCodec codec, ReadOnlySpan<byte> bytes, out int used)
+    {
+        used = codec.ReadUnit(bytes, out _);
+        string text = codec.GetString(bytes[..used]);
+        return text.Length != 0 && Rune.TryGetRuneAt(text, 0, out var scalar) ? scalar.Value : -1;
     }
 
     private static RepeatedSnapshot Source(TextCodec codec, StructureFormat format, byte[] pattern, long size,
@@ -185,6 +303,20 @@ public sealed class StructureLegacyEncodingTests
             BytesRead += done;
             if (BytesRead >= 128 * 1024) cancellation?.Cancel();
             return done;
+        }
+    }
+
+    private sealed class ShortSnapshot(byte[] bytes, int readSize) : IByteSnapshot
+    {
+        public long ByteLength => bytes.Length;
+        public int ReadCalls { get; private set; }
+
+        public int Read(long offset, Span<byte> destination)
+        {
+            int count = (int)Math.Min(Math.Min(destination.Length, readSize), ByteLength - offset);
+            bytes.AsSpan((int)offset, count).CopyTo(destination);
+            ReadCalls++;
+            return count;
         }
     }
 

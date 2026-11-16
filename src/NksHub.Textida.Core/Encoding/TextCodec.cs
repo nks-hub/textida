@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 
 namespace NksHub.Textida.Core.Encodings;
@@ -497,6 +498,51 @@ public sealed class TextCodec
         bytes = length;
         if (Rune.TryCreate(chars[0], out var scalar)) return scalar.Value;
         return count > 1 && Rune.TryCreate(chars[0], chars[1], out scalar) ? scalar.Value : -1;
+    }
+
+    internal int ReadLegacyBlock(ReadOnlySpan<byte> data, Span<int> scalars, Span<ushort> byteEnds, Span<char> chars,
+        CancellationToken cancellationToken)
+    {
+        int limit = Math.Min(data.Length, chars.Length);
+        int bytes = 0, units = 0;
+        while (bytes < limit && units < scalars.Length)
+        {
+            int length = MultiLength(data, bytes);
+            if (bytes + length > limit) break;
+            bytes += length;
+            byteEnds[units++] = checked((ushort)bytes);
+        }
+        if (units == 0) return ReadLegacyBlockUnits(data, limit, scalars, byteEnds, cancellationToken);
+
+        int count;
+        try { count = _multi!.GetChars(data[..bytes], chars); }
+        catch (DecoderFallbackException) { return ReadLegacyBlockUnits(data, limit, scalars, byteEnds, cancellationToken); }
+        int at = 0;
+        for (int i = 0; i < units; i++)
+        {
+            if (Rune.DecodeFromUtf16(chars[at..count], out var scalar, out int used) != OperationStatus.Done)
+                return ReadLegacyBlockUnits(data, limit, scalars, byteEnds, cancellationToken);
+            scalars[i] = scalar.Value;
+            at += used;
+        }
+        // A unit that decodes to several scalars still exposes only its first scalar to the structure reader.
+        return at == count ? units : ReadLegacyBlockUnits(data, limit, scalars, byteEnds, cancellationToken);
+    }
+
+    private int ReadLegacyBlockUnits(ReadOnlySpan<byte> data, int limit, Span<int> scalars, Span<ushort> byteEnds,
+        CancellationToken cancellationToken)
+    {
+        int bytes = 0, count = 0;
+        while (bytes < limit && count < scalars.Length)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int scalar = ReadLegacyScalar(data[bytes..], out int used);
+            if (bytes + used > limit) break;
+            bytes += used;
+            scalars[count] = scalar;
+            byteEnds[count++] = checked((ushort)bytes);
+        }
+        return count;
     }
 
     private uint ReadU32(ReadOnlySpan<byte> d, int at) =>
