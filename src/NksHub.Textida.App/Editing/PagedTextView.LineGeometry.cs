@@ -69,12 +69,14 @@ internal sealed partial class PagedTextView
             private readonly TextLayout layout;
             private readonly DrawingGroup drawing = new();
             private readonly Dictionary<GlyphRun, int> sourceStarts = new(ReferenceEqualityComparer.Instance);
+            private readonly IBrush?[] colors;
             private List<GlyphRun> fragments = [];
 
             public LineGeometry(GeometryKey key, string text, FontSpan[] spans)
             {
                 Key = key;
                 Spans = spans;
+                colors = new IBrush?[text.Length];
                 var family = new FontFamily(key.Family);
                 var overrides = spans.Select(span => new ValueSpan<TextRunProperties>(span.Start, span.Length,
                     new GenericTextRunProperties(new Typeface(family,
@@ -92,26 +94,29 @@ internal sealed partial class PagedTextView
 
             public DrawingGroup Paint(Token[]? tokens, LineView view, SyntaxPalette palette, IBrush foreground)
             {
-                var colors = new IBrush?[view.Display.Length];
-                if (tokens is not null)
-                    foreach (var token in tokens)
-                    {
-                        if (palette.GetBrush(token.Kind) is not { } brush) continue;
-                        int from = view.DisplayAt[Math.Clamp(token.Start, 0, view.Map.Text.Length)];
-                        int to = view.DisplayAt[Math.Clamp(token.End, 0, view.Map.Text.Length)];
-                        if (from < to) Array.Fill(colors, brush, from, to - from);
-                    }
-                var result = new DrawingGroup();
-                var next = new List<GlyphRun>();
                 try
                 {
-                    using var recording = result.Open();
-                    Recolor(drawing, recording, colors, foreground, sourceStarts, next);
+                    if (tokens is not null)
+                        foreach (var token in tokens)
+                        {
+                            if (palette.GetBrush(token.Kind) is not { } brush) continue;
+                            int from = view.DisplayAt[Math.Clamp(token.Start, 0, view.Map.Text.Length)];
+                            int to = view.DisplayAt[Math.Clamp(token.End, 0, view.Map.Text.Length)];
+                            if (from < to) Array.Fill(colors, brush, from, to - from);
+                        }
+                    var result = new DrawingGroup();
+                    var next = new List<GlyphRun>();
+                    try
+                    {
+                        using var recording = result.Open();
+                        Recolor(drawing, recording, colors, foreground, sourceStarts, next);
+                    }
+                    catch { foreach (var run in next) run.Dispose(); throw; }
+                    foreach (var run in fragments) run.Dispose();
+                    fragments = next;
+                    return result;
                 }
-                catch { foreach (var run in next) run.Dispose(); throw; }
-                foreach (var run in fragments) run.Dispose();
-                fragments = next;
-                return result;
+                finally { Array.Clear(colors); }
             }
 
             private static void Recolor(Drawing source, DrawingContext context, IBrush?[] colors,
