@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -28,7 +29,7 @@ public sealed partial class PagedLongLineFormattingTests
             using var host = new Host(new string('x', 2 << 20));
             NormalGlyphColors(host);
             host.Paged.SelectBytes(3, 9);
-            host.Tokens(GlyphTokens(32));
+            host.Tokens(GlyphTokens(64));
             host.Draw();
             Assert.Equal(GlyphPrefixLength, Assert.IsType<string>(host.Paged.DisplayOf(0)).Length);
             var palette = EditorLook.Of(host.Paged).Palette;
@@ -49,7 +50,7 @@ public sealed partial class PagedLongLineFormattingTests
 
             for (int repaint = 0; repaint < repaints; repaint++)
             {
-                Token[] tokens = GlyphTokens(32, repaint % 2 == 0);
+                Token[] tokens = GlyphTokens(64, repaint % 2 == 0);
                 long before = GC.GetAllocatedBytesForCurrentThread();
                 host.Tokens(tokens);
                 host.Draw();
@@ -105,7 +106,9 @@ public sealed partial class PagedLongLineFormattingTests
             Assert.Same(geometry, host.Geometry());
             Assert.False(original.AsSpan().SequenceEqual(TextPixels(EntryProperty<DrawingGroup>(host.Entry()!, "Drawing"))));
             output.WriteLine($"unicode-oracle name={name} boundary={boundary} style=normal");
-            AssertLegacyTextPixels(host);
+            // A foreground split inside ZWJ can change FormattedText fallback; check whole glyphs and colors from a fresh layout separately.
+            if (name == "ZWJ") AssertUnsplitGlyphAndFreshColorRasters(host);
+            else AssertLegacyTextPixels(host);
 
             host.Tokens(GlyphTokens(2));
             host.Draw();
@@ -208,5 +211,62 @@ public sealed partial class PagedLongLineFormattingTests
             output.WriteLine($"glyph brush={(glyph.Foreground as ISolidColorBrush)?.Color} chars={run.Characters.Length} baseline={run.BaselineOrigin} bounds={run.Bounds}");
         else if (drawing is DrawingGroup group)
             foreach (var child in group.Children) WriteGlyphDrawings(child);
+    }
+
+    private static void AssertUnsplitGlyphAndFreshColorRasters(Host host)
+    {
+        object entry = Assert.IsAssignableFrom<object>(host.Entry());
+        object key = EntryProperty<object>(entry, "Key");
+        object view = EntryProperty<object>(key, "View");
+        string shown = EntryProperty<string>(view, "Display");
+        var drawing = EntryProperty<DrawingGroup>(entry, "Drawing");
+        var palette = EntryProperty<SyntaxPalette>(key, "Palette");
+        byte[] colored = TextPixels(drawing);
+        Assert.True(Count(colored, Color.Parse(SyntaxPink)) > 10);
+        Assert.True(Count(colored, Color.Parse(SyntaxBlue)) > 10);
+        Assert.Equal(Color.Parse(SyntaxPink), (palette.GetBrush("keyword") as ISolidColorBrush)?.Color);
+        Assert.Equal(Color.Parse(SyntaxBlue), (palette.GetBrush("number") as ISolidColorBrush)?.Color);
+
+        object geometry = Assert.IsAssignableFrom<object>(host.Geometry());
+        object geometryKey = EntryProperty<object>(geometry, "Key");
+        var spans = (Array)EntryProperty<object>(geometry, "Spans");
+        Assert.Empty(spans);
+        Assert.Equal(shown, EntryProperty<string>(geometryKey, "Text"));
+        var text = new FormattedText(shown, EntryProperty<CultureInfo>(key, "Culture"), FlowDirection.LeftToRight,
+            new Typeface(EntryProperty<string>(key, "Family")), EntryProperty<double>(key, "FontSize"), Brushes.Black);
+        byte[] whole = TextPixels(context => context.DrawText(text, default));
+        byte[] uniform = TextPixels(context => DrawUniformGlyphs(drawing, context));
+        AssertGlyphRaster(whole, uniform, "The whole-text Unicode glyph geometry");
+
+        using var fresh = (IDisposable)geometry.GetType()
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Single()
+            .Invoke([geometryKey, shown, spans]);
+        var foreground = new ImmutableSolidColorBrush(EntryProperty<Color>(key, "Foreground"), EntryProperty<double>(key, "Opacity"));
+        var first = Assert.IsType<DrawingGroup>(fresh.GetType()
+            .GetMethod("Paint", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!
+            .Invoke(fresh, [EntryProperty<Token[]>(key, "Tokens"), view, palette, foreground]));
+        AssertGlyphRaster(TextPixels(first), colored, "The first fresh Unicode color drawing");
+    }
+
+    private static void DrawUniformGlyphs(Drawing drawing, DrawingContext context)
+    {
+        if (drawing is DrawingGroup group)
+        {
+            using (context.PushTransform(group.Transform?.Value ?? Matrix.Identity))
+            using (context.PushOpacity(group.Opacity))
+            using (group.ClipGeometry is { } clip ? context.PushGeometryClip(clip) : default)
+                foreach (var child in group.Children) DrawUniformGlyphs(child, context);
+        }
+        else if (drawing is GlyphRunDrawing { GlyphRun: { } run }) context.DrawGlyphRun(Brushes.Black, run);
+        else throw new InvalidOperationException("The Unicode oracle encountered a non-glyph drawing.");
+    }
+
+    private static void AssertGlyphRaster(byte[] expected, byte[] actual, string description)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+        int differences = 0;
+        for (int at = 0; at < actual.Length; at += 4)
+            if (!actual.AsSpan(at, 4).SequenceEqual(expected.AsSpan(at, 4))) differences++;
+        Assert.True(differences == 0, $"{description} differs at {differences} pixels.");
     }
 }
