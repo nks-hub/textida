@@ -138,7 +138,7 @@ internal sealed class TextTouchInput : IDisposable
             hold.Interval = Application.Current?.PlatformSettings?.HoldWaitDuration ?? TimeSpan.FromMilliseconds(500);
             hold.Start();
         }
-        WindowsPointerTrace.Current?.Touch(surface, $"stage=press_selected generation={generation} mode={mode} pointer_id={pointer?.Id} captured={pointer?.Captured?.GetType().FullName ?? "null"} from_handle={fromHandle} contacts={contacts.Count} blocked={blocked}");
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=press_selected generation={generation} mode={mode} pointer_id={pointer?.Id} captured={pointer?.Captured?.GetType().FullName ?? "null"} from_handle={fromHandle} contacts={contacts.Count} blocked={blocked} hold_interval_ms={hold.Interval.TotalMilliseconds:R}");
     }
 
     private void Move(object? sender, PointerEventArgs e)
@@ -220,6 +220,7 @@ internal sealed class TextTouchInput : IDisposable
 
     private void Hold(object? sender, EventArgs e)
     {
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=hold_fired generation={generation} mode={mode}");
         hold.Stop();
         if (mode == Mode.Tap && pointer is not null) BeginSelection(true);
     }

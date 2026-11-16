@@ -98,13 +98,19 @@ internal sealed partial class WindowsPointerTrace
     private nint WndProc(nint hwnd, uint message, nint wParam, nint lParam, ref bool handled)
     {
         const uint update = 0x0245, down = 0x0246, up = 0x0247, captureChanged = 0x024C;
-        if (recordCount >= MaximumRecords || message is not (update or down or up or captureChanged)) return 0;
+        bool focusMessage = message is 0x0006 or 0x0007 or 0x0008;
+        if (recordCount >= MaximumRecords || (!focusMessage && message is not (update or down or up or captureChanged))) return 0;
         uint id = (uint)(wParam.ToInt64() & 0xFFFF);
-        if ((nativePointerId is null && message != down) || (nativePointerId is { } selected && selected != id) || (nativeEnded && message != captureChanged)) return 0;
+        if (!focusMessage && ((nativePointerId is null && message != down) || (nativePointerId is { } selected && selected != id) || (nativeEnded && message != captureChanged))) return 0;
         int systemError = Marshal.GetLastSystemError(), pinvokeError = Marshal.GetLastPInvokeError();
         try
         {
             long qpc = Stopwatch.GetTimestamp();
+            if (focusMessage)
+            {
+                Write(FormattableString.Invariant($"layer=window qpc={qpc} message=0x{message:X4} target_hwnd=0x{hwnd:X} wparam=0x{wParam:X} lparam=0x{lParam:X}"));
+                return 0;
+            }
             bool infoSuccess = GetPointerInfo(id, out var info) != 0;
             int infoError = infoSuccess ? 0 : Marshal.GetLastPInvokeError();
             if (nativePointerId is null && infoSuccess && info.Type != 2) return 0;
