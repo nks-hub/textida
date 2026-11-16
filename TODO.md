@@ -2105,7 +2105,7 @@ Odhad etapy 21,5–35,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** 2–4 ČT, schváleno majitelem 13. 11. 2026 podle PR.8.2; rozpočet P4 zvýšen z 19,5–31,5 na 21,5–35,5 ČT.
   - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
   - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; k uzavření jsou nutná všechna uvedená měření.
-  - **Stav 16. 11. 2026:** Čtečky, dotazy, úpravy hodnot a propojený panel jsou implementované. Na zdroji 4d63bd6a prošlo na Windows 16 testů vykreslování dlouhých řádků a v jeho distribuovaném balíku všech sedm malých scénářů stromu. Soubory 1 GiB přidaly 63,04 MiB pro JSON a 66,62 MiB pro XML; XML překročilo limit 64 MiB. Úplná řada 840 vzorků měla odezvu vstup → obraz p95 94–172 ms pro JSON a 80–170 ms pro XML, tedy nad limitem 33 ms. Tvrdé zrušení do 100 ms nebylo dosaženo, protože běh skončil na paměťovém limitu XML. Další opravy a ověření pokračují; položka zůstává otevřená.
+  - **Stav 16. 11. 2026:** Funkce stromu JSON, JSONC a XML jsou na zdroji a91b0faa ověřené v běžící aplikaci Windows. Cíle 64 MiB paměti navíc, odezva p95 33 ms a zrušení rozboru do 100 ms zůstávají úkoly pro další práci; podle rozhodnutí majitele nejsou podmínkou vydání 0.1.8. Sekundové prodlevy při běžném ovládání nejsou přijatelné a nový limit velikosti souboru se nezavádí. Položka zůstává otevřená.
 
 ### P4.7 Zvýrazňovače jako data
 

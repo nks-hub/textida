@@ -21,9 +21,11 @@ The editor is a new program inspired by PSPad; it does not use PSPad code, data 
 - 📄 **Paged documents** - reads visible ranges from disk and keeps edits separately, with undo and byte-preserving saves.
 - 🔍 **Search and navigation** - literal and regular-expression search, cancellation, line and byte-offset navigation.
 - 🔤 **Text and hex** - encoding detection, explicit encoding conversion, text editing and a hex view over the same document.
+- ✍️ **Touch and pen** - finger scrolling, word selection, selection handles and pen drag selection in the normal and paged text editors.
 - 📝 **Markdown** - reading, editing and source modes; the reader lays out only visible blocks, uses GitHub's typography, selects across blocks and has a dockable headings panel.
 - 🎨 **Colour themes** - ten editor themes, per-token colour, bold and italic, import from TextMate and VS Code themes.
 - 🗂️ **Large JSON** - a formatted view that reads the file in blocks in the background and edits values in place.
+- 🌳 **JSON and XML tree** - browse JSON, JSONC and XML nodes, search names, values and paths, run supported JSONPath and XPath queries, and jump to the source.
 - 🌿 **Git** - commit panel with per-change boxes, pull that fetches first, incoming and outgoing counts in the status bar.
 - 🧩 **Bundled tools** - separate plugin processes for formatting, text statistics, hashes and language tools, plus an MCP server.
 - 📦 **Desktop packages** - Windows installer and portable ZIP, macOS DMG and ZIP, and Linux packages. Published NativeAOT builds include their runtime.
@@ -141,6 +143,8 @@ dotnet run tools/BuildLinuxPackage.cs -- --version <version> --rid linux-arm64 -
 Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml). It builds the Windows, macOS and Linux packages, starts each program once with `--smoke`, and attaches them with `SHA256SUMS.txt` and the signed `feed.json` to a draft release. Each platform build also validates the sample plugin and checks that the packages hold no PSPad files. The draft is created only when the clean-room check and all five platform builds pass. Publish the draft after checking the installer, then commit its `feed.json` to the `update-feed` branch. The signed feed is valid for 90 days; when no release comes within that time, run [`resign-feed.yml`](.github/workflows/resign-feed.yml) by hand and commit the `feed.json` it produces the same way. Linux remains a preview; its automated GUI checks run under Xvfb.
 
 Before publishing, verify the actual packages for Windows x64, macOS arm64 and x64, and Linux x64 and arm64. After publishing, check the public download and signed feed, then update the [NKS Hub product page](https://nks-hub.cz/reference/repo-textida), this README and the repository description with the same verified version and platform information. Product screenshots must come from the running application with sample documents.
+
+Automated Windows checks passed for mouse and keyboard input and for OS-injected touch and pen gestures in both text editors. The macOS and Linux packages have automated command-line smoke checks; their graphical interfaces have not been manually checked for this release. Physical touchscreens, pens and touch or pen input over RDP, including phone clients, remain unverified.
 
 Textida checks the feed a few seconds after start and then once a day, and when you choose Help, Check for Updates; `updates.checkOnStart` set to false turns the automatic check off. A newer version shows a badge in the status bar. The check is one GET of the [signed feed](https://raw.githubusercontent.com/nks-hub/textida/update-feed/feed.json), which also covers preview releases. Each package must match the signed SHA-256 and size. Windows uses the installer to switch folders after Textida closes; macOS and unpacked Linux installations use an atomic directory exchange. The old version stays in `Textida.previous` for rollback. Linux installations managed by apt update through apt. macOS accepts only signed and notarized bundles, so the current ad-hoc signed previews require manual installation.
 
