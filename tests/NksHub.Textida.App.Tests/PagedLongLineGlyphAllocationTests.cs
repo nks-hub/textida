@@ -37,8 +37,12 @@ public sealed partial class PagedLongLineFormattingTests
             object geometry = Assert.IsAssignableFrom<object>(host.Geometry());
             object entry = Assert.IsAssignableFrom<object>(host.Entry());
             byte[] previous = TextPixels(EntryProperty<DrawingGroup>(entry, "Drawing"));
-            Assert.True(Count(previous, Color.Parse(SyntaxPink)) > 10);
-            Assert.True(Count(previous, Color.Parse(SyntaxBlue)) > 10);
+            int pinkPixels = Count(previous, Color.Parse(SyntaxPink)), bluePixels = Count(previous, Color.Parse(SyntaxBlue));
+            string initial = $"initial pinkPixels={pinkPixels} bluePixels={bluePixels} expected={SyntaxPink}/{SyntaxBlue} palette={(palette.GetBrush("keyword") as ISolidColorBrush)?.Color}/{(palette.GetBrush("number") as ISolidColorBrush)?.Color}";
+            output.WriteLine(initial);
+            WriteGlyphDrawings(EntryProperty<DrawingGroup>(entry, "Drawing"));
+            Assert.True(pinkPixels > 10, initial);
+            Assert.True(bluePixels > 10, initial);
             var selection = host.Paged.SelectionRange;
             long caret = host.Paged.CaretOffset, revision = host.Tab.Doc.Doc.Revision;
             long largestAllocation = 0;
@@ -92,14 +96,15 @@ public sealed partial class PagedLongLineFormattingTests
         var caret = SyntaxCaret(host).CursorRectangle;
         long revision = host.Tab.Doc.Doc.Revision;
 
-        int[] boundaries = [9, prefix.IndexOf("אבגדה", StringComparison.Ordinal) + 1,
-            prefix.IndexOf("👩‍💻", StringComparison.Ordinal) + 2];
-        foreach (int boundary in boundaries)
+        (int Boundary, string Name)[] boundaries = [(9, "Latin9"), (prefix.IndexOf("אבגדה", StringComparison.Ordinal) + 1, "RTL"),
+            (prefix.IndexOf("👩‍💻", StringComparison.Ordinal) + 2, "ZWJ")];
+        foreach (var (boundary, name) in boundaries)
         {
             host.Tokens(GlyphTokens(boundary));
             host.Draw();
             Assert.Same(geometry, host.Geometry());
             Assert.False(original.AsSpan().SequenceEqual(TextPixels(EntryProperty<DrawingGroup>(host.Entry()!, "Drawing"))));
+            output.WriteLine($"unicode-oracle name={name} boundary={boundary} style=normal");
             AssertLegacyTextPixels(host);
 
             host.Tokens(GlyphTokens(2));
@@ -112,6 +117,7 @@ public sealed partial class PagedLongLineFormattingTests
         host.Draw();
         Assert.NotSame(geometry, host.Geometry());
         Assert.False(original.AsSpan().SequenceEqual(TextPixels(EntryProperty<DrawingGroup>(host.Entry()!, "Drawing"))));
+        output.WriteLine("unicode-oracle name=original2 boundary=2 style=bold-italic");
         AssertLegacyTextPixels(host);
 
         object styled = Assert.IsAssignableFrom<object>(host.Geometry());
@@ -123,6 +129,7 @@ public sealed partial class PagedLongLineFormattingTests
         Assert.Equal(Encoding.UTF8.GetByteCount(prefix), host.Paged.CaretOffset);
         Assert.Equal(caret, SyntaxCaret(host).CursorRectangle);
         Assert.Equal(revision, host.Tab.Doc.Doc.Revision);
+        output.WriteLine("unicode-oracle name=original2 boundary=2 style=normal-restored");
         AssertLegacyTextPixels(host);
     }
 
@@ -193,5 +200,13 @@ public sealed partial class PagedLongLineFormattingTests
         else if (drawing is DrawingGroup group)
             foreach (var child in group.Children)
                 foreach (var glyph in RasterizedGlyphRuns(child)) yield return glyph;
+    }
+
+    private void WriteGlyphDrawings(Drawing drawing)
+    {
+        if (drawing is GlyphRunDrawing { GlyphRun: { } run } glyph)
+            output.WriteLine($"glyph brush={(glyph.Foreground as ISolidColorBrush)?.Color} chars={run.Characters.Length} baseline={run.BaselineOrigin} bounds={run.Bounds}");
+        else if (drawing is DrawingGroup group)
+            foreach (var child in group.Children) WriteGlyphDrawings(child);
     }
 }
