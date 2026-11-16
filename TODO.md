@@ -1,6 +1,6 @@
 # Textida – úkoly
 
-Priorita 15. 11. 2026: připravit vydání 0.1.8 se stromem JSON/XML a dotykovým ovládáním. Společný kandidát 0.1.8-rc.2 prošel CI pro pět platforem a sedmi klikacími scénáři stromu, ale nesplnil paměťový limit ani limit odezvy. Oprava zbytečné tvorby řádků už prošla 154 testy na Windows VM; její měření v novém balíku ještě chybí. Fyzický dotyk a telefonní RDP nejsou ověřené, sdílený Mac je odložený. Úkoly vycházejí z interního plánu, zadání a měření, které v repozitáři nejsou; tady je jen jejich výsledek: etapy, celky, úkoly, kritéria dokončení a odhady.
+Priorita 16. 11. 2026: vydání 0.1.8 se stromem JSON/XML a dotykovým ovládáním je zveřejněné. Další práce se soustředí na paměť, odezvu a rušení stromu u velkých souborů podle P4.6.6; nový limit velikosti souboru se nezavádí. Fyzický dotyk a telefonní RDP nejsou ověřené, sdílený Mac je odložený. Níže zůstávají etapy, úkoly, kritéria dokončení a odhady.
 
 Jak číst položku:
 - ID má tvar `etapa.celek.úkol` a nemění se. `PR` jsou průběžné úkoly, `PZ` úkoly po verzi 1.0. Nové úkoly dostávají další volné číslo v celku, proto pořadí v textu nemusí odpovídat číslům.
@@ -2105,7 +2105,7 @@ Odhad etapy 21,5–35,5 ČT. Hotovo, když: klip s formulářem, převodník a L
   - **Odhad:** 2–4 ČT, schváleno majitelem 13. 11. 2026 podle PR.8.2; rozpočet P4 zvýšen z 19,5–31,5 na 21,5–35,5 ČT.
   - **Umístění:** jádro (propojení s dokumentem a panel), sdílené čtečky dat
   - **Schválení majitele 13. 11. 2026:** zahájit celý uvedený rozsah v odhadu 2–4 ČT. Stav průzkumníku navíc ke společnému dokumentu nejvýše 64 MiB při souboru 1 GiB; běžné ovládání vstup → prezentace p95 ≤ 33 ms; zrušení rozboru do 100 ms. Implementace probíhá; k uzavření jsou nutná všechna uvedená měření.
-  - **Stav 16. 11. 2026:** Funkce stromu JSON, JSONC a XML jsou na zdroji a91b0faa ověřené v běžící aplikaci Windows. Cíle 64 MiB paměti navíc, odezva p95 33 ms a zrušení rozboru do 100 ms zůstávají úkoly pro další práci; podle rozhodnutí majitele nejsou podmínkou vydání 0.1.8. Sekundové prodlevy při běžném ovládání nejsou přijatelné a nový limit velikosti souboru se nezavádí. Položka zůstává otevřená.
+  - **Stav 16. 11. 2026:** Funkce stromu JSON, JSONC a XML jsou na zdroji a91b0faa ověřené v běžící aplikaci Windows. Cíle 64 MiB paměti navíc, odezva p95 33 ms a zrušení rozboru do 100 ms zůstávají úkoly pro další práci; podle rozhodnutí majitele nejsou podmínkou vydání 0.1.8. Sekundové prodlevy při běžném ovládání nejsou přijatelné a nový limit velikosti souboru se nezavádí. Položka zůstává otevřená. Měření jádra na Windows (08b4b7e1, Release, UTF-8) prošlo šesti testy: skutečné 1GiB JSON/XML s jedním dlouhým tokenem a soubory s mnoha uzly o 1 a 8 MiB. U 1 GiB dosáhla spravovaná paměť navíc nejvýše 13,31 MiB (JSON) a 8,26 MiB (XML), soukromá paměť procesu 2,97 a 6,78 MiB; zrušení včetně úklidu trvalo nejvýše 0,738 ms. Rozbor na pozadí trval 27,4 s a 125,6 s. Toto měření neověřuje paměť ani odezvu celého okna aplikace.
 
 ### P4.7 Zvýrazňovače jako data
 
