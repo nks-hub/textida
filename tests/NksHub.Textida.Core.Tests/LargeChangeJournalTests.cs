@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using CrashHarness;
 using NksHub.Textida.Core.Documents;
 using NksHub.Textida.Core.Journal;
+using NksHub.Textida.Document.Contract;
 using NksHub.Textida.Tests;
 using Doc = NksHub.Textida.Core.Documents.Document;
 
@@ -37,7 +38,7 @@ public sealed class LargeChangeJournalTests : IDisposable
 
     private PagedBackendFactory Factory(long budget) => new(startIndexing: false, spillBudgetBytes: budget, spillDirectory: Path.Combine(_dir, "spill"));
 
-    private static Func<string, IBackendFactory?> Backends(IBackendFactory factory) => name => name == "paged" ? factory : null;
+    private static Func<string, IBackendFactory?> Backends(IBackendFactory factory) => name => name == factory.Capabilities.Name ? factory : null;
 
     private static void Edit(Doc doc, LargeModel model, long offset, long delete, long seed, long length)
     {
@@ -76,11 +77,13 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     /// <summary>Edits a tracked document and ends the session the way a crash leaves it: records are on disk, nothing is cleaned up.</summary>
-    private (LargeModel Model, string Journal) EditAndCrash(long budget, long insertLength)
+    private (LargeModel Model, string Journal) EditAndCrash(long budget, long insertLength) =>
+        EditAndCrash(Factory(budget), insertLength);
+
+    private (LargeModel Model, string Journal) EditAndCrash(IBackendFactory factory, long insertLength)
     {
         NewFile();
         var model = new LargeModel(Size);
-        var factory = Factory(budget);
         using var session = JournalSession.Start(Journal, Backends(factory), new JournalOptions { Fsync = FsyncPolicy.Manual });
         using (var doc = Doc.Open(Data, factory))
         {
@@ -101,11 +104,13 @@ public sealed class LargeChangeJournalTests : IDisposable
     }
 
     [Theory]
-    [InlineData(64 << 10, "-add-")] // the add buffer is on disk: the record refers to its spill file
-    [InlineData(64 << 20, "-blob-")] // the add buffer is in memory: the journal keeps a copy of its own
-    public void A_large_insert_is_recorded_as_a_reference_and_recovers_exactly(long budget, string kind)
+    [InlineData(64 << 10, false, "-add-")]
+    [InlineData(64 << 20, false, "-add-")]
+    [InlineData(64 << 20, true, "-blob-")]
+    public void A_large_insert_is_recorded_as_a_reference_and_recovers_exactly(long budget, bool referenceBackend, string kind)
     {
-        var (model, journalPath) = EditAndCrash(budget, 2 << 20);
+        IBackendFactory factory = referenceBackend ? ReferenceBackendFactory.Instance : Factory(budget);
+        var (model, journalPath) = EditAndCrash(factory, 2 << 20);
 
         var edit = Assert.Single(EditRecords(journalPath), e => e.Edits.Any(x => x.External is not null));
         var reference = Assert.Single(edit.Edits).External!;
@@ -114,7 +119,7 @@ public sealed class LargeChangeJournalTests : IDisposable
         Assert.True(new FileInfo(journalPath).Length < 16 << 10, "the journal grew with the inserted text");
         Assert.True(new FileInfo(Path.Combine(Journal, "payload", reference.File)).Length >= reference.Offset + reference.Length);
 
-        using var session = JournalSession.Start(Journal, Backends(Factory(budget)));
+        using var session = JournalSession.Start(Journal, Backends(factory));
         var recovered = Assert.Single(session.Recovery.Documents);
         Assert.Equal(RecoveryStatus.Restored, recovered.Status);
         Assert.Equal(model.Sha256(), HashOf(recovered.Document!));
