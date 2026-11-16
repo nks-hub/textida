@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using NksHub.Textida.App.Startup;
 
 namespace NksHub.Textida.App.Editing;
 
@@ -78,6 +79,7 @@ internal sealed class TextTouchInput : IDisposable
 
     public void Cancel()
     {
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=cancel generation={generation} mode={mode} pointer_id={pointer?.Id} captured={pointer?.Captured?.GetType().FullName ?? "null"}");
         generation++;
         StopContact();
         request?.Cancel();
@@ -92,6 +94,7 @@ internal sealed class TextTouchInput : IDisposable
 
     private void Press(object? sender, PointerPressedEventArgs e)
     {
+        WindowsPointerTrace.Current?.TouchPress(surface, e, disposed, generation, mode.ToString());
         if (disposed || e.Handled) return;
         if (e.Pointer.Type == PointerType.Mouse)
         {
@@ -135,6 +138,7 @@ internal sealed class TextTouchInput : IDisposable
             hold.Interval = Application.Current?.PlatformSettings?.HoldWaitDuration ?? TimeSpan.FromMilliseconds(500);
             hold.Start();
         }
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=press_selected generation={generation} mode={mode} pointer_id={pointer?.Id} captured={pointer?.Captured?.GetType().FullName ?? "null"} from_handle={fromHandle} contacts={contacts.Count} blocked={blocked}");
     }
 
     private void Move(object? sender, PointerEventArgs e)
@@ -149,6 +153,7 @@ internal sealed class TextTouchInput : IDisposable
         var point = e.GetPosition(surface);
         if (!e.GetCurrentPoint(surface).Properties.IsLeftButtonPressed)
         {
+            WindowsPointerTrace.Current?.Touch(surface, $"stage=move_without_left generation={generation} mode={mode} pointer_id={e.Pointer.Id} pointer_matches={pointer?.Id == e.Pointer.Id}");
             Cancel();
             return;
         }
@@ -173,6 +178,7 @@ internal sealed class TextTouchInput : IDisposable
 
     private void Release(object? sender, PointerReleasedEventArgs e)
     {
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=release_entry generation={generation} mode={mode} pointer_id={e.Pointer.Id} pointer_matches={pointer?.Id == e.Pointer.Id} handled={e.Handled} captured={e.Pointer.Captured?.GetType().FullName ?? "null"}");
         if (e.Pointer.Type == PointerType.Mouse) return;
         contacts.Remove(e.Pointer.Id);
         if (contacts.Count == 0) blocked = false;
@@ -195,6 +201,7 @@ internal sealed class TextTouchInput : IDisposable
 
     private void CaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=capture_lost generation={generation} mode={mode} pointer_id={e.Pointer.Id} pointer_matches={pointer?.Id == e.Pointer.Id} captured={e.Pointer.Captured?.GetType().FullName ?? "null"}");
         contacts.Remove(e.Pointer.Id);
         if (contacts.Count == 0) blocked = false;
         if (pointer?.Id == e.Pointer.Id) Cancel();
@@ -202,6 +209,7 @@ internal sealed class TextTouchInput : IDisposable
 
     private void StopContact()
     {
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=stop_contact generation={generation} mode={mode} pointer_id={pointer?.Id} captured={pointer?.Captured?.GetType().FullName ?? "null"}");
         hold.Stop();
         edge.Stop();
         mode = Mode.None;
@@ -227,6 +235,7 @@ internal sealed class TextTouchInput : IDisposable
     private async Task<TouchRange?> Origin(Point point, bool word, CancellationToken token)
     {
         var offset = await hitTest(Clamp(point), token);
+        WindowsPointerTrace.Current?.Touch(surface, $"stage=origin_hit generation={generation} word={word} point={point.X:R},{point.Y:R} offset={offset} cancelled={token.IsCancellationRequested}");
         token.ThrowIfCancellationRequested();
         if (offset is not { } at) return null;
         return word ? await wordAt(at, token) ?? new TouchRange(at, at) : new TouchRange(at, at);
@@ -243,9 +252,11 @@ internal sealed class TextTouchInput : IDisposable
         try
         {
             var start = await origin;
+            WindowsPointerTrace.Current?.Touch(surface, $"stage=selection_origin generation={generation} current_generation={currentGeneration} request={requestId} current_request={currentRequest} anchor={start?.Anchor} caret={start?.Caret} finishing={finishing} cancelled={token.IsCancellationRequested}");
             token.ThrowIfCancellationRequested();
             if (start is not { } initial) return;
             var end = await hitTest(Clamp(point), token);
+            WindowsPointerTrace.Current?.Touch(surface, $"stage=selection_hit generation={generation} current_generation={currentGeneration} request={requestId} current_request={currentRequest} offset={end} cancelled={token.IsCancellationRequested}");
             token.ThrowIfCancellationRequested();
             if (end is not { } at || currentGeneration != generation || currentRequest != requestId) return;
             var next = at < initial.Start ? new TouchRange(initial.End, at)
@@ -253,8 +264,10 @@ internal sealed class TextTouchInput : IDisposable
             applied = next;
             showHandles = !next.IsEmpty;
             applying = true;
+            WindowsPointerTrace.Current?.TouchSelection(surface, "apply_before", generation, next, selection);
             try { select(next); }
             finally { applying = false; }
+            WindowsPointerTrace.Current?.TouchSelection(surface, "apply_after", generation, next, selection);
             EnsureHandles();
             handles.InvalidateVisual();
         }

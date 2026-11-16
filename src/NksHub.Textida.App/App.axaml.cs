@@ -323,6 +323,7 @@ public sealed partial class App : Application
     internal MainWindow CreateWindow(SavedWindow? saved, bool show = true, ShellLook? look = null)
     {
         var window = new MainWindow(this, look ?? ShellLook.ForThisMachine(), saved);
+        WindowsPointerTrace.Attach(window);
         window.Activated += (_, _) => _active = window;
         _windows.Add(window);
         _active = window;
