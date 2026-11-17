@@ -38,13 +38,17 @@ public sealed class DocumentDataPaneFocusTests : IDisposable
     public async Task Split_F6_visits_source_then_tree_and_keeps_the_surrounding_pane_order(bool paged)
     {
         var (tab, view) = await Open(ViewMode.StructureSplit, paged);
-        window.ToggleDocuments(true);
         window.MovePanel(SidePanel.Documents, PanelDock.Left);
-        window.ToggleFiles(true);
         window.MovePanel(SidePanel.Files, PanelDock.Right);
+        window.ToggleDocuments(true);
+        window.ToggleFiles(true);
         window.ToggleOutput(true);
         window.FindBar.Open(files: false, replace: false);
         await Drain(view);
+        Assert.Equal(SidePanel.Documents, window.PanelShown(PanelDock.Left));
+        Assert.Equal(SidePanel.Files, window.PanelShown(PanelDock.Right));
+        Assert.True(window.PanelHost(PanelDock.Left).IsVisible);
+        Assert.True(window.PanelHost(PanelDock.Right).IsVisible);
         Assert.True(tab.Surface is { } surface ? surface.TextArea.Focus() : tab.View.Focus());
         await Drain(view);
         SourceHasFocus(tab);
