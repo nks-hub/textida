@@ -87,7 +87,7 @@ public static class StructureDuplicates
         {
             ct.ThrowIfCancellationRequested();
             StructureNode node = index.ReadNode(id);
-            if (!node.HasName || node.ParentId < 0) continue;
+            if ((!node.HasName && !node.IntegerKey.HasValue) || node.ParentId < 0) continue;
             var parentKind = index.ReadNode(node.ParentId).Kind;
             if (parentKind is not (StructureKind.JsonObject or StructureKind.JsonArray or StructureKind.ConfigEntity)) continue;
             var (hash0, hash1) = hashOverride is null ? HashName(node, names, hash, buffer, ct) : hashOverride(node);

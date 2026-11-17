@@ -74,7 +74,8 @@ public sealed class StructureConfigTests
         var entity = Node(index, "$.v");
         Assert.Equal(StructureKind.ConfigEntity, entity.Kind);
         Assert.Contains("Field(id: 1)", StructureText.ReadSource(index, entity).Text);
-        Assert.Equal("other", Value(index, "$.items[1]"));
+        Assert.Equal("other", Value(index, "$.items[0]"));
+        Assert.Equal(1, Node(index, "$.items[0]").Ordinal);
         Assert.Equal("true", Value(index, "$.items.enabled"));
     }
 
@@ -164,6 +165,136 @@ public sealed class StructureConfigTests
         Assert.Equal(1, analysis.Index.CountOf(StructureKind.JsonObject));
         Assert.Equal(0, analysis.Index.CountOf(StructureKind.JsonArray));
         Assert.Equal(3, analysis.Index.ReadNode(1).ChildCount);
+    }
+
+    [Theory]
+    [InlineData("{5: Cat, Dog}", 6)]
+    [InlineData("{name: first, second}", 0)]
+    [InlineData("{-5: Cat, Dog}", -4)]
+    [InlineData("{'5': Cat, Dog}", 6)]
+    [InlineData("{'05': Cat, Dog}", 0)]
+    [InlineData("{'+5': Cat, Dog}", 0)]
+    [InlineData("{'-0': Cat, Dog}", 0)]
+    [InlineData("{+005: Cat, Dog}", 6)]
+    [InlineData("{-0: Cat, Dog}", 1)]
+    [InlineData("{0x10: Cat, Dog}", 17)]
+    [InlineData("{1e1: Cat, Dog}", 11)]
+    [InlineData("{1.5: Cat, Dog}", 0)]
+    [InlineData("{-0.0: Cat, Dog}", 0)]
+    [InlineData("{9223372036854775808: Cat, Dog}", 0)]
+    [InlineData("{-9223372036854775808: Cat, Dog}", -9223372036854775807)]
+    public void Neon_implicit_keys_follow_the_greatest_integer_key_not_the_row_number(string body, long key)
+    {
+        var index = Parse("items: " + body, StructureFormat.Neon);
+        var child = index.Nodes.Single(n => n.ParentId == Node(index, "$.items").Id && n.Ordinal == 1);
+        Assert.Equal(key, child.IntegerKey);
+        Assert.Equal(1, child.Ordinal);
+        string path = "$.items[" + (key < 0 ? "\"" + key + "\"" : key.ToString(System.Globalization.CultureInfo.InvariantCulture)) + "]";
+        Assert.Equal(child.Id, Node(index, path).Id);
+        Assert.Equal(child.Id, Node(index, StructurePaths.Create(index, child)).Id);
+        Assert.Equal(key.ToString(System.Globalization.CultureInfo.InvariantCulture), StructureText.ReadName(index, child).Text);
+    }
+
+    [Fact]
+    public void Neon_integer_keys_round_trip_through_disk_pages_and_keep_physical_ordinals()
+    {
+        const string text = "- first\n5: named\n- last\n";
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(text), ReferenceBackendFactory.Instance,
+            new DocumentOptions { Format = TextCodec.Utf8 });
+        using var analysis = StructureAnalysis.Parse(doc.GetSnapshot(), doc.BomLength, StructureFormat.Neon, default);
+        Assert.True(analysis.IsValid);
+        var children = analysis.Index.ReadChildren(1, -1, 64, default);
+        Assert.Equal(new long?[] { 0, 5, 6 }, children.Select(n => n.IntegerKey));
+        Assert.Equal(new long[] { 0, 1, 2 }, children.Select(n => n.Ordinal));
+        Assert.All(children, n => Assert.Equal(-1, n.NamespaceId));
+        Assert.Equal("$[6]", StructurePaths.Create(analysis.Index, children[2]));
+        Assert.Equal("last", StructureText.ReadSource(analysis.Index, children[2]).Text);
+        Assert.InRange(analysis.Index.CachedBytes, 1, 4 * 1024 * 1024);
+    }
+
+    [Theory]
+    [InlineData("{5: one, -10: two, three}", -10, 6)]
+    [InlineData("{-5: one, -10: two, three}", -10, -4)]
+    public void Negative_explicit_keys_do_not_replace_a_greater_existing_key(string body, long explicitKey, long implicitKey)
+    {
+        var index = Parse("items: " + body, StructureFormat.Neon);
+        var parent = Node(index, "$.items");
+        Assert.Equal(explicitKey, index.Nodes.Single(n => n.ParentId == parent.Id && n.Ordinal == 1).IntegerKey);
+        Assert.Equal(implicitKey, index.Nodes.Single(n => n.ParentId == parent.Id && n.Ordinal == 2).IntegerKey);
+    }
+
+    [Fact]
+    public void Neon_explicit_quoted_integer_keys_are_semantic_but_leading_zero_strings_stay_strings()
+    {
+        var index = Parse("items: {'5': first, '05': second, '+5': third}\n", StructureFormat.Neon);
+        Assert.Equal("first", Value(index, "$.items[5]"));
+        Assert.Equal("second", Value(index, "$.items['05']"));
+        Assert.Equal("third", Value(index, "$.items['+5']"));
+        Assert.Equal(5, Node(index, "$.items[5]").IntegerKey);
+        Assert.Null(Node(index, "$.items['05']").IntegerKey);
+        Assert.Equal("'5': first", StructureText.ReadSource(index, Node(index, "$.items[5]")).Text);
+    }
+
+    [Fact]
+    public void Neon_implicit_key_overflow_is_a_syntax_error()
+    {
+        Assert.Throws<StructureSyntaxException>(() => Parse("items: {9223372036854775807: first, next}", StructureFormat.Neon));
+    }
+
+    [Theory]
+    [InlineData("v: *missing\n")]
+    [InlineData("v: *later\na: &later 1\n")]
+    [InlineData("v: '*missing'\na: *missing\n")]
+    [InlineData("# &missing\nv: *missing\n")]
+    public void Undefined_and_forward_yaml_aliases_are_invalid(string text)
+    {
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(text), ReferenceBackendFactory.Instance,
+            new DocumentOptions { Format = TextCodec.Utf8 });
+        using var analysis = StructureAnalysis.Parse(doc.GetSnapshot(), doc.BomLength, StructureFormat.Yaml, default);
+        Assert.False(analysis.IsValid);
+        Assert.Contains(analysis.Index.Issues, i => i.Kind == StructureIssueKind.Syntax && i.Message.Contains("preceding anchor"));
+    }
+
+    [Theory]
+    [InlineData("a: &base 1\nb: *base\nc: *base\n")]
+    [InlineData("a: &loop {self: *loop}\n")]
+    [InlineData("a: &base 1\nb: &base 2\nc: *base\n")]
+    [InlineData("a: &větev 1\nb: *větev\n")]
+    public void Prior_yaml_anchors_allow_reuse_shadowing_and_symbolic_cycles(string text)
+    {
+        using var doc = Doc.FromBytes(Encoding.UTF8.GetBytes(text), ReferenceBackendFactory.Instance,
+            new DocumentOptions { Format = TextCodec.Utf8 });
+        using var analysis = StructureAnalysis.Parse(doc.GetSnapshot(), doc.BomLength, StructureFormat.Yaml, default);
+        Assert.True(analysis.IsValid);
+    }
+
+    [Fact]
+    public void Yaml_anchor_registry_keeps_fixed_memory_as_definitions_grow_on_disk()
+    {
+        const int count = 50_000, width = 8;
+        string text = string.Concat(Enumerable.Range(0, count).Select(i => i.ToString("D8", System.Globalization.CultureInfo.InvariantCulture))) + "missing!";
+        var source = new ArraySnapshot(Encoding.UTF8.GetBytes(text));
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        using var anchors = new YamlAnchors(source, default);
+        long retained = anchors.RetainedBytes;
+        for (int i = 0; i < count; i++) anchors.Define((long)i * width, (long)(i + 1) * width);
+        Assert.True(anchors.Contains(0, width));
+        Assert.True(anchors.Contains((count - 1L) * width, (long)count * width));
+        Assert.False(anchors.Contains((long)count * width, (long)(count + 1) * width));
+        Assert.Equal(retained, anchors.RetainedBytes);
+        Assert.InRange(anchors.RetainedBytes, 1, 1 << 20);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 2L << 20, $"The anchor registry allocated {allocated} bytes for {count} definitions.");
+    }
+
+    [Fact]
+    public void Cancellation_interrupts_hashing_a_large_yaml_anchor_name()
+    {
+        using var cancel = new CancellationTokenSource();
+        var source = new LongScalar("", 1L << 30, "", cancel);
+        using var anchors = new YamlAnchors(source, cancel.Token);
+        Assert.Throws<OperationCanceledException>(() => anchors.Define(0, source.ByteLength));
+        Assert.InRange(source.BytesRead, 1, 1 << 20);
     }
 
     [Theory]
@@ -285,6 +416,7 @@ public sealed class StructureConfigTests
         public void CompleteNode(long id, long valueStart, long valueEnd, long end, long childCount) => Nodes[(int)id] = Nodes[(int)id] with
         { ValueStart = valueStart, ValueEnd = valueEnd, End = end, ChildCount = childCount, LastDescendantId = Nodes.Count - 1 };
         public void SetNamespace(long id, long namespaceId) => throw new InvalidOperationException();
+        public void SetIntegerKey(long id, long key) => Nodes[(int)id] = Nodes[(int)id] with { IntegerKey = key };
         public void SetKind(long id, StructureKind kind) => Nodes[(int)id] = Nodes[(int)id] with { Kind = kind };
         public void Report(StructureIssue issue) => throw new InvalidOperationException(issue.Message);
     }

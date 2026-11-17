@@ -92,7 +92,10 @@ public sealed partial class StructureQuery
 
         public bool XmlStringValueEquals(StructureNode node, string value) => Equal(XmlStringValue(node), value);
 
-        public IEnumerable<int> ReadName(StructureNode node) => !node.HasName ? []
+        public IEnumerable<int> ReadName(StructureNode node) => node.IntegerKey is { } key
+            ? key.ToString(CultureInfo.InvariantCulture).Select(c => (int)c)
+            : !node.HasName ? []
+            : index.Format == StructureFormat.Neon ? NeonStructureKeys.Read(reader, node.NameStart, node.NameEnd)
             : index.Format is StructureFormat.Yaml or StructureFormat.Neon
                 ? ConfigScalarText.Read(index, reader, node.NameStart, node.NameEnd, name: true, ct)
             : IsJson(node.Kind) ? JsonString(node.NameStart, node.NameEnd) : Raw(node.NameStart, node.NameEnd);
@@ -109,7 +112,7 @@ public sealed partial class StructureQuery
 
         public StructurePreview Preview(StructureNode node, bool name, int maxChars)
         {
-            if (name && !node.HasName) return new("", false);
+            if (name && !node.HasName && !node.IntegerKey.HasValue) return new("", false);
             return PreviewContent(name ? ReadName(node) : ReadValue(node), maxChars);
         }
 

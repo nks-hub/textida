@@ -11,6 +11,8 @@ public sealed class StructureIndex : IStructureIndex, IStructureSink, IDisposabl
     private const int PageSize = 64 * 1024;
     private const int CachePages = 64;
     private const int MaxIssues = 1000;
+    // XML links and NEON keys share a disk slot; bit 8 distinguishes the disjoint formats.
+    private const long IntegerKeyFlag = 0x100;
     private readonly string directory;
     private readonly SafeFileHandle file;
     private readonly Dictionary<long, Page> cache = [];
@@ -93,6 +95,11 @@ public sealed class StructureIndex : IStructureIndex, IStructureSink, IDisposabl
         }
     }
 
+    public void SetIntegerKey(long id, long key)
+    {
+        lock (gate) WriteNode(ReadNode(id) with { IntegerKey = key });
+    }
+
     public void Report(StructureIssue issue)
     {
         lock (gate)
@@ -112,8 +119,10 @@ public sealed class StructureIndex : IStructureIndex, IStructureSink, IDisposabl
             Transfer(checked(id * RecordSize), bytes, write: false);
             Span<long> values = stackalloc long[13];
             for (int i = 0; i < values.Length; i++) values[i] = BinaryPrimitives.ReadInt64LittleEndian(bytes[(i * 8)..]);
-            return new(id, values[0], (StructureKind)values[12], values[1], values[2], values[3], values[4],
-                values[5], values[6], values[7], values[8], values[9], checked((int)values[11]), values[10]);
+            bool integerKey = (values[12] & IntegerKeyFlag) != 0;
+            return new(id, values[0], (StructureKind)(values[12] & 0xFF), values[1], values[2], values[3], values[4],
+                values[5], values[6], values[7], values[8], values[9], checked((int)values[11]), integerKey ? -1 : values[10],
+                integerKey ? values[10] : null);
         }
     }
 
@@ -157,7 +166,8 @@ public sealed class StructureIndex : IStructureIndex, IStructureSink, IDisposabl
     private void WriteNode(StructureNode node)
     {
         Span<long> values = stackalloc long[] { node.ParentId, node.Start, node.End, node.NameStart, node.NameEnd,
-            node.ValueStart, node.ValueEnd, node.Ordinal, node.ChildCount, node.LastDescendantId, node.NamespaceId, node.Depth, (long)node.Kind };
+            node.ValueStart, node.ValueEnd, node.Ordinal, node.ChildCount, node.LastDescendantId,
+            node.IntegerKey ?? node.NamespaceId, node.Depth, (long)node.Kind | (node.IntegerKey.HasValue ? IntegerKeyFlag : 0) };
         Span<byte> bytes = stackalloc byte[RecordSize];
         for (int i = 0; i < values.Length; i++) BinaryPrimitives.WriteInt64LittleEndian(bytes[(i * 8)..], values[i]);
         Transfer(checked(node.Id * RecordSize), bytes, write: true);

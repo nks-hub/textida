@@ -22,7 +22,7 @@ public static class StructureSearch
         {
             ct.ThrowIfCancellationRequested();
             var node = index.ReadNode(id);
-            if (scope == StructureSearchScope.Name && !node.HasName) continue;
+            if (scope == StructureSearchScope.Name && !node.HasName && !node.IntegerKey.HasValue) continue;
             if (scope == StructureSearchScope.Value && node.Kind is StructureKind.JsonObject or StructureKind.JsonArray
                 or StructureKind.XmlElement) continue;
             if (scope == StructureSearchScope.Path && index.Format == StructureFormat.Xml

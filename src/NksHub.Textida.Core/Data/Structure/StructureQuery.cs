@@ -135,9 +135,9 @@ public sealed partial class StructureQuery
             ct.ThrowIfCancellationRequested();
             return test switch
             {
-                Test.JsonName => IsJson(node.Kind) && node.HasName && values.JsonNameEquals(node, name!),
+                Test.JsonName => IsJson(node.Kind) && (node.HasName || node.IntegerKey.HasValue) && values.JsonNameEquals(node, name!),
                 Test.JsonIndex => IsJson(node.Kind) && node.ParentId >= 0
-                    && !node.HasName && node.Ordinal == number,
+                    && (node.IntegerKey is { } key ? key == number : !node.HasName && node.Ordinal == number),
                 Test.JsonWildcard => IsJson(node.Kind) && node.ParentId >= 0 && IsJson(index.ReadNode(node.ParentId).Kind),
                 Test.XmlElement => node.Kind == StructureKind.XmlElement && MatchesXmlName(node, name!),
                 Test.XmlAttribute => node.Kind == StructureKind.XmlAttribute && MatchesXmlName(node, name!),
@@ -240,8 +240,8 @@ public sealed partial class StructureQuery
             foreach (var child in Children(node))
             {
                 bool matches = part.Name is { } name
-                    ? child.HasName && values.JsonNameEquals(child, name)
-                    : !child.HasName && child.Ordinal == part.Index;
+                    ? (child.HasName || child.IntegerKey.HasValue) && values.JsonNameEquals(child, name)
+                    : child.IntegerKey is { } key ? key == part.Index : !child.HasName && child.Ordinal == part.Index;
                 if (matches && AnyJsonValue(child, path, at + 1, literal)) return true;
             }
             return false;

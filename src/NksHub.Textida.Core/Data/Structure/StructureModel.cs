@@ -20,7 +20,7 @@ public readonly record struct StructureIssue(StructureIssueKind Kind, long Start
 public readonly record struct StructureNode(
     long Id, long ParentId, StructureKind Kind, long Start, long End,
     long NameStart, long NameEnd, long ValueStart, long ValueEnd,
-    long Ordinal, long ChildCount, long LastDescendantId, int Depth, long NamespaceId = -1)
+    long Ordinal, long ChildCount, long LastDescendantId, int Depth, long NamespaceId = -1, long? IntegerKey = null)
 {
     public bool HasName => NameStart >= 0;
     public bool Contains(long offset) => Start <= offset && offset < End;
@@ -34,6 +34,7 @@ public interface IStructureSink
     void CompleteNode(long id, long valueStart, long valueEnd, long end, long childCount);
     // A NEON block sequence becomes a mapping when a named sibling appears.
     void SetKind(long id, StructureKind kind) => throw new NotSupportedException("This sink cannot change a provisional collection kind.");
+    void SetIntegerKey(long id, long key) => throw new NotSupportedException("This sink cannot store NEON integer keys.");
     // NamespaceId points to an XmlNamespace node; -2 is the predefined xml namespace.
     void SetNamespace(long id, long namespaceId);
     void Report(StructureIssue issue);

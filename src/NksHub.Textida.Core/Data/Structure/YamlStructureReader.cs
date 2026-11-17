@@ -2,20 +2,31 @@ namespace NksHub.Textida.Core.Data.Structure;
 
 public static class YamlStructureReader
 {
-    public static void Parse(StructureParseContext context) => new IndentedStructureReader(context, false).Parse();
+    public static void Parse(StructureParseContext context)
+    {
+        using var reader = new IndentedStructureReader(context, false);
+        reader.Parse();
+    }
 }
 
 public static class NeonStructureReader
 {
-    public static void Parse(StructureParseContext context) => new IndentedStructureReader(context, true).Parse();
+    public static void Parse(StructureParseContext context)
+    {
+        using var reader = new IndentedStructureReader(context, true);
+        reader.Parse();
+    }
 }
 
-internal sealed class IndentedStructureReader
+internal sealed class IndentedStructureReader : IDisposable
 {
     private const int MaxDepth = 256;
     private readonly StructureCharReader reader;
     private readonly IStructureSink sink;
     private readonly bool neon;
+    private readonly StructureParseContext context;
+    private YamlAnchors? anchors;
+    private (long Parent, long Ordinal, long Key)? pendingKey;
     private long column;
     private long lineNumber;
     private bool indentation = true;
@@ -33,6 +44,7 @@ internal sealed class IndentedStructureReader
         reader = context.OpenReader();
         sink = context.Sink;
         this.neon = neon;
+        this.context = context;
     }
 
     private void Restore(Position position)
@@ -115,7 +127,25 @@ internal sealed class IndentedStructureReader
     private long Add(StructureKind kind, long parent, long nameStart, long nameEnd, long ordinal, int depth, long valueStart)
     {
         if (depth > MaxDepth) throw Error("Configuration nesting exceeds 256 levels.", StructureIssueKind.ResourceLimit);
-        return sink.AddNode(kind, parent, nameStart >= 0 ? nameStart : valueStart, nameStart, nameEnd, valueStart, ordinal, depth);
+        long id = sink.AddNode(kind, parent, nameStart >= 0 ? nameStart : valueStart, nameStart, nameEnd, valueStart, ordinal, depth);
+        if (pendingKey is { } key && key.Parent == parent && key.Ordinal == ordinal)
+        {
+            sink.SetIntegerKey(id, key.Key);
+            pendingKey = null;
+        }
+        return id;
+    }
+
+    private void KeyIndex(long parent, long ordinal, long nameStart, long nameEnd, ref long? maximum)
+    {
+        if (!neon) return;
+        long? key = nameStart < 0 ? maximum is { } previous
+                ? previous == long.MaxValue ? throw Error("The implicit NEON integer key overflows signed 64-bit range.") : previous + 1
+                : 0
+            : NeonStructureKeys.IntegerKey(reader, nameStart, nameEnd);
+        if (key is not { } integer) return;
+        if (maximum is null || integer > maximum) maximum = integer;
+        pendingKey = (parent, ordinal, integer);
     }
 
     private long Null(long parent, long nameStart, long nameEnd, long ordinal, int depth, long start)
@@ -184,6 +214,7 @@ internal sealed class IndentedStructureReader
     private long Collection(long parent, long nameStart, long nameEnd, long ordinal, int depth, long indent)
     {
         long start = Offset, count = 0, end = start;
+        long? maximum = null;
         bool sequence = Sequence;
         bool mixed = false;
         long id = Add(sequence ? StructureKind.JsonArray : StructureKind.JsonObject,
@@ -196,6 +227,7 @@ internal sealed class IndentedStructureReader
                 Read();
                 long empty = Offset;
                 Spaces();
+                KeyIndex(id, count, -1, -1, ref maximum);
                 end = NestedValue(id, -1, -1, count++, depth + 1, indent, empty, true);
             }
             else
@@ -205,6 +237,7 @@ internal sealed class IndentedStructureReader
                 var name = Key(false);
                 long empty = Offset;
                 Spaces();
+                KeyIndex(id, count, name.Start, name.End, ref maximum);
                 end = NestedValue(id, name.Start, name.End, count++, depth + 1, indent, empty, false);
             }
             Trivia();
@@ -253,8 +286,10 @@ internal sealed class IndentedStructureReader
         {
             Read();
             long symbol = Offset;
-            while (!Blank(Current) && Current is not (',' or ']' or '}')) Read();
+            while (!Blank(Current) && Current is not (',' or '[' or ']' or '{' or '}')) Read();
             if (Offset == symbol) throw Error("An alias needs an anchor name.");
+            if (anchors is null || !anchors.Contains(symbol, Offset))
+                throw new StructureSyntaxException(StructureIssueKind.Syntax, start, Offset, "The YAML alias has no preceding anchor definition.");
             return Scalar(StructureKind.ConfigReference, parent, nameStart, nameEnd, ordinal, depth, start, Offset);
         }
         if (!neon && Current is '@' or '`' or '%') throw Error("A reserved YAML indicator cannot start a plain value.");
@@ -425,6 +460,11 @@ internal sealed class IndentedStructureReader
                 long value = Offset;
                 while (!Blank(Current) && Current is not (',' or '[' or ']' or '{' or '}')) Read();
                 if (symbol == '&' && value == Offset) throw Error("An anchor needs a name.");
+                if (symbol == '&')
+                {
+                    anchors ??= new YamlAnchors(context.Source, context.CancellationToken);
+                    anchors.Define(value, Offset);
+                }
             }
             Spaces();
         }
@@ -467,6 +507,7 @@ internal sealed class IndentedStructureReader
     {
         Read(); Trivia();
         long count = 0;
+        long? maximum = null;
         while (!Consume(close))
         {
             if (Current < 0) throw Error("The flow collection or entity is not closed.");
@@ -475,6 +516,7 @@ internal sealed class IndentedStructureReader
                 throw Error("Compact mappings in YAML flow sequences are not supported.", StructureIssueKind.UnsupportedSyntax);
             if (map && !neon || neon && LooksLikeKey(true)) { (ns, ne) = Key(true); Trivia(); }
             if (neon && close == ']' && ns >= 0 && !map) { sink.SetKind(id, StructureKind.JsonObject); map = true; }
+            KeyIndex(id, count, ns, ne, ref maximum);
             if ((Current == close || Current == ',') && ns >= 0) Null(id, ns, ne, count++, depth + 1, Offset);
             else { Value(id, ns, ne, count++, depth + 1, -1, true); }
             long lastLine = lineNumber;
@@ -489,4 +531,6 @@ internal sealed class IndentedStructureReader
 
     private StructureSyntaxException Error(string message, StructureIssueKind kind = StructureIssueKind.Syntax) =>
         new(kind, Offset, Math.Min(reader.Length, Offset + 1), message);
+
+    public void Dispose() => anchors?.Dispose();
 }

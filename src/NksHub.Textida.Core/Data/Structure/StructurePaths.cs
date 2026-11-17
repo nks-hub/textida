@@ -52,7 +52,14 @@ public static class StructurePaths
                 {
                     if (current.ParentId == 0) continue;
                     yield return '[';
-                    if (current.HasName)
+                    if (current.IntegerKey is { } key)
+                    {
+                        bool quoted = key < 0;
+                        if (quoted) yield return '"';
+                        foreach (char c in key.ToString(CultureInfo.InvariantCulture)) yield return c;
+                        if (quoted) yield return '"';
+                    }
+                    else if (current.HasName)
                     {
                         yield return '"';
                         foreach (int value in values.ReadName(current))
