@@ -14,9 +14,12 @@ public sealed class SystemIntegration(SystemLocations locations, string exePath)
 
     public string ExePath => exePath;
 
-    public string StartMenuShortcut => Path.Combine(locations.StartMenuDir, ShortcutFileName);
+    public string StartMenuShortcut => ShortcutPath(locations.StartMenuDir);
 
-    public string DesktopShortcut => Path.Combine(locations.DesktopDir, ShortcutFileName);
+    public string DesktopShortcut => ShortcutPath(locations.DesktopDir);
+
+    private static string ShortcutPath(string folder) =>
+        !string.IsNullOrWhiteSpace(folder) && Path.IsPathFullyQualified(folder) ? Path.Combine(folder, ShortcutFileName) : "";
 
     private T WithShell<T>(Func<ShellIntegration, T> use)
     {
@@ -72,6 +75,11 @@ public sealed class SystemIntegration(SystemLocations locations, string exePath)
 
     private void SetShortcut(string path, bool enabled)
     {
+        if (path.Length == 0)
+        {
+            if (enabled) throw new IOException("The shortcut folder is unavailable or is not an absolute path.");
+            return;
+        }
         if (enabled) ShortcutFile.Create(path, exePath, Path.GetDirectoryName(exePath)!, ShellIntegration.ProductName);
         else DeleteFile(path);
     }
@@ -94,7 +102,7 @@ public sealed class SystemIntegration(SystemLocations locations, string exePath)
     {
         RemoveExplorerIntegration();
         foreach (var path in new[] { StartMenuShortcut, DesktopShortcut })
-            if (ShortcutFile.ReadTarget(path) is not { } target || string.Equals(target, exePath, StringComparison.OrdinalIgnoreCase)) DeleteFile(path);
+            if (path.Length > 0 && (ShortcutFile.ReadTarget(path) is not { } target || string.Equals(target, exePath, StringComparison.OrdinalIgnoreCase))) DeleteFile(path);
     }
 
     public void Notify()

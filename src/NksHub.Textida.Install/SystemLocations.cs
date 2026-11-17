@@ -18,9 +18,9 @@ public sealed record SystemLocations
     /// <summary>Path below <c>HKCU</c> of the entry in Apps &amp; features.</summary>
     public string UninstallKeyPath { get; init; } = DefaultUninstallKeyPath;
 
-    public string StartMenuDir { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+    public string StartMenuDir { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.Programs, Environment.SpecialFolderOption.DoNotVerify);
 
-    public string DesktopDir { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+    public string DesktopDir { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory, Environment.SpecialFolderOption.DoNotVerify);
 
     /// <summary>The settings and the journal of the user, kept by an uninstall unless the user asks to delete them.</summary>
     public string UserDataDir { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Textida");

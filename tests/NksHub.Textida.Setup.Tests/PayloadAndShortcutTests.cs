@@ -7,6 +7,7 @@ namespace NksHub.Textida.Setup.Tests;
 
 /// <summary>The package inside the setup program, the shortcut files, and the removal of the uninstaller itself.</summary>
 [SupportedOSPlatform("windows")]
+[Collection("Shortcut folders")]
 public class PayloadAndShortcutTests : IDisposable
 {
     private readonly Sandbox _box = new();
@@ -188,6 +189,77 @@ public class PayloadAndShortcutTests : IDisposable
         Assert.Empty(_box.ClassesSnapshot());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("relative")]
+    public void Unavailable_shortcut_folders_warn_and_leave_a_current_directory_shortcut_unchanged(string folder)
+    {
+        var here = Environment.CurrentDirectory;
+        try
+        {
+            Environment.CurrentDirectory = _box.Root;
+            var foreign = Path.Combine(_box.Root, folder, SystemIntegration.ShortcutFileName);
+            var target = Program();
+            ShortcutFile.Create(foreign, target, _box.Root, "Another program");
+            var original = File.ReadAllBytes(foreign);
+            var locations = _box.Locations with { StartMenuDir = folder, DesktopDir = folder };
+            var integration = new SystemIntegration(locations, _box.Exe);
+
+            Assert.False(integration.HasStartMenuShortcut());
+            Assert.False(integration.HasDesktopShortcut());
+            integration.SetStartMenuShortcut(false);
+            integration.SetDesktopShortcut(false);
+            Assert.Equal(original, File.ReadAllBytes(foreign));
+
+            using var package = Sandbox.Package();
+            var installer = new Installer(locations) { IsRunning = _ => false };
+            var result = installer.Install(package, _box.Options(startMenu: true, desktop: true, menu: false));
+
+            Assert.Equal(2, result.Warnings.Count);
+            Assert.All(result.Warnings, warning => Assert.Contains("shortcut folder", warning));
+            Assert.True(File.Exists(_box.Exe));
+            using (var entry = _box.UninstallEntry()) Assert.NotNull(entry);
+            Assert.False(integration.HasStartMenuShortcut());
+            Assert.False(integration.HasDesktopShortcut());
+            Assert.Equal(original, File.ReadAllBytes(foreign));
+
+            installer.Uninstall(_box.Dir, deleteUserData: false);
+
+            Assert.False(File.Exists(_box.Exe));
+            Assert.Equal(original, File.ReadAllBytes(foreign));
+            Assert.Equal(target, ShortcutFile.ReadTarget(foreign), ignoreCase: true);
+        }
+        finally { Environment.CurrentDirectory = here; }
+    }
+
+    [Fact]
+    public void Missing_shortcut_folders_are_created_only_when_enabled_and_are_kept_by_uninstall()
+    {
+        var integration = new SystemIntegration(_box.Locations, _box.Exe);
+        var installer = _box.Installer();
+
+        Assert.False(integration.HasStartMenuShortcut());
+        Assert.False(integration.HasDesktopShortcut());
+        Assert.False(Directory.Exists(_box.Locations.StartMenuDir));
+        Assert.False(Directory.Exists(_box.Locations.DesktopDir));
+
+        using var package = Sandbox.Package();
+        var result = installer.Install(package, _box.Options());
+
+        Assert.Empty(result.Warnings);
+        Assert.Equal(_box.Exe, ShortcutFile.ReadTarget(integration.StartMenuShortcut), ignoreCase: true);
+        Assert.False(Directory.Exists(_box.Locations.DesktopDir));
+        integration.SetDesktopShortcut(true);
+        Assert.Equal(_box.Exe, ShortcutFile.ReadTarget(integration.DesktopShortcut), ignoreCase: true);
+
+        installer.Uninstall(_box.Dir, deleteUserData: false);
+
+        Assert.False(integration.HasStartMenuShortcut());
+        Assert.False(integration.HasDesktopShortcut());
+        Assert.True(Directory.Exists(_box.Locations.StartMenuDir));
+        Assert.True(Directory.Exists(_box.Locations.DesktopDir));
+    }
+
     // ---- the uninstaller removes itself ----
 
     [Fact]
@@ -234,3 +306,6 @@ public class PayloadAndShortcutTests : IDisposable
         Assert.True(Directory.Exists(Path.Combine(dir, "profile")));
     }
 }
+
+[CollectionDefinition("Shortcut folders", DisableParallelization = true)]
+public sealed class ShortcutFolderCollection { }
