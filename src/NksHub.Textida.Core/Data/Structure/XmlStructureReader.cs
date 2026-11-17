@@ -161,12 +161,14 @@ public static partial class XmlStructureReader
         private void Text()
         {
             long start = reader.Position;
-            while (reader.Peek() is >= 0 and not '<')
+            while (true)
             {
-                if (elements.Count == 0 && reader.Peek() is not (' ' or '\t' or '\r' or '\n'))
+                int c = reader.Peek();
+                if (c < 0 || c == '<') break;
+                if (elements.Count == 0 && c is not (' ' or '\t' or '\r' or '\n'))
                     throw Error(reader.Position, "Only whitespace is allowed outside the root element.");
-                if (reader.StartsWith("]]>")) throw Error(reader.Position, "Text cannot contain ']]>'.");
-                if (reader.Peek() == '&') ReadEntity(reader);
+                if (c == ']' && reader.StartsWith("]]>")) throw Error(reader.Position, "Text cannot contain ']]>'.");
+                if (c == '&') ReadEntity(reader);
                 else ReadXmlCharacter(reader);
             }
             Leaf(StructureKind.XmlText, start, -1, -1, start, reader.Position);
