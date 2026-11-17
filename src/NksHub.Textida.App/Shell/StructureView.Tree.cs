@@ -28,6 +28,7 @@ internal sealed partial class StructureView
     private long rootParentId = -1;
     private readonly List<Row> markedRows = [];
     private readonly Stack<Row> freeRows = [];
+    private readonly Stack<StructureTreeNode> countPending = new(MaximumItems);
     private static readonly RowData EmptyRow = new(default, "", "");
 
     private static RowData ReadRow(IStructureIndex index, StructureNode node, CancellationToken ct, StructureText.Reader? reader = null)
@@ -183,13 +184,19 @@ internal sealed partial class StructureView
     private int CountItems()
     {
         int count = 0;
-        var pending = new Stack<StructureTreeNode>(tree.Items.OfType<StructureTreeNode>());
-        while (pending.TryPop(out var item))
+        try
         {
-            count++;
-            foreach (var child in item.Items.OfType<StructureTreeNode>()) pending.Push(child);
+            for (int i = 0; i < tree.Items.Count; i++)
+                if (tree.Items[i] is { } root) countPending.Push(root);
+            while (countPending.TryPop(out var item))
+            {
+                count++;
+                for (int i = 0; i < item.Items.Count; i++)
+                    if (item.Items[i] is { } child) countPending.Push(child);
+            }
+            return count;
         }
-        return count;
+        finally { countPending.Clear(); }
     }
 
     private static bool Protects(Row candidate, Row target)
