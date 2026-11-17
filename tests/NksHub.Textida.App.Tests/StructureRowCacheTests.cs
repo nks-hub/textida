@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Automation;
@@ -124,8 +125,24 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Bound(host.View);
         int activeItems = ActiveItems(host.View.Tree);
         Assert.InRange(activeItems, 192, StructureView.MaximumItems);
-        int expected = host.View.CachedItems;
+        var pool = Assert.IsAssignableFrom<System.Collections.ICollection>(typeof(StructureView)
+            .GetField("freeRows", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(host.View));
+        int expected = activeItems + pool.Count;
         Assert.InRange(expected, activeItems, StructureView.MaximumItems);
+        Assert.Equal(expected, host.View.CachedItems);
+        using (host.View.Tree.DeferRefresh())
+        {
+            var loading = new StructureTreeNode { Kind = StructureTreeNodeKind.Loading };
+            var pager = new StructureTreeNode { Kind = StructureTreeNodeKind.Pager };
+            branches[^1].Items.Add(loading);
+            Assert.Equal(expected + 1, host.View.CachedItems);
+            branches[^1].Items.Add(pager);
+            Assert.Equal(expected + 2, host.View.CachedItems);
+            branches[^1].Items.Remove(loading);
+            Assert.Equal(expected + 1, host.View.CachedItems);
+            branches[^1].Items.Remove(pager);
+            Assert.Equal(expected, host.View.CachedItems);
+        }
         for (int i = 0; i < 32; i++) _ = host.View.CachedItems;
 
         const int queries = 1000;
