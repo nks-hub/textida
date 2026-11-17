@@ -70,7 +70,7 @@ internal sealed class StructureRowHeader : Control
         if (caret)
         {
             double markerX = rightToLeft ? Math.Max(0, Bounds.Width - markerWidth) : 0;
-            context.DrawEllipse(TextElement.GetForeground(this), null, new Point(markerX + markerWidth / 2, Bounds.Height / 2), 2, 2);
+            context.DrawEllipse(TextElement.GetForeground(this), null, new Point(markerX + markerWidth / 2, Bounds.Height / 2), 3, 3);
         }
     }
 
