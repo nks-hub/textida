@@ -10,8 +10,29 @@ using NksHub.Textida.App.Shell;
 
 namespace NksHub.Textida.App.Tests;
 
-public sealed class StructureNativeRequestTests
+public sealed class StructureNativeRequestTests(ITestOutputHelper output)
 {
+    [Fact]
+    [Trait("Category", "Perf")]
+    public void Repeated_small_requests_allocate_less_than_one_stream_buffer_per_read()
+    {
+        using var requests = new Requests();
+        string expected = "{\"value\":\"město 😀\",\"padding\":\"" + new string('x', 96) + "\"}";
+        byte[] bytes = [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(expected)];
+        requests.Write("inspect.json", bytes);
+        for (int i = 0; i < 32; i++)
+            Assert.Equal(expected, requests.Read("inspect.json", "Inspection").GetAwaiter().GetResult());
+
+        const int reads = 1000;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < reads; i++)
+            Assert.Equal(expected, requests.Read("inspect.json", "Inspection").GetAwaiter().GetResult());
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        output.WriteLine($"NativeRequestAllocation requestBytes={bytes.Length} reads={reads} allocatedBytes={allocated} bytesPerRead={(double)allocated / reads:F2}");
+        Assert.True(allocated <= 4096L * reads,
+            $"Reading {reads} requests of {bytes.Length} bytes allocated {allocated} bytes ({(double)allocated / reads:F2} per read); limit is 4096 bytes per read.");
+    }
+
     [Theory]
     [InlineData("inspect.json", "Inspection")]
     [InlineData("arm.json", "Arm")]
