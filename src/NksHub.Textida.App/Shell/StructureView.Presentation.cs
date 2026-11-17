@@ -61,7 +61,7 @@ internal sealed partial class StructureView
         table.CellSelected += SelectTableCell;
         table.EditRequested += EditTableCell;
         table.PageRequested += LoadTablePage;
-        tree.SelectionChanged += (_, _) => { if (Presentation == StructureViewPresentation.Table && !tableSelecting) LoadTable(); };
+        tree.SelectionChanged += (_, _) => { if (Presentation == StructureViewPresentation.Table && !tableSelecting && !selecting) LoadTable(); };
         expand.Click += (_, _) => SetExpanded(true);
         collapse.Click += (_, _) => SetExpanded(false);
         zoomIn.Click += (_, _) => graph.Zoom(1.2);
