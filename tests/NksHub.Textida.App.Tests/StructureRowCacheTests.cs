@@ -101,6 +101,47 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
     }
 
     [AvaloniaFact]
+    [Trait("Category", "Perf")]
+    public async Task Counting_a_populated_cache_allocates_at_most_1024_bytes_per_query()
+    {
+        string values = "[" + string.Join(',', Enumerable.Range(0, 2048)) + "]";
+        string text = "[" + string.Join(',', Enumerable.Repeat(values, 32)) + "]";
+        using var host = new Host(text, StructureFormat.Json);
+        host.View.Sync(); await host.Drain();
+        var array = Assert.Single(DataItems(Assert.Single(DataItems(host.View.Tree))));
+        array.IsExpanded = true; await host.Drain();
+        var branches = DataItems(array).ToArray();
+        Assert.Equal(32, branches.Length);
+        foreach (var branch in branches)
+        {
+            host.View.Tree.SelectedNode = branch;
+            branch.IsExpanded = true; await host.Drain();
+            Assert.Equal(StructureView.PageSize, DataItems(branch).Count());
+            Bound(host.View);
+            branch.IsExpanded = false; await host.Drain();
+        }
+
+        Bound(host.View);
+        int activeItems = ActiveItems(host.View.Tree);
+        Assert.InRange(activeItems, 192, StructureView.MaximumItems);
+        int expected = host.View.CachedItems;
+        Assert.InRange(expected, activeItems, StructureView.MaximumItems);
+        for (int i = 0; i < 32; i++) _ = host.View.CachedItems;
+
+        const int queries = 1000;
+        long checksum = 0;
+        int thread = Environment.CurrentManagedThreadId;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < queries; i++) checksum += host.View.CachedItems;
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(thread, Environment.CurrentManagedThreadId);
+        Assert.Equal((long)expected * queries, checksum);
+        Assert.Equal(expected, host.View.CachedItems);
+        output.WriteLine(FormattableString.Invariant($"cache-items={expected}; active-items={activeItems}; queries={queries}; allocated-bytes={allocated}; bytes-per-query={allocated / (double)queries:0.000}; limit-bytes-per-query=1024"));
+        Assert.InRange(allocated, 0, queries * 1024L);
+    }
+
+    [AvaloniaFact]
     public async Task Rotating_32_branches_reuses_models_and_keeps_exact_tags_parents_and_pages()
     {
         string text = "[" + string.Join(',', Enumerable.Range(0, 32).Select(group => "["
