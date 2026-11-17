@@ -434,6 +434,7 @@ internal sealed partial class CsvView : Grid, IDisposable
 
     public void SelectAll()
     {
+        if (_editing) { _edit.SelectAll(); return; }
         // like a whole column: the rows the background index has not reached yet belong to the selection too
         EnsureAllRows();
         _anchorRow = MinRow;
