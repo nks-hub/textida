@@ -167,6 +167,23 @@ public sealed class StructurePresentationTests
         Assert.Equal(new[] { first, second }, host.View.Table.CurrentPage.Rows.Select(row => row.Name));
     }
 
+    [AvaloniaFact]
+    public async Task Table_blank_cell_clears_the_previous_source_copy_and_edit_target()
+    {
+        using var host = new Host("{\"a\":1,\"row\":{\"name\":\"text\"}}", StructureFormat.Json);
+        host.View.Presentation = StructureViewPresentation.Table;
+        host.View.Sync(); await host.Drain();
+        host.View.FocusContent(); TestApp.Press(host.Window, Key.Home); await host.Drain();
+        Assert.NotNull(host.View.SelectedRange); Assert.True(host.View.EditButton.IsEnabled);
+        TestApp.Press(host.Window, Key.Down); await host.Drain();
+        Assert.Null(host.View.SelectedRange);
+        Assert.False(host.View.CopySourceButton.IsEnabled); Assert.False(host.View.EditButton.IsEnabled);
+        TestApp.Press(host.Window, Key.Right); await host.Drain();
+        Assert.NotNull(host.View.SelectedRange); Assert.True(host.View.EditButton.IsEnabled);
+        Click(host.View.CopySourceButton); await host.Drain();
+        Assert.Equal("\"name\":\"text\"", host.Copied);
+    }
+
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private sealed class Host : IDisposable

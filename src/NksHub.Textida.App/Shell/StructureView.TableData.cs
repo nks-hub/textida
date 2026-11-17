@@ -128,13 +128,14 @@ internal sealed partial class StructureView
         ObserveCancellationCleanup(owner, cleanup);
     }
 
-    private void SelectTableCell(StructureTableCell cell)
+    private void SelectTableCell(StructureTableCell? cell)
     {
         tableSelecting = true;
         try
         {
-            tableSelection = new(new(cell.Node, cell.Name, cell.Value, cell.ResultRange), new StructureTreeNode(), null);
-            UpdateButtons(); Jump();
+            tableSelection = cell is null ? null : new(new(cell.Node, cell.Name, cell.Value, cell.ResultRange), new StructureTreeNode(), null);
+            UpdateButtons();
+            if (cell is not null) Jump();
         }
         finally { tableSelecting = false; }
     }

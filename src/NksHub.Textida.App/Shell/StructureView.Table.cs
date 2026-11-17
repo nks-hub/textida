@@ -36,7 +36,7 @@ internal sealed class StructureTable : Control
         ActualThemeVariantChanged += (_, _) => { ClearLabels(); InvalidateVisual(); };
     }
 
-    public event Action<StructureTableCell>? CellSelected;
+    public event Action<StructureTableCell?>? CellSelected;
     public event Action<StructureTableCell>? EditRequested;
     public event Action<int, int>? PageRequested;
     internal int LoadedRows => page.Rows.Count;
@@ -127,7 +127,9 @@ internal sealed class StructureTable : Control
     {
         if (page.Rows.Count == 0 || page.Columns.Count == 0) return;
         selectedRow = Math.Clamp(row, 0, page.Rows.Count - 1); selectedColumn = Math.Clamp(column, 0, page.Columns.Count - 1);
-        if (SelectedCell() is { } cell) { if (edit) EditRequested?.Invoke(cell); else CellSelected?.Invoke(cell); }
+        var cell = SelectedCell();
+        if (edit) { if (cell is not null) EditRequested?.Invoke(cell); }
+        else CellSelected?.Invoke(cell);
         InvalidateVisual();
     }
 
