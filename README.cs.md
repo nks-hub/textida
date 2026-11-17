@@ -24,6 +24,8 @@ Editor je nový program inspirovaný PSPadem. Nepoužívá kód, data ani zdroje
 - 📝 **Markdown** - režim čtení, úprav a zdroje; čtečka rozkládá jen viditelné bloky, má sazbu podle GitHubu, výběr přes více bloků a dokovatelný panel nadpisů.
 - 🎨 **Barevné motivy** - deset motivů editoru, barva, tučné písmo a kurzíva pro každý druh tokenu, import motivů TextMate a VS Code.
 - 🗂️ **Velký JSON** - formátovaný pohled, který čte soubor po blocích na pozadí a upravuje hodnoty přímo.
+- 🌳 **Strukturované dokumenty** - režimy `Zdroj`, `Strom`, `Tabulka`, `Graf` a `Zdroj a strom` pro JSON, JSONC, XML, YAML a NEON. Hledání uzlů, kopírování cest nebo zdroje, úpravy hodnot a skok na jejich místo ve zdroji.
+- 🧮 **CSV a TSV** - přepínání mezi zdrojem a upravitelnou tabulkou nad stejným dokumentem.
 - 🌿 **Git** - panel commitu se zaškrtávátky u úseků, pull, který nejdřív stáhne změny, a počty příchozích a odchozích commitů ve stavovém řádku.
 - 🧩 **Přibalené nástroje** - samostatné procesy pluginů pro formátování, statistiku textu, hashe a jazykové nástroje a k tomu server MCP.
 - 📦 **Balíčky pro desktop** - instalátor a přenosný ZIP pro Windows, DMG a ZIP pro macOS a balíčky pro Linux. Vydaná sestavení NativeAOT mají runtime v sobě.
@@ -79,6 +81,10 @@ Testy `Perf` měří čas a potřebují sestavení Release popsané v části 
 ## Použití
 
 Na Windows spusťte `Textida.exe`, na macOS otevřete Textidu ze složky Aplikace a na Linuxu spusťte `textida`. Soubor otevřete z menu, přetažením do okna nebo cestou na příkazové řádce. Dokumenty Markdown mají režim čtení, úprav a zdroje.
+
+Tlačítky nad dokumentem přepínejte mezi pohledy. Strom ukazuje klíče a hodnoty na jednom řádku, tabulka zobrazuje řádky po stránkách. Graf můžete posouvat a přibližovat. CSV a TSV mají režimy `Zdroj` a `Tabulka`. Přepnutí pohledu zachová stejný dokument i historii kroků `Zpět`. V režimu `Zdroj a strom` přejdete klávesami `F6` a `Shift+F6` mezi zdrojem, stromem a dalšími otevřenými panely. Odkazy v YAML a NEON zůstávají symbolické a nerozbalují se do kopií dat.
+
+V nabídce `Zobrazit` otevřete `Rejstřík nadpisů`. Panel zůstává vedle Markdownu při čtení, úpravách i zobrazení zdroje. Kliknutím na nadpis nebo klávesou `Enter` přejdete na jeho místo v dokumentu.
 
 ### Měření výkonu
 

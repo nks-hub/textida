@@ -24,6 +24,8 @@ Editor je nový program inšpirovaný PSPadom. Nepoužíva kód, dáta ani zdroj
 - 📝 **Markdown** - režim čítania, úprav a zdroja; čítačka rozkladá len viditeľné bloky, má sadzbu podľa GitHubu, výber cez viac blokov a dokovateľný panel nadpisov.
 - 🎨 **Farebné motívy** - desať motívov editora, farba, tučné písmo a kurzíva pre každý druh tokenu, import motívov TextMate a VS Code.
 - 🗂️ **Veľký JSON** - formátovaný pohľad, ktorý číta súbor po blokoch na pozadí a upravuje hodnoty priamo.
+- 🌳 **Štruktúrované dokumenty** - režimy `Zdroj`, `Strom`, `Tabuľka`, `Graf` a `Zdroj a strom` pre JSON, JSONC, XML, YAML a NEON. Hľadanie uzlov, kopírovanie ciest alebo zdroja, úpravy hodnôt a skok na ich miesto v zdroji.
+- 🧮 **CSV a TSV** - prepínanie medzi zdrojom a upraviteľnou tabuľkou nad tým istým dokumentom.
 - 🌿 **Git** - panel commitu so zaškrtávacími políčkami pri úsekoch, pull, ktorý najprv stiahne zmeny, a počty prichádzajúcich a odchádzajúcich commitov v stavovom riadku.
 - 🧩 **Pribalené nástroje** - samostatné procesy pluginov na formátovanie, štatistiku textu, hashe a jazykové nástroje a k tomu server MCP.
 - 📦 **Balíky pre desktop** - inštalátor a prenosný ZIP pre Windows, DMG a ZIP pre macOS a balíky pre Linux. Vydané zostavenia NativeAOT majú runtime v sebe.
@@ -79,6 +81,10 @@ Testy `Perf` merajú čas a potrebujú zostavenie Release opísané v časti [
 ## Použitie
 
 Na Windows spustite `Textida.exe`, na macOS otvorte Textidu z priečinka Aplikácie a na Linuxe spustite `textida`. Súbor otvorte z menu, presunutím do okna alebo cestou na príkazovom riadku. Dokumenty Markdown majú režim čítania, úprav a zdroja.
+
+Tlačidlami nad dokumentom prepínajte medzi pohľadmi. Strom ukazuje kľúče a hodnoty na jednom riadku, tabuľka zobrazuje riadky po stránkach. Graf môžete posúvať a približovať. CSV a TSV majú režimy `Zdroj` a `Tabuľka`. Prepnutie pohľadu zachová ten istý dokument aj históriu krokov `Späť`. V režime `Zdroj a strom` prejdete klávesmi `F6` a `Shift+F6` medzi zdrojom, stromom a ďalšími otvorenými panelmi. Odkazy v YAML a NEON zostávajú symbolické a nerozbaľujú sa do kópií dát.
+
+V ponuke `Zobraziť` otvorte `Register nadpisov`. Panel zostáva vedľa Markdownu pri čítaní, úpravách aj zobrazení zdroja. Kliknutím na nadpis alebo klávesom `Enter` prejdete na jeho miesto v dokumente.
 
 ### Meranie výkonu
 

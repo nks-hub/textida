@@ -24,6 +24,8 @@ Der Editor ist ein neues Programm nach dem Vorbild von PSPad. Er verwendet keine
 - 📝 **Markdown** - Lese-, Bearbeitungs- und Quelltextmodus; die Leseansicht legt nur sichtbare Blöcke an, setzt nach GitHub-Typografie, wählt über mehrere Blöcke aus und hat ein andockbares Überschriftenpanel.
 - 🎨 **Farbschemata** - zehn Editor-Schemata, Farbe, Fett und Kursiv je Tokenart, Import von TextMate- und VS-Code-Schemata.
 - 🗂️ **Großes JSON** - eine formatierte Ansicht, die die Datei blockweise im Hintergrund liest und Werte direkt bearbeitet.
+- 🌳 **Strukturierte Dokumente** - die Ansichten `Quelltext`, `Baum`, `Tabelle`, `Graph` und `Quelltext und Baum` für JSON, JSONC, XML, YAML und NEON. Knoten suchen, Pfade oder Quelltext kopieren, Werte bearbeiten und zu ihrer Stelle im Quelltext springen.
+- 🧮 **CSV und TSV** - zwischen Quelltext und bearbeitbarer Tabelle desselben Dokuments wechseln.
 - 🌿 **Git** - Commit-Panel mit Kästchen je Änderung, Pull, der zuerst abruft, und Zahl ein- und ausgehender Commits in der Statusleiste.
 - 🧩 **Mitgelieferte Werkzeuge** - eigene Plugin-Prozesse für Formatierung, Textstatistik, Hashes und Sprachwerkzeuge, dazu ein MCP-Server.
 - 📦 **Desktop-Pakete** - Installer und portables ZIP für Windows, DMG und ZIP für macOS sowie Pakete für Linux. Veröffentlichte NativeAOT-Builds bringen ihre Laufzeit mit.
@@ -79,6 +81,10 @@ Die `Perf`-Tests messen Zeiten und brauchen die Release-Konfiguration, die unter
 ## Verwendung
 
 Starten Sie unter Windows `Textida.exe`, öffnen Sie unter macOS Textida aus dem Ordner Programme und starten Sie unter Linux `textida`. Eine Datei öffnen Sie über das Menü, indem Sie sie ins Fenster ziehen, oder mit ihrem Pfad auf der Befehlszeile. Markdown-Dokumente haben einen Lese-, Bearbeitungs- und Quelltextmodus.
+
+Mit den Schaltflächen oberhalb des Dokuments wechseln Sie die Ansicht. Der Baum zeigt Schlüssel und Werte in einer Zeile, die Tabelle zeigt Datensätze seitenweise. Den Graphen können Sie verschieben und zoomen. Für CSV und TSV gibt es `Quelltext` und `Tabelle`. Alle Ansichten greifen auf dasselbe Dokument zu. Der Verlauf für `Rückgängig` bleibt beim Wechsel erhalten. In `Quelltext und Baum` wechseln Sie mit `F6` und `Umschalt+F6` zwischen Quelltext, Baum und weiteren offenen Panels. Verweise in YAML und NEON bleiben symbolisch und werden nicht zu Datenkopien aufgelöst.
+
+Öffnen Sie in `Ansicht` das `Überschriftenverzeichnis`. Das Panel bleibt beim Lesen, Bearbeiten und Anzeigen des Markdown-Quelltexts neben dem Dokument. Klicken Sie auf eine Überschrift oder drücken Sie `Enter`, um zu ihrer Stelle im Dokument zu springen.
 
 ### Benchmarks
 

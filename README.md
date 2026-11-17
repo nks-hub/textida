@@ -25,7 +25,8 @@ The editor is a new program inspired by PSPad; it does not use PSPad code, data 
 - 📝 **Markdown** - reading, editing and source modes; the reader lays out only visible blocks, uses GitHub's typography, selects across blocks and has a dockable headings panel.
 - 🎨 **Colour themes** - ten editor themes, per-token colour, bold and italic, import from TextMate and VS Code themes.
 - 🗂️ **Large JSON** - a formatted view that reads the file in blocks in the background and edits values in place.
-- 🌳 **JSON and XML tree** - browse JSON, JSONC and XML nodes, search names, values and paths, run supported JSONPath and XPath queries, and jump to the source.
+- 🌳 **Structured documents** - source, tree, table, graph and source beside the tree for JSON, JSONC, XML, YAML and NEON. Search nodes, copy paths or source, edit values and jump to their source.
+- 🧮 **CSV and TSV** - switch between source and an editable table over the same document.
 - 🌿 **Git** - commit panel with per-change boxes, pull that fetches first, incoming and outgoing counts in the status bar.
 - 🧩 **Bundled tools** - separate plugin processes for formatting, text statistics, hashes and language tools, plus an MCP server.
 - 📦 **Desktop packages** - Windows installer and portable ZIP, macOS DMG and ZIP, and Linux packages. Published NativeAOT builds include their runtime.
@@ -81,6 +82,10 @@ The `Perf` tests measure time and need the Release setup described under [Develo
 ## Usage
 
 Run `Textida.exe` on Windows, open Textida from Applications on macOS, or run `textida` on Linux. Open a file through the menu, drag it into the window, or pass its path on the command line. Markdown documents have reading, editing and source modes.
+
+Use the buttons above a structured document to choose its view. The tree shows keys and values on one line; the table pages through rows and columns; the graph supports panning and zooming. Switching views keeps the same document and undo history. In source and tree mode, F6 and Shift+F6 move between the source, tree and other open panels. YAML and NEON references remain symbolic rather than expanding into duplicate data.
+
+Open the Markdown headings panel from View to keep its outline beside reading, editing and source modes. Click a heading or press Enter to jump to it.
 
 ### Benchmarks
 
@@ -144,7 +149,7 @@ Pushing a `v*` tag runs [`.github/workflows/release.yml`](.github/workflows/rele
 
 Before publishing, verify the actual packages for Windows x64, macOS arm64 and x64, and Linux x64 and arm64. After publishing, check the public download and signed feed, then update the [NKS Hub product page](https://nks-hub.cz/reference/repo-textida), this README and the repository description with the same verified version and platform information. Product screenshots must come from the running application with sample documents.
 
-Automated Windows checks passed for mouse and keyboard input and for OS-injected touch and pen gestures in both text editors. The macOS and Linux packages have automated command-line smoke checks; their graphical interfaces have not been manually checked for this release. Physical touchscreens, pens and touch or pen input over RDP, including phone clients, remain unverified.
+In release 0.1.8, automated Windows checks passed for mouse and keyboard input and for OS-injected touch and pen gestures in both text editors. The macOS and Linux packages of 0.1.8 passed automated command-line smoke checks. These results describe those packages. Physical touchscreens, pens and touch or pen input over RDP, including phone clients, remain unverified.
 
 Textida checks the feed a few seconds after start and then once a day, and when you choose Help, Check for Updates; `updates.checkOnStart` set to false turns the automatic check off. A newer version shows a badge in the status bar. The check is one GET of the [signed feed](https://raw.githubusercontent.com/nks-hub/textida/update-feed/feed.json), which also covers preview releases. Each package must match the signed SHA-256 and size. Windows uses the installer to switch folders after Textida closes; macOS and unpacked Linux installations use an atomic directory exchange. The old version stays in `Textida.previous` for rollback. Linux installations managed by apt update through apt. macOS accepts only signed and notarized bundles, so the current ad-hoc signed previews require manual installation.
 
