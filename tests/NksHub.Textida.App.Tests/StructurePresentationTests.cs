@@ -150,6 +150,23 @@ public sealed class StructurePresentationTests
         Assert.Equal(1, host.Document.UndoDepth);
     }
 
+    [AvaloniaTheory]
+    [InlineData("{5: Cat, Dog}", "5", "6")]
+    [InlineData("{name: first, second}", "name", "0")]
+    public async Task Neon_semantic_integer_keys_label_tree_and_table_without_changing_page_ordinals(string text, string first, string second)
+    {
+        using var host = new Host(text, StructureFormat.Neon);
+        host.View.Sync(); await host.Drain();
+        var root = Assert.Single(host.View.Tree.VisibleNodes, node => node.Kind == StructureTreeNodeKind.Normal);
+        root.IsExpanded = true; await host.Drain();
+        var children = root.Items.Where(node => node.Tag is StructureNode).ToArray();
+        Assert.Equal(new[] { first, second }, children.Select(node => node.DisplayKey));
+        Assert.Equal(new long[] { 0, 1 }, children.Select(node => ((StructureNode)node.Tag!).Ordinal));
+        host.View.Tree.SelectedNode = root;
+        host.View.Presentation = StructureViewPresentation.Table; await host.Drain();
+        Assert.Equal(new[] { first, second }, host.View.Table.CurrentPage.Rows.Select(row => row.Name));
+    }
+
     private static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private sealed class Host : IDisposable

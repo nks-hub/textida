@@ -98,7 +98,7 @@ internal sealed partial class StructureView
     {
         var node = row.Data.Node;
         string kind = Loc.Get(KindKey(node.Kind));
-        string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + node.Ordinal.ToString(CultureInfo.CurrentCulture) + "]";
+        string name = row.Data.Name.Length > 0 ? row.Data.Name : node.Kind == StructureKind.Document ? kind : "[" + (node.IntegerKey ?? node.Ordinal).ToString(CultureInfo.CurrentCulture) + "]";
         return name + "  ·  " + kind + (node.ChildCount > 0 ? "  (" + node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")" : "");
     }
 
@@ -113,7 +113,7 @@ internal sealed partial class StructureView
             StructureKind.XmlText => "#text",
             StructureKind.XmlCData => "#cdata",
             StructureKind.XmlComment => "#comment",
-            _ => data.Node.Ordinal.ToString(CultureInfo.CurrentCulture),
+            _ => (data.Node.IntegerKey ?? data.Node.Ordinal).ToString(CultureInfo.CurrentCulture),
         };
     }
 
