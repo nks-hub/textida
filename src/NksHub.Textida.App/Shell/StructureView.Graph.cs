@@ -41,6 +41,7 @@ internal sealed class StructureGraph : Control, IDisposable
     internal int LoadedCards => cards.Length;
     internal int DrawnCards { get; private set; }
     internal double ZoomLevel => scale;
+    internal bool SelectedCardVisible => cards.Any(card => ReferenceEquals(card.Entry.Node, tree.SelectedNode) && Viewport.Contains(card.Bounds));
 
     private void OnProjectionChanged(object? sender, EventArgs e) => Refresh();
     private void OnSelectionChanged(object? sender, EventArgs e) { RevealSelection(); InvalidateVisual(); }
@@ -78,7 +79,7 @@ internal sealed class StructureGraph : Control, IDisposable
                     if (cameraSet && oldAnchor is not null && newAnchor is not null)
                         pan += (oldAnchor.Bounds.Center - newAnchor.Bounds.Center) * scale;
                     cards = next; ClearLabels();
-                    if (!cameraSet) Fit();
+                    if (!cameraSet) ResetCamera();
                     RevealSelection();
                     InvalidateVisual();
                 });
@@ -119,7 +120,7 @@ internal sealed class StructureGraph : Control, IDisposable
             ?? cards.FirstOrDefault(card => card.Bounds.Intersects(viewport));
         if (anchor is null && cards.Length > 0)
         {
-            Fit(); viewport = Viewport;
+            ResetCamera(); viewport = Viewport;
             anchor = cards.FirstOrDefault(card => card.Bounds.Intersects(viewport));
         }
         var point = anchor is null ? new Point(Bounds.Width / 2, Bounds.Height / 2)
@@ -142,6 +143,15 @@ internal sealed class StructureGraph : Control, IDisposable
         scale = Math.Clamp(Math.Min((Bounds.Width - 48) / Math.Max(1, right), (Bounds.Height - 48) / Math.Max(1, bottom)), 0.15, 1);
         pan = new Vector(24, Math.Max(24, (Bounds.Height - bottom * scale) / 2));
         cameraSet = true; InvalidateVisual();
+    }
+
+    private void ResetCamera()
+    {
+        if (cards.Length == 0 || Bounds.Width <= 0 || Bounds.Height <= 0) return;
+        scale = 1; pan = new Vector(24, 24); cameraSet = true;
+        var anchor = cards.FirstOrDefault(card => ReferenceEquals(card.Entry.Node, tree.SelectedNode)) ?? cards[0];
+        RevealCard(anchor);
+        InvalidateVisual();
     }
 
     private Point World(Point point) => new((point.X - pan.X) / scale, (point.Y - pan.Y) / scale);
@@ -290,7 +300,7 @@ internal sealed class StructureGraph : Control, IDisposable
             if (button is { IsEnabled: true }) button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             e.Handled = true; return;
         }
-        if (e.Key == Key.Home) { Fit(); e.Handled = true; return; }
+        if (e.Key == Key.Home) { ResetCamera(); e.Handled = true; return; }
         if (e.Key is Key.Add or Key.OemPlus) { Zoom(1.2); e.Handled = true; return; }
         if (e.Key is Key.Subtract or Key.OemMinus) { Zoom(1 / 1.2); e.Handled = true; return; }
         var selected = tree.SelectedNode;
@@ -315,15 +325,25 @@ internal sealed class StructureGraph : Control, IDisposable
     private void RevealSelection()
     {
         if (cards.FirstOrDefault(card => ReferenceEquals(card.Entry.Node, tree.SelectedNode)) is not { } card) return;
-        if (Viewport.Contains(card.Bounds)) return;
-        pan = new Vector(Bounds.Width / 2 - card.Bounds.Center.X * scale, Bounds.Height / 2 - card.Bounds.Center.Y * scale);
+        RevealCard(card);
+    }
+
+    private void RevealCard(GraphCard card)
+    {
+        var viewport = Viewport;
+        if (viewport.Contains(card.Bounds)) return;
+        double x = card.Bounds.Left < viewport.Left || card.Bounds.Right > viewport.Right
+            ? Bounds.Width / 2 - card.Bounds.Center.X * scale : pan.X;
+        double y = card.Bounds.Top < viewport.Top || card.Bounds.Bottom > viewport.Bottom
+            ? Bounds.Height / 2 - card.Bounds.Center.Y * scale : pan.Y;
+        pan = new Vector(x, y);
         cameraSet = true; InvalidateVisual();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == BoundsProperty && !cameraSet) Fit();
+        if (change.Property == BoundsProperty && !cameraSet) ResetCamera();
     }
 
     public void Dispose()

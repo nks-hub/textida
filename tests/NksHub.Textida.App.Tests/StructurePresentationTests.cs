@@ -103,6 +103,37 @@ public sealed class StructurePresentationTests
     }
 
     [AvaloniaFact]
+    public async Task Graph_keeps_large_expanded_data_readable_and_Home_returns_from_overview_to_selection()
+    {
+        string json = "[" + string.Join(',', Enumerable.Range(0, 160)) + "]";
+        using var host = new Host(json, StructureFormat.Json);
+        host.View.Sync(); await host.Drain();
+        var root = Assert.Single(host.View.Tree.VisibleNodes, node => node.Kind == StructureTreeNodeKind.Normal);
+        root.IsExpanded = true; await host.Drain();
+        host.View.Tree.SelectedNode = root.Items.Last(node => node.Tag is StructureNode { Kind: StructureKind.JsonNumber });
+        host.View.Presentation = StructureViewPresentation.Graph;
+        await host.GraphDrain();
+        var graph = host.View.Graph;
+        Assert.InRange(graph.ZoomLevel, 0.85, 1.25);
+        Assert.True(graph.SelectedCardVisible);
+        Assert.InRange(graph.DrawnCards, 1, graph.LoadedCards - 1);
+
+        graph.Fit(); StructureLayoutTests.Layout(host.Window);
+        Assert.True(graph.ZoomLevel < 0.85);
+        Assert.True(host.View.FocusContent());
+        TestApp.Press(host.Window, Key.Home); await host.GraphDrain();
+        Assert.InRange(graph.ZoomLevel, 0.85, 1.25);
+        Assert.True(graph.SelectedCardVisible);
+        Assert.InRange(graph.DrawnCards, 1, graph.LoadedCards - 1);
+
+        graph.Zoom(1.2);
+        double chosenZoom = graph.ZoomLevel;
+        root.IsExpanded = false; await host.Drain(); await host.GraphDrain();
+        root.IsExpanded = true; await host.Drain(); await host.GraphDrain();
+        Assert.Equal(chosenZoom, graph.ZoomLevel);
+    }
+
+    [AvaloniaFact]
     public async Task Table_filter_and_query_show_matching_cells_and_clear_restores_records()
     {
         using var host = new Host("{\"keep\":1,\"drop\":2}", StructureFormat.Json);
