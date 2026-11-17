@@ -2,6 +2,8 @@
 
 Priorita 17. 11. 2026: před dalším vydáním dokončit jednotné interaktivní datové pohledy podle JSONEditorOnline/json.site (P4.6.7): JSON/JSONC, XML, CSV/TSV, YAML a NEON v ploše dokumentu, přepínání Zdroj/Strom/Tabulka/Graf a zobrazení vedle zdroje podle formátu. Důraz na rychlost, malé paměťové nároky, práci na pozadí a vykreslování jen viditelné oblasti; žádný nový limit velikosti souboru. Současně ověřit Markdown rejstřík v postranním menu (P9.3.4). Všichni tři dostupní agenti pracují souběžně: jeden ověřuje běžící aplikaci, druhý připravuje sestavení a velký soubor, třetí kontroluje překážky vydání; hlavní agent spojuje změny a připravuje zveřejnění. Vydání 0.1.8 zůstává zveřejněné a nemění se; sdílený Mac je odložený.
 
+Priorita úklidu 17. 11. 2026: odstranit nahromaděné vlastní buildy, testovací kopie, staré distribuce a nepotřebné worktree; počáteční velikost složky 162,71 GiB, Git evidoval 57 worktree. Před odstraněním zachovat jedinečné commity, neuložené změny a potřebné výsledky; zkontrolovat začlenění změn do main a nezavádět zpět staré negativní testovací varianty. Pravidlo průběžného úklidu je zapsané v globálních pokynech.
+
 Jak číst položku:
 - ID má tvar `etapa.celek.úkol` a nemění se. `PR` jsou průběžné úkoly, `PZ` úkoly po verzi 1.0. Nové úkoly dostávají další volné číslo v celku, proto pořadí v textu nemusí odpovídat číslům.
 - **Funkce** jsou F-ID z matice. „Částečně“ znamená, že zbytek funkce řeší jiná položka. Funkce rozložená do více etap má „částečně“ všude kromě etap, které jí dává matice nebo plán
