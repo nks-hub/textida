@@ -292,7 +292,7 @@ public sealed class StructureRowCacheTests(ITestOutputHelper output)
         Click(host.View.CopySourceButton); await host.Drain();
         Assert.Equal("名='é'", host.Copied);
 
-        var up = host.View.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, Loc.Get("structure.up")));
+        var up = host.View.GetVisualDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == Loc.Get("structure.up"));
         Click(up); await host.Drain();
         Assert.Equal(rootNode, Node(Assert.Single(DataItems(host.View.Tree))));
         host.Jumped = null;
