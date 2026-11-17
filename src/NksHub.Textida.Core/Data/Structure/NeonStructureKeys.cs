@@ -131,10 +131,29 @@ internal static class NeonStructureKeys
         if (value == 0) return negative ? "-0" : "0";
         string result = value.ToString("G14", CultureInfo.InvariantCulture);
         int e = result.IndexOf('E');
-        if (e < 0) return result;
+        if (e < 0)
+        {
+            string scientific = value.ToString("E13", CultureInfo.InvariantCulture);
+            int fixedPower = int.Parse(scientific.AsSpan(scientific.IndexOf('E') + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
+            return FixedKey(value, Math.Max(0, 13 - fixedPower));
+        }
         string mantissa = result[..e];
         if (!mantissa.Contains('.')) mantissa += ".0";
         int power = int.Parse(result.AsSpan(e + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
         return mantissa + "E" + (power >= 0 ? "+" : "-") + Math.Abs(power).ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FixedKey(double value, int places)
+    {
+        ReadOnlySpan<double> powers = [1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8,
+            1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17];
+        double scale = powers[places], magnitude = Math.Abs(value);
+        double integral = Math.Floor(magnitude * scale);
+        // Match PHP 8.4 _php_math_round's roundtrip correction and half-up edge.
+        if ((integral + 1) / scale == magnitude) integral++;
+        if (magnitude >= (integral + 0.5) / scale) integral++;
+        double rounded = (value < 0 ? -integral : integral) / scale;
+        string result = rounded.ToString("F" + places, CultureInfo.InvariantCulture);
+        return places == 0 ? result : result.TrimEnd('0').TrimEnd('.');
     }
 }

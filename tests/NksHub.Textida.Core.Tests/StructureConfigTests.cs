@@ -242,6 +242,25 @@ public sealed class StructureConfigTests
     }
 
     [Theory]
+    [InlineData("12345678901234.5", "12345678901235", 12345678901235L, 12345678901236L)]
+    [InlineData("-12345678901234.5", "-12345678901235", -12345678901235L, -12345678901234L)]
+    [InlineData("0.000125885009765625", "0.00012588500976563", null, 0L)]
+    [InlineData("-0.000125885009765625", "-0.00012588500976563", null, 0L)]
+    public void Neon_fixed_float_keys_round_half_up_and_keep_the_next_implicit_key(string literal, string key, long? integerKey, long nextKey)
+    {
+        var index = Parse("items: {" + literal + ": Cat, Dog}", StructureFormat.Neon);
+        var parent = Node(index, "$.items");
+        var first = index.Nodes.Single(n => n.ParentId == parent.Id && n.Ordinal == 0);
+        var second = index.Nodes.Single(n => n.ParentId == parent.Id && n.Ordinal == 1);
+        Assert.Equal(key, StructureText.ReadName(index, first).Text);
+        Assert.Equal(integerKey, first.IntegerKey);
+        Assert.Equal(nextKey, second.IntegerKey);
+        Assert.Equal("Cat", Value(index, "$.items['" + key + "']"));
+        Assert.Equal("Dog", Value(index, StructurePaths.Create(index, second)));
+        Assert.Equal(literal + ": Cat", StructureText.ReadSource(index, first).Text);
+    }
+
+    [Theory]
     [InlineData("v: *missing\n")]
     [InlineData("v: *later\na: &later 1\n")]
     [InlineData("v: '*missing'\na: *missing\n")]
