@@ -32,7 +32,12 @@ internal sealed partial class MainWindow
     {
         var panes = new List<(Control, Func<bool>)>();
         if (_hosts[PanelDock.Left].IsVisible) panes.Add((_hosts[PanelDock.Left], () => FocusSidePanel(PanelDock.Left)));
-        panes.Add((_groupsGrid, () => { FocusActiveView(); return Active is not null; }));
+        if (Active is { StructureSplitShown: true, Structure: { } structure } tab)
+        {
+            panes.Add((tab.View, () => tab.Surface is { } surface ? surface.TextArea.Focus() : tab.View.Focus()));
+            panes.Add((structure, structure.FocusContent));
+        }
+        else panes.Add((_groupsGrid, () => { FocusActiveView(); return Active is not null; }));
         if (_hosts[PanelDock.Right].IsVisible) panes.Add((_hosts[PanelDock.Right], () => FocusSidePanel(PanelDock.Right)));
         if (_hosts[PanelDock.Bottom].IsVisible) panes.Add((_hosts[PanelDock.Bottom], () => FocusSidePanel(PanelDock.Bottom)));
         if (_previewPanel.IsVisible) panes.Add((_previewPanel, () => _previewScroll.Focus()));
@@ -66,7 +71,8 @@ internal sealed partial class MainWindow
     {
         var panes = Panes();
         int at = panes.FindIndex(p => p.Part.IsKeyboardFocusWithin);
-        if (at < 0) at = panes.FindIndex(p => ReferenceEquals(p.Part, _groupsGrid)) + (forward ? -1 : 1);
+        if (at < 0)
+            at = panes.FindIndex(p => ReferenceEquals(p.Part, _groupsGrid) || ReferenceEquals(p.Part, Active?.View)) + (forward ? -1 : 1);
         for (int step = 1; step <= panes.Count; step++)
         {
             var next = panes[((at + (forward ? step : -step)) % panes.Count + panes.Count) % panes.Count];

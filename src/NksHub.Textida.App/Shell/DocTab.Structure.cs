@@ -14,6 +14,7 @@ internal sealed partial class DocTab
     private bool sourceOwnsSplitCommands = true;
     public StructureView? Structure { get; private set; }
     public bool StructureShown { get; private set; }
+    internal bool StructureSplitShown => StructureShown && structureSplit is not null;
     internal Core.Documents.Document? StructureDocument { get; set; }
 
     internal void ShowStructure(StructureView view, bool show, bool split, EditorOptions options)
