@@ -203,7 +203,7 @@ internal sealed class StructureGraph : Control, IDisposable
         }
     }
 
-    private IBrush BackgroundBrush => this.TryFindResource("SystemControlBackgroundAltHighBrush", out var brush) && brush is IBrush value
+    private IBrush BackgroundBrush => this.TryFindResource("SystemControlBackgroundAltHighBrush", ActualThemeVariant, out var brush) && brush is IBrush value
         ? value : ActualThemeVariant == ThemeVariant.Dark ? new SolidColorBrush(Color.Parse("#202020")) : Brushes.White;
 
     private (TextLayout Key, TextLayout? Value) Label(GraphCard card, IBrush foreground)
