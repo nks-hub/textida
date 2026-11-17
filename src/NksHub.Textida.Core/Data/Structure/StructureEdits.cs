@@ -23,21 +23,29 @@ public static class StructureEdits
             throw new InvalidDataException("The structural value range is outside the source snapshot.");
 
         var output = new EncodedWriter(index.Codec, value.Length, ct);
+        bool config = index.Format is StructureFormat.Yaml or StructureFormat.Neon;
+        if (config && node.ValueStart == node.ValueEnd) output.Append(" ");
         switch (node.Kind)
         {
-            case StructureKind.JsonString when index.Format is StructureFormat.Json or StructureFormat.Jsonc:
+            case StructureKind.JsonString when index.Format is not StructureFormat.Xml:
                 ValidateCharacters(value, node, xml: false, ct);
                 JsonString(output, value, ct);
+                if (config)
+                {
+                    var source = new StructureCharReader(index.Source, index.Codec, index.BomLength, ct);
+                    source.Seek(node.ValueStart);
+                    if (source.Peek() is '|' or '>') output.Append("\n");
+                }
                 break;
-            case StructureKind.JsonNumber when index.Format is StructureFormat.Json or StructureFormat.Jsonc:
+            case StructureKind.JsonNumber when index.Format is not StructureFormat.Xml:
                 if (!IsNumber(value, ct)) throw Invalid(node, "Enter one JSON number without surrounding whitespace.");
                 output.Append(value);
                 break;
-            case StructureKind.JsonBoolean when index.Format is StructureFormat.Json or StructureFormat.Jsonc:
+            case StructureKind.JsonBoolean when index.Format is not StructureFormat.Xml:
                 if (value is not ("true" or "false")) throw Invalid(node, "Enter the JSON literal true or false.");
                 output.Append(value);
                 break;
-            case StructureKind.JsonNull when index.Format is StructureFormat.Json or StructureFormat.Jsonc:
+            case StructureKind.JsonNull when index.Format is not StructureFormat.Xml:
                 if (value != "null") throw Invalid(node, "Enter the JSON literal null.");
                 output.Append(value);
                 break;
@@ -53,7 +61,7 @@ public static class StructureEdits
                 WriteXml(output, value, node, quote: null, cdata: true, ct);
                 break;
             default:
-                throw Unsupported(node, "Only JSON primitive values and XML attribute, text or CDATA values can be edited.");
+                throw Unsupported(node, "Only primitive data values and XML attribute, text or CDATA values can be edited.");
         }
         ct.ThrowIfCancellationRequested();
         return new ByteEdit(node.ValueRange, output.Finish());

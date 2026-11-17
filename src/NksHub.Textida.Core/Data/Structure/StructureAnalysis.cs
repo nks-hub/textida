@@ -25,8 +25,13 @@ public sealed class StructureAnalysis : IDisposable
             var context = new StructureParseContext(snapshot, snapshot.Codec, bomLength, index, cancellationToken, progress);
             try
             {
-                if (format == StructureFormat.Xml) XmlStructureReader.Parse(context);
-                else JsonStructureReader.Parse(context, format == StructureFormat.Jsonc);
+                switch (format)
+                {
+                    case StructureFormat.Xml: XmlStructureReader.Parse(context); break;
+                    case StructureFormat.Yaml: YamlStructureReader.Parse(context); break;
+                    case StructureFormat.Neon: NeonStructureReader.Parse(context); break;
+                    default: JsonStructureReader.Parse(context, format == StructureFormat.Jsonc); break;
+                }
             }
             catch (StructureSyntaxException error)
             {
@@ -36,7 +41,8 @@ public sealed class StructureAnalysis : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             progress?.Invoke(snapshot.ByteLength);
             long duplicates = format == StructureFormat.Xml ? 0 : StructureDuplicates.Analyze(index, cancellationToken);
-            return new(index, true, duplicates);
+            bool valid = duplicates == 0 || format is not (StructureFormat.Yaml or StructureFormat.Neon);
+            return new(index, valid, duplicates);
         }
         catch
         {

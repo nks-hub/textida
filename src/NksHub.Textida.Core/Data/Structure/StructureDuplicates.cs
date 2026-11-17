@@ -20,7 +20,7 @@ public static class StructureDuplicates
         if (recordsPerChunk is < 1 or > ChunkRecords) throw new ArgumentOutOfRangeException(nameof(recordsPerChunk));
         if (mergeFanIn is < 2 or > 32) throw new ArgumentOutOfRangeException(nameof(mergeFanIn));
         ct.ThrowIfCancellationRequested();
-        if (index.Format is not (StructureFormat.Json or StructureFormat.Jsonc)) return 0;
+        if (index.Format == StructureFormat.Xml) return 0;
 
         long duplicates;
         using (var scratch = new ScratchFiles(tempRoot))
@@ -87,7 +87,9 @@ public static class StructureDuplicates
         {
             ct.ThrowIfCancellationRequested();
             StructureNode node = index.ReadNode(id);
-            if (!node.HasName || node.ParentId < 0 || index.ReadNode(node.ParentId).Kind != StructureKind.JsonObject) continue;
+            if (!node.HasName || node.ParentId < 0) continue;
+            var parentKind = index.ReadNode(node.ParentId).Kind;
+            if (parentKind is not (StructureKind.JsonObject or StructureKind.JsonArray or StructureKind.ConfigEntity)) continue;
             var (hash0, hash1) = hashOverride is null ? HashName(node, names, hash, buffer, ct) : hashOverride(node);
             records[count++] = new(node.ParentId, hash0, hash1, node.Id);
             if (count != records.Length) continue;

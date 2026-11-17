@@ -3,12 +3,13 @@ using NksHub.Textida.Core.Encodings;
 
 namespace NksHub.Textida.Core.Data.Structure;
 
-public enum StructureFormat { Json, Jsonc, Xml }
+public enum StructureFormat { Json, Jsonc, Xml, Yaml, Neon }
 
 public enum StructureKind : byte
 {
     Document, JsonObject, JsonArray, JsonString, JsonNumber, JsonBoolean, JsonNull,
     XmlElement, XmlAttribute, XmlNamespace, XmlText, XmlCData, XmlComment, XmlProcessingInstruction,
+    ConfigEntity, ConfigReference, ConfigTaggedValue,
 }
 
 public enum StructureIssueKind : byte { Syntax, DuplicateKey, ForbiddenDtd, UnknownEntity, ResourceLimit, Encoding, UnsupportedSyntax }
@@ -31,6 +32,8 @@ public interface IStructureSink
 {
     long AddNode(StructureKind kind, long parentId, long start, long nameStart, long nameEnd, long valueStart, long ordinal, int depth);
     void CompleteNode(long id, long valueStart, long valueEnd, long end, long childCount);
+    // A NEON block sequence becomes a mapping when a named sibling appears.
+    void SetKind(long id, StructureKind kind) => throw new NotSupportedException("This sink cannot change a provisional collection kind.");
     // NamespaceId points to an XmlNamespace node; -2 is the predefined xml namespace.
     void SetNamespace(long id, long namespaceId);
     void Report(StructureIssue issue);

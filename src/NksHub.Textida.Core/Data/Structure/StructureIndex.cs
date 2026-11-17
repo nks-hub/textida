@@ -81,6 +81,18 @@ public sealed class StructureIndex : IStructureIndex, IStructureSink, IDisposabl
         lock (gate) WriteNode(ReadNode(id) with { NamespaceId = namespaceId });
     }
 
+    public void SetKind(long id, StructureKind kind)
+    {
+        lock (gate)
+        {
+            var node = ReadNode(id);
+            if (node.Kind == kind) return;
+            kinds[(int)node.Kind]--;
+            kinds[(int)kind]++;
+            WriteNode(node with { Kind = kind });
+        }
+    }
+
     public void Report(StructureIssue issue)
     {
         lock (gate)

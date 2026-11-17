@@ -76,7 +76,7 @@ public sealed partial class StructureQuery
         }
 
         public bool JsonNameEquals(StructureNode node, string name) =>
-            Equal(JsonString(node.NameStart, node.NameEnd), name);
+            Equal(ReadName(node), name);
 
         public bool XmlLocalNameEquals(StructureNode node, string name)
         {
@@ -93,10 +93,16 @@ public sealed partial class StructureQuery
         public bool XmlStringValueEquals(StructureNode node, string value) => Equal(XmlStringValue(node), value);
 
         public IEnumerable<int> ReadName(StructureNode node) => !node.HasName ? []
+            : index.Format is StructureFormat.Yaml or StructureFormat.Neon
+                ? ConfigScalarText.Read(index, reader, node.NameStart, node.NameEnd, name: true, ct)
             : IsJson(node.Kind) ? JsonString(node.NameStart, node.NameEnd) : Raw(node.NameStart, node.NameEnd);
 
         public IEnumerable<int> ReadValue(StructureNode node) => node.Kind == StructureKind.JsonString
-            ? JsonString(node.ValueStart, node.ValueEnd)
+            ? index.Format is StructureFormat.Yaml or StructureFormat.Neon
+                ? ConfigScalarText.Read(index, reader, node.ValueStart, node.ValueEnd, ct: ct, nameStart: node.NameStart)
+                : JsonString(node.ValueStart, node.ValueEnd)
+            : node.Kind == StructureKind.JsonBoolean && index.Format is StructureFormat.Yaml or StructureFormat.Neon
+                ? ConfigBoolean(node)
             : node.Kind is StructureKind.XmlAttribute or StructureKind.XmlNamespace or StructureKind.XmlText
                 ? XmlText(node.ValueStart, node.ValueEnd, node.Kind != StructureKind.XmlText)
                 : Raw(node.ValueStart, node.ValueEnd, node.Kind == StructureKind.XmlCData);
@@ -126,12 +132,19 @@ public sealed partial class StructureQuery
 
         public bool JsonValueEquals(StructureNode node, Literal literal) => literal.Kind switch
         {
-            LiteralKind.String => node.Kind == StructureKind.JsonString && Equal(JsonString(node.ValueStart, node.ValueEnd), literal.Text),
+            LiteralKind.String => node.Kind == StructureKind.JsonString && Equal(ReadValue(node), literal.Text),
             LiteralKind.Number => node.Kind == StructureKind.JsonNumber && NumberEquals(node, literal.Number!),
-            LiteralKind.Boolean => node.Kind == StructureKind.JsonBoolean && Equal(Raw(node.ValueStart, node.ValueEnd), literal.Text),
+            LiteralKind.Boolean => node.Kind == StructureKind.JsonBoolean && Equal(ReadValue(node), literal.Text),
             LiteralKind.Null => node.Kind == StructureKind.JsonNull,
             _ => false,
         };
+
+        private IEnumerable<int> ConfigBoolean(StructureNode node)
+        {
+            reader.Seek(node.ValueStart);
+            bool value = reader.Peek() is 't' or 'T' or 'y' or 'Y';
+            foreach (char c in value ? "true" : "false") yield return c;
+        }
 
         private bool Equal(IEnumerable<int> actual, string expected)
         {
@@ -297,6 +310,12 @@ public sealed partial class StructureQuery
         {
             reader.Seek(node.ValueStart);
             bool negative = reader.Consume('-');
+            if (index.Format is StructureFormat.Yaml or StructureFormat.Neon)
+            {
+                if (!negative) reader.Consume('+');
+                if (reader.Peek() == '.' && reader.Peek(1) is not (>= '0' and <= '9')) return false;
+                if (reader.Peek() == '0' && reader.Peek(1) is 'x' or 'o' or 'b') return RadixEquals(node, expected);
+            }
             bool fraction = false, nonzero = false;
             long fractionDigits = 0, trailingZeros = 0;
             var digits = new StringBuilder(Math.Min(expected.Digits.Length, 256));
@@ -337,6 +356,24 @@ public sealed partial class StructureQuery
                 if (minus) exponent = -exponent;
             }
             return exponent - fractionDigits + trailingZeros == expected.Exponent;
+        }
+
+        private bool RadixEquals(StructureNode node, NumberValue expected)
+        {
+            reader.Read();
+            int radix = reader.Read() switch { 'x' => 16, 'o' => 8, _ => 2 };
+            if (expected.Negative || expected.Exponent < 0) return false;
+            if (expected.Exponent > MaxExpressionLength)
+                throw new StructureQueryException("The radix filter exponent exceeds the bounded comparison workspace.", 0);
+            BigInteger wanted = expected.Digits.Length == 0 ? BigInteger.Zero
+                : BigInteger.Parse(expected.Digits, CultureInfo.InvariantCulture) * BigInteger.Pow(10, (int)expected.Exponent);
+            BigInteger actual = BigInteger.Zero;
+            while (reader.Position < node.ValueEnd)
+            {
+                actual = actual * radix + ConfigScalarText.Hex(reader.Read());
+                if (actual > wanted) return false;
+            }
+            return actual == wanted;
         }
     }
 }
