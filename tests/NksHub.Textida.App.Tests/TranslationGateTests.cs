@@ -97,6 +97,7 @@ public class TranslationGateTests
         ["update.title"] = "de",
         ["viewmode.text"] = "cs sk de",
         ["viewmode.hex"] = "cs sk de",
+        ["structure.mode.graph"] = "de", // The graph theory term is the same in German.
         ["structure.scope.name"] = "de",
         ["structure.scope.queryJson"] = "cs sk de",
         ["structure.scope.queryXml"] = "cs sk de",
