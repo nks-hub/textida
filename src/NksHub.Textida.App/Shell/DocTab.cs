@@ -153,7 +153,7 @@ internal sealed partial class DocTab
 
     /// <summary>True while a view lies over the text view (the table or the formatted JSON), so the commands of the text view do not reach the hidden one.</summary>
     public bool OverlayShown => TableShown || JsonShown
-        || StructureShown && (structureSplit is null || !View.IsKeyboardFocusWithin);
+        || StructureShown && (structureSplit is null || !sourceOwnsSplitCommands);
 
     /// <summary>Shows the formatted JSON view over the text view, or the text view again; the outline is kept while the tab lives, so a second switch is instant.</summary>
     public void ShowJson(bool on, EditorOptions options)

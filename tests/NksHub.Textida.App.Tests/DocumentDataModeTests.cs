@@ -124,6 +124,8 @@ public sealed class DocumentDataModeTests : IDisposable
         Assert.True(tab.Surface!.TextArea.Focus());
         Dispatcher.UIThread.RunJobs();
         var context = new ShellContext(window, forMenu: true);
+        Assert.True(tab.ModeBar!.Buttons[0].Focus());
+        Assert.False(tab.View.IsKeyboardFocusWithin);
         Assert.Equal("false", context.Get("readOnly"));
         await app.Workbench.Commands.ExecuteAsync("nks.edit.selectAll", context);
         Assert.True(tab.Surface.HasSelection);
@@ -153,12 +155,16 @@ public sealed class DocumentDataModeTests : IDisposable
     [AvaloniaFact]
     public void Source_button_leaves_a_legacy_pretty_overlay_even_when_source_mode_is_current()
     {
-        var tab = window.OpenFile(Write("sample.json", "{\"name\":\"Demo\"}"), null);
+        const string text = "{\"name\":\"Demo\",\"last\":42}";
+        var tab = window.OpenFile(Write("sample.json", text), null);
         window.SetJsonPretty(tab, true);
+        long offset = text.IndexOf("42", StringComparison.Ordinal);
+        tab.Json!.RevealOffset(offset, offset);
         Assert.Equal(ViewMode.Text, tab.Doc.Mode);
         Assert.True(tab.JsonShown);
         tab.ModeBar!.Buttons[0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.False(tab.JsonShown);
         Assert.True(tab.View.IsVisible);
+        Assert.Equal((int)offset, tab.Surface!.CaretOffset);
     }
 }

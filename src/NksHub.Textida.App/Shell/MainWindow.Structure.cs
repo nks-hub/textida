@@ -16,7 +16,7 @@ internal sealed partial class MainWindow
     private StructureView? _structureView;
     private Core.Documents.Document? _structureDocument;
 
-    internal bool CanShowStructure => Active is { Custom: null, Hex: null } tab && OffersStructuredModes(tab.Doc);
+    internal bool CanShowStructure => _activeGroup?.Active is { Custom: null, Hex: null } tab && OffersStructuredModes(tab.Doc);
 
     internal StructureView StructurePanelView => Active?.Structure ?? (_structureView ??= CreateStructureView());
 

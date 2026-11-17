@@ -9,6 +9,7 @@ internal sealed partial class DocTab
 {
     private Grid? structureSplit;
     private DockPanel? structureSource;
+    private bool sourceOwnsSplitCommands = true;
     public StructureView? Structure { get; private set; }
     public bool StructureShown { get; private set; }
     internal Core.Documents.Document? StructureDocument { get; set; }
@@ -17,6 +18,11 @@ internal sealed partial class DocTab
     {
         if (Structure is not null && !ReferenceEquals(Structure, view))
             throw new InvalidOperationException("A tab keeps one structure analysis.");
+        if (Structure is null)
+        {
+            View.GotFocus += (_, _) => sourceOwnsSplitCommands = true;
+            view.GotFocus += (_, _) => sourceOwnsSplitCommands = false;
+        }
         Structure = view;
         if (TableShown) ShowTable(false, options);
         if (JsonShown) ShowJson(false, options);

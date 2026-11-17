@@ -114,7 +114,7 @@ internal sealed partial class MainWindow
                 items.Children.Add(button);
             }
             button.IsVisible = PanelAvailable(panel);
-            button.IsChecked = panel == SidePanel.Structure ? Active?.StructureShown == true : IsOpen(panel);
+            button.IsChecked = panel == SidePanel.Structure ? _activeGroup?.Active?.StructureShown == true : IsOpen(panel);
         }
         foreach (var (strip, items) in _strips.Values) strip.IsVisible = items.Children.Any(c => c.IsVisible);
     }

@@ -58,7 +58,7 @@ public sealed class StructureIntegrationTests : IDisposable
     private static IEnumerable<StructureTreeNode> Rows(StructureTree parent) => parent.Items.OfType<StructureTreeNode>().Where(item => item.Tag is StructureNode);
 
     [AvaloniaFact]
-    public async Task Builtin_command_docks_and_persists_the_panel_and_refuses_non_data_views()
+    public async Task Builtin_command_opens_the_document_tree_and_refuses_non_data_views()
     {
         var tab = window.OpenFile(temporary.File("sample.json", "{\"value\":1}"), null);
         window.SelectTab(tab);
@@ -66,16 +66,21 @@ public sealed class StructureIntegrationTests : IDisposable
         Assert.True(window.CanShowStructure);
         Assert.Equal(CommandOutcome.Handled, window.ShowStructurePanel());
         await Drain();
-        Assert.True(window.IsPanelOpen(SidePanel.Structure));
-        Assert.Equal(PanelDock.Right, window.SideLayout.DockOf(SidePanel.Structure));
-        window.MovePanel(SidePanel.Structure, PanelDock.Left);
-        Assert.Equal(PanelDock.Left, PanelLayout.FromSaved(window.SideLayout.ToSaved()).DockOf(SidePanel.Structure));
+        Assert.Equal(ViewMode.Tree, tab.Doc.Mode);
+        Assert.True(tab.StructureShown);
+        Assert.False(window.IsPanelOpen(SidePanel.Structure));
+        Assert.False(tab.View.IsVisible);
+        var analysis = tab.Structure;
+        Assert.True(analysis!.Bounds.Width > window.ClientSize.Width * 0.65);
 
         var other = window.OpenFile(temporary.File("notes.txt", "ordinary text"), null);
         window.SelectTab(other); await Drain();
         Assert.False(window.CanShowStructure);
         Assert.Equal(CommandOutcome.NotHandled, window.ShowStructurePanel());
         Assert.Empty(window.StructurePanelView.Tree.Items);
+        window.SelectTab(tab); await Drain();
+        Assert.Same(analysis, window.StructurePanelView);
+        Assert.Equal(ViewMode.Tree, tab.Doc.Mode);
     }
 
     [AvaloniaFact]
@@ -96,6 +101,8 @@ public sealed class StructureIntegrationTests : IDisposable
         view.Tree.SelectedNode = Assert.Single(Rows(view.Tree)); await Drain();
         Assert.Equal(text, tab.Surface.SelectedText);
 
+        Assert.True(window.SetViewMode(tab.Doc, ViewMode.StructureSplit));
+        await Drain();
         Assert.True(tab.Surface.TextArea.Focus());
         tab.Surface.Select(text.IndexOf("body", StringComparison.Ordinal) + 2, 0);
         await Drain();

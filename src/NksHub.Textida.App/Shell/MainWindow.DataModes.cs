@@ -35,7 +35,12 @@ internal sealed partial class MainWindow
 
     private void ApplyDataMode(DocTab tab, ViewMode mode)
     {
-        if (tab.JsonShown) tab.ShowJson(false, OptionsFor(tab));
+        if (tab.JsonShown)
+        {
+            long sourceOffset = tab.Json!.SourceOffset;
+            tab.ShowJson(false, OptionsFor(tab));
+            GoToByte(tab, sourceOffset);
+        }
         if (!OffersStructuredModes(tab.Doc) && OffersDelimitedModes(tab.Doc))
         {
             if (tab.StructureShown && tab.Structure is { } structure)
