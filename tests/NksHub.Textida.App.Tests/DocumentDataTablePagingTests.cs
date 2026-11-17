@@ -34,11 +34,22 @@ public sealed class DocumentDataTablePagingTests : IDisposable
         temporary.Dispose();
     }
 
-    [AvaloniaFact]
-    public async Task Table_keyboard_paging_keeps_the_page_after_the_host_updates_the_source_caret()
+    [AvaloniaTheory]
+    [InlineData("json")]
+    [InlineData("xml")]
+    [InlineData("yaml")]
+    [InlineData("neon")]
+    public async Task Table_keyboard_paging_keeps_the_page_after_the_host_updates_the_source_caret(string extension)
     {
-        string text = "{\"alpha\":1,\"rows\":[" + string.Join(',', Enumerable.Range(0, 160)) + "]}";
-        string path = temporary.File("sample.json", text);
+        var numbers = Enumerable.Range(0, 160);
+        string text = extension switch
+        {
+            "json" => "{\"alpha\":1,\"rows\":[" + string.Join(',', numbers) + "]}",
+            "xml" => "<root><alpha>1</alpha><rows>" + string.Concat(numbers.Select(value => "<item>" + value + "</item>")) + "</rows></root>",
+            "yaml" or "neon" => "alpha: 1\nrows:\n" + string.Concat(numbers.Select(value => "  - " + value + "\n")),
+            _ => throw new ArgumentException("Unknown fixture format.", nameof(extension)),
+        };
+        string path = temporary.File("sample." + extension, text);
         var tab = window.OpenFile(path, null);
         window.SelectTab(tab);
         var document = tab.Doc.Doc;
@@ -46,14 +57,16 @@ public sealed class DocumentDataTablePagingTests : IDisposable
         Assert.True(window.SetViewMode(tab.Doc, ViewMode.Tree));
         var view = Assert.IsType<StructureView>(tab.Structure);
         await Drain(view);
-        var root = Assert.Single(view.Tree.VisibleNodes, item => item.Tag is StructureNode { Kind: StructureKind.JsonObject });
+        var root = Assert.Single(view.Tree.VisibleNodes, item => item.Tag is StructureNode { ParentId: 0 });
         root.IsExpanded = true;
         await Drain(view);
-        var rows = Assert.Single(root.Items, item => item.Tag is StructureNode { Kind: StructureKind.JsonArray });
-        Assert.Equal("rows", rows.DisplayKey);
+        var rows = Assert.Single(root.Items, item => item.Tag is StructureNode && item.DisplayKey == "rows");
+        var rowsNode = Assert.IsType<StructureNode>(rows.Tag);
+        Assert.Equal(160, rowsNode.ChildCount);
         view.Tree.SelectedNode = rows;
         await Drain(view);
-        Assert.StartsWith("\"rows\":[", tab.Surface!.SelectedText, StringComparison.Ordinal);
+        string selectedPrefix = extension switch { "json" => "\"rows\":[", "xml" => "<rows>", _ => "rows:" };
+        Assert.StartsWith(selectedPrefix, tab.Surface!.SelectedText, StringComparison.Ordinal);
 
         Assert.True(window.SetViewMode(tab.Doc, ViewMode.Table));
         await Drain(view);
@@ -61,18 +74,19 @@ public sealed class DocumentDataTablePagingTests : IDisposable
         Assert.Same(view.Table, window.FocusManager!.GetFocusedElement());
         Assert.False(view.Tree.IsVisible);
         Assert.False(tab.View.IsVisible);
+        FirstCell(view, rowsNode.Id, 0, "0", "before initial Home");
         await Press(view, Key.Home);
-        await CopySelected(view, tab, 0, "0", "initial Home");
+        await CopySelected(view, tab, rowsNode.Id, 0, "0", "initial Home");
 
         await Press(view, Key.PageDown);
-        FirstCell(view, 1, "64", "after PageDown, before selecting a cell");
+        FirstCell(view, rowsNode.Id, 1, "64", "after PageDown, before selecting a cell");
         await Press(view, Key.Home);
-        await CopySelected(view, tab, 1, "64", "Home on the second page");
+        await CopySelected(view, tab, rowsNode.Id, 1, "64", "Home on the second page");
 
         await Press(view, Key.PageUp);
-        FirstCell(view, 0, "0", "after PageUp, before selecting a cell");
+        FirstCell(view, rowsNode.Id, 0, "0", "after PageUp, before selecting a cell");
         await Press(view, Key.Home);
-        await CopySelected(view, tab, 0, "0", "Home after returning to the first page");
+        await CopySelected(view, tab, rowsNode.Id, 0, "0", "Home after returning to the first page");
         Assert.Equal(ViewMode.Table, tab.Doc.Mode);
         Assert.Same(document, tab.Doc.Doc);
         Assert.Equal(revision, document.Revision);
@@ -92,19 +106,21 @@ public sealed class DocumentDataTablePagingTests : IDisposable
         Assert.Same(view.Table, window.FocusManager.GetFocusedElement());
     }
 
-    private static StructureTableCell FirstCell(StructureView view, int page, string expected, string stage)
+    private static StructureTableCell FirstCell(StructureView view, long containerId, int page, string expected, string stage)
     {
         var current = view.Table.CurrentPage;
         Assert.True(current.Page == page, $"{stage}: expected page {page}, actual page {current.Page}.");
-        Assert.NotEmpty(current.Rows);
+        Assert.True(current.Rows.Count == 64, $"{stage}: expected 64 rows, actual count {current.Rows.Count}.");
+        Assert.All(current.Rows, row => Assert.Equal(containerId, row.Node.ParentId));
+        Assert.Equal((long)page * 64, current.Rows[0].Node.Ordinal);
         var cell = Assert.Single(current.Rows[0].Cells).Value;
         Assert.Equal(expected, cell.Value);
         return cell;
     }
 
-    private async Task CopySelected(StructureView view, DocTab tab, int page, string expected, string stage)
+    private async Task CopySelected(StructureView view, DocTab tab, long containerId, int page, string expected, string stage)
     {
-        var cell = FirstCell(view, page, expected, stage);
+        var cell = FirstCell(view, containerId, page, expected, stage);
         Assert.Equal(expected, tab.Surface!.SelectedText);
         Assert.Equal(cell.Node.ValueRange, view.SelectedRange);
         Assert.Equal(cell.Node.ValueRange.Start, view.SourceOffset);
@@ -114,6 +130,6 @@ public sealed class DocumentDataTablePagingTests : IDisposable
         view.CopySourceButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await Drain(view);
         Assert.Equal(expected, await clipboard.TryGetTextAsync());
-        FirstCell(view, page, expected, stage + " after source copy");
+        FirstCell(view, containerId, page, expected, stage + " after source copy");
     }
 }
