@@ -114,10 +114,11 @@ public sealed class DocumentDataModeTests : IDisposable
         Assert.Equal(content, tab.Surface!.Document.Text);
     }
 
-    [AvaloniaFact]
-    public async Task Split_routes_text_commands_to_the_focused_source_and_keeps_undo()
+    [AvaloniaTheory]
+    [InlineData("{\"name\":\"Demo\"}")]
+    [InlineData("{\"name\":\"město😀\"}")]
+    public async Task Split_routes_text_commands_to_the_focused_source_and_keeps_undo(string text)
     {
-        const string text = "{\"name\":\"Demo\"}";
         var tab = window.OpenFile(Write("sample.json", text), null);
         Assert.True(window.SetViewMode(tab.Doc, ViewMode.StructureSplit));
         await Drain(tab.Structure!);

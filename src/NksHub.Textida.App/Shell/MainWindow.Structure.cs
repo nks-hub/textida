@@ -64,10 +64,15 @@ internal sealed partial class MainWindow
     private static long StructureOffset(DocTab tab)
     {
         if (tab.JsonShown) return tab.Json!.SourceOffset;
-        if (tab.Paged is { HasSelection: true } paged) return paged.SelectionRange.Start;
-        if (tab.Surface is { HasSelection: true } surface && tab.Doc.TextBackend is { } backend)
-            return backend.ToByteOffset(surface.SelectionStart);
-        return TextCaretOffset(tab);
+        if (tab.Paged is { } paged) return paged.HasSelection ? paged.SelectionRange.Start : paged.CaretOffset;
+        if (tab.Surface is { } surface && tab.Doc.TextBackend is { } backend
+            && backend.TryToCharOffset(backend.ByteLength, out int mappedChars))
+        {
+            // Caret events can precede the byte map update during replacement or Undo.
+            int offset = surface.HasSelection ? surface.SelectionStart : surface.CaretOffset;
+            return backend.ToByteOffset(Math.Clamp(offset, 0, mappedChars));
+        }
+        return tab.Doc.Doc.BomLength;
     }
 
     private void RevealStructureRange(DocTab tab, Core.Documents.Document document, ByteRange range)
