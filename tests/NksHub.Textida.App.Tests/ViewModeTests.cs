@@ -197,7 +197,10 @@ public class ViewModeTests : IDisposable
     {
         var svg = _w.OpenFile(_temp.File("logo.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect/></svg>"), null);
         Assert.NotNull(svg.Surface);
-        Assert.Null(svg.ModeBar);
+        Assert.Equal(ViewMode.Text, svg.Doc.Mode);
+        Assert.False(svg.Doc.IsImageFile);
+        Assert.NotNull(svg.ModeBar);
+        Assert.Contains(ViewMode.Tree, MainWindow.ModesOf(svg.Doc));
         var fake = _w.OpenFile(_temp.File("fake.png", "BMW is a car maker, and this plain text file begins with two letters of a bitmap."), null);
         Assert.NotNull(fake.Surface);
         Assert.Equal(ViewMode.Text, fake.Doc.Mode);

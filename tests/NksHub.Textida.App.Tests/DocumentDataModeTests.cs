@@ -123,6 +123,7 @@ public sealed class DocumentDataModeTests : IDisposable
         await Drain(tab.Structure!);
         Assert.True(tab.Surface!.TextArea.Focus());
         Dispatcher.UIThread.RunJobs();
+        Assert.False(tab.OverlayShown);
         var context = new ShellContext(window, forMenu: true);
         Assert.True(tab.ModeBar!.Buttons[0].Focus());
         Assert.False(tab.View.IsKeyboardFocusWithin);

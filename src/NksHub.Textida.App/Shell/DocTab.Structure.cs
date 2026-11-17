@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using NksHub.Textida.App.Editing;
 
@@ -20,8 +22,10 @@ internal sealed partial class DocTab
             throw new InvalidOperationException("A tab keeps one structure analysis.");
         if (Structure is null)
         {
-            View.GotFocus += (_, _) => sourceOwnsSplitCommands = true;
-            view.GotFocus += (_, _) => sourceOwnsSplitCommands = false;
+            View.AddHandler(InputElement.GotFocusEvent, (_, _) => sourceOwnsSplitCommands = true,
+                RoutingStrategies.Bubble, handledEventsToo: true);
+            view.AddHandler(InputElement.GotFocusEvent, (_, _) => sourceOwnsSplitCommands = false,
+                RoutingStrategies.Bubble, handledEventsToo: true);
         }
         Structure = view;
         if (TableShown) ShowTable(false, options);
