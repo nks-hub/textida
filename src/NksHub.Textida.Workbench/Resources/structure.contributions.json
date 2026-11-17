@@ -7,7 +7,7 @@
       "title": "cmd.view.structure",
       "category": "cat.view",
       "icon": "outline",
-      "when": "language == 'json' || language == 'jsonc' || language == 'xml'",
+      "when": "language == 'json' || language == 'jsonc' || language == 'xml' || language == 'yaml' || language == 'neon'",
       "enablement": "hasDocument && structureSupported"
     }
   ],

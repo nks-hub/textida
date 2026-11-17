@@ -9,7 +9,7 @@ namespace NksHub.Textida.App.Shell;
 /// A tab: one view of an <see cref="OpenDocument"/> in a <see cref="TabGroup"/>. Two tabs of one document are the two views of a split;
 /// they show the same revision and share the undo history because they share the document.
 /// </summary>
-internal sealed class DocTab
+internal sealed partial class DocTab
 {
     private readonly ContentControl _barSlot = new() { [DockPanel.DockProperty] = Dock.Top };
     private readonly ContentControl _modeSlot = new() { [DockPanel.DockProperty] = Dock.Top };
@@ -55,6 +55,7 @@ internal sealed class DocTab
         ViewClosed?.Invoke();
         Table?.Dispose();
         Json?.Dispose();
+        Structure?.Dispose();
         SidePreview?.Dispose();
         if (Custom is ImageView or MarkdownPreview) ((IDisposable)Custom).Dispose();
         Minimap?.Dispose();
@@ -151,7 +152,8 @@ internal sealed class DocTab
     public bool JsonShown => Json is { } j && Root.Children.Contains(j);
 
     /// <summary>True while a view lies over the text view (the table or the formatted JSON), so the commands of the text view do not reach the hidden one.</summary>
-    public bool OverlayShown => TableShown || JsonShown;
+    public bool OverlayShown => TableShown || JsonShown
+        || StructureShown && (structureSplit is null || !View.IsKeyboardFocusWithin);
 
     /// <summary>Shows the formatted JSON view over the text view, or the text view again; the outline is kept while the tab lives, so a second switch is instant.</summary>
     public void ShowJson(bool on, EditorOptions options)

@@ -6,4 +6,5 @@ namespace NksHub.Textida.App.Shell;
 
 internal sealed record StructureSource(object Key, Guid DocumentId, long Revision, TextCodec Codec,
     int BomLength, StructureFormat Format, long Offset, bool ReadOnly, Func<DocumentSnapshot> Snapshot,
-    Action<ByteRange> Jump, Func<ByteEdit, long, CancellationToken, Task<bool>> Apply);
+    Action<ByteRange> Jump, Func<ByteEdit, long, CancellationToken, Task<bool>> Apply,
+    Action<ByteRange>? OpenSource = null);

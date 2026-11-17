@@ -37,7 +37,7 @@ internal sealed class ViewModeBar : Border
             button.Click += (_, _) =>
             {
                 if (target == Current) button.IsChecked = true; // pressing the pressed one must not release it
-                else choose(target);
+                choose(target);
             };
             row.Children.Add(button);
             _buttons.Add((mode, button));

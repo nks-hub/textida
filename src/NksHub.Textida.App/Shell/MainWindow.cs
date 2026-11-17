@@ -268,7 +268,8 @@ internal sealed partial class MainWindow : Window
     /// <summary>Gives the keyboard to the text area of the tab, so typing works at once without a click.</summary>
     private static void FocusView(DocTab tab)
     {
-        if (tab.TableShown) tab.Table!.Focus();
+        if (tab.StructureShown) tab.Structure!.FocusContent();
+        else if (tab.TableShown) tab.Table!.Focus();
         else if (tab.JsonShown) tab.Json!.Focus();
         else if (tab.Surface is { } surface) surface.TextArea.Focus();
         else tab.View.Focus();

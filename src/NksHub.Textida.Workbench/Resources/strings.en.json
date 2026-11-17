@@ -830,6 +830,6 @@
   "reason.fileType": "The command is for another kind of file",
   "cmd.file.clearRecent": "Clear Recent Files List",
   "submenu.recent": "Open Recent",
-  "cmd.view.structure": "Show JSON/XML Structure",
-  "reason.structureSupported.false": "This view cannot show a JSON/XML structure"
+  "cmd.view.structure": "Show Data Tree",
+  "reason.structureSupported.false": "This document does not support structured data views"
 }

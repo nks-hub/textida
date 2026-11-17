@@ -17,4 +17,9 @@ internal enum ViewMode
 
     /// <summary>A Markdown file in the editor with the drawn page beside it.</summary>
     Edit,
+
+    Tree,
+    Table,
+    Graph,
+    StructureSplit,
 }

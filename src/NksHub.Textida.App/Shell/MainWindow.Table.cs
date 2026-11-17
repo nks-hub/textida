@@ -36,6 +36,11 @@ internal sealed partial class MainWindow
     internal CommandOutcome ToggleTable()
     {
         if (Active is not { } tab || !CanShowTable) return CommandOutcome.NotHandled;
+        if (OffersStructuredModes(tab.Doc) || OffersDelimitedModes(tab.Doc))
+        {
+            SetViewMode(tab.Doc, tab.Doc.Mode == ViewMode.Table ? ViewMode.Text : ViewMode.Table);
+            return CommandOutcome.Handled;
+        }
         SetTable(tab, !tab.TableShown);
         return CommandOutcome.Handled;
     }

@@ -20,7 +20,7 @@ internal sealed partial class MainWindow
     internal EditorSurface? ActiveEditor => Active is { OverlayShown: false } tab ? tab.Surface : null;
 
     /// <summary>The paged view of the active tab unless the formatted JSON view lies over it.</summary>
-    internal PagedTextView? ActivePaged => Active is { JsonShown: false } tab ? tab.Paged : null;
+    internal PagedTextView? ActivePaged => Active is { OverlayShown: false } tab ? tab.Paged : null;
 
     // ---- keys ----
 

@@ -830,6 +830,6 @@
   "reason.fileType": "Der Befehl ist für eine andere Dateiart",
   "cmd.file.clearRecent": "Liste der zuletzt geöffneten Dateien leeren",
   "submenu.recent": "Zuletzt geöffnet",
-  "cmd.view.structure": "JSON/XML-Struktur anzeigen",
-  "reason.structureSupported.false": "Diese Ansicht unterstützt keine JSON/XML-Struktur"
+  "cmd.view.structure": "Datenbaum anzeigen",
+  "reason.structureSupported.false": "Dieses Dokument unterstützt keine strukturierten Datenansichten"
 }

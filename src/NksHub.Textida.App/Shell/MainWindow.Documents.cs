@@ -49,6 +49,7 @@ internal sealed partial class MainWindow
                 if (CanShow(od, first)) od.ChooseMode(first);
                 else SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars)));
             }
+            else if (IsDataMode(first) && CanShow(od, first)) od.ChooseMode(first);
             Core.TypingTrace.End("open.document", t);
             t = Core.TypingTrace.Begin();
             Adopt(od);
@@ -180,6 +181,7 @@ internal sealed partial class MainWindow
         }
         if (tab.Syntax is { } syntax) syntax.PendingChanged += () => { if (tab == Active) UpdateStatus(); };
         AttachEditorMenu(tab);
+        if (IsDataMode(od.Mode)) ApplyDataMode(tab, od.Mode);
         RefreshModeBar(tab);
         group.Add(tab, index);
         _activeGroup = group;

@@ -830,6 +830,6 @@
   "reason.fileType": "Príkaz je pre iný druh súboru",
   "cmd.file.clearRecent": "Vymazať zoznam posledných súborov",
   "submenu.recent": "Otvoriť posledné",
-  "cmd.view.structure": "Zobraziť strom JSON/XML",
-  "reason.structureSupported.false": "Toto zobrazenie nepodporuje strom JSON/XML"
+  "cmd.view.structure": "Zobraziť dátový strom",
+  "reason.structureSupported.false": "Tento dokument nepodporuje štruktúrované dátové zobrazenia"
 }

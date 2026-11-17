@@ -114,13 +114,14 @@ internal sealed partial class MainWindow
                 items.Children.Add(button);
             }
             button.IsVisible = PanelAvailable(panel);
-            button.IsChecked = IsOpen(panel);
+            button.IsChecked = panel == SidePanel.Structure ? Active?.StructureShown == true : IsOpen(panel);
         }
         foreach (var (strip, items) in _strips.Values) strip.IsVisible = items.Children.Any(c => c.IsVisible);
     }
 
     private void OnStripClick(SidePanel panel)
     {
+        if (panel == SidePanel.Structure) { ShowStructurePanel(); return; }
         if (IsOpen(panel)) TogglePanel(panel, false);
         else ShowPanel(panel);
     }
@@ -128,6 +129,7 @@ internal sealed partial class MainWindow
     /// <summary>Shows a panel. The commit panel and the history have to be opened for a repository and a file first, which is what their commands do.</summary>
     private void ShowPanel(SidePanel panel)
     {
+        if (panel == SidePanel.Structure) { ShowStructurePanel(); return; }
         if (panel == SidePanel.Commit && _commitView is null) ShowCommit();
         else if (panel == SidePanel.History && _historyView is null) ShowHistoryPanel();
         else TogglePanel(panel, true);

@@ -71,6 +71,7 @@ internal sealed partial class MainWindow
 
     internal void SetJsonPretty(DocTab tab, bool on)
     {
+        if (on && tab.StructureShown) SetViewMode(tab.Doc, ViewMode.Text);
         if (on == tab.JsonShown) return;
         long offset = on ? TextCaretOffset(tab) : tab.Json!.SourceOffset;
         var before = tab.Json;

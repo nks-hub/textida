@@ -46,7 +46,7 @@ internal sealed partial class MainWindow
         ViewMode wanted;
         if (image) wanted = settings.GetString("files.imageOpen") switch { "text" => ViewMode.Text, "hex" => ViewMode.Hex, _ => ViewMode.Image };
         else if (LanguageModes.ForPath(path).Id == "markdown") wanted = settings.GetString("markdown.defaultMode") switch { "edit" => ViewMode.Edit, "source" => ViewMode.Text, _ => ViewMode.Read };
-        else return ViewMode.Text;
+        else return _rememberedModes.TryGetValue(path, out var dataMode) ? dataMode : ViewMode.Text;
         return _rememberedModes.TryGetValue(path, out var kept) ? kept : wanted;
     }
 
@@ -54,7 +54,10 @@ internal sealed partial class MainWindow
 
     /// <summary>The modes the switcher bar of a document offers, in order; none for a document without modes.</summary>
     internal static IReadOnlyList<ViewMode> ModesOf(OpenDocument od) =>
-        od.IsResults || od.IsVirtual ? [] : od.IsImageFile ? [ViewMode.Image, ViewMode.Text, ViewMode.Hex] : OffersMarkdownModes(od) ? [ViewMode.Read, ViewMode.Edit, ViewMode.Text] : [];
+        od.IsResults || od.IsVirtual ? [] : od.IsImageFile ? [ViewMode.Image, ViewMode.Text, ViewMode.Hex]
+        : OffersMarkdownModes(od) ? [ViewMode.Read, ViewMode.Edit, ViewMode.Text]
+        : OffersStructuredModes(od) ? [ViewMode.Text, ViewMode.Tree, ViewMode.Table, ViewMode.Graph, ViewMode.StructureSplit]
+        : OffersDelimitedModes(od) ? [ViewMode.Text, ViewMode.Table] : [];
 
     /// <summary>The page is drawn only for text that is within <see cref="PluginLimits.PreviewLiveMaxChars"/>.</summary>
     private static bool PreviewFits(OpenDocument od) =>
@@ -64,6 +67,8 @@ internal sealed partial class MainWindow
     {
         ViewMode.Image => od.IsImageFile,
         ViewMode.Read or ViewMode.Edit => OffersMarkdownModes(od) && PreviewFits(od),
+        ViewMode.Tree or ViewMode.Graph or ViewMode.StructureSplit => OffersStructuredModes(od),
+        ViewMode.Table => OffersStructuredModes(od) || OffersDelimitedModes(od),
         _ => true,
     };
 
@@ -74,6 +79,10 @@ internal sealed partial class MainWindow
         ViewMode.Edit => K.ViewModeEdit,
         ViewMode.Hex => K.ViewModeHex,
         ViewMode.Image => K.ViewModeImage,
+        ViewMode.Tree => K.StructureModeTree,
+        ViewMode.Table => K.StructureModeTable,
+        ViewMode.Graph => K.StructureModeGraph,
+        ViewMode.StructureSplit => K.StructureModeSplit,
         _ => od.IsImageFile ? K.ViewModeText : K.ViewModeSource,
     });
 
@@ -114,7 +123,8 @@ internal sealed partial class MainWindow
     /// <summary>The language of a document changed: a file that is Markdown now gets the bar, one that no longer is loses it and its page.</summary>
     private void OnLanguageChangedForModes(OpenDocument od)
     {
-        if (od.Mode is ViewMode.Read or ViewMode.Edit && !OffersMarkdownModes(od)) SetViewMode(od, ViewMode.Text);
+        if (od.Mode is ViewMode.Read or ViewMode.Edit && !OffersMarkdownModes(od)
+            || IsDataMode(od.Mode) && !CanShow(od, od.Mode)) SetViewMode(od, ViewMode.Text);
         else RefreshModeBars(od);
         RefreshMenuIfContextChanged();
     }
@@ -160,7 +170,7 @@ internal sealed partial class MainWindow
     internal async Task<bool> ChooseModeAsync(DocTab tab, ViewMode mode, bool fromBar = false)
     {
         var od = tab.Doc;
-        if (od.Mode == mode) return true;
+        if (od.Mode == mode && (mode != ViewMode.Text || SourceContentShown(od))) return true;
         if (!CanShow(od, mode))
         {
             SetStatusMessage(Loc.Get(K.ViewModeUnavailable, ("limit", PluginLimits.PreviewLiveMaxChars)));
@@ -208,6 +218,7 @@ internal sealed partial class MainWindow
         if (od.IsResults || !_docs.Contains(od) || od.Views.Count == 0) return false;
         if (od.Mode == mode)
         {
+            if (mode == ViewMode.Text && !SourceContentShown(od)) return SetDataMode(od, mode, offset);
             if (offset is { } o && od.Views.FirstOrDefault(v => v.Hex is not null) is { } existing) { SelectTab(existing); ApplyOffsets(existing, o, o); }
             return true;
         }
@@ -217,6 +228,7 @@ internal sealed partial class MainWindow
             SetStatusMessage(Loc.Get(K.HexBusy));
             return false;
         }
+        if (SetDataMode(od, mode, offset)) return true;
         long t = Core.TypingTrace.Begin();
         var views = od.Views.ToList();
         var from = Active is { } a && a.Doc == od ? a : views[0];
@@ -279,4 +291,6 @@ internal sealed partial class MainWindow
         }
         return failure is null;
     }
+
+    private static bool SourceContentShown(OpenDocument document) => document.Views.All(tab => !tab.JsonShown && !tab.TableShown && !tab.StructureShown);
 }

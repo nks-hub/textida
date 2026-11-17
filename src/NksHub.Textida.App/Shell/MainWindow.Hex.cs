@@ -80,6 +80,7 @@ internal sealed partial class MainWindow
     /// <summary>Position of a view as byte offsets: where the selection starts and where the caret is.</summary>
     private static (long Anchor, long Caret) CaptureOffsets(DocTab tab)
     {
+        if (tab.StructureShown && tab.Structure is { } data) return (data.SourceOffset, data.SourceOffset);
         if (tab.Surface is { } surface && tab.Doc.TextBackend is { } text)
         {
             var sel = surface.GetSelections()[0];
