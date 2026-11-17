@@ -22,12 +22,14 @@ public sealed class StructureNativeRequestTests(ITestOutputHelper output)
         requests.Write("inspect.json", bytes);
         for (int i = 0; i < 32; i++)
             Assert.Equal(expected, requests.Read("inspect.json", "Inspection").GetAwaiter().GetResult());
+        Assert.False(File.Exists(requests.RetryPath));
 
         const int reads = 1000;
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < reads; i++)
             Assert.Equal(expected, requests.Read("inspect.json", "Inspection").GetAwaiter().GetResult());
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.False(File.Exists(requests.RetryPath));
         output.WriteLine($"NativeRequestAllocation requestBytes={bytes.Length} reads={reads} allocatedBytes={allocated} bytesPerRead={(double)allocated / reads:F2}");
         Assert.True(allocated <= 4096L * reads,
             $"Reading {reads} requests of {bytes.Length} bytes allocated {allocated} bytes ({(double)allocated / reads:F2} per read); limit is 4096 bytes per read.");

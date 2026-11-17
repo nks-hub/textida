@@ -168,7 +168,7 @@ internal sealed partial class StructureNativeDiagnostic
                 stopped.Token.ThrowIfCancellationRequested();
                 try
                 {
-                    file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 1);
                     break;
                 }
                 catch (IOException error) when (attempt < 5 && unchecked((uint)error.HResult) is 0x80070002u or 0x80070020u)
