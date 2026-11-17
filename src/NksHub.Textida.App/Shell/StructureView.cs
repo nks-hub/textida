@@ -69,33 +69,11 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         this.source = source;
         this.copy = copy;
         this.prompt = prompt;
-        var commands = Bar(refresh, cancel, up, jump, copyPath, copySource, edit);
-        var search = new StackPanel { Spacing = 4 };
-        search.Children.Add(scope);
-        search.Children.Add(filter);
-        search.Children.Add(Bar(find, clear));
-        var paging = Bar(previous, next);
-        var problems = Bar(issue, nextIssue);
-        var top = new StackPanel { Spacing = 4, Margin = new Thickness(6) };
-        var counts = new StackPanel();
-        foreach (var kind in Enum.GetValues<StructureKind>()) { var label = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap }; countLabels.Add(kind, label); counts.Children.Add(label); }
-        typeCounts.Content = counts;
-        top.Children.Add(commands); top.Children.Add(search); top.Children.Add(namespaces);
-        top.Children.Add(syntax); top.Children.Add(status); top.Children.Add(typeCounts); top.Children.Add(problems); top.Children.Add(paging);
-        var controls = new ScrollViewer
-        {
-            Name = "StructureControlsScroll", Content = top,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-        };
-        var body = new Grid { RowDefinitions = new("*,*") };
-        body.Children.Add(controls);
-        Grid.SetRow(tree, 1); body.Children.Add(tree);
-        Children.Add(body);
+        BuildPresentation();
         refresh.Click += (_, _) => { if (!disposed) Invalidate(source()); };
         cancel.Click += (_, _) => CancelWork();
         up.Click += (_, _) => ShowParent();
-        jump.Click += (_, _) => Jump();
+        jump.Click += (_, _) => Jump(openSource: true);
         copyPath.Click += async (_, _) => await CopyAsync(path: true);
         copySource.Click += async (_, _) => await CopyAsync(path: false);
         edit.Click += async (_, _) => await EditAsync();
@@ -158,7 +136,8 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         ];
         foreach (var (button, key) in buttons)
         {
-            button.Content = Loc.Get(key);
+            if (button.Tag is not string) button.Content = Loc.Get(key);
+            ToolTip.SetTip(button, Loc.Get(key));
             AutomationProperties.SetName(button, Loc.Get(key));
         }
         changing = true;
@@ -174,13 +153,19 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         AutomationProperties.SetName(namespaces, Loc.Get(K.StructureNamespaces));
         AutomationProperties.SetName(scope, Loc.Get(K.StructureFind));
         AutomationProperties.SetName(tree, Loc.Get(K.StructureTree));
-        namespaces.IsVisible = session?.Source.Format == StructureFormat.Xml;
-        syntax.Text = Loc.Get(session?.Source.Format == StructureFormat.Xml ? K.StructureSyntaxXml : K.StructureSyntaxJson);
+        namespacePanel.IsVisible = session?.Source.Format == StructureFormat.Xml;
+        syntax.Text = Loc.Get(session?.Source.Format switch
+        {
+            StructureFormat.Xml => K.StructureSyntaxXml,
+            StructureFormat.Yaml or StructureFormat.Neon => K.StructureSyntaxConfig,
+            _ => K.StructureSyntaxJson,
+        });
         ShowTypeCounts();
         foreach (var row in rows.Values) Label(row);
         status.Text = Loc.Get(statusKey, statusArguments);
         ShowIssues();
         UpdateButtons();
+        ApplyPresentationTexts();
     }
 
     public bool FocusTree()
@@ -188,6 +173,13 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         if (tree.SelectedNode is { } node) tree.SelectAndReveal(node);
         return tree.IsKeyboardFocusWithin || tree.List.Focus() || filter.Focus();
     }
+
+    public bool FocusContent() => Presentation switch
+    {
+        StructureViewPresentation.Graph => graph.Focus(),
+        StructureViewPresentation.Table => table.Focus(),
+        _ => FocusTree(),
+    };
 
     public void Sync()
     {
@@ -201,10 +193,11 @@ internal sealed partial class StructureView : DockPanel, IDisposable
         if (moved)
         {
             if (sourceJump is { } jump && ReferenceEquals(jump.Owner, session) && jump.Offset == current.Offset
-                && session.Analysis is { IsValid: true } && CurrentRow(jump.Row, jump.RequestId, jump.NodeId))
+                && session.Analysis is { IsValid: true }
+                && (CurrentRow(jump.Row, jump.RequestId, jump.NodeId) || ReferenceEquals(tableSelection, jump.Row)))
             {
                 caretRequest?.Cancel();
-                Mark(jump.Row, revealParents: false);
+                if (!ReferenceEquals(tableSelection, jump.Row)) Mark(jump.Row, revealParents: false);
             }
             else MarkCaret(session);
         }
@@ -219,6 +212,9 @@ internal sealed partial class StructureView : DockPanel, IDisposable
 
     private void Invalidate(StructureSource? current)
     {
+        tableRequest?.Cancel(); tableOwner = null; tableContainer = null; tableSelection = null;
+        tableResults = null; tableIsResultPage = false; tablePages = new();
+        table.SetPage(new([], [], 0, 0, false, false));
         cancellationCapture = null;
         cancellationCleanups?.Clear();
         var old = session;
@@ -269,6 +265,7 @@ internal sealed partial class StructureView : DockPanel, IDisposable
                         nextSession.Analysis = analysis; nextSession.Parsing = false; published = true;
                         InstallRoot(root, page);
                         ShowStats(nextSession); ShowIssues(); UpdateButtons(); MarkCaret(nextSession);
+                        if (Presentation == StructureViewPresentation.Table) LoadTable();
                         if (analysis.IsValid && !string.IsNullOrEmpty(filter.Text)) StartResults(0);
                     });
                 }
@@ -348,5 +345,5 @@ internal sealed partial class StructureView : DockPanel, IDisposable
     }
 
     public void Suspend() { if (!disposed) Invalidate(null); }
-    public void Dispose() { if (disposed) return; disposed = true; Invalidate(null); }
+    public void Dispose() { if (disposed) return; disposed = true; graph.Dispose(); Invalidate(null); }
 }

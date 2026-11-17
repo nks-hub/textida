@@ -27,7 +27,7 @@ namespace NksHub.Textida.App.Tests;
 public sealed class StructureRowHeaderTests
 {
     [AvaloniaFact]
-    public void Repeated_measure_and_caret_changes_reuse_heading_and_value_layouts()
+    public void Repeated_measure_and_caret_changes_reuse_the_combined_key_value_layout()
     {
         bool tracing = TypingTrace.Enabled;
         var ink = Color.Parse("#125DA7");
@@ -60,7 +60,7 @@ public sealed class StructureRowHeaderTests
             TypingTrace.Reset();
             header.SetCaret(true);
             var marked = Frame(window, header);
-            Assert.Equal(1, Layouts());
+            Assert.Equal(0, Layouts());
             Assert.Equal(before.Width, marked.Width); Assert.Equal(before.Height, marked.Height);
             Assert.Equal(desired, header.DesiredSize);
             Assert.False(before.Pixels.AsSpan().SequenceEqual(marked.Pixels));
@@ -74,7 +74,7 @@ public sealed class StructureRowHeaderTests
             TypingTrace.Reset();
             header.SetText("replacement heading", "new preview");
             var changed = Frame(window, header);
-            Assert.InRange(Layouts(), 2, int.MaxValue);
+            Assert.InRange(Layouts(), 1, int.MaxValue);
             Assert.True(changed.Count(ink) > 20);
             Assert.False(marked.Pixels.AsSpan().SequenceEqual(changed.Pixels));
         }
@@ -83,7 +83,7 @@ public sealed class StructureRowHeaderTests
     }
 
     [AvaloniaFact]
-    public void Fitting_start_and_left_ltr_text_share_one_layout_per_line_and_keep_fallbacks()
+    public void Fitting_start_and_left_ltr_text_share_one_combined_layout_and_keep_fallbacks()
     {
         bool tracing = TypingTrace.Enabled;
         string title = new string('\u2588', 6) + " heading", preview = new string('\u2588', 3) + " value";
@@ -98,14 +98,14 @@ public sealed class StructureRowHeaderTests
             TypingTrace.Enabled = false;
             window.Show(); _ = Frame(window, null);
             var reference = Capture(TextAlignment.DetectFromContent);
-            Assert.Equal(4, reference.Layouts);
+            Assert.Equal(2, reference.Layouts);
             var start = Capture(null);
             Assert.Equal(TextAlignment.Start, TextBlock.GetTextAlignment(header));
-            EqualFrames(reference, start, 2);
+            EqualFrames(reference, start, 1);
             header.InvalidateMeasure();
             EqualFrames(start, Capture(null), 0);
             var left = Capture(TextAlignment.Left);
-            EqualFrames(reference, left, 2);
+            EqualFrames(reference, left, 1);
             header.InvalidateMeasure();
             EqualFrames(left, Capture(TextAlignment.Left), 0);
 
@@ -126,7 +126,7 @@ public sealed class StructureRowHeaderTests
             }
             header.SetText(title, preview); header.SetValue(TextBlock.MaxLinesProperty, 0);
             var centered = Capture(TextAlignment.Center);
-            Assert.Equal(4, centered.Layouts);
+            Assert.Equal(2, centered.Layouts);
             header.InvalidateMeasure();
             EqualFrames(centered, Capture(TextAlignment.Center), 0);
 

@@ -11,7 +11,8 @@ internal sealed partial class StructureView
     private (Session Owner, Row Row, long RequestId, long NodeId, long Offset)? sourceJump;
     private sealed record Results(IReadOnlyList<RowData> Rows, long Cursor, long Next, bool Complete);
     private string resultSignature = "";
-    private Row? Selected => tree.SelectedNode is { } item && rows.TryGetValue(item, out var row) ? row : null;
+    private Row? Selected => Presentation == StructureViewPresentation.Table ? tableSelection
+        : tree.SelectedNode is { } item && rows.TryGetValue(item, out var row) ? row : null;
 
     private void UpdateButtons()
     {
@@ -19,7 +20,9 @@ internal sealed partial class StructureView
         bool selected = ready && Selected != null;
         refresh.IsEnabled = session != null;
         cancel.IsEnabled = session != null && !session.Token.IsCancellationRequested;
-        up.IsEnabled = ready && !showingResults && rootParentId >= 0;
+        up.IsEnabled = ready && !showingResults && (Presentation == StructureViewPresentation.Table ? tableContainer is { ParentId: > 0 } : rootParentId >= 0);
+        expand.IsEnabled = ready && (Presentation == StructureViewPresentation.Table ? tableSelection?.Data.Node.ChildCount > 0 : tree.SelectedNode is { HasChildren: true });
+        collapse.IsEnabled = ready && (Presentation == StructureViewPresentation.Table ? tableContainer is { ParentId: > 0 } : tree.SelectedNode is { HasChildren: true });
         jump.IsEnabled = copyPath.IsEnabled = copySource.IsEnabled = selected;
         edit.IsEnabled = selected && session?.Source.ReadOnly == false && Editable(Selected!.Data.Node.Kind);
         find.IsEnabled = clear.IsEnabled = ready;
@@ -31,7 +34,7 @@ internal sealed partial class StructureView
         or StructureKind.JsonBoolean or StructureKind.JsonNull or StructureKind.XmlAttribute or StructureKind.XmlText
         or StructureKind.XmlCData or StructureKind.XmlElement;
 
-    private void Jump()
+    private void Jump(bool openSource = false)
     {
         if (session is { } owner && Current(owner) && Selected is { } row && source() is { } latest && SameSource(latest, owner.Source))
         {
@@ -39,7 +42,11 @@ internal sealed partial class StructureView
             var range = row.Data.Range;
             var previous = sourceJump;
             sourceJump = (owner, row, row.RequestId, row.Data.Node.Id, Math.Max(latest.BomLength, range.Start));
-            try { latest.Jump(range); }
+            try
+            {
+                if (openSource && latest.OpenSource is { } show) show(range);
+                else latest.Jump(range);
+            }
             finally { sourceJump = previous; }
         }
     }
@@ -93,7 +100,8 @@ internal sealed partial class StructureView
             ResetRows(); showingResults = true; rootParentId = -1;
             ReserveRows(result.Rows.Count, result.Rows.Count(data => data.Node.ChildCount > 0));
             Programmatic(() => { foreach (var data in result.Rows) tree.Items.Add(NewRow(data, null).Item); });
-            resultPage = page;
+            resultPage = page; tableResults = result;
+            if (Presentation == StructureViewPresentation.Table) LoadTableResults(result, page);
             resultCursors[page] = result.Cursor;
             if (!result.Complete) resultCursors[page + 1] = result.Next;
             while (resultCursors.Count > 64) resultCursors.Remove(resultCursors.Keys.First());
@@ -178,9 +186,11 @@ internal sealed partial class StructureView
                 bool applied = await apply.ConfigureAwait(false);
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    if (!Current(owner)) return;
-                    if (applied) Sync();
-                    else SetStatus(K.StructureStale);
+                    if (applied)
+                    {
+                        if (!disposed && ReferenceEquals(session, owner)) Sync();
+                    }
+                    else if (Current(owner)) SetStatus(K.StructureStale);
                 });
             }
             catch (OperationCanceledException) { }

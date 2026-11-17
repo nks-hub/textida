@@ -18,6 +18,7 @@ internal sealed partial class StructureTreeRow : ListBoxItem
         Focusable = false, VerticalAlignment = VerticalAlignment.Top,
     };
     private readonly StructureRowHeader header = new();
+    private readonly PathIcon chevron = StructureView.Chevron(false);
     private bool listening, attached;
 
     internal StructureTreeRow()
@@ -118,11 +119,12 @@ internal sealed partial class StructureTreeRow : ListBoxItem
     {
         if (BoundNode is not { } node) return;
         int depth = 0;
-        for (var parent = node.Parent; parent is not null; parent = parent.Parent) depth++;
+        for (var parent = node.Parent; parent is not null; parent = parent.Parent) if (!parent.HeaderHidden) depth++;
         body.Margin = new Thickness(depth * Indent, 0, 0, 0);
         Tag = node.Tag; IsEnabled = node.IsEnabled;
-        header.SetText(node.Heading, node.Value); header.SetCaret(node.IsCaret);
-        expander.Content = node.IsExpanded ? "▾" : "▸";
+        header.SetText(node.DisplayKey, node.DisplayValue); header.SetCaret(node.IsCaret);
+        chevron.Data = StructureView.ChevronGeometry(node.IsExpanded);
+        if (!ReferenceEquals(expander.Content, chevron)) expander.Content = chevron;
         expander.IsVisible = node.HasChildren && node.Kind == StructureTreeNodeKind.Normal;
         AutomationProperties.SetName(this, node.DisplayName);
         AutomationProperties.SetItemStatus(this, node.IsCaret ? Loc.Get(K.StructureCaret) : "");

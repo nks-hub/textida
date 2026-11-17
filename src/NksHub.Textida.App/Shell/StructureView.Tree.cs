@@ -65,7 +65,8 @@ internal sealed partial class StructureView
         }
         row.RequestId++;
         row.Data = data; row.Parent = parent; row.Touched = ++clock;
-        row.Item.Update(Heading(row), data.Value, data.Node, data.Node.ChildCount > 0);
+        row.Item.Update(Heading(row), data.Value, data.Node, data.Node.ChildCount > 0,
+            DisplayKey(data), DisplayValue(data), data.Node.Kind == StructureKind.Document);
         if (placeholder && data.Node.ChildCount > 0) row.Item.Items.Add(Placeholder());
         rows.Add(row.Item, row);
         return row;
@@ -87,6 +88,9 @@ internal sealed partial class StructureView
         StructureKind.XmlCData => K.StructureKindXmlCData,
         StructureKind.XmlComment => K.StructureKindXmlComment,
         StructureKind.XmlProcessingInstruction => K.StructureKindXmlProcessingInstruction,
+        StructureKind.ConfigEntity => K.StructureKindConfigEntity,
+        StructureKind.ConfigReference => K.StructureKindConfigReference,
+        StructureKind.ConfigTaggedValue => K.StructureKindConfigTaggedValue,
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 
@@ -99,6 +103,30 @@ internal sealed partial class StructureView
     }
 
     private static void Label(Row row) { row.Item.Heading = Heading(row); row.Item.Value = row.Data.Value; }
+
+    private static string DisplayKey(RowData data)
+    {
+        if (data.Name.Length > 0) return data.Node.Kind == StructureKind.XmlAttribute ? "@" + OneLine(data.Name) : OneLine(data.Name);
+        if (data.Node.ParentId <= 0) return "";
+        return data.Node.Kind switch
+        {
+            StructureKind.XmlText => "#text",
+            StructureKind.XmlCData => "#cdata",
+            StructureKind.XmlComment => "#comment",
+            _ => data.Node.Ordinal.ToString(CultureInfo.CurrentCulture),
+        };
+    }
+
+    private static string DisplayValue(RowData data) => data.Node.Kind switch
+    {
+        StructureKind.JsonArray => "[" + data.Node.ChildCount.ToString(CultureInfo.CurrentCulture) + "]",
+        StructureKind.JsonObject => "{" + data.Node.ChildCount.ToString(CultureInfo.CurrentCulture) + "}",
+        StructureKind.JsonString => "\"" + OneLine(data.Value) + "\"",
+        _ when data.Node.ChildCount > 0 => (data.Value.Length > 0 ? OneLine(data.Value) + " " : "") + "(" + data.Node.ChildCount.ToString(CultureInfo.CurrentCulture) + ")",
+        _ => OneLine(data.Value),
+    };
+
+    private static string OneLine(string text) => text.Replace('\r', ' ').Replace('\n', ' ');
 
     private static StructureTreeNode Placeholder() => new()
     {
@@ -333,12 +361,16 @@ internal sealed partial class StructureView
 
     private void ShowDocument()
     {
-        filterRequest?.Cancel();
+        filterRequest?.Cancel(); tableResults = null;
         changing = true; filter.Text = ""; changing = false;
         LoadRoot(0);
     }
 
-    private void ShowParent() { if (rootParentId >= 0) LoadRoot(rootParentId); }
+    private void ShowParent()
+    {
+        if (Presentation == StructureViewPresentation.Table && tableContainer is { ParentId: >= 0 } container) LoadTableRoot(container.ParentId);
+        else if (rootParentId >= 0) LoadRoot(rootParentId);
+    }
 
     private void LoadRoot(long id)
     {
@@ -348,7 +380,8 @@ internal sealed partial class StructureView
             var index = owner.Analysis!.Index;
             var node = index.ReadNode(id);
             return (ReadRow(index, node, ct), ReadPage(index, node, -1, ct));
-        }, result => { InstallRoot(result.Item1, result.Item2); ShowStats(owner); MarkCaret(owner, reveal: false); });
+        }, result => { InstallRoot(result.Item1, result.Item2); ShowStats(owner); MarkCaret(owner, reveal: false);
+            if (Presentation == StructureViewPresentation.Table) LoadTableRoot(id); });
     }
 
 }

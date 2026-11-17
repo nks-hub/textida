@@ -114,6 +114,8 @@ internal sealed partial class StructureView
 
     private void Mark(Row? row, bool revealParents)
     {
+        if (row is { Item.HeaderHidden: true })
+            row = row.Item.Items.Select(item => rows.GetValueOrDefault(item)).FirstOrDefault(item => item is not null && !item.Item.HeaderHidden);
         foreach (var marked in markedRows) { marked.Item.IsCaret = false; }
         markedRows.Clear();
         if (row == null) return;

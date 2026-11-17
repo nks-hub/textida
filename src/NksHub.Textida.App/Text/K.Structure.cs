@@ -42,6 +42,7 @@ public static partial class K
     public const string StructureStale = "structure.stale";
     public const string StructureCaret = "structure.caret";
     public const string StructureSyntaxJson = "structure.syntaxJson";
+    public const string StructureSyntaxConfig = "structure.syntaxConfig";
     public const string StructureSyntaxXml = "structure.syntaxXml";
     public const string StructureKindDocument = "structure.kind.Document";
     public const string StructureKindJsonObject = "structure.kind.JsonObject";
@@ -62,4 +63,22 @@ public static partial class K
     public const string StructureGroupEdit = "structure.groupEdit";
     public const string StructureInvalid = "structure.invalid";
     public const string StructureTypeCounts = "structure.typeCounts";
+    public const string StructureModeTree = "structure.mode.tree";
+    public const string StructureModeTable = "structure.mode.table";
+    public const string StructureModeGraph = "structure.mode.graph";
+    public const string StructureModeSplit = "structure.mode.split";
+    public const string StructureMore = "structure.more";
+    public const string StructureHelp = "structure.help";
+    public const string StructureExpand = "structure.expand";
+    public const string StructureCollapse = "structure.collapse";
+    public const string StructureZoomIn = "structure.zoomIn";
+    public const string StructureZoomOut = "structure.zoomOut";
+    public const string StructureFit = "structure.fit";
+    public const string StructureTableKey = "structure.table.key";
+    public const string StructureTableValue = "structure.table.value";
+    public const string StructurePreviousFields = "structure.table.previousFields";
+    public const string StructureNextFields = "structure.table.nextFields";
+    public const string StructureKindConfigEntity = "structure.kind.ConfigEntity";
+    public const string StructureKindConfigReference = "structure.kind.ConfigReference";
+    public const string StructureKindConfigTaggedValue = "structure.kind.ConfigTaggedValue";
 }

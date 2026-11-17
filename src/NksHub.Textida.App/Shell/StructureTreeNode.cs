@@ -12,12 +12,14 @@ internal sealed class StructureTreeNode : INotifyPropertyChanged
 {
     private readonly HashSet<StructureTreeNode> attachedChildren = [];
     private string heading = "", value = "";
+    private string? displayKey, displayValue;
     private object? tag;
     private bool expanded, hasChildren, caret, enabled = true;
     private StructureTreeNodeKind kind;
     private Control? pagerContent;
     private long bindingVersion;
     private bool bindingValid = true;
+    private bool headerHidden;
 
     public StructureTreeNode() => Items.CollectionChanged += ChildrenChanged;
 
@@ -28,6 +30,9 @@ internal sealed class StructureTreeNode : INotifyPropertyChanged
     public bool IsBindingValid => bindingValid;
     public string Heading { get => heading; set => Set(ref heading, value); }
     public string Value { get => value; set => Set(ref this.value, value); }
+    public string DisplayKey => displayKey ?? heading;
+    public string DisplayValue => displayValue ?? value;
+    public bool HeaderHidden { get => headerHidden; set => Set(ref headerHidden, value); }
     public string DisplayName => (Heading + " " + Value).TrimEnd();
     public object? Tag
     {
@@ -46,9 +51,11 @@ internal sealed class StructureTreeNode : INotifyPropertyChanged
     public StructureTreeNodeKind Kind { get => kind; set => Set(ref kind, value); }
     public Control? PagerContent { get => pagerContent; set => Set(ref pagerContent, value); }
 
-    public void Update(string title, string preview, object? identity, bool expandable)
+    public void Update(string title, string preview, object? identity, bool expandable,
+        string? key = null, string? display = null, bool hideHeader = false)
     {
         heading = title; value = preview; tag = identity; hasChildren = expandable;
+        displayKey = key; displayValue = display; headerHidden = hideHeader;
         bindingValid = true; bindingVersion++;
         Changed(nameof(BindingVersion)); Changed(nameof(IsBindingValid));
         Changed(nameof(Heading)); Changed(nameof(Value)); Changed(nameof(Tag)); Changed(nameof(HasChildren));
@@ -65,6 +72,7 @@ internal sealed class StructureTreeNode : INotifyPropertyChanged
         // Retired identities stay invalid until Update publishes the replacement.
         bindingValid = false; bindingVersion++;
         heading = value = ""; tag = null;
+        displayKey = displayValue = null; headerHidden = false;
         expanded = hasChildren = caret = false; enabled = true;
         kind = StructureTreeNodeKind.Normal; pagerContent = null;
         Parent?.Items.Remove(this);

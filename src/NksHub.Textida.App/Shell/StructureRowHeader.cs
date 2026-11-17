@@ -13,11 +13,11 @@ internal sealed class StructureRowHeader : Control
     private const double MaximumTextWidth = 700;
     private string heading = "", value = "";
     private bool caret, measured;
-    private Size naturalHeadingSize, naturalValueSize;
+    private Size naturalHeadingSize;
     private double layoutWidth = double.NaN, layoutScale = double.NaN;
-    private double markerLayoutWidth = double.NaN, markerLayoutScale = double.NaN;
     private double textWidth;
-    private TextLayout? headingLayout, valueLayout, markerLayout;
+    private TextLayout? headingLayout;
+    private string DisplayText => heading.Length > 0 && value.Length > 0 ? heading + ": " + value : heading + value;
 
     static StructureRowHeader()
     {
@@ -40,15 +40,13 @@ internal sealed class StructureRowHeader : Control
     {
         if (caret == marked) return;
         caret = marked;
-        DisposeMarkerLayout();
-        InvalidateMeasure(); InvalidateVisual();
+        InvalidateVisual();
     }
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        var (title, preview) = MeasureText();
-        double markerHeight = caret ? SizeOf(GetMarkerLayout(MarkerColumn)).Height : 0;
-        return new(MarkerColumn + textWidth, Math.Max(markerHeight, title.Height + preview.Height));
+        var title = MeasureText();
+        return new(MarkerColumn + textWidth, Math.Max(24, title.Height));
     }
 
     protected override Size ArrangeOverride(Size finalSize)
@@ -68,15 +66,11 @@ internal sealed class StructureRowHeader : Control
         bool rightToLeft = FlowDirection == FlowDirection.RightToLeft;
         double textX = rightToLeft ? Bounds.Width - markerWidth - textWidth : markerWidth;
         double titleHeight = SizeOf(headingLayout!).Height;
-        Draw(context, headingLayout!, new(textX, 0, textWidth, titleHeight));
-        if (valueLayout is not null)
-            Draw(context, valueLayout, new(textX, titleHeight, textWidth, SizeOf(valueLayout).Height));
+        Draw(context, headingLayout!, new(textX, (Bounds.Height - titleHeight) / 2, textWidth, titleHeight));
         if (caret)
         {
-            var marker = GetMarkerLayout(markerWidth);
             double markerX = rightToLeft ? Math.Max(0, Bounds.Width - markerWidth) : 0;
-            Draw(context, marker, new(markerX, (Bounds.Height - SizeOf(marker).Height) / 2,
-                markerWidth, SizeOf(marker).Height));
+            context.DrawEllipse(TextElement.GetForeground(this), null, new Point(markerX + markerWidth / 2, Bounds.Height / 2), 2, 2);
         }
     }
 
@@ -85,19 +79,17 @@ internal sealed class StructureRowHeader : Control
         using (context.PushClip(bounds)) layout.Draw(context, bounds.TopLeft);
     }
 
-    private (Size Heading, Size Value) MeasureText()
+    private Size MeasureText()
     {
         if (!measured)
         {
             EnsureLayout(MaximumTextWidth);
             naturalHeadingSize = RawSizeOf(headingLayout!);
-            naturalValueSize = valueLayout is null ? default : RawSizeOf(valueLayout);
             measured = true;
         }
         var title = RoundSize(naturalHeadingSize);
-        var preview = RoundSize(naturalValueSize);
-        textWidth = Math.Max(title.Width, preview.Width);
-        return (title, preview);
+        textWidth = title.Width;
+        return title;
     }
 
     private static Size RawSizeOf(TextLayout layout)
@@ -115,16 +107,14 @@ internal sealed class StructureRowHeader : Control
             && (width == layoutWidth || CanUseNaturalLayout(width))) return;
         DisposeLayouts();
         layoutWidth = width; layoutScale = scale;
-        headingLayout = CreateLayout(heading, TextElement.GetFontSize(this), width, TextTrimming.CharacterEllipsis);
-        if (value.Length > 0) valueLayout = CreateLayout(value, 11, width, TextTrimming.CharacterEllipsis);
+        headingLayout = CreateLayout(DisplayText, TextElement.GetFontSize(this), width, TextTrimming.CharacterEllipsis);
     }
 
     private bool CanUseNaturalLayout(double width)
         => layoutWidth == MaximumTextWidth && width <= MaximumTextWidth
             && FlowDirection == FlowDirection.LeftToRight
             && TextBlock.GetTextAlignment(this) is TextAlignment.Start or TextAlignment.Left
-            && FitsNaturalLine(headingLayout!, heading, width)
-            && (valueLayout is null || FitsNaturalLine(valueLayout, value, width));
+            && FitsNaturalLine(headingLayout!, DisplayText, width);
 
     private static bool FitsNaturalLine(TextLayout layout, string text, double width)
     {
@@ -132,18 +122,6 @@ internal sealed class StructureRowHeader : Control
         var line = layout.TextLines[0];
         return !line.HasCollapsed && !line.HasOverflowed && line.Start == 0
             && line.Length == text.Length && line.WidthIncludingTrailingWhitespace <= width;
-    }
-
-    private TextLayout GetMarkerLayout(double width)
-    {
-        double scale = LayoutHelper.GetLayoutScale(this);
-        if (markerLayout is null || width != markerLayoutWidth || scale != markerLayoutScale)
-        {
-            DisposeMarkerLayout();
-            markerLayout = CreateLayout("●", TextElement.GetFontSize(this), width, TextTrimming.None);
-            markerLayoutWidth = width; markerLayoutScale = scale;
-        }
-        return markerLayout;
     }
 
     private TextLayout CreateLayout(string text, double size, double width, TextTrimming trimming)
@@ -166,15 +144,7 @@ internal sealed class StructureRowHeader : Control
     private void DisposeLayouts()
     {
         headingLayout?.Dispose(); headingLayout = null;
-        valueLayout?.Dispose(); valueLayout = null;
-        DisposeMarkerLayout();
         layoutWidth = layoutScale = double.NaN;
-    }
-
-    private void DisposeMarkerLayout()
-    {
-        markerLayout?.Dispose(); markerLayout = null;
-        markerLayoutWidth = markerLayoutScale = double.NaN;
     }
 
     private void InvalidateText()

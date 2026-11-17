@@ -45,6 +45,7 @@ internal sealed partial class StructureTree : Grid
         get => selectedNode;
         set
         {
+            while (value is { HeaderHidden: true }) value = value.Items.FirstOrDefault(node => node.Kind == StructureTreeNodeKind.Normal);
             if (value is not null && !IsSelectable(value)) throw new ArgumentException("The node is not selectable in this tree.", nameof(value));
             SetSelected(value);
         }
@@ -154,7 +155,7 @@ internal sealed partial class StructureTree : Grid
         List<StructureTreeNode> projection)
     {
         if (!reachable.Add(node)) throw new InvalidOperationException("A tree node occurs more than once.");
-        if (visible && node.IsBindingValid) projection.Add(node);
+        if (visible && node.IsBindingValid && !node.HeaderHidden) projection.Add(node);
         foreach (var child in node.Items) Collect(child, visible && node.IsBindingValid && node.IsExpanded, reachable, projection);
     }
 
@@ -181,12 +182,13 @@ internal sealed partial class StructureTree : Grid
             changedBindings.Add(changed);
         if (e.PropertyName is nameof(StructureTreeNode.IsExpanded) or nameof(StructureTreeNode.Items)
             or nameof(StructureTreeNode.Parent) or nameof(StructureTreeNode.BindingVersion)
-            or nameof(StructureTreeNode.IsBindingValid) or nameof(StructureTreeNode.IsEnabled) or nameof(StructureTreeNode.Kind))
+            or nameof(StructureTreeNode.IsBindingValid) or nameof(StructureTreeNode.IsEnabled) or nameof(StructureTreeNode.Kind)
+            or nameof(StructureTreeNode.HeaderHidden))
             RefreshProjection();
     }
 
     private bool IsSelectable(StructureTreeNode node)
-        => node.IsEnabled && node.Kind == StructureTreeNodeKind.Normal && IsCurrent(node, node.BindingVersion);
+        => node.IsEnabled && !node.HeaderHidden && node.Kind == StructureTreeNodeKind.Normal && IsCurrent(node, node.BindingVersion);
 
     private void SetSelected(StructureTreeNode? node)
     {
