@@ -91,6 +91,7 @@ public sealed class DocumentDataLifecycleTests : IDisposable
         await Value(view, "$.value", "café");
         Task initialParsing = view.Parsing;
         long revision = document.Revision;
+        int undoDepth = document.UndoDepth;
         var fingerprint = document.Fingerprint;
 
         window.RereadAs(tab, TextCodec.Cp1252);
@@ -98,11 +99,13 @@ public sealed class DocumentDataLifecycleTests : IDisposable
         Assert.NotSame(initialParsing, view.Parsing);
         await Value(view, "$.value", "cafÃ©");
         Assert.Same(document, tab.Doc.Doc);
-        Assert.Equal(revision, document.Revision);
+        Assert.Same(TextCodec.Cp1252, document.Codec);
+        Assert.Equal(revision + 1, document.Revision);
         Assert.Equal(fingerprint, document.Fingerprint);
         Assert.Equal(bytes, SourceBytes(tab));
         Assert.Equal(bytes, File.ReadAllBytes(path));
         Assert.False(document.IsModified);
+        Assert.Equal(undoDepth, document.UndoDepth);
         Assert.False(document.CanUndo);
 
         Task alternateParsing = view.Parsing;
@@ -111,8 +114,12 @@ public sealed class DocumentDataLifecycleTests : IDisposable
         Assert.NotSame(alternateParsing, view.Parsing);
         await Value(view, "$.value", "café");
         Assert.Equal(text, tab.Surface!.Document.Text);
-        Assert.Equal(revision, document.Revision);
+        Assert.Same(TextCodec.Utf8, document.Codec);
+        Assert.Equal(revision + 2, document.Revision);
+        Assert.Equal(fingerprint, document.Fingerprint);
         Assert.Equal(bytes, SourceBytes(tab));
+        Assert.False(document.IsModified);
+        Assert.Equal(undoDepth, document.UndoDepth);
         Assert.False(document.CanUndo);
     }
 
