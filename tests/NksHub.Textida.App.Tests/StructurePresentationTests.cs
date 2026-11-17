@@ -36,7 +36,7 @@ public sealed class StructurePresentationTests
         Assert.NotNull(host.Jumped); Assert.Equal(0, host.Opened);
         Assert.Equal(host.Jumped, host.View.SelectedRange);
         Click(host.View.JumpButton); Assert.Equal(1, host.Opened);
-        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("\"row0\"", host.Copied);
+        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("\"name\":\"row0\"", host.Copied);
 
         TestApp.Press(host.Window, Key.PageDown); await host.Drain();
         Assert.Equal("\"row64\"", table.CurrentPage.Rows[0].Cells[new("name")].Value);
@@ -80,6 +80,10 @@ public sealed class StructurePresentationTests
         await host.GraphDrain();
         Assert.Equal(host.View.Tree.VisibleNodes.Count, host.View.Graph.LoadedCards);
         Assert.InRange(host.View.Graph.LoadedCards, 64, StructureView.MaximumItems);
+        host.View.Graph.Zoom(10); StructureLayoutTests.Layout(host.Window);
+        Assert.InRange(host.View.Graph.DrawnCards, 1, host.View.Graph.LoadedCards - 1);
+        host.View.Graph.Zoom(0.1); StructureLayoutTests.Layout(host.Window);
+        Assert.InRange(host.View.Graph.DrawnCards, 1, host.View.Graph.LoadedCards);
         host.View.Graph.Zoom(10); StructureLayoutTests.Layout(host.Window);
         Assert.InRange(host.View.Graph.DrawnCards, 1, host.View.Graph.LoadedCards - 1);
         host.View.Tree.SelectedNode = root;
@@ -136,11 +140,11 @@ public sealed class StructurePresentationTests
         host.View.Presentation = StructureViewPresentation.Table;
         host.View.Sync(); await host.Drain();
         host.View.FocusContent(); TestApp.Press(host.Window, Key.Down); await host.Drain();
-        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("1", host.Copied);
+        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("\"a\":1", host.Copied);
         var point = host.View.Table.TranslatePoint(new Point(180, 75), host.Window)!.Value;
         host.Window.MouseDown(point, MouseButton.Right); host.Window.MouseUp(point, MouseButton.Right);
         await host.Drain();
-        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("2", host.Copied);
+        Click(host.View.CopySourceButton); await host.Drain(); Assert.Equal("\"b\":2", host.Copied);
         host.Replacement = "7"; Click(host.View.EditButton); await host.Drain();
         Assert.Equal("{\"a\":1,\"b\":7}", host.Text);
         Assert.Equal(1, host.Document.UndoDepth);

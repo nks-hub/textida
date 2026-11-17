@@ -112,7 +112,20 @@ internal sealed class StructureGraph : Control, IDisposable
         return result;
     }
 
-    internal void Zoom(double factor) => ZoomAt(factor, new Point(Bounds.Width / 2, Bounds.Height / 2));
+    internal void Zoom(double factor)
+    {
+        var viewport = Viewport;
+        var anchor = cards.FirstOrDefault(card => ReferenceEquals(card.Entry.Node, tree.SelectedNode) && card.Bounds.Intersects(viewport))
+            ?? cards.FirstOrDefault(card => card.Bounds.Intersects(viewport));
+        if (anchor is null && cards.Length > 0)
+        {
+            Fit(); viewport = Viewport;
+            anchor = cards.FirstOrDefault(card => card.Bounds.Intersects(viewport));
+        }
+        var point = anchor is null ? new Point(Bounds.Width / 2, Bounds.Height / 2)
+            : new Point(anchor.Bounds.Center.X * scale + pan.X, anchor.Bounds.Center.Y * scale + pan.Y);
+        ZoomAt(factor, point);
+    }
 
     private void ZoomAt(double factor, Point anchor)
     {
