@@ -1010,6 +1010,9 @@ public static partial class K
     public const string SettingsValueFilesEolCrlf = "settings.value.files.eol.crlf";
     public const string SettingsValueFilesAutoSaveOff = "settings.value.files.autoSave.off";
     public const string SettingsValueFilesAutoSaveAfterDelay = "settings.value.files.autoSave.afterDelay";
+    public const string SettingsValueFilesRestoreTabsNever = "settings.value.files.restoreTabs.never";
+    public const string SettingsValueFilesRestoreTabsAlways = "settings.value.files.restoreTabs.always";
+    public const string SettingsValueFilesRestoreTabsAfterCrash = "settings.value.files.restoreTabs.afterCrash";
     public const string SettingsValueRemoteVersionCheckStat = "settings.value.remote.versionCheck.stat";
     public const string SettingsValueRemoteVersionCheckContent = "settings.value.remote.versionCheck.content";
     public const string SettingsValueGitGutterBaseIndex = "settings.value.git.gutterBase.index";

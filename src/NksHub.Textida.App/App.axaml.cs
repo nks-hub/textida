@@ -354,7 +354,14 @@ public sealed partial class App : Application
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* losing the window position must not block closing */ }
     }
 
+    /// <summary>Ends the program without questions (an update or a restore restarts it); unsaved work stays in the journal and comes back at the next start.</summary>
     internal void Exit() => _desktop?.Shutdown();
+
+    /// <summary>The Quit command: closes the windows the way the user closes them, so each can ask about unsaved work and a cancel keeps it open.</summary>
+    internal void Quit()
+    {
+        foreach (var window in _windows.ToList()) window.Close();
+    }
 
     internal IReadOnlyList<MainWindow> Windows => _windows;
 

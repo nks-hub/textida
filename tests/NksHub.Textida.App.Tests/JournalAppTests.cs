@@ -19,6 +19,9 @@ public class JournalAppTests : IDisposable
 
     public JournalAppTests() => _app = TestApp.Prepare(_temp, _dialogs);
 
+    /// <summary>The product default; the shared test layer keeps the hot exit for the other suites.</summary>
+    private void UseDefaultRestore() => _app.Workbench.Set("files.restoreTabs", "afterCrash");
+
     public void Dispose()
     {
         TestApp.Cleanup(_app);
@@ -143,24 +146,172 @@ public class JournalAppTests : IDisposable
         Assert.Contains(asked.Details!, d => d.Contains("obnoveno včetně neuložených změn"));
     }
 
-    [AvaloniaFact]
-    public void A_clean_exit_restores_the_session_silently()
+    /// <summary>The previous run ends normally: the layout is stored, the windows close (answering their questions) and the clean-exit flag is written.</summary>
+    private MainWindow CleanExit()
     {
+        _app.SaveSession();
+        foreach (var win in _app.Windows.ToList()) win.Close();
+        Dispatcher.UIThread.RunJobs();
+        _app.Journal.Shutdown(); // clean exit writes the flag
+        _app = TestApp.Prepare(_temp, _dialogs);
+        return _app.CreateWindow(null);
+    }
+
+    [AvaloniaFact]
+    public void The_default_is_to_restore_tabs_only_after_a_crash()
+    {
+        Assert.True(_app.Workbench.Settings.Registry.TryGet("files.restoreTabs", out var definition));
+        Assert.Equal("afterCrash", definition.Default!.GetValue<string>());
+    }
+
+    [AvaloniaFact]
+    public void With_always_a_clean_exit_restores_the_session_silently()
+    {
+        _app.Workbench.Set("files.restoreTabs", "always");
         var w = _app.CreateWindow(null);
         var a = w.OpenFile(_temp.File("a.txt", "a"), null);
         var b = w.OpenFile(_temp.File("b.txt", "b"), null);
         w.SelectTab(a);
-        _app.SaveSession();
-        _app.Journal.Shutdown(); // clean exit writes the flag
-        foreach (var win in _app.Windows.ToList()) win.Close();
-        _app = TestApp.Prepare(_temp, _dialogs);
-        var w2 = _app.CreateWindow(null);
+        var w2 = CleanExit();
         w2.RestoreFrom(_app.Journal);
 
         Assert.Equal(["a.txt", "b.txt"], w2.Tabs.Select(t => t.Title));
         Assert.Equal("a.txt", w2.Active!.Title);
         Assert.False(_app.Journal.CrashedLastTime);
         Assert.Empty(w2.Notices);
+    }
+
+    [AvaloniaFact]
+    public void By_default_a_clean_exit_opens_no_tabs_and_they_do_not_return_after_a_later_crash()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        w.OpenFile(_temp.File("a.txt", "a"), null);
+        w.OpenFile(_temp.File("b.txt", "b"), null);
+        var w2 = CleanExit();
+        w2.RestoreFrom(_app.Journal);
+
+        Assert.Empty(w2.Tabs);
+        Assert.Empty(w2.Notices);
+        Assert.Empty(_app.Journal.Recovery.Documents);
+
+        var w3 = Crash();
+        w3.RestoreFrom(_app.Journal);
+        Assert.Empty(w3.Tabs);
+    }
+
+    [AvaloniaFact]
+    public void Never_restores_no_tab_after_a_clean_exit()
+    {
+        _app.Workbench.Set("files.restoreTabs", "never");
+        var w = _app.CreateWindow(null);
+        w.OpenFile(_temp.File("a.txt", "a"), null);
+        var w2 = CleanExit();
+        w2.RestoreFrom(_app.Journal);
+        Assert.Empty(w2.Tabs);
+    }
+
+    [AvaloniaFact]
+    public void Never_brings_back_only_the_unsaved_work_after_a_crash()
+    {
+        _app.Workbench.Set("files.restoreTabs", "never");
+        var w = _app.CreateWindow(null);
+        w.OpenFile(_temp.File("clean.txt", "untouched"), null);
+        var unnamed = w.NewDocument();
+        unnamed.Editor!.Document.Text = "unsaved work";
+        w.NewDocument(); // an empty unnamed tab is not work
+
+        var w2 = Crash();
+        w2.RestoreFrom(_app.Journal);
+
+        Assert.Equal("unsaved work", Text(Assert.Single(w2.Tabs)));
+        Assert.Contains(w2.Notices, n => n.Message.Contains("neočekávaném ukončení"));
+    }
+
+    [AvaloniaFact]
+    public async Task Work_kept_in_the_journal_comes_back_after_a_clean_exit_by_default()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        var tab = w.NewDocument();
+        tab.Editor!.Document.Text = "keep me";
+        _dialogs.Answers.Enqueue(2); // keep in journal
+        Assert.True(await w.CloseTabAsync(tab));
+        w.OpenFile(_temp.File("plain.txt", "plain"), null);
+
+        var w2 = CleanExit();
+        w2.RestoreFrom(_app.Journal);
+        Assert.Equal("keep me", Text(Assert.Single(w2.Tabs)));
+    }
+
+    [AvaloniaFact]
+    public void By_default_closing_the_window_asks_and_a_discarded_text_does_not_return()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        var tab = w.NewDocument();
+        tab.Editor!.Document.Text = "throw away";
+        _dialogs.Answers.Enqueue(1); // don't save
+
+        var w2 = CleanExit();
+
+        Assert.Single(_dialogs.Asked);
+        w2.RestoreFrom(_app.Journal);
+        Assert.Empty(w2.Tabs);
+        var w3 = Crash();
+        w3.RestoreFrom(_app.Journal);
+        Assert.Empty(w3.Tabs);
+    }
+
+    [AvaloniaFact]
+    public void By_default_closing_the_window_can_keep_the_text_for_the_next_start()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        var tab = w.NewDocument();
+        tab.Editor!.Document.Text = "for tomorrow";
+        _dialogs.Answers.Enqueue(2); // keep in journal
+
+        var w2 = CleanExit();
+
+        w2.RestoreFrom(_app.Journal);
+        Assert.Equal("for tomorrow", Text(Assert.Single(w2.Tabs)));
+    }
+
+    [AvaloniaFact]
+    public void The_quit_command_asks_like_closing_the_window_and_cancel_keeps_it_open()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        var tab = w.NewDocument();
+        tab.Editor!.Document.Text = "still editing";
+        _dialogs.Answers.Enqueue(3); // cancel
+
+        _app.Quit();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Single(_dialogs.Asked);
+        Assert.Contains(w, _app.Windows);
+        Assert.Equal("still editing", Text(tab));
+    }
+
+    [AvaloniaFact]
+    public void A_cancelled_close_keeps_the_discarded_answer_of_an_earlier_tab_in_the_journal()
+    {
+        UseDefaultRestore();
+        var w = _app.CreateWindow(null);
+        var first = w.NewDocument();
+        first.Editor!.Document.Text = "first";
+        var second = w.NewDocument();
+        second.Editor!.Document.Text = "second";
+        _dialogs.Answers.Enqueue(1); // don't save the first
+        _dialogs.Answers.Enqueue(3); // cancel at the second
+
+        w.Close();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Contains(w, _app.Windows);
+        Assert.NotNull(_app.Journal.Session.IdOf(first.Doc.Doc)); // still protected: the window stayed open
     }
 
     [AvaloniaFact]
@@ -308,8 +459,9 @@ public class JournalAppTests : IDisposable
     }
 
     [AvaloniaFact]
-    public void With_a_working_journal_closing_the_window_does_not_ask_the_work_stays_in_the_journal()
+    public void With_always_and_a_working_journal_closing_the_window_does_not_ask_the_work_stays_in_the_journal()
     {
+        _app.Workbench.Set("files.restoreTabs", "always");
         var w = _app.CreateWindow(null);
         var tab = w.NewDocument();
         tab.Editor!.Document.Text = "hot exit";

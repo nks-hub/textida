@@ -208,14 +208,15 @@ internal static class TestApp
         app.Plugins.Mcp.Clients.Decide(NksHub.Textida.PluginHost.Mcp.McpServer.UnknownClient, true);
         // a Markdown file opens in reading by default (P9.3.4); the tests of the other features open .md files and work in the editor, so the layer under the user's settings (nothing is written)
         // gives them source; the tests of the modes set the user's value
-        app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.Plugin, new System.Text.Json.Nodes.JsonObject { ["markdown.defaultMode"] = "source" }, name: "tests");
+        // the same layer keeps the hot exit for the tests that close windows with unsaved text; the tests of files.restoreTabs set the user's value
+        app.Workbench.Settings.SetLayer(NksHub.Textida.Workbench.Settings.SettingSource.Plugin, new System.Text.Json.Nodes.JsonObject { ["markdown.defaultMode"] = "source", ["files.restoreTabs"] = "always" }, name: "tests");
         return app;
     }
 
     /// <summary>Same profile, new run: the journal of the previous run is left as a crash leaves it (no clean-exit flag).</summary>
     public static App Restart(TempDir temp, App previous, ScriptedDialogs? dialogs = null)
     {
-        foreach (var w in previous.Windows.ToList()) w.Close();
+        foreach (var w in previous.Windows.ToList()) w.CloseWithoutQuestions();
         previous.Journal.Dispose();
         return Prepare(temp, dialogs);
     }

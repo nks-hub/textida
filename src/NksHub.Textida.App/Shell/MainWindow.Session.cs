@@ -49,11 +49,22 @@ internal sealed partial class MainWindow
 
     // ---- restoring ----
 
-    /// <summary>Reopens the tabs, groups and order of the last session and the work the journal kept; after a crash a bar says what came back.</summary>
+    /// <summary>
+    /// Reopens the tabs, groups and order of the last session and the work the journal kept; after a crash a bar says what came back. The setting
+    /// <c>files.restoreTabs</c> decides which tabs return: all of them (<c>always</c>), all only after a run that did not end normally (<c>afterCrash</c>,
+    /// the default), or none (<c>never</c>). Unsaved work kept in the journal comes back with every choice.
+    /// </summary>
     internal void RestoreFrom(JournalService journal)
     {
         var recovery = journal.Recovery;
         if (recovery.Documents.Count == 0) return;
+        bool allTabs = _app.Workbench.Settings.GetString("files.restoreTabs") switch
+        {
+            "always" => true,
+            "never" => false,
+            _ => !journal.PreviousRunEndedCleanly,
+        };
+        if (!allTabs) ForgetTabsWithoutWork(journal);
         var opened = new Dictionary<Guid, OpenDocument>();
         var byId = recovery.Documents.Where(d => d.Document is not null).ToDictionary(d => d.DocId);
 
@@ -102,6 +113,18 @@ internal sealed partial class MainWindow
 
         if (journal.CrashedLastTime) ShowRestoreBar(recovery);
         foreach (var rd in journal.Pending) ShowPendingBar(rd);
+    }
+
+    /// <summary>Closes in the journal every recovered document without unsaved work, so it neither opens now nor returns after a later crash.</summary>
+    private static void ForgetTabsWithoutWork(JournalService journal)
+    {
+        static bool HasWork(RecoveredDocument rd) => rd.Document is { } d && d.IsModified && !(rd.Path is null && d.ByteLength == d.BomLength);
+        foreach (var rd in journal.Recovery.Documents.Where(d => d.Document is not null && !HasWork(d)).ToList())
+        {
+            journal.Session.Untrack(rd.Document!);
+            rd.Document!.Dispose();
+            journal.Recovery.Documents.Remove(rd);
+        }
     }
 
     private static void ApplySelection(DocTab tab, SessionTab saved)
@@ -216,9 +239,19 @@ internal sealed partial class MainWindow
 
     // ---- closing the window ----
 
+    private bool _closeWithoutQuestions;
+
+    /// <summary>Closes the window as a restart leaves it: nothing is asked and the journal keeps every tab as it is.</summary>
+    internal void CloseWithoutQuestions()
+    {
+        _closeWithoutQuestions = true;
+        Close();
+    }
+
     /// <summary>
-    /// With a working journal unsaved work survives the close (hot exit), so nothing is asked. Without one every document
-    /// with unsaved changes asks, because the tab is the only place the text lives.
+    /// With a working journal and <c>files.restoreTabs</c> set to <c>always</c> unsaved work survives the close (hot exit), so nothing is asked. Otherwise
+    /// every document with unsaved changes asks, because its tab will not come back: save, discard, or keep the work in the journal for the next start.
+    /// Only a window the user closes asks: a shutdown of the program or of the system closes it anyway, so the work then stays in the journal.
     /// </summary>
     private async void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
@@ -233,7 +266,8 @@ internal sealed partial class MainWindow
             Close();
             return;
         }
-        bool askFirst = !_app.Journal.IsActive && _docs.Any(d => d.HasUnsavedWork);
+        bool hotExit = _app.Journal.IsActive && (_closeWithoutQuestions || e.CloseReason != WindowCloseReason.WindowClosing || _app.Workbench.Settings.GetString("files.restoreTabs") == "always");
+        bool askFirst = !hotExit && _docs.Any(d => d.HasUnsavedWork);
         if (!askFirst)
         {
             _closeApproved = true;
@@ -241,6 +275,7 @@ internal sealed partial class MainWindow
             return;
         }
         e.Cancel = true;
+        var discarded = new List<OpenDocument>();
         foreach (var od in _docs.Where(d => d.HasUnsavedWork).ToList())
         {
             var tab = od.Views[0];
@@ -248,10 +283,13 @@ internal sealed partial class MainWindow
             switch (await AskUnsavedAsync(od))
             {
                 case UnsavedAnswer.Save: if (!await SaveAsync(tab)) return; break;
-                case UnsavedAnswer.Discard: break;
+                case UnsavedAnswer.Discard: discarded.Add(od); break;
+                case UnsavedAnswer.KeepInJournal: break; // comes back at the next start whatever the setting says
                 default: return;
             }
         }
+        // only now: a cancel above leaves the window open, and its tabs must stay protected by the journal
+        if (_app.Journal.IsActive) foreach (var od in discarded) _app.Journal.Untrack(od);
         _closeApproved = true;
         if (_app.Windows.Count == 1) { UpdateActiveProject(); _app.SaveSession(); }
         Close();

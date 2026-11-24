@@ -81,7 +81,7 @@ internal static class AppCommands
         Do("nks.app.openSettings", _ => app.OpenSettings());
         On("nks.settings.backup", w => w.BackupConfiguration());
         On("nks.settings.restore", w => w.RestoreConfiguration());
-        Do("nks.app.quit", _ => app.Exit());
+        Do("nks.app.quit", _ => app.Quit());
 
         // edit
         Do("nks.edit.undo", w => w.Undo());

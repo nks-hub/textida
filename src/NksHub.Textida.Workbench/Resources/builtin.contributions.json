@@ -7004,6 +7004,28 @@
       ]
     },
     {
+      "key": "files.restoreTabs",
+      "type": "string",
+      "default": "afterCrash",
+      "title": "setting.files.restoreTabs.title",
+      "description": "setting.files.restoreTabs.description",
+      "category": "cat.files",
+      "scope": "application",
+      "enum": [
+        "never",
+        "always",
+        "afterCrash"
+      ],
+      "tags": [
+        "session",
+        "tabs",
+        "restore",
+        "startup",
+        "crash",
+        "journal"
+      ]
+    },
+    {
       "key": "updates.checkOnStart",
       "type": "boolean",
       "default": true,

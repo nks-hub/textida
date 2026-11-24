@@ -153,6 +153,8 @@
   "setting.files.insertFinalNewline.description": "Pri ukladaní pridá na koniec súboru koniec riadka.",
   "setting.files.autoSave.title": "Automatické ukladanie",
   "setting.files.autoSave.description": "Uloží zmenené súbory na ich vlastnú cestu.",
+  "setting.files.restoreTabs.title": "Karty pri spustení",
+  "setting.files.restoreTabs.description": "Ktoré karty sa vrátia po novom spustení. Neuloženú prácu ponechanú v žurnáli vráti každá voľba; po páde alebo výpadku prúdu ju vráti aj voľba Nikdy.",
   "setting.workbench.uiLanguage.title": "Jazyk rozhrania",
   "setting.workbench.uiLanguage.description": "Jazyk ponúk a správ. Automaticky sa riadi systémom.",
   "cat.format": "Formát",

@@ -408,7 +408,7 @@ internal sealed partial class SettingsWindow : Window
         (K.SettingsSectionEncoding, ["files.encoding", "files.eol"]),
         (K.SettingsSectionOpening, ["files.binaryAsHex", "files.imageOpen", "files.largeFileThreshold", "files.decompileAssemblies", "files.relatedFileRules", "files.showHidden"]),
         (K.SettingsSectionMarkdown, ["markdown."]),
-        (K.SettingsSectionSaving, ["files.autoSave", "files.journalDirectory", "files.journalFallbackDirectory"]),
+        (K.SettingsSectionSaving, ["files.autoSave", "files.restoreTabs", "files.journalDirectory", "files.journalFallbackDirectory"]),
         (K.SettingsSectionRemote, ["remote."]),
         (K.SettingsSectionSecrets, ["files.secretFilePatterns"]),
         (K.SettingsSectionGitGutter, ["git.gutter", "git.gutterBase", "git.blame", "files.gitStatus"]),

@@ -153,6 +153,8 @@
   "setting.files.insertFinalNewline.description": "Fügt beim Speichern am Ende der Datei ein Zeilenende an.",
   "setting.files.autoSave.title": "Automatisch speichern",
   "setting.files.autoSave.description": "Speichert geänderte Dateien unter ihrem eigenen Pfad.",
+  "setting.files.restoreTabs.title": "Tabs beim Start",
+  "setting.files.restoreTabs.description": "Welche Tabs nach einem Neustart zurückkommen. Im Journal behaltene ungespeicherte Arbeit kommt mit jeder Wahl zurück; nach einem Absturz oder Stromausfall bringt sie auch Nie zurück.",
   "setting.workbench.uiLanguage.title": "Sprache der Oberfläche",
   "setting.workbench.uiLanguage.description": "Sprache der Menüs und Meldungen. Automatisch folgt dem System.",
   "cat.format": "Format",

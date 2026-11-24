@@ -10,6 +10,11 @@ Versions 0.1.0 to 0.1.4 were published as previews; 0.1.5 is the first regular r
 - Copy a node's path or source and edit JSON values, XML attributes and text as one undoable change while preserving the surrounding bytes.
 - Touch input in the text editor and the large-file editor: drag to scroll, hold to select a word, and drag the selection handles to change the range.
 - Pen input selects text by dragging. Keyboard input cancels a pending touch gesture; holding the text does not open the context menu.
+- Setting `files.restoreTabs` (Tabs at startup) decides which tabs come back after a start: `afterCrash` (default) only after a crash or power cut, `always` as they were closed, `never` none. Unsaved work kept in the journal comes back with every choice; with `never` a crash brings back only the tabs with unsaved changes.
+
+### Changed
+
+- Tabs no longer come back after a normal close by default. With `afterCrash` and `never`, closing a window asks about unsaved changes (Save, Don't Save, Keep in Journal, Cancel), and the Quit command closes the windows the same way. A shutdown for an update or of the system asks nothing and keeps unsaved work in the journal.
 
 ### Validation
 

@@ -177,6 +177,17 @@
           "description": "Auto save. Saves changed files to their own path.",
           "x-scope": "application"
         },
+        "files.restoreTabs": {
+          "type": "string",
+          "default": "afterCrash",
+          "enum": [
+            "never",
+            "always",
+            "afterCrash"
+          ],
+          "description": "Tabs at startup. Which tabs come back when the editor starts again. Unsaved work kept in the journal comes back with every choice; after a crash or a power cut even Never brings it back.",
+          "x-scope": "application"
+        },
         "updates.checkOnStart": {
           "type": "boolean",
           "default": true,
